@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Astradio • Sandbox</title>
+  <style>
+    body { margin:0; background:#0b1322; color:#e6f0ff; font-family: Inter, system-ui, sans-serif; }
+    .top { padding:12px; display:flex; justify-content:space-between; align-items:center; }
+    select, button { background:#0f1728; color:#e6f0ff; border:1px solid #203052; border-radius:10px; padding:10px; }
+    .wheel { height: calc(100vh - 200px); display:flex; align-items:center; justify-content:center; }
+    svg { width: min(92vw, 480px); height: min(92vw, 480px); }
+    .sheet { position:fixed; left:0; right:0; bottom:0; background:#111a2e; border-top:1px solid #203052; border-radius:16px 16px 0 0; padding:12px; }
+    .row { display:flex; gap:8px; overflow-x:auto; }
+  </style>
+  <script src="https://unpkg.com/tone/build/Tone.js"></script>
+  <script defer src="./wheel.js"></script>
+  <script defer src="./sandbox.js"></script>
+</head>
+<body>
+  <div class="top">
+    <h3>Sandbox</h3>
+    <div>
+      <label style="font-size:12px;opacity:.8;margin-right:6px;">Genre</label>
+      <select id="genre">
+        <option value="ambient">Ambient</option>
+        <option value="cinematic">Cinematic</option>
+        <option value="lofi">Lo-Fi</option>
+        <option value="electronic">Electronic</option>
+        <option value="orchestral">Orchestral</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="wheel">
+    <svg id="wheel" viewBox="-220 -220 440 440"></svg>
+  </div>
+
+  <div class="sheet">
+    <div class="row" style="margin-bottom:8px;">
+      <button id="addToday">Add Today</button>
+      <button id="addNatal">Add Natal</button>
+      <button id="addCustom">Add Custom</button>
+      <button id="randomize">Randomize</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="row">
+      <button id="start">Start</button>
+      <button id="stop">Stop</button>
+    </div>
+  </div>
+</body>
+</html>
