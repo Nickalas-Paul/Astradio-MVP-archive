@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: Astradio API
+  version: "1.0"
+servers:
+  - url: https://api.astradio.io/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      required: [id, email, username]
+      properties:
+        id: { type: string, format: ulid }
+        email: { type: string, format: email }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string }
+    Profile:
+      type: object
+      properties:
+        birth_datetime: { type: string, format: date-time }
+        birth_lat: { type: number }
+        birth_lon: { type: number }
+        privacy_level: { type: string, enum: [public, friends, private] }
+        compare_opt_in: { type: boolean }
+    Track:
+      type: object
+      required: [id, owner_id, mode, genre, duration_sec]
+      properties:
+        id: { type: string, format: ulid }
+        owner_id: { type: string, format: ulid }
+        mode: { type: string, enum: [clusters, elemental, lunar] }
+        genre: { type: string }
+        source: { type: string, enum: [natal, transit, overlay] }
+        duration_sec: { type: integer }
+        key_signature: { type: string }
+        bpm: { type: integer }
+        waveform_url: { type: string }
+        preview_url: { type: string }
+        og_image_url: { type: string }
+        timeline_json: { type: object }
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      summary: Register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email, password], properties: { email: {type: string}, password: {type: string, minLength: 12} } }
+      responses: { "200": { description: OK } }
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email, password], properties: { email: {type: string}, password: {type: string} } }
+      responses:
+        "200":
+          description: Tokens
+          content:
+            application/json:
+              schema: { type: object, properties: { access_token: {type: string}, expires_in: {type: integer} } }
+  /auth/refresh:
+    post:
+      summary: Refresh tokens
+      responses: { "200": { description: OK } }
+  /users/me:
+    get:
+      summary: Get current user
+      responses:
+        "200": { description: Me, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+    patch:
+      summary: Update account fields
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/User" }
+      responses: { "200": { description: Updated } }
+  /users/me/profile:
+    patch:
+      summary: Update profile fields
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Profile" }
+      responses: { "200": { description: Updated } }
+  /users/{username}:
+    get:
+      summary: Public profile
+      parameters: [{ name: username, in: path, required: true, schema: {type: string} }]
+      responses: { "200": { description: OK } }
+  /tracks/render:
+    post:
+      summary: Enqueue a render
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chartData, mode, genre]
+              properties:
+                chartData: { type: object }
+                mode: { type: string, enum: [clusters, elemental, lunar] }
+                genre: { type: string }
+      responses:
+        "202": { description: Enqueued }
+        "200": { description: Deduped existing, returns Track, content: { application/json: { schema: { $ref: "#/components/schemas/Track" } } } }
+  /tracks/{id}:
+    get:
+      summary: Get track by id
+      parameters: [{ name: id, in: path, required: true, schema: {type: string} }]
+      responses:
+        "200":
+          description: Track
+          content: { application/json: { schema: { $ref: "#/components/schemas/Track" } } }
+  /tracks/{id}/save:
+    post: { summary: Save track, responses: { "200": { description: Saved } } }
+    delete: { summary: Unsave track, responses: { "200": { description: Unsaved } } }
+  /tracks/{id}/like:
+    post: { summary: Like track, responses: { "200": { description: Liked } } }
+    delete: { summary: Unlike track, responses: { "200": { description: Unliked } } }
+  /tracks/{id}/share-card:
+    get:
+      summary: Get share info
+      responses: { "200": { description: OK } }
+  /compare/{username}:
+    post:
+      summary: Overlay my chart with another user if allowed
+      parameters: [{ name: username, in: path, required: true, schema: {type: string} }]
+      responses: { "200": { description: Overlay track queued or returned } }
