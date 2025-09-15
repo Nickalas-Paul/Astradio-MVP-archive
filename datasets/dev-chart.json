@@ -1,0 +1,31 @@
+{
+  "ts": "2024-01-15T12:00:00Z",
+  "tz": "UTC",
+  "lat": 40.7128,
+  "lon": -74.0060,
+  "houseSystem": "placidus",
+  "planets": [
+    {"name": "sun", "lon": 285.5},
+    {"name": "moon", "lon": 45.2},
+    {"name": "mercury", "lon": 270.1},
+    {"name": "venus", "lon": 300.8},
+    {"name": "mars", "lon": 120.3},
+    {"name": "jupiter", "lon": 15.7},
+    {"name": "saturn", "lon": 90.4},
+    {"name": "uranus", "lon": 180.9},
+    {"name": "neptune", "lon": 210.6},
+    {"name": "pluto", "lon": 240.2}
+  ],
+  "houses": [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
+  "aspects": [
+    {"a": "sun", "b": "moon", "type": "trine", "orb": 2.1},
+    {"a": "mercury", "b": "venus", "type": "conjunction", "orb": 1.8}
+  ],
+  "moonPhase": 0.75,
+  "dominantElements": {
+    "fire": 0.3,
+    "earth": 0.2,
+    "air": 0.25,
+    "water": 0.25
+  }
+}

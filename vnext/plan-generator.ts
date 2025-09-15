@@ -6,6 +6,7 @@ import { generateWithStudent } from "./ml/student";
 import { retrieveNearestPlan } from "./ml/retrieval";
 import { refine } from "./ml/refiner";
 import { audition } from "./audition-gate";
+import { logAudit } from "./logger";
 
 export async function generatePlanMLOnly(feat: FeatureVec): Promise<{ plan: Plan; source: string }> {
   // 1) Student
@@ -13,6 +14,11 @@ export async function generatePlanMLOnly(feat: FeatureVec): Promise<{ plan: Plan
     const plan = await generateWithStudent(feat);
     const res = audition(plan);
     if (res.passed) {
+      logAudit({
+        source: 'student',
+        durationSec: plan.durationSec,
+        eventCount: plan.events.length
+      });
       return { plan, source: 'student' };
     }
   }
@@ -24,6 +30,11 @@ export async function generatePlanMLOnly(feat: FeatureVec): Promise<{ plan: Plan
       const plan = await refine(prior, feat);
       const res = audition(plan);
       if (res.passed) {
+        logAudit({
+          source: 'retrieval+refiner',
+          durationSec: plan.durationSec,
+          eventCount: plan.events.length
+        });
         return { plan, source: 'retrieval+refiner' };
       }
     }

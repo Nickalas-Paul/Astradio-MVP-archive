@@ -10,7 +10,9 @@
     "dev": "nodemon server/index.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "build:vnext": "tsc -p vnext/tsconfig.json"
+    "build:vnext": "tsc -p vnext/tsconfig.json",
+    "vnext:build": "tsc -p vnext/tsconfig.json",
+    "vnext:smoke": "node dist/vnext/scripts/smoke.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^8.3.6",
