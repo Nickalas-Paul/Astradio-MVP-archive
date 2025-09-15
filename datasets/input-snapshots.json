@@ -1,0 +1,95 @@
+[
+  {
+    "ts": "2024-01-15T12:00:00Z",
+    "tz": "UTC",
+    "lat": 40.7128,
+    "lon": -74.0060,
+    "houseSystem": "placidus",
+    "planets": [
+      {"name": "sun", "lon": 285.5},
+      {"name": "moon", "lon": 45.2},
+      {"name": "mercury", "lon": 270.1},
+      {"name": "venus", "lon": 300.8},
+      {"name": "mars", "lon": 120.3},
+      {"name": "jupiter", "lon": 15.7},
+      {"name": "saturn", "lon": 90.4},
+      {"name": "uranus", "lon": 180.9},
+      {"name": "neptune", "lon": 210.6},
+      {"name": "pluto", "lon": 240.2}
+    ],
+    "houses": [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
+    "aspects": [
+      {"a": "sun", "b": "moon", "type": "trine", "orb": 2.1},
+      {"a": "mercury", "b": "venus", "type": "conjunction", "orb": 1.8}
+    ],
+    "moonPhase": 0.75,
+    "dominantElements": {
+      "fire": 0.3,
+      "earth": 0.2,
+      "air": 0.25,
+      "water": 0.25
+    }
+  },
+  {
+    "ts": "2024-03-20T06:30:00Z",
+    "tz": "UTC",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "houseSystem": "placidus",
+    "planets": [
+      {"name": "sun", "lon": 0.0},
+      {"name": "moon", "lon": 180.0},
+      {"name": "mercury", "lon": 15.2},
+      {"name": "venus", "lon": 345.8},
+      {"name": "mars", "lon": 270.1},
+      {"name": "jupiter", "lon": 60.3},
+      {"name": "saturn", "lon": 150.7},
+      {"name": "uranus", "lon": 30.4},
+      {"name": "neptune", "lon": 120.9},
+      {"name": "pluto", "lon": 210.6}
+    ],
+    "houses": [15, 45, 75, 105, 135, 165, 195, 225, 255, 285, 315, 345],
+    "aspects": [
+      {"a": "sun", "b": "moon", "type": "opposition", "orb": 1.2},
+      {"a": "mars", "b": "saturn", "type": "square", "orb": 3.4}
+    ],
+    "moonPhase": 0.0,
+    "dominantElements": {
+      "fire": 0.2,
+      "earth": 0.4,
+      "air": 0.2,
+      "water": 0.2
+    }
+  },
+  {
+    "ts": "2024-06-21T18:00:00Z",
+    "tz": "UTC",
+    "lat": 35.6762,
+    "lon": 139.6503,
+    "houseSystem": "placidus",
+    "planets": [
+      {"name": "sun", "lon": 90.0},
+      {"name": "moon", "lon": 270.0},
+      {"name": "mercury", "lon": 85.5},
+      {"name": "venus", "lon": 95.2},
+      {"name": "mars", "lon": 120.8},
+      {"name": "jupiter", "lon": 60.1},
+      {"name": "saturn", "lon": 210.4},
+      {"name": "uranus", "lon": 300.7},
+      {"name": "neptune", "lon": 330.3},
+      {"name": "pluto", "lon": 240.9}
+    ],
+    "houses": [45, 75, 105, 135, 165, 195, 225, 255, 285, 315, 345, 15],
+    "aspects": [
+      {"a": "sun", "b": "moon", "type": "square", "orb": 2.8},
+      {"a": "mercury", "b": "venus", "type": "conjunction", "orb": 0.9}
+    ],
+    "moonPhase": 0.5,
+    "dominantElements": {
+      "fire": 0.25,
+      "earth": 0.25,
+      "air": 0.25,
+      "water": 0.25
+    }
+  }
+]

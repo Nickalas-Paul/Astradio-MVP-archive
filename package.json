@@ -12,7 +12,9 @@
     "db:seed": "node scripts/seed.js",
     "build:vnext": "tsc -p vnext/tsconfig.json",
     "vnext:build": "tsc -p vnext/tsconfig.json",
-    "vnext:smoke": "node dist/vnext/scripts/smoke.js"
+    "vnext:smoke": "node dist/vnext/scripts/smoke.js",
+    "vnext:materialize": "node dist/vnext/scripts/materialize-snapshots.js",
+    "vnext:audition": "node dist/vnext/scripts/run-audition.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^8.3.6",
