@@ -9,6 +9,7 @@ require("dotenv").config();
 // vNext compiled handlers (do NOT import .ts directly)
 const { vnextCompose } = require(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
 const { shadowMiddleware } = require(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
+const { canaryRouter } = require(path.join(__dirname, "..", "dist", "vnext", "api", "canary"));
 
 // Import existing Swiss Ephemeris functionality
 const swe = require("swisseph");
@@ -1465,6 +1466,9 @@ async function generateAudioBuffer(composition, format = 'wav', normalize = true
 
 // Shadow middleware for vNext (runs ML in background when enabled)
 app.use("/api/compose", shadowMiddleware);
+
+// Canary router for vNext (routes subset of requests to ML-primary when enabled)
+app.use("/api/compose", canaryRouter);
 
 // Vector-based composition endpoint
 app.post("/api/compose", express.json(), async (req, res) => {
