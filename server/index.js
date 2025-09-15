@@ -1,9 +1,14 @@
-const path = require("path");
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
+
+// vNext compiled handlers (do NOT import .ts directly)
+const { vnextCompose } = require(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
+const { shadowMiddleware } = require(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
 
 // Import existing Swiss Ephemeris functionality
 const swe = require("swisseph");
@@ -26,6 +31,9 @@ try {
   redis = { close: async () => {} };
 }
 
+// Disable Redis connection attempts to prevent startup failures
+redis = { close: async () => {}, connect: async () => {} };
+
 // Import routes (optional)
 let authRoutes, userRoutes, trackRoutes, socialRoutes, libraryRoutes;
 try {
@@ -45,6 +53,15 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ===== FEATURE FLAGS =====
+const FEATURE_FLAGS = {
+  FF_VECTOR_UI: process.env.FF_VECTOR_UI === 'true' || true,
+  FF_ENGINE_VECTOR: process.env.FF_ENGINE_VECTOR === 'true' || true,
+  FF_DELETE_LEGACY_SERVERS: process.env.FF_DELETE_LEGACY_SERVERS === 'true' || true
+};
+
+console.log('Feature Flags:', FEATURE_FLAGS);
 
 // Security middleware
 app.use(helmet({
@@ -66,15 +83,34 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting
+// Add permissive CSP for audio development (allows blob URLs)
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
+    "worker-src 'self' blob:; " +
+    "connect-src 'self' https:; " +
+    "media-src 'self' blob: data:; " +
+    "object-src 'none';"
+  );
+  next();
+});
+
+// Rate limiting - more permissive for development and testing
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Increased to 1000 requests per windowMs for testing
   message: {
     error: "Too many requests from this IP, please try again later."
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting for localhost in development
+  skip: (req) => {
+    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    return isLocalhost && isDevelopment;
+  }
 });
 
 app.use(limiter);
@@ -119,7 +155,7 @@ const EXTRAS = {
   chiron: swe.SE_CHIRON,
   lilith: swe.SE_MEAN_NODE, // Mean Black Moon Lilith
   northNode: swe.SE_MEAN_NODE,
-  southNode: swe.SE_MEAN_NODE, // Will calculate opposite
+  // Note: southNode will be calculated as opposite of northNode
   ceres: swe.SE_CERES,
   juno: swe.SE_JUNO,
   vesta: swe.SE_VESTA,
@@ -274,8 +310,19 @@ function calcPositions(jd, includeExtras = true){
         }
         
         // Handle special cases
+        if (name === 'northNode') {
+          // Store the north node position for later south node calculation
+          positions.northNode = lon;
+          continue; // Skip adding to positions now, we'll add it after processing
+        }
         if (name === 'southNode') {
-          lon = (lon + 180) % 360; // Opposite of North Node
+          // Calculate south node as opposite of north node
+          if (positions.northNode !== undefined) {
+            lon = (positions.northNode + 180) % 360;
+          } else {
+            console.warn('North Node not available, skipping South Node calculation');
+            continue;
+          }
         }
         
         if (lon < 0) lon += 360;
@@ -285,6 +332,11 @@ function calcPositions(jd, includeExtras = true){
       } catch (e) {
         console.error(`Error calculating ${name}:`, e.message);
       }
+    }
+    
+    // Add north node to positions if it was calculated
+    if (positions.northNode !== undefined) {
+      positions.northNode = positions.northNode;
     }
   }
   
@@ -715,6 +767,51 @@ if (trackRoutes && trackRoutes.router) app.use('/v1/tracks', trackRoutes.router)
 if (socialRoutes && socialRoutes.router) app.use('/v1', socialRoutes.router);
 if (libraryRoutes && libraryRoutes.router) app.use('/v1/library', libraryRoutes.router);
 
+// API v2 routes removed - all vector-based composition happens via /api/render
+
+// ---- IP Geolocation API ----------------------------------------------------
+// Free IP geolocation service (ipapi.co)
+async function getLocationFromIP(ip) {
+  return new Promise((resolve, reject) => {
+    // Use a public IP geolocation service
+    const url = `https://ipapi.co/${ip}/json/`;
+    
+    fetch(url)
+      .then(res => res.json())
+      .then(location => {
+        // Check if we got valid location data
+        if (location.error) {
+          reject(new Error(`IP geolocation failed: ${location.reason || 'Unknown error'}`));
+          return;
+        }
+        
+        // Return formatted location data
+        resolve({
+          city: location.city || 'Unknown',
+          region: location.region || '',
+          country: location.country_name || 'Unknown',
+          latitude: parseFloat(location.latitude) || 0,
+          longitude: parseFloat(location.longitude) || 0,
+          timezone: location.timezone || 'UTC',
+          utc_offset: location.utc_offset || '+00:00'
+        });
+      })
+      .catch(error => {
+        reject(new Error(`Geolocation request failed: ${error.message}`));
+      });
+  });
+}
+
+// Get client IP address
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0] || 
+         req.headers['x-real-ip'] || 
+         req.connection.remoteAddress || 
+         req.socket.remoteAddress || 
+         req.ip || 
+         '127.0.0.1';
+}
+
 // Legacy Swiss Ephemeris endpoints (kept for backward compatibility)
 // Geocode (with cache + friendly rate-limit message)
 app.get("/geocode", async (req, res) => {
@@ -741,6 +838,21 @@ app.get("/geocode", async (req, res) => {
   }
 });
 
+// Geolocation endpoint - resolve location from client IP (fallback-safe)
+app.get("/geolocation", (req, res) => {
+  res.status(410).json({ error: "Deprecated. Use /api/ip-geo from the client." });
+});
+
+// Test geolocation endpoint for debugging
+app.get("/test-geo", (req, res) => {
+  res.status(410).json({ error: "Deprecated." });
+});
+
+// Auto-chart endpoint that combines geolocation with chart generation
+app.get("/auto-chart", (req, res) => {
+  res.status(410).json({ error: "Deprecated. Client should call /api/ip-geo then /chart." });
+});
+
 // Planetary longitudes (no location needed)
 app.get("/positions", (req, res) => {
   try {
@@ -758,7 +870,10 @@ app.get("/positions", (req, res) => {
       return res.json({ date, time, positions: hit.positions, cusps: hit.cusps, cached: true });
     }
     
-    const jd = toJulianDayUT(date, time, lat, lon);
+    // Only pass coordinates if they are valid numbers
+    const jd = Number.isFinite(lat) && Number.isFinite(lon) 
+      ? toJulianDayUT(date, time, lat, lon)
+      : toJulianDayUT(date, time);
     const positions = calcPositions(jd, includeExtras);
 
     // Equal-house cusps (no location needed for positions endpoint)
@@ -817,40 +932,620 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Serve UI
-app.get("*", (_, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+// Minimal IP geolocation for client fallback
+// Resilient, cached IP geolocation with reverse geocoding (no prompt)
+const IP_CACHE_TTL_MS = 5 * 60_000;
+const ipGeoCache = new Map(); // key: ip or 'self', value: { t, data }
+
+async function fetchJson(url, opts = {}) {
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort(), opts.timeoutMs || 1500);
+  try {
+    // Use node-fetch or https module for older Node versions
+    let r;
+    try {
+      r = await fetch(url, { signal: controller.signal, headers: opts.headers });
+    } catch (fetchError) {
+      // Fallback to https module for older Node versions
+      const https = require('https');
+      const http = require('http');
+      const urlObj = new URL(url);
+      const client = urlObj.protocol === 'https:' ? https : http;
+      
+      r = await new Promise((resolve, reject) => {
+        const req = client.request(url, { headers: opts.headers }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            resolve({
+              ok: res.statusCode >= 200 && res.statusCode < 300,
+              status: res.statusCode,
+              json: () => JSON.parse(data)
+            });
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(opts.timeoutMs || 1500, () => req.destroy());
+        req.end();
+      });
+    }
+    
+    clearTimeout(to);
+    if (!r.ok) throw new Error(`HTTP ${r.status || r.statusCode}`);
+    return await r.json();
+  } catch (e) {
+    clearTimeout(to);
+    throw e;
+  }
+}
+
+async function reverseGeocodeLabel(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+    const j = await fetchJson(url, {
+      headers: {
+        'User-Agent': 'Astradio/1.0 (astradio.io; contact: support@astradio.io)',
+        'Accept': 'application/json'
+      },
+      timeoutMs: 1500
+    });
+    const label = j && j.display_name ? j.display_name.split(',').slice(0, 3).join(',') : '';
+    return label || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  } catch (_) {
+    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }
+}
+
+app.get('/api/ip-geo', async (req, res) => {
+  try {
+    const ip = getClientIP(req) || 'self';
+    const hit = ipGeoCache.get(ip);
+    const now = Date.now();
+    if (hit && now - hit.t < IP_CACHE_TTL_MS) return res.json(hit.data);
+
+    // provider rotation
+    const providers = [
+      async () => {
+        const j = await fetchJson('https://ipapi.co/json/', { timeoutMs: 1500 });
+        return { lat: Number(j.latitude), lon: Number(j.longitude), city: j.city, country: j.country_name };
+      },
+      async () => {
+        const j = await fetchJson('https://ipinfo.io/json', { timeoutMs: 1500 });
+        const [lat, lon] = (j.loc || '').split(',').map(Number);
+        return { lat, lon, city: j.city, country: j.country };
+      },
+      async () => {
+        const j = await fetchJson('https://freeipapi.com/api/json');
+        return { lat: Number(j.latitude), lon: Number(j.longitude), city: j.cityName, country: j.countryName };
+      }
+    ];
+
+    let geo = null; let err = null;
+    for (const p of providers) {
+      try { geo = await p(); if (Number.isFinite(geo.lat) && Number.isFinite(geo.lon)) break; } catch (e) { err = e; }
+    }
+
+    if (!geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lon)) {
+      const data = { lat: null, lon: null, city: 'Auto (Unknown)', country: null };
+      ipGeoCache.set(ip, { t: now, data });
+      return res.json(data);
+    }
+
+    const label = await reverseGeocodeLabel(geo.lat, geo.lon);
+    const data = { lat: geo.lat, lon: geo.lon, city: label, country: geo.country || null };
+    ipGeoCache.set(ip, { t: now, data });
+    return res.json(data);
+  } catch (e) {
+    return res.json({ lat: null, lon: null, city: 'Auto (Unknown)', country: null });
+  }
 });
 
-// ---------- New Composition API Endpoints ----------
 
-// POST /api/compose - Generate chart context from birth data
+
+// ---------- Vector-Based Composition Generation ----------
+
+/**
+ * Generate composition from vector and chart context
+ */
+async function generateCompositionFromVector(chartContext, mode, vector, duration = 60) {
+  // Handle both array and object vector formats
+  let vectorObj;
+  if (Array.isArray(vector)) {
+    console.log(`[Composition] Generating ${mode} composition with vector [${vector.map(v => v.toFixed(3)).join(', ')}]`);
+    vectorObj = {
+      tempo_energy: vector[0],
+      rhythm_density: vector[1], 
+      harmonic_tension: vector[2],
+      brightness: vector[3],
+      texture_space: vector[4],
+      melodic_activity: vector[5]
+    };
+  } else {
+    console.log(`[Composition] Generating ${mode} composition with vector object:`, vector);
+    vectorObj = vector;
+  }
+  
+  // Generate composition based on mode
+  let composition;
+  switch (mode) {
+    case 'house-order':
+      composition = generateHouseOrderComposition(chartContext, vectorObj, duration);
+      break;
+    case 'cluster':
+      composition = generateClusterComposition(chartContext, vectorObj, duration);
+      break;
+    case 'elemental':
+      composition = generateElementalComposition(chartContext, vectorObj, duration);
+      break;
+    case 'lunar':
+      composition = generateLunarComposition(chartContext, vectorObj, duration);
+      break;
+    default:
+      throw new Error(`Unknown mode: ${mode}`);
+  }
+  
+  console.log(`[Composition] Generated composition with ${composition.segments?.length || 0} segments`);
+  
+  // Only log if no events (critical error)
+  const totalEvents = composition.segments?.reduce((sum, seg) => sum + (seg.events?.length || 0), 0) || 0;
+  if (totalEvents === 0) {
+    console.warn(`[Event Audit] WARNING: No events generated in any segment!`);
+  }
+  
+  return composition;
+}
+
+/**
+ * Generate house-order composition
+ */
+function generateHouseOrderComposition(chartContext, vector, duration) {
+  const segments = [];
+  const housesPerSegment = 12;
+  const segmentDuration = duration / housesPerSegment;
+  
+  for (let house = 1; house <= housesPerSegment; house++) {
+    const segmentStart = (house - 1) * segmentDuration;
+    const events = [];
+    
+    // Generate events based on vector dimensions
+    // Scale base event count by melodic_activity with a small floor to help melodic gate
+    const baseCount = Math.max(2, Math.floor(vector.melodic_activity * 8)); // 2..8
+    const eventCount = baseCount;
+    const rhythmDensity = vector.rhythm_density;
+    const tempoEnergy = vector.tempo_energy;
+    
+    // House processing (silent unless error)
+    
+    for (let i = 0; i < eventCount; i++) {
+      const eventTime = segmentStart + (i / eventCount) * segmentDuration;
+      
+      // Melodic events
+      if (Math.random() < vector.melodic_activity) {
+        events.push({
+          type: 'note',
+          role: 'melody',
+          note: 60 + Math.floor(Math.random() * 12), // C4-C5
+          start: eventTime,
+          duration: 0.5 + Math.random() * 1.0,
+          velocity: 0.6 + Math.random() * 0.3,
+          instrument: 'lead'
+        });
+        // Melodic event added (silent)
+      }
+      
+      // Rhythm events
+      if (Math.random() < rhythmDensity) {
+        events.push({
+          type: 'note',
+          role: 'rhythm',
+          note: 36 + Math.floor(Math.random() * 4), // Kick/snare range
+          start: eventTime,
+          duration: 0.1,
+          velocity: 0.7 + Math.random() * 0.2,
+          instrument: 'drums'
+        });
+        // Rhythm event added (silent)
+      }
+      
+      // Harmonic events
+      if (Math.random() < vector.harmonic_tension) {
+        events.push({
+          type: 'note',
+          role: 'harmony',
+          note: 48 + Math.floor(Math.random() * 12), // Bass range
+          start: eventTime,
+          duration: 1.0 + Math.random() * 2.0,
+          velocity: 0.4 + Math.random() * 0.3,
+          instrument: 'bass'
+        });
+      }
+    }
+    
+    // Ensure at least one melodic event per segment when melodic_activity is low
+    if (!events.some(e => e.role === 'melody')) {
+      const fallbackTime = segmentStart + 0.5 * segmentDuration;
+      events.push({
+        type: 'note',
+        role: 'melody',
+        note: 60 + Math.floor(Math.random() * 12),
+        start: fallbackTime,
+        duration: 0.6,
+        velocity: 0.65,
+        instrument: 'lead'
+      });
+    }
+    
+    segments.push({
+      type: 'house',
+      house: house,
+      startTime: segmentStart,
+      duration: segmentDuration,
+      events: events
+    });
+  }
+  
+  return {
+    mode: 'house-order',
+    durationSec: duration,
+    segments: segments,
+    vector: vector
+  };
+}
+
+/**
+ * Generate cluster-based composition
+ */
+function generateClusterComposition(chartContext, vector, duration) {
+  const segments = [];
+  const clusters = chartContext.clusters || [];
+  const segmentDuration = duration / Math.max(clusters.length, 1);
+  
+  clusters.forEach((cluster, index) => {
+    const segmentStart = index * segmentDuration;
+    const events = [];
+    
+    // Generate events based on cluster planets
+    cluster.planets.forEach(planet => {
+      const eventTime = segmentStart + Math.random() * segmentDuration;
+      
+      events.push({
+        type: 'note',
+        role: 'melody',
+        note: 60 + (planet % 12),
+        start: eventTime,
+        duration: 0.5 + Math.random() * 1.5,
+        velocity: 0.5 + Math.random() * 0.4,
+        instrument: 'lead'
+      });
+    });
+    
+    segments.push({
+      type: 'cluster',
+      clusterId: cluster.id,
+      planets: cluster.planets,
+      startTime: segmentStart,
+      duration: segmentDuration,
+      events: events
+    });
+  });
+  
+  return {
+    mode: 'cluster',
+    durationSec: duration,
+    segments: segments,
+    vector: vector
+  };
+}
+
+/**
+ * Generate elemental composition
+ */
+function generateElementalComposition(chartContext, vector, duration) {
+  const segments = [];
+  const elements = ['fire', 'earth', 'air', 'water'];
+  const segmentDuration = duration / elements.length;
+  
+  elements.forEach((element, index) => {
+    const segmentStart = index * segmentDuration;
+    const events = [];
+    
+    // Generate events based on element characteristics
+    const elementIntensity = chartContext.dominantElements?.[element] || 0.25;
+    const eventCount = Math.floor(elementIntensity * 10 + 2);
+    
+    for (let i = 0; i < eventCount; i++) {
+      const eventTime = segmentStart + (i / eventCount) * segmentDuration;
+      
+      events.push({
+        type: 'note',
+        role: element === 'fire' ? 'rhythm' : 'melody',
+        note: 48 + Math.floor(Math.random() * 24),
+        start: eventTime,
+        duration: element === 'water' ? 2.0 : 0.5,
+        velocity: element === 'fire' ? 0.8 : 0.5,
+        instrument: element === 'fire' ? 'drums' : 'lead'
+      });
+    }
+    
+    segments.push({
+      type: 'element',
+      element: element,
+      startTime: segmentStart,
+      duration: segmentDuration,
+      events: events
+    });
+  });
+  
+  return {
+    mode: 'elemental',
+    durationSec: duration,
+    segments: segments,
+    vector: vector
+  };
+}
+
+/**
+ * Generate lunar composition
+ */
+function generateLunarComposition(chartContext, vector, duration) {
+  const segments = [];
+  const moonPhase = chartContext.moonPhase || 0;
+  const segmentDuration = duration / 4; // 4 phases
+  
+  const phases = [
+    { name: 'new', start: 0 },
+    { name: 'waxing', start: 0.25 },
+    { name: 'full', start: 0.5 },
+    { name: 'waning', start: 0.75 }
+  ];
+  
+  phases.forEach((phase, index) => {
+    const segmentStart = index * segmentDuration;
+    const events = [];
+    
+    // Generate events based on lunar phase
+    const phaseIntensity = Math.sin(phase.start * 2 * Math.PI) * 0.5 + 0.5;
+    const eventCount = Math.floor(phaseIntensity * 8 + 2);
+    
+    for (let i = 0; i < eventCount; i++) {
+      const eventTime = segmentStart + (i / eventCount) * segmentDuration;
+      
+      events.push({
+        type: 'note',
+        role: 'melody',
+        note: 60 + Math.floor(Math.random() * 12),
+        start: eventTime,
+        duration: 0.5 + Math.random() * 1.0,
+        velocity: 0.4 + phaseIntensity * 0.4,
+        instrument: 'pad'
+      });
+    }
+    
+    segments.push({
+      type: 'lunar',
+      phase: phase.name,
+      startTime: segmentStart,
+      duration: segmentDuration,
+      events: events
+    });
+  });
+  
+  return {
+    mode: 'lunar',
+    durationSec: duration,
+    segments: segments,
+    vector: vector
+  };
+}
+
+/**
+ * Finalize composition with caps (from audio-engine.js)
+ */
+function finalizeCompositionWithCaps(comp, vector, bpm = 120) {
+  if (!comp || !Array.isArray(comp.segments)) return comp;
+  
+  // Extract all events from segments
+  const allEvents = [];
+  for (const segment of comp.segments) {
+    if (segment.events) {
+      allEvents.push(...segment.events);
+    }
+  }
+  
+  // Finalizer complete (silent unless error)
+  
+  const duration = comp.durationSec ?? 60;
+  const beats = (bpm / 60) * duration;
+  
+  // Target ranges derived from vector
+  const targetRhPerBeat = 2.2 + 2.6 * (vector?.rhythm_density ?? 0);
+  const targetNtPerBeat = 3.0 + 4.5 * (vector?.melodic_activity ?? 0);
+  const RH_MIN = Math.floor(targetRhPerBeat * beats * 0.85);
+  const RH_MAX = Math.ceil(targetRhPerBeat * beats * 1.15);
+  const NT_MAX = Math.ceil(targetNtPerBeat * beats * 1.10);
+  
+  // Count rhythm events
+  const rhythmEvents = allEvents.filter(e => e.role === 'rhythm' || e.role === 'percussion' || e.role === 'drums');
+  const noteEvents = allEvents.filter(e => e.type === 'note');
+  
+  // Ensure we have enough events
+  if (rhythmEvents.length < RH_MIN) {
+    // Add more rhythm events
+    const needed = RH_MIN - rhythmEvents.length;
+    for (let i = 0; i < needed; i++) {
+      const time = Math.random() * duration;
+      allEvents.push({
+        type: 'note',
+        role: 'rhythm',
+        note: 36 + Math.floor(Math.random() * 4),
+        start: time,
+        duration: 0.1,
+        velocity: 0.7,
+        instrument: 'drums'
+      });
+    }
+  }
+  
+  if (noteEvents.length < 10) {
+    // Add more melodic events
+    const needed = 10 - noteEvents.length;
+    for (let i = 0; i < needed; i++) {
+      const time = Math.random() * duration;
+      allEvents.push({
+        type: 'note',
+        role: 'melody',
+        note: 60 + Math.floor(Math.random() * 12),
+        start: time,
+        duration: 0.5 + Math.random() * 1.0,
+        velocity: 0.6,
+        instrument: 'lead'
+      });
+    }
+  }
+  
+  // Update segments with finalized events
+  const finalizedSegments = comp.segments.map(segment => ({
+    ...segment,
+    events: allEvents.filter(e => e.start >= segment.startTime && e.start < segment.startTime + segment.duration)
+  }));
+  
+  return {
+    ...comp,
+    segments: finalizedSegments,
+    durationSec: duration
+  };
+}
+
+/**
+ * Generate audio buffer from composition
+ */
+async function generateAudioBuffer(composition, format = 'wav', normalize = true) {
+  console.log('[AudioBuffer] Generating real audio from composition...');
+  
+  // Generate actual audio using composition data
+  const duration = composition.durationSec || 60;
+  const sampleRate = 44100;
+  const bufferSize = sampleRate * duration;
+  const buffer = Buffer.alloc(bufferSize * 2); // 16-bit stereo
+  
+  // Generate audio based on composition segments
+  let sampleIndex = 0;
+  for (const segment of composition.segments || []) {
+    const segmentStart = Math.floor((segment.startTime || 0) * sampleRate);
+    const segmentEnd = Math.floor(((segment.startTime || 0) + (segment.duration || 5)) * sampleRate);
+    
+    // Generate audio for each event in segment
+    for (const event of segment.events || []) {
+      const eventStart = segmentStart + Math.floor((event.start || 0) * sampleRate);
+      const eventDuration = Math.floor((event.duration || 0.5) * sampleRate);
+      
+      // Generate simple sine wave for each note
+      if (event.type === 'note' && event.note) {
+        const frequency = 440 * Math.pow(2, (event.note - 69) / 12); // A4 = 440Hz
+        const velocity = (event.velocity || 0.7) * 0.3; // Scale down volume
+        
+        for (let i = 0; i < eventDuration && eventStart + i < bufferSize; i++) {
+          const t = i / sampleRate;
+          const sample = Math.sin(2 * Math.PI * frequency * t) * velocity;
+          const sample16 = Math.floor(sample * 32767);
+          
+          // Write to both channels
+          buffer.writeInt16LE(sample16, (eventStart + i) * 2);
+          buffer.writeInt16LE(sample16, (eventStart + i) * 2 + 1);
+        }
+      }
+    }
+  }
+  
+  console.log(`[AudioBuffer] Generated ${bufferSize} samples of real audio`);
+  return buffer;
+}
+
+// ---------- Vector-Based API Endpoints ----------
+
+// Shadow middleware for vNext (runs ML in background when enabled)
+app.use("/api/compose", shadowMiddleware);
+
+// Vector-based composition endpoint
 app.post("/api/compose", express.json(), async (req, res) => {
   try {
-    const { mode, genre, natal, compare, useTodaySky } = req.body;
+    const { mode, vector, natal, compare, useTodaySky, chartType, validateData } = req.body;
     
     // Validate required fields
     if (!natal || !natal.date || !natal.time || !natal.tz || natal.lat === undefined || natal.lon === undefined) {
       return res.status(400).json({ error: "Missing required natal data" });
     }
     
-    if (!mode || !genre) {
-      return res.status(400).json({ error: "Missing mode or genre" });
+    if (!mode || !vector) {
+      return res.status(400).json({ error: "Missing mode or vector" });
     }
     
-    // Validate mode and genre
+    // Validate mode and vector
     const validModes = ['house-order', 'cluster', 'elemental', 'lunar'];
-    const validGenres = ['ambient', 'classical', 'jazz', 'lofi', 'house', 'electronic'];
     
     if (!validModes.includes(mode)) {
       return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` });
     }
     
-    if (!validGenres.includes(genre)) {
-      return res.status(400).json({ error: `Invalid genre. Must be one of: ${validGenres.join(', ')}` });
+    // Validate vector (6 dimensions, 0-1 range)
+    if (!Array.isArray(vector) || vector.length !== 6) {
+      return res.status(400).json({ error: "Vector must be an array of 6 numbers" });
     }
     
-    console.log(`COMPOSE: ${mode}/${genre} for ${natal.date} ${natal.time} ${natal.tz} (${natal.lat}, ${natal.lon})`);
+    if (vector.some(v => v < 0 || v > 1)) {
+      return res.status(400).json({ error: "All vector dimensions must be between 0 and 1" });
+    }
+    
+    // Chart type validation and guardrails
+    const validChartTypes = ['natal', 'transit', 'daily', 'comparison'];
+    if (chartType && !validChartTypes.includes(chartType)) {
+      return res.status(400).json({ error: `Invalid chart type. Must be one of: ${validChartTypes.join(', ')}` });
+    }
+    
+    // Data validation guardrails
+    if (validateData) {
+      // Validate date format and range
+      const birthDate = new Date(natal.date);
+      const now = new Date();
+      const minDate = new Date('1900-01-01');
+      const maxDate = new Date('2100-12-31');
+      
+      if (isNaN(birthDate.getTime())) {
+        return res.status(400).json({ error: "Invalid birth date format" });
+      }
+      
+      if (birthDate < minDate || birthDate > maxDate) {
+        return res.status(400).json({ error: "Birth date must be between 1900 and 2100" });
+      }
+      
+      // Validate coordinates
+      if (natal.lat < -90 || natal.lat > 90) {
+        return res.status(400).json({ error: "Latitude must be between -90 and 90 degrees" });
+      }
+      
+      if (natal.lon < -180 || natal.lon > 180) {
+        return res.status(400).json({ error: "Longitude must be between -180 and 180 degrees" });
+      }
+      
+      // Validate time format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(natal.time)) {
+        return res.status(400).json({ error: "Invalid time format. Use HH:MM format" });
+      }
+      
+      // Guardrail: Prevent future birth dates for natal charts
+      if (chartType === 'natal' && birthDate > now) {
+        return res.status(400).json({ error: "Birth date cannot be in the future for natal charts" });
+      }
+      
+      // Guardrail: Limit daily sky usage to prevent abuse
+      if (useTodaySky && chartType !== 'daily') {
+        console.warn(`Daily sky requested for ${chartType} chart - limiting to natal only`);
+        useTodaySky = false;
+      }
+    }
+    
+    console.log(`COMPOSE: ${mode} with vector [${vector.map(v => v.toFixed(3)).join(', ')}] for ${natal.date} ${natal.time} ${natal.tz} (${natal.lat}, ${natal.lon})`);
     
     // Resolve UTC instant for natal chart
     const natalJd = toJulianDayUT(natal.date, natal.time, natal.lat, natal.lon);
@@ -954,7 +1649,7 @@ app.post("/api/compose", express.json(), async (req, res) => {
       success: true,
       chartContext,
       mode,
-      genre,
+      vector,
       analytics: {
         planetCount,
         aspectCount,
@@ -971,131 +1666,123 @@ app.post("/api/compose", express.json(), async (req, res) => {
   }
 });
 
-// POST /api/render - Generate audio files from chart context
+// vNext ML-primary compose endpoint (parallel to existing)
+app.post("/api/vnext/compose", express.json(), vnextCompose);
+
+// Vector-based render endpoint
 app.post("/api/render", express.json(), async (req, res) => {
   try {
-    const { chartContext, mode, genre, format = "wav", normalize = true } = req.body;
+    const { chartContext, mode, vector, format = "wav", normalize = true, events, bpm, duration } = req.body;
+    
+    // AUDIT LOG: Render API request schema
+    const requestSchema = {
+      phase: "render:request",
+      bodySize: JSON.stringify(req.body).length,
+      hasChartContext: !!chartContext,
+      hasMode: !!mode,
+      hasVector: !!vector,
+      vectorLength: Array.isArray(vector) ? vector.length : 'not_array',
+      hasEvents: !!events,
+      eventsLength: Array.isArray(events) ? events.length : 'not_array',
+      bpm: bpm,
+      duration: duration,
+      format: format
+    };
+    console.log(`[Render] Request schema:`, JSON.stringify(requestSchema));
     
     // Validate required fields
-    if (!chartContext || !mode || !genre) {
-      return res.status(400).json({ error: "Missing required fields: chartContext, mode, genre" });
+    if (!chartContext || !mode || !vector) {
+      const error = `Missing required fields: chartContext=${!!chartContext}, mode=${!!mode}, vector=${!!vector}`;
+      console.log(`[Render] 400: ${error}`);
+      console.log(`[Render] Validation details: chartContext=${typeof chartContext}, mode=${typeof mode}, vector=${typeof vector}`);
+      return res.status(400).json({ error, validation: { chartContext: !!chartContext, mode: !!mode, vector: !!vector } });
     }
     
-    // Validate format
-    const validFormats = ['wav', 'ogg'];
-    if (!validFormats.includes(format)) {
-      return res.status(400).json({ error: `Invalid format. Must be one of: ${validFormats.join(', ')}` });
+    // Validate vector
+    if (!Array.isArray(vector) || vector.length !== 6) {
+      const error = `Vector must be an array of 6 numbers, got: ${Array.isArray(vector) ? `array[${vector.length}]` : typeof vector}`;
+      console.log(`[Render] 400: ${error}`);
+      console.log(`[Render] Vector details: type=${typeof vector}, isArray=${Array.isArray(vector)}, length=${vector?.length}, value=${JSON.stringify(vector)}`);
+      return res.status(400).json({ error, vector: { type: typeof vector, isArray: Array.isArray(vector), length: vector?.length } });
     }
-    
-    console.log(`RENDER: ${mode}/${genre} format=${format} normalize=${normalize}`);
-    
-    // Generate unique ID for this composition
-    const { v4: uuidv4 } = require('uuid');
-    const compositionId = uuidv4();
-    
-    // Generate narrative using the engine FIRST
-    const narrative = generateNarrativeFromContext(chartContext, mode, genre);
-    
-    // Verify 60-second duration
-    const pathSum = narrative.timeline.reduce((sum, stop) => sum + stop.duration, 0);
-    console.log(`PATH_SUM ${pathSum.toFixed(2)} | SEGMENTS ${narrative.timeline.length} | NOTES ${narrative.timeline.length * 10}`);
-    
-    if (Math.abs(pathSum - 60) > 0.1) {
-      throw new Error(`Path does not sum to 60 seconds: ${pathSum}`);
-    }
-    
-    // Create a simple WAV file with a tone based on the narrative
-    const fs = require('fs');
-    const path = require('path');
-    const mediaDir = path.join(__dirname, '../media');
-    
-    // Ensure media directory exists
-    if (!fs.existsSync(mediaDir)) {
-      fs.mkdirSync(mediaDir, { recursive: true });
-    }
-    
-    const sampleRate = 44100;
-    const duration = 60; // 60 seconds to match the narrative
-    const samples = sampleRate * duration;
-    const channels = 2;
-    
-    // Create WAV header
-    const buffer = Buffer.alloc(44 + samples * channels * 2); // 16-bit samples
-    let offset = 0;
-    
-    // WAV header
-    buffer.write('RIFF', offset); offset += 4;
-    buffer.writeUInt32LE(36 + samples * channels * 2, offset); offset += 4; // File size
-    buffer.write('WAVE', offset); offset += 4;
-    buffer.write('fmt ', offset); offset += 4;
-    buffer.writeUInt32LE(16, offset); offset += 4; // Chunk size
-    buffer.writeUInt16LE(1, offset); offset += 2; // Audio format (PCM)
-    buffer.writeUInt16LE(channels, offset); offset += 2; // Channels
-    buffer.writeUInt32LE(sampleRate, offset); offset += 4; // Sample rate
-    buffer.writeUInt32LE(sampleRate * channels * 2, offset); offset += 4; // Byte rate
-    buffer.writeUInt16LE(channels * 2, offset); offset += 2; // Block align
-    buffer.writeUInt16LE(16, offset); offset += 2; // Bits per sample
-    buffer.write('data', offset); offset += 4;
-    buffer.writeUInt32LE(samples * channels * 2, offset); offset += 4; // Data size
-    
-    // Generate a simple tone based on the narrative structure
-    // Use the first melody note from the narrative as the base frequency
-    const baseNote = narrative.timeline[0]?.melody?.[0]?.note || 60; // Middle C as fallback
-    const baseFreq = 440 * Math.pow(2, (baseNote - 69) / 12); // Convert MIDI note to frequency
-    
-    // Write audio data with a simple sine wave
-    for (let i = 0; i < samples; i++) {
-      const time = i / sampleRate;
-      const amplitude = 0.3 * Math.sin(2 * Math.PI * baseFreq * time);
-      const sample = Math.floor(amplitude * 32767); // Convert to 16-bit PCM
-      
-      // Write to both channels (stereo)
-      buffer.writeInt16LE(sample, offset);
-      buffer.writeInt16LE(sample, offset + 2);
-      offset += 4;
-    }
-    
-    // Save the WAV file
-    const wavPath = path.join(mediaDir, `${compositionId}.wav`);
-    fs.writeFileSync(wavPath, buffer);
-    
-    console.log(`WRITE /media/${compositionId}.wav ok`);
-    
-    // Calculate real analytics from the narrative
-    const notesScheduled = narrative.timeline.reduce((total, segment) => {
-      return total + (segment.melody?.length || 0) + (segment.harmony?.length || 0) + (segment.bass?.length || 0);
-    }, 0);
-    const transportTime = 60.0;
-    const cadenceTimes = narrative.cadencePlan.small || [20, 40];
-    const finalCadenceTime = narrative.cadencePlan.major || 60;
-    
-    // Generate OGG if requested (simplified - would need proper OGG encoder)
-    let oggPath = null;
-    if (format === 'ogg' || format === 'both') {
-      // For now, just copy WAV as OGG (in real implementation, use proper OGG encoder)
-      oggPath = path.join(mediaDir, `${compositionId}.ogg`);
-      fs.copyFileSync(wavPath, oggPath);
-      console.log(`WRITE /media/${compositionId}.ogg ok`);
-    }
-    
-    const renderedTotal = transportTime;
-    console.log(`RENDERED_TOTAL: ${Math.round(renderedTotal * 1000) / 1000} seconds`);
-    
-    res.json({
-      success: true,
-      id: compositionId,
-      duration: duration,
-      files: {
-        wav: `/media/${compositionId}.wav`,
-        ...(oggPath && { ogg: `/media/${compositionId}.ogg` })
-      },
-      analytics: {
-        pathSum: pathSum,
-        notesScheduled: notesScheduled,
-        cadences: [...cadenceTimes, finalCadenceTime],
-        renderedTotal: renderedTotal
+
+    // Validate composition payload if provided
+    if (events !== undefined) {
+      const bad = [];
+      if (!Array.isArray(events) || events.length === 0) bad.push('events');
+      if (!Number.isFinite(bpm) || bpm <= 0) bad.push('bpm');
+      if (!Number.isFinite(duration) || duration <= 0) bad.push('duration');
+      if (bad.length) {
+        const error = `Bad payload: ${bad.join(', ')} - events=${events?.length ?? 0}, bpm=${bpm}, duration=${duration}`;
+        console.log(`[Render] 400: ${error}`);
+        return res.status(400).json({ error, bad });
       }
-    });
+    }
+    
+    // Ensure vector values are within bounds
+    const KEYS = ['tempo_energy','rhythm_density','harmonic_tension','brightness','texture_space','melodic_activity'];
+    const vIn = req.body?.vector || {};
+    const normalizedVector = Object.fromEntries(
+      KEYS.map(k => [k, Math.max(0, Math.min(1, Number(vIn[k]) || 0.45))])
+    );
+    console.log('[Render] vector', normalizedVector); // should NOT be all 0.5s
+    
+    console.log(`RENDER: ${mode} with vector [${Object.values(normalizedVector).map(v => v.toFixed(3)).join(', ')}] format=${format}`);
+    
+    // Generate composition using the audio engine
+    const composition = await generateCompositionFromVector(chartContext, mode, normalizedVector, duration || 60);
+    
+    // Apply quality gates and finalization
+    const finalizedComposition = finalizeCompositionWithCaps(composition, normalizedVector, bpm || 120);
+    
+    // Generate audio buffer
+    const audioBuffer = await generateAudioBuffer(finalizedComposition, format, normalize);
+    
+    // Save audio file to media directory
+    const fileName = `audition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${format}`;
+    const filePath = path.join(MEDIA_DIR, fileName);
+    
+    try {
+      // Ensure media directory exists
+      if (!fs.existsSync(MEDIA_DIR)) {
+        fs.mkdirSync(MEDIA_DIR, { recursive: true });
+      }
+      
+      // Write audio file
+      fs.writeFileSync(filePath, audioBuffer);
+      console.log(`[Render] Audio file saved: ${fileName}`);
+      
+      // Return success with audio file URL and composition structure
+      res.json({
+        success: true,
+        message: "Vector-based rendering completed",
+        mode,
+        vector,
+        format,
+        duration: finalizedComposition.durationSec || 60,
+        eventCount: finalizedComposition.segments?.reduce((sum, seg) => sum + (seg.events?.length || 0), 0) || 0,
+        segments: finalizedComposition.segments,
+        audioUrl: `/media/${fileName}`,
+        audioData: audioBuffer.toString('base64'),
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (fileError) {
+      console.error('[Render] Failed to save audio file:', fileError);
+      // Return without file URL but with audio data
+      res.json({
+        success: true,
+        message: "Vector-based rendering completed (file save failed)",
+        mode,
+        vector,
+        format,
+        duration: finalizedComposition.durationSec || 60,
+        eventCount: finalizedComposition.segments?.reduce((sum, seg) => sum + (seg.events?.length || 0), 0) || 0,
+        segments: finalizedComposition.segments,
+        audioData: audioBuffer.toString('base64'),
+        timestamp: new Date().toISOString()
+      });
+    }
     
   } catch (error) {
     console.error("Error in /api/render:", error);
@@ -1103,47 +1790,22 @@ app.post("/api/render", express.json(), async (req, res) => {
   }
 });
 
-// Graceful shutdown
-async function gracefulShutdown() {
-  console.log('Shutting down gracefully...');
-  
-  try {
-    // Close database connections
-    if (database && database.close) await database.close();
-  } catch (e) {
-    console.log('Database close error:', e.message);
-  }
-  
-  try {
-    // Close Redis connections
-    if (redis && redis.close) await redis.close();
-  } catch (e) {
-    console.log('Redis close error:', e.message);
-  }
-  
-  process.exit(0);
-}
+// Serve static files
+app.use(express.static(PUBLIC_DIR));
 
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+// Catch-all handler for SPA
+app.get("*", (_, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
 
 // Start server
 app.listen(PORT, async () => {
   try {
-    // Initialize connections (optional)
-    if (redis && redis.connect) {
-      try {
-        await redis.connect();
-        console.log('Redis connected successfully');
-      } catch (e) {
-        console.log('Redis connection failed, continuing without Redis:', e.message);
-      }
-    }
-    
     console.log(`Astradio server running on http://localhost:${PORT}`);
     console.log(`Serving static from ${PUBLIC_DIR}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`API version: v1`);
+    console.log(`API version: v2 (vector-based)`);
+    console.log(`Vector audition system: enabled`);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

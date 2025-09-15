@@ -20,7 +20,7 @@ export function audition(plan: Plan, cfg = {
   // Check required channels
   const chans = new Set(ev.map(e => e.channel));
   for (const c of cfg.requireChannels) {
-    if (!chans.has(c)) {
+    if (!chans.has(c as any)) {
       issues.push(`missing:${c}`);
     }
   }
