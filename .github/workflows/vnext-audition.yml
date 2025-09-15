@@ -1,0 +1,50 @@
+name: vNext Audition Gate
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'vnext/**'
+      - 'datasets/**'
+      - '.github/workflows/vnext-audition.yml'
+  push:
+    branches: [ rebuild-ml-primary ]
+    paths:
+      - 'vnext/**'
+      - 'datasets/**'
+
+jobs:
+  audition-gate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build vNext
+      run: npm run vnext:build
+      
+    - name: Materialize snapshots
+      run: npm run vnext:materialize
+      
+    - name: Run audition gate
+      run: npm run vnext:audition
+      
+    - name: Upload audition results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: audition-results
+        path: |
+          logs/vnext-audit.jsonl
+          datasets/snapshots.jsonl
+        retention-days: 7
