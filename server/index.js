@@ -1062,7 +1062,8 @@ app.get('/api/ip-geo', async (req, res) => {
 
 
 
-// ---------- Vector-Based Composition Generation ----------
+// ---------- Legacy Composition Functions Removed ----------
+// All composition generation now handled by vNext ML-primary system
 
 /**
  * Generate composition from vector and chart context

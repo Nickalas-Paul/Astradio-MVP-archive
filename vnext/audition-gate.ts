@@ -2,6 +2,9 @@
 // Audition gate for shape/timing validation (no music generation)
 
 import type { Plan, AuditionResult } from "./contracts";
+import { scoreMelody } from "./critics/melodic";
+import { scoreHarmony } from "./critics/harmony";
+import { scoreRhythm } from "./critics/rhythm";
 
 export function audition(plan: Plan, cfg = {
   minEvents: +(process.env.VNEXT_MIN_EVENTS || 120),
@@ -55,10 +58,51 @@ export function audition(plan: Plan, cfg = {
   }
 
   const passed = issues.length === 0;
+  
+  // Add rule-based quality scoring
+  const ruleQuality = ruleQualityPass(plan);
+  
   return {
-    passed,
-    score: passed ? 100 : Math.max(0, 100 - issues.length * 10),
-    issues,
-    repairs
+    passed: passed && ruleQuality.ok,
+    score: passed ? Math.min(100, ruleQuality.score * 100) : Math.max(0, 100 - issues.length * 10),
+    issues: [...issues, ...(ruleQuality.ok ? [] : ['rule-quality-failed'])],
+    repairs,
+    ruleQuality: ruleQuality
   };
+}
+
+/**
+ * Rule-based quality pass using critics
+ */
+export function ruleQualityPass(plan: Plan): { ok: boolean; score: number; breakdown: any } {
+const THRESH = {
+  arc: 0.45, motif: 0.35, contour: 0.35, stepLeap: 0.35, range: 0.5,
+  harmony: 0.4, rhythm: 0.4
+};
+
+  const m = scoreMelody(plan);
+  const h = scoreHarmony(plan);
+  const r = scoreRhythm(plan);
+  const ok =
+    m.arc >= THRESH.arc &&
+    m.motif_recurrence >= THRESH.motif &&
+    m.contour_entropy >= THRESH.contour &&
+    m.step_leap_ratio >= THRESH.stepLeap &&
+    m.range_ok >= THRESH.range &&
+    h.progression_legality >= THRESH.harmony &&
+    r.syncopation >= THRESH.rhythm;
+
+  const score =
+    (m.arc + m.motif_recurrence + m.contour_entropy + m.step_leap_ratio + m.range_ok + h.progression_legality + r.syncopation) / 7;
+
+  return { ok, score, breakdown: { melody: m, harmony: h, rhythm: r } };
+}
+
+// Call this AFTER structural checks pass:
+export function applyRuleQualityGate(plan: Plan, issues: string[]) {
+  const q = ruleQualityPass(plan);
+  (plan as any).__quality = q; // attach for logging/response
+  if (!q.ok) {
+    issues.push(`Rule quality below threshold (score=${q.score.toFixed(2)})`);
+  }
 }

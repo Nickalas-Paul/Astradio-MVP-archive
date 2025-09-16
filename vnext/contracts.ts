@@ -39,4 +39,13 @@ export type AuditionResult = {
   score: number; 
   issues: string[]; 
   repairs: string[];
+  ruleQuality?: {
+    ok: boolean;
+    score: number;
+    breakdown: {
+      melody: any;
+      harmony: any;
+      rhythm: any;
+    };
+  };
 };
