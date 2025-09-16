@@ -5,6 +5,7 @@ import crypto from "crypto";
 import type { FeatureVec, Plan } from "./contracts";
 import { generateWithStudent, studentVector, vectorToPlan } from "./ml/student";
 import { planFromVector } from "./planner/narrative";
+import { guidanceFromFeatures } from "./astro/guidance";
 import { retrieveNearestPlan, addToBank } from "./ml/retrieval";
 import { refine } from "./ml/refiner";
 import { audition, ruleQualityPass } from "./audition-gate";
@@ -19,12 +20,42 @@ function jitter(v: number[], sigma: number) {
 }
 
 
-export async function generatePlanMLOnly(feat: FeatureVec): Promise<{ plan: Plan; source: string; diag: any }> {
+export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): Promise<{ plan: Plan; source: string; diag: any }> {
   const base = await studentVector(feat); // [6] in [0,1]
+  
+  // Compute astrological guidance if chartContext provided
+  let guidance: any = undefined;
+  if (chartContext) {
+    try {
+      // Convert chartContext to EphemerisSnapshot format
+      const snapshot = {
+        ts: chartContext.ts || chartContext.date || new Date().toISOString(),
+        tz: chartContext.tz || chartContext.timezone || "UTC",
+        lat: chartContext.lat || chartContext.latitude || 0,
+        lon: chartContext.lon || chartContext.longitude || 0,
+        houseSystem: chartContext.houseSystem || "placidus",
+        planets: chartContext.planets?.map((p: any) => ({
+          name: p.name,
+          lon: p.lon || p.longitude || 0
+        })) || [],
+        houses: chartContext.houses || Array.from({length: 12}, (_, i) => i * 30) as [number, number, number, number, number, number, number, number, number, number, number, number],
+        aspects: chartContext.aspects || [],
+        moonPhase: chartContext.moonPhase || 0.5,
+        dominantElements: chartContext.dominantElements || {
+          fire: 0.25, earth: 0.25, air: 0.25, water: 0.25
+        }
+      };
+      guidance = guidanceFromFeatures(feat, snapshot);
+      console.log(`🔮 Astro guidance: tempo=${guidance.tempoBias.toFixed(2)}, arc=${guidance.arcBias.toFixed(2)}, density=${guidance.densityBias.toFixed(2)}`);
+    } catch (e) {
+      console.warn(`⚠️ Failed to compute astro guidance: ${e}`);
+    }
+  }
+  
   const candidates = [base, ...Array.from({length: K-1}, (_,i)=> jitter(base, JITTER))];
 
   const scored = candidates.map(v6 => {
-    const plan = planFromVector(v6 as any);
+    const plan = planFromVector(v6 as any, guidance);
     const q = ruleQualityPass(plan);
     return { plan, q, v6 };
   }).sort((a,b)=> b.q.score - a.q.score);

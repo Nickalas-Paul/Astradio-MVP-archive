@@ -33,16 +33,23 @@ function clamp01(x:number){ return Math.max(0, Math.min(1, x)); }
 function pick<T>(arr:T[], t:number){ return arr[Math.floor(clamp01(t)*arr.length) % arr.length]; }
 function quantizeBeat(time:number, bpm:number){ return Math.round(time * bpm * (PPQ/60)) / (bpm*(PPQ/60)); }
 
-export function planFromVector(v: V6): Plan {
+export function planFromVector(v: V6, guidance?: { tempoBias?: number; arcBias?: number; densityBias?: number; motifIdx?: number; cadenceIdx?: number }): Plan {
   const [vTempo, vBright, vDense, vArc, vMotif, vCad] = v;
 
-  // tempo & register from ML
-  const bpm = Math.round( lerp(70, 140, vTempo) );
+  // Apply astrological guidance biases if provided
+  const tempoBias = guidance?.tempoBias || 0;
+  const arcBias = guidance?.arcBias || 0;
+  const densityBias = guidance?.densityBias || 0;
+  
+  // tempo & register from ML (with astro bias)
+  const biasedTempo = Math.max(0, Math.min(1, vTempo * (1 + 0.1 * tempoBias)));
+  const bpm = Math.round( lerp(70, 140, biasedTempo) );
   const baseCenter = Math.round( lerp(55, 67, vBright) ); // G3..G4 center
 
-  // phrase-level arc: low → high → resolve
+  // phrase-level arc: low → high → resolve (with astro bias)
   // arc height scales phrase centers; vArc controls lift
-  const arcLift = lerp(3, 10, vArc); // semitone lift at climax
+  const biasedArc = Math.max(0, Math.min(1, vArc * (1 + 0.3 * arcBias)));
+  const arcLift = lerp(3, 10, biasedArc); // semitone lift at climax
   const phraseCenters = [
     baseCenter - Math.round(arcLift*0.5),
     baseCenter + Math.round(arcLift*0.4),
@@ -50,11 +57,16 @@ export function planFromVector(v: V6): Plan {
     baseCenter - Math.round(arcLift*0.2),
   ];
 
-  const motif = pick(MOTIFS, vMotif);
-  const cadencePitch = pick(CADENCE_ENDS, vCad);
+  // Use guidance motif/cadence if provided, otherwise use ML vector
+  const motifIdx = guidance?.motifIdx !== undefined ? guidance.motifIdx : Math.floor(vMotif * MOTIFS.length);
+  const cadenceIdx = guidance?.cadenceIdx !== undefined ? guidance.cadenceIdx : Math.floor(vCad * CADENCE_ENDS.length);
+  
+  const motif = MOTIFS[motifIdx % MOTIFS.length];
+  const cadencePitch = CADENCE_ENDS[cadenceIdx % CADENCE_ENDS.length];
 
-  // density per half-bar (0..1) → notes per slot
-  const density = lerp(0.3, 0.9, vDense);
+  // density per half-bar (0..1) → notes per slot (with astro bias)
+  const biasedDensity = Math.max(0, Math.min(1, vDense + 0.2 * densityBias));
+  const density = lerp(0.3, 0.9, biasedDensity);
 
   const events: EventToken[] = [];
   const secondsPerBeat = 60 / bpm;

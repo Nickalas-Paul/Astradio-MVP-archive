@@ -10,6 +10,9 @@ require("dotenv").config();
 const { vnextCompose } = require(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
 const { shadowMiddleware } = require(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
 const { canaryRouter } = require(path.join(__dirname, "..", "dist", "vnext", "api", "canary"));
+const { vnextRender } = require(path.join(__dirname, "..", "dist", "vnext", "api", "render"));
+const { validateModelRequirements } = require(path.join(__dirname, "..", "dist", "vnext", "api", "health"));
+const { astroDebugHandler } = require(path.join(__dirname, "..", "dist", "vnext", "api", "astro-debug"));
 
 // Import existing Swiss Ephemeris functionality
 const swe = require("swisseph");
@@ -55,6 +58,22 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// vNext Model Health Check (startup validation)
+(async () => {
+  try {
+    const info = await validateModelRequirements();
+    console.log(`[vNext] TF backend=${info.backend} model_sha=${info.sha256} out=${JSON.stringify(info.outShape)}`);
+  } catch (e) {
+    console.error("vNext model health check failed:", e.message);
+    if (process.env.STRICT_ML === "true") {
+      console.error("STRICT_ML enabled - refusing to start without valid model");
+      process.exit(1);
+    } else {
+      console.warn("Continuing in dev mode with fallback enabled");
+    }
+  }
+})();
+
 // ===== FEATURE FLAGS =====
 const FEATURE_FLAGS = {
   FF_VECTOR_UI: process.env.FF_VECTOR_UI === 'true' || true,
@@ -88,7 +107,7 @@ app.use(cors({
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
     "default-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://unpkg.com; " +
     "worker-src 'self' blob:; " +
     "connect-src 'self' https:; " +
     "media-src 'self' blob: data:; " +
@@ -1673,6 +1692,12 @@ app.post("/api/compose", express.json(), async (req, res) => {
 // vNext ML-primary compose endpoint (parallel to existing)
 app.post("/api/vnext/compose", express.json(), vnextCompose);
 
+// vNext render endpoint (Plan → Audio)
+app.post("/api/vnext/render", express.json(), vnextRender);
+
+// vNext astro debug endpoint (ephemeris → features → guidance)
+app.post("/api/vnext/astro-debug", express.json(), astroDebugHandler);
+
 // Vector-based render endpoint
 app.post("/api/render", express.json(), async (req, res) => {
   try {
@@ -1796,6 +1821,9 @@ app.post("/api/render", express.json(), async (req, res) => {
 
 // Serve static files
 app.use(express.static(PUBLIC_DIR));
+
+// Serve ML models (for HTTP backend fallback)
+app.use("/models", express.static(path.join(__dirname, "../models")));
 
 // Catch-all handler for SPA
 app.get("*", (_, res) => {
