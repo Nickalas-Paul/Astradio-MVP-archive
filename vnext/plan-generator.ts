@@ -1,3 +1,4 @@
+
 // vnext/plan-generator.ts
 // ML-only cascade generator (no rules fallback)
 
@@ -10,9 +11,10 @@ import { retrieveNearestPlan, addToBank } from "./ml/retrieval";
 import { refine } from "./ml/refiner";
 import { audition, ruleQualityPass } from "./audition-gate";
 import { logAudit } from "./logger";
+import { MIN_RULE_QUALITY } from "./config/quality";
 
 const K = Number(process.env.VNEXT_K || 8);
-const MIN_Q = Number(process.env.MIN_RULE_QUALITY || 0.55);
+const MIN_Q = MIN_RULE_QUALITY;
 const JITTER = Number(process.env.VNEXT_JITTER || 0.10); // 0..1
 
 function jitter(v: number[], sigma: number) {
@@ -21,7 +23,7 @@ function jitter(v: number[], sigma: number) {
 
 
 export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): Promise<{ plan: Plan; source: string; diag: any }> {
-  const base = await studentVector(feat); // [6] in [0,1]
+  const { vector: base, modelVersion, source: modelSource } = await studentVector(feat, chartContext); // [6] in [0,1]
   
   // Compute astrological guidance if chartContext provided
   let guidance: any = undefined;
@@ -67,6 +69,15 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
     err.statusCode = 422; err.diag = diag;
     throw err;
   }
-  return { plan: best.plan, source: "student+rerank", diag: { scores: scored.map(s => s.q.score) } };
+  return { 
+    plan: best.plan, 
+    source: `student-${modelVersion}+rerank`, 
+    diag: { 
+      scores: scored.map(s => s.q.score),
+      modelVersion,
+      modelSource,
+      canaryInfo: modelVersion === 'v2' ? 'canary-active' : 'baseline'
+    } 
+  };
 }
 

@@ -92,8 +92,11 @@ const THRESH = {
     h.progression_legality >= THRESH.harmony &&
     r.syncopation >= THRESH.rhythm;
 
-  const score =
-    (m.arc + m.motif_recurrence + m.contour_entropy + m.step_leap_ratio + m.range_ok + h.progression_legality + r.syncopation) / 7;
+  // Apply gaming penalty to melodic score
+  const melodicScore = (m.arc + m.motif_recurrence + m.contour_entropy + m.step_leap_ratio + m.range_ok) / 5;
+  const penalizedMelodicScore = Math.max(0, melodicScore - m.gaming_penalty);
+  
+  const score = (penalizedMelodicScore + h.progression_legality + r.syncopation) / 3;
 
   return { ok, score, breakdown: { melody: m, harmony: h, rhythm: r } };
 }

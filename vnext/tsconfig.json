@@ -14,5 +14,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": [
+    "scripts/daily-monitoring.ts",
+    "scripts/test-astro-coupling.ts", 
+    "scripts/test-wheel-contract.ts",
+    "scripts/freeze-eval-set.ts",
+    "scripts/model-provenance.ts",
+    "scripts/ci-path-guard.ts",
+    "scripts/verify-teacher-consistency.ts",
+    "scripts/enforce-quality-thresholds.ts",
+    "scripts/canary-promotion.ts"
+  ]
 }

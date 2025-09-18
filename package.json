@@ -22,7 +22,18 @@
     "verify:nomocks": "node dist/scripts/check-placeholders.js",
     "verify:fallback": "node dist/scripts/check-fallback-share.js",
     "verify:realml": "npm run vnext:build && npm run vnext:audition && npm run verify:nomocks && npm run verify:fallback",
-    "ci:vnext": "npm run vnext:build && npm run vnext:materialize && npm run vnext:audition"
+    "test:astro-coupling": "npm run vnext:build && node dist/vnext/scripts/test-astro-coupling.js",
+    "test:wheel-contract": "npm run vnext:build && node dist/vnext/scripts/test-wheel-contract.js",
+    "freeze-eval-set": "npm run vnext:build && node dist/vnext/scripts/freeze-eval-set.js",
+    "model-provenance": "npm run vnext:build && node dist/vnext/scripts/model-provenance.js",
+    "ci-path-guard": "npm run vnext:build && node dist/vnext/scripts/ci-path-guard.js",
+    "verify-teacher": "npm run vnext:build && node dist/vnext/scripts/verify-teacher-consistency.js",
+    "enforce-thresholds": "npm run vnext:build && node dist/vnext/scripts/enforce-quality-thresholds.js",
+    "canary-promotion": "npm run vnext:build && node dist/vnext/scripts/canary-promotion.js",
+    "test:pipeline": "npm run test:astro-coupling && npm run test:wheel-contract",
+    "ci:vnext": "npm run vnext:build && npm run vnext:materialize && npm run vnext:audition",
+    "ci:quality": "npm run ci:vnext && npm run test:pipeline && npm run ci-path-guard && npm run enforce-thresholds",
+    "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval"
   },
   "dependencies": {
     "@simplewebauthn/server": "^8.3.6",

@@ -2,11 +2,15 @@
 import path from "path";
 import fs from "fs";
 import type { FeatureVec, Plan, EventToken } from "../contracts";
+import { ModelLoader, type ModelVersion } from "./model-loader";
 
 // Prefer native Node backend for reliable model loading
 let tf: typeof import("@tensorflow/tfjs");
 let backend: "node" | "http" = "node";
 let model: import("@tensorflow/tfjs").LayersModel | null = null;
+
+// Model loader instance for A/B testing and canary deployment
+const modelLoader = new ModelLoader();
 
 // Resolve model dir once (repo-root/models/student-v1/)
 const MODEL_DIR = path.resolve(process.cwd(), "models", "student-v1");
@@ -16,17 +20,31 @@ const MODEL_HTTP_URL = "http://localhost:3000/models/student-v1/model.json"; // 
 
 async function ensureTF() {
   if (!tf) {
-    try {
-      // Use tfjs-node for file:// loading
-      tf = await import("@tensorflow/tfjs-node");
-      await tf.setBackend("tensorflow");
-      backend = "node";
-      console.log("🧠 Using TensorFlow.js Node backend");
-    } catch {
-      // Fallback to browser/http backend (served model)
-      tf = await import("@tensorflow/tfjs");
-      backend = "http";
-      console.log("🌐 Using TensorFlow.js browser backend (HTTP)");
+    // Production enforcement: single backend only
+    if (process.env.STRICT_ML === "true" || process.env.NODE_ENV === "production") {
+      try {
+        // Production: tfjs-node only
+        tf = await import("@tensorflow/tfjs-node");
+        await tf.setBackend("tensorflow");
+        backend = "node";
+        console.log("🧠 Using TensorFlow.js Node backend (STRICT_ML)");
+      } catch (error: any) {
+        console.error("❌ Failed to load TensorFlow.js Node backend in production:", error.message);
+        throw new Error("Production requires tfjs-node backend. Install @tensorflow/tfjs-node or set STRICT_ML=false");
+      }
+    } else {
+      // Development: allow fallback
+      try {
+        tf = await import("@tensorflow/tfjs-node");
+        await tf.setBackend("tensorflow");
+        backend = "node";
+        console.log("🧠 Using TensorFlow.js Node backend");
+      } catch {
+        // Fallback to browser/http backend (served model)
+        tf = await import("@tensorflow/tfjs");
+        backend = "http";
+        console.log("🌐 Using TensorFlow.js browser backend (HTTP) - DEV ONLY");
+      }
     }
     await tf.ready();
   }
@@ -76,27 +94,78 @@ async function loadModel(): Promise<import("@tensorflow/tfjs").LayersModel> {
     return model!;
 }
 
+// --- Model loading by version ---
+async function loadModelForVersion(version: string, config: any): Promise<any> {
+  if (version === 'v2' && config.path) {
+    // Load Student-v2 model
+    const modelPath = path.join(config.path, 'model.json');
+    console.log(`🧠 Loading Student-v2 model from: ${modelPath}`);
+    
+    try {
+      await ensureTF();
+      if (backend === "node") {
+        return await tf.loadLayersModel(`file://${modelPath}`);
+      } else {
+        return await tf.loadLayersModel(`http://localhost:3000/models/student-v2/model.json`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Failed to load Student-v2, falling back to Student-v1: ${e}`);
+      return await loadModel(); // Fallback to v1
+    }
+  } else {
+    // Load Student-v1 model (default)
+    return await loadModel();
+  }
+}
+
 // --- Raw vector generation ---
-export async function studentVector(feat: FeatureVec): Promise<number[]> {
+export async function studentVector(feat: FeatureVec, chartContext?: any): Promise<{ vector: number[]; modelVersion: string; source: string }> {
   try {
-    const m = await loadModel();
+    // Use model loader to select the appropriate model version
+    const modelVersion = modelLoader.selectModel(chartContext);
+    const config = modelLoader.getModelConfig(modelVersion);
+    
+    // Load the model based on the selected version
+    const m = await loadModelForVersion(modelVersion, config);
+    
     const input = (tf.tensor2d([Array.from(feat)], [1, 64]) as any);
-    const out = m.predict(input) as any; // model outputs [1, 6] control vector
+    const out = m.predict(input) as any;
     const rawVec = Array.from(await out.data()) as number[];
     
-    // Use the 6D control vector directly
-    const vec: [number, number, number, number, number, number] = [
-      (rawVec[0] ?? 0.5),
-      (rawVec[1] ?? 0.5),
-      (rawVec[2] ?? 0.5),
-      (rawVec[3] ?? 0.5),
-      (rawVec[4] ?? 0.5),
-      (rawVec[5] ?? 0.5)
-    ];
+    let finalVec: number[];
+    let source = `model-${modelVersion}`;
+    
+    if (modelVersion === 'v2' && config.adapter) {
+      // Convert raw array to StudentV2Outputs format
+      const v2Outputs = {
+        tempo: rawVec[0] || 0.5,
+        brightness: rawVec[1] || 0.5,
+        density: rawVec[2] || 0.5,
+        arc: rawVec[3] || 0.5,
+        motif: rawVec.slice(4, 12) || [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125],
+        cadence: rawVec.slice(12, 16) || [0.25, 0.25, 0.25, 0.25]
+      };
+      
+      // Use adapter to convert multi-head outputs to 6D vector
+      const adapted = config.adapter.adapt(v2Outputs);
+      finalVec = [adapted.tempo, adapted.brightness, adapted.density, adapted.arc, adapted.motifSelection, adapted.cadenceSelection];
+      source += '-adapted';
+    } else {
+      // V1 or fallback - use the 6D control vector directly
+      finalVec = [
+        (rawVec[0] ?? 0.5),
+        (rawVec[1] ?? 0.5),
+        (rawVec[2] ?? 0.5),
+        (rawVec[3] ?? 0.5),
+        (rawVec[4] ?? 0.5),
+        (rawVec[5] ?? 0.5)
+      ];
+    }
+    
     input.dispose?.(); out.dispose?.();
 
-    console.log(`🎯 Student model prediction: [${vec.map(v => v.toFixed(3)).join(', ')}]`);
-    return vec;
+    console.log(`🎯 ${modelVersion.toUpperCase()} model prediction: [${finalVec.map(v => v.toFixed(3)).join(', ')}] (${source})`);
+    return { vector: finalVec, modelVersion, source };
   } catch (e: any) {
     console.warn(`⚠️ Student model failed: ${e.message}`);
     throw e; // Don't fallback for raw vector generation

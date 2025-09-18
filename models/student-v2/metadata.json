@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "backend": "cpu",
+  "trainingDate": "2025-09-17T21:54:31.087Z",
+  "sha256": "80c30a9ed296abe30959deacebedcedf614c84a83740239ce4f0820d03a47fbe",
+  "architecture": "multi-head-student-v2",
+  "inputShape": [
+    64
+  ],
+  "outputHeads": [
+    "tempo",
+    "brightness",
+    "density",
+    "arc",
+    "motif",
+    "cadence"
+  ],
+  "calibration": {
+    "tempo": {
+      "scale": 1.828583011578817,
+      "offset": -0.0531877806400512
+    },
+    "brightness": {
+      "scale": 3.739820511988325,
+      "offset": -1.5758582915429713
+    },
+    "density": {
+      "scale": 5.936576582655645,
+      "offset": -5.434834007040409
+    },
+    "arc": {
+      "scale": 6.139596235951425,
+      "offset": -2.8291699921296787
+    },
+    "motif": {
+      "temperature": 0.8566724038538742
+    },
+    "cadence": {
+      "temperature": 0.9499218723819154
+    }
+  },
+  "calibrationDate": "2025-09-17T22:03:55.490Z"
+}

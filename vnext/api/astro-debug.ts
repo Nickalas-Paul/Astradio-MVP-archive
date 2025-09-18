@@ -26,6 +26,8 @@ export interface AstroDebugResponse {
     cadenceIdx: number;
     density: number;
   };
+  modelVersion?: string;
+  modelSource?: string;
 }
 
 export function computeAstroGuidance(featureVec: FeatureVec, chartContext: EphemerisSnapshot): AstroGuidance {
@@ -109,7 +111,7 @@ export async function astroDebugHandler(req: any, res: any) {
     const studentV6 = await studentVector(featureVec);
     
     // Generate plan preview metadata
-    const [vTempo, vBright, vDense, vArc, vMotif, vCad] = studentV6;
+    const [vTempo, vBright, vDense, vArc, vMotif, vCad] = studentV6.vector;
     const bpm = Math.round(70 + vTempo * 70); // 70-140 BPM
     const arcLift = 3 + vArc * 7; // 3-10 semitone lift
     
@@ -125,8 +127,10 @@ export async function astroDebugHandler(req: any, res: any) {
       chartContext: snapshot,
       featureVec: Array.from(featureVec),
       astroGuidance,
-      studentV6,
-      planPreviewMeta
+      studentV6: studentV6.vector,
+      planPreviewMeta,
+      modelVersion: studentV6.modelVersion,
+      modelSource: studentV6.source
     };
     
     res.json(response);

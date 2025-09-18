@@ -21,6 +21,7 @@ interface ModelMetadata {
   epochs: number;
   loss: number;
   accuracy: number;
+  outputShape?: number[];
 }
 
 /**
@@ -261,7 +262,10 @@ async function trainStudentModel() {
       fs.mkdirSync(modelDir, { recursive: true });
     }
     
-    const modelPath = path.join(modelDir, 'student-model');
+    // DEPRECATED: Use train-student-v2.ts for Phase 2B
+    console.warn('⚠️  DEPRECATED: Use train-student-v2.ts for Phase 2B training');
+    
+    const modelPath = path.join(modelDir, 'student-v1'); // Updated to match runtime model
     await model.save(`file://${modelPath}`);
     
     // Generate model metadata
@@ -276,10 +280,11 @@ async function trainStudentModel() {
       recordCount: records.length,
       epochs: 50,
       loss: finalLoss,
-      accuracy: finalAccuracy
+      accuracy: finalAccuracy,
+      outputShape: [6]
     };
     
-    const metadataPath = path.join(modelDir, 'student-model-metadata.json');
+    const metadataPath = path.join(modelPath, 'metadata.json'); // Updated to match runtime structure
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
     
     console.log('✅ Training complete!');
