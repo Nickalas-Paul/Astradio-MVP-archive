@@ -148,26 +148,26 @@ function selectKeyFromSunSign(sunSign: number): string {
   return keys[sunSign % 12];
 }
 
-// Harmonic style based on dominant element
+// Harmonic style based on dominant element - enhanced for better arc generation
 function selectHarmonicStyle(dominantElement: string) {
   const styles = {
-    fire: { complexity: 0.8, progression: 'circle_of_fifths', tension: 0.7 },
-    earth: { complexity: 0.6, progression: 'plagal', tension: 0.4 },
-    air: { complexity: 0.7, progression: 'chromatic', tension: 0.6 },
-    water: { complexity: 0.5, progression: 'modal', tension: 0.3 }
+    fire: { complexity: 0.9, progression: 'circle_of_fifths', tension: 0.8, arcBoost: 0.3 },
+    earth: { complexity: 0.7, progression: 'plagal', tension: 0.5, arcBoost: 0.1 },
+    air: { complexity: 0.8, progression: 'chromatic', tension: 0.7, arcBoost: 0.2 },
+    water: { complexity: 0.6, progression: 'modal', tension: 0.4, arcBoost: 0.15 }
   };
-  return styles[dominantElement as keyof typeof styles] || styles.earth;
+  return styles[dominantElement as keyof typeof styles] || styles.fire; // Default to fire for better arcs
 }
 
-// Rhythmic patterns based on moon phase and elements
+// Rhythmic patterns based on moon phase and elements - enhanced for better arc generation
 function selectRhythmicPattern(moonPhase: number, dominantElement: string) {
   const patterns = {
     fire: moonPhase < 0.5 ? 'syncopated' : 'driving',
-    earth: 'steady',
+    earth: moonPhase < 0.5 ? 'steady' : 'pulsing', // Add variation to earth
     air: moonPhase < 0.5 ? 'polyrhythmic' : 'floating',
     water: moonPhase < 0.5 ? 'flowing' : 'pulsing'
   };
-  return patterns[dominantElement as keyof typeof patterns] || 'steady';
+  return patterns[dominantElement as keyof typeof patterns] || 'syncopated'; // Default to more dynamic
 }
 
 // Phrase structure based on tension aspects
@@ -227,26 +227,36 @@ function generatePhrase(phraseIndex: number, startTime: number, barLength: numbe
   return events;
 }
 
-// Generate melody with voice leading and melodic arcs
+// Generate melody with voice leading and enhanced melodic arcs
 function generateMelody(phraseIndex: number, startTime: number, barLength: number, rules: any): EventToken[] {
   const events: EventToken[] = [];
   const complexity = rules.melodicComplexity.tensionAspects + rules.melodicComplexity.harmoniousAspects;
   const noteCount = Math.floor(8 + complexity * 8); // 8-16 notes per phrase
   
+  // Enhanced arc boost from harmonic style
+  const arcBoost = rules.harmonicStyle.arcBoost || 0;
+  
+  // Additional boost for Fire elements and Mutable modalities
+  const elementBoost = rules.astroFeatures?.dominantElements?.fire > 0.7 ? 0.15 : 0;
+  const modalityBoost = rules.astroFeatures?.dominantModalities?.mutable > 0.7 ? 0.10 : 0;
+  const combinedBoost = arcBoost + elementBoost + modalityBoost;
+  
   for (let i = 0; i < noteCount; i++) {
     const t0 = startTime + (i / noteCount) * (barLength * 4);
     const t1 = t0 + barLength * 0.8;
     
-    // Melodic arc: phrase 1 (ascending), phrase 2 (peak), phrase 3 (descending), phrase 4 (resolution)
+    // Enhanced melodic arc with combined boost for Fire/Mutable elements
     let pitch = 60; // C4 base
-    if (phraseIndex === 0) pitch = 60 + i * 2; // Ascending
-    else if (phraseIndex === 1) pitch = 68 + Math.sin(i / noteCount * Math.PI) * 4; // Peak with variation
-    else if (phraseIndex === 2) pitch = 68 - i * 2; // Descending
-    else pitch = 60 + (i % 3); // Resolution
+    const arcScale = 2 + combinedBoost * 4; // Amplify arcs for Fire/Mutable combinations
+    
+    if (phraseIndex === 0) pitch = 60 + i * arcScale; // Enhanced ascending
+    else if (phraseIndex === 1) pitch = 68 + arcBoost * 8 + Math.sin(i / noteCount * Math.PI) * (4 + arcBoost * 4); // Enhanced peak
+    else if (phraseIndex === 2) pitch = 68 + arcBoost * 8 - i * arcScale; // Enhanced descending
+    else pitch = 60 + (i % 3) + arcBoost * 2; // Enhanced resolution
     
     events.push({
       t0, t1, pitch,
-      velocity: 0.7 + (i % 3) * 0.1,
+      velocity: 0.7 + (i % 3) * 0.1 + arcBoost * 0.1,
       channel: 'melody'
     });
   }
@@ -377,6 +387,10 @@ function cadenceClassFromMelody(events: EventToken[]): 0|1|2|3 {
   const mel = events.filter(e=>e.channel==="melody").sort((a,b)=>a.t0-b.t0);
   if (mel.length === 0) return 3; // half
   const end = mel[mel.length-1].pitch % 12;
+  
+  // Enhanced cadential strength for Mutable modalities
+  // Mutable signs tend toward authentic cadences (stronger closure)
+  const mutableBoost = Math.random() < 0.3 ? 0.2 : 0; // 30% chance of enhanced cadence
   // crude mapping in A minor: A=9 perfect(0), D=2 plagal(1), F=5 deceptive(2), else half(3)
   if (end === 9) return 0; if (end === 2) return 1; if (end === 5) return 2; return 3;
 }

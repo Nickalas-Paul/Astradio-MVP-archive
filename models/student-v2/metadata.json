@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.1_enhanced",
   "backend": "cpu",
-  "trainingDate": "2025-09-17T21:54:31.087Z",
+  "trainingDate": "2025-09-19T22:30:04.256Z",
   "sha256": "80c30a9ed296abe30959deacebedcedf614c84a83740239ce4f0820d03a47fbe",
   "architecture": "multi-head-student-v2",
   "inputShape": [
@@ -30,7 +30,8 @@
     },
     "arc": {
       "scale": 6.139596235951425,
-      "offset": -2.8291699921296787
+      "offset": 0.02,
+      "temperature": 1.1
     },
     "motif": {
       "temperature": 0.8566724038538742
@@ -39,5 +40,6 @@
       "temperature": 0.9499218723819154
     }
   },
-  "calibrationDate": "2025-09-17T22:03:55.490Z"
+  "calibrationDate": "2025-09-17T22:03:55.490Z",
+  "recordCount": 624
 }

@@ -1,0 +1,29 @@
+FROM node:18-bullseye-slim
+
+# Install system dependencies for TensorFlow.js
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with Node 18 LTS (known working with tfjs-node)
+RUN npm ci
+
+# Copy training code and data
+COPY vnext/ ./vnext/
+COPY datasets/ ./datasets/
+COPY models/ ./models/
+
+# Create output directory for V2.1 artifacts
+RUN mkdir -p models/student-v2.1
+
+# Set environment for TensorFlow.js
+ENV NODE_ENV=production
+
+# Default command runs the training
+CMD ["npx", "ts-node", "vnext/scripts/train-student-v2.ts"]

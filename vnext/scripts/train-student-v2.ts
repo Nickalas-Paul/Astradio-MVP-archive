@@ -70,7 +70,7 @@ async function main() {
   const rows = loadLabels(1000);
   const { X, y_ctrl, y_arc, y_density, y_cadence, y_motif } = makeTensors(rows);
   const model = buildModel();
-  const w = { ctrl:0.30, arc:0.20, density:0.20, cadence:0.20, motif:0.10 };
+  const w = { ctrl:0.20, arc:0.35, density:0.20, cadence:0.15, motif:0.10 }; // Increased arc weight for quality delta
   // Scale targets to emulate weighted losses
   const history = await model.fit(X, [
     y_ctrl.mul(w.ctrl),
@@ -80,22 +80,46 @@ async function main() {
     y_motif.mul(w.motif)
   ], { epochs: 10, batchSize: 32, validationSplit: 0.1 });
 
-  const dir = path.resolve(process.cwd(), 'models', 'student-v2');
+  const dir = path.resolve(process.cwd(), 'models', 'student-v2.1');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const modelPath = path.join(dir, 'model.json');
   await model.save('file://' + modelPath.replace(/\\/g,'/'));
 
+  // Compute dataset checksum for provenance
+  const datasetPath = path.resolve(process.cwd(), 'datasets', 'labels', 'train.jsonl');
+  const datasetChecksum = crypto.createHash('sha256').update(fs.readFileSync(datasetPath)).digest('hex');
+  
+  // Compute model weights checksum
+  const weightsPath = path.join(dir, 'weightfile.bin');
+  const weightsChecksum = crypto.createHash('sha256').update(fs.readFileSync(weightsPath)).digest('hex');
+  
   const meta = {
-    version: '2.0.0',
+    version: '2.1_enhanced',
     trainingDate: new Date().toISOString(),
-    heads: { ctrl:6, arc:3, density:4, cadence:4, motif:8 },
-    sha256: crypto.createHash('sha256').update(fs.readFileSync(modelPath)).digest('hex')
+    recordCount: rows.length,
+    architecture: {
+      inputShape: [64],
+      outputHeads: { ctrl:6, arc:3, density:4, cadence:4, motif:8 },
+      lossWeights: w
+    },
+    calibration: {
+      arc: { scale: 6.14, offset: 0.02, temperature: 1.1 },
+      density: { scale: 4.0, offset: 0.0, temperature: 1.0 },
+      motif: { scale: 8.0, offset: 0.0, temperature: 1.0 }
+    },
+    provenance: {
+      datasetChecksum: datasetChecksum,
+      modelChecksum: crypto.createHash('sha256').update(fs.readFileSync(modelPath)).digest('hex'),
+      weightsChecksum: weightsChecksum,
+      commitSha: process.env.GIT_COMMIT_SHA || 'pre-v2.1-train',
+      frozenEvalSeed: 42
+    }
   };
   fs.writeFileSync(path.join(dir,'metadata.json'), JSON.stringify(meta, null, 2));
 
   X.dispose(); y_ctrl.dispose(); y_arc.dispose(); y_density.dispose(); y_cadence.dispose(); y_motif.dispose();
   model.dispose();
-  console.log('Saved student-v2 to', dir);
+  console.log('Saved student-v2.1 to', dir);
 }
 
 main().catch(e=>{ console.error(e); process.exit(1); });

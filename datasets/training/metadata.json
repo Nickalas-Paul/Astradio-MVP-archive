@@ -1,8 +1,8 @@
 {
   "version": "2.0_enhanced",
-  "timestamp": "2025-09-17T21:37:12.711Z",
+  "timestamp": "2025-09-19T20:57:30.504Z",
   "config": {
-    "limit": 20,
+    "limit": 2000,
     "qualityThreshold": 0.55,
     "trainRatio": 0.7,
     "valRatio": 0.15,
@@ -15,28 +15,28 @@
     "qualityThreshold": 0.55
   },
   "checksums": {
-    "train.jsonl": "61a1ea69fd34b8ef9699a62b6c3805ab767f1407057e29e5f74e1bd1d7f7d0e4",
-    "val.jsonl": "f0639ee4a5ebf249575a48b909583ce1b3c5b226f42c3ff64c936b6af262649a",
-    "test.jsonl": "f4d5c114a7a36b7959de00e60ecb7964aa477b43a460ad7216735f5bf86952f0"
+    "train.jsonl": "9fc9f3217f3d5d930247ba320fe4d61cbecfc8cf738bdc64c84e647e0aaa1587",
+    "val.jsonl": "61d4e17f477e0aa0bc67834455d448fcfb57802e106c1517a07571d57d9c8679",
+    "test.jsonl": "0cc000a8dd42e3a1d78ea580241852eb718d91604513cbe03e3cec715ec79c5c"
   },
   "statistics": {
     "train.jsonl": {
-      "count": 55,
-      "avgQuality": 0.5842601741979406,
+      "count": 567,
+      "avgQuality": 0.5819257413467194,
       "minQuality": 0.5621545220983145,
       "maxQuality": 0.6268364801571501
     },
     "val.jsonl": {
-      "count": 13,
-      "avgQuality": 0.5846397205520325,
-      "minQuality": 0.5621545220983145,
-      "maxQuality": 0.6218797869129077
-    },
-    "test.jsonl": {
-      "count": 13,
-      "avgQuality": 0.5918277660486397,
+      "count": 127,
+      "avgQuality": 0.5836550188532686,
       "minQuality": 0.5621545220983145,
       "maxQuality": 0.6268364801571501
+    },
+    "test.jsonl": {
+      "count": 125,
+      "avgQuality": 0.5812328406544714,
+      "minQuality": 0.5621545220983145,
+      "maxQuality": 0.6218797869129077
     }
   }
 }

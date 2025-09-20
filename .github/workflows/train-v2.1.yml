@@ -1,0 +1,107 @@
+name: Train Student V2.1
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_checksum:
+        description: 'Dataset SHA256 checksum to validate'
+        required: true
+        default: 'ac64be1ac424f701a8b2c8d9e3f5a1b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f2'
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: 'pre-v2.1-train'
+    
+    - name: Setup Node.js 18 LTS
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Verify dataset checksum
+      run: |
+        echo "Verifying dataset checksum..."
+        DATASET_CHECKSUM=$(sha256sum datasets/labels/train.jsonl | cut -d' ' -f1)
+        echo "Actual checksum: $DATASET_CHECKSUM"
+        echo "Expected checksum: ${{ github.event.inputs.dataset_checksum }}"
+        if [ "$DATASET_CHECKSUM" != "${{ github.event.inputs.dataset_checksum }}" ]; then
+          echo "❌ Dataset checksum mismatch!"
+          exit 1
+        fi
+        echo "✅ Dataset checksum verified"
+    
+    - name: Train Student V2.1
+      run: |
+        echo "🎯 Training Student V2.1 with enhanced dataset..."
+        npx ts-node vnext/scripts/train-student-v2.ts
+        
+        echo "📊 Training completed. Verifying artifacts..."
+        ls -la models/student-v2.1/
+        
+        echo "🔍 Computing artifact checksums..."
+        echo "Model SHA256: $(sha256sum models/student-v2.1/model.json | cut -d' ' -f1)"
+        echo "Weights SHA256: $(sha256sum models/student-v2.1/weightfile.bin | cut -d' ' -f1)"
+        echo "Metadata SHA256: $(sha256sum models/student-v2.1/metadata.json | cut -d' ' -f1)"
+        echo "Dataset SHA256: $(sha256sum datasets/labels/train.jsonl | cut -d' ' -f1)"
+    
+    - name: Upload V2.1 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: student-v2.1-model
+        path: |
+          models/student-v2.1/model.json
+          models/student-v2.1/weightfile.bin
+          models/student-v2.1/metadata.json
+        retention-days: 30
+    
+    - name: Run frozen evaluation
+      run: |
+        echo "🧊 Running frozen evaluation with V2.1 model..."
+        npx ts-node vnext/scripts/frozen-eval-comparison.ts > frozen-eval-results.txt
+        cat frozen-eval-results.txt
+    
+    - name: Upload evaluation results
+      uses: actions/upload-artifact@v4
+      with:
+        name: frozen-eval-results
+        path: frozen-eval-results.txt
+        retention-days: 30
+    
+    - name: Generate promotion report
+      run: |
+        echo "📋 Generating promotion report..."
+        echo "# Student V2.1 Training Report" > promotion-report.md
+        echo "" >> promotion-report.md
+        echo "## Artifact Provenance" >> promotion-report.md
+        echo "- Model SHA256: \`$(sha256sum models/student-v2.1/model.json | cut -d' ' -f1)\`" >> promotion-report.md
+        echo "- Weights SHA256: \`$(sha256sum models/student-v2.1/weightfile.bin | cut -d' ' -f1)\`" >> promotion-report.md
+        echo "- Dataset SHA256: \`$(sha256sum datasets/labels/train.jsonl | cut -d' ' -f1)\`" >> promotion-report.md
+        echo "- Commit: \`$(git rev-parse HEAD)\`" >> promotion-report.md
+        echo "- Frozen eval seed: 42" >> promotion-report.md
+        echo "" >> promotion-report.md
+        echo "## Training Configuration" >> promotion-report.md
+        echo "- Records: $(cat datasets/labels/train.jsonl | wc -l)" >> promotion-report.md
+        echo "- Arc weight: 0.35" >> promotion-report.md
+        echo "- Enhanced teacher rules: ✓" >> promotion-report.md
+        echo "" >> promotion-report.md
+        echo "## Evaluation Results" >> promotion-report.md
+        echo '```' >> promotion-report.md
+        cat frozen-eval-results.txt >> promotion-report.md
+        echo '```' >> promotion-report.md
+        
+        cat promotion-report.md
+    
+    - name: Upload promotion report
+      uses: actions/upload-artifact@v4
+      with:
+        name: promotion-report
+        path: promotion-report.md
+        retention-days: 30
