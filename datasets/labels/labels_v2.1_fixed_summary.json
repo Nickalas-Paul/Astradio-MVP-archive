@@ -1,0 +1,69 @@
+{
+  "timestamp": "2025-09-24T17:57:21.978Z",
+  "labeler_version": "unknown",
+  "labeler_commit": "unknown",
+  "total_labels": 0,
+  "validation_results": [
+    {
+      "name": "density_curve",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.02,
+      "fixed": false
+    },
+    {
+      "name": "arc_start",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.02,
+      "fixed": false
+    },
+    {
+      "name": "arc_middle",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.02,
+      "fixed": false
+    },
+    {
+      "name": "arc_end",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.02,
+      "fixed": false
+    },
+    {
+      "name": "harmonic_change_rate",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.01,
+      "fixed": false
+    },
+    {
+      "name": "motif_token",
+      "min": 0,
+      "mean": 0,
+      "max": 0,
+      "variance": 0,
+      "unique_count": 0,
+      "threshold": 0.01,
+      "fixed": false
+    }
+  ],
+  "ready_for_retraining": false
+}

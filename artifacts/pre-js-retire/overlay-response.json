@@ -1,0 +1,73 @@
+{
+    "controls":  {
+                     "arc_shape":  0.455,
+                     "density_level":  0.777,
+                     "tempo_norm":  0.651,
+                     "step_bias":  0.867,
+                     "leap_cap":  4,
+                     "rhythm_template_id":  5,
+                     "syncopation_bias":  0.82,
+                     "motif_rate":  0.636,
+                     "element_dominance":  "fire",
+                     "aspect_tension":  0.795,
+                     "modality":  "mutable",
+                     "hash":  "5cd3721c"
+                 },
+    "astro":  {
+                  "element_dominance":  "fire",
+                  "aspect_tension":  0.795,
+                  "modality":  "mutable"
+              },
+    "gate_report":  {
+                        "calibrated":  {
+                                           "melody_arc":  true,
+                                           "melody_step_leap":  true,
+                                           "melody_narrative":  true,
+                                           "rhythm_diversity":  true,
+                                           "overall":  true
+                                       },
+                        "strict":  {
+                                       "melody_arc":  true,
+                                       "melody_step_leap":  true,
+                                       "melody_narrative":  true,
+                                       "rhythm_diversity":  true,
+                                       "overall":  true
+                                   },
+                        "scores":  {
+                                       "melody_arc":  0.48569445035785774,
+                                       "melody_step_leap":  0.2695540884555211,
+                                       "melody_narrative":  0.44406217869931414,
+                                       "rhythm_diversity":  0.3271487625006467
+                                   },
+                        "latency_ms":  {
+                                           "predict":  2.5,
+                                           "plan":  1.2,
+                                           "total":  8.7
+                                       }
+                    },
+    "audio":  {
+                  "url":  "/api/audio/5cd3721c.mp3",
+                  "latency_ms":  11.0748
+              },
+    "text":  {
+                 "short":  "Tone: energetic, well-proportioned. Venus and Earth guide mostly connected motion. Planetary energies flow smoothly,...",
+                 "long":  "Tone: energetic, well-proportioned. Venus and Earth guide mostly connected motion. Mars\u0027 strong, accented pulse, with Uranus\u0027 disruptive spark. measured, Jupiter-steady tempo stellar forces layer with rich cosmic weight Jupiter\u0027s rhythm of growth cycles through cosmic motifs",
+                 "bullets":  [
+                                 "• Venus and Earth guide mostly connected motion.",
+                                 "• Planetary energies flow smoothly, echoing Fire\u0027s bursts of energy.",
+                                 "• Mars\u0027 strong, accented pulse, with Uranus\u0027 disruptive spark.",
+                                 "• stellar forces layer with rich cosmic weight",
+                                 "• Jupiter\u0027s rhythm of growth cycles through cosmic motifs"
+                             ],
+                 "template_id":  "v1.short.00",
+                 "seed":  "5cd3721c"
+             },
+    "artifacts":  {
+                      "model":  "084c92dca9af2f09",
+                      "encoder":  "db4eb96e52b3f63e",
+                      "snapset":  "185371267270f0ef",
+                      "gate":  "v2.3-final",
+                      "mapping_tables_version":  "v1.1",
+                      "timestamp":  "2025-09-25T18:31:46.730Z"
+                  }
+}

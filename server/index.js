@@ -6,13 +6,27 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
-// vNext compiled handlers (do NOT import .ts directly)
-const { vnextCompose } = require(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
-const { shadowMiddleware } = require(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
-const { canaryRouter } = require(path.join(__dirname, "..", "dist", "vnext", "api", "canary"));
-const { vnextRender } = require(path.join(__dirname, "..", "dist", "vnext", "api", "render"));
-const { validateModelRequirements } = require(path.join(__dirname, "..", "dist", "vnext", "api", "health"));
-const { astroDebugHandler } = require(path.join(__dirname, "..", "dist", "vnext", "api", "astro-debug"));
+// vNext compiled handlers (do NOT import .ts directly) — optional for dev boot
+function optionalRequire(modPath) {
+  try { return require(modPath); } catch (e) { if (e && e.code === 'MODULE_NOT_FOUND') return null; throw e; }
+}
+
+const noopMw = (req, res, next) => next && next();
+const noopRouter = express.Router();
+
+const composeMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
+const shadowMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
+const canaryMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "canary"));
+const renderMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "render"));
+const healthMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "health"));
+const astroDebugMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "astro-debug"));
+
+const vnextCompose = composeMod?.vnextCompose || ((req, res) => res.status(501).json({ ok: false, error: "compose_unavailable" }));
+const shadowMiddleware = shadowMod?.shadowMiddleware || noopMw;
+const canaryRouter = canaryMod?.canaryRouter || noopRouter;
+const vnextRender = renderMod?.vnextRender || ((req, res) => res.status(501).json({ ok: false, error: "render_unavailable" }));
+const validateModelRequirements = healthMod?.validateModelRequirements || (async () => ({ backend: "noop", sha256: "dev", outShape: [0] }));
+const astroDebugHandler = astroDebugMod?.astroDebugHandler || ((req, res) => res.status(501).json({ ok: false, error: "astro_debug_unavailable" }));
 
 // Import existing Swiss Ephemeris functionality
 const swe = require("swisseph");
@@ -41,11 +55,12 @@ redis = { close: async () => {}, connect: async () => {} };
 // Import routes (optional)
 let authRoutes, userRoutes, trackRoutes, socialRoutes, libraryRoutes;
 try {
-  authRoutes = require("../routes/auth");
-  userRoutes = require("../routes/users");
-  trackRoutes = require("../routes/tracks");
-  socialRoutes = require("../routes/social");
-  libraryRoutes = require("../routes/library");
+  // Use compiled TypeScript routes for all migrated modules
+  authRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "auth"));
+  userRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "users"));
+  trackRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "tracks"));
+  socialRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "social"));
+  libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "library"));
 } catch (e) {
   console.log("Route modules not available, running with basic functionality only");
   authRoutes = { router: require('express').Router() };
@@ -57,6 +72,16 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Hard deprecation gate (authoritative). Must be registered FIRST before any other routes.
+const DEPRECATE_LEGACY = process.env.DEPRECATE_LEGACY_ROUTES !== "false"; // default true
+if (DEPRECATE_LEGACY) {
+  app.all(/^\/api\/(vnext\/)?(render|astro-debug)$/, (req, res) => {
+    res
+      .status(410)
+      .json({ error: "deprecated_route", message: "Use POST /api/compose (Unified Spec v1.1)" });
+  });
+}
 
 // vNext Model Health Check (startup validation)
 (async () => {
@@ -184,6 +209,24 @@ const EXTRAS = {
 
 // ---------- helpers ----------
 function pad2(n){ return String(n).padStart(2,"0"); }
+
+// Deterministic RNG (xorshift32) seeded by a string
+function seededRng(seedStr){
+  let seed = 0;
+  for (let i = 0; i < String(seedStr).length; i++) {
+    seed = (seed ^ String(seedStr).charCodeAt(i)) >>> 0;
+    seed = Math.imul(seed ^ (seed >>> 15), 2246822507) >>> 0;
+    seed = Math.imul(seed ^ (seed >>> 13), 3266489909) >>> 0;
+  }
+  if (seed === 0) seed = 0x9E3779B9;
+  let state = seed >>> 0;
+  return function rng(){
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17; state >>>= 0;
+    state ^= state << 5;  state >>>= 0;
+    return (state >>> 0) / 0xFFFFFFFF;
+  };
+}
 
 function normalizeDate(dateStr){
   if (!dateStr) return new Date().toISOString().slice(0,10);
@@ -1069,6 +1112,9 @@ app.get('/api/ip-geo', async (req, res) => {
  * Generate composition from vector and chart context
  */
 async function generateCompositionFromVector(chartContext, mode, vector, duration = 60) {
+  // Seeded RNG derived from controls.hash for determinism
+  const seedStr = String(chartContext?.hash || chartContext?.controls?.hash || 'seed');
+  const rng = seededRng(seedStr);
   // Handle both array and object vector formats
   let vectorObj;
   if (Array.isArray(vector)) {
@@ -1141,42 +1187,42 @@ function generateHouseOrderComposition(chartContext, vector, duration) {
       const eventTime = segmentStart + (i / eventCount) * segmentDuration;
       
       // Melodic events
-      if (Math.random() < vector.melodic_activity) {
+      if (rng() < vector.melodic_activity) {
         events.push({
           type: 'note',
           role: 'melody',
-          note: 60 + Math.floor(Math.random() * 12), // C4-C5
+          note: 60 + Math.floor(rng() * 12), // C4-C5
           start: eventTime,
-          duration: 0.5 + Math.random() * 1.0,
-          velocity: 0.6 + Math.random() * 0.3,
+          duration: 0.5 + rng() * 1.0,
+          velocity: 0.6 + rng() * 0.3,
           instrument: 'lead'
         });
         // Melodic event added (silent)
       }
       
       // Rhythm events
-      if (Math.random() < rhythmDensity) {
+      if (rng() < rhythmDensity) {
         events.push({
           type: 'note',
           role: 'rhythm',
-          note: 36 + Math.floor(Math.random() * 4), // Kick/snare range
+          note: 36 + Math.floor(rng() * 4), // Kick/snare range
           start: eventTime,
           duration: 0.1,
-          velocity: 0.7 + Math.random() * 0.2,
+          velocity: 0.7 + rng() * 0.2,
           instrument: 'drums'
         });
         // Rhythm event added (silent)
       }
       
       // Harmonic events
-      if (Math.random() < vector.harmonic_tension) {
+      if (rng() < vector.harmonic_tension) {
         events.push({
           type: 'note',
           role: 'harmony',
-          note: 48 + Math.floor(Math.random() * 12), // Bass range
+          note: 48 + Math.floor(rng() * 12), // Bass range
           start: eventTime,
-          duration: 1.0 + Math.random() * 2.0,
-          velocity: 0.4 + Math.random() * 0.3,
+          duration: 1.0 + rng() * 2.0,
+          velocity: 0.4 + rng() * 0.3,
           instrument: 'bass'
         });
       }
@@ -1188,7 +1234,7 @@ function generateHouseOrderComposition(chartContext, vector, duration) {
       events.push({
         type: 'note',
         role: 'melody',
-        note: 60 + Math.floor(Math.random() * 12),
+        note: 60 + Math.floor(rng() * 12),
         start: fallbackTime,
         duration: 0.6,
         velocity: 0.65,
@@ -1227,15 +1273,15 @@ function generateClusterComposition(chartContext, vector, duration) {
     
     // Generate events based on cluster planets
     cluster.planets.forEach(planet => {
-      const eventTime = segmentStart + Math.random() * segmentDuration;
+      const eventTime = segmentStart + rng() * segmentDuration;
       
       events.push({
         type: 'note',
         role: 'melody',
         note: 60 + (planet % 12),
         start: eventTime,
-        duration: 0.5 + Math.random() * 1.5,
-        velocity: 0.5 + Math.random() * 0.4,
+        duration: 0.5 + rng() * 1.5,
+        velocity: 0.5 + rng() * 0.4,
         instrument: 'lead'
       });
     });
@@ -1280,7 +1326,7 @@ function generateElementalComposition(chartContext, vector, duration) {
       events.push({
         type: 'note',
         role: element === 'fire' ? 'rhythm' : 'melody',
-        note: 48 + Math.floor(Math.random() * 24),
+        note: 48 + Math.floor(rng() * 24),
         start: eventTime,
         duration: element === 'water' ? 2.0 : 0.5,
         velocity: element === 'fire' ? 0.8 : 0.5,
@@ -1334,9 +1380,9 @@ function generateLunarComposition(chartContext, vector, duration) {
       events.push({
         type: 'note',
         role: 'melody',
-        note: 60 + Math.floor(Math.random() * 12),
+        note: 60 + Math.floor(rng() * 12),
         start: eventTime,
-        duration: 0.5 + Math.random() * 1.0,
+        duration: 0.5 + rng() * 1.0,
         velocity: 0.4 + phaseIntensity * 0.4,
         instrument: 'pad'
       });
@@ -1391,14 +1437,16 @@ function finalizeCompositionWithCaps(comp, vector, bpm = 120) {
   
   // Ensure we have enough events
   if (rhythmEvents.length < RH_MIN) {
+    const seedStr = String(comp?.vector?.seed || 'seed');
+    const rng = seededRng(seedStr);
     // Add more rhythm events
     const needed = RH_MIN - rhythmEvents.length;
     for (let i = 0; i < needed; i++) {
-      const time = Math.random() * duration;
+      const time = rng() * duration;
       allEvents.push({
         type: 'note',
         role: 'rhythm',
-        note: 36 + Math.floor(Math.random() * 4),
+        note: 36 + Math.floor(rng() * 4),
         start: time,
         duration: 0.1,
         velocity: 0.7,
@@ -1408,16 +1456,18 @@ function finalizeCompositionWithCaps(comp, vector, bpm = 120) {
   }
   
   if (noteEvents.length < 10) {
+    const seedStr2 = String(comp?.vector?.seed || 'seed2');
+    const rng2 = seededRng(seedStr2);
     // Add more melodic events
     const needed = 10 - noteEvents.length;
     for (let i = 0; i < needed; i++) {
-      const time = Math.random() * duration;
+      const time = rng2() * duration;
       allEvents.push({
         type: 'note',
         role: 'melody',
-        note: 60 + Math.floor(Math.random() * 12),
+        note: 60 + Math.floor(rng2() * 12),
         start: time,
-        duration: 0.5 + Math.random() * 1.0,
+        duration: 0.5 + rng2() * 1.0,
         velocity: 0.6,
         instrument: 'lead'
       });
@@ -1484,341 +1534,27 @@ async function generateAudioBuffer(composition, format = 'wav', normalize = true
 
 // ---------- Vector-Based API Endpoints ----------
 
-// Shadow middleware for vNext (runs ML in background when enabled)
-app.use("/api/compose", shadowMiddleware);
+function dumpRoutes(app) {
+  const out = [];
+  app._router.stack.forEach((s) => {
+    if (s.route && s.route.path) {
+      const methods = Object.keys(s.route.methods).join(",").toUpperCase();
+      out.push(`${methods} ${s.route.path}`);
+    }
+  });
+  return out;
+}
 
-// Canary router for vNext (routes subset of requests to ML-primary when enabled)
+
+// Shadow / canary remain, but only under compose; never mount legacy render
+app.use("/api/compose", shadowMiddleware);
 app.use("/api/compose", canaryRouter);
 
-// Vector-based composition endpoint
-app.post("/api/compose", express.json(), async (req, res) => {
-  try {
-    const { mode, vector, natal, compare, useTodaySky, chartType, validateData } = req.body;
-    
-    // Validate required fields
-    if (!natal || !natal.date || !natal.time || !natal.tz || natal.lat === undefined || natal.lon === undefined) {
-      return res.status(400).json({ error: "Missing required natal data" });
-    }
-    
-    if (!mode || !vector) {
-      return res.status(400).json({ error: "Missing mode or vector" });
-    }
-    
-    // Validate mode and vector
-    const validModes = ['house-order', 'cluster', 'elemental', 'lunar'];
-    
-    if (!validModes.includes(mode)) {
-      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` });
-    }
-    
-    // Validate vector (6 dimensions, 0-1 range)
-    if (!Array.isArray(vector) || vector.length !== 6) {
-      return res.status(400).json({ error: "Vector must be an array of 6 numbers" });
-    }
-    
-    if (vector.some(v => v < 0 || v > 1)) {
-      return res.status(400).json({ error: "All vector dimensions must be between 0 and 1" });
-    }
-    
-    // Chart type validation and guardrails
-    const validChartTypes = ['natal', 'transit', 'daily', 'comparison'];
-    if (chartType && !validChartTypes.includes(chartType)) {
-      return res.status(400).json({ error: `Invalid chart type. Must be one of: ${validChartTypes.join(', ')}` });
-    }
-    
-    // Data validation guardrails
-    if (validateData) {
-      // Validate date format and range
-      const birthDate = new Date(natal.date);
-      const now = new Date();
-      const minDate = new Date('1900-01-01');
-      const maxDate = new Date('2100-12-31');
-      
-      if (isNaN(birthDate.getTime())) {
-        return res.status(400).json({ error: "Invalid birth date format" });
-      }
-      
-      if (birthDate < minDate || birthDate > maxDate) {
-        return res.status(400).json({ error: "Birth date must be between 1900 and 2100" });
-      }
-      
-      // Validate coordinates
-      if (natal.lat < -90 || natal.lat > 90) {
-        return res.status(400).json({ error: "Latitude must be between -90 and 90 degrees" });
-      }
-      
-      if (natal.lon < -180 || natal.lon > 180) {
-        return res.status(400).json({ error: "Longitude must be between -180 and 180 degrees" });
-      }
-      
-      // Validate time format
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-      if (!timeRegex.test(natal.time)) {
-        return res.status(400).json({ error: "Invalid time format. Use HH:MM format" });
-      }
-      
-      // Guardrail: Prevent future birth dates for natal charts
-      if (chartType === 'natal' && birthDate > now) {
-        return res.status(400).json({ error: "Birth date cannot be in the future for natal charts" });
-      }
-      
-      // Guardrail: Limit daily sky usage to prevent abuse
-      if (useTodaySky && chartType !== 'daily') {
-        console.warn(`Daily sky requested for ${chartType} chart - limiting to natal only`);
-        useTodaySky = false;
-      }
-    }
-    
-    console.log(`COMPOSE: ${mode} with vector [${vector.map(v => v.toFixed(3)).join(', ')}] for ${natal.date} ${natal.time} ${natal.tz} (${natal.lat}, ${natal.lon})`);
-    
-    // Resolve UTC instant for natal chart
-    const natalJd = toJulianDayUT(natal.date, natal.time, natal.lat, natal.lon);
-    console.log(`EPHEMERIS: natal JD ${natalJd.toFixed(6)} tz=${natal.tz} ok`);
-    
-    // Get natal chart data
-    const natalPositions = calcPositions(natalJd, true);
-    const natalHouses = calcPlacidusCusps(natalJd, natal.lat, natal.lon);
-    const natalAspects = calcAspects(natalPositions);
-    const natalMoonPhase = calcMoonPhase(natalJd);
-    const natalElements = calcDominantElements(natalPositions);
-    const natalClusters = buildPlanetaryClusters(natalPositions);
-    
-    // Build natal chart context
-    const natalContext = {
-      planets: natalPositions,
-      houses: natalHouses,
-      aspects: natalAspects,
-      moonPhase: natalMoonPhase,
-      dominantElements: natalElements,
-      clusters: natalClusters,
-      nowJulian: natalJd,
-      date: natal.date,
-      time: natal.time,
-      timezone: natal.tz,
-      latitude: natal.lat,
-      longitude: natal.lon
-    };
-    
-    let chartContext = natalContext;
-    
-    // Handle comparison chart if provided
-    if (compare && compare.date && compare.time && compare.tz && compare.lat !== undefined && compare.lon !== undefined) {
-      console.log(`COMPARE: ${compare.date} ${compare.time} ${compare.tz} (${compare.lat}, ${compare.lon})`);
-      
-      const compareJd = toJulianDayUT(compare.date, compare.time, compare.lat, compare.lon);
-      const comparePositions = calcPositions(compareJd, true);
-      const compareHouses = calcPlacidusCusps(compareJd, compare.lat, compare.lon);
-      const compareAspects = calcAspects(comparePositions);
-      const compareMoonPhase = calcMoonPhase(compareJd);
-      const compareElements = calcDominantElements(comparePositions);
-      const compareClusters = buildPlanetaryClusters(comparePositions);
-      
-      const compareContext = {
-        planets: comparePositions,
-        houses: compareHouses,
-        aspects: compareAspects,
-        moonPhase: compareMoonPhase,
-        dominantElements: compareElements,
-        clusters: compareClusters,
-        nowJulian: compareJd,
-        date: compare.date,
-        time: compare.time,
-        timezone: compare.tz,
-        latitude: compare.lat,
-        longitude: compare.lon
-      };
-      
-      chartContext.overlay = compareContext;
-    }
-    
-    // Handle today's sky if requested
-    if (useTodaySky) {
-      const today = new Date();
-      const todayDate = today.toISOString().slice(0, 10);
-      const todayTime = "12:00"; // Use noon for today's positions
-      
-      console.log(`TODAY: ${todayDate} ${todayTime} UTC`);
-      
-      const todayJd = toJulianDayUT(todayDate, todayTime);
-      const todayPositions = calcPositions(todayJd, true);
-      const todayAspects = calcAspects(todayPositions);
-      const todayMoonPhase = calcMoonPhase(todayJd);
-      const todayElements = calcDominantElements(todayPositions);
-      const todayClusters = buildPlanetaryClusters(todayPositions);
-      
-      const todayContext = {
-        planets: todayPositions,
-        aspects: todayAspects,
-        moonPhase: todayMoonPhase,
-        dominantElements: todayElements,
-        clusters: todayClusters,
-        nowJulian: todayJd,
-        date: todayDate,
-        time: todayTime,
-        timezone: "UTC"
-      };
-      
-      chartContext.today = todayContext;
-    }
-    
-    // Log chart context summary
-    const planetCount = Object.keys(chartContext.planets).length;
-    const aspectCount = chartContext.aspects.length;
-    const clusterCount = chartContext.clusters.length;
-    const lunarPhase = chartContext.moonPhase;
-    
-    console.log(`CHART_CONTEXT: houses=12 planets=${planetCount} aspects=${aspectCount} clusters=${clusterCount} lunar=${lunarPhase}`);
-    
-    res.json({
-      success: true,
-      chartContext,
-      mode,
-      vector,
-      analytics: {
-        planetCount,
-        aspectCount,
-        clusterCount,
-        lunarPhase,
-        hasOverlay: !!chartContext.overlay,
-        hasTodaySky: !!chartContext.today
-      }
-    });
-    
-  } catch (error) {
-    console.error("Error in /api/compose:", error);
-    res.status(500).json({ error: "Failed to generate chart context", details: error.message });
-  }
-});
 
-// vNext ML-primary compose endpoint (parallel to existing)
-app.post("/api/vnext/compose", express.json(), vnextCompose);
+// v1.1 Composition endpoint (Unified Spec v1.1)
+app.post("/api/compose", express.json(), vnextCompose);
 
-// vNext render endpoint (Plan → Audio)
-app.post("/api/vnext/render", express.json(), vnextRender);
-
-// vNext astro debug endpoint (ephemeris → features → guidance)
-app.post("/api/vnext/astro-debug", express.json(), astroDebugHandler);
-
-// Vector-based render endpoint
-app.post("/api/render", express.json(), async (req, res) => {
-  try {
-    const { chartContext, mode, vector, format = "wav", normalize = true, events, bpm, duration } = req.body;
-    
-    // AUDIT LOG: Render API request schema
-    const requestSchema = {
-      phase: "render:request",
-      bodySize: JSON.stringify(req.body).length,
-      hasChartContext: !!chartContext,
-      hasMode: !!mode,
-      hasVector: !!vector,
-      vectorLength: Array.isArray(vector) ? vector.length : 'not_array',
-      hasEvents: !!events,
-      eventsLength: Array.isArray(events) ? events.length : 'not_array',
-      bpm: bpm,
-      duration: duration,
-      format: format
-    };
-    console.log(`[Render] Request schema:`, JSON.stringify(requestSchema));
-    
-    // Validate required fields
-    if (!chartContext || !mode || !vector) {
-      const error = `Missing required fields: chartContext=${!!chartContext}, mode=${!!mode}, vector=${!!vector}`;
-      console.log(`[Render] 400: ${error}`);
-      console.log(`[Render] Validation details: chartContext=${typeof chartContext}, mode=${typeof mode}, vector=${typeof vector}`);
-      return res.status(400).json({ error, validation: { chartContext: !!chartContext, mode: !!mode, vector: !!vector } });
-    }
-    
-    // Validate vector
-    if (!Array.isArray(vector) || vector.length !== 6) {
-      const error = `Vector must be an array of 6 numbers, got: ${Array.isArray(vector) ? `array[${vector.length}]` : typeof vector}`;
-      console.log(`[Render] 400: ${error}`);
-      console.log(`[Render] Vector details: type=${typeof vector}, isArray=${Array.isArray(vector)}, length=${vector?.length}, value=${JSON.stringify(vector)}`);
-      return res.status(400).json({ error, vector: { type: typeof vector, isArray: Array.isArray(vector), length: vector?.length } });
-    }
-
-    // Validate composition payload if provided
-    if (events !== undefined) {
-      const bad = [];
-      if (!Array.isArray(events) || events.length === 0) bad.push('events');
-      if (!Number.isFinite(bpm) || bpm <= 0) bad.push('bpm');
-      if (!Number.isFinite(duration) || duration <= 0) bad.push('duration');
-      if (bad.length) {
-        const error = `Bad payload: ${bad.join(', ')} - events=${events?.length ?? 0}, bpm=${bpm}, duration=${duration}`;
-        console.log(`[Render] 400: ${error}`);
-        return res.status(400).json({ error, bad });
-      }
-    }
-    
-    // Ensure vector values are within bounds
-    const KEYS = ['tempo_energy','rhythm_density','harmonic_tension','brightness','texture_space','melodic_activity'];
-    const vIn = req.body?.vector || {};
-    const normalizedVector = Object.fromEntries(
-      KEYS.map(k => [k, Math.max(0, Math.min(1, Number(vIn[k]) || 0.45))])
-    );
-    console.log('[Render] vector', normalizedVector); // should NOT be all 0.5s
-    
-    console.log(`RENDER: ${mode} with vector [${Object.values(normalizedVector).map(v => v.toFixed(3)).join(', ')}] format=${format}`);
-    
-    // Generate composition using the audio engine
-    const composition = await generateCompositionFromVector(chartContext, mode, normalizedVector, duration || 60);
-    
-    // Apply quality gates and finalization
-    const finalizedComposition = finalizeCompositionWithCaps(composition, normalizedVector, bpm || 120);
-    
-    // Generate audio buffer
-    const audioBuffer = await generateAudioBuffer(finalizedComposition, format, normalize);
-    
-    // Save audio file to media directory
-    const fileName = `audition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${format}`;
-    const filePath = path.join(MEDIA_DIR, fileName);
-    
-    try {
-      // Ensure media directory exists
-      if (!fs.existsSync(MEDIA_DIR)) {
-        fs.mkdirSync(MEDIA_DIR, { recursive: true });
-      }
-      
-      // Write audio file
-      fs.writeFileSync(filePath, audioBuffer);
-      console.log(`[Render] Audio file saved: ${fileName}`);
-      
-      // Return success with audio file URL and composition structure
-      res.json({
-        success: true,
-        message: "Vector-based rendering completed",
-        mode,
-        vector,
-        format,
-        duration: finalizedComposition.durationSec || 60,
-        eventCount: finalizedComposition.segments?.reduce((sum, seg) => sum + (seg.events?.length || 0), 0) || 0,
-        segments: finalizedComposition.segments,
-        audioUrl: `/media/${fileName}`,
-        audioData: audioBuffer.toString('base64'),
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (fileError) {
-      console.error('[Render] Failed to save audio file:', fileError);
-      // Return without file URL but with audio data
-      res.json({
-        success: true,
-        message: "Vector-based rendering completed (file save failed)",
-        mode,
-        vector,
-        format,
-        duration: finalizedComposition.durationSec || 60,
-        eventCount: finalizedComposition.segments?.reduce((sum, seg) => sum + (seg.events?.length || 0), 0) || 0,
-        segments: finalizedComposition.segments,
-        audioData: audioBuffer.toString('base64'),
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-  } catch (error) {
-    console.error("Error in /api/render:", error);
-    res.status(500).json({ error: "Failed to render audio", details: error.message });
-  }
-});
+console.log("[ROUTES]", dumpRoutes(app));
 
 // Serve static files
 app.use(express.static(PUBLIC_DIR));

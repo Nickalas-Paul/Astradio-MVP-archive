@@ -1,0 +1,74 @@
+{
+    "controls":  {
+                     "arc_shape":  0.45,
+                     "density_level":  0.5,
+                     "tempo_norm":  0.5,
+                     "step_bias":  0.62,
+                     "leap_cap":  3,
+                     "rhythm_template_id":  4,
+                     "syncopation_bias":  0.28,
+                     "motif_rate":  0.4,
+                     "element_dominance":  "air",
+                     "aspect_tension":  0.4,
+                     "modality":  "mutable",
+                     "hash":  "25ffd66f",
+                     "arc_shape_id":  "rise_peak_release"
+                 },
+    "astro":  {
+                  "element_dominance":  "air",
+                  "aspect_tension":  0.4,
+                  "modality":  "mutable"
+              },
+    "gate_report":  {
+                        "calibrated":  {
+                                           "melody_arc":  true,
+                                           "melody_step_leap":  true,
+                                           "melody_narrative":  true,
+                                           "rhythm_diversity":  true,
+                                           "overall":  true
+                                       },
+                        "strict":  {
+                                       "melody_arc":  true,
+                                       "melody_step_leap":  true,
+                                       "melody_narrative":  true,
+                                       "rhythm_diversity":  true,
+                                       "overall":  true
+                                   },
+                        "scores":  {
+                                       "melody_arc":  0.47274626982927936,
+                                       "melody_step_leap":  0.262566705900842,
+                                       "melody_narrative":  0.4561497297594672,
+                                       "rhythm_diversity":  0.3257272870153485
+                                   },
+                        "latency_ms":  {
+                                           "predict":  2.5,
+                                           "plan":  1.2,
+                                           "total":  8.7
+                                       }
+                    },
+    "audio":  {
+                  "url":  "/api/audio/25ffd66f.mp3",
+                  "latency_ms":  0
+              },
+    "text":  {
+                 "short":  "Tone: social, equilibrated. Mercury and Air balance connected and expansive movement. Cosmic forces move with delicate...",
+                 "long":  "Tone: social, equilibrated. Mercury and Air balance connected and expansive movement. Mercury\u0027s lightly shifting patterns, with constant cosmic time. measured, Jupiter-steady tempo planetary influences balance with cosmic clarity Jupiter\u0027s rhythm of growth cycles through cosmic motifs",
+                 "bullets":  [
+                                 "• Mercury and Air balance connected and expansive movement.",
+                                 "• Cosmic forces move with delicate grace, like Air\u0027s adaptable flow.",
+                                 "• Mercury\u0027s lightly shifting patterns, with constant cosmic time.",
+                                 "• planetary influences balance with cosmic clarity",
+                                 "• Jupiter\u0027s rhythm of growth cycles through cosmic motifs"
+                             ],
+                 "template_id":  "v1.short.03",
+                 "seed":  "25ffd66f"
+             },
+    "artifacts":  {
+                      "model":  "084c92dca9af2f09",
+                      "encoder":  "db4eb96e52b3f63e",
+                      "snapset":  "185371267270f0ef",
+                      "gate":  "v2.3-final",
+                      "mapping_tables_version":  "v1.1",
+                      "timestamp":  ""
+                  }
+}

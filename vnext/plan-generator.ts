@@ -4,11 +4,9 @@
 
 import crypto from "crypto";
 import type { FeatureVec, Plan } from "./contracts";
-import { generateWithStudent, studentVector, vectorToPlan } from "./ml/student";
+import { studentVector } from "./ml";
 import { planFromVector } from "./planner/narrative";
 import { guidanceFromFeatures } from "./astro/guidance";
-import { retrieveNearestPlan, addToBank } from "./ml/retrieval";
-import { refine } from "./ml/refiner";
 import { audition, ruleQualityPass } from "./audition-gate";
 import { logAudit } from "./logger";
 import { MIN_RULE_QUALITY } from "./config/quality";
@@ -17,16 +15,46 @@ const K = Number(process.env.VNEXT_K || 8);
 const MIN_Q = MIN_RULE_QUALITY;
 const JITTER = Number(process.env.VNEXT_JITTER || 0.10); // 0..1
 
-function jitter(v: number[], sigma: number) {
-  return v.map(x => Math.max(0, Math.min(1, x + (crypto.randomBytes(1)[0]/255 - 0.5) * 2 * sigma)));
+// Deterministic PRNG (xorshift32) seeded from controls.hash to ensure repeatability
+function createSeededRNG(seedStr: string) {
+  // Derive a 32-bit seed from the hash string deterministically
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    seed = (seed ^ seedStr.charCodeAt(i)) >>> 0;
+    // Mix
+    seed = Math.imul(seed ^ (seed >>> 15), 2246822507) >>> 0;
+    seed = Math.imul(seed ^ (seed >>> 13), 3266489909) >>> 0;
+  }
+  if (seed === 0) seed = 0x9E3779B9; // non-zero default
+  let state = seed >>> 0;
+  return () => {
+    // xorshift32
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17; state >>>= 0;
+    state ^= state << 5;  state >>>= 0;
+    // Map to [0,1)
+    return (state >>> 0) / 0xFFFFFFFF;
+  };
+}
+
+function jitter(v: number[], sigma: number, rand: () => number) {
+  if (sigma <= 0) return v.slice();
+  return v.map(x => {
+    const noise = (rand() - 0.5) * 2 * sigma; // [-sigma, +sigma]
+    const y = x + noise;
+    return Math.max(0, Math.min(1, y));
+  });
 }
 
 
 export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): Promise<{ plan: Plan; source: string; diag: any }> {
-  const { vector: base, modelVersion, source: modelSource } = await studentVector(feat, chartContext); // [6] in [0,1]
+  const { vector: base, modelVersion } = await studentVector(feat); // [6] in [0,1]
   
   // Compute astrological guidance if chartContext provided
   let guidance: any = undefined;
+  // Create deterministic RNG from controls.hash when available
+  const seedStr = (chartContext && (chartContext.hash || chartContext.controls?.hash)) || "seed";
+  const rng = createSeededRNG(String(seedStr));
   if (chartContext) {
     try {
       // Convert chartContext to EphemerisSnapshot format
@@ -54,7 +82,7 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
     }
   }
   
-  const candidates = [base, ...Array.from({length: K-1}, (_,i)=> jitter(base, JITTER))];
+  const candidates = [base, ...Array.from({length: K-1}, () => jitter(base, JITTER, rng))];
 
   const scored = candidates.map(v6 => {
     const plan = planFromVector(v6 as any, guidance);
@@ -75,7 +103,7 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
     diag: { 
       scores: scored.map(s => s.q.score),
       modelVersion,
-      modelSource,
+      modelSource: modelVersion,
       canaryInfo: modelVersion === 'v2' ? 'canary-active' : 'baseline'
     } 
   };

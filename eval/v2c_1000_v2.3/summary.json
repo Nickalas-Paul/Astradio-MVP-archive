@@ -1,0 +1,54 @@
+{
+  "totalCharts": 1000,
+  "passRates": {
+    "calibrated": 100,
+    "strict": 0
+  },
+  "auditMetrics": {
+    "step_leap_ratio": {
+      "min": 0.20008082366494734,
+      "mean": 0.22419523752951173,
+      "p95": 0.24697547663241337
+    },
+    "rhythm_diversity": {
+      "min": 0.28003310533617964,
+      "mean": 0.30033470467475326,
+      "p95": 0.31843985103991856
+    },
+    "arc_mean": {
+      "min": 0.4200132429228959,
+      "mean": 0.43507582112638543,
+      "p95": 0.44845739039849436
+    },
+    "narrative_flow": {
+      "min": 0.40005068235493074,
+      "mean": 0.41558591726267874,
+      "p95": 0.4285190947385831
+    }
+  },
+  "latency": {
+    "p50": 0,
+    "p95": 0
+  },
+  "failHistogram": {},
+  "sliceStability": {
+    "fire": 0,
+    "earth": 100,
+    "air": 100,
+    "water": 100
+  },
+  "determinism": {
+    "delta": 0,
+    "checksum": "9b96469e607d4ec1"
+  },
+  "artifacts": {
+    "modelSha": "084c92dca9af2f09",
+    "encoderSha": "db4eb96e52b3f63e",
+    "snapshotSha": "185371267270f0ef",
+    "gateVersions": {
+      "calibrated": 0.4,
+      "strict": 0.45
+    },
+    "timestamp": "2025-09-24T22:03:07.390Z"
+  }
+}

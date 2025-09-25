@@ -1,0 +1,48 @@
+name: Compose E2E
+
+on:
+  push:
+    branches: [ "phase-3-hardening" ]
+  pull_request:
+    branches: [ "phase-3-hardening" ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build vNext
+        run: npm run vnext:build
+
+      - name: Start server
+        run: node server/index.js & sleep 3
+
+      - name: Run E2E (schema+determinism+fail+overlay+latency)
+        env:
+          ARTIFACT_DIR: e2e-artifacts
+          BASE_URL: http://localhost:3000
+        run: node dist/vnext/scripts/e2e-compose-tests.js all
+
+      - name: Route proof (single pipeline)
+        run: |
+          echo "grep server/index.js for /api/compose mounting" > e2e-artifacts/route-proof.txt
+          grep -n "/api/compose" -n server/index.js >> e2e-artifacts/route-proof.txt || true
+          grep -n "dist/vnext/api/compose" -n server/index.js >> e2e-artifacts/route-proof.txt || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-e2e-artifacts
+          path: e2e-artifacts
+
+

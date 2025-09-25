@@ -26,6 +26,8 @@
     "test:wheel-contract": "npm run vnext:build && node dist/vnext/scripts/test-wheel-contract.js",
     "freeze-eval-set": "npm run vnext:build && node dist/vnext/scripts/freeze-eval-set.js",
     "model-provenance": "npm run vnext:build && node dist/vnext/scripts/model-provenance.js",
+    "phase2c-eval": "npm run vnext:build && node dist/vnext/scripts/run-phase2c-eval.js",
+    "generate-snapshots": "npm run vnext:build && node dist/vnext/scripts/generate-real-snapshots.js",
     "ci-path-guard": "npm run vnext:build && node dist/vnext/scripts/ci-path-guard.js",
     "verify-teacher": "npm run vnext:build && node dist/vnext/scripts/verify-teacher-consistency.js",
     "enforce-thresholds": "npm run vnext:build && node dist/vnext/scripts/enforce-quality-thresholds.js",
@@ -38,6 +40,7 @@
   "dependencies": {
     "@simplewebauthn/server": "^8.3.6",
     "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "argon2": "^0.31.2",
     "aws-sdk": "^2.1490.0",

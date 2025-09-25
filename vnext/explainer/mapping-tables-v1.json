@@ -1,0 +1,314 @@
+{
+  "version": "v1.1",
+  "description": "Deterministic mapping tables for text explainer atoms → phrases (Unified Spec v1.1)",
+  "last_updated": "2025-01-24",
+  
+  "arc_descriptions": {
+    "rise_peak_release": {
+      "condition": "arc_shape>=0.6",
+      "templates": [
+        "The celestial energy builds and releases, {tint}.",
+        "Astrological forces surge then soften, {tint}.",
+        "Cosmic waves rise and fall, {tint}.",
+        "Stellar influences flow with gentle motion, {tint}."
+      ]
+    },
+    "gentle_wave": {
+      "condition": "arc_shape>=0.4 && arc_shape<0.6",
+      "templates": [
+        "Planetary energies flow smoothly, {tint}.",
+        "Cosmic forces move with gentle grace, {tint}.",
+        "Stellar influences undulate softly, {tint}.",
+        "Astrological currents flow with subtle motion, {tint}."
+      ]
+    },
+    "plateau_hold": {
+      "condition": "arc_shape>=0.2 && arc_shape<0.4",
+      "templates": [
+        "Planetary positions hold steady, {tint}.",
+        "Cosmic energies maintain consistent flow, {tint}.",
+        "Stellar influences remain stable, {tint}.",
+        "Astrological forces hold with patient grace, {tint}."
+      ]
+    },
+    "mixed_rise_release": {
+      "condition": "arc_shape<0.2",
+      "templates": [
+        "Celestial patterns shift and change, {tint}.",
+        "Planetary energies flow dynamically, {tint}.",
+        "Cosmic forces adapt and transform, {tint}.",
+        "Stellar influences shift and grow, {tint}."
+      ]
+    }
+  },
+
+  "element_tints": {
+    "fire": {
+      "condition": "fire>0.4",
+      "phrase": "echoing Fire's bursts of energy"
+    },
+    "earth": {
+      "condition": "earth>0.4",
+      "phrase": "reflecting Earth's grounded pace"
+    },
+    "air": {
+      "condition": "air>0.4",
+      "phrase": "like Air's adaptable flow"
+    },
+    "water": {
+      "condition": "water>0.4",
+      "phrase": "mirroring Water's emotional tides"
+    },
+    "none": {
+      "condition": "default",
+      "phrase": "with balanced elemental energy"
+    }
+  },
+
+  "movement_descriptions": {
+    "stepwise_heavy": {
+      "condition": "step_bias>=0.70",
+      "primary": "Venus and Earth guide mostly connected motion",
+      "tint": "Venus/Earth"
+    },
+    "balanced": {
+      "condition": "step_bias>=0.40 && step_bias<=0.69",
+      "primary": "Mercury and Air balance connected and expansive movement",
+      "tint": "Mercury/Air"
+    },
+    "leaping_lead": {
+      "condition": "step_bias<0.40",
+      "primary": "Uranus and Fire drive expansive leaps",
+      "tint": "Uranus/Fire"
+    }
+  },
+
+  "leap_modifiers": {
+    "wide_reaches": {
+      "condition": "leap_cap>=5",
+      "modifier": ", with Jupiter's expansive reach",
+      "tint": "Jupiter"
+    },
+    "close_careful": {
+      "condition": "leap_cap<=2",
+      "modifier": ", with Saturn's disciplined restraint",
+      "tint": "Saturn"
+    },
+    "none": {
+      "condition": "default",
+      "modifier": "",
+      "tint": ""
+    }
+  },
+
+  "planet_tints": {
+    "Mars": "bold push",
+    "Venus": "steady connections",
+    "Mercury": "quick turns",
+    "Saturn": "disciplined restraint",
+    "Uranus": "disruptive spark",
+    "Neptune": "soft dissolves",
+    "Jupiter": "expansive reach"
+  },
+
+  "rhythm_classes": {
+    "simple_even": {
+      "condition": "rhythm_template_id>=0 && rhythm_template_id<=2",
+      "class": "Earth's steady, even pulse",
+      "tint": "Earth"
+    },
+    "lightly_shifting": {
+      "condition": "rhythm_template_id>=3 && rhythm_template_id<=4",
+      "class": "Mercury's lightly shifting patterns",
+      "tint": "Mercury/Air"
+    },
+    "strong_accented": {
+      "condition": "rhythm_template_id>=5 && rhythm_template_id<=6",
+      "class": "Mars' strong, accented pulse",
+      "tint": "Mars"
+    },
+    "fluid_open": {
+      "condition": "rhythm_template_id==7",
+      "class": "Neptune's fluid, open timing",
+      "tint": "Neptune"
+    }
+  },
+
+  "syncopation_descriptions": {
+    "pronounced": {
+      "condition": "syncopation_bias>=0.60",
+      "description": "with Uranus' disruptive spark",
+      "tint": "Uranus"
+    },
+    "subtle": {
+      "condition": "syncopation_bias>=0.30 && syncopation_bias<=0.59",
+      "description": "with subtle celestial shifts",
+      "tint": ""
+    },
+    "straight": {
+      "condition": "syncopation_bias<0.30",
+      "description": "with steady cosmic time",
+      "tint": ""
+    }
+  },
+
+  "density_descriptions": {
+    "sparse": {
+      "condition": "density_level>=0.0 && density_level<=0.3",
+      "description": "celestial energies flow with spacious clarity"
+    },
+    "balanced": {
+      "condition": "density_level>=0.4 && density_level<=0.6",
+      "description": "planetary influences balance with cosmic clarity"
+    },
+    "dense": {
+      "condition": "density_level>=0.7 && density_level<=1.0",
+      "description": "stellar forces layer with rich cosmic weight"
+    },
+    "stellium_suffix": {
+      "condition": "stellium_count>=3",
+      "suffix": ", reflecting the crowded celestial dance"
+    }
+  },
+
+  "tempo_descriptions": {
+    "brisk": {
+      "condition": "tempo_norm>0.7",
+      "description": "brisk, Mercury-like pace"
+    },
+    "measured": {
+      "condition": "tempo_norm>=0.4 && tempo_norm<=0.7",
+      "description": "measured, Jupiter-steady tempo"
+    },
+    "slow": {
+      "condition": "tempo_norm<0.4",
+      "description": "slow, Saturn-patient tempo"
+    }
+  },
+
+  "motif_descriptions": {
+    "frequent": {
+      "condition": "motif_rate>0.7",
+      "description": "Venus's love of return brings recurring celestial themes"
+    },
+    "moderate": {
+      "condition": "motif_rate>=0.4 && motif_rate<=0.7",
+      "description": "Jupiter's rhythm of growth cycles through cosmic motifs"
+    },
+    "sparse": {
+      "condition": "motif_rate<0.4",
+      "description": "Mars keeps pushing forward with few celestial repeats"
+    }
+  },
+
+  "astro_colors": {
+    "element_adjectives": {
+      "fire": "energetic",
+      "earth": "grounded",
+      "air": "social",
+      "water": "introspective"
+    },
+    "planet_adjectives": {
+      "Mars": "assertive",
+      "Venus": "harmonious",
+      "Mercury": "curious",
+      "Saturn": "disciplined",
+      "Jupiter": "expansive",
+      "Uranus": "unexpected",
+      "Neptune": "dreamy"
+    }
+  },
+
+  "template_structures": {
+    "short": {
+      "pattern": "[astro_color] [movement] [arc_desc]",
+      "optional": "add rhythm_feel if space",
+      "max_length": 120
+    },
+    "long": {
+      "s1": "[astro_color]",
+      "s2": "[movement]",
+      "s3": "[rhythm_feel] + tempo fragment",
+      "s4": "[density_desc]",
+      "s5": "[motif_desc]",
+      "max_length": 300
+    },
+    "bullets": {
+      "items": [
+        "movement",
+        "arc_desc",
+        "rhythm_feel",
+        "density_desc",
+        "motif_desc",
+        "gate hints (when applicable)"
+      ],
+      "count": "4-6 items"
+    }
+  },
+
+  "overlay_deltas": {
+    "step_bias_more": {
+      "condition": "step_bias_delta >= +0.10",
+      "description": "more stepwise than natal"
+    },
+    "leap_cap_wider": {
+      "condition": "leap_cap_delta >= +1",
+      "description": "wider leaps than natal"
+    },
+    "syncopation_more": {
+      "condition": "syncopation_delta >= +0.15",
+      "description": "more syncopated feel than natal"
+    }
+  },
+
+  "sandbox_hints": {
+    "step_leap_fail": {
+      "condition": "step_leap gate fails",
+      "hint": "Try **step_bias +0.1** or **leap_cap → 3**."
+    },
+    "rhythm_div_fail": {
+      "condition": "rhythm_div gate fails",
+      "hint": "Switch to template 3 or raise syncopation slightly."
+    },
+    "arc_fail": {
+      "condition": "arc gate fails",
+      "hint": "Adjust arc to a clearer rise-peak-release."
+    }
+  },
+
+  "synonym_variations": {
+    "seed_based": {
+      "description": "Use controls.hash % 4 to select from 4 synonym sets",
+      "sets": [
+        {
+          "gentle": "soft",
+          "rise": "ascent",
+          "fall": "descent",
+          "steady": "consistent",
+          "balanced": "harmonious"
+        },
+        {
+          "gentle": "smooth",
+          "rise": "climb",
+          "fall": "drop",
+          "steady": "regular",
+          "balanced": "even"
+        },
+        {
+          "gentle": "subtle",
+          "rise": "uplift",
+          "fall": "decline",
+          "steady": "stable",
+          "balanced": "well-proportioned"
+        },
+        {
+          "gentle": "delicate",
+          "rise": "elevation",
+          "fall": "lowering",
+          "steady": "constant",
+          "balanced": "equilibrated"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "timestamp": "2025-09-24T18:06:56.286Z",
+  "labeler_version": "v2.1_scaled_from_existing",
+  "total_labels": 4960,
+  "train_count": 4409,
+  "dev_count": 551,
+  "test_count": 552,
+  "integrity_gates_passed": false,
+  "per_head_stats": [
+    {
+      "name": "tempo_norm",
+      "min": 0,
+      "mean": 0.2894086021505248,
+      "max": 0.4583333333333333,
+      "variance": 0.011170752399120704,
+      "unique_count": 21
+    },
+    {
+      "name": "density_curve",
+      "min": 0,
+      "mean": 0.9673689516129035,
+      "max": 1,
+      "variance": 0.02767740218113645,
+      "unique_count": 5
+    },
+    {
+      "name": "motif_rate",
+      "min": 0.625,
+      "mean": 0.6566532258064293,
+      "max": 1,
+      "variance": 0.007921382849395826,
+      "unique_count": 3
+    },
+    {
+      "name": "syncopation",
+      "min": 0.35,
+      "mean": 0.3882661290322244,
+      "max": 0.5,
+      "variance": 0.0027685662721126,
+      "unique_count": 4
+    },
+    {
+      "name": "harmonic_change_rate",
+      "min": 0.2,
+      "mean": 0.29079301075269937,
+      "max": 0.36666666666666664,
+      "variance": 0.00030647238842632503,
+      "unique_count": 4
+    },
+    {
+      "name": "melodic_range_norm",
+      "min": 0.08333333333333333,
+      "mean": 0.9487455197132616,
+      "max": 1,
+      "variance": 0.03985854177105709,
+      "unique_count": 4
+    },
+    {
+      "name": "arc_start",
+      "min": 0.2,
+      "mean": 0.9496774193548388,
+      "max": 1,
+      "variance": 0.03772570239334394,
+      "unique_count": 2
+    },
+    {
+      "name": "arc_middle",
+      "min": 0.4918743793184127,
+      "mean": 0.5357434807871324,
+      "max": 1,
+      "variance": 0.01007959014531009,
+      "unique_count": 8
+    },
+    {
+      "name": "arc_end",
+      "min": 0,
+      "mean": 0.021157666548921535,
+      "max": 0.5735294117647092,
+      "variance": 0.009019611145412986,
+      "unique_count": 4
+    },
+    {
+      "name": "cadence_class",
+      "min": 2,
+      "mean": 2.979032258064516,
+      "max": 3,
+      "variance": 0.02052809573360704,
+      "unique_count": 2
+    },
+    {
+      "name": "motif_token",
+      "min": 0,
+      "mean": 0.14677419354838708,
+      "max": 6,
+      "variance": 0.7542637877213095,
+      "unique_count": 3
+    }
+  ],
+  "dataset_checksum": "4b75805f1d60b878d2c1d6103a9896f5c5c4b11dde832db276e723dcb3ef0fe0"
+}

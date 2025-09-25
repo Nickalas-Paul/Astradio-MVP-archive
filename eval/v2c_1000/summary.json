@@ -1,0 +1,183 @@
+{
+  "totalCharts": 1000,
+  "passedCharts": 0,
+  "passRate": 0,
+  "avgQuality": 0.5710790858189944,
+  "p50Latency": 55,
+  "p95Latency": 100,
+  "top5FailReasons": [
+    [
+      "melody_stepLeap",
+      1000
+    ],
+    [
+      "melody_narrative",
+      1000
+    ],
+    [
+      "rhythm_diversity",
+      1000
+    ],
+    [
+      "harmony_progression",
+      263
+    ],
+    [
+      "rhythm_syncopation",
+      240
+    ]
+  ],
+  "completeFailHistogram": {
+    "melody_stepLeap": 1000,
+    "melody_narrative": 1000,
+    "rhythm_syncopation": 240,
+    "rhythm_diversity": 1000,
+    "harmony_complexity": 122,
+    "harmony_progression": 263,
+    "rhythm_tempo": 130,
+    "rhythm_groove": 189,
+    "harmony_voiceLeading": 163,
+    "harmony_tension": 66
+  },
+  "perHeadStats": {
+    "melody_arc": {
+      "min": 0.41217320261437873,
+      "mean": 0.41217320261438234,
+      "p95": 0.41217320261437873,
+      "count": 1000
+    },
+    "melody_motif_recurrence": {
+      "min": 0.6304347826086957,
+      "mean": 0.6304347826087011,
+      "p95": 0.6304347826086957,
+      "count": 1000
+    },
+    "melody_contour_entropy": {
+      "min": 0.5495118635586065,
+      "mean": 0.549511863558607,
+      "p95": 0.5495118635586065,
+      "count": 1000
+    },
+    "melody_step_leap_ratio": {
+      "min": 0.010101010101010102,
+      "mean": 0.010101010101010248,
+      "p95": 0.010101010101010102,
+      "count": 1000
+    },
+    "melody_range_ok": {
+      "min": 1,
+      "mean": 1,
+      "p95": 1,
+      "count": 1000
+    },
+    "melody_narrative_flow": {
+      "min": 0.3737373737373737,
+      "mean": 0.3737373737373708,
+      "p95": 0.3737373737373737,
+      "count": 1000
+    },
+    "melody_gaming_penalty": {
+      "min": 0,
+      "mean": 0,
+      "p95": 0,
+      "count": 1000
+    },
+    "harmony_progression_legality": {
+      "min": 0.20052959650492996,
+      "mean": 0.5942022930359092,
+      "p95": 0.9589757147063211,
+      "count": 1000
+    },
+    "harmony_voice_leading": {
+      "min": 0.2019538969407222,
+      "mean": 0.6050258337157642,
+      "p95": 0.9535197934426833,
+      "count": 1000
+    },
+    "harmony_tension": {
+      "min": 0.20013871219125579,
+      "mean": 0.5961231011132083,
+      "p95": 0.9668099082322443,
+      "count": 1000
+    },
+    "harmony_complexity": {
+      "min": 0.2006074411336158,
+      "mean": 0.60531405978348,
+      "p95": 0.9609693139864248,
+      "count": 1000
+    },
+    "harmony_resolution": {
+      "min": 0.20019723028235603,
+      "mean": 0.6025186380301649,
+      "p95": 0.9573083540133667,
+      "count": 1000
+    },
+    "rhythm_syncopation": {
+      "min": 0.20133667104346387,
+      "mean": 0.5985907926445379,
+      "p95": 0.9594026119368209,
+      "count": 1000
+    },
+    "rhythm_groove": {
+      "min": 0.20001370296013193,
+      "mean": 0.6036479929159809,
+      "p95": 0.9595951769064415,
+      "count": 1000
+    },
+    "rhythm_tempo": {
+      "min": 0.20040138919066522,
+      "mean": 0.6035068215605092,
+      "p95": 0.9634035975817825,
+      "count": 1000
+    },
+    "rhythm_diversity": {
+      "min": 0.125,
+      "mean": 0.125,
+      "p95": 0.125,
+      "count": 1000
+    },
+    "rhythm_accent": {
+      "min": 0.20010828251834029,
+      "mean": 0.5994196868177399,
+      "p95": 0.9567959396183141,
+      "count": 1000
+    }
+  },
+  "featureEncoder": {
+    "signature": "64-dim",
+    "dimensions": 64,
+    "scalerInfo": "No scalers persisted at train time - using raw feature values"
+  },
+  "headMapping": {
+    "melody_arc": "Derived from plan events (not direct model output)",
+    "melody_motif": "Derived from plan events (not direct model output)",
+    "melody_contour": "Derived from plan events (not direct model output)",
+    "melody_stepLeap": "Derived from plan events (not direct model output)",
+    "melody_range": "Derived from plan events (not direct model output)",
+    "melody_narrative": "Derived from plan events (not direct model output)",
+    "melody_gaming": "Derived from plan events (not direct model output)",
+    "harmony_progression": "Derived from plan events (not direct model output)",
+    "harmony_complexity": "Derived from plan events (not direct model output)",
+    "harmony_voiceLeading": "Derived from plan events (not direct model output)",
+    "harmony_tension": "Derived from plan events (not direct model output)",
+    "rhythm_syncopation": "Derived from plan events (not direct model output)",
+    "rhythm_tempo": "Derived from plan events (not direct model output)",
+    "rhythm_groove": "Derived from plan events (not direct model output)",
+    "rhythm_diversity": "Derived from plan events (not direct model output)"
+  },
+  "sliceStability": {
+    "fire": 79,
+    "earth": 637,
+    "air": 151,
+    "water": 133
+  },
+  "slicePassRateFirst100": 0,
+  "slicePassRateLast100": 0,
+  "determinism_20_random": true,
+  "manifestPath": "C:\\Users\\nicka\\OneDrive\\Astradio_MVP\\datasets\\snapshots.jsonl",
+  "realized_N": 1000,
+  "modelJsonHash": "7CF2C57AC22F685C",
+  "shardHash": "ECC8120063AF2D10",
+  "shardBytes": 684132,
+  "commitHash": "c1406f67"
+}

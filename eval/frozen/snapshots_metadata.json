@@ -1,0 +1,25 @@
+{
+  "version": "phase2c_frozen_v1",
+  "created": "2025-09-24T18:50:31.674Z",
+  "totalSnapshots": 1000,
+  "uniquenessKey": "ts_lat_lon_composite",
+  "checksum": "185371267270f0ef9d7c521b0a5987b891a5bccedec66505a0fb74bbec3bbda6",
+  "distribution": {
+    "elements": {
+      "Fire": 0,
+      "Earth": 0,
+      "Air": 0,
+      "Water": 0,
+      "earth": 637,
+      "water": 133,
+      "fire": 79,
+      "air": 151
+    },
+    "signs": {},
+    "locations": 1000,
+    "dateRange": {
+      "start": "2020-01-01T00:00:00.000Z",
+      "end": "2024-12-28T18:00:00.000Z"
+    }
+  }
+}

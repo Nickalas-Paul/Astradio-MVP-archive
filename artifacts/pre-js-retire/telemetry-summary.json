@@ -1,0 +1,5 @@
+{
+    "latency_p95":  0,
+    "total_requests":  20,
+    "fail_closed_rate":  10
+}

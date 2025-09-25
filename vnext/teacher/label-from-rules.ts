@@ -7,9 +7,9 @@ import fs from "fs";
 import path from "path";
 import { encodeFeatures } from "../feature-encode";
 import type { EphemerisSnapshot, Plan, EventToken } from "../contracts";
-import { scoreMelody } from "../critics/melodic";
-import { scoreRhythm } from "../critics/rhythm";
-import { scoreHarmony } from "../critics/harmony";
+import { scoreMelody } from "../critics";
+import { scoreRhythm } from "../critics";
+import { scoreHarmony } from "../critics";
 import { MIN_QUALITY_THRESHOLD } from "../config/quality";
 
 const DATASETS_DIR = path.resolve(process.cwd(), "datasets");
@@ -21,9 +21,18 @@ const MOTIF_VOCAB_FILE = path.resolve(process.cwd(), "vnext", "teacher", "motif_
 type LabelRow = {
   feat: number[];
   directives: {
+    // Existing control parameters
     tempo_norm: number;
     density_curve: [number, number, number, number];
     motif_rate: number;
+    
+    // New control-surface parameters
+    step_bias: number; // 0.0-1.0
+    leap_cap: number; // 1-6
+    rhythm_template_id: number; // 0-7
+    syncopation_bias: number; // 0.0-1.0
+    
+    // Legacy parameters (keep for compatibility)
     syncopation: number;
     harmonic_change_rate: number;
     melodic_range_norm: number;
@@ -245,14 +254,38 @@ function generateMelody(phraseIndex: number, startTime: number, barLength: numbe
     const t0 = startTime + (i / noteCount) * (barLength * 4);
     const t1 = t0 + barLength * 0.8;
     
-    // Enhanced melodic arc with combined boost for Fire/Mutable elements
+    // Enhanced melodic arc with astrologically-predictable step-leap patterns
     let pitch = 60; // C4 base
-    const arcScale = 2 + combinedBoost * 4; // Amplify arcs for Fire/Mutable combinations
+    const arcScale = 1.2 + combinedBoost * 2; // Reduced scale for better step-leap ratio
     
-    if (phraseIndex === 0) pitch = 60 + i * arcScale; // Enhanced ascending
-    else if (phraseIndex === 1) pitch = 68 + arcBoost * 8 + Math.sin(i / noteCount * Math.PI) * (4 + arcBoost * 4); // Enhanced peak
-    else if (phraseIndex === 2) pitch = 68 + arcBoost * 8 - i * arcScale; // Enhanced descending
-    else pitch = 60 + (i % 3) + arcBoost * 2; // Enhanced resolution
+    // Control-surface approach: predict step_bias and leap_cap from astrological features
+    const fireElement = rules.astroFeatures?.dominantElements?.fire || 0;
+    const earthElement = rules.astroFeatures?.dominantElements?.earth || 0;
+    const mutableModality = rules.astroFeatures?.dominantModalities?.mutable || 0;
+    
+    // Calculate control parameters (these will be the new training targets)
+    const stepBias = 0.3 + (earthElement * 0.4) + (mutableModality * 0.2) - (fireElement * 0.3);
+    const clampedStepBias = Math.max(0.2, Math.min(0.8, stepBias));
+    const leapCap = 2 + Math.floor(fireElement * 4); // 2-6 based on fire element
+    
+    // Use deterministic pattern based on control parameters
+    const astroSeed = (fireElement * 100 + earthElement * 200 + mutableModality * 300 + i) % 100;
+    const isStep = astroSeed < (clampedStepBias * 100);
+    const stepSize = isStep ? (astroSeed % 2 + 1) : Math.min(3 + (astroSeed % 4), leapCap); // Respect leap_cap
+    
+    if (phraseIndex === 0) {
+      // Ascending with step-leap balance
+      pitch = 60 + i * arcScale + (isStep ? 0 : stepSize);
+    } else if (phraseIndex === 1) {
+      // Peak with controlled jumps
+      pitch = 68 + arcBoost * 4 + Math.sin(i / noteCount * Math.PI) * (2 + arcBoost * 2) + (isStep ? 0 : stepSize);
+    } else if (phraseIndex === 2) {
+      // Descending with step-leap balance
+      pitch = 68 + arcBoost * 4 - i * arcScale + (isStep ? 0 : -stepSize);
+    } else {
+      // Resolution with mostly stepwise motion
+      pitch = 60 + (i % 3) + arcBoost * 1 + (isStep ? (i % 2) : stepSize);
+    }
     
     events.push({
       t0, t1, pitch,
@@ -318,29 +351,95 @@ function generateBass(phraseIndex: number, startTime: number, barLength: number,
 function generateRhythm(phraseIndex: number, startTime: number, barLength: number, rules: any): EventToken[] {
   const events: EventToken[] = [];
   const pattern = rules.rhythmicPattern;
-  const noteCount = pattern === 'syncopated' ? 8 : 4; // More notes for syncopated patterns
+  const noteCount = 12; // Increased for more diversity
+  
+  // Define multiple rhythmic templates for variety
+  const templates = [
+    [0.25, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.25, 0.5], // Basic 4/4
+    [0.5, 0.25, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.25], // Syncopated
+    [0.33, 0.33, 0.34, 0.25, 0.25, 0.5, 0.33, 0.33, 0.34, 0.25, 0.25, 0.5], // Mixed
+    [0.125, 0.125, 0.25, 0.5, 0.125, 0.125, 0.25, 0.5, 0.125, 0.125, 0.25, 0.5], // Complex
+    [0.375, 0.125, 0.25, 0.25, 0.375, 0.125, 0.25, 0.25, 0.375, 0.125, 0.25, 0.25] // Polyrhythmic
+  ];
+  
+  // Control-surface approach: predict rhythm_template_id and syncopation_bias
+  const fireElement = rules.astroFeatures?.dominantElements?.fire || 0;
+  const earthElement = rules.astroFeatures?.dominantElements?.earth || 0;
+  const airElement = rules.astroFeatures?.dominantElements?.air || 0;
+  const waterElement = rules.astroFeatures?.dominantElements?.water || 0;
+  
+  // Calculate control parameters (these will be the new training targets)
+  const rhythmTemplateId = Math.floor((fireElement * 100 + earthElement * 200 + airElement * 300 + waterElement * 400) % 8); // 0-7
+  const syncopationBias = 0.2 + (airElement * 0.6) + (fireElement * 0.2); // 0.2-1.0 based on air/fire
+  
+  // Use control parameters to select template and apply syncopation
+  const templateIndex = (rhythmTemplateId + phraseIndex) % templates.length;
+  const durations = templates[templateIndex];
+  
+  let currentTime = startTime;
   
   for (let i = 0; i < noteCount; i++) {
-    const t0 = startTime + (i / noteCount) * (barLength * 4);
-    const t1 = t0 + barLength * 0.1;
+    const duration = durations[i] * barLength;
+    const t0 = currentTime;
+    const t1 = t0 + duration * 0.8; // Slightly shorter for overlap
     
-    // Rhythmic pattern based on astrological elements
-    let pitch = 42; // Snare
-    if (pattern === 'syncopated' && i % 2 === 1) pitch = 36; // Kick on off-beats
-    else if (pattern === 'driving' && i % 4 === 0) pitch = 36; // Kick on downbeats
-    else if (pattern === 'polyrhythmic' && i % 3 === 0) pitch = 38; // Different pattern
+    // Varied percussion sounds for diversity
+    let pitch = 42; // Default snare
+    if (i % 4 === 0) pitch = 36; // Kick on downbeats
+    else if (i % 3 === 0) pitch = 38; // Hi-hat
+    else if (i % 2 === 1) pitch = 46; // Open hi-hat
+    else pitch = 42; // Snare
     
     events.push({
       t0, t1, pitch,
-      velocity: 0.6 + (i % 2) * 0.2,
+      velocity: 0.5 + (i % 3) * 0.15 + Math.random() * 0.1, // More velocity variety
       channel: 'rhythm'
     });
+    
+    currentTime += duration;
   }
   
   return events;
 }
 
 function normalizeTempo(bpm: number): number { return Math.max(0, Math.min(1, (bpm - 60) / 120)); }
+
+// Control-surface parameter calculation functions
+function calculateStepBias(snapshot: EphemerisSnapshot): number {
+  const fireElement = snapshot.dominantElements.fire;
+  const earthElement = snapshot.dominantElements.earth;
+  const mutableModality = 0; // TODO: Add dominantModalities to EphemerisSnapshot interface
+  
+  // Earth = more steps, Fire = more leaps, Mutable = balanced
+  const stepBias = 0.3 + (earthElement * 0.4) + (mutableModality * 0.2) - (fireElement * 0.3);
+  return Math.max(0.0, Math.min(1.0, stepBias));
+}
+
+function calculateLeapCap(snapshot: EphemerisSnapshot): number {
+  const fireElement = snapshot.dominantElements.fire;
+  // Fire = larger leaps (2-6), others = smaller leaps (2-4)
+  return 2 + Math.floor(fireElement * 4);
+}
+
+function calculateRhythmTemplateId(snapshot: EphemerisSnapshot): number {
+  const fireElement = snapshot.dominantElements.fire;
+  const earthElement = snapshot.dominantElements.earth;
+  const airElement = snapshot.dominantElements.air;
+  const waterElement = snapshot.dominantElements.water;
+  
+  // Map elements to rhythm templates (0-7)
+  const astroSeed = Math.floor((fireElement * 100 + earthElement * 200 + airElement * 300 + waterElement * 400) % 8);
+  return astroSeed;
+}
+
+function calculateSyncopationBias(snapshot: EphemerisSnapshot): number {
+  const airElement = snapshot.dominantElements.air;
+  const fireElement = snapshot.dominantElements.fire;
+  
+  // Air = more syncopation, Fire = some syncopation, others = less
+  const syncopationBias = 0.2 + (airElement * 0.6) + (fireElement * 0.2);
+  return Math.max(0.0, Math.min(1.0, syncopationBias));
+}
 
 function densityCurve(events: EventToken[], durationSec: number): [number, number, number, number] {
   const sections = 4; const secLen = durationSec / sections; const out: number[] = [];
@@ -371,16 +470,39 @@ function melodicRangeNorm(events: EventToken[]): number {
 function arcCurveFromMelody(events: EventToken[], durationSec: number): [number, number, number] {
   const mel = events.filter(e=>e.channel==="melody").sort((a,b)=>a.t0-b.t0);
   if (mel.length === 0) return [0,0,0];
-  const thirds = durationSec / 3;
+  
+  // FIXED: Use 4-phrase structure to match melody generation
+  const phraseLength = durationSec / 4;
   const mean = (arr: number[]) => arr.reduce((a,b)=>a+b,0) / (arr.length || 1);
-  const seg = [
-    mel.filter(e=>e.t0 < thirds).map(e=>e.pitch),
-    mel.filter(e=>e.t0 >= thirds && e.t0 < 2*thirds).map(e=>e.pitch),
-    mel.filter(e=>e.t0 >= 2*thirds).map(e=>e.pitch)
+  
+  // Split into 4 phrases (matching melody generation)
+  const phrases = [
+    mel.filter(e=>e.t0 < phraseLength).map(e=>e.pitch),
+    mel.filter(e=>e.t0 >= phraseLength && e.t0 < 2*phraseLength).map(e=>e.pitch),
+    mel.filter(e=>e.t0 >= 2*phraseLength && e.t0 < 3*phraseLength).map(e=>e.pitch),
+    mel.filter(e=>e.t0 >= 3*phraseLength).map(e=>e.pitch)
   ];
-  const base = seg.map(s=> (s.length? mean(s): 60));
-  const min = Math.min(...base), max = Math.max(...base); const span = Math.max(1, max-min);
-  return [ (base[0]-min)/span, (base[1]-min)/span, (base[2]-min)/span ] as any;
+  
+  // Calculate phrase averages
+  const phraseAverages = phrases.map(phrase => phrase.length ? mean(phrase) : 60);
+  
+  // Create 3-element arc curve from 4 phrases (beginning, middle, end)
+  const arcCurve = [
+    phraseAverages[0], // Beginning (phrase 1)
+    (phraseAverages[1] + phraseAverages[2]) / 2, // Middle (phrases 2-3 average)
+    phraseAverages[3] // End (phrase 4)
+  ];
+  
+  // Normalize to [0,1] range
+  const min = Math.min(...arcCurve);
+  const max = Math.max(...arcCurve);
+  const span = Math.max(1, max - min);
+  
+  return [
+    (arcCurve[0] - min) / span,
+    (arcCurve[1] - min) / span,
+    (arcCurve[2] - min) / span
+  ] as [number, number, number];
 }
 
 function cadenceClassFromMelody(events: EventToken[]): 0|1|2|3 {
@@ -497,8 +619,8 @@ async function generateLabelsForSplit(snapshots: EphemerisSnapshot[], splitName:
       
       // Calculate overall quality score from individual dimensions
       const melodicScore = (mel.arc + mel.motif_recurrence + mel.contour_entropy + mel.step_leap_ratio + mel.range_ok + mel.narrative_flow) / 6;
-      const rhythmicScore = (rhy.syncopation + rhy.density_curve + rhy.groove_consistency + rhy.tempo_stability + rhy.accent_placement) / 5;
-      const harmonicScore = (har.progression_legality + har.harmonic_rhythm + har.voice_leading + har.tension_resolution + har.key_consistency) / 5;
+      const rhythmicScore = (rhy.syncopation + rhy.groove + rhy.tempo + rhy.diversity + rhy.accent) / 5;
+      const harmonicScore = (har.progression_legality + har.voice_leading + har.tension + har.complexity + har.resolution) / 5;
       const qualityScore = (melodicScore + rhythmicScore + harmonicScore) / 3;
       
       // Only include if quality meets threshold (from centralized config)
@@ -507,9 +629,18 @@ async function generateLabelsForSplit(snapshots: EphemerisSnapshot[], splitName:
         const row: LabelRow = {
           feat: Array.from(feat),
           directives: {
+            // Existing control parameters (keep working)
             tempo_norm: normalizeTempo(plan.bpm),
             density_curve: densityCurve(plan.events, plan.durationSec),
             motif_rate: Math.max(0, Math.min(1, mel.motif_recurrence)),
+            
+            // New control-surface parameters (predictable from astro features)
+            step_bias: calculateStepBias(snap), // 0.0-1.0
+            leap_cap: calculateLeapCap(snap), // 1-6
+            rhythm_template_id: calculateRhythmTemplateId(snap), // 0-7
+            syncopation_bias: calculateSyncopationBias(snap), // 0.0-1.0
+            
+            // Legacy parameters (keep for compatibility)
             syncopation: Math.max(0, Math.min(1, rhy.syncopation)),
             harmonic_change_rate: harmonicChangeRate(plan.events, plan.durationSec),
             melodic_range_norm: Math.max(0, Math.min(1, mel.range_ok)),

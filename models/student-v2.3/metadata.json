@@ -1,0 +1,50 @@
+{
+  "version": "2.3_control_surface",
+  "trainingDate": "2025-09-24T21:49:12.433Z",
+  "recordCount": 479,
+  "devCount": 97,
+  "architecture": {
+    "inputShape": [
+      64
+    ],
+    "outputHeads": {
+      "arc": 3,
+      "density": 4,
+      "tempo": 1,
+      "step_bias": 1,
+      "leap_cap": 6,
+      "rhythm_template": 8,
+      "syncopation": 1,
+      "motif_rate": 1
+    },
+    "hiddenLayers": [
+      512,
+      256
+    ],
+    "lossWeights": {
+      "arc": 1.5,
+      "density": 1,
+      "tempo": 1,
+      "step_bias": 1.5,
+      "leap_cap": 1.5,
+      "rhythm_template": 1.8,
+      "syncopation": 1.2,
+      "motif_rate": 1
+    }
+  },
+  "training": {
+    "epochs": 50,
+    "batchSize": 32,
+    "optimizer": "Adam",
+    "learningRate": 0.001,
+    "earlyStopping": "control_MAE",
+    "bestControlMAE": 7.1053550243377686,
+    "patience": 10
+  },
+  "provenance": {
+    "datasetChecksum": "d5465085a4f9f32e",
+    "modelChecksum": "v2.3_control_surface",
+    "weightsChecksum": "v2.3_control_surface",
+    "commitSha": "control-surface-distillation"
+  }
+}

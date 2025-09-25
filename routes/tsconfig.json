@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "../dist/routes",
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": false,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "typeRoots": ["../types", "../node_modules/@types"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["**/*.js"]
+}

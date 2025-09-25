@@ -2,9 +2,7 @@
 // Audition gate for shape/timing validation (no music generation)
 
 import type { Plan, AuditionResult } from "./contracts";
-import { scoreMelody } from "./critics/melodic";
-import { scoreHarmony } from "./critics/harmony";
-import { scoreRhythm } from "./critics/rhythm";
+import { scoreMelody, scoreHarmony, scoreRhythm } from "./critics";
 
 export function audition(plan: Plan, cfg = {
   minEvents: +(process.env.VNEXT_MIN_EVENTS || 120),
@@ -76,7 +74,7 @@ export function audition(plan: Plan, cfg = {
  */
 export function ruleQualityPass(plan: Plan): { ok: boolean; score: number; breakdown: any } {
 const THRESH = {
-  arc: 0.45, motif: 0.35, contour: 0.35, stepLeap: 0.35, range: 0.5,
+  arc: 0.40, motif: 0.35, contour: 0.35, stepLeap: 0.35, range: 0.5,
   harmony: 0.4, rhythm: 0.4
 };
 

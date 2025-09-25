@@ -1,0 +1,70 @@
+{
+    "controls":  {
+                     "arc_shape":  0.45,
+                     "density_level":  0.95,
+                     "tempo_norm":  0.9,
+                     "step_bias":  0.05,
+                     "leap_cap":  6,
+                     "rhythm_template_id":  7,
+                     "syncopation_bias":  0.85,
+                     "motif_rate":  0.05,
+                     "element_dominance":  "air",
+                     "aspect_tension":  0.4,
+                     "modality":  "mutable",
+                     "hash":  "7c453441",
+                     "arc_shape_id":  "plateau_hold"
+                 },
+    "astro":  {
+                  "element_dominance":  "air",
+                  "aspect_tension":  0.4,
+                  "modality":  "mutable"
+              },
+    "gate_report":  {
+                        "calibrated":  {
+                                           "melody_arc":  true,
+                                           "melody_step_leap":  true,
+                                           "melody_narrative":  true,
+                                           "rhythm_diversity":  true,
+                                           "overall":  false
+                                       },
+                        "strict":  {
+                                       "melody_arc":  true,
+                                       "melody_step_leap":  false,
+                                       "melody_narrative":  true,
+                                       "rhythm_diversity":  true,
+                                       "overall":  false
+                                   },
+                        "scores":  {
+                                       "melody_arc":  0.524538143415595,
+                                       "melody_step_leap":  0.2222584879659718,
+                                       "melody_narrative":  0.440851301062119,
+                                       "rhythm_diversity":  0.31589517156032265
+                                   },
+                        "latency_ms":  {
+                                           "predict":  2.5,
+                                           "plan":  1.2,
+                                           "total":  8.7
+                                       }
+                    },
+    "audio":  {
+                  "url":  "/api/audio/7c453441.mp3",
+                  "latency_ms":  6.1266
+              },
+    "text":  {
+                 "short":  "",
+                 "long":  "Adjust: step_bias +0.1 or leap_cap ? 3.",
+                 "bullets":  [
+                                 "Adjust: step_bias +0.1 or leap_cap ? 3."
+                             ],
+                 "template_id":  "v1.fail.00",
+                 "seed":  "7c453441"
+             },
+    "artifacts":  {
+                      "model":  "084c92dca9af2f09",
+                      "encoder":  "db4eb96e52b3f63e",
+                      "snapset":  "185371267270f0ef",
+                      "gate":  "v2.3-final",
+                      "mapping_tables_version":  "v1.1",
+                      "timestamp":  "2025-09-25T18:35:37.103Z"
+                  }
+}

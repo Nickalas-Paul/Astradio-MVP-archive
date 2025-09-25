@@ -2,19 +2,51 @@
 import fs from 'fs';
 import path from 'path';
 
-const LOG_DIR = path.join(__dirname, '../../../logs');
+const LOG_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'vnext-audit.jsonl');
+const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_LOG_FILES = 3;
 
-// Ensure log directory exists
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+// Ensure log directory exists on startup
+function ensureLogDir() {
+  if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+  }
 }
+
+// Log rollover functionality
+function rolloverLogIfNeeded() {
+  if (!fs.existsSync(LOG_FILE)) return;
+  
+  const stats = fs.statSync(LOG_FILE);
+  if (stats.size < MAX_LOG_SIZE) return;
+  
+  // Rotate existing logs
+  for (let i = MAX_LOG_FILES - 1; i > 0; i--) {
+    const oldFile = `${LOG_FILE}.${i}`;
+    const newFile = `${LOG_FILE}.${i + 1}`;
+    if (fs.existsSync(oldFile)) {
+      if (i === MAX_LOG_FILES - 1) {
+        fs.unlinkSync(oldFile); // Delete oldest
+      } else {
+        fs.renameSync(oldFile, newFile);
+      }
+    }
+  }
+  
+  // Move current log to .1
+  fs.renameSync(LOG_FILE, `${LOG_FILE}.1`);
+}
+
+// Initialize log directory
+ensureLogDir();
 
 export function logAudit(entry: any) {
   const timestamp = new Date().toISOString();
   const logLine = JSON.stringify({ ts: timestamp, ...entry }) + '\n';
   
   try {
+    rolloverLogIfNeeded();
     fs.appendFileSync(LOG_FILE, logLine);
   } catch (error) {
     console.warn('Failed to write audit log:', error);
