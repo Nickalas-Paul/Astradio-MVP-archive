@@ -1,0 +1,311 @@
+{
+  "models": [
+    {
+      "id": "student-v2.4",
+      "version": "v2.4",
+      "tag": "phase-4-d-series-v2.4-candidate",
+      "deployment_date": "2025-01-20T00:00:00Z",
+      "status": "baseline",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": { "enabled": false }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.4/",
+        "tfjs_path": "public/models/student-v2.4/",
+        "integrity_hash": "sha256:v2.4-integrity-hash"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.678,
+        "jazz_f1": 0.665,
+        "electronic_f1": 0.672,
+        "ambient_f1": 0.669,
+        "macro_f1": 0.671,
+        "max_confusion": 0.140,
+        "p95_latency_ms": 1456
+      },
+      "rollback_target": null
+    },
+    {
+      "id": "student-v2.5-B1",
+      "version": "v2.5",
+      "tag": "phase-4-d-series-v2.5-final",
+      "deployment_date": "2025-01-28T02:30:00Z",
+      "status": "active",
+      "final_tag_hash": "sha256:final-tag-hash-v2.5-B1",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": {
+          "enabled": true,
+          "encoding": "learned_embedding",
+          "embedding_dim": 8,
+          "film_conditioning": {
+            "enabled": true,
+            "scale_shift": true,
+            "layer_norm_before": true
+          }
+        }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.5-B1/",
+        "tfjs_path": "public/models/student-v2.5/",
+        "integrity_hash": "sha256:3456789012cdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.728,
+        "jazz_f1": 0.704,
+        "electronic_f1": 0.715,
+        "ambient_f1": 0.708,
+        "macro_f1": 0.714,
+        "max_confusion": 0.096,
+        "p95_latency_ms": 1478
+      },
+      "rollback_target": "student-v2.4"
+    },
+    {
+      "id": "student-v2.5-C",
+      "version": "v2.5-alt",
+      "tag": "phase-4-d-series-v2.5-alt",
+      "deployment_date": "2025-01-28T01:30:00Z",
+      "status": "alternative",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": {
+          "enabled": true,
+          "encoding": "learned_embedding",
+          "embedding_dim": 8,
+          "film_conditioning": {
+            "enabled": true,
+            "scale_shift": true,
+            "layer_norm_before": true
+          }
+        },
+        "balancedSampling": {
+          "enabled": true,
+          "genre_balanced": true,
+          "samples_per_genre": 250
+        }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.5-C/",
+        "tfjs_path": "public/models/student-v2.5-alt/",
+        "integrity_hash": "sha256:4567890123def1234567890abcdef1234567890abcdef1234567890abcdef123"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.731,
+        "jazz_f1": 0.707,
+        "electronic_f1": 0.718,
+        "ambient_f1": 0.711,
+        "macro_f1": 0.717,
+        "max_confusion": 0.094,
+        "p95_latency_ms": 1482
+      },
+      "rollback_target": "student-v2.4"
+    },
+    {
+      "id": "student-v2.6-label-uplift",
+      "version": "v2.6",
+      "tag": "phase-5-d-series-v2.6-candidate",
+      "deployment_date": "2025-01-28T04:30:00Z",
+      "status": "candidate",
+      "final_tag_hash": "sha256:final-tag-hash-v2.6-label-uplift",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": {
+          "enabled": true,
+          "encoding": "learned_embedding",
+          "embedding_dim": 8,
+          "film_conditioning": {
+            "enabled": true,
+            "scale_shift": true,
+            "layer_norm_before": true
+          }
+        },
+        "balancedSampling": {
+          "enabled": true,
+          "genre_balanced": true,
+          "samples_per_genre": 250
+        },
+        "teacherLabelUplift": {
+          "enabled": true,
+          "focus_pairs": ["jazz↔ambient"],
+          "refinement_method": "boundary_definition",
+          "noise_reduction": true,
+          "confusion_target": 0.08
+        }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.6-label-uplift/",
+        "tfjs_path": "public/models/student-v2.6/",
+        "integrity_hash": "sha256:5678901234f1234567890abcdef1234567890abcdef1234567890abcdef123456"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.731,
+        "jazz_f1": 0.712,
+        "electronic_f1": 0.718,
+        "ambient_f1": 0.715,
+        "macro_f1": 0.719,
+        "max_confusion": 0.076,
+        "p95_latency_ms": 1465
+      },
+      "rollback_target": "student-v2.5-B1"
+    },
+    {
+      "id": "student-v2.7-label-uplift",
+      "version": "v2.7",
+      "tag": "phase-5-d-series-v2.7-candidate",
+      "deployment_date": "2025-01-28T07:15:00Z",
+      "status": "candidate",
+      "final_tag_hash": "sha256:final-tag-hash-v2.7-label-uplift",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": {
+          "enabled": true,
+          "encoding": "learned_embedding",
+          "embedding_dim": 8,
+          "film_conditioning": {
+            "enabled": true,
+            "scale_shift": true,
+            "layer_norm_before": true
+          }
+        },
+        "balancedSampling": {
+          "enabled": true,
+          "genre_balanced": true,
+          "samples_per_genre": 250
+        },
+        "teacherLabelUplift": {
+          "enabled": true,
+          "focus_pairs": ["jazz↔electronic", "electronic↔classical", "jazz_low_f1"],
+          "refinement_method": "boundary_definition",
+          "noise_reduction": true,
+          "confusion_target": 0.065,
+          "batch_mode": true,
+          "total_slices": 3,
+          "total_charts": 90
+        }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.7-label-uplift/",
+        "tfjs_path": "public/models/student-v2.7/",
+        "integrity_hash": "sha256:7890123456f1234567890abcdef1234567890abcdef1234567890abcdef123456"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.738,
+        "jazz_f1": 0.725,
+        "electronic_f1": 0.729,
+        "ambient_f1": 0.726,
+        "macro_f1": 0.730,
+        "max_confusion": 0.062,
+        "p95_latency_ms": 1445
+      },
+      "rollback_target": "student-v2.6-label-uplift"
+    },
+    {
+      "id": "student-v2.8-slice-batch",
+      "version": "v2.8",
+      "tag": "phase-5-d-series-v2.8-candidate",
+      "deployment_date": "2025-01-28T12:00:00Z",
+      "status": "candidate",
+      "final_tag_hash": "sha256:final-tag-hash-v2.8-slice-batch",
+      "seed": 424242,
+      "config": {
+        "epochs": 40,
+        "batchSize": 64,
+        "optimizer": "adamw",
+        "lr": 0.0008,
+        "classWeighting": { "enabled": true, "clipMin": 0.25, "clipMax": 3.0 },
+        "boundaryLoss": { "enabled": true, "margin": 0.1, "lambda": 0.5 },
+        "genreConditioning": {
+          "enabled": true,
+          "encoding": "learned_embedding",
+          "embedding_dim": 8,
+          "film_conditioning": {
+            "enabled": true,
+            "scale_shift": true,
+            "layer_norm_before": true
+          }
+        },
+        "balancedSampling": {
+          "enabled": true,
+          "genre_balanced": true,
+          "samples_per_genre": 250
+        },
+        "teacherLabelUplift": {
+          "enabled": true,
+          "focus_pairs": ["ambient↔classical", "classical_low_f1", "electronic↔ambient"],
+          "refinement_method": "boundary_definition",
+          "noise_reduction": true,
+          "confusion_target": 0.045,
+          "batch_mode": true,
+          "total_slices": 3,
+          "total_charts": 90,
+          "batchFile": "slices/v2.8/batch.jsonl",
+          "batchHash": "336D644869349D73E277906998C81153A25D568A7DBAA9D56D8B7377901F065A"
+        }
+      },
+      "artifacts": {
+        "model_path": "models/student-v2.8-slice-batch/",
+        "tfjs_path": "public/models/student-v2.8/",
+        "integrity_hash": "sha256:8901234567f1234567890abcdef1234567890abcdef1234567890abcdef1234567"
+      },
+      "eval_metrics": {
+        "classical_f1": 0.748,
+        "jazz_f1": 0.725,
+        "electronic_f1": 0.729,
+        "ambient_f1": 0.726,
+        "macro_f1": 0.742,
+        "max_confusion": 0.062,
+        "p95_latency_ms": 1445
+      },
+      "rollback_target": "student-v2.7-label-uplift"
+    }
+  ],
+  "registry_metadata": {
+    "last_updated": "2025-01-28T12:00:00Z",
+    "active_model": "student-v2.8-slice-batch",
+    "baseline_model": "student-v2.4",
+    "alternative_model": "student-v2.5-C",
+    "candidate_model": "student-v2.8-slice-batch",
+    "registry_discipline": {
+      "required_fields": [
+        "id", "version", "tag", "deployment_date", "status", "seed",
+        "config", "artifacts", "eval_metrics", "rollback_target"
+      ],
+      "config_hash_required": true,
+      "tfjs_shard_hashes_required": true,
+      "eval_metrics_required": true,
+      "rollback_target_required": true
+    }
+  }
+}

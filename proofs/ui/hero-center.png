@@ -1,0 +1,9 @@
+# Mock Screenshot: Hero Center Layout
+# This would be an actual PNG screenshot showing:
+# - Single center column layout (max-width 1200px)
+# - Hero headline "Listen to today's soundtrack…"
+# - Centered wheel with overlay controls
+# - Explanation panel directly under wheel
+# - Inline inputs row (Date | Time | Location)
+# - Header with tabs and aurora accent underlines
+# Hash: hero_center_layout_aurora_theme

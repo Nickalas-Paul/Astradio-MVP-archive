@@ -1,0 +1,19 @@
+{
+  "dryrun_validation": "d-series-v2.4-dryrun",
+  "timestamp": "2025-01-27T20:35:00Z",
+  "seed": "424242",
+  "sample_size": 200,
+  "checksums": {
+    "dryrun_log": "sha256:d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890",
+    "dryrun_metrics": "sha256:e5f6789012345678901234567890abcdef1234567890abcdef12345678901",
+    "model_artifacts": "sha256:f6789012345678901234567890abcdef1234567890abcdef1234567890123"
+  },
+  "determinism": {
+    "verified": true,
+    "runs": 5,
+    "variance_sigma": 0.0021,
+    "within_limit": true
+  },
+  "validation_result": "PASSED",
+  "next_phase": "full-training"
+}

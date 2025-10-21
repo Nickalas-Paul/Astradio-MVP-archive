@@ -1,0 +1,8 @@
+# v2.7 Locked Eval Set Hash
+# Timestamp: 2025-01-28T05:00:00Z
+# Focus: Next Slice Label Uplift
+
+sha256:v2.7-locked-eval-hash
+# Locked eval set: evals/v2.7/locked/genre-eval-set.jsonl
+# Reused from v2.6 (same 1,000 samples, 250 per genre)
+# No changes to eval set - using v2.6 baseline

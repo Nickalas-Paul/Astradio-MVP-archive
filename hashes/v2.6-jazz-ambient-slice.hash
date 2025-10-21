@@ -1,0 +1,9 @@
+# v2.6 Jazz↔Ambient Confusion Slice Hash
+# Timestamp: 2025-01-28T03:15:00Z
+# Focus: Teacher Label Uplift
+
+sha256:v2.6-jazz-ambient-slice-hash
+# Slice: 30 charts with jazz↔ambient confusion
+# Source: v2.5 evidence analysis
+# Target: Reduce confusion from 9.6% to ≤8%
+# Scope: 200-300 charts (capped at 30 for initial test)

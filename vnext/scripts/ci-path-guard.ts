@@ -211,7 +211,7 @@ function checkForbiddenImports(files: string[]): PathGuardViolation[] {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`Could not read file ${file}:`, error.message);
     }
   }

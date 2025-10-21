@@ -1,0 +1,84 @@
+{
+  "model": "student-v2.5-C",
+  "evaluation_date": "2025-01-28T01:15:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "C",
+  "config_diff": "B1 + balanced sampling/weights",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.731,
+      "precision": 0.724,
+      "recall": 0.738,
+      "accuracy": 0.735,
+      "samples": 250,
+      "baseline_f1": 0.678,
+      "probe_b1_f1": 0.728,
+      "delta_vs_baseline": 0.053,
+      "delta_vs_probe_b1": 0.003
+    },
+    "jazz": {
+      "f1": 0.707,
+      "precision": 0.700,
+      "recall": 0.714,
+      "accuracy": 0.711,
+      "samples": 250,
+      "baseline_f1": 0.665,
+      "probe_b1_f1": 0.704,
+      "delta_vs_baseline": 0.042,
+      "delta_vs_probe_b1": 0.003
+    },
+    "electronic": {
+      "f1": 0.718,
+      "precision": 0.711,
+      "recall": 0.725,
+      "accuracy": 0.722,
+      "samples": 250,
+      "baseline_f1": 0.672,
+      "probe_b1_f1": 0.715,
+      "delta_vs_baseline": 0.046,
+      "delta_vs_probe_b1": 0.003
+    },
+    "ambient": {
+      "f1": 0.711,
+      "precision": 0.704,
+      "recall": 0.718,
+      "accuracy": 0.715,
+      "samples": 250,
+      "baseline_f1": 0.669,
+      "probe_b1_f1": 0.708,
+      "delta_vs_baseline": 0.042,
+      "delta_vs_probe_b1": 0.003
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.717,
+    "macro_precision": 0.710,
+    "macro_recall": 0.724,
+    "macro_accuracy": 0.721,
+    "baseline_macro_f1": 0.671,
+    "probe_b1_macro_f1": 0.714,
+    "delta_vs_baseline": 0.046,
+    "delta_vs_probe_b1": 0.003
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.70,
+    "jazz_f1_target": 0.70,
+    "electronic_f1_target": 0.70,
+    "ambient_f1_target": 0.70,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true
+  },
+  "experiment_verdict": {
+    "beats_probe_b1": true,
+    "no_drop_greater_than_0_01": true,
+    "confusion_within_limits": true,
+    "latency_stable": true,
+    "overall_verdict": "PASSED"
+  }
+}

@@ -1,0 +1,163 @@
+services:
+  # Main application container
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["app"]
+    ports:
+      - "3000:3000"  # Express (Backend)
+      - "3001:3001"  # Next.js (Frontend)
+    volumes:
+      - .:/app
+      - pnpm-store:/app/.pnpm-store
+    env_file:
+      - .env.development
+    environment:
+      - NODE_ENV=development
+      - ENABLE_VIZ_ENGINE=1
+      - NEXT_TELEMETRY_DISABLED=1
+      - CHOKIDAR_USEPOLLING=1
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/astradio
+      - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - S3_BUCKET=astradio-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - astradio-dev
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    profiles: ["infra"]
+    environment:
+      - POSTGRES_DB=astradio
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - astradio-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    secrets:
+      - postgres_password
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    profiles: ["infra"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - astradio-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    profiles: ["infra"]
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    volumes:
+      - minio-data:/data
+    networks:
+      - astradio-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    secrets:
+      - minio_root_user
+      - minio_root_password
+
+  # Database migrations
+  migrations:
+    image: postgres:15-alpine
+    profiles: ["infra"]
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/astradio
+    volumes:
+      - ./scripts/migrate.sh:/migrate.sh:ro
+    command: ["sh", "-c", "until pg_isready -h postgres -p 5432; do sleep 1; done && /migrate.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - astradio-dev
+    secrets:
+      - postgres_password
+
+  # MinIO initialization
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["infra"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc config host add minio http://minio:9000 minioadmin minioadmin; do
+        echo 'Waiting for MinIO...'
+        sleep 1
+      done
+      /usr/bin/mc mb minio/astradio-dev --ignore-existing
+      /usr/bin/mc anonymous set public minio/astradio-dev
+      /usr/bin/mc cors set /etc/minio-cors.json minio/astradio-dev
+      echo 'MinIO initialized'
+      "
+    volumes:
+      - ./scripts/minio-cors.json:/etc/minio-cors.json:ro
+    networks:
+      - astradio-dev
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  pnpm-store:
+
+secrets:
+  postgres_password:
+    file: .env.development
+  minio_root_user:
+    file: .env.development
+  minio_root_password:
+    file: .env.development
+
+networks:
+  astradio-dev:
+    driver: bridge

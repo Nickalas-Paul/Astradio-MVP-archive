@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2019"],
+    "outDir": "./dist",
+    "noEmit": false,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "server/**/*.ts",
+    "lib/**/*.ts",
+    "scripts/**/*.ts",
+    "workers/**/*.ts",
+    "routes/**/*.ts",
+    "vnext/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "app/**/*",
+    "src/**/*",
+    "public/**/*",
+    ".next/**/*"
+  ]
+}

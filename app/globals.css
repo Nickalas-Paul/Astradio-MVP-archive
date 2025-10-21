@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base theme */
+@layer base {
+  :root, html, body {
+    @apply h-full m-0;
+    background: theme('colors.bg');
+    color: theme('colors.text');
+    font-family: theme('fontFamily.sans');
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* === Focus Management === */
+*:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+/* === Reduced Motion Support === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reusable components */
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white/5 border border-white/10 p-4;
+  }
+
+  .btn-primary {
+    /* FIX: use real shades + defined tokens */
+    @apply bg-emerald-500 text-white font-semibold px-6 py-3 rounded-xl
+           transition-all duration-200
+           hover:bg-emerald-400 hover:shadow-glow
+           focus:outline-none focus:ring-2 focus:ring-emerald-400
+           focus:ring-offset-2 ring-offset-surface;
+  }
+}
+
+/* === Loading States === */
+.loading-spinner {
+  @apply inline-block w-5 h-5 border-2 border-gray-300 border-t-emerald-500 rounded-full animate-spin;
+}

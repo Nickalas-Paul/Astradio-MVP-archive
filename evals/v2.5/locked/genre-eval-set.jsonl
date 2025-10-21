@@ -1,0 +1,8 @@
+{"chart_hash": "classical_001", "mode": "sandbox", "genre": "classical", "complexity": "simple", "expected_cues": ["orchestral", "harmonic progression", "classical form"]}
+{"chart_hash": "classical_002", "mode": "sandbox", "genre": "classical", "complexity": "medium", "expected_cues": ["string section", "modulation", "classical structure"]}
+{"chart_hash": "jazz_001", "mode": "sandbox", "genre": "jazz", "complexity": "simple", "expected_cues": ["swing rhythm", "jazz harmony", "improvisation"]}
+{"chart_hash": "jazz_002", "mode": "sandbox", "genre": "jazz", "complexity": "medium", "expected_cues": ["jazz chords", "swing feel", "jazz solo"]}
+{"chart_hash": "electronic_001", "mode": "sandbox", "genre": "electronic", "complexity": "simple", "expected_cues": ["synth", "electronic", "digital"]}
+{"chart_hash": "electronic_002", "mode": "sandbox", "genre": "electronic", "complexity": "medium", "expected_cues": ["arpeggio", "electronic effects", "synthesizer"]}
+{"chart_hash": "ambient_001", "mode": "sandbox", "genre": "ambient", "complexity": "simple", "expected_cues": ["atmospheric", "minimal", "soundscape"]}
+{"chart_hash": "ambient_002", "mode": "sandbox", "genre": "ambient", "complexity": "medium", "expected_cues": ["ambient texture", "atmospheric", "minimal rhythm"]}

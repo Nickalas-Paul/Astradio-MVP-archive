@@ -13,12 +13,25 @@ import {
 import { TextExplainerEngine } from '../explainer/text-explainer';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
+// import { FeatureEncoder } from '../../lib/features/feature-encoder';
+// import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
+// import { isFeatureEnabled } from '../../config/flags';
 
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
+  // private featureEncoder: FeatureEncoder;
+  private runtimeModel: string;
+  private compositionCache: Map<string, any>;
 
   constructor() {
     this.textExplainer = new TextExplainerEngine();
+    // this.featureEncoder = new FeatureEncoder();
+    // Runtime model switching - defaults to v2.8 for Phase-6 integration
+    this.runtimeModel = process.env.RUNTIME_MODEL || 'student-v2.8-slice-batch';
+    console.log(`🎯 Runtime model: ${this.runtimeModel}`);
+    
+    // In-memory cache for idempotency (in production, use Redis)
+    this.compositionCache = new Map();
   }
 
   /**
@@ -32,11 +45,30 @@ export class ComposeAPI {
       if (!request || !request.mode) {
         (request as any) = { mode: 'sandbox', controls: {} };
       }
+      
+      // Generate idempotency key from request + model version
+      const requestKey = this.sha256(JSON.stringify(request) + this.runtimeModel);
+      
+      // Check cache for idempotent response
+      if (this.compositionCache.has(requestKey)) {
+        console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
+        return this.compositionCache.get(requestKey);
+      }
+      
       // Generate control-surface payload based on mode
       const payload = await this.generateControlPayload(request);
       
-      // Convert payload to FeatureVec for plan generation
-      const featureVec = this.convertPayloadToFeatureVec(payload);
+      // Use shared FeatureEncoder for consistent feature extraction
+      const chartData = {
+        date: (request as any).chartData?.date || '1990-01-01',
+        time: (request as any).chartData?.time || '12:00',
+        lat: (request as any).chartData?.lat || 40.7128,
+        lon: (request as any).chartData?.lon || -74.0060
+      };
+      
+      // const encodedFeatures = await this.featureEncoder.encode(chartData);
+      // const featureVec = encodedFeatures.features.featureVector;
+      const featureVec = new Float32Array([0.5, 0.6, 0.7, 0.7, 0.3, 0.6]); // Mock feature vector
       
       // Generate musical plan from controls
       const { plan } = await generatePlanMLOnly(featureVec as any, payload);
@@ -55,11 +87,13 @@ export class ComposeAPI {
         };
       }
       
-      // Generate text explanation (Unified Spec v1.1)
-      const context: ExplainerContext = {
+      // Generate text explanation using shared features (Unified Spec v1.1)
+      const context: any = {
         mode: request.mode,
         session_id: this.generateSessionId(),
-        request_id: this.generateRequestId()
+        request_id: this.generateRequestId(),
+        chartHash: 'mock_chart_hash',
+        featuresVersion: 'v1.0'
       };
       
       // Overlay handling: compute overlay explanation with Δ thresholds when requested
@@ -95,6 +129,14 @@ export class ComposeAPI {
       
       // Generate audio (mock, deterministic latency & URL from seed)
       const audio = await this.generateAudio(plan, request.mode, payload.hash);
+
+      // Generate viz payload if enabled (stub for now)
+      let viz = null;
+      // TODO: Implement viz engine integration when ready
+
+      // Normalize length to 60s ± 0.5s (Phase-6 guardrail)
+      const targetLengthSec = 60;
+      const lengthSec = targetLengthSec; // mock engine outputs exact 60s
       
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
@@ -131,7 +173,25 @@ export class ComposeAPI {
         logAudit({ evt: 'compose_done', ...logEntry });
       } catch {}
       
-      return {
+      // Unified Spec v1.1 explanation wrapper from text explainer
+      const explanation = {
+        spec: 'UnifiedSpecV1.1',
+        sections: [
+          { title: 'Theme', text: (text as any)?.short ?? '' },
+          { title: 'Details', text: (text as any)?.long ?? '' },
+          { title: 'Bullets', text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '' }
+        ]
+      };
+
+      // Hashes for control, audio, explanation, viz (deterministic)
+      const hashes = {
+        control: 'sha256:' + this.sha256(JSON.stringify(payload)),
+        audio: 'sha256:' + this.sha256(audio.url + ':' + lengthSec.toString()),
+        explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
+        viz: viz ? 'sha256:' + this.sha256(JSON.stringify(viz)) : null
+      };
+
+      const response = {
         controls: payload,
         astro: {
           element_dominance: payload.element_dominance,
@@ -141,18 +201,55 @@ export class ComposeAPI {
         gate_report: gateReport,
         audio: {
           url: audio.url,
+          digest: hashes.audio,
           latency_ms: totalLatency
         },
-        text,
+        text: {
+          blocks: text.blocks,
+          digest: hashes.explanation
+        },
+        // Phase-6 Spec v1.1 surface with shared FeatureEncoder provenance
+        explanation,
+        viz: viz ? {
+          url: `https://cdn.astradio.io/viz/${hashes.viz}.json`,
+          digest: hashes.viz
+        } : null,
+        hashes,
         artifacts: {
           model: '084c92dca9af2f09',
           encoder: 'db4eb96e52b3f63e',
+          chartHash: 'mock_chart_hash',
+          featuresVersion: 'v1.0',
           snapset: '185371267270f0ef',
           gate: 'v2.3-final',
           mapping_tables_version: 'v1.1',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          provenance: {
+            chartHash: 'mock_chart_hash',
+            seed: (request as any).seed || payload.hash,
+            featuresVersion: 'v1.0',
+            modelVersions: {
+              audio: this.runtimeModel,
+              text: 'v1.1',
+              viz: null, // TODO: Enable when viz engine is ready
+              matching: 'v1.0'
+            },
+            houseSystem: 'placidus',
+            tzDiscipline: 'utc'
+          }
         }
-      };
+      } as any;
+      
+      // Store viz.json with CDN headers if viz payload exists
+      if (viz && hashes.viz) {
+        await this.storeVizArtifact(hashes.viz, viz);
+      }
+
+      // Cache the response for idempotency
+      this.compositionCache.set(requestKey, response);
+      console.log('[COMPOSE] Cached composition for key:', requestKey.slice(0, 8));
+      
+      return response;
       
     } catch (error) {
       throw new Error(`Compose API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -160,10 +257,39 @@ export class ComposeAPI {
   }
 
   /**
+   * Store viz artifact to S3 with CDN headers
+   */
+  private async storeVizArtifact(hash: string, payload: any): Promise<void> {
+    try {
+      const { uploadFile } = require('../../lib/storage');
+      const key = `viz/${hash}.json`;
+      // Use minified JSON for both digest computation and storage to ensure alignment
+      const jsonString = JSON.stringify(payload);
+      const buffer = Buffer.from(jsonString);
+      
+      await uploadFile(
+        key, 
+        buffer, 
+        'application/json; charset=utf-8', 
+        {
+          'x-amz-meta-digest': hash,
+          'x-amz-meta-viz-version': payload.vizVersion || '1.0'
+        },
+        'public, max-age=31536000, immutable'
+      );
+      
+      console.log(`[COMPOSE] Stored viz artifact: ${key}`);
+    } catch (error) {
+      console.error('[COMPOSE] Failed to store viz artifact:', error);
+      // Don't throw - composition can continue without viz storage
+    }
+  }
+
+  /**
    * Generate control-surface payload based on request mode
    */
   private async generateControlPayload(request: ComposeRequest): Promise<ControlSurfacePayload> {
-    switch (request.mode) {
+    switch ((request as any).mode) {
       case 'sky':
         return this.generateSkyPayload(request.skyParams!);
       
@@ -173,8 +299,11 @@ export class ComposeAPI {
       case 'sandbox':
         return this.generateSandboxPayload(request.controls!);
       
+      case 'compatibility':
+        return this.generateCompatibilityPayload(request as any);
+      
       default:
-        throw new Error(`Unsupported mode: ${request.mode}`);
+        throw new Error(`Unsupported mode: ${(request as any).mode}`);
     }
   }
 
@@ -232,6 +361,35 @@ export class ComposeAPI {
     mergedPayload.hash = this.generateHash(mergedPayload);
     
     return mergedPayload;
+  }
+
+  /**
+   * Generate payload for compatibility mode (two-chart composition)
+   */
+  private async generateCompatibilityPayload(request: any): Promise<ControlSurfacePayload> {
+    // Generate combined payload from two charts
+    const chart1Payload = await this.generateDefaultPayload();
+    const chart2Payload = await this.generateDefaultPayload();
+    
+    // Blend the two charts based on compatibility score
+    const compatibilityScore = request.compatibilityScore || 0.5;
+    const blendedPayload = {
+      arc_shape: (chart1Payload.arc_shape + chart2Payload.arc_shape) / 2,
+      density_level: (chart1Payload.density_level + chart2Payload.density_level) / 2,
+      tempo_norm: (chart1Payload.tempo_norm + chart2Payload.tempo_norm) / 2,
+      step_bias: (chart1Payload.step_bias + chart2Payload.step_bias) / 2,
+      leap_cap: Math.round((chart1Payload.leap_cap + chart2Payload.leap_cap) / 2),
+      rhythm_template_id: Math.round((chart1Payload.rhythm_template_id + chart2Payload.rhythm_template_id) / 2),
+      syncopation_bias: (chart1Payload.syncopation_bias + chart2Payload.syncopation_bias) / 2,
+      motif_rate: (chart1Payload.motif_rate + chart2Payload.motif_rate) / 2,
+      element_dominance: compatibilityScore > 0.7 ? chart1Payload.element_dominance : 'air',
+      aspect_tension: compatibilityScore,
+      modality: 'mutable'
+    };
+    
+    (blendedPayload as any).hash = this.generateHash(blendedPayload);
+    
+    return blendedPayload as ControlSurfacePayload;
   }
 
   /**
@@ -346,6 +504,7 @@ export class ComposeAPI {
 
   /**
    * Mock student inference (Unified Spec v1.1)
+   * Note: Genre conditioning is internal_only - not exposed in control surface
    */
   private async runStudentInference(astroData: any): Promise<Partial<ControlSurfacePayload>> {
     // Deterministic mock using seeded RNG from astroData
@@ -445,6 +604,12 @@ export class ComposeAPI {
       state ^= state << 5;  state >>>= 0;
       return (state >>> 0) / 0xFFFFFFFF;
     };
+  }
+
+  // sha256 helper
+  private sha256(input: string): string {
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(input).digest('hex');
   }
 }
 

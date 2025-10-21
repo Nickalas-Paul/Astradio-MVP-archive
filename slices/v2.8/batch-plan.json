@@ -1,0 +1,47 @@
+{
+  "version": "v2.8",
+  "description": "Slice-Batch #2: Ambient↔Classical confusion + Classical low-F1 + Electronic↔Ambient confusion",
+  "target": "Macro F1 ≥ 0.740 (v2.7 + 0.010)",
+  "baseline": {
+    "macro_f1": 0.730,
+    "classical_f1": 0.738,
+    "jazz_f1": 0.725,
+    "electronic_f1": 0.729,
+    "ambient_f1": 0.726,
+    "max_confusion": 0.062
+  },
+  "slices": [
+    {
+      "id": "ambient-classical-confusion",
+      "description": "Ambient↔Classical confusion reduction",
+      "target_charts": 30,
+      "baseline_confusion": 0.058,
+      "target_confusion": 0.045,
+      "rationale": "Second highest confusion pair after jazz↔electronic"
+    },
+    {
+      "id": "classical-low-f1",
+      "description": "Classical low-F1 subset improvement",
+      "target_charts": 30,
+      "baseline_f1": 0.738,
+      "target_f1": 0.748,
+      "rationale": "Direct F1 improvement targeting strongest genre"
+    },
+    {
+      "id": "electronic-ambient-confusion",
+      "description": "Electronic↔Ambient confusion reduction",
+      "target_charts": 30,
+      "baseline_confusion": 0.052,
+      "target_confusion": 0.040,
+      "rationale": "Third confusion pair or ambient low-F1 subset"
+    }
+  ],
+  "expected_outcomes": {
+    "macro_f1": 0.740,
+    "confusion_reduction": "Multiple pairs improved",
+    "per_genre_f1": "All genres maintained or improved",
+    "no_regressions": "Determinism, latency, length adherence maintained"
+  },
+  "created": "2025-01-28T11:45:00Z",
+  "status": "planning"
+}

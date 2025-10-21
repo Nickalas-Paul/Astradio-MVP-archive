@@ -1,0 +1,9 @@
+# v2.6 Locked Eval Set (Reused from v2.5)
+# This is a symbolic link to the v2.5 locked eval set
+# Hash: sha256:v2.5-locked-eval-hash (unchanged)
+# Total Samples: 1,000 (250 per genre)
+# Genres: classical, jazz, electronic, ambient
+
+# Note: This file references the same locked eval set as v2.5
+# to ensure consistent evaluation across versions.
+# The actual data is in: evals/v2.5/locked/genre-eval-set.jsonl

@@ -1,0 +1,56 @@
+{
+  "seed": 424242,
+  "epochs": 40,
+  "batchSize": 64,
+  "optimizer": "adamw",
+  "lr": 0.0008,
+  "classWeighting": { 
+    "enabled": true, 
+    "clipMin": 0.25, 
+    "clipMax": 3.0 
+  },
+  "boundaryLoss": { 
+    "enabled": true, 
+    "margin": 0.1, 
+    "lambda": 0.5 
+  },
+  "earlyStop": { 
+    "patience": 6, 
+    "metric": "val_f1_macro" 
+  },
+  "deterministic": true,
+  "saveBestOnly": true,
+  "artifactsDir": "models/student-v2.6-label-uplift",
+  "dataDir": "datasets",
+  "splitsDir": "splits/v2.4",
+  "evalDir": "evals/v2.6/label-uplift",
+  "logsDir": "logs",
+  "genreConditioning": {
+    "enabled": true,
+    "encoding": "learned_embedding",
+    "embedding_dim": 8,
+    "genres": ["classical", "jazz", "electronic", "ambient"],
+    "internal_only": true,
+    "no_api_exposure": true,
+    "film_conditioning": {
+      "enabled": true,
+      "scale_shift": true,
+      "layer_norm_before": true
+    }
+  },
+  "balancedSampling": {
+    "enabled": true,
+    "genre_balanced": true,
+    "samples_per_genre": 250
+  },
+  "teacherLabelUplift": {
+    "enabled": true,
+    "focus_pairs": ["jazz↔ambient"],
+    "refinement_method": "boundary_definition",
+    "noise_reduction": true,
+    "confusion_target": 0.08
+  },
+  "adapters": {
+    "enabled": false
+  }
+}

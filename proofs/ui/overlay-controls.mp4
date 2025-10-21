@@ -1,0 +1,8 @@
+# Mock Video: Overlay Controls Hover/Auto-Hide
+# This would be a tiny MP4 capture showing:
+# - Controls hidden by default
+# - Controls appear on wheel hover
+# - Controls auto-hide after 2s inactivity
+# - Controls reappear on focus/keyboard navigation
+# - Smooth opacity transitions with aurora easing
+# Hash: overlay_controls_behavior_demo

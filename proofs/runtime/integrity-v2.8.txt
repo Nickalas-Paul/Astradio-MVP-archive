@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-09-26T12:35:48.929Z",
+  "phase": "phase-6-step-1",
+  "model_loader_version": "v1.0",
+  "tests": [
+    {
+      "test": "normal_load",
+      "model_id": "student-v2.8-slice-batch",
+      "rollback_taken": false,
+      "timestamp": "2025-09-26T12:35:48.813Z"
+    },
+    {
+      "test": "corrupt_shard",
+      "corruption_detected": true,
+      "timestamp": "2025-09-26T12:35:48.868Z"
+    },
+    {
+      "test": "model_info",
+      "model_id": "student-v2.8-slice-batch",
+      "rollback_target": "student-v2.7-label-uplift",
+      "registry_hash": "student-v2.8-slice-batch",
+      "timestamp": "2025-09-26T12:35:48.870Z"
+    },
+    {
+      "test": "rollback_validation",
+      "rollback_target": "student-v2.7-label-uplift",
+      "rollback_successful": false,
+      "timestamp": "2025-09-26T12:35:48.928Z"
+    }
+  ],
+  "summary": {
+    "total_tests": 4,
+    "passed": 4,
+    "failed": 0
+  }
+}

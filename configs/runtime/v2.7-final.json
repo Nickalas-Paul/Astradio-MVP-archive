@@ -1,0 +1,28 @@
+{
+  "runtime_config": {
+    "timestamp": "2025-01-28T07:45:00Z",
+    "status": "promote_to_final",
+    "default_model": "student-v2.7-label-uplift",
+    "feature_flag": "RUNTIME_MODEL=student-v2.7",
+    "rollback_target": "student-v2.6-label-uplift",
+    "rollback_command": "RUNTIME_MODEL=student-v2.6"
+  },
+  "monitoring": {
+    "soak_period": "24_hours",
+    "smoke_pack": "fixed_20_charts",
+    "alert_thresholds": {
+      "p95_latency_warn": "1.9s",
+      "p95_latency_critical": "2.2s",
+      "confusion_hot_pair_warn": "+2pp_vs_frozen_baseline",
+      "determinism_alert": "any_5x_mismatch",
+      "length_alert": "outside_59.5s-60.5s_range"
+    }
+  },
+  "baseline_metrics": {
+    "p95_latency": "1.445s",
+    "max_confusion": "6.2%",
+    "jazz_electronic_confusion": "6.2%",
+    "electronic_classical_confusion": "5.1%",
+    "determinism_variance": "0.0017"
+  }
+}

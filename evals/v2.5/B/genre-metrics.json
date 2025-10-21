@@ -1,0 +1,67 @@
+{
+  "model": "student-v2.5-B",
+  "evaluation_date": "2025-01-27T23:15:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "B",
+  "config_diff": "Added genre_id conditioning only",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.712,
+      "precision": 0.705,
+      "recall": 0.719,
+      "accuracy": 0.716,
+      "samples": 250,
+      "baseline_f1": 0.678,
+      "delta_f1": 0.034
+    },
+    "jazz": {
+      "f1": 0.689,
+      "precision": 0.682,
+      "recall": 0.696,
+      "accuracy": 0.691,
+      "samples": 250,
+      "baseline_f1": 0.665,
+      "delta_f1": 0.024
+    },
+    "electronic": {
+      "f1": 0.698,
+      "precision": 0.691,
+      "recall": 0.705,
+      "accuracy": 0.702,
+      "samples": 250,
+      "baseline_f1": 0.672,
+      "delta_f1": 0.026
+    },
+    "ambient": {
+      "f1": 0.691,
+      "precision": 0.684,
+      "recall": 0.698,
+      "accuracy": 0.695,
+      "samples": 250,
+      "baseline_f1": 0.669,
+      "delta_f1": 0.022
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.698,
+    "macro_precision": 0.691,
+    "macro_recall": 0.705,
+    "macro_accuracy": 0.701,
+    "baseline_macro_f1": 0.671,
+    "delta_macro_f1": 0.027
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.70,
+    "jazz_f1_target": 0.70,
+    "electronic_f1_target": 0.70,
+    "ambient_f1_target": 0.70,
+    "classical_passed": false,
+    "jazz_passed": false,
+    "electronic_passed": false,
+    "ambient_passed": false,
+    "all_genres_passed": false
+  }
+}

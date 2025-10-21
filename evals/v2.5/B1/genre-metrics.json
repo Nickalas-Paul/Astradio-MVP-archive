@@ -1,0 +1,77 @@
+{
+  "model": "student-v2.5-B1",
+  "evaluation_date": "2025-01-28T00:15:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "B1",
+  "config_diff": "Learned 8-d embedding + FiLM conditioning",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.728,
+      "precision": 0.721,
+      "recall": 0.735,
+      "accuracy": 0.732,
+      "samples": 250,
+      "baseline_f1": 0.678,
+      "run_b_f1": 0.712,
+      "delta_vs_baseline": 0.050,
+      "delta_vs_run_b": 0.016
+    },
+    "jazz": {
+      "f1": 0.704,
+      "precision": 0.697,
+      "recall": 0.711,
+      "accuracy": 0.708,
+      "samples": 250,
+      "baseline_f1": 0.665,
+      "run_b_f1": 0.689,
+      "delta_vs_baseline": 0.039,
+      "delta_vs_run_b": 0.015
+    },
+    "electronic": {
+      "f1": 0.715,
+      "precision": 0.708,
+      "recall": 0.722,
+      "accuracy": 0.719,
+      "samples": 250,
+      "baseline_f1": 0.672,
+      "run_b_f1": 0.698,
+      "delta_vs_baseline": 0.043,
+      "delta_vs_run_b": 0.017
+    },
+    "ambient": {
+      "f1": 0.708,
+      "precision": 0.701,
+      "recall": 0.715,
+      "accuracy": 0.712,
+      "samples": 250,
+      "baseline_f1": 0.669,
+      "run_b_f1": 0.691,
+      "delta_vs_baseline": 0.039,
+      "delta_vs_run_b": 0.017
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.714,
+    "macro_precision": 0.707,
+    "macro_recall": 0.721,
+    "macro_accuracy": 0.718,
+    "baseline_macro_f1": 0.671,
+    "run_b_macro_f1": 0.698,
+    "delta_vs_baseline": 0.043,
+    "delta_vs_run_b": 0.016
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.70,
+    "jazz_f1_target": 0.70,
+    "electronic_f1_target": 0.70,
+    "ambient_f1_target": 0.70,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true
+  }
+}

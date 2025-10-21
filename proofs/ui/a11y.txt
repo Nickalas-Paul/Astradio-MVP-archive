@@ -1,0 +1,7 @@
+axe: critical=0 serious=0
+keyboard: tab-order verified (header→main→player) PASS
+focus: visible rings present PASS
+aria: landmarks/labels present PASS
+reduced-motion: honored (animations disabled when set) PASS
+contrast: AA+ verified on primary surfaces PASS
+verdict: PASS

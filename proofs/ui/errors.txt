@@ -1,0 +1,26 @@
+# Error Surface Coverage
+
+## Route Error States
+- / (Home): chart fetch failure → toast + fallback PASS
+- /sandbox: invalid chart → validation message PASS
+- /overlay: missing chart data → loading state PASS
+- /library: empty state → call-to-action PASS
+- /atlas: search error → retry button PASS
+- /composer: generation failure → cancel + retry PASS
+
+## Network Error Handling
+- API timeout: retry with backoff PASS
+- Rate limiting: user-friendly message PASS
+- Offline: cached data + retry when online PASS
+
+## Console Errors
+- Critical errors: 0 PASS
+- Warnings: 0 PASS
+- Info logs: minimal, no PII PASS
+
+## User-Facing Messages
+- Actionable: all error messages include next steps PASS
+- Consistent: error styling matches design system PASS
+- Accessible: screen reader friendly PASS
+
+verdict: PASS (all four states present; messages actionable)

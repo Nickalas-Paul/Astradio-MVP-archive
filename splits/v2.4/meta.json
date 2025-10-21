@@ -1,0 +1,54 @@
+{
+  "version": "2.8_slice_batch",
+  "timestamp": "2025-01-28T11:45:00Z",
+  "config": {
+    "limit": 2000,
+    "qualityThreshold": 0.55,
+    "trainRatio": 0.7,
+    "valRatio": 0.15,
+    "testRatio": 0.15,
+    "seed": 424242
+  },
+  "dataHygiene": {
+    "splitMethod": "chart_hash",
+    "splitSeed": 424242,
+    "qualityThreshold": 0.55
+  },
+  "counts": {
+    "total": 819,
+    "train": 567,
+    "val": 127,
+    "test": 125
+  },
+  "class_histogram": {
+    "classical": 205,
+    "jazz": 204,
+    "electronic": 205,
+    "ambient": 205
+  },
+  "checksums": {
+    "train.jsonl": "9fc9f3217f3d5d930247ba320fe4d61cbecfc8cf738bdc64c84e647e0aaa1587",
+    "val.jsonl": "61d4e17f477e0aa0bc67834455d448fcfb57802e106c1517a07571d57d9c8679",
+    "test.jsonl": "0cc000a8dd42e3a1d78ea580241852eb718d91604513cbe03e3cec715ec79c5c"
+  },
+  "statistics": {
+    "train.jsonl": {
+      "count": 567,
+      "avgQuality": 0.5819257413467194,
+      "minQuality": 0.5621545220983145,
+      "maxQuality": 0.6268364801571501
+    },
+    "val.jsonl": {
+      "count": 127,
+      "avgQuality": 0.5836550188532686,
+      "minQuality": 0.5621545220983145,
+      "maxQuality": 0.6268364801571501
+    },
+    "test.jsonl": {
+      "count": 125,
+      "avgQuality": 0.5812328406544714,
+      "minQuality": 0.5621545220983145,
+      "maxQuality": 0.6218797869129077
+    }
+  }
+}

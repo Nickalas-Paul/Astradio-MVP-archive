@@ -1,0 +1,1515 @@
+{
+  "timestamp": "2025-09-26T13:26:58.527Z",
+  "phase": "phase-6-step-2",
+  "test_type": "compose_controller_spec_v1_1",
+  "summary": {
+    "total_charts": 20,
+    "deterministic_charts": 20,
+    "schema_compliant_charts": 20,
+    "validation_pass_charts": 20,
+    "avg_latency_ms": 5,
+    "p95_latency_ms": 7
+  },
+  "charts": [
+    {
+      "chart_id": "chart_1",
+      "chart_name": "fire_cardinal_classical",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 61,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4979b363.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4979b363",
+          "audio_hash": "4979b363"
+        },
+        {
+          "run": 2,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4979b363.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4979b363",
+          "audio_hash": "4979b363"
+        },
+        {
+          "run": 3,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4979b363.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4979b363",
+          "audio_hash": "4979b363"
+        },
+        {
+          "run": 4,
+          "latency_ms": 10,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4979b363.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4979b363",
+          "audio_hash": "4979b363"
+        },
+        {
+          "run": 5,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4979b363.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4979b363",
+          "audio_hash": "4979b363"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 18,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_2",
+      "chart_name": "earth_fixed_jazz",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/417346fc.mp3",
+          "explanation_sections": 3,
+          "control_hash": "417346fc",
+          "audio_hash": "417346fc"
+        },
+        {
+          "run": 2,
+          "latency_ms": 6,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/417346fc.mp3",
+          "explanation_sections": 3,
+          "control_hash": "417346fc",
+          "audio_hash": "417346fc"
+        },
+        {
+          "run": 3,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/417346fc.mp3",
+          "explanation_sections": 3,
+          "control_hash": "417346fc",
+          "audio_hash": "417346fc"
+        },
+        {
+          "run": 4,
+          "latency_ms": 8,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/417346fc.mp3",
+          "explanation_sections": 3,
+          "control_hash": "417346fc",
+          "audio_hash": "417346fc"
+        },
+        {
+          "run": 5,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/417346fc.mp3",
+          "explanation_sections": 3,
+          "control_hash": "417346fc",
+          "audio_hash": "417346fc"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 7,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_3",
+      "chart_name": "air_mutable_electronic",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 6,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/26d16b8f.mp3",
+          "explanation_sections": 3,
+          "control_hash": "26d16b8f",
+          "audio_hash": "26d16b8f"
+        },
+        {
+          "run": 2,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/26d16b8f.mp3",
+          "explanation_sections": 3,
+          "control_hash": "26d16b8f",
+          "audio_hash": "26d16b8f"
+        },
+        {
+          "run": 3,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/26d16b8f.mp3",
+          "explanation_sections": 3,
+          "control_hash": "26d16b8f",
+          "audio_hash": "26d16b8f"
+        },
+        {
+          "run": 4,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/26d16b8f.mp3",
+          "explanation_sections": 3,
+          "control_hash": "26d16b8f",
+          "audio_hash": "26d16b8f"
+        },
+        {
+          "run": 5,
+          "latency_ms": 7,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/26d16b8f.mp3",
+          "explanation_sections": 3,
+          "control_hash": "26d16b8f",
+          "audio_hash": "26d16b8f"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 6,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_4",
+      "chart_name": "water_cardinal_ambient",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7c0ec428.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7c0ec428",
+          "audio_hash": "7c0ec428"
+        },
+        {
+          "run": 2,
+          "latency_ms": 6,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7c0ec428.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7c0ec428",
+          "audio_hash": "7c0ec428"
+        },
+        {
+          "run": 3,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7c0ec428.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7c0ec428",
+          "audio_hash": "7c0ec428"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7c0ec428.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7c0ec428",
+          "audio_hash": "7c0ec428"
+        },
+        {
+          "run": 5,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7c0ec428.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7c0ec428",
+          "audio_hash": "7c0ec428"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 5,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_5",
+      "chart_name": "fire_fixed_classical",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/24cb9.mp3",
+          "explanation_sections": 3,
+          "control_hash": "24cb9",
+          "audio_hash": "24cb9"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/24cb9.mp3",
+          "explanation_sections": 3,
+          "control_hash": "24cb9",
+          "audio_hash": "24cb9"
+        },
+        {
+          "run": 3,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/24cb9.mp3",
+          "explanation_sections": 3,
+          "control_hash": "24cb9",
+          "audio_hash": "24cb9"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/24cb9.mp3",
+          "explanation_sections": 3,
+          "control_hash": "24cb9",
+          "audio_hash": "24cb9"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/24cb9.mp3",
+          "explanation_sections": 3,
+          "control_hash": "24cb9",
+          "audio_hash": "24cb9"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_6",
+      "chart_name": "earth_mutable_jazz",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/653fa620.mp3",
+          "explanation_sections": 3,
+          "control_hash": "653fa620",
+          "audio_hash": "653fa620"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/653fa620.mp3",
+          "explanation_sections": 3,
+          "control_hash": "653fa620",
+          "audio_hash": "653fa620"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/653fa620.mp3",
+          "explanation_sections": 3,
+          "control_hash": "653fa620",
+          "audio_hash": "653fa620"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/653fa620.mp3",
+          "explanation_sections": 3,
+          "control_hash": "653fa620",
+          "audio_hash": "653fa620"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/653fa620.mp3",
+          "explanation_sections": 3,
+          "control_hash": "653fa620",
+          "audio_hash": "653fa620"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_7",
+      "chart_name": "air_cardinal_electronic",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7b605d8c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7b605d8c",
+          "audio_hash": "7b605d8c"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7b605d8c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7b605d8c",
+          "audio_hash": "7b605d8c"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7b605d8c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7b605d8c",
+          "audio_hash": "7b605d8c"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7b605d8c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7b605d8c",
+          "audio_hash": "7b605d8c"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/7b605d8c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "7b605d8c",
+          "audio_hash": "7b605d8c"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_8",
+      "chart_name": "water_fixed_ambient",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/79430530.mp3",
+          "explanation_sections": 3,
+          "control_hash": "79430530",
+          "audio_hash": "79430530"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/79430530.mp3",
+          "explanation_sections": 3,
+          "control_hash": "79430530",
+          "audio_hash": "79430530"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/79430530.mp3",
+          "explanation_sections": 3,
+          "control_hash": "79430530",
+          "audio_hash": "79430530"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/79430530.mp3",
+          "explanation_sections": 3,
+          "control_hash": "79430530",
+          "audio_hash": "79430530"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/79430530.mp3",
+          "explanation_sections": 3,
+          "control_hash": "79430530",
+          "audio_hash": "79430530"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_9",
+      "chart_name": "fire_mutable_classical",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/2d77d52c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "2d77d52c",
+          "audio_hash": "2d77d52c"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/2d77d52c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "2d77d52c",
+          "audio_hash": "2d77d52c"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/2d77d52c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "2d77d52c",
+          "audio_hash": "2d77d52c"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/2d77d52c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "2d77d52c",
+          "audio_hash": "2d77d52c"
+        },
+        {
+          "run": 5,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/2d77d52c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "2d77d52c",
+          "audio_hash": "2d77d52c"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_10",
+      "chart_name": "earth_cardinal_jazz",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/5a5cd351.mp3",
+          "explanation_sections": 3,
+          "control_hash": "5a5cd351",
+          "audio_hash": "5a5cd351"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/5a5cd351.mp3",
+          "explanation_sections": 3,
+          "control_hash": "5a5cd351",
+          "audio_hash": "5a5cd351"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/5a5cd351.mp3",
+          "explanation_sections": 3,
+          "control_hash": "5a5cd351",
+          "audio_hash": "5a5cd351"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/5a5cd351.mp3",
+          "explanation_sections": 3,
+          "control_hash": "5a5cd351",
+          "audio_hash": "5a5cd351"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/5a5cd351.mp3",
+          "explanation_sections": 3,
+          "control_hash": "5a5cd351",
+          "audio_hash": "5a5cd351"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_11",
+      "chart_name": "air_fixed_electronic",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/569052fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "569052fa",
+          "audio_hash": "569052fa"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/569052fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "569052fa",
+          "audio_hash": "569052fa"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/569052fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "569052fa",
+          "audio_hash": "569052fa"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/569052fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "569052fa",
+          "audio_hash": "569052fa"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/569052fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "569052fa",
+          "audio_hash": "569052fa"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_12",
+      "chart_name": "water_mutable_ambient",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/6a168c0c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "6a168c0c",
+          "audio_hash": "6a168c0c"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/6a168c0c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "6a168c0c",
+          "audio_hash": "6a168c0c"
+        },
+        {
+          "run": 3,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/6a168c0c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "6a168c0c",
+          "audio_hash": "6a168c0c"
+        },
+        {
+          "run": 4,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/6a168c0c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "6a168c0c",
+          "audio_hash": "6a168c0c"
+        },
+        {
+          "run": 5,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/6a168c0c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "6a168c0c",
+          "audio_hash": "6a168c0c"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 3,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_13",
+      "chart_name": "fire_cardinal_classical",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/34793234.mp3",
+          "explanation_sections": 3,
+          "control_hash": "34793234",
+          "audio_hash": "34793234"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/34793234.mp3",
+          "explanation_sections": 3,
+          "control_hash": "34793234",
+          "audio_hash": "34793234"
+        },
+        {
+          "run": 3,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/34793234.mp3",
+          "explanation_sections": 3,
+          "control_hash": "34793234",
+          "audio_hash": "34793234"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/34793234.mp3",
+          "explanation_sections": 3,
+          "control_hash": "34793234",
+          "audio_hash": "34793234"
+        },
+        {
+          "run": 5,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/34793234.mp3",
+          "explanation_sections": 3,
+          "control_hash": "34793234",
+          "audio_hash": "34793234"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_14",
+      "chart_name": "earth_fixed_jazz",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 10,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4b059463.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4b059463",
+          "audio_hash": "4b059463"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4b059463.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4b059463",
+          "audio_hash": "4b059463"
+        },
+        {
+          "run": 3,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4b059463.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4b059463",
+          "audio_hash": "4b059463"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4b059463.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4b059463",
+          "audio_hash": "4b059463"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/4b059463.mp3",
+          "explanation_sections": 3,
+          "control_hash": "4b059463",
+          "audio_hash": "4b059463"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 5,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_15",
+      "chart_name": "air_mutable_electronic",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/40ae0995.mp3",
+          "explanation_sections": 3,
+          "control_hash": "40ae0995",
+          "audio_hash": "40ae0995"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/40ae0995.mp3",
+          "explanation_sections": 3,
+          "control_hash": "40ae0995",
+          "audio_hash": "40ae0995"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/40ae0995.mp3",
+          "explanation_sections": 3,
+          "control_hash": "40ae0995",
+          "audio_hash": "40ae0995"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/40ae0995.mp3",
+          "explanation_sections": 3,
+          "control_hash": "40ae0995",
+          "audio_hash": "40ae0995"
+        },
+        {
+          "run": 5,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/40ae0995.mp3",
+          "explanation_sections": 3,
+          "control_hash": "40ae0995",
+          "audio_hash": "40ae0995"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_16",
+      "chart_name": "water_cardinal_ambient",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/3db16e0e.mp3",
+          "explanation_sections": 3,
+          "control_hash": "3db16e0e",
+          "audio_hash": "3db16e0e"
+        },
+        {
+          "run": 2,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/3db16e0e.mp3",
+          "explanation_sections": 3,
+          "control_hash": "3db16e0e",
+          "audio_hash": "3db16e0e"
+        },
+        {
+          "run": 3,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/3db16e0e.mp3",
+          "explanation_sections": 3,
+          "control_hash": "3db16e0e",
+          "audio_hash": "3db16e0e"
+        },
+        {
+          "run": 4,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/3db16e0e.mp3",
+          "explanation_sections": 3,
+          "control_hash": "3db16e0e",
+          "audio_hash": "3db16e0e"
+        },
+        {
+          "run": 5,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/3db16e0e.mp3",
+          "explanation_sections": 3,
+          "control_hash": "3db16e0e",
+          "audio_hash": "3db16e0e"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_17",
+      "chart_name": "fire_fixed_classical",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/a6b9a59.mp3",
+          "explanation_sections": 3,
+          "control_hash": "a6b9a59",
+          "audio_hash": "a6b9a59"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/a6b9a59.mp3",
+          "explanation_sections": 3,
+          "control_hash": "a6b9a59",
+          "audio_hash": "a6b9a59"
+        },
+        {
+          "run": 3,
+          "latency_ms": 6,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/a6b9a59.mp3",
+          "explanation_sections": 3,
+          "control_hash": "a6b9a59",
+          "audio_hash": "a6b9a59"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/a6b9a59.mp3",
+          "explanation_sections": 3,
+          "control_hash": "a6b9a59",
+          "audio_hash": "a6b9a59"
+        },
+        {
+          "run": 5,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/a6b9a59.mp3",
+          "explanation_sections": 3,
+          "control_hash": "a6b9a59",
+          "audio_hash": "a6b9a59"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_18",
+      "chart_name": "earth_mutable_jazz",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/77e2296c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "77e2296c",
+          "audio_hash": "77e2296c"
+        },
+        {
+          "run": 2,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/77e2296c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "77e2296c",
+          "audio_hash": "77e2296c"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/77e2296c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "77e2296c",
+          "audio_hash": "77e2296c"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/77e2296c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "77e2296c",
+          "audio_hash": "77e2296c"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/77e2296c.mp3",
+          "explanation_sections": 3,
+          "control_hash": "77e2296c",
+          "audio_hash": "77e2296c"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_19",
+      "chart_name": "air_cardinal_electronic",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/318d13fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "318d13fa",
+          "audio_hash": "318d13fa"
+        },
+        {
+          "run": 2,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/318d13fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "318d13fa",
+          "audio_hash": "318d13fa"
+        },
+        {
+          "run": 3,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/318d13fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "318d13fa",
+          "audio_hash": "318d13fa"
+        },
+        {
+          "run": 4,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/318d13fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "318d13fa",
+          "audio_hash": "318d13fa"
+        },
+        {
+          "run": 5,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/318d13fa.mp3",
+          "explanation_sections": 3,
+          "control_hash": "318d13fa",
+          "audio_hash": "318d13fa"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    },
+    {
+      "chart_id": "chart_20",
+      "chart_name": "water_fixed_ambient",
+      "runs": [
+        {
+          "run": 1,
+          "latency_ms": 4,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/126b34fb.mp3",
+          "explanation_sections": 3,
+          "control_hash": "126b34fb",
+          "audio_hash": "126b34fb"
+        },
+        {
+          "run": 2,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/126b34fb.mp3",
+          "explanation_sections": 3,
+          "control_hash": "126b34fb",
+          "audio_hash": "126b34fb"
+        },
+        {
+          "run": 3,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/126b34fb.mp3",
+          "explanation_sections": 3,
+          "control_hash": "126b34fb",
+          "audio_hash": "126b34fb"
+        },
+        {
+          "run": 4,
+          "latency_ms": 5,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/126b34fb.mp3",
+          "explanation_sections": 3,
+          "control_hash": "126b34fb",
+          "audio_hash": "126b34fb"
+        },
+        {
+          "run": 5,
+          "latency_ms": 3,
+          "validation": {
+            "passes": true,
+            "schema_compliant": true,
+            "issues": []
+          },
+          "audio_url": "/api/audio/126b34fb.mp3",
+          "explanation_sections": 3,
+          "control_hash": "126b34fb",
+          "audio_hash": "126b34fb"
+        }
+      ],
+      "deterministic": true,
+      "avg_latency_ms": 4,
+      "all_validations_pass": true,
+      "schema_compliant": true
+    }
+  ]
+}

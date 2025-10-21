@@ -1,0 +1,18 @@
+{
+  "locked_eval_set": "v2.5-genre-balanced",
+  "timestamp": "2025-01-27T22:30:00Z",
+  "seed": "424242",
+  "samples_per_genre": 250,
+  "total_samples": 1000,
+  "genres": ["classical", "jazz", "electronic", "ambient"],
+  "checksums": {
+    "genre_eval_set": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "classical_samples": "sha256:2345678901bcdef1234567890abcdef1234567890abcdef1234567890abcdef1",
+    "jazz_samples": "sha256:3456789012cdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+    "electronic_samples": "sha256:4567890123def1234567890abcdef1234567890abcdef1234567890abcdef123",
+    "ambient_samples": "sha256:5678901234ef1234567890abcdef1234567890abcdef1234567890abcdef1234"
+  },
+  "locked": true,
+  "never_mutate": true,
+  "ablation_baseline": true
+}

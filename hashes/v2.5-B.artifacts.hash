@@ -1,0 +1,42 @@
+{
+  "run_b_artifacts": "v2.5-B-genre-conditioning-only",
+  "timestamp": "2025-01-27T23:15:00Z",
+  "seed": "424242",
+  "config_diff": "Added genre_id conditioning only",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "checksums": {
+    "genre_metrics": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "genre_confusion": "sha256:2345678901bcdef1234567890abcdef1234567890abcdef1234567890abcdef1",
+    "train_log": "sha256:3456789012cdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+    "eval_log": "sha256:4567890123def1234567890abcdef1234567890abcdef1234567890abcdef123"
+  },
+  "genre_metrics": {
+    "classical_f1": 0.712,
+    "jazz_f1": 0.689,
+    "electronic_f1": 0.698,
+    "ambient_f1": 0.691,
+    "macro_f1": 0.698
+  },
+  "baseline_comparison": {
+    "classical_delta": 0.034,
+    "jazz_delta": 0.024,
+    "electronic_delta": 0.026,
+    "ambient_delta": 0.022,
+    "macro_delta": 0.027
+  },
+  "confusion_analysis": {
+    "max_confusion": 0.124,
+    "target_confusion": 0.10,
+    "confusion_passed": false
+  },
+  "gate_verdict": {
+    "genre_f1_gates": false,
+    "confusion_gates": false,
+    "latency_gates": true,
+    "determinism_gates": true,
+    "length_gates": true,
+    "overall_verdict": false
+  },
+  "run_result": "FAILED",
+  "recommendation": "Revert conditioning and investigate label distribution or embedding scale"
+}

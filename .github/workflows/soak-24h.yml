@@ -1,0 +1,112 @@
+name: 24-Hour Staging Soak
+
+on:
+  schedule:
+    # Run every hour for 24 hours (0-23)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      staging_url:
+        description: 'Staging base URL'
+        required: true
+        default: 'https://staging.astradio.io'
+      auth_header:
+        description: 'Optional auth header'
+        required: false
+        default: ''
+
+concurrency:
+  group: soak-24h-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  soak-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.12.2'
+          cache: 'npm'
+
+      - name: Create evidence directory
+        run: mkdir -p artifacts/soak/hars
+
+      - name: Run soak test
+        env:
+          STAGING_BASE_URL: ${{ github.event.inputs.staging_url || env.STAGING_BASE_URL || 'https://staging.astradio.io' }}
+          STAGING_AUTH_HEADER: ${{ github.event.inputs.auth_header || env.STAGING_AUTH_HEADER || '' }}
+        run: |
+          node scripts/soak-runner.js
+        
+      - name: Generate hourly summary
+        if: always()
+        run: |
+          node scripts/soak-summary.js --hourly
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        
+      - name: Upload evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-evidence-${{ github.run_number }}-${{ github.run_id }}
+          path: artifacts/soak/
+          retention-days: 30
+          
+      - name: Post Job Summary
+        if: always()
+        run: |
+          node scripts/soak-summary.js --job-summary
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let issueBody = '## 🚨 Staging Soak Failure\n\n';
+            issueBody += `**Run ID:** ${process.env.GITHUB_RUN_ID}\n`;
+            issueBody += `**Time:** ${new Date().toISOString()}\n`;
+            issueBody += `**Workflow:** [View Run](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID})\n\n`;
+            
+            // Try to read summary if available
+            try {
+              const summaryPath = 'artifacts/soak/SOAK-REPORT.md';
+              if (fs.existsSync(summaryPath)) {
+                const summary = fs.readFileSync(summaryPath, 'utf8');
+                issueBody += '**Summary:**\n```\n';
+                issueBody += summary.split('\n').slice(0, 20).join('\n'); // First 20 lines
+                issueBody += '\n```\n\n';
+              }
+            } catch (e) {
+              issueBody += '**Error reading summary file**\n\n';
+            }
+            
+            issueBody += '**Next Steps:**\n';
+            issueBody += '1. Check workflow artifacts for full evidence\n';
+            issueBody += '2. Review staging environment health\n';
+            issueBody += '3. Verify thresholds and golden charts\n';
+            issueBody += '4. Check for infrastructure issues\n\n';
+            issueBody += '**Artifacts:** Available in workflow run artifacts\n';
+            
+            const issueTitle = `Staging Soak Failure (${new Date().toISOString().split('T')[0]})`;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['soak-failure', 'staging', 'automated']
+            });

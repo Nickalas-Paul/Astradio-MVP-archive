@@ -1,0 +1,4 @@
+circles: create→list→join PASS
+sessions: create→join→next PASS
+library: favorite→playlist_add PASS
+verdict: PASS

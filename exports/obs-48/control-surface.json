@@ -1,0 +1,13 @@
+{
+  "arc_shape": 0.88,
+  "density_level": 0.98,
+  "tempo_norm": 0.84,
+  "step_bias": 1.08,
+  "leap_cap": 3,
+  "rhythm_template_id": 0,
+  "syncopation_bias": 0.40000000000000036,
+  "motif_rate": 0.5,
+  "element_dominance": "fire",
+  "aspect_tension": 0.6799999999999999,
+  "modality": "cardinal"
+}

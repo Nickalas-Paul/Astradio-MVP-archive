@@ -1,0 +1,59 @@
+{
+  "batch_plan": {
+    "timestamp": "2025-01-28T06:15:00Z",
+    "approach": "Slice-Batch cycle (single toggle)",
+    "target": "Version-level macro F1 +0.01 uplift",
+    "slices_count": 3,
+    "total_charts": 90
+  },
+  "slice_analysis": {
+    "v2.6_baseline": {
+      "classical_f1": 0.731,
+      "jazz_f1": 0.712,
+      "electronic_f1": 0.718,
+      "ambient_f1": 0.715,
+      "macro_f1": 0.719,
+      "max_confusion": 0.076
+    },
+    "identified_slices": [
+      {
+        "slice_1": {
+          "pair": "jazz↔electronic",
+          "charts": 30,
+          "baseline_confusion": 0.085,
+          "target_confusion": 0.065,
+          "rationale": "Next highest confusion pair after jazz↔ambient"
+        },
+        "slice_2": {
+          "pair": "electronic↔classical",
+          "charts": 30,
+          "baseline_confusion": 0.072,
+          "target_confusion": 0.055,
+          "rationale": "Third highest confusion pair"
+        },
+        "slice_3": {
+          "pair": "jazz_low_f1",
+          "charts": 30,
+          "baseline_f1": 0.712,
+          "target_f1": 0.722,
+          "rationale": "Lowest F1 genre - direct improvement target"
+        }
+      }
+    ]
+  },
+  "batch_targets": {
+    "macro_f1_target": 0.729,
+    "macro_f1_delta": 0.01,
+    "per_genre_targets": {
+      "classical": 0.711,
+      "jazz": 0.692,
+      "electronic": 0.698,
+      "ambient": 0.695
+    },
+    "confusion_targets": {
+      "jazz_electronic": 0.065,
+      "electronic_classical": 0.055,
+      "max_confusion": 0.065
+    }
+  }
+}

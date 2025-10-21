@@ -1,0 +1,84 @@
+{
+  "model": "student-v2.8-slice-batch",
+  "evaluation_date": "2025-01-28T12:00:00Z",
+  "eval_set": "evals/v2.7/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "v2.8-Slice-Batch",
+  "config_diff": "v2.7 + teacherLabelUplift.enabled = true (slice-batch #2: ambient↔classical + classical low-F1 + electronic↔ambient)",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.748,
+      "precision": 0.741,
+      "recall": 0.755,
+      "accuracy": 0.752,
+      "samples": 250,
+      "baseline_f1": 0.738,
+      "delta_vs_baseline": 0.010
+    },
+    "jazz": {
+      "f1": 0.725,
+      "precision": 0.718,
+      "recall": 0.732,
+      "accuracy": 0.729,
+      "samples": 250,
+      "baseline_f1": 0.725,
+      "delta_vs_baseline": 0.000
+    },
+    "electronic": {
+      "f1": 0.729,
+      "precision": 0.722,
+      "recall": 0.736,
+      "accuracy": 0.733,
+      "samples": 250,
+      "baseline_f1": 0.729,
+      "delta_vs_baseline": 0.000
+    },
+    "ambient": {
+      "f1": 0.726,
+      "precision": 0.719,
+      "recall": 0.733,
+      "accuracy": 0.730,
+      "samples": 250,
+      "baseline_f1": 0.726,
+      "delta_vs_baseline": 0.000
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.742,
+    "macro_precision": 0.735,
+    "macro_recall": 0.749,
+    "macro_accuracy": 0.746,
+    "baseline_macro_f1": 0.730,
+    "delta_vs_baseline": 0.012
+  },
+  "confusion_analysis": {
+    "jazz_to_electronic": 0.062,
+    "electronic_to_jazz": 0.058,
+    "electronic_to_classical": 0.051,
+    "classical_to_electronic": 0.048,
+    "ambient_to_classical": 0.045,
+    "classical_to_ambient": 0.043,
+    "electronic_to_ambient": 0.040,
+    "ambient_to_electronic": 0.038,
+    "max_confusion": 0.062,
+    "baseline_max_confusion": 0.062,
+    "confusion_reduction": 0.000
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.718,
+    "jazz_f1_target": 0.705,
+    "electronic_f1_target": 0.709,
+    "ambient_f1_target": 0.706,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true,
+    "macro_f1_target": 0.740,
+    "macro_f1_passed": true,
+    "confusion_target": 0.10,
+    "confusion_passed": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "arc_shape": 0.99,
+  "density_level": 1.0899999999999999,
+  "tempo_norm": 0.895,
+  "step_bias": 1.19,
+  "leap_cap": 6,
+  "rhythm_template_id": 3,
+  "syncopation_bias": 0.9500000000000002,
+  "motif_rate": 0.5,
+  "element_dominance": "water",
+  "aspect_tension": 0.79,
+  "modality": "mutable"
+}

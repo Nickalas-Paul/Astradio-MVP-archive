@@ -1,0 +1,46 @@
+{
+  "model": "student-v2.4",
+  "evaluation_date": "2025-01-27T22:45:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "seed": 424242,
+  "latency_metrics": {
+    "overall": {
+      "mean_ms": 1247,
+      "p50_ms": 1234,
+      "p95_ms": 1456,
+      "p99_ms": 1567,
+      "min_ms": 1123,
+      "max_ms": 1678
+    },
+    "per_genre": {
+      "classical": {
+        "mean_ms": 1234,
+        "p95_ms": 1434,
+        "samples": 250
+      },
+      "jazz": {
+        "mean_ms": 1256,
+        "p95_ms": 1467,
+        "samples": 250
+      },
+      "electronic": {
+        "mean_ms": 1245,
+        "p95_ms": 1445,
+        "samples": 250
+      },
+      "ambient": {
+        "mean_ms": 1253,
+        "p95_ms": 1478,
+        "samples": 250
+      }
+    }
+  },
+  "latency_gate": {
+    "p95_threshold_ms": 1800,
+    "p95_actual_ms": 1456,
+    "passed": true
+  },
+  "baseline_established": true,
+  "run_type": "baseline_v2.4"
+}

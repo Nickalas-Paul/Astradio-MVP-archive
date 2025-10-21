@@ -1,0 +1,20 @@
+{
+  "files": {
+    "track.wav": {
+      "sha256": "sha256:92aedcf0aef96750608d7ce496580bafb009cdc0ee29e75dee7f54a628ce4a00",
+      "size": 16
+    },
+    "explanation.json": {
+      "sha256": "sha256:d3c0f9c4a15997137136786a139cc6ca18d1d7f310bb8b3b7e0003486cd2ebe8",
+      "size": 969
+    },
+    "control-surface.json": {
+      "sha256": "sha256:ea036c010a6de3125ff1d74a5c9afa9c055b4bcd13f2a77bea65387d10dc357d",
+      "size": 21
+    },
+    "model.json": {
+      "sha256": "sha256:27038f27213d11c92c4045735f2929c7a28a9281a617b67efd55305a08c78c14",
+      "size": 113
+    }
+  }
+}

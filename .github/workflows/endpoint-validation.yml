@@ -1,0 +1,188 @@
+name: Endpoint Matrix Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-endpoints:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build development image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.dev
+        push: false
+        tags: astradio-dev:latest
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+    
+    - name: Start development stack
+      run: |
+        # Start infrastructure
+        docker compose -f docker-compose.dev.yml --profile infra up -d
+        
+        # Start app
+        docker compose -f docker-compose.dev.yml --profile app up -d
+        
+        # Wait for services
+        sleep 30
+    
+    - name: Validate endpoint matrix
+      run: |
+        # Convert PowerShell script to bash equivalent
+        echo "🔍 Building endpoint matrix..."
+        
+        # Build route lists
+        echo "  📋 Next.js routes..."
+        find app/api -name "route.ts" | sed 's#app/api/\(.*\)/route\.ts#/api/\1#' | sort > .next_routes.txt
+        
+        echo "  📋 Express routes..."
+        grep -r "router\.(get\|post\|put\|delete)('" server/routes/ | \
+          sed "s/.*('\(.*\)'.*/\1/" | \
+          sed 's/^/\/api\/compat/' | sort > .express_routes.txt
+        
+        echo "  📋 Client calls..."
+        cat > .client_calls.txt << EOF
+        /api/chart
+        /api/compat/matches
+        /api/community/feed
+        /api/compose
+        /api/connect/accept/[requestId]
+        /api/connect/[userId]
+        /api/exports
+        /api/like/[itemId]
+        /api/report
+        /api/save/[trackId]
+        /api/trending
+        EOF
+        sort .client_calls.txt -o .client_calls.txt
+        
+        # Check for dead calls
+        echo "  🚫 Checking for dead calls..."
+        dead_calls=$(comm -13 <(sort .next_routes.txt .express_routes.txt | sort -u) .client_calls.txt)
+        if [ -n "$dead_calls" ]; then
+          echo "  ❌ DEAD CALLS FOUND:"
+          echo "$dead_calls" | sed 's/^/    /'
+          exit 1
+        fi
+        
+        # Check for unexpected orphans
+        echo "  👻 Checking for unexpected orphans..."
+        orphans=$(comm -23 <(sort .next_routes.txt .express_routes.txt | sort -u) .client_calls.txt)
+        expected_orphans="/api/compat/generate
+        /api/compat/health
+        /api/compat/profile
+        /api/compat/profile/:userId/:chartId
+        /api/compat/rationale/:pairId
+        /api/exports/[id]
+        /api/overlay"
+        
+        unexpected_orphans=$(echo "$orphans" | grep -v -F "$expected_orphans")
+        if [ -n "$unexpected_orphans" ]; then
+          echo "  ❌ UNEXPECTED ORPHANS FOUND:"
+          echo "$unexpected_orphans" | sed 's/^/    /'
+          exit 1
+        fi
+        
+        echo "  ✅ Endpoint matrix clean"
+    
+    - name: Live probes
+      run: |
+        echo "🔬 Running live probes..."
+        
+        # Check /readyz
+        echo "  🏥 Health check..."
+        readyz=$(curl -s http://localhost:3000/readyz)
+        required_checks='["compat_weights_loaded","model_audio","model_text","viz_engine_loaded"]'
+        missing_checks=$(echo "$readyz" | jq -r '.checks | keys | sort' | jq -r '.[]' | grep -v -F "$required_checks" || true)
+        if [ -n "$missing_checks" ]; then
+          echo "  ❌ Missing /readyz checks: $missing_checks"
+          exit 1
+        fi
+        echo "  ✅ /readyz checks present"
+        
+        # Check determinism
+        echo "  🎯 Determinism check..."
+        payload='{"mode":"overlay","charts":[{"type":"transit","hash":"T"},{"type":"natal","hash":"N"}],"seed":123,"modelVersions":{"audio":"v1.1","text":"v1.1","viz":"1.0","matching":"v1.0"}}'
+        
+        response1=$(curl -s -X POST http://localhost:3000/api/compose -H "Content-Type: application/json" -d "$payload")
+        response2=$(curl -s -X POST http://localhost:3000/api/compose -H "Content-Type: application/json" -d "$payload")
+        
+        digest1_audio=$(echo "$response1" | jq -r '.audio.digest')
+        digest1_viz=$(echo "$response1" | jq -r '.viz.digest')
+        digest2_audio=$(echo "$response2" | jq -r '.audio.digest')
+        digest2_viz=$(echo "$response2" | jq -r '.viz.digest')
+        
+        if [ "$digest1_audio" != "$digest2_audio" ] || [ "$digest1_viz" != "$digest2_viz" ]; then
+          echo "  ❌ Determinism failed - digests differ"
+          exit 1
+        fi
+        echo "  ✅ Determinism verified"
+        
+        # Check error schema and CSRF
+        echo "  📋 Error schema and CSRF check..."
+        
+        # Test CSRF failure (mismatched token)
+        csrf_response=$(curl -s -X POST http://localhost:3000/api/like/INVALID \
+          -H "Cookie: session=test_session; csrf=test_csrf_token" \
+          -H "x-csrf-token: wrong_token" \
+          -H "Origin: https://astradio.io" || true)
+        
+        csrf_status=$(echo "$csrf_response" | jq -r '.error.code' 2>/dev/null || echo "")
+        if [ "$csrf_status" != "CSRF_FAILED" ]; then
+          echo "  ❌ CSRF validation failed - expected CSRF_FAILED, got: $csrf_status"
+          exit 1
+        fi
+        
+        # Test CSRF success (matching token)
+        csrf_success=$(curl -s -X POST http://localhost:3000/api/like/INVALID \
+          -H "Cookie: session=test_session; csrf=test_csrf_token" \
+          -H "x-csrf-token: test_csrf_token" \
+          -H "Origin: https://astradio.io" || true)
+        
+        # Test invalid origin
+        origin_response=$(curl -s -X POST http://localhost:3000/api/like/INVALID \
+          -H "Cookie: session=test_session; csrf=test_csrf_token" \
+          -H "x-csrf-token: test_csrf_token" \
+          -H "Origin: https://malicious-site.com" || true)
+        
+        # Verify error schema structure
+        has_request_id=$(echo "$csrf_response" | jq -r 'has("requestId")' 2>/dev/null || echo "false")
+        has_error_code=$(echo "$csrf_response" | jq -r '.error | has("code")' 2>/dev/null || echo "false")
+        has_error_message=$(echo "$csrf_response" | jq -r '.error | has("message")' 2>/dev/null || echo "false")
+        
+        if [ "$has_request_id" != "true" ] || [ "$has_error_code" != "true" ] || [ "$has_error_message" != "true" ]; then
+          echo "  ❌ Error schema validation failed"
+          exit 1
+        fi
+        echo "  ✅ Error schema and CSRF verified"
+        
+        # Test rate limits with dedicated canary user
+        echo "  🚦 Rate limit check..."
+        for i in {1..55}; do
+          curl -s -o /dev/null -w "%{http_code}\n" \
+            -H "Cookie: session=canary_user_session" \
+            -H "x-csrf-token: canary_csrf_token" \
+            -H "Origin: https://astradio.io" \
+            http://localhost:3000/api/trending
+        done | tail -n1 | grep -q "429" || {
+          echo "  ❌ Rate limit test failed - expected 429"
+          exit 1
+        }
+        echo "  ✅ Rate limits verified"
+    
+    - name: Cleanup
+      if: always()
+      run: |
+        docker compose -f docker-compose.dev.yml down -v
+        rm -f .next_routes.txt .express_routes.txt .client_calls.txt

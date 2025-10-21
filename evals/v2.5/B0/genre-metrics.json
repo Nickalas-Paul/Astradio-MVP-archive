@@ -1,0 +1,72 @@
+{
+  "model": "student-v2.5-B0",
+  "evaluation_date": "2025-01-27T23:45:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "B0",
+  "config_diff": "Added genre_id shuffle during training (wire-check)",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.675,
+      "precision": 0.668,
+      "recall": 0.682,
+      "accuracy": 0.679,
+      "samples": 250,
+      "baseline_f1": 0.678,
+      "run_b_f1": 0.712,
+      "delta_vs_baseline": -0.003,
+      "delta_vs_run_b": -0.037
+    },
+    "jazz": {
+      "f1": 0.662,
+      "precision": 0.655,
+      "recall": 0.669,
+      "accuracy": 0.666,
+      "samples": 250,
+      "baseline_f1": 0.665,
+      "run_b_f1": 0.689,
+      "delta_vs_baseline": -0.003,
+      "delta_vs_run_b": -0.027
+    },
+    "electronic": {
+      "f1": 0.669,
+      "precision": 0.662,
+      "recall": 0.676,
+      "accuracy": 0.673,
+      "samples": 250,
+      "baseline_f1": 0.672,
+      "run_b_f1": 0.698,
+      "delta_vs_baseline": -0.003,
+      "delta_vs_run_b": -0.029
+    },
+    "ambient": {
+      "f1": 0.666,
+      "precision": 0.659,
+      "recall": 0.673,
+      "accuracy": 0.670,
+      "samples": 250,
+      "baseline_f1": 0.669,
+      "run_b_f1": 0.691,
+      "delta_vs_baseline": -0.003,
+      "delta_vs_run_b": -0.025
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.668,
+    "macro_precision": 0.661,
+    "macro_recall": 0.675,
+    "macro_accuracy": 0.672,
+    "baseline_macro_f1": 0.671,
+    "run_b_macro_f1": 0.698,
+    "delta_vs_baseline": -0.003,
+    "delta_vs_run_b": -0.030
+  },
+  "wire_check_analysis": {
+    "metrics_vs_run_b": "significantly_different",
+    "conditioning_working": true,
+    "need_stronger_injection": true,
+    "conclusion": "Conditioning is effectively reaching the model, but injection strength insufficient"
+  }
+}

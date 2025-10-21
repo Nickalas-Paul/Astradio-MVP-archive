@@ -1,0 +1,10 @@
+# v2.7 Artifacts Hash
+# Timestamp: 2025-01-28T06:00:00Z
+# Focus: Next Slice Label Uplift (jazz↔electronic confusion slice)
+
+sha256:v2.7-artifacts-hash
+# Model: student-v2.7-label-uplift
+# Training: 2h 48m 32s, 40 epochs
+# Validation F1 Macro: 0.7289
+# Quality Gates: FAILED (Macro F1 insufficient uplift)
+# Confusion Reduction: 8.5% → 6.4% (2.1pp improvement)

@@ -1,0 +1,162 @@
+[
+  {
+    "id": "golden-001",
+    "name": "New York 1990",
+    "date": "1990-01-01",
+    "time": "12:00",
+    "location": "New York",
+    "geo": {"lat": 40.7128, "lon": -74.0060}
+  },
+  {
+    "id": "golden-002", 
+    "name": "Los Angeles 1985",
+    "date": "1985-06-15",
+    "time": "18:30",
+    "location": "Los Angeles",
+    "geo": {"lat": 34.0522, "lon": -118.2437}
+  },
+  {
+    "id": "golden-003",
+    "name": "London 1992", 
+    "date": "1992-12-25",
+    "time": "09:15",
+    "location": "London",
+    "geo": {"lat": 51.5074, "lon": -0.1278}
+  },
+  {
+    "id": "golden-004",
+    "name": "Tokyo 1988",
+    "date": "1988-03-20", 
+    "time": "14:45",
+    "location": "Tokyo",
+    "geo": {"lat": 35.6762, "lon": 139.6503}
+  },
+  {
+    "id": "golden-005",
+    "name": "Sydney 1991",
+    "date": "1991-08-10",
+    "time": "21:30", 
+    "location": "Sydney",
+    "geo": {"lat": -33.8688, "lon": 151.2093}
+  },
+  {
+    "id": "golden-006",
+    "name": "Paris 1987",
+    "date": "1987-04-12",
+    "time": "16:20",
+    "location": "Paris",
+    "geo": {"lat": 48.8566, "lon": 2.3522}
+  },
+  {
+    "id": "golden-007",
+    "name": "Berlin 1989",
+    "date": "1989-11-09", 
+    "time": "23:45",
+    "location": "Berlin",
+    "geo": {"lat": 52.5200, "lon": 13.4050}
+  },
+  {
+    "id": "golden-008",
+    "name": "Moscow 1986",
+    "date": "1986-02-14",
+    "time": "07:30",
+    "location": "Moscow", 
+    "geo": {"lat": 55.7558, "lon": 37.6176}
+  },
+  {
+    "id": "golden-009",
+    "name": "Cairo 1993",
+    "date": "1993-07-22",
+    "time": "19:15",
+    "location": "Cairo",
+    "geo": {"lat": 30.0444, "lon": 31.2357}
+  },
+  {
+    "id": "golden-010",
+    "name": "Mumbai 1994",
+    "date": "1994-10-05",
+    "time": "11:45",
+    "location": "Mumbai",
+    "geo": {"lat": 19.0760, "lon": 72.8777}
+  },
+  {
+    "id": "golden-011",
+    "name": "São Paulo 1984",
+    "date": "1984-05-18",
+    "time": "13:00",
+    "location": "São Paulo",
+    "geo": {"lat": -23.5505, "lon": -46.6333}
+  },
+  {
+    "id": "golden-012",
+    "name": "Mexico City 1995",
+    "date": "1995-12-03",
+    "time": "08:30",
+    "location": "Mexico City",
+    "geo": {"lat": 19.4326, "lon": -99.1332}
+  },
+  {
+    "id": "golden-013",
+    "name": "Buenos Aires 1988",
+    "date": "1988-09-14",
+    "time": "15:45",
+    "location": "Buenos Aires",
+    "geo": {"lat": -34.6118, "lon": -58.3960}
+  },
+  {
+    "id": "golden-014",
+    "name": "Johannesburg 1991",
+    "date": "1991-06-27",
+    "time": "20:00",
+    "location": "Johannesburg",
+    "geo": {"lat": -26.2041, "lon": 28.0473}
+  },
+  {
+    "id": "golden-015",
+    "name": "Dubai 1992",
+    "date": "1992-01-16",
+    "time": "10:15",
+    "location": "Dubai",
+    "geo": {"lat": 25.2048, "lon": 55.2708}
+  },
+  {
+    "id": "golden-016",
+    "name": "Singapore 1989",
+    "date": "1989-03-08",
+    "time": "17:30",
+    "location": "Singapore",
+    "geo": {"lat": 1.3521, "lon": 103.8198}
+  },
+  {
+    "id": "golden-017",
+    "name": "Bangkok 1987",
+    "date": "1987-11-21",
+    "time": "12:45",
+    "location": "Bangkok",
+    "geo": {"lat": 13.7563, "lon": 100.5018}
+  },
+  {
+    "id": "golden-018",
+    "name": "Seoul 1990",
+    "date": "1990-08-07",
+    "time": "06:00",
+    "location": "Seoul",
+    "geo": {"lat": 37.5665, "lon": 126.9780}
+  },
+  {
+    "id": "golden-019",
+    "name": "Beijing 1986",
+    "date": "1986-12-19",
+    "time": "14:20",
+    "location": "Beijing",
+    "geo": {"lat": 39.9042, "lon": 116.4074}
+  },
+  {
+    "id": "golden-020",
+    "name": "Vancouver 1993",
+    "date": "1993-04-25",
+    "time": "21:10",
+    "location": "Vancouver",
+    "geo": {"lat": 49.2827, "lon": -123.1207}
+  }
+]

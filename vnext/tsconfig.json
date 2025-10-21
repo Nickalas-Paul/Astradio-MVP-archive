@@ -7,12 +7,17 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "../dist/vnext",
-    "rootDir": ".",
+    "rootDir": "../",
     "declaration": false,
     "sourceMap": false,
     "allowJs": false,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": "../",
+    "paths": {
+      "lib/*": ["lib/*"],
+      "src/*": ["src/*"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": [
@@ -25,7 +30,6 @@
     "scripts/test-wheel-contract.ts",
     "scripts/freeze-eval-set.ts",
     "scripts/model-provenance.ts",
-    "scripts/ci-path-guard.ts",
     "scripts/verify-teacher-consistency.ts",
     "scripts/enforce-quality-thresholds.ts",
     "scripts/canary-promotion.ts"

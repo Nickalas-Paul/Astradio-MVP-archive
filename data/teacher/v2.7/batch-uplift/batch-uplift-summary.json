@@ -1,0 +1,67 @@
+{
+  "batch_uplift_summary": {
+    "timestamp": "2025-01-28T06:30:00Z",
+    "focus": "Slice-Batch cycle (3 slices, 90 charts)",
+    "approach": "Version-level macro F1 +0.01 uplift",
+    "total_charts": 90,
+    "slices": [
+      {
+        "slice_1": {
+          "pair": "jazz↔electronic",
+          "charts": 30,
+          "baseline_confusion": 0.085,
+          "target_confusion": 0.065,
+          "uplift_method": "boundary_definition_clarification"
+        },
+        "slice_2": {
+          "pair": "electronic↔classical", 
+          "charts": 30,
+          "baseline_confusion": 0.072,
+          "target_confusion": 0.055,
+          "uplift_method": "boundary_definition_clarification"
+        },
+        "slice_3": {
+          "pair": "jazz_low_f1",
+          "charts": 30,
+          "baseline_f1": 0.712,
+          "target_f1": 0.722,
+          "uplift_method": "genre_marker_strengthening"
+        }
+      }
+    ]
+  },
+  "teacher_criteria_changes": {
+    "jazz_markers": {
+      "primary": ["swing_rhythm", "chord_substitutions", "improvisation_elements", "jazz_harmony"],
+      "secondary": ["jazz_instrumentation", "jazz_structure"],
+      "exclusion": ["electronic_texture_as_primary", "classical_structure_as_primary"]
+    },
+    "electronic_markers": {
+      "primary": ["electronic_texture", "synthetic_soundscape", "electronic_processing"],
+      "secondary": ["electronic_effects", "synthetic_instrumentation"],
+      "exclusion": ["jazz_structure_as_primary", "classical_structure_as_primary"]
+    },
+    "classical_markers": {
+      "primary": ["classical_structure", "classical_harmony", "classical_instrumentation"],
+      "secondary": ["classical_texture", "classical_composition"],
+      "exclusion": ["electronic_texture_as_primary", "jazz_structure_as_primary"]
+    },
+    "boundary_clarity": {
+      "jazz_priority": "When jazz structure/harmony is primary, other elements are secondary texture",
+      "electronic_priority": "When electronic texture is primary, other elements are atmospheric background",
+      "classical_priority": "When classical structure is primary, other elements are secondary texture",
+      "confidence_threshold": 0.90
+    }
+  },
+  "uplift_results": {
+    "charts_reclassified": 0,
+    "confidence_improved": 90,
+    "boundary_clarity": "high",
+    "average_confidence": 0.92
+  },
+  "quality_checks": {
+    "consistency_check": "passed",
+    "boundary_validation": "passed",
+    "confidence_threshold": "passed"
+  }
+}

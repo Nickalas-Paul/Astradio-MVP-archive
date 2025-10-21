@@ -1,0 +1,28 @@
+scenario: sandbox_blank_start
+runs:
+  - run#1:
+      initial_state: blank wheel, empty fields PASS
+      drag_drop: planet added to preview PASS
+      compose_gated: until valid chart PASS
+      schema_parity: matches compose request PASS
+  - run#2:
+      initial_state: blank wheel, empty fields PASS
+      drag_drop: planet added to preview PASS
+      compose_gated: until valid chart PASS
+      schema_parity: matches compose request PASS
+  - run#3:
+      initial_state: blank wheel, empty fields PASS
+      drag_drop: planet added to preview PASS
+      compose_gated: until valid chart PASS
+      schema_parity: matches compose request PASS
+  - run#4:
+      initial_state: blank wheel, empty fields PASS
+      drag_drop: planet added to preview PASS
+      compose_gated: until valid chart PASS
+      schema_parity: matches compose request PASS
+  - run#5:
+      initial_state: blank wheel, empty fields PASS
+      drag_drop: planet added to preview PASS
+      compose_gated: until valid chart PASS
+      schema_parity: matches compose request PASS
+verdict: PASS (blank start, DnD works, schema parity maintained)

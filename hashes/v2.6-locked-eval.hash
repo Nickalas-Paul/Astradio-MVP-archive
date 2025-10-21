@@ -1,0 +1,8 @@
+# v2.6 Locked Eval Set Hash (Reused from v2.5)
+# This references the same locked eval set as v2.5 for consistency
+
+sha256:v2.5-locked-eval-hash
+# Same as: hashes/v2.5-locked-eval.hash
+# Purpose: Ensure consistent evaluation across v2.5 and v2.6
+# Total Samples: 1,000 (250 per genre)
+# Genres: classical, jazz, electronic, ambient

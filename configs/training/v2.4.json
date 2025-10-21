@@ -1,0 +1,28 @@
+{
+  "seed": 424242,
+  "epochs": 40,
+  "batchSize": 64,
+  "optimizer": "adamw",
+  "lr": 0.0008,
+  "classWeighting": { 
+    "enabled": true, 
+    "clipMin": 0.25, 
+    "clipMax": 3.0 
+  },
+  "boundaryLoss": { 
+    "enabled": true, 
+    "margin": 0.1, 
+    "lambda": 0.5 
+  },
+  "earlyStop": { 
+    "patience": 6, 
+    "metric": "val_f1_macro" 
+  },
+  "deterministic": true,
+  "saveBestOnly": true,
+  "artifactsDir": "models/student-v2.4",
+  "dataDir": "datasets",
+  "splitsDir": "splits/v2.4",
+  "evalDir": "evals/v2.4",
+  "logsDir": "logs"
+}

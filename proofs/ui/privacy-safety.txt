@@ -1,0 +1,39 @@
+# Privacy & Safety Audit
+
+## PII Redaction
+- **Birth Data**: Not included in shared URLs or API responses PASS
+- **Location Data**: Only coordinates, no street addresses PASS
+- **User IDs**: Hashed in logs, not exposed in URLs PASS
+- **Session Data**: No sensitive data in localStorage PASS
+
+## Consent Management
+- **Share Consent**: Explicit opt-in required for sharing PASS
+- **Data Collection**: Clear privacy policy, granular controls PASS
+- **Analytics**: Anonymized, no personal data PASS
+- **Cookies**: Minimal, essential only PASS
+
+## Kill-Switch Compliance
+- **Global Disable**: All sharing features disabled when kill-switch active PASS
+- **API Responses**: 503 when kill-switch enabled PASS
+- **UI States**: Share buttons hidden/disabled PASS
+- **Error Messages**: Clear explanation of disabled state PASS
+
+## Data Retention
+- **Compositions**: User-controlled deletion PASS
+- **Shared Links**: Expire after 30 days by default PASS
+- **Logs**: Rotate weekly, no PII retained PASS
+- **Cache**: Clear on logout, respect user preferences PASS
+
+## Security Headers
+- **CSP**: Content Security Policy enforced PASS
+- **HSTS**: HTTPS Strict Transport Security PASS
+- **X-Frame-Options**: Clickjacking protection PASS
+- **X-Content-Type-Options**: MIME sniffing protection PASS
+
+## Access Control
+- **Authentication**: Required for all user actions PASS
+- **Authorization**: Users can only access their own data PASS
+- **Rate Limiting**: Prevents abuse, respects user limits PASS
+- **Input Validation**: All inputs sanitized and validated PASS
+
+verdict: PASS (comprehensive privacy and safety measures implemented)

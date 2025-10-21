@@ -1,0 +1,10 @@
+# v2.7 Slice Batch Hash
+# Timestamp: 2025-01-28T06:15:00Z
+# Focus: Slice-Batch cycle (single toggle)
+
+sha256:v2.7-slice-batch-hash
+# Batch: 3 slices, 90 charts total
+# Slice 1: jazz↔electronic (30 charts, 8.5% → 6.5% target)
+# Slice 2: electronic↔classical (30 charts, 7.2% → 5.5% target)  
+# Slice 3: jazz low-F1 (30 charts, 0.712 → 0.722 target)
+# Goal: Version-level macro F1 +0.01 uplift

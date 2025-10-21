@@ -1,0 +1,21 @@
+{
+  "manifest_sha256": "sha256:099e436956711a5988873a6bc0e8e4db68c6fac9dd3aa3b4142b8a532cc2e7f1",
+  "files": {
+    "control-surface.json": {
+      "size": 324,
+      "sha256": "sha256:af465a7d48f1096cbc76b41c92aeb4d53c13d652cb7345a1ab7bd5225f71ba4f"
+    },
+    "explanation.json": {
+      "size": 991,
+      "sha256": "sha256:fd2be65b7a9d8b7fdaff34aabe6a32c6d8dcd36141aa74ce269e71bb940df043"
+    },
+    "model.json": {
+      "size": 113,
+      "sha256": "sha256:2c51bbedaeb8cdf2d1ac9409d1fe95ee5fa70cefc007d4bf5ebdc5d5911d26b3"
+    },
+    "track.wav": {
+      "size": 16,
+      "sha256": "sha256:92aedcf0aef96750608d7ce496580bafb009cdc0ee29e75dee7f54a628ce4a00"
+    }
+  }
+}

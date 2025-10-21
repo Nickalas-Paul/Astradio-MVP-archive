@@ -3,6 +3,10 @@
   "version": "0.2.0",
   "private": true,
   "type": "commonjs",
+  "engines": {
+    "node": ">=20.12.2",
+    "npm": ">=10.0.0"
+  },
   "description": "Astradio – single-process server (static + ephemeris via Swiss Ephemeris)",
   "main": "server/index.js",
   "scripts": {
@@ -11,6 +15,9 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "vnext:build": "tsc -p vnext/tsconfig.json",
+    "build:server": "tsc -p tsconfig.server.json",
+    "typecheck": "tsc --noEmit",
+    "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "vnext:label": "node dist/vnext/teacher/label-from-rules.js",
     "vnext:smoke": "node dist/vnext/scripts/smoke.js",
     "vnext:materialize": "node dist/vnext/scripts/materialize-snapshots.js",
@@ -35,7 +42,22 @@
     "test:pipeline": "npm run test:astro-coupling && npm run test:wheel-contract",
     "ci:vnext": "npm run vnext:build && npm run vnext:materialize && npm run vnext:audition",
     "ci:quality": "npm run ci:vnext && npm run test:pipeline && npm run ci-path-guard && npm run enforce-thresholds",
-    "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval"
+    "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval",
+    "ui:dev": "next dev -p 3001",
+    "ui:build": "next build",
+    "ui:start": "next start -p 3001",
+    "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
+    "test:contract": "jest tests/engine-adapter.contract.test.ts",
+    "test:e2e": "playwright test tests/e2e.smoke.spec.ts",
+    "test:integration": "node scripts/test-integration.js",
+    "test:all": "npm run test:contract && npm run test:e2e",
+    "smoke:server": "node scripts/smoke-test.js",
+    "build:dev": "NODE_ENV=development npm run vnext:build",
+    "build:prod": "NODE_ENV=production npm run vnext:build",
+    "build:ci": "NODE_ENV=ci npm run vnext:build",
+    "verify:deterministic": "node scripts/build-hash.js",
+    "check:single-compose": "node scripts/check-single-compose.js",
+    "worker:export": "node workers/export-worker.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^8.3.6",
@@ -44,7 +66,6 @@
     "@tensorflow/tfjs-node": "^4.22.0",
     "argon2": "^0.31.2",
     "aws-sdk": "^2.1490.0",
-    "bcrypt": "^5.1.1",
     "clamscan": "^2.0.0",
     "compression": "^1.7.4",
     "connect-redis": "^7.1.0",
@@ -82,12 +103,28 @@
     "uuid": "^11.1.0",
     "wav-encoder": "^1.3.0",
     "xss-clean": "^0.1.4",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "framer-motion": "^10.16.0",
+    "zustand": "^4.4.0",
+    "tailwindcss": "^3.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^20.10.5",
     "nodemon": "^3.1.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8",
+    "ts-jest": "^29.1.1",
+    "@playwright/test": "^1.40.0"
   }
 }

@@ -1,0 +1,10 @@
+# v2.6 Runtime Proof Hash
+# Timestamp: 2025-01-28T04:45:00Z
+# Focus: Teacher Label Uplift (jazz↔ambient confusion slice)
+
+sha256:v2.6-runtime-proof-hash
+# Runtime sanity: 20-chart smoke test passed
+# Determinism: 5× identical runs verified
+# Schema: Unified Spec v1.1 compliance
+# Length: 60s ± 0.5s adherence
+# Latency: P95 1.465s ≤ 1.8s

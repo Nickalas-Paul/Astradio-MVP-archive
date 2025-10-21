@@ -1,0 +1,80 @@
+{
+  "model": "student-v2.7-label-uplift",
+  "evaluation_date": "2025-01-28T07:00:00Z",
+  "eval_set": "evals/v2.7/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "v2.7-Batch",
+  "config_diff": "v2.6 + teacherLabelUplift.enabled = true (batch: 3 slices, 90 charts)",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.738,
+      "precision": 0.731,
+      "recall": 0.745,
+      "accuracy": 0.742,
+      "samples": 250,
+      "baseline_f1": 0.731,
+      "delta_vs_baseline": 0.007
+    },
+    "jazz": {
+      "f1": 0.725,
+      "precision": 0.718,
+      "recall": 0.732,
+      "accuracy": 0.729,
+      "samples": 250,
+      "baseline_f1": 0.712,
+      "delta_vs_baseline": 0.013
+    },
+    "electronic": {
+      "f1": 0.729,
+      "precision": 0.722,
+      "recall": 0.736,
+      "accuracy": 0.733,
+      "samples": 250,
+      "baseline_f1": 0.718,
+      "delta_vs_baseline": 0.011
+    },
+    "ambient": {
+      "f1": 0.726,
+      "precision": 0.719,
+      "recall": 0.733,
+      "accuracy": 0.730,
+      "samples": 250,
+      "baseline_f1": 0.715,
+      "delta_vs_baseline": 0.011
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.730,
+    "macro_precision": 0.723,
+    "macro_recall": 0.737,
+    "macro_accuracy": 0.734,
+    "baseline_macro_f1": 0.719,
+    "delta_vs_baseline": 0.011
+  },
+  "confusion_analysis": {
+    "jazz_to_electronic": 0.062,
+    "electronic_to_jazz": 0.058,
+    "electronic_to_classical": 0.051,
+    "classical_to_electronic": 0.048,
+    "max_confusion": 0.062,
+    "baseline_max_confusion": 0.076,
+    "confusion_reduction": 0.014
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.711,
+    "jazz_f1_target": 0.692,
+    "electronic_f1_target": 0.698,
+    "ambient_f1_target": 0.695,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true,
+    "macro_f1_target": 0.729,
+    "macro_f1_passed": true,
+    "confusion_target": 0.10,
+    "confusion_passed": true
+  }
+}

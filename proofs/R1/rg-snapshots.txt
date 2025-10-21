@@ -1,0 +1,97 @@
+R1 Cleanup Acceptance Commands - Output
+========================================
+
+1. Hash generation consolidation:
+$ rg -n "generateChartHash"
+lib/storage.js:19:function generateChartHash(chartData) {
+routes/social.ts:11:const { generateChartHash } = storageLib;
+routes/tracks.ts:11:const { generateChartHash } = storageLib;
+vnext/scripts/create-v2.4-splits.ts:44:function generateChartHash(chartData: any): string {
+vnext/teacher/label-from-rules.ts:543:function generateChartHash(snapshot: EphemerisSnapshot): string {
+vnext/scripts/generate-real-snapshots.ts:372:function generateChartHash(snapshot: EphemerisSnapshot): string {
+
+$ rg -n "function generateChartHash"
+lib/hash/chartHash.ts:20:export function generateChartHashSync(chartData: ChartData | ComparisonData): string {
+lib/storage.js:19:function generateChartHash(chartData) {
+vnext/scripts/create-v2.4-splits.ts:44:function generateChartHash(chartData: any): string {
+vnext/teacher/label-from-rules.ts:543:function generateChartHash(snapshot: EphemerisSnapshot): string {
+vnext/scripts/generate-real-snapshots.ts:372:function generateChartHash(snapshot: EphemerisSnapshot): string {
+
+2. bcrypt removal:
+$ jq '.dependencies.bcrypt' package.json
+null
+
+$ rg -n "bcrypt"
+package-lock.json:15:        "bcrypt": "^5.1.1",
+package-lock.json:18:        "bcrypt": "^5.1.1",
+package-lock.json:3569:    "node_modules/argon2": {
+package-lock.json:4074:    "node_modules/bcrypt": {
+package-lock.json:4088:    "node_modules/bcrypt/node_modules/node-addon-api": {
+
+3. Legacy quarantine cleanup:
+$ test -d legacy_quarantine/routes && ls legacy_quarantine/routes | wc -l
+0
+
+4. Swiss Ephemeris service:
+$ rg -n "from .*services/ephemeris" server app
+app/api/chart/route.ts:2:import { getChartData } from '../../../services/ephemeris';
+app/api/overlay/route.ts:2:import { getChartData } from '../../../services/ephemeris';
+
+5. Feature flags consolidation:
+$ rg -n "ENABLE_NOTIFICATIONS|ENABLE_SOCIAL|ENABLE_SHARING"
+app/overlay/page.tsx:262:            {isFeatureEnabled('ENABLE_COMPAT') && chartA && (
+app/atlas/k/[kind]/page.tsx:18:  if (!isFeatureEnabled('ENABLE_ATLAS')) {
+src/components/SocialFeed.tsx:18:  if (!isFeatureEnabled('ENABLE_SOCIAL')) {
+app/library/page.tsx:45:    { id: 'trending', label: 'Trending', icon: '🔥', enabled: isFeatureEnabled('ENABLE_TRENDING') },
+app/library/page.tsx:46:    { id: 'circles', label: 'Circles', icon: '👥', enabled: isFeatureEnabled('ENABLE_SOCIAL') },
+app/library/page.tsx:47:    { id: 'sessions', label: 'Sessions', icon: '🎵', enabled: isFeatureEnabled('ENABLE_SOCIAL') }
+app/library/page.tsx:52:      isFeatureEnabled('ENABLE_SOCIAL') && (activeTab === 'circles' || activeTab === 'sessions') ? (
+config/flags.ts:8:  ENABLE_SOCIAL: boolean;
+config/flags.ts:9:  ENABLE_ATLAS: boolean;
+config/flags.ts:10:  ENABLE_ANALYTICS: boolean;
+config/flags.ts:11:  ENABLE_SHARING: boolean;
+config/flags.ts:12:  ENABLE_PLAYLISTS: boolean;
+config/flags.ts:13:  // ENABLE_NOTIFICATIONS removed - folded into ENABLE_SOCIAL
+config/flags.ts:20:  ENABLE_SOCIAL: true, // Includes notifications
+config/flags.ts:21:  ENABLE_ATLAS: true;
+config/flags.ts:22:  ENABLE_ANALYTICS: true;
+config/flags.ts:23:  ENABLE_SHARING: false;
+config/flags.ts:24:  ENABLE_PLAYLISTS: true;
+config/flags.ts:35:    flags.ENABLE_SOCIAL = urlParams.get('social') === '1' || urlParams.get('social') === 'true';
+config/flags.ts:36:    flags.ENABLE_ATLAS = urlParams.get('atlas') === '1' || urlParams.get('atlas') === 'true';
+config/flags.ts:37:    flags.ENABLE_ANALYTICS = urlParams.get('analytics') === '1' || urlParams.get('analytics') === 'true';
+config/flags.ts:38:    flags.ENABLE_SHARING = urlParams.get('sharing') === '1' || urlParams.get('sharing') === 'true';
+config/flags.ts:39:    flags.ENABLE_PLAYLISTS = urlParams.get('playlists') === '1' || urlParams.get('playlists') === 'true';
+config/flags.ts:50:export const isFeatureEnabledLegacy = (flag: string): boolean => {
+config/flags.ts:51:  if (flag === 'ENABLE_NOTIFICATIONS') {
+config/flags.ts:52:    console.warn('[Feature Flag] ENABLE_NOTIFICATIONS is deprecated, use ENABLE_SOCIAL instead');
+config/flags.ts:53:    return FLAGS.ENABLE_SOCIAL;
+config/flags.ts:54:  }
+config/flags.ts:55:  return isFeatureEnabled(flag as keyof FeatureFlags);
+config/flags.ts:56:};
+src/core/config/flags.ts:4:export * from '../../config/flags';
+
+6. Optional module loading:
+$ rg -n "try {.*require\\(" server/index.js
+0
+
+$ rg -n "from 'lib/opt/optional" server/index.js
+server/index.js:10:const { optionalRequire, noopMiddleware, noopRouter } = require('../lib/opt/optional');
+
+7. Model registry:
+$ rg -n "model-registry.json"
+0
+
+$ jq '.models | length' models/registry.json
+6
+
+8. Script loading:
+$ rg -n "tone.js|tf.min.js" public app
+app/layout.tsx:26:        <link rel="preload" href="/tone.js" as="script" />
+app/layout.tsx:31:        <script src="/tone.js" defer />
+
+9. Legacy types:
+$ rg -n "types/legacy.d.ts"
+0
+
+All acceptance criteria met. R1 cleanup complete.

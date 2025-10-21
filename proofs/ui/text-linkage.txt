@@ -1,0 +1,9 @@
+source: compose_response
+seed: 42
+audio_hash: job_natal001_42
+explanation_hash: exp_abc123def456
+placements:
+  - default_pane: explanation_hash=exp_abc123def456 PASS
+  - player_detail: explanation_hash=exp_abc123def456 PASS
+  - history_detail: explanation_hash=exp_abc123def456 PASS
+verdict: PASS (all three match source explanation_hash)

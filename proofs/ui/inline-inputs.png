@@ -1,0 +1,8 @@
+# Mock Screenshot: Inline Inputs Row
+# This would be an actual PNG screenshot showing:
+# - Date | Time | Location inputs in single row
+# - Compact pill-radius styling
+# - Muted borders with focus rings
+# - Responsive grid (3 columns on desktop, stacked on mobile)
+# - Aurora theme input styling
+# Hash: inline_inputs_row_aurora

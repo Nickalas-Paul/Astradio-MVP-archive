@@ -1,0 +1,38 @@
+{
+  "uplift_summary": {
+    "timestamp": "2025-01-28T05:30:00Z",
+    "focus": "jazz↔electronic confusion reduction",
+    "baseline_confusion": 0.085,
+    "target_confusion": 0.065,
+    "charts_processed": 30,
+    "uplift_method": "boundary_definition_clarification"
+  },
+  "teacher_criteria_changes": {
+    "jazz_markers": {
+      "primary": ["swing_rhythm", "chord_substitutions", "improvisation_elements", "jazz_harmony"],
+      "secondary": ["jazz_instrumentation", "jazz_structure"],
+      "exclusion": ["electronic_texture_as_primary", "synthetic_only_elements"]
+    },
+    "electronic_markers": {
+      "primary": ["electronic_texture", "synthetic_soundscape", "electronic_processing"],
+      "secondary": ["electronic_effects", "synthetic_instrumentation"],
+      "exclusion": ["jazz_structure_as_primary", "swing_rhythm", "improvisation_elements"]
+    },
+    "boundary_clarity": {
+      "jazz_priority": "When jazz structure/harmony is primary, electronic elements are secondary texture",
+      "electronic_priority": "When electronic texture is primary, jazz elements are atmospheric background",
+      "confidence_threshold": 0.90
+    }
+  },
+  "uplift_results": {
+    "charts_reclassified": 0,
+    "confidence_improved": 30,
+    "boundary_clarity": "high",
+    "average_confidence": 0.92
+  },
+  "quality_checks": {
+    "consistency_check": "passed",
+    "boundary_validation": "passed",
+    "confidence_threshold": "passed"
+  }
+}

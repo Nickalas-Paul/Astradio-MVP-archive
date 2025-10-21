@@ -1,0 +1,6 @@
+# Mock Screenshot: Text Placement Locations
+# This would be an actual PNG screenshot showing the three text placement locations:
+# 1. Default pane (main explanation)
+# 2. Player detail (expanded view)
+# 3. History detail (composition history)
+# All showing identical explanation_hash: exp_abc123def456

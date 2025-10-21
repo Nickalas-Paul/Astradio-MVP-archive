@@ -1,0 +1,39 @@
+{
+  "runtime_model": "student-v2.5",
+  "fallback_model": "student-v2.4",
+  "deployment_date": "2025-01-28T02:30:00Z",
+  "tag": "phase-4-d-series-v2.5-final",
+  "model_paths": {
+    "v2_5": "models/student-v2.5-B1",
+    "v2_4": "models/student-v2.4",
+    "tfjs_v2_5": "public/models/student-v2.5",
+    "tfjs_v2_4": "public/models/student-v2.4"
+  },
+  "genre_conditioning": {
+    "enabled": true,
+    "internal_only": true,
+    "no_api_exposure": true
+  },
+  "performance_monitoring": {
+    "latency_target_p95_ms": 1800,
+    "length_target_seconds": 60,
+    "length_tolerance_seconds": 0.5,
+    "determinism_runs": 5
+  },
+  "integrity_checks": {
+    "enabled": true,
+    "auto_rollback_enabled": true,
+    "rollback_on_integrity_fail": true
+  },
+  "logging": {
+    "log_level": "info",
+    "log_determinism": true,
+    "log_latency": true,
+    "log_confusion": true
+  },
+  "known_limits_monitoring": {
+    "confusion_hot_pair": "jazz↔ambient",
+    "confusion_baseline_percent": 9.6,
+    "confusion_alert_threshold_percent": 11.6
+  }
+}

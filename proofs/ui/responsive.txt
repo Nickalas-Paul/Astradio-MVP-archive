@@ -1,0 +1,5 @@
+images:
+  - responsive-1280.png: ">=1280px (desktop)"
+  - responsive-900.png: "768–1024px (tablet)"
+  - responsive-390.png: "<=428px (mobile)"
+verdict: PASS (all three breakpoints render cleanly)

@@ -166,21 +166,6 @@ try {
 # 5. Overlay Δ thresholds
 Write-Host "[OVERLAY] Testing overlay Δ thresholds..." -ForegroundColor Yellow
 try {
-    $basePayload = @{
-        mode = "sandbox"
-        controls = @{
-            hash = "e2e-test-overlay"
-            arc_shape_id = "rise_peak_release"
-            density_level = 0.5
-            tempo_norm = 0.5
-            step_bias = 0.62
-            leap_cap = 3
-            rhythm_template_id = 4
-            syncopation_bias = 0.28
-            motif_rate = 0.4
-        }
-    } | ConvertTo-Json -Depth 6
-    
     # Test above threshold (should show contrast)
     $abovePayload = @{
         mode = "overlay"

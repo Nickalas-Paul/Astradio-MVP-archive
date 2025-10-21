@@ -1,0 +1,49 @@
+{
+  "seed": 424242,
+  "epochs": 40,
+  "batchSize": 64,
+  "optimizer": "adamw",
+  "lr": 0.0008,
+  "classWeighting": {
+    "enabled": true,
+    "clipMin": 0.25,
+    "clipMax": 3.0
+  },
+  "boundaryLoss": {
+    "enabled": true,
+    "margin": 0.1,
+    "lambda": 0.5
+  },
+  "earlyStop": {
+    "patience": 6,
+    "metric": "val_f1_macro"
+  },
+  "deterministic": true,
+  "saveBestOnly": true,
+  "artifactsDir": "models/student-v2.7-label-uplift",
+  "genreConditioning": {
+    "enabled": true,
+    "encoding": "learned_embedding",
+    "embedding_dim": 8,
+    "film_conditioning": {
+      "enabled": true,
+      "scale_shift": true,
+      "layer_norm_before": true
+    }
+  },
+  "balancedSampling": {
+    "enabled": true,
+    "genre_balanced": true,
+    "samples_per_genre": 250
+  },
+  "teacherLabelUplift": {
+    "enabled": true,
+    "focus_pairs": ["jazz↔electronic", "electronic↔classical", "jazz_low_f1"],
+    "refinement_method": "boundary_definition",
+    "noise_reduction": true,
+    "confusion_target": 0.065,
+    "batch_mode": true,
+    "total_slices": 3,
+    "total_charts": 90
+  }
+}

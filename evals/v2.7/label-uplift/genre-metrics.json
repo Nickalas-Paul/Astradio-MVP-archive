@@ -1,0 +1,78 @@
+{
+  "model": "student-v2.7-label-uplift",
+  "evaluation_date": "2025-01-28T06:00:00Z",
+  "eval_set": "evals/v2.7/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "v2.7-A",
+  "config_diff": "v2.6 + teacherLabelUplift.enabled = true (jazz↔electronic slice)",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.734,
+      "precision": 0.727,
+      "recall": 0.741,
+      "accuracy": 0.738,
+      "samples": 250,
+      "baseline_f1": 0.731,
+      "delta_vs_baseline": 0.003
+    },
+    "jazz": {
+      "f1": 0.718,
+      "precision": 0.711,
+      "recall": 0.725,
+      "accuracy": 0.722,
+      "samples": 250,
+      "baseline_f1": 0.712,
+      "delta_vs_baseline": 0.006
+    },
+    "electronic": {
+      "f1": 0.722,
+      "precision": 0.715,
+      "recall": 0.729,
+      "accuracy": 0.726,
+      "samples": 250,
+      "baseline_f1": 0.718,
+      "delta_vs_baseline": 0.004
+    },
+    "ambient": {
+      "f1": 0.719,
+      "precision": 0.712,
+      "recall": 0.726,
+      "accuracy": 0.723,
+      "samples": 250,
+      "baseline_f1": 0.715,
+      "delta_vs_baseline": 0.004
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.723,
+    "macro_precision": 0.716,
+    "macro_recall": 0.730,
+    "macro_accuracy": 0.727,
+    "baseline_macro_f1": 0.719,
+    "delta_vs_baseline": 0.004
+  },
+  "confusion_analysis": {
+    "jazz_to_electronic": 0.064,
+    "electronic_to_jazz": 0.062,
+    "max_confusion": 0.064,
+    "baseline_max_confusion": 0.085,
+    "confusion_reduction": 0.021
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.711,
+    "jazz_f1_target": 0.692,
+    "electronic_f1_target": 0.698,
+    "ambient_f1_target": 0.695,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true,
+    "macro_f1_target": 0.729,
+    "macro_f1_passed": false,
+    "confusion_target": 0.10,
+    "confusion_passed": true
+  }
+}

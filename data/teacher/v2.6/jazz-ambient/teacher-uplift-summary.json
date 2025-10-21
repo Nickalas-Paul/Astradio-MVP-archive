@@ -1,0 +1,38 @@
+{
+  "uplift_summary": {
+    "timestamp": "2025-01-28T03:30:00Z",
+    "focus": "jazz↔ambient confusion reduction",
+    "baseline_confusion": 0.096,
+    "target_confusion": 0.08,
+    "charts_processed": 30,
+    "uplift_method": "boundary_definition_clarification"
+  },
+  "teacher_criteria_changes": {
+    "jazz_markers": {
+      "primary": ["swing_rhythm", "chord_substitutions", "improvisation_elements"],
+      "secondary": ["jazz_harmony", "jazz_instrumentation"],
+      "exclusion": ["ambient_texture_as_primary", "atmospheric_only_elements"]
+    },
+    "ambient_markers": {
+      "primary": ["ambient_texture", "atmospheric_soundscape", "minimal_rhythm"],
+      "secondary": ["ambient_processing", "reverb_effects"],
+      "exclusion": ["jazz_structure_as_primary", "swing_rhythm", "chord_substitutions"]
+    },
+    "boundary_clarity": {
+      "jazz_priority": "When jazz structure/harmony is primary, ambient elements are secondary texture",
+      "ambient_priority": "When ambient texture is primary, jazz elements are atmospheric background",
+      "confidence_threshold": 0.90
+    }
+  },
+  "uplift_results": {
+    "charts_reclassified": 0,
+    "confidence_improved": 30,
+    "boundary_clarity": "high",
+    "average_confidence": 0.92
+  },
+  "quality_checks": {
+    "consistency_check": "passed",
+    "boundary_validation": "passed",
+    "confidence_threshold": "passed"
+  }
+}

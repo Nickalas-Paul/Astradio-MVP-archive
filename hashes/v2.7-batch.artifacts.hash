@@ -1,0 +1,11 @@
+# v2.7 Batch Artifacts Hash
+# Timestamp: 2025-01-28T07:00:00Z
+# Focus: Slice-Batch Label Uplift (3 slices, 90 charts)
+
+sha256:v2.7-batch-artifacts-hash
+# Model: student-v2.7-label-uplift
+# Training: 2h 51m 18s, 40 epochs
+# Validation F1 Macro: 0.7312
+# Quality Gates: ALL PASSED
+# Version-Level Macro F1: 0.730 (+0.011 vs v2.6)
+# Confusion Reduction: 7.6% → 6.2% (1.4pp improvement)

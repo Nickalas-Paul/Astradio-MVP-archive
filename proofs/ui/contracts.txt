@@ -1,0 +1,4 @@
+adapter_invariants: monotonic stages PASS
+telemetry_backpressure: queue capped@200; jitter flush PASS
+flags: session-frozen (no mid-render change) PASS
+timeline: UI clamp independent of engine PASS

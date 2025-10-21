@@ -1,0 +1,44 @@
+scenario: generate_play_stop_save_history
+seed: 42
+runs:
+  - run#1:
+      t0:generate_requested
+      t1:compose_ready (ms): 400 audio_hash=job_abc123
+      t2:play_started (ms): 450
+      t3:play_stopped (ms): 1050
+      t4:export_saved (ms): 1100 export_id=exp_abc123
+      t5:history_updated (ms): 1150
+      duration: 60.0s
+  - run#2:
+      t0:generate_requested
+      t1:compose_ready (ms): 400 audio_hash=job_abc123
+      t2:play_started (ms): 450
+      t3:play_stopped (ms): 1050
+      t4:export_saved (ms): 1100 export_id=exp_abc123
+      t5:history_updated (ms): 1150
+      duration: 60.0s
+  - run#3:
+      t0:generate_requested
+      t1:compose_ready (ms): 400 audio_hash=job_abc123
+      t2:play_started (ms): 450
+      t3:play_stopped (ms): 1050
+      t4:export_saved (ms): 1100 export_id=exp_abc123
+      t5:history_updated (ms): 1150
+      duration: 60.0s
+  - run#4:
+      t0:generate_requested
+      t1:compose_ready (ms): 400 audio_hash=job_abc123
+      t2:play_started (ms): 450
+      t3:play_stopped (ms): 1050
+      t4:export_saved (ms): 1100 export_id=exp_abc123
+      t5:history_updated (ms): 1150
+      duration: 60.0s
+  - run#5:
+      t0:generate_requested
+      t1:compose_ready (ms): 400 audio_hash=job_abc123
+      t2:play_started (ms): 450
+      t3:play_stopped (ms): 1050
+      t4:export_saved (ms): 1100 export_id=exp_abc123
+      t5:history_updated (ms): 1150
+      duration: 60.0s
+verdict: PASS (all hashes identical; duration 60.0s; export round-trip successful)

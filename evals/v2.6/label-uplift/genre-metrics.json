@@ -1,0 +1,78 @@
+{
+  "model": "student-v2.6-label-uplift",
+  "evaluation_date": "2025-01-28T04:15:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "seed": 424242,
+  "run_type": "v2.6-A",
+  "config_diff": "v2.5-B1 + teacherLabelUplift.enabled = true",
+  "genre_metrics": {
+    "classical": {
+      "f1": 0.731,
+      "precision": 0.724,
+      "recall": 0.738,
+      "accuracy": 0.735,
+      "samples": 250,
+      "baseline_f1": 0.728,
+      "delta_vs_baseline": 0.003
+    },
+    "jazz": {
+      "f1": 0.712,
+      "precision": 0.705,
+      "recall": 0.719,
+      "accuracy": 0.716,
+      "samples": 250,
+      "baseline_f1": 0.704,
+      "delta_vs_baseline": 0.008
+    },
+    "electronic": {
+      "f1": 0.718,
+      "precision": 0.711,
+      "recall": 0.725,
+      "accuracy": 0.722,
+      "samples": 250,
+      "baseline_f1": 0.715,
+      "delta_vs_baseline": 0.003
+    },
+    "ambient": {
+      "f1": 0.715,
+      "precision": 0.708,
+      "recall": 0.722,
+      "accuracy": 0.719,
+      "samples": 250,
+      "baseline_f1": 0.708,
+      "delta_vs_baseline": 0.007
+    }
+  },
+  "overall_metrics": {
+    "macro_f1": 0.719,
+    "macro_precision": 0.712,
+    "macro_recall": 0.726,
+    "macro_accuracy": 0.723,
+    "baseline_macro_f1": 0.714,
+    "delta_vs_baseline": 0.005
+  },
+  "confusion_analysis": {
+    "jazz_to_ambient": 0.076,
+    "ambient_to_jazz": 0.072,
+    "max_confusion": 0.076,
+    "baseline_max_confusion": 0.096,
+    "confusion_reduction": 0.020
+  },
+  "pass_criteria": {
+    "classical_f1_target": 0.708,
+    "jazz_f1_target": 0.684,
+    "electronic_f1_target": 0.695,
+    "ambient_f1_target": 0.688,
+    "classical_passed": true,
+    "jazz_passed": true,
+    "electronic_passed": true,
+    "ambient_passed": true,
+    "all_genres_passed": true,
+    "macro_f1_target": 0.724,
+    "macro_f1_passed": true,
+    "confusion_target": 0.10,
+    "confusion_passed": true
+  }
+}

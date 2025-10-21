@@ -1,0 +1,70 @@
+{
+  "summary": {
+    "scenarios": 10,
+    "deterministic_pass": 10,
+    "length_pass": 10,
+    "schema_pass": 10
+  },
+  "results": [
+    {
+      "index": 0,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 1,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 2,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 3,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 4,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 5,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 6,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 7,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 8,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    },
+    {
+      "index": 9,
+      "deterministic": true,
+      "lengthOk": true,
+      "schemaOk": true
+    }
+  ]
+}

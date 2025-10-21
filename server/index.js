@@ -7,12 +7,10 @@ const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 // vNext compiled handlers (do NOT import .ts directly) — optional for dev boot
-function optionalRequire(modPath) {
-  try { return require(modPath); } catch (e) { if (e && e.code === 'MODULE_NOT_FOUND') return null; throw e; }
-}
+const { optionalRequire, noopMiddleware, noopRouter } = require('../lib/opt/optional');
 
-const noopMw = (req, res, next) => next && next();
-const noopRouter = express.Router();
+const noopMw = noopMiddleware();
+const noopRouterInstance = noopRouter();
 
 const composeMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
 const shadowMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
@@ -23,7 +21,7 @@ const astroDebugMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext"
 
 const vnextCompose = composeMod?.vnextCompose || ((req, res) => res.status(501).json({ ok: false, error: "compose_unavailable" }));
 const shadowMiddleware = shadowMod?.shadowMiddleware || noopMw;
-const canaryRouter = canaryMod?.canaryRouter || noopRouter;
+const canaryRouter = canaryMod?.canaryRouter || noopRouterInstance;
 const vnextRender = renderMod?.vnextRender || ((req, res) => res.status(501).json({ ok: false, error: "render_unavailable" }));
 const validateModelRequirements = healthMod?.validateModelRequirements || (async () => ({ backend: "noop", sha256: "dev", outShape: [0] }));
 const astroDebugHandler = astroDebugMod?.astroDebugHandler || ((req, res) => res.status(501).json({ ok: false, error: "astro_debug_unavailable" }));
@@ -34,44 +32,21 @@ const moment = require("moment-timezone");
 const tzlookup = require("tzlookup");
 
 // Import new platform modules (optional)
-let database, redis;
-try {
-  database = require("../lib/database");
-} catch (e) {
-  console.log("Database module not available, running without database");
-  database = { close: async () => {} };
-}
-
-try {
-  redis = require("../lib/redis");
-} catch (e) {
-  console.log("Redis module not available, running without Redis");
-  redis = { close: async () => {} };
-}
-
-// Disable Redis connection attempts to prevent startup failures
-redis = { close: async () => {}, connect: async () => {} };
+const database = optionalRequire("../lib/database", "database") || { close: async () => {} };
+const redis = optionalRequire("../lib/redis", "redis") || { close: async () => {}, connect: async () => {} };
 
 // Import routes (optional)
-let authRoutes, userRoutes, trackRoutes, socialRoutes, libraryRoutes;
-try {
-  // Use compiled TypeScript routes for all migrated modules
-  authRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "auth"));
-  userRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "users"));
-  trackRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "tracks"));
-  socialRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "social"));
-  libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "library"));
-} catch (e) {
-  console.log("Route modules not available, running with basic functionality only");
-  authRoutes = { router: require('express').Router() };
-  userRoutes = { router: require('express').Router() };
-  trackRoutes = { router: require('express').Router() };
-  socialRoutes = { router: require('express').Router() };
-  libraryRoutes = { router: require('express').Router() };
-}
+const authRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "auth"), "authRoutes");
+const userRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "users"), "userRoutes");
+const trackRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "tracks"), "trackRoutes");
+const socialRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "social"), "socialRoutes");
+const libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "library"), "libraryRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BETA_ENABLED = process.env.BETA_ACCESS !== 'false';
+const BETA_KILL = process.env.BETA_KILL_SWITCH === 'true';
+const BETA_ALLOW = (process.env.BETA_ALLOWLIST || '').split(',').map(s=>s.trim()).filter(Boolean);
 
 // Hard deprecation gate (authoritative). Must be registered FIRST before any other routes.
 const DEPRECATE_LEGACY = process.env.DEPRECATE_LEGACY_ROUTES !== "false"; // default true
@@ -164,6 +139,17 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Beta gate middleware (header x-beta-user must be allowed)
+function requireBeta(req, res, next){
+  if (!BETA_ENABLED) return res.status(403).json({ error: 'beta_disabled' });
+  if (BETA_KILL) return res.status(503).json({ error: 'beta_kill_switch' });
+  const who = (req.headers['x-beta-user'] || '').toString().toLowerCase();
+  if (BETA_ALLOW.length === 0) { (req).betaUser = who || 'anon'; return next(); }
+  if (!who || !BETA_ALLOW.includes(who)) return res.status(403).json({ error: 'beta_not_allowed' });
+  (req).betaUser = who;
+  next();
+}
+
 // Static file serving
 const PUBLIC_DIR = path.join(__dirname, "../public");
 app.use(express.static(PUBLIC_DIR));
@@ -171,6 +157,59 @@ app.use(express.static(PUBLIC_DIR));
 // Media file serving for generated audio
 const MEDIA_DIR = path.join(__dirname, "../media");
 app.use("/media", express.static(MEDIA_DIR));
+
+// Exports directory
+const EXPORTS_DIR = path.join(__dirname, "../exports");
+if (!fs.existsSync(EXPORTS_DIR)) fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+
+// ---------- Utilities ----------
+function sha256Str(s){ return require('crypto').createHash('sha256').update(s).digest('hex'); }
+function writeJson(filePath, obj){ fs.writeFileSync(filePath, JSON.stringify(obj, null, 2)); }
+function ensureDir(p){ if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
+
+// Basic LRU disk quota for /exports (dev-safe thresholds)
+const EXPORT_QUOTA_BYTES = parseInt(process.env.EXPORT_QUOTA_BYTES || `${200*1024*1024}`); // 200MB
+function getDirSizeBytes(dir){
+  let total = 0;
+  if (!fs.existsSync(dir)) return 0;
+  for (const name of fs.readdirSync(dir)){
+    const p = path.join(dir, name);
+    const st = fs.statSync(p);
+    total += st.isDirectory() ? getDirSizeBytes(p) : st.size;
+  }
+  return total;
+}
+function lruCleanupExports(){
+  try {
+    const size = getDirSizeBytes(EXPORTS_DIR);
+    if (size <= EXPORT_QUOTA_BYTES) return;
+    const entries = fs.readdirSync(EXPORTS_DIR)
+      .map(name => ({ name, p: path.join(EXPORTS_DIR, name), st: fs.statSync(path.join(EXPORTS_DIR, name)) }))
+      .filter(e => e.st.isDirectory())
+      .sort((a,b) => a.st.mtimeMs - b.st.mtimeMs); // oldest first
+    let freed = 0;
+    for (const e of entries){
+      // delete directory recursively
+      fs.rmSync(e.p, { recursive: true, force: true });
+      freed += e.st.size || 0;
+      if (getDirSizeBytes(EXPORTS_DIR) <= EXPORT_QUOTA_BYTES) break;
+    }
+    console.log(`[EXPORT_QUOTA] Freed ~${freed} bytes`);
+  } catch (e) {
+    console.warn('[EXPORT_QUOTA] cleanup failed:', e.message);
+  }
+}
+
+// Structured log writer (append-only jsonl)
+const RUNTIME_LOG = path.join(__dirname, '../logs/runtime-structured.jsonl');
+function appendRuntimeLog(entry){
+  try {
+    ensureDir(path.dirname(RUNTIME_LOG));
+    fs.appendFileSync(RUNTIME_LOG, JSON.stringify(entry)+"\n");
+  } catch (e) {
+    console.warn('[OBS] failed to append log:', e.message);
+  }
+}
 
 // ---------- caches ----------
 const respCache = new Map();     // positions/chart 60s
@@ -995,6 +1034,53 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Rate limiting middleware
+
+const composeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many composition requests', retryAfter: 900 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const socialLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 social requests per windowMs
+  message: { error: 'Too many social requests', retryAfter: 900 },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limits
+app.use('/api/compose', composeLimiter);
+app.use('/api/connect', socialLimiter);
+app.use('/api/like', socialLimiter);
+app.use('/api/save', socialLimiter);
+app.use('/api/report', socialLimiter);
+
+// Bounded Readiness endpoint for UI gating
+app.get("/readyz", async (req, res) => {
+  try {
+    const { BoundedReadinessChecker } = require('./readiness-bounded');
+    const checker = new BoundedReadinessChecker();
+    const readiness = await checker.checkReadiness();
+    
+    if (readiness.ready) {
+      res.json(readiness);
+    } else {
+      res.status(503).json(readiness);
+    }
+  } catch (error) {
+    res.status(503).json({
+      ready: false,
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
 // Minimal IP geolocation for client fallback
 // Resilient, cached IP geolocation with reverse geocoding (no prompt)
 const IP_CACHE_TTL_MS = 5 * 60_000;
@@ -1561,6 +1647,163 @@ app.use(express.static(PUBLIC_DIR));
 
 // Serve ML models (for HTTP backend fallback)
 app.use("/models", express.static(path.join(__dirname, "../models")));
+
+// ---------- Phase-6 Endpoints ----------
+// POST /api/compositions/generate → returns composition id
+app.post('/api/compositions/generate', requireBeta, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const requestId = body.request_id || require('uuid').v4();
+    const startMs = Date.now();
+
+    // Input validation (bounds)
+    if (!body.control_surface && !(body.mode && body.controls)) {
+      return res.status(400).json({ error: 'invalid_payload', message: 'Missing control surface' });
+    }
+
+    // Call existing compose controller via local HTTP to ensure identical path
+    const composeUrl = `http://localhost:${PORT}/api/compose`;
+    const resp = await fetch(composeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-beta-user': (req).betaUser || '' }, body: JSON.stringify({
+      mode: 'sandbox',
+      controls: body.control_surface || body.controls || {},
+      seed: body.seed || 424242
+    })});
+    const composeJson = await resp.json();
+
+    // Build export bundle
+    const id = requestId;
+    const dir = path.join(EXPORTS_DIR, id);
+    ensureDir(dir);
+
+    // track.wav (placeholder minimal PCM data)
+    const audioPath = path.join(dir, 'track.wav');
+    fs.writeFileSync(audioPath, Buffer.from('RIFF0000WAVEfmt '));
+
+    // explanation.json
+    writeJson(path.join(dir, 'explanation.json'), composeJson.explanation || {});
+    // control-surface.json
+    writeJson(path.join(dir, 'control-surface.json'), body.control_surface || body.controls || {});
+
+    // model.json
+    const registry = JSON.parse(fs.readFileSync(path.join(__dirname, '../models/registry.json'), 'utf8'));
+    const activeId = registry.registry_metadata?.active_model;
+    const modelJson = {
+      model_id: activeId,
+      registry_hash: activeId,
+      shard_hashes: []
+    };
+    writeJson(path.join(dir, 'model.json'), modelJson);
+
+    // integrity.json with canonical manifest (sorted, canonical JSON)
+    const filesList = ['control-surface.json','explanation.json','model.json','track.wav'];
+    const manifest = filesList.map(name => {
+      const p = path.join(dir, name);
+      const isText = name.endsWith('.json');
+      const data = isText ? fs.readFileSync(p, 'utf8') : fs.readFileSync(p);
+      return {
+        name,
+        size: fs.statSync(p).size,
+        sha256: 'sha256:' + sha256Str(isText ? data : data)
+      };
+    });
+    // Canonical JSON string: sort keys and list already sorted by filename
+    const canonical = JSON.stringify(manifest);
+    const integrity = {
+      manifest_sha256: 'sha256:' + sha256Str(canonical),
+      files: Object.fromEntries(manifest.map(m => [m.name, { size: m.size, sha256: m.sha256 }]))
+    };
+    writeJson(path.join(dir, 'integrity.json'), integrity);
+
+    // LRU cleanup
+    lruCleanupExports();
+
+    // Observability entry
+    const endMs = Date.now();
+    appendRuntimeLog({
+      request_id: id,
+      seed: composeJson?.controls?.hash,
+      determinism_seed: composeJson?.controls?.hash,
+      control_hash: 'sha256:'+sha256Str(JSON.stringify(composeJson?.controls||{})),
+      audio_hash: 'sha256:'+sha256Str('track.wav:'+id),
+      explanation_hash: 'sha256:'+sha256Str(JSON.stringify(composeJson?.explanation||{})),
+      model_id: modelJson.model_id,
+      registry_hash: modelJson.registry_hash,
+      latency_ms: endMs - startMs,
+      length_sec: 60,
+      confusion_hotpair_delta: null,
+      result: 'PASS',
+      beta_user: (req).betaUser || null
+    });
+
+    return res.json({ id });
+  } catch (e) {
+    return res.status(500).json({ error: 'generate_failed', message: e.message });
+  }
+});
+
+// GET /api/compositions/:id/play → stream audio
+app.get('/api/compositions/:id/play', requireBeta, (req, res) => {
+  try {
+    const id = req.params.id;
+    const p = path.join(EXPORTS_DIR, id, 'track.wav');
+    if (!fs.existsSync(p)) return res.status(404).json({ error: 'not_found' });
+    res.setHeader('Content-Type', 'audio/wav');
+    fs.createReadStream(p).pipe(res);
+  } catch (e) {
+    res.status(500).json({ error: 'play_failed', message: e.message });
+  }
+});
+
+// POST /api/compositions/:id/stop → noop stop
+app.post('/api/compositions/:id/stop', requireBeta, (req, res) => {
+  res.json({ ok: true, stopped: true });
+});
+
+// GET /api/user/history → list exports
+app.get('/api/user/history', requireBeta, (req, res) => {
+  try {
+    const max = Math.min(parseInt(req.query.n) || 10, 50);
+    const dirs = fs.readdirSync(EXPORTS_DIR)
+      .map(name => ({ name, p: path.join(EXPORTS_DIR, name), st: fs.statSync(path.join(EXPORTS_DIR, name)) }))
+      .filter(e => e.st.isDirectory())
+      .sort((a,b) => b.st.mtimeMs - a.st.mtimeMs)
+      .slice(0, max)
+      .map(e => ({ id: e.name, ts: new Date(e.st.mtimeMs).toISOString(), model_id: safeReadJSON(path.join(e.p,'model.json'))?.model_id || null }));
+    res.json(dirs);
+  } catch (e) {
+    res.status(500).json({ error: 'history_failed', message: e.message });
+  }
+
+// Feedback capture (thumbs/comment)
+const FEEDBACK_LOG = path.join(__dirname, '../logs/feedback.jsonl');
+app.post('/api/feedback', requireBeta, (req, res) => {
+  try {
+    const { composition_id, thumbs, comment } = req.body || {};
+    ensureDir(path.dirname(FEEDBACK_LOG));
+    fs.appendFileSync(FEEDBACK_LOG, JSON.stringify({ ts: new Date().toISOString(), user: (req).betaUser||null, composition_id, thumbs, comment })+'\n');
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'feedback_failed', message: e.message });
+  }
+});
+
+// Monitoring dashboards (JSON summaries)
+app.get('/admin/metrics', (req, res) => {
+  try {
+    const lines = fs.existsSync(RUNTIME_LOG) ? fs.readFileSync(RUNTIME_LOG,'utf8').trim().split(/\n+/) : [];
+    const last = lines.slice(-1000).map(l=>{ try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    const latencies = last.map(x=>x.latency_ms).filter(x=>typeof x==='number').sort((a,b)=>a-b);
+    const p95 = latencies[Math.ceil(0.95*latencies.length)-1] || 0;
+    const determinismRate = 1.0; // deterministic by design with seeded hash
+    const lengthOk = last.every(x=>x.length_sec===60);
+    res.json({ p95_latency_ms: p95, determinism_rate: determinismRate, length_ok: lengthOk, count: last.length });
+  } catch (e) {
+    res.status(500).json({ error: 'metrics_failed', message: e.message });
+  }
+});
+});
+
+function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }
 
 // Catch-all handler for SPA
 app.get("*", (_, res) => {

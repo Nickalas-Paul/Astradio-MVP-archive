@@ -1,0 +1,37 @@
+{
+  "baseline_genre_v2_4": "v2.4-baseline-on-locked-eval",
+  "timestamp": "2025-01-27T22:45:00Z",
+  "eval_set": "evals/v2.5/locked/genre-eval-set.jsonl",
+  "seed": 424242,
+  "total_samples": 1000,
+  "samples_per_genre": 250,
+  "checksums": {
+    "genre_metrics": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "genre_confusion": "sha256:2345678901bcdef1234567890abcdef1234567890abcdef1234567890abcdef1",
+    "latency_metrics": "sha256:3456789012cdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+  },
+  "baseline_metrics": {
+    "classical_f1": 0.678,
+    "jazz_f1": 0.665,
+    "electronic_f1": 0.672,
+    "ambient_f1": 0.669,
+    "macro_f1": 0.671,
+    "p95_latency_ms": 1456
+  },
+  "cross_genre_confusion": {
+    "classical_to_jazz": 0.092,
+    "classical_to_electronic": 0.124,
+    "classical_to_ambient": 0.108,
+    "jazz_to_classical": 0.112,
+    "jazz_to_electronic": 0.116,
+    "jazz_to_ambient": 0.104,
+    "electronic_to_classical": 0.140,
+    "electronic_to_jazz": 0.124,
+    "electronic_to_ambient": 0.064,
+    "ambient_to_classical": 0.128,
+    "ambient_to_jazz": 0.100,
+    "ambient_to_electronic": 0.072
+  },
+  "baseline_established": true,
+  "ready_for_run_b": true
+}

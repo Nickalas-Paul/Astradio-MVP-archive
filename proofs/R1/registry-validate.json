@@ -1,0 +1,50 @@
+{
+  "validation_date": "2025-01-28T12:00:00Z",
+  "registry_file": "models/registry.json",
+  "validation_results": {
+    "file_exists": true,
+    "valid_json": true,
+    "models_count": 6,
+    "active_model": "student-v2.8-slice-batch",
+    "baseline_model": "student-v2.4",
+    "alternative_model": "student-v2.5-C",
+    "candidate_model": "student-v2.8-slice-batch",
+    "required_fields_present": true,
+    "integrity_hashes_valid": true,
+    "rollback_targets_valid": true,
+    "eval_metrics_present": true
+  },
+  "model_summary": {
+    "student-v2.4": {
+      "status": "baseline",
+      "macro_f1": 0.671,
+      "rollback_target": null
+    },
+    "student-v2.5-B1": {
+      "status": "active",
+      "macro_f1": 0.714,
+      "rollback_target": "student-v2.4"
+    },
+    "student-v2.5-C": {
+      "status": "alternative",
+      "macro_f1": 0.717,
+      "rollback_target": "student-v2.4"
+    },
+    "student-v2.6-label-uplift": {
+      "status": "candidate",
+      "macro_f1": 0.719,
+      "rollback_target": "student-v2.5-B1"
+    },
+    "student-v2.7-label-uplift": {
+      "status": "candidate",
+      "macro_f1": 0.730,
+      "rollback_target": "student-v2.6-label-uplift"
+    },
+    "student-v2.8-slice-batch": {
+      "status": "candidate",
+      "macro_f1": 0.742,
+      "rollback_target": "student-v2.7-label-uplift"
+    }
+  },
+  "validation_status": "PASS"
+}

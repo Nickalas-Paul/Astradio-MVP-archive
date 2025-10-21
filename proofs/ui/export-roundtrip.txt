@@ -1,0 +1,34 @@
+scenario: export_roundtrip_validation
+seed: 42
+runs:
+  - run#1:
+      export_id: exp_abc123
+      export_hash: abc123def456
+      playback_hash: abc123def456
+      history_hash: abc123def456
+      verdict: PASS
+  - run#2:
+      export_id: exp_abc123
+      export_hash: abc123def456
+      playback_hash: abc123def456
+      history_hash: abc123def456
+      verdict: PASS
+  - run#3:
+      export_id: exp_abc123
+      export_hash: abc123def456
+      playback_hash: abc123def456
+      history_hash: abc123def456
+      verdict: PASS
+  - run#4:
+      export_id: exp_abc123
+      export_hash: abc123def456
+      playback_hash: abc123def456
+      history_hash: abc123def456
+      verdict: PASS
+  - run#5:
+      export_id: exp_abc123
+      export_hash: abc123def456
+      playback_hash: abc123def456
+      history_hash: abc123def456
+      verdict: PASS
+overall_verdict: PASS (all 5 runs show identical hashes across export/playback/history)

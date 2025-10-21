@@ -1,0 +1,4 @@
+search("venus") -> results>0 PASS
+open article planet.venus -> bookmark -> progress>=10% PASS
+quiz -> completes with explanation shown PASS
+verdict: PASS

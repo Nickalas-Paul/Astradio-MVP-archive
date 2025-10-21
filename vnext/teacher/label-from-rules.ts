@@ -537,11 +537,18 @@ function ensureMotifVocab(vocabPath: string): Record<string, number> {
   return seed;
 }
 
+import { generateChartHashSync } from '../../lib/hash/chartHash';
+
 // Generate deterministic chart hash for data splitting
 function generateChartHash(snapshot: EphemerisSnapshot): string {
-  const crypto = require('crypto');
-  const hashInput = `${snapshot.lat}_${snapshot.lon}_${snapshot.ts}_${snapshot.tz}`;
-  return crypto.createHash('sha256').update(hashInput).digest('hex').slice(0, 8);
+  // Convert EphemerisSnapshot to ChartData format for hash generation
+  const chartData = {
+    date: snapshot.ts.split('T')[0],
+    time: snapshot.ts.split('T')[1]?.split('.')[0] || '12:00:00',
+    lat: snapshot.lat,
+    lon: snapshot.lon
+  };
+  return generateChartHashSync(chartData).slice(0, 8);
 }
 
 // Split data by chart hash to prevent leakage

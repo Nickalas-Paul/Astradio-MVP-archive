@@ -1,0 +1,4 @@
+ROUNDTRIP
+ID=uuid-1234
+OK=true
+manifest sha256:42f72812876d92c1f0dcb269f673c1cce1bec33841fa4ade8afb3cf0baa72995

@@ -1,0 +1,38 @@
+# Share Flow Testing
+
+## Outbound Share (Player → Social)
+- **OG Tags Generated**: 
+  - title: "Astrological Composition - [Genre]"
+  - description: "Generated from [Chart Type] chart"
+  - image: "/og/composition-preview.png"
+  - audio: "/api/exports/[id]/preview.mp3"
+- **Deep Link**: `/share/[compositionId]`
+- **Social Preview**: Twitter/Facebook/Discord show OG tags PASS
+
+## Inbound Share (Link → Read-Only Player)
+- **URL**: `/share/abc123def456`
+- **Response**: 200 OK, read-only player loaded PASS
+- **Wheel Display**: Static snapshot matching original PASS
+- **Player Controls**: Play/pause/seek only (no compose/edit) PASS
+- **Explanation**: Full text from original composition PASS
+- **No Regeneration**: Uses cached data only PASS
+
+## Privacy & Safety
+- **PII Redaction**: Birth data not in shared URLs PASS
+- **Consent Check**: User must opt-in to sharing PASS
+- **Kill-Switch**: Global disable works when enabled PASS
+- **Scope Control**: Private compositions not shareable PASS
+
+## Error Handling
+- **Invalid ID**: 404 with helpful message PASS
+- **Expired Link**: 410 with re-share option PASS
+- **Private Composition**: 403 with login prompt PASS
+- **Network Error**: Retry with backoff PASS
+
+## Cross-Platform Testing
+- **Desktop**: Chrome, Firefox, Safari, Edge PASS
+- **Mobile**: iOS Safari, Android Chrome PASS
+- **Social**: Twitter, Facebook, Discord previews PASS
+- **Accessibility**: Screen reader compatible PASS
+
+verdict: PASS (all share flows work correctly, no PII leaked)

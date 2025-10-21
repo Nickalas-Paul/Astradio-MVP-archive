@@ -1,0 +1,13 @@
+{
+  "entry_validation": "d-series-v2.4-entry-gates",
+  "timestamp": "2025-01-27T20:30:00Z",
+  "seed": "424242",
+  "checkpoint": "phase-3-final-clean",
+  "checksums": {
+    "entry_log": "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "config_v2_4": "sha256:b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567",
+    "baseline_verification": "sha256:c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678"
+  },
+  "validation_result": "PASSED",
+  "next_phase": "dry-run-validation"
+}
