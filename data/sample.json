@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "celestialBodies": [
+    { "name": "Sun", "degree": 145.5 },
+    { "name": "Moon", "degree": 210.3 },
+    { "name": "Mercury", "degree": 98.2 }
+  ]
+}
