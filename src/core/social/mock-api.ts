@@ -66,7 +66,7 @@ export const SocialAPI = {
     return MOCK.favorites; 
   },
 
-  async toggleFavorite(itemId: string, itemType: LibraryItem['t']: Promise<boolean> {
+  async toggleFavorite(itemId: string, itemType: LibraryItem['type']): Promise<boolean> {
     const i = MOCK.favorites.findIndex(f => 
       f.itemId === itemId && f.itemType === itemType && f.userId === MOCK.me.id
     );
