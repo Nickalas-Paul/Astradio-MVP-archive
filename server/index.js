@@ -44,6 +44,7 @@ const libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const BETA_ENABLED = process.env.BETA_ACCESS !== 'false';
 const BETA_KILL = process.env.BETA_KILL_SWITCH === 'true';
 const BETA_ALLOW = (process.env.BETA_ALLOWLIST || '').split(',').map(s=>s.trim()).filter(Boolean);
@@ -158,9 +159,22 @@ app.use(express.static(PUBLIC_DIR));
 const MEDIA_DIR = path.join(__dirname, "../media");
 app.use("/media", express.static(MEDIA_DIR));
 
-// Exports directory
-const EXPORTS_DIR = path.join(__dirname, "../exports");
-if (!fs.existsSync(EXPORTS_DIR)) fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+// Exports directory - parameterized and hardened
+// For Render, /tmp is writable; for local dev, cwd()/exports is fine
+const EXPORT_ROOT = process.env.EXPORT_ROOT || path.join(process.cwd(), 'exports');
+
+try {
+  fs.mkdirSync(EXPORT_ROOT, { recursive: true });
+  console.log(`[EXPORTS] Using directory: ${EXPORT_ROOT}`);
+} catch (err) {
+  console.error('Failed to ensure EXPORT_ROOT exists:', {
+    EXPORT_ROOT,
+    error: err.message,
+  });
+  // Continue anyway - will fail on actual write, but won't crash on startup
+}
+
+const EXPORTS_DIR = EXPORT_ROOT;
 
 // ---------- Utilities ----------
 function sha256Str(s){ return require('crypto').createHash('sha256').update(s).digest('hex'); }
@@ -1640,6 +1654,69 @@ app.use("/api/compose", canaryRouter);
 // v1.1 Composition endpoint (Unified Spec v1.1)
 app.post("/api/compose", express.json(), vnextCompose);
 
+// Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false)
+// This provides backward compatibility for soak tests and legacy clients
+if (!DEPRECATE_LEGACY) {
+  app.post("/api/render", express.json(), async (req, res) => {
+    try {
+      const { date, time, location, geo } = req.body;
+      
+      // Convert legacy format to chart context
+      const lat = geo?.lat || parseFloat(req.body.lat);
+      const lon = geo?.lon || parseFloat(req.body.lon);
+      
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return res.status(400).json({ error: "valid_lat_lon_required" });
+      }
+      
+      // Generate chart data
+      const chartDate = date || new Date().toISOString().split('T')[0];
+      const chartTime = time || "12:00";
+      const jd = toJulianDayUT(chartDate, chartTime, lat, lon);
+      const positions = calcPositions(jd, true);
+      const cusps = calcPlacidusCusps(jd, lat, lon);
+      
+      // Create chart context
+      const chartContext = {
+        date: chartDate,
+        time: chartTime,
+        lat,
+        lon,
+        positions,
+        cusps,
+        hash: crypto.createHash('sha256').update(`${chartDate}${chartTime}${lat}${lon}`).digest('hex').substring(0, 16)
+      };
+      
+      // Generate composition (using elemental mode as default)
+      const vector = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // Default vector
+      const composition = await generateCompositionFromVector(chartContext, 'elemental', vector, 60);
+      const finalized = finalizeCompositionWithCaps(composition, { rhythm_density: 0.5, melodic_activity: 0.5 });
+      
+      // Generate audio
+      const audioBuffer = await generateAudioBuffer(finalized, 'wav', true);
+      const audioHash = crypto.createHash('sha256').update(audioBuffer).digest('hex');
+      
+      // Return response in legacy format
+      res.json({
+        hashes: {
+          control: `sha256:${chartContext.hash}`,
+          renderer: `sha256:${audioHash.substring(0, 16)}`
+        },
+        audio: {
+          url: `data:audio/wav;base64,${audioBuffer.toString('base64')}`
+        },
+        explanation: {
+          spec: "LegacyRenderV1",
+          text: `Generated composition for ${location || 'chart'} at ${chartDate} ${chartTime}`
+        }
+      });
+    } catch (error) {
+      console.error("[Legacy Render] Error:", error);
+      res.status(500).json({ error: "render_failed", message: error.message });
+    }
+  });
+}
+
 console.log("[ROUTES]", dumpRoutes(app));
 
 // Serve static files
@@ -1811,7 +1888,7 @@ app.get("*", (_, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+app.listen(PORT, HOST, async () => {
   try {
     console.log(`Astradio server running on http://localhost:${PORT}`);
     console.log(`Serving static from ${PUBLIC_DIR}`);
