@@ -13,7 +13,6 @@ import {
 import { TextExplainerEngine } from '../explainer/text-explainer';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-import { renderWav60s } from '../audio/wav-renderer';
 import { encodeFeatures } from '../feature-encode';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 // import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
@@ -135,31 +134,48 @@ export class ComposeAPI {
         textMetricsMs = base.metrics?.total_ms;
       }
       
-      // Generate audio (real WAV from plan + control surface)
-      // Fail-closed: If audio generation fails, throw explicit error (no placeholder)
-      let audio: any;
-      try {
-        const audioStartTime = process.hrtime.bigint();
-        const audioResult = renderWav60s(plan, payload, payload.hash, {
-          sampleRate: 22050, // 22.05kHz for smaller payload
-          channels: 1, // Mono
-          bitDepth: 16
-        });
-        const audioEndTime = process.hrtime.bigint();
-        const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
-        
-        // Convert to base64
-        const audioBase64 = audioResult.buffer.toString('base64');
-        
-        audio = {
-          format: 'wav',
-          base64: audioBase64,
-          sha256: audioResult.sha256,
-          latency_ms: audioLatencyMs,
-          size_bytes: audioResult.size_bytes
-        };
-      } catch (audioError) {
-        throw new Error(`Audio generation failed: ${audioError instanceof Error ? audioError.message : 'Unknown error'}`);
+      // Generate audio only when ENABLE_WAV_EXPORT=1 (optional; default off for staging)
+      const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
+      const stubAudio = {
+        format: 'wav' as const,
+        base64: '',
+        sha256: '',
+        latency_ms: 0,
+        size_bytes: 0
+      };
+      let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
+      let audio_export_available = false;
+
+      if (wavExportEnabled) {
+        try {
+          const mod = await import('../audio/wav-renderer');
+          const audioStartTime = process.hrtime.bigint();
+          const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
+            sampleRate: 22050,
+            channels: 1,
+            bitDepth: 16
+          });
+          const audioEndTime = process.hrtime.bigint();
+          const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
+          audio = {
+            format: 'wav',
+            base64: audioResult.buffer.toString('base64'),
+            sha256: audioResult.sha256,
+            latency_ms: audioLatencyMs,
+            size_bytes: audioResult.size_bytes
+          };
+          audio_export_available = true;
+        } catch (audioError) {
+          if (!(global as any).__wav_export_unavailable_logged) {
+            console.warn('[COMPOSE] WAV export unavailable (module missing or render failed):', audioError instanceof Error ? audioError.message : String(audioError));
+            (global as any).__wav_export_unavailable_logged = true;
+          }
+        }
+      } else {
+        if (!(global as any).__wav_export_unavailable_logged) {
+          console.warn('[COMPOSE] WAV export disabled (set ENABLE_WAV_EXPORT=1 to enable)');
+          (global as any).__wav_export_unavailable_logged = true;
+        }
       }
 
       // Generate viz payload if enabled (stub for now)
@@ -234,6 +250,7 @@ export class ComposeAPI {
       } catch {}
 
       const response = {
+        audio_export_available: audio_export_available,
         controls: payload,
         astro: {
           element_dominance: payload.element_dominance,
