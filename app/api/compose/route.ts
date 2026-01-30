@@ -58,12 +58,43 @@ export async function POST(req: Request) {
       );
     }
 
+    const data = validationResult.data;
+
+    // Convert simplified input to "sky" mode format for ComposeAPI
+    // Default to current time and New York if not provided
+    const date = data.date || new Date().toISOString().split('T')[0];
+    const time = data.time || '12:00';
+    const latitude = data.geo?.lat ?? 40.7128; // Default to New York
+    const longitude = data.geo?.lon ?? -74.0060;
+
+    const sanitized = {
+      date,
+      time,
+      location: data.location ?? undefined,
+      geo: data.geo ? { lat: data.geo.lat, lon: data.geo.lon } : undefined,
+    };
+    console.log('[COMPOSE_API] Request body (sanitized):', JSON.stringify(sanitized));
+    console.log('[COMPOSE_API] Interpreted coords:', { latitude, longitude, from_geo: !!data.geo });
+
+    // Construct ISO 8601 datetime string
+    const datetime = `${date}T${time}:00Z`;
+
+    // Build sky mode request for ComposeAPI
+    const composeRequest = {
+      mode: 'sky' as const,
+      skyParams: {
+        latitude,
+        longitude,
+        datetime
+      }
+    };
+
     // Proxy to unified vNext ComposeAPI on Express (engine of record)
     const engineBase = process.env.ENGINE_BASE_URL || 'http://localhost:3000';
     const r = await fetch(`${engineBase}/api/compose`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(validationResult.data)
+      body: JSON.stringify(composeRequest)
     });
 
     // If engine is reachable, return its unified response (audio/text/viz)
@@ -72,17 +103,17 @@ export async function POST(req: Request) {
       return NextResponse.json(json);
     }
 
-    // Engine failure - return error, no silent fallback
-    const errorCode = r.status >= 500 ? 'ENGINE_UNAVAILABLE' : 'ENGINE_ERROR';
-    const errorMessage = r.status >= 500 
-      ? 'Composition engine is temporarily unavailable' 
-      : 'Composition engine error';
-    
+    // Engine failure - return error, no silent fallback. Forward engine body when present.
+    const engineBody = await r.json().catch(() => ({}));
+    const code = engineBody?.code ?? (r.status >= 500 ? 'ENGINE_UNAVAILABLE' : 'ENGINE_ERROR');
+    const error = engineBody?.error ?? (r.status >= 500
+      ? 'Composition engine is temporarily unavailable'
+      : 'Composition engine error');
     return NextResponse.json({
-      error: errorMessage,
-      code: errorCode,
+      error,
+      code,
       status: r.status,
-      timestamp: new Date().toISOString()
+      timestamp: engineBody?.timestamp ?? new Date().toISOString()
     }, { status: r.status });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'compose failed' }, { status: 500 });
