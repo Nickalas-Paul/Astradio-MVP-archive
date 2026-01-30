@@ -101,8 +101,10 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Large binary files and exports
-exports/
+# Large binary files and exports (preserve exports/soak/ for soak evidence)
+exports/*
+!exports/soak/
+!exports/soak/*
 *.bin
 *.exe
 *.msi
@@ -140,6 +142,7 @@ repo-sync-*.bundle
 # Large data files
 *.csv
 *.jsonl
+!exports/soak/*.jsonl
 *.json.gz
 *.parquet
 

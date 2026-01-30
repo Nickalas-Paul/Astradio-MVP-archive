@@ -1,0 +1,18 @@
+{
+  "run_id": "soak-1769741721281",
+  "duration_minutes": 30.0,
+  "requests": 273,
+  "passed": 273,
+  "failed": 0,
+  "any_429": 0,
+  "any_5xx": 0,
+  "ml_false": 0,
+  "bad_model_sha": 0,
+  "noop_backend": 0,
+  "missing_audio": 0,
+  "unique_datetimes": 273,
+  "cache_hit_rate_pct": 0.0,
+  "evidence_file": "soak-only-repo/artifacts/soak/soak-evidence-soak-1769741721281.jsonl",
+  "validation": "PASS",
+  "timestamp": "2026-01-30T02:55:21.398Z"
+}
