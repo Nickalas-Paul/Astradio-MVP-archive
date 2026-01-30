@@ -13,7 +13,9 @@ import {
 import { TextExplainerEngine } from '../explainer/text-explainer';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-// import { FeatureEncoder } from '../../lib/features/feature-encoder';
+import { renderWav60s } from '../audio/wav-renderer';
+import { encodeFeatures } from '../feature-encode';
+import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 // import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
 // import { isFeatureEnabled } from '../../config/flags';
 
@@ -57,22 +59,28 @@ export class ComposeAPI {
       
       // Generate control-surface payload based on mode
       const payload = await this.generateControlPayload(request);
-      
-      // Use shared FeatureEncoder for consistent feature extraction
-      const chartData = {
-        date: (request as any).chartData?.date || '1990-01-01',
-        time: (request as any).chartData?.time || '12:00',
-        lat: (request as any).chartData?.lat || 40.7128,
-        lon: (request as any).chartData?.lon || -74.0060
+
+      const snapshot = await this.fetchChartSnapshot(request);
+      const featureVec = encodeFeatures(snapshot) as FeatureVec;
+
+      const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+
+      const mlUsed = !!diag?.ml_used;
+      const mlLog = {
+        tf_backend: diag?.tf_backend ?? 'unknown',
+        model_version: diag?.modelVersion ?? 'unknown',
+        model_sha: diag?.model_sha ?? 'unknown',
+        inference_ms: typeof diag?.inference_ms === 'number' ? diag.inference_ms : 0,
+        ml_used: mlUsed,
       };
-      
-      // const encodedFeatures = await this.featureEncoder.encode(chartData);
-      // const featureVec = encodedFeatures.features.featureVector;
-      const featureVec = new Float32Array([0.5, 0.6, 0.7, 0.7, 0.3, 0.6]); // Mock feature vector
-      
-      // Generate musical plan from controls
-      const { plan } = await generatePlanMLOnly(featureVec as any, payload);
-      
+      console.log('[COMPOSE_ML]', JSON.stringify(mlLog));
+
+      if (!mlUsed) {
+        const err = new Error('ML inference unavailable; cannot serve controls or audio') as Error & { code?: string };
+        err.code = 'ML_INFERENCE_UNAVAILABLE';
+        throw err;
+      }
+
       // Run audition gates (deterministic)
       let gateReport = await this.runAuditionGates(plan, payload.hash);
       
@@ -127,8 +135,32 @@ export class ComposeAPI {
         textMetricsMs = base.metrics?.total_ms;
       }
       
-      // Generate audio (mock, deterministic latency & URL from seed)
-      const audio = await this.generateAudio(plan, request.mode, payload.hash);
+      // Generate audio (real WAV from plan + control surface)
+      // Fail-closed: If audio generation fails, throw explicit error (no placeholder)
+      let audio: any;
+      try {
+        const audioStartTime = process.hrtime.bigint();
+        const audioResult = renderWav60s(plan, payload, payload.hash, {
+          sampleRate: 22050, // 22.05kHz for smaller payload
+          channels: 1, // Mono
+          bitDepth: 16
+        });
+        const audioEndTime = process.hrtime.bigint();
+        const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
+        
+        // Convert to base64
+        const audioBase64 = audioResult.buffer.toString('base64');
+        
+        audio = {
+          format: 'wav',
+          base64: audioBase64,
+          sha256: audioResult.sha256,
+          latency_ms: audioLatencyMs,
+          size_bytes: audioResult.size_bytes
+        };
+      } catch (audioError) {
+        throw new Error(`Audio generation failed: ${audioError instanceof Error ? audioError.message : 'Unknown error'}`);
+      }
 
       // Generate viz payload if enabled (stub for now)
       let viz = null;
@@ -136,43 +168,11 @@ export class ComposeAPI {
 
       // Normalize length to 60s ± 0.5s (Phase-6 guardrail)
       const targetLengthSec = 60;
-      const lengthSec = targetLengthSec; // mock engine outputs exact 60s
+      const lengthSec = targetLengthSec; // Real engine outputs exact 60s
       
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      // Structured observability log (single line)
-      try {
-        const calibratedPass = !!gateReport?.calibrated?.overall;
-        const strictPass = !!gateReport?.strict?.overall;
-        const templateId = (text as any)?.template_id;
-        const textMetrics = this.textExplainer instanceof Object && 'generateExplanation' in this.textExplainer ? undefined : undefined;
-        const logEntry = {
-          phase: 'compose',
-          controls_hash: payload.hash,
-          seed_used: payload.hash,
-          template_id: templateId,
-          latency_ms: {
-            predict: gateReport.latency_ms.predict,
-            plan: gateReport.latency_ms.plan,
-            text_total: textMetricsMs,
-            total: Number(totalLatency.toFixed(2))
-          },
-          gate_scores: gateReport.scores,
-          gates: {
-            calibrated: gateReport.calibrated,
-            strict: gateReport.strict
-          },
-          fail_closed_text: !calibratedPass,
-          artifacts: {
-            model: '084c92dca9af2f09',
-            mapping_tables_version: 'v1.1'
-          }
-        };
-        console.log('[COMPOSE_OBS]', JSON.stringify(logEntry));
-        logAudit({ evt: 'compose_done', ...logEntry });
-      } catch {}
-      
       // Unified Spec v1.1 explanation wrapper from text explainer
       const explanation = {
         spec: 'UnifiedSpecV1.1',
@@ -184,12 +184,54 @@ export class ComposeAPI {
       };
 
       // Hashes for control, audio, explanation, viz (deterministic)
+      const controlHash = 'sha256:' + this.sha256(JSON.stringify(payload));
       const hashes = {
-        control: 'sha256:' + this.sha256(JSON.stringify(payload)),
-        audio: 'sha256:' + this.sha256(audio.url + ':' + lengthSec.toString()),
+        control: controlHash,
+        audio: audio.sha256, // Use actual audio SHA256 from renderer
         explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
         viz: viz ? 'sha256:' + this.sha256(JSON.stringify(viz)) : null
       };
+
+      // Structured observability log (single line) - CRITICAL for soak diagnostics
+      try {
+        const calibratedPass = !!gateReport?.calibrated?.overall;
+        const strictPass = !!gateReport?.strict?.overall;
+        const templateId = (text as any)?.template_id;
+        const requestId = this.generateRequestId();
+        const logEntry = {
+          request_id: requestId,
+          compose_hash: payload.hash,
+          feature_checksum: controlHash,
+          gate_pass: calibratedPass,
+          audio_sha256: audio.sha256,
+          audio_ms: audio.latency_ms,
+          audio_bytes: audio.size_bytes,
+          phase: 'compose',
+          controls_hash: payload.hash,
+          seed_used: payload.hash,
+          template_id: templateId,
+          latency_ms: {
+            predict: gateReport.latency_ms.predict,
+            plan: gateReport.latency_ms.plan,
+            text_total: textMetricsMs,
+            audio: audio.latency_ms,
+            total: Number(totalLatency.toFixed(2)),
+          },
+          gate_scores: gateReport.scores,
+          gates: {
+            calibrated: gateReport.calibrated,
+            strict: gateReport.strict,
+          },
+          fail_closed_text: !calibratedPass,
+          artifacts: {
+            model: '084c92dca9af2f09',
+            mapping_tables_version: 'v1.1',
+          },
+          ml: mlLog,
+        };
+        console.log('[COMPOSE_OBS]', JSON.stringify(logEntry));
+        logAudit({ evt: 'compose_done', ...logEntry });
+      } catch {}
 
       const response = {
         controls: payload,
@@ -200,9 +242,12 @@ export class ComposeAPI {
         },
         gate_report: gateReport,
         audio: {
-          url: audio.url,
-          digest: hashes.audio,
-          latency_ms: totalLatency
+          format: audio.format,
+          base64: audio.base64,
+          sha256: audio.sha256,
+          digest: hashes.audio, // Keep for backward compatibility
+          latency_ms: audio.latency_ms,
+          size_bytes: audio.size_bytes
         },
         text: {
           blocks: text.blocks,
@@ -231,12 +276,19 @@ export class ComposeAPI {
             modelVersions: {
               audio: this.runtimeModel,
               text: 'v1.1',
-              viz: null, // TODO: Enable when viz engine is ready
+              viz: null,
               matching: 'v1.0'
             },
             houseSystem: 'placidus',
             tzDiscipline: 'utc'
           }
+        },
+        telemetry: {
+          ml_used: mlLog.ml_used,
+          inference_ms: mlLog.inference_ms,
+          model_version: mlLog.model_version,
+          model_sha: mlLog.model_sha,
+          tf_backend: mlLog.tf_backend,
         }
       } as any;
       
@@ -251,7 +303,8 @@ export class ComposeAPI {
       
       return response;
       
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ML_INFERENCE_UNAVAILABLE') throw error;
       throw new Error(`Compose API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -283,6 +336,43 @@ export class ComposeAPI {
       console.error('[COMPOSE] Failed to store viz artifact:', error);
       // Don't throw - composition can continue without viz storage
     }
+  }
+
+  /**
+   * Fetch EphemerisSnapshot from /api/chart-snapshot for real feature encoding.
+   */
+  private async fetchChartSnapshot(request: ComposeRequest): Promise<EphemerisSnapshot> {
+    const PORT = process.env.PORT || '3000';
+    const base = `http://localhost:${PORT}`;
+    let date: string;
+    let time: string;
+    let lat: number;
+    let lon: number;
+    const req = request as any;
+    if (req.mode === 'sky' && req.skyParams) {
+      const dt = req.skyParams.datetime || '';
+      const [d, t] = dt.split('T');
+      date = d || new Date().toISOString().slice(0, 10);
+      time = t ? t.slice(0, 5) : '12:00';
+      lat = req.skyParams.latitude ?? 40.7128;
+      lon = req.skyParams.longitude ?? -74.006;
+    } else if (req.mode === 'overlay' && req.overlayParams) {
+      const dt = req.overlayParams.currentDatetime || '';
+      const [d, t] = dt.split('T');
+      date = d || new Date().toISOString().slice(0, 10);
+      time = t ? t.slice(0, 5) : '12:00';
+      lat = req.overlayParams.currentLatitude ?? 40.7128;
+      lon = req.overlayParams.currentLongitude ?? -74.006;
+    } else {
+      date = req.chartData?.date || new Date().toISOString().slice(0, 10);
+      time = req.chartData?.time || '12:00';
+      lat = req.chartData?.lat ?? 40.7128;
+      lon = req.chartData?.lon ?? -74.006;
+    }
+    const q = new URLSearchParams({ date, time, lat: String(lat), lon: String(lon) });
+    const r = await fetch(`${base}/api/chart-snapshot?${q}`);
+    if (!r.ok) throw new Error(`chart-snapshot failed: ${r.status}`);
+    return r.json() as Promise<EphemerisSnapshot>;
   }
 
   /**
@@ -469,19 +559,7 @@ export class ComposeAPI {
     };
   }
 
-  /**
-   * Generate audio from plan (mock implementation)
-   */
-  private async generateAudio(plan: any, mode: string, seed: string): Promise<{ url: string; latency_ms: number }> {
-    // Deterministic latency and URL derived from seed
-    const rand = this.createSeededRNG(seed + '|audio');
-    const audioLatency = Number((12 + rand() * 8).toFixed(1)); // 12..20ms deterministic
-    const nonce = (seed || 'seed').slice(0, 12);
-    return {
-      url: `/api/audio/${nonce}.mp3`,
-      latency_ms: audioLatency
-    };
-  }
+  // generateAudio removed - now using renderWav60s from audio/wav-renderer.ts
 
   /**
    * Mock astro data fetching
@@ -621,11 +699,20 @@ export async function vnextCompose(req: any, res: any) {
     const request = req.body;
     const response = await composeAPI.compose(request);
     res.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[VNEXT_COMPOSE] Error:', error);
+    const code = error?.code;
+    if (code === 'ML_INFERENCE_UNAVAILABLE') {
+      res.status(503).json({
+        error: error?.message || 'ML inference unavailable',
+        code: 'ML_INFERENCE_UNAVAILABLE',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Unknown error',
-      code: 'VNEXT_COMPOSE_ERROR'
+      code: 'VNEXT_COMPOSE_ERROR',
     });
   }
 }

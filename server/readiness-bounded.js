@@ -19,7 +19,7 @@ class BoundedReadinessChecker {
     // 1. vNext handler mount (critical - must be fast)
     try {
       const composeMod = require('../lib/opt/optional').optionalRequire(
-        require('path').join(__dirname, '..', 'dist', 'vnext', 'api', 'compose')
+        require('path').join(__dirname, '..', 'dist', 'vnext', 'vnext', 'api', 'compose')
       );
       checks.vnext_handler = {
         status: composeMod?.vnextCompose ? 'ready' : 'not_ready',
@@ -56,28 +56,29 @@ class BoundedReadinessChecker {
     }
 
     // 3. Storage writeability (critical - must be fast)
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const exportsDir = path.join(__dirname, '..', 'exports');
-      if (!fs.existsSync(exportsDir)) {
-        fs.mkdirSync(exportsDir, { recursive: true });
+    const fs = require('fs');
+    const path = require('path');
+    const exportsDir = process.env.EXPORT_ROOT || path.join(process.cwd(), 'exports');
+
+    function tryWriteProbe() {
+      try {
+        if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true });
+        const p = `${exportsDir}/.readyz-probe`;
+        fs.writeFileSync(p, String(Date.now()));
+        fs.unlinkSync(p);
+        return { storage_write: 'ok' };
+      } catch (e) {
+        return { storage_write: `fail: ${e.message}` };
       }
-      const testFile = path.join(exportsDir, '.readiness-test');
-      fs.writeFileSync(testFile, 'test');
-      fs.unlinkSync(testFile);
-      checks.storage_write = {
-        status: 'ready',
-        duration: Date.now() - startTime
-      };
-    } catch (error) {
-      checks.storage_write = {
-        status: 'error',
-        error: error.message,
-        duration: Date.now() - startTime
-      };
-      allReady = false;
     }
+
+    const writeResult = tryWriteProbe();
+    checks.storage_write = {
+      status: writeResult.storage_write === 'ok' ? 'ready' : 'error',
+      ...writeResult,
+      duration: Date.now() - startTime
+    };
+    if (writeResult.storage_write !== 'ok') allReady = false;
 
     // 4. Memory check (non-critical but fast)
     try {

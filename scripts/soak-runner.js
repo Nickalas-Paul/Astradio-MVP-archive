@@ -152,7 +152,7 @@ class SoakRunner {
 
     try {
       const response = await this.withRetry(() => 
-        this.makeRequest(`${CONFIG.baseUrl}/api/compose`, {
+        this.makeRequest(`${CONFIG.baseUrl}/api/render`, {
           method: 'POST',
           body: JSON.stringify({
             date: chart.date,
@@ -221,7 +221,7 @@ class SoakRunner {
       timestamp: result.timestamp,
       chart: chart,
       request: {
-        url: `${CONFIG.baseUrl}/api/compose`,
+        url: `${CONFIG.baseUrl}/api/render`,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

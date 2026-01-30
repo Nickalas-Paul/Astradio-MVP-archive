@@ -12,12 +12,13 @@ const { optionalRequire, noopMiddleware, noopRouter } = require('../lib/opt/opti
 const noopMw = noopMiddleware();
 const noopRouterInstance = noopRouter();
 
-const composeMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "compose"));
-const shadowMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "shadow"));
-const canaryMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "canary"));
-const renderMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "render"));
-const healthMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "health"));
-const astroDebugMod = optionalRequire(path.join(__dirname, "..", "dist", "vnext", "api", "astro-debug"));
+const vnextRoot = path.join(__dirname, "..", "dist", "vnext", "vnext");
+const composeMod = optionalRequire(path.join(vnextRoot, "api", "compose"));
+const shadowMod = optionalRequire(path.join(vnextRoot, "api", "shadow"));
+const canaryMod = optionalRequire(path.join(vnextRoot, "api", "canary"));
+const renderMod = optionalRequire(path.join(vnextRoot, "api", "render"));
+const healthMod = optionalRequire(path.join(vnextRoot, "api", "health"));
+const astroDebugMod = optionalRequire(path.join(vnextRoot, "api", "astro-debug"));
 
 const vnextCompose = composeMod?.vnextCompose || ((req, res) => res.status(501).json({ ok: false, error: "compose_unavailable" }));
 const shadowMiddleware = shadowMod?.shadowMiddleware || noopMw;
@@ -59,15 +60,29 @@ if (DEPRECATE_LEGACY) {
   });
 }
 
-// vNext Model Health Check (startup validation)
+// vNext Model Health Check (startup validation).
+// Before: health module did not exist, so validateModelRequirements was always the
+// in-server fallback { backend: 'noop', sha256: 'dev' } → startup showed noop/dev.
+// Now: health module runs one real inference and logs actual backend + model_sha.
+// ML_REQUIRED=1: fail fast if no real model (no silent noop).
 (async () => {
   try {
     const info = await validateModelRequirements();
     console.log(`[vNext] TF backend=${info.backend} model_sha=${info.sha256} out=${JSON.stringify(info.outShape)}`);
+    const mlRequired = process.env.ML_REQUIRED === "1";
+    if (mlRequired) {
+      const noop = (info.backend || "").toLowerCase() === "noop";
+      const devSha = /^(dev|local|unknown)$/i.test(String(info.sha256 || "").trim());
+      if (noop || devSha) {
+        console.error("[vNext] ML_REQUIRED=1 but model is noop/dev. Refusing to start.");
+        console.error("[vNext] Ensure models/student-v2.2/model.json (and group1-shard1of1.bin) exist, or set VNEXT_MODEL_PATH.");
+        process.exit(1);
+      }
+    }
   } catch (e) {
     console.error("vNext model health check failed:", e.message);
-    if (process.env.STRICT_ML === "true") {
-      console.error("STRICT_ML enabled - refusing to start without valid model");
+    if (process.env.ML_REQUIRED === "1" || process.env.STRICT_ML === "true") {
+      console.error("ML_REQUIRED=1 or STRICT_ML enabled - refusing to start without valid model");
       process.exit(1);
     } else {
       console.warn("Continuing in dev mode with fallback enabled");
@@ -1039,6 +1054,65 @@ app.get("/chart", (req, res) => {
   }
 });
 
+// EphemerisSnapshot-shaped JSON for ML feature encoding (sky mode)
+const PLANET_ORDER = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto'];
+function moonPhaseNorm(jd) {
+  try {
+    const sunResult = swe.swe_calc_ut(jd, swe.SE_SUN, swe.SEFLG_SWIEPH);
+    const moonResult = swe.swe_calc_ut(jd, swe.SE_MOON, swe.SEFLG_SWIEPH);
+    if (sunResult.rc < 0 || moonResult.rc < 0) return 0.5;
+    const sunLon = sunResult.longitude ?? sunResult.xx?.[0] ?? 0;
+    const moonLon = moonResult.longitude ?? moonResult.xx?.[0] ?? 0;
+    let phase = (moonLon - sunLon) / 360;
+    if (phase < 0) phase += 1;
+    return phase;
+  } catch (e) { return 0.5; }
+}
+
+app.get("/api/chart-snapshot", (req, res) => {
+  try {
+    const date = normalizeDate(req.query.date);
+    const time = normalizeTime(req.query.time || "12:00");
+    const lat = parseFloat(req.query.lat);
+    const lon = parseFloat(req.query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return res.status(400).json({ error: "Valid lat/lon required" });
+    }
+    const jd = toJulianDayUT(date, time, lat, lon);
+    const positions = calcPositions(jd, true);
+    const cusps = calcPlacidusCusps(jd, lat, lon);
+    const aspects = calcAspects(positions);
+    const dominantElements = calcDominantElements(positions);
+    const moonPhase = moonPhaseNorm(jd);
+    const planets = PLANET_ORDER.filter((n) => positions[n] != null).map((name) => ({
+      name,
+      lon: positions[name]
+    }));
+    const houses = cusps.length === 12 ? cusps : Array.from({ length: 12 }, (_, i) => i * 30);
+    const snapshot = {
+      ts: `${date}T${time}:00Z`,
+      tz: "UTC",
+      lat,
+      lon,
+      houseSystem: "placidus",
+      planets,
+      houses,
+      aspects: aspects.map((a) => ({ a: a.p1, b: a.p2, type: a.type, orb: a.orb })),
+      moonPhase,
+      dominantElements: {
+        fire: dominantElements.fire ?? 0.25,
+        earth: dominantElements.earth ?? 0.25,
+        air: dominantElements.air ?? 0.25,
+        water: dominantElements.water ?? 0.25
+      }
+    };
+    res.json(snapshot);
+  } catch (e) {
+    console.error("Error in /api/chart-snapshot:", e);
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ 
@@ -1048,14 +1122,50 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Rate limiting middleware
+// ML status (proof: tf_backend, model_sha, ml_used, inference_ms, model_path_hint)
+app.get("/api/ml-status", async (req, res) => {
+  if (!healthMod?.getMLStatus) {
+    return res.status(501).json({ error: "ml_status_unavailable", message: "vnext health module not loaded" });
+  }
+  try {
+    const payload = await healthMod.getMLStatus();
+    res.json(payload);
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+// Rate limiting middleware for /api/compose
+// Dev-only: DISABLE_RATE_LIMIT=1 or SOAK_MODE=1 disables limiter when NODE_ENV=development.
+// Dev-only: COMPOSE_RPM sets requests per minute (>=60) for soak; production limits unchanged.
+const isDev = process.env.NODE_ENV !== 'production';
+const skipComposeLimit = isDev && (process.env.DISABLE_RATE_LIMIT === '1' || process.env.SOAK_MODE === '1');
+const composeRpm = process.env.COMPOSE_RPM ? Math.max(60, parseInt(process.env.COMPOSE_RPM, 10) || 60) : null;
+const composeWindowMs = composeRpm ? 60 * 1000 : 15 * 60 * 1000;
+const composeMax = composeRpm || 10;
 
 const composeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  message: { error: 'Too many composition requests', retryAfter: 900 },
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: composeWindowMs,
+  max: composeMax,
+  message: { error: 'Too many composition requests', retryAfter: Math.ceil(composeWindowMs / 1000) },
+  standardHeaders: 'draft-8',
+  legacyHeaders: true,
+  requestPropertyName: 'rateLimit',
+  skip: () => skipComposeLimit,
+  handler: (req, res) => {
+    const rl = req.rateLimit || {};
+    const resetTime = rl.resetTime;
+    const resetMs = resetTime instanceof Date ? Math.max(0, resetTime.getTime() - Date.now()) : composeWindowMs;
+    const retryAfterSec = Math.ceil(resetMs / 1000);
+    console.log('route=/api/compose key=%s limit=%s remaining=%s resetMs=%s', req.ip || '', rl.limit ?? '', rl.remaining ?? '', resetMs);
+    if (!res.headersSent) {
+      res.setHeader('Retry-After', String(retryAfterSec));
+      res.setHeader('X-RateLimit-Limit', String(rl.limit ?? composeMax));
+      res.setHeader('X-RateLimit-Remaining', String(rl.remaining ?? 0));
+      if (resetTime instanceof Date) res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetTime.getTime() / 1000)));
+    }
+    res.status(429).json({ error: 'Too many composition requests', retryAfter: retryAfterSec });
+  },
 });
 
 const socialLimiter = rateLimit({

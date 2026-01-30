@@ -25,6 +25,66 @@ curl "http://localhost:3000?viz=0"
 # Monitor for abuse
 ```
 
+## Run soak locally (zero 429)
+
+The `/api/compose` rate limiter allows 10 requests per 15 minutes by default, which is too strict for soak (8–12 requests/min for 30 minutes). In **development only**, use one of the following so soak sees 0×429.
+
+### Backend: enable soak-friendly limits (dev only)
+
+Start the backend with `NODE_ENV=development` and either disable the compose limiter or raise the limit:
+
+**Option A – disable compose rate limit (soak / load testing):**
+```powershell
+# PowerShell (Windows)
+$env:NODE_ENV="development"; $env:DISABLE_RATE_LIMIT="1"; node server/index.js
+```
+```bash
+# Bash (Linux / macOS / WSL)
+NODE_ENV=development DISABLE_RATE_LIMIT=1 node server/index.js
+```
+Alternatively use `SOAK_MODE=1` instead of `DISABLE_RATE_LIMIT=1`.
+
+**Option B – higher limit (e.g. 72 requests per minute):**
+```powershell
+# PowerShell (Windows)
+$env:NODE_ENV="development"; $env:COMPOSE_RPM="72"; node server/index.js
+```
+```bash
+# Bash (Linux / macOS / WSL)
+NODE_ENV=development COMPOSE_RPM=72 node server/index.js
+```
+
+Production limits are unchanged; these env vars apply only when `NODE_ENV=development`.
+
+### 2-minute smoke (5–8s jitter, 0×429 expected)
+
+```powershell
+# PowerShell – from repo root (or soak-only-repo)
+$env:BASE_URL="http://localhost:3000"; $env:SOAK_DURATION_MINUTES="2"; $env:SOAK_SLEEP_MIN_MS="5000"; $env:SOAK_SLEEP_MAX_MS="8000"; node soak-only-repo/scripts/soak-runner.js
+```
+```bash
+# Bash – from repo root (or soak-only-repo)
+BASE_URL=http://localhost:3000 SOAK_DURATION_MINUTES=2 SOAK_SLEEP_MIN_MS=5000 SOAK_SLEEP_MAX_MS=8000 node soak-only-repo/scripts/soak-runner.js
+```
+
+If the soak runner lives in the main repo:
+```bash
+BASE_URL=http://localhost:3000 SOAK_DURATION_MINUTES=2 SOAK_SLEEP_MIN_MS=5000 SOAK_SLEEP_MAX_MS=8000 node scripts/soak-runner.js
+```
+
+### 30-minute soak (5–8s jitter, 0×429 expected)
+
+```powershell
+# PowerShell
+$env:BASE_URL="http://localhost:3000"; $env:SOAK_DURATION_MINUTES="30"; $env:SOAK_SLEEP_MIN_MS="5000"; $env:SOAK_SLEEP_MAX_MS="8000"; node soak-only-repo/scripts/soak-runner.js
+```
+```bash
+# Bash
+BASE_URL=http://localhost:3000 SOAK_DURATION_MINUTES=30 SOAK_SLEEP_MIN_MS=5000 SOAK_SLEEP_MAX_MS=8000 node soak-only-repo/scripts/soak-runner.js
+```
+
+Ensure the backend is started with one of the dev overrides above (e.g. `DISABLE_RATE_LIMIT=1` or `COMPOSE_RPM=72`) before running smoke or 30-min soak.
+
 ## Health Checks
 
 ### Application Health
@@ -74,8 +134,11 @@ curl http://localhost:3000/readyz | jq '.checks'
 grep "model" logs/app.log | tail -20
 ```
 
-#### 2. Rate Limit False Positives
+#### 2. Rate Limit False Positives (including /api/compose 429)
 ```bash
+# Check 429s for /api/compose (log line: route=/api/compose key= limit= remaining= resetMs=)
+grep "route=/api/compose" logs/app.log | tail -10
+
 # Check rate limit buckets
 grep "RATE_LIMITED" logs/app.log | tail -10
 
@@ -83,6 +146,7 @@ grep "RATE_LIMITED" logs/app.log | tail -10
 pkill -f "npm start"
 npm start
 ```
+For local soak without 429, see **Run soak locally (zero 429)** above: start backend with `NODE_ENV=development` and `DISABLE_RATE_LIMIT=1` or `SOAK_MODE=1` or `COMPOSE_RPM=72`.
 
 #### 3. CSRF Token Issues
 ```bash
@@ -160,8 +224,11 @@ curl -X POST http://localhost:3000/api/compose \
 # Monitor abuse patterns
 grep "RATE_LIMITED" logs/app.log | tail -100
 
-# Adjust limits based on usage
-# Update RATE_LIMIT_MAX in route handlers
+# /api/compose 429s (log line includes key, limit, remaining, resetMs)
+grep "route=/api/compose" logs/app.log | grep "limit="
+
+# Dev only: disable compose limit (DISABLE_RATE_LIMIT=1 or SOAK_MODE=1) or set COMPOSE_RPM (e.g. 72).
+# See "Run soak locally (zero 429)" in this runbook.
 ```
 
 ### Origin Validation
