@@ -85,6 +85,56 @@ BASE_URL=http://localhost:3000 SOAK_DURATION_MINUTES=30 SOAK_SLEEP_MIN_MS=5000 S
 
 Ensure the backend is started with one of the dev overrides above (e.g. `DISABLE_RATE_LIMIT=1` or `COMPOSE_RPM=72`) before running smoke or 30-min soak.
 
+## vNext ML model and assets
+
+### Model files
+
+- **Location:** `models/student-v2.2/`
+- **Required files:**
+  - `model.json` – TFJS layers topology
+  - `group1-shard1of1.bin` – weights (required for inference)
+  - `metadata.json` – optional provenance
+
+### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `VNEXT_MODEL_PATH` | Absolute path to model dir, or path to `model.json`. Overrides default lookup. |
+| `RUNTIME_MODEL` | Model ID under `models/` (default: `student-v2.8-slice-batch`). Falls back to `student-v2.2` if invalid. |
+| `ML_REQUIRED` | Set to `1` to fail startup if no real model loads (no noop/dev). |
+
+### Runtime model path
+
+1. If `VNEXT_MODEL_PATH` is set and points to a valid TFJS layers `model.json`, that dir is used.
+2. Else: `process.cwd()/models/{RUNTIME_MODEL}/model.json` or fallback `models/student-v2.2/model.json`.
+
+### Render filesystem layout
+
+```
+/opt/render/project/src/
+├── models/student-v2.2/
+│   ├── model.json
+│   ├── group1-shard1of1.bin
+│   └── metadata.json
+├── dist/vnext/vnext/
+│   ├── api/compose.js
+│   ├── explainer/
+│   │   ├── atoms-generator.js
+│   │   ├── text-realizer.js
+│   │   └── mapping-tables-v1.json   ← copied at build
+│   └── ml/index.js
+└── server/index.js
+```
+
+`mapping-tables-v1.json` is copied into `dist/vnext/vnext/explainer/` by `npm run vnext:build` (via `scripts/copy-vnext-assets.js`).
+
+### Verify ML status
+
+```bash
+curl http://localhost:3000/api/ml-status
+# Expect: tf_backend != noop, model_sha != dev
+```
+
 ## Health Checks
 
 ### Application Health

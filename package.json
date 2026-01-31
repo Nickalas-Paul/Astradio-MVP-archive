@@ -14,7 +14,7 @@
     "dev": "nodemon server/index.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "vnext:build": "tsc -p vnext/tsconfig.json",
+    "vnext:build": "tsc -p vnext/tsconfig.json && node scripts/copy-vnext-assets.js",
     "build:server": "tsc -p tsconfig.server.json",
     "typecheck": "tsc --noEmit",
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",

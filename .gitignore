@@ -116,8 +116,9 @@ exports/*
 *.tar.gz
 *.7z
 
-# Model files
+# Model files (student-v2.2 weights required for vNext runtime)
 models/*.bin
+!models/student-v2.2/group1-shard1of1.bin
 models/*.h5
 models/*.pkl
 models/*.joblib
