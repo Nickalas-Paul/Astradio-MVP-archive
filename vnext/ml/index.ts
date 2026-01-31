@@ -45,12 +45,58 @@ function modelSha(jsonPath: string): string {
 }
 
 /**
- * Resolve model directory: VNEXT_MODEL_PATH (env) > RUNTIME_MODEL > student-v2.2 fallback.
- * Noop/dev happened before because (1) server had no health module so startup always used
- * fallback { backend: 'noop', sha256: 'dev' }; (2) RUNTIME_MODEL default pointed at
- * student-v2.8-slice-batch which is training metadata, not TFJS layers, so we fell back
- * to student-v2.2. This fix adds VNEXT_MODEL_PATH and a real health probe so startup shows
- * actual backend/sha and ML_REQUIRED=1 fails fast when no model is loadable.
+ * ML preflight: log cwd, env, path existence, and resolved path before any load.
+ * Runs even if ML will fail closed so Render logs show the truth.
+ */
+export function logMlPreflight(): void {
+  const cwd = process.cwd();
+  const vnextPath = process.env.VNEXT_MODEL_PATH ?? '<unset>';
+  const runtimeModel = process.env.RUNTIME_MODEL ?? '<unset>';
+
+  const cwdModelsJson = path.join(cwd, 'models', 'student-v2.2', 'model.json');
+  const cwdModelsBin = path.join(cwd, 'models', 'student-v2.2', 'group1-shard1of1.bin');
+  const distModelsJson = path.join(cwd, 'dist', 'models', 'student-v2.2', 'model.json');
+  const distModelsBin = path.join(cwd, 'dist', 'models', 'student-v2.2', 'group1-shard1of1.bin');
+
+  const cwdJsonExists = fs.existsSync(cwdModelsJson);
+  const cwdBinExists = fs.existsSync(cwdModelsBin);
+  const distJsonExists = fs.existsSync(distModelsJson);
+  const distBinExists = fs.existsSync(distModelsBin);
+
+  const safeSize = (p: string) => {
+    try {
+      return fs.existsSync(p) ? fs.statSync(p).size : 0;
+    } catch {
+      return -1;
+    }
+  };
+
+  const { dir, modelId } = resolveModelDir();
+  const resolvedJson = path.join(dir, 'model.json');
+  const resolvedBin = path.join(dir, 'group1-shard1of1.bin');
+
+  console.log('[ML_PREFLIGHT]', JSON.stringify({
+    process_cwd: cwd,
+    VNEXT_MODEL_PATH: vnextPath,
+    RUNTIME_MODEL: runtimeModel,
+    models_student_v22_model_json_cwd: cwdJsonExists,
+    models_student_v22_bin_cwd: cwdBinExists,
+    dist_models_student_v22_model_json: distJsonExists,
+    dist_models_student_v22_bin: distBinExists,
+    resolved_model_dir: dir,
+    resolved_model_id: modelId,
+    resolved_model_json: resolvedJson,
+    resolved_bin: resolvedBin,
+    resolved_json_exists: fs.existsSync(resolvedJson),
+    resolved_bin_exists: fs.existsSync(resolvedBin),
+    resolved_json_size: safeSize(resolvedJson),
+    resolved_bin_size: safeSize(resolvedBin),
+  }));
+}
+
+/**
+ * Resolve model directory: VNEXT_MODEL_PATH (env) > dist/models (production) > models (local dev).
+ * On Render, models are copied into dist/ during build; cwd/models may be absent.
  */
 function resolveModelDir(): { dir: string; modelId: string } {
   const envPath = process.env.VNEXT_MODEL_PATH;
@@ -67,21 +113,31 @@ function resolveModelDir(): { dir: string; modelId: string } {
     console.warn(`[ML] VNEXT_MODEL_PATH not valid TFJS layers or missing: ${toModelJson}`);
   }
 
+  const cwd = process.cwd();
+  const distModelsJson = path.join(cwd, 'dist', 'models', 'student-v2.2', 'model.json');
+  const cwdModelsJson = path.join(cwd, 'models', 'student-v2.2', 'model.json');
+
+  if (fs.existsSync(distModelsJson) && isTfjsLayersModelJson(distModelsJson)) {
+    const dir = path.dirname(distModelsJson);
+    console.log(`[ML] Using dist/models (production): ${dir}`);
+    return { dir, modelId: 'student-v2.2' };
+  }
+  if (fs.existsSync(cwdModelsJson) && isTfjsLayersModelJson(cwdModelsJson)) {
+    const dir = path.dirname(cwdModelsJson);
+    console.log(`[ML] Using models (local dev): ${dir}`);
+    return { dir, modelId: 'student-v2.2' };
+  }
+
   const id = process.env.RUNTIME_MODEL || 'student-v2.8-slice-batch';
-  const base = path.resolve(process.cwd(), 'models');
+  const base = path.resolve(cwd, 'models');
   const candidate = path.join(base, id, 'model.json');
   const fallback = path.join(base, 'student-v2.2', 'model.json');
 
   if (fs.existsSync(candidate) && isTfjsLayersModelJson(candidate)) {
     return { dir: path.dirname(candidate), modelId: id };
   }
-  if (fs.existsSync(fallback) && isTfjsLayersModelJson(fallback)) {
-    if (id !== 'student-v2.2') {
-      console.log(`[ML] Using fallback model path: models/student-v2.2 (RUNTIME_MODEL ${id} not valid TFJS layers)`);
-    }
-    return { dir: path.dirname(fallback), modelId: 'student-v2.2' };
-  }
-  return { dir: path.dirname(fallback), modelId: 'student-v2.2' };
+  const fallbackDir = path.dirname(fallback);
+  return { dir: fallbackDir, modelId: 'student-v2.2' };
 }
 
 /** Node-only: fs-based IOHandler so we can load models without tfjs-node native addon. */
