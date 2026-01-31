@@ -48,7 +48,8 @@ function jitter(v: number[], sigma: number, rand: () => number) {
 
 
 export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): Promise<{ plan: Plan; source: string; diag: any }> {
-  const { vector: base, modelVersion } = await studentVector(feat); // [6] in [0,1]
+  const mlResult = await studentVector(feat); // [6] in [0,1]
+  const { vector: base, modelVersion } = mlResult;
   
   // Compute astrological guidance if chartContext provided
   let guidance: any = undefined;
@@ -97,15 +98,19 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
     err.statusCode = 422; err.diag = diag;
     throw err;
   }
-  return { 
-    plan: best.plan, 
-    source: `student-${modelVersion}+rerank`, 
-    diag: { 
+  return {
+    plan: best.plan,
+    source: `student-${modelVersion}+rerank`,
+    diag: {
       scores: scored.map(s => s.q.score),
       modelVersion,
       modelSource: modelVersion,
-      canaryInfo: modelVersion === 'v2' ? 'canary-active' : 'baseline'
-    } 
+      canaryInfo: modelVersion === 'v2' ? 'canary-active' : 'baseline',
+      ml_used: mlResult.ml_used,
+      tf_backend: mlResult.tf_backend,
+      model_sha: mlResult.model_sha,
+      inference_ms: mlResult.inference_ms,
+    },
   };
 }
 
