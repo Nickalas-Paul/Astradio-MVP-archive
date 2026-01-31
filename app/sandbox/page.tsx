@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { getApiBaseUrl } from '../../src/core/api-base';
 import { AppShell } from '../../src/components/AppShell';
 import { WheelCanvas } from '../../src/components/WheelCanvas';
 import { GenerateCard } from '../../src/components/GenerateCard';
@@ -45,7 +46,8 @@ export default function SandboxPage() {
           seed: Date.now()
         };
         
-        const response = await fetch('/api/compose', {
+        const base = getApiBaseUrl();
+        const response = await fetch(`${base || ''}/api/compose`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(compositionRequest)

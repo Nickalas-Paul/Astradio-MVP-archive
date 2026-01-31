@@ -90,8 +90,9 @@ export async function POST(req: Request) {
     };
 
     // Proxy to unified vNext ComposeAPI on Express (engine of record)
-    const engineBase = process.env.ENGINE_BASE_URL || 'http://localhost:3000';
-    const r = await fetch(`${engineBase}/api/compose`, {
+    const engineBase = process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:3000';
+    const base = (engineBase as string).replace(/\/$/, '');
+    const r = await fetch(`${base}/api/compose`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(composeRequest)

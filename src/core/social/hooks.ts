@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { getApiBaseUrl } from '../api-base';
 import { SocialAPI } from './mock-api';
 import type { User, Circle, LibraryItem, Playlist, Favorite, Session, UserActivity, LibraryStats } from './types';
 import type { CompatMatch } from '../compat/types';
@@ -304,7 +305,8 @@ export function useCompat(params: {
         });
       }
       
-      const response = await fetch(`/api/compat/matches?${queryParams.toString()}`, {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/compat/matches?${queryParams.toString()}`, {
         method: 'GET',
         signal: abortController.signal,
         credentials: 'same-origin'
@@ -347,7 +349,8 @@ export function useTrending(params: {
     const fetchTrending = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/trending?window=${params.window}&genre=${params.genre || ''}`, {
+        const base = getApiBaseUrl();
+        const response = await fetch(`${base || ''}/api/trending?window=${params.window}&genre=${params.genre || ''}`, {
           signal: abortController.signal,
           credentials: 'same-origin'
         });
@@ -387,7 +390,8 @@ export function useSocialFeed(params: {
     
     try {
       setIsLoading(true);
-      let url = '/api/community/feed';
+      const base = getApiBaseUrl();
+      let url = (base || '') + '/api/community/feed';
       const searchParams = new URLSearchParams();
       if (params.since) searchParams.set('since', params.since);
       if (params.cursor) searchParams.set('cursor', params.cursor);
@@ -438,7 +442,8 @@ export function useSocialActions() {
 
   const accept = useCallback(async (requestId: string) => {
     try {
-      const response = await fetch(`/api/connect/accept/${requestId}`, {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/connect/accept/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin'
@@ -466,7 +471,8 @@ export function useSocialActions() {
 
   const like = useCallback(async (itemId: string) => {
     try {
-      const response = await fetch(`/api/like/${itemId}`, {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/like/${itemId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin'
@@ -480,7 +486,8 @@ export function useSocialActions() {
 
   const report = useCallback(async (itemId: string, reason: string) => {
     try {
-      const response = await fetch('/api/report', {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId, reason }),

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 // use relative imports to avoid alias issues
+import { getApiBaseUrl } from '../src/core/api-base';
 import HeaderTabs from '../src/components/HeaderTabs';
 import WheelCanvas from '../src/components/WheelCanvas';
 import ExplanationPanel from '../src/components/ExplanationPanel';
@@ -32,6 +33,30 @@ export default function HomePage() {
   const [locationStr, setLocationStr] = useState<string>('');
   const [geo, setGeo] = useState<GeoState>({ status: 'idle', lat: null, lon: null });
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+  const audioBlobUrlRef = useRef<string | null>(null);
+  const toneSeqRef = useRef<any>(null);
+  const toneModuleRef = useRef<typeof import('tone') | null>(null);
+
+  async function getTone(): Promise<typeof import('tone') | null> {
+    if (typeof window === 'undefined') return null;
+    if (toneModuleRef.current) return toneModuleRef.current;
+    try {
+      const T = await import('tone');
+      toneModuleRef.current = T;
+      return T;
+    } catch {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (audioBlobUrlRef.current) {
+        URL.revokeObjectURL(audioBlobUrlRef.current);
+        audioBlobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   // 1) defaults: today / now / geolocation
   useEffect(() => {
@@ -71,7 +96,8 @@ export default function HomePage() {
         if (geo.status === 'ok') body.geo = { lat: geo.lat, lon: geo.lon };
 
         const startTime = performance.now();
-        const res = await fetch('/api/compose', {
+        const base = getApiBaseUrl();
+        const res = await fetch(`${base || ''}/api/compose`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -96,14 +122,48 @@ export default function HomePage() {
           }
           
           setSpecVersion(responseSpec || null);
-          setChartData(payload?.controlSurface ?? null);
-          setComposeHash(payload?.hash ?? '');
+          // Backend returns "controls"; accept both controlSurface (legacy) and controls
+          setChartData(payload?.controlSurface ?? payload?.controls ?? null);
+          setComposeHash(payload?.controls?.hash ?? payload?.hash ?? '');
           if (payload?.explanation?.text) setExplanationText(payload.explanation.text);
-          if (payload?.audio?.url) setAudioUrl(payload.audio.url);
-          
+          else if (payload?.explanation?.sections?.length) {
+            setExplanationText(payload.explanation.sections.map((s: { text?: string }) => s?.text ?? '').filter(Boolean).join('\n\n'));
+          }
+          // Prefer URL; when backend returns inline WAV (ENABLE_WAV_EXPORT=1), use base64 as blob URL
+          if (payload?.audio?.url) {
+            if (audioBlobUrlRef.current) {
+              URL.revokeObjectURL(audioBlobUrlRef.current);
+              audioBlobUrlRef.current = null;
+            }
+            setAudioUrl(payload.audio.url);
+          } else if (payload?.audio?.base64 && typeof payload.audio.base64 === 'string' && payload.audio.base64.length > 0) {
+            try {
+              if (audioBlobUrlRef.current) {
+                URL.revokeObjectURL(audioBlobUrlRef.current);
+                audioBlobUrlRef.current = null;
+              }
+              const bin = atob(payload.audio.base64);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const blob = new Blob([bytes], { type: 'audio/wav' });
+              const blobUrl = URL.createObjectURL(blob);
+              audioBlobUrlRef.current = blobUrl;
+              setAudioUrl(blobUrl);
+            } catch (_) {
+              setAudioUrl(null);
+            }
+          } else {
+            if (audioBlobUrlRef.current) {
+              URL.revokeObjectURL(audioBlobUrlRef.current);
+              audioBlobUrlRef.current = null;
+            }
+            setAudioUrl(null);
+          }
+
           // Update location label if we have coordinates but no human-readable label
-          if (geo.status === 'ok' && locationStr === 'Current Location' && payload?.controlSurface?.location) {
-            setLocationStr(payload.controlSurface.location);
+          const surface = payload?.controlSurface ?? payload?.controls;
+          if (geo.status === 'ok' && locationStr === 'Current Location' && surface?.location) {
+            setLocationStr(surface.location);
           }
         }
       } catch (e) {
@@ -125,7 +185,8 @@ export default function HomePage() {
     async function resolveLabel() {
       if (geo.status === 'ok' && locationStr === 'Current Location') {
         try {
-          const r = await fetch(`/api/ip-geo`);
+          const base = getApiBaseUrl();
+          const r = await fetch(`${base || ''}/api/ip-geo`);
           const j = await r.json();
           if (!cancelled && j && j.city) {
             setLocationStr(j.city);
@@ -141,7 +202,7 @@ export default function HomePage() {
   useEffect(() => {
     let audioElement: HTMLAudioElement | null = null;
     
-    function handlePlay() {
+    async function handlePlay() {
       try {
         const audioStartTime = performance.now();
         // Audio Path Priority: URL first (Beta), then plan fallback
@@ -154,36 +215,37 @@ export default function HomePage() {
             console.log(`[telemetry] audio_startup_ms: ${startupTime.toFixed(2)}`);
           }).catch(e => {
             console.warn('[audio] URL playback failed, falling back to plan:', e);
-            // Fallback to plan if URL fails
             startPlanFallback();
           });
         } else {
-          // Fallback: Tone.js plan-based synthesis
-          startPlanFallback();
+          // Fallback: Tone.js plan-based synthesis (module import)
+          await startPlanFallback();
         }
       } catch (e) {
         console.warn('[audio] play failed', e);
       }
     }
-    
-    function startPlanFallback() {
-      const g: any = typeof window !== 'undefined' ? (window as any) : {};
-      if (!g.Tone) return;
-      const Tone = g.Tone;
-      if (typeof Tone.start === 'function') Tone.start();
-      const seed = composeHash || 'seed';
-      const synth = new Tone.MembraneSynth().toDestination();
-      let i = 0;
-      const seq = new Tone.Loop((time: any) => {
-        const n = (i++ % 8);
-        const pitch = 48 + (n * 2);
-        synth.triggerAttackRelease(Tone.Frequency(pitch, 'midi'), '8n', time, 0.6);
-      }, '8n');
-      seq.start(0);
-      g.__astradio_seq = seq;
-      Tone.Transport.start();
+
+    async function startPlanFallback() {
+      try {
+        const Tone = await getTone();
+        if (!Tone) return;
+        if (typeof Tone.start === 'function') await Tone.start();
+        const synth = new Tone.MembraneSynth().toDestination();
+        let i = 0;
+        const seq = new Tone.Loop((time: number) => {
+          const n = (i++ % 8);
+          const pitch = 48 + (n * 2);
+          synth.triggerAttackRelease(Tone.Frequency(pitch, 'midi'), '8n', time, 0.6);
+        }, '8n');
+        seq.start(0);
+        toneSeqRef.current = seq;
+        Tone.Transport.start();
+      } catch (e) {
+        console.warn('[audio] Tone fallback failed', e);
+      }
     }
-    
+
     function handleStop() {
       try {
         if (audioElement) {
@@ -191,15 +253,13 @@ export default function HomePage() {
           audioElement.currentTime = 0;
           audioElement = null;
         } else {
-          // Stop Tone.js fallback
-          const g: any = typeof window !== 'undefined' ? (window as any) : {};
-          const Tone = g.Tone;
-          if (g.__astradio_seq) { 
-            g.__astradio_seq.stop(); 
-            g.__astradio_seq.dispose?.(); 
-            g.__astradio_seq = null; 
+          if (toneSeqRef.current) {
+            toneSeqRef.current.stop();
+            toneSeqRef.current.dispose?.();
+            toneSeqRef.current = null;
           }
-          Tone?.Transport?.stop();
+          const Tone = toneModuleRef.current;
+          if (Tone?.Transport) Tone.Transport.stop();
         }
       } catch (e) {
         console.warn('[audio] stop failed', e);
@@ -279,18 +339,11 @@ export default function HomePage() {
                 <button
                   className="px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50"
                   disabled={disabled}
-                  onClick={() => {
-                    // Enable audio context on first user gesture
+                  onClick={async () => {
                     try {
-                      if (typeof window !== 'undefined' && 'AudioContext' in window) {
-                        // Use Tone.js if available to satisfy autoplay policy
-                        const g: any = window as any;
-                        if (g.Tone && typeof g.Tone.start === 'function') {
-                          g.Tone.start();
-                        } else {
-                          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                          audioContext.resume();
-                        }
+                      const Tone = await getTone();
+                      if (Tone && typeof Tone.start === 'function') {
+                        await Tone.start();
                         setAudioEnabled(true);
                       }
                     } catch (e) {

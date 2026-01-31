@@ -9,6 +9,12 @@ export type TelemetryEvent =
   | { t: 'page_view'; route: string }
   | { t: 'feature_use'; feature: string; action: string };
 
+function getTelemetryEndpoint(): string {
+  if (typeof window === 'undefined') return '/api/telemetry';
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
+  return base ? `${base}/api/telemetry` : '/api/telemetry';
+}
+
 class TelemetryManager {
   private queue: (TelemetryEvent & { timestamp: number })[] = [];
   private config = { enabled: true, endpoint: '/api/telemetry', batchSize: 25, flushInterval: 30000 };
@@ -17,6 +23,7 @@ class TelemetryManager {
   private readonly MAX_QUEUE = 200;
 
   constructor() {
+    this.config.endpoint = getTelemetryEndpoint();
     this.startFlushTimer();
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => { void this.flush(true); });

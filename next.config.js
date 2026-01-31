@@ -1,15 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Proxy API requests to the existing Express server
+  // Proxy API requests to backend (Render or local). Build-time env sets destination.
   async rewrites() {
+    const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || '')
+      .replace(/\/$/, '');
+    const apiDest = apiBase || 'http://localhost:3000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3000/api/:path*',
+        destination: `${apiDest}/api/:path*`,
       },
       {
         source: '/chart',
-        destination: 'http://localhost:3000/chart',
+        destination: `${apiDest}/chart`,
       },
     ];
   },

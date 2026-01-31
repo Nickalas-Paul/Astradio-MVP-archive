@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { getApiBaseUrl } from '../core/api-base';
 import { useCompat } from '../core/social/hooks';
 import { isFeatureEnabled } from '../../core/config/flags';
 import { trackFeatureUse } from '../../core/telemetry';
@@ -24,7 +25,8 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
     
     try {
       // Generate two-chart composition for compatibility match
-      const response = await fetch('/api/compose', {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/compose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
