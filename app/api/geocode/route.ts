@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     }
 
     // Proxy to Express geocode endpoint
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || 'http://localhost:3000';
     const geocodeUrl = `${backendUrl}/geocode?q=${encodeURIComponent(query)}`;
     
     const response = await fetch(geocodeUrl, {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     }
 
     // Convert POST to GET and proxy to Express
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || 'http://localhost:3000';
     const geocodeUrl = `${backendUrl}/geocode?q=${encodeURIComponent(query)}`;
     
     const response = await fetch(geocodeUrl, {

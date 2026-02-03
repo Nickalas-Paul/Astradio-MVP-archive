@@ -428,7 +428,8 @@ export function useSocialFeed(params: {
 export function useSocialActions() {
   const connect = useCallback(async (userId: string, goal: string) => {
     try {
-      const response = await fetch(`/api/connect/${userId}?goal=${goal}`, {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/connect/${userId}?goal=${goal}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin'
@@ -457,7 +458,8 @@ export function useSocialActions() {
 
   const saveTrack = useCallback(async (trackId: string) => {
     try {
-      const response = await fetch(`/api/save/${trackId}`, {
+      const base = getApiBaseUrl();
+      const response = await fetch(`${base || ''}/api/save/${trackId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin'

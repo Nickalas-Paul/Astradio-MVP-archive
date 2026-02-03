@@ -51,8 +51,7 @@ const nextConfig = {
       },
     ];
   },
-  // Enable static exports for deployment
-  output: 'standalone',
+  // Vercel uses its own output; standalone is for self-hosted only.
   // Optimize bundle splitting
   webpack: (config, { isServer }) => {
     if (!isServer) {

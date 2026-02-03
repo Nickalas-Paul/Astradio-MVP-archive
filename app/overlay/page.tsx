@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { getApiBaseUrl } from '../../src/core/api-base';
 import { AppShell } from '../../src/components/AppShell';
 import { WheelCanvas } from '../../src/components/WheelCanvas';
 import { GenerateCard } from '../../src/components/GenerateCard';
@@ -27,7 +28,9 @@ export default function OverlayPage() {
         const date = now.toISOString().slice(0, 10);
         const time = now.toTimeString().slice(0, 5);
         
-        const todayResponse = await fetch(`/api/chart?date=${date}&time=${time}&lat=-34.6037&lon=-58.3816`);
+        const base = getApiBaseUrl();
+        const chartPath = base ? `${base}/chart` : '/api/chart';
+        const todayResponse = await fetch(`${chartPath}?date=${date}&time=${time}&lat=-34.6037&lon=-58.3816`);
         
         if (todayResponse.ok) {
           const todayData = await todayResponse.json();
@@ -49,7 +52,7 @@ export default function OverlayPage() {
         const natalDate = '1990-06-15';
         const natalTime = '14:30';
         
-        const natalResponse = await fetch(`/api/chart?date=${natalDate}&time=${natalTime}&lat=-34.6037&lon=-58.3816`);
+        const natalResponse = await fetch(`${chartPath}?date=${natalDate}&time=${natalTime}&lat=-34.6037&lon=-58.3816`);
         
         if (natalResponse.ok) {
           const natalData = await natalResponse.json();
