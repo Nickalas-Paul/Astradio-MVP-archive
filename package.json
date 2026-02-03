@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "engines": {
-    "node": ">=20.12.2",
+    "node": ">=20.12.2 <21",
     "npm": ">=10.0.0"
   },
   "description": "Astradio – single-process server (static + ephemeris via Swiss Ephemeris)",
@@ -43,10 +43,6 @@
     "ci:vnext": "npm run vnext:build && npm run vnext:materialize && npm run vnext:audition",
     "ci:quality": "npm run ci:vnext && npm run test:pipeline && npm run ci-path-guard && npm run enforce-thresholds",
     "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval",
-    "ui:dev": "next dev -p 3001",
-    "build": "next build",
-    "ui:build": "next build",
-    "ui:start": "next start -p 3001",
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "test:contract": "jest tests/engine-adapter.contract.test.ts",
     "test:e2e": "playwright test tests/e2e.smoke.spec.ts",
