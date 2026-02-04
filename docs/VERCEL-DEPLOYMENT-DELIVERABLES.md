@@ -100,3 +100,4 @@ Render Express uses allowlist from env: `CORS_ORIGINS` (comma-separated). Localh
 3. Expect: Request URL = `https://<vercel-app>.vercel.app/api/compose` (same-origin, not Render).
 4. Response: status 200, JSON with `telemetry.ml_used: true`. No CORS errors in Console.
 5. No 404s for /tone.js, /wheel.js, /tf.min.js (legacy script tags removed).
+6. **Wheel visual:** After compose, confirm glyph readability and house line visibility on dark background (palette in `apps/web/src/components/WheelCanvas.tsx` WHEEL_COLORS).

@@ -5,6 +5,16 @@ import { motion } from 'framer-motion';
 import type { WheelCanvasProps } from '../types';
 import { normalizeChartForWheel, type ChartForWheel } from '../core/chart-adapter';
 
+/** Visibility sanity: palette must read clearly on dark navy (bg ~#0C1320). Glyphs and house numbers need explicit light fill. */
+const WHEEL_COLORS = {
+  outerRingStroke: '#4a5a7a',
+  houseFill: '#1a2435',
+  houseStroke: '#3d4f6e',
+  houseNumberFill: '#b8c5d6',
+  planetGlyphFill: '#e8ecf1',
+  markerFill: '#e8ecf1',
+} as const;
+
 const PLANET_GLYPH: Record<string, string> = {
   sun: '\u2609',
   moon: '\u263D',
@@ -48,7 +58,7 @@ function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="w-full h-full">
       <g transform={`translate(${cx}, ${cy})`}>
-        <circle r={R_OUT} fill="none" stroke="#2a3a5a" strokeWidth={1} />
+        <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
         {chart.cusps.slice(0, 12).map((a0, i) => {
           const a1 = chart.cusps[(i + 1) % 12];
           const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
@@ -56,16 +66,17 @@ function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
             <g key={i}>
               <path
                 d={arcPath(R_OUT, R_IN, a0, a0 + span)}
-                fill="#111a2e"
-                stroke="#203052"
+                fill={WHEEL_COLORS.houseFill}
+                stroke={WHEEL_COLORS.houseStroke}
                 strokeWidth={1}
-                opacity={0.95}
+                opacity={1}
               />
               <text
                 x={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).x}
                 y={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).y + 3}
                 textAnchor="middle"
-                className="fill-[var(--text-subtext)] text-[10px]"
+                fill={WHEEL_COLORS.houseNumberFill}
+                fontSize={10}
               >
                 {i + 1}
               </text>
@@ -81,7 +92,8 @@ function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
               x={p.x}
               y={p.y + 4}
               textAnchor="middle"
-              className="fill-[var(--text-primary)] text-sm"
+              fill={WHEEL_COLORS.planetGlyphFill}
+              fontSize={14}
             >
               {PLANET_GLYPH[name] || '•'}
             </text>
