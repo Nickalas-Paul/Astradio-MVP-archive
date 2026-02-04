@@ -16,12 +16,12 @@
 
 | Field | Value |
 |-------|-------|
-| Root directory | `.` (repo root) |
-| Install command | `npm install` (or `npm ci` when lockfile present) |
-| Build command | `npm run build` |
-| Build success | `npm run build` runs `next build`; local build may hit OneDrive EPERM on Windows; Vercel builds on Linux |
+| Root directory | **`apps/web`** (Vercel Root Directory must be `apps/web`) |
+| Install command | `pnpm install` (Vercel auto-detects pnpm from `apps/web/pnpm-lock.yaml`) |
+| Build command | `pnpm run build` (runs `next build`) |
+| Build success | Frontend-only deps in `apps/web`; no backend native deps (swisseph, tfjs-node). Vercel install no longer runs node-gyp. |
 
-Evidence: package.json has `"build": "next build"`. next.config.js present. app/, next.config.js, package.json at repo root.
+Evidence: `apps/web/package.json` has `"build": "next build"` and only UI deps (no swisseph, no @tensorflow/tfjs-node). next.config.js, app/, src/ live under `apps/web`. Env vars unchanged.
 
 ## 3. Wiring truth
 
@@ -49,9 +49,9 @@ Evidence: package.json has `"build": "next build"`. next.config.js present. app/
 
 ```
 Framework Preset: Next.js
-Root Directory: . (leave blank for repo root)
-Build Command: npm run build
-Install Command: npm install
+Root Directory: apps/web
+Build Command: pnpm run build  (or leave default; Next.js preset uses npm/pnpm from lockfile)
+Install Command: pnpm install  (or leave default; Vercel detects pnpm when Root Directory is apps/web)
 Output Directory: .next (default)
 
 Environment Variables (Production + Preview):
@@ -59,7 +59,7 @@ Environment Variables (Production + Preview):
   API_BASE_URL = https://astradio-mvp-archive.onrender.com
 ```
 
-No vercel.json required.
+No vercel.json required. **Vercel Root Directory must be `apps/web`** so only frontend dependencies are installed (no swisseph, no @tensorflow/tfjs-node).
 
 ## 6. Backend verification (Render)
 
