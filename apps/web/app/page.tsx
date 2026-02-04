@@ -175,8 +175,7 @@ export default function HomePage() {
           }
 
           // Update location label if we have coordinates but no human-readable label
-          const surface = payload?.controlSurface ?? payload?.controls;
-          if (geo.status === 'ok' && locationStr === 'Current Location' && surface?.location) {
+          if (surface && geo.status === 'ok' && locationStr === 'Current Location' && surface.location) {
             setLocationStr(surface.location);
           }
         }
