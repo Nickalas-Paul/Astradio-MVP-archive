@@ -123,8 +123,22 @@ export default function HomePage() {
           
           setSpecVersion(responseSpec || null);
           // Backend returns "controls"; accept both controlSurface (legacy) and controls
-          setChartData(payload?.controlSurface ?? payload?.controls ?? null);
+          const surface = payload?.controlSurface ?? payload?.controls ?? null;
+          setChartData(surface);
           setComposeHash(payload?.controls?.hash ?? payload?.hash ?? '');
+          // If compose response has no positions/cusps, fetch chart from /api/chart for wheel
+          const hasChart = surface?.positions && Object.keys(surface.positions).length > 0 && Array.isArray(surface?.cusps) && surface.cusps.length === 12;
+          if (!cancelled && !hasChart && dateStr && timeStr) {
+            const lat = geo.status === 'ok' ? geo.lat! : -34.6037;
+            const lon = geo.status === 'ok' ? geo.lon! : -58.3816;
+            try {
+              const chartRes = await fetch(`/api/chart?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeStr)}&lat=${lat}&lon=${lon}`);
+              if (chartRes.ok) {
+                const chartJson = await chartRes.json();
+                if (chartJson?.positions && Array.isArray(chartJson?.cusps)) setChartData(chartJson);
+              }
+            } catch (_) {}
+          }
           if (payload?.explanation?.text) setExplanationText(payload.explanation.text);
           else if (payload?.explanation?.sections?.length) {
             setExplanationText(payload.explanation.sections.map((s: { text?: string }) => s?.text ?? '').filter(Boolean).join('\n\n'));

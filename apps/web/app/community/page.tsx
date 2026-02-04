@@ -1,18 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { TrendingSection } from '../../src/components/TrendingSection';
 import { SocialFeed } from '../../src/components/SocialFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import LibraryPanel from '../../src/components/library/LibraryPanel';
-import CirclesPanel from '../../src/components/social/CirclesPanel';
-import SessionsPanel from '../../src/components/social/SessionsPanel';
 import AtlasSearch from '../../src/components/atlas/AtlasSearch';
 import { useChartsStore, useCompositionStore } from '../../src/store';
 import { isFeatureEnabled } from '../../src/core/config/flags';
 import type { ChartSummary } from '../../src/types';
+
+const CirclesPanel = dynamic(
+  () => import('../../src/components/social/CirclesPanel').then((m) => m.default),
+  { ssr: false }
+);
+const SessionsPanel = dynamic(
+  () => import('../../src/components/social/SessionsPanel').then((m) => m.default),
+  { ssr: false }
+);
 
 export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState<'feed' | 'matches' | 'connections' | 'saved' | 'search' | 'circles' | 'sessions'>('feed');

@@ -3,114 +3,130 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { WheelCanvasProps } from '../types';
-import { stableStringify, sha256Hex } from '../core/hash';
+import { normalizeChartForWheel, type ChartForWheel } from '../core/chart-adapter';
 
-function WheelCanvas({ 
-  chartData, 
-  isLoading = false, 
+const PLANET_GLYPH: Record<string, string> = {
+  sun: '\u2609',
+  moon: '\u263D',
+  mercury: '\u263F',
+  venus: '\u2640',
+  mars: '\u2642',
+  jupiter: '\u2643',
+  saturn: '\u2644',
+  uranus: '\u2645',
+  neptune: '\u2646',
+  pluto: '\u2647',
+};
+
+function pol(r: number, eclDeg: number) {
+  const a = ((-eclDeg + 180) * Math.PI) / 180;
+  return { x: r * Math.cos(a), y: r * Math.sin(a) };
+}
+
+function arcPath(r1: number, r2: number, a0: number, a1: number): string {
+  const span = ((a1 - a0 + 360) % 360) || 360;
+  const p0 = pol(r1, a0);
+  const p1 = pol(r1, a1);
+  const p2 = pol(r2, a1);
+  const p3 = pol(r2, a0);
+  const large = span > 180 ? 1 : 0;
+  return [
+    `M ${p0.x} ${p0.y}`,
+    `A ${r1} ${r1} 0 ${large} 0 ${p1.x} ${p1.y}`,
+    `L ${p2.x} ${p2.y}`,
+    `A ${r2} ${r2} 0 ${large} 1 ${p3.x} ${p3.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
+  const R_OUT = size / 2 - 4;
+  const R_IN = R_OUT * 0.6;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="w-full h-full">
+      <g transform={`translate(${cx}, ${cy})`}>
+        <circle r={R_OUT} fill="none" stroke="#2a3a5a" strokeWidth={1} />
+        {chart.cusps.slice(0, 12).map((a0, i) => {
+          const a1 = chart.cusps[(i + 1) % 12];
+          const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
+          return (
+            <g key={i}>
+              <path
+                d={arcPath(R_OUT, R_IN, a0, a0 + span)}
+                fill="#111a2e"
+                stroke="#203052"
+                strokeWidth={1}
+                opacity={0.95}
+              />
+              <text
+                x={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).x}
+                y={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).y + 3}
+                textAnchor="middle"
+                className="fill-[var(--text-subtext)] text-[10px]"
+              >
+                {i + 1}
+              </text>
+            </g>
+          );
+        })}
+        {Object.entries(chart.positions).map(([name, deg]) => {
+          if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;
+          const p = pol(R_OUT - 10, deg);
+          return (
+            <text
+              key={name}
+              x={p.x}
+              y={p.y + 4}
+              textAnchor="middle"
+              className="fill-[var(--text-primary)] text-sm"
+            >
+              {PLANET_GLYPH[name] || '•'}
+            </text>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+function WheelCanvas({
+  chartData,
+  isLoading = false,
   onPlanetClick,
-  className = '' 
+  className = '',
 }: WheelCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
 
-  // Handle responsive sizing
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const size = Math.min(containerWidth, 600);
-        setWheelSize(size);
+        const w = containerRef.current.offsetWidth;
+        setWheelSize(Math.min(w, 600));
       }
     };
-
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Initialize wheel when data is available
   useEffect(() => {
-    if (chartData && !isLoading && !isInitialized) {
-      // Initialize the wheel with chart data
-      initializeWheel();
-      setIsInitialized(true);
-      
-      // Add hover/auto-hide behavior for overlay controls
-      const root = document.querySelector("section.relative.group");
-      const controls = root?.querySelector(".controls") as HTMLElement;
-      
-      if (root && controls) {
-        let hideTimer: number | null = null;
-        
-        function show() {
-          controls.classList.add("!opacity-100");
-          if (hideTimer) window.clearTimeout(hideTimer);
-          hideTimer = window.setTimeout(() => controls.classList.remove("!opacity-100"), 2000);
-        }
-        
-        root.addEventListener("mousemove", show);
-        
-        ["play","pause","stop"].forEach(id => {
-          const el = root.querySelector<HTMLButtonElement>("#"+id);
-          if (el) {
-            el.addEventListener("focus", () => controls.classList.add("!opacity-100"));
-            el.addEventListener("blur", () => controls.classList.remove("!opacity-100"));
-          }
-        });
-      }
-    }
-  }, [chartData, isLoading, isInitialized]);
-
-  const initializeWheel = async () => {
-    if (!chartData || !containerRef.current) return;
-
-    const hasValidData = (
-      chartData.positions && Object.keys(chartData.positions).length > 0 &&
-      chartData.cusps && Array.isArray(chartData.cusps) && chartData.cusps.length === 12
-    );
-
-    if (!hasValidData) {
-      console.warn('WheelCanvas: Invalid chart data structure', chartData);
+    if (!chartData || isLoading) {
+      setNormalized(null);
       return;
     }
-
-    const planets = Object.entries(chartData.positions).map(([id, longitude]) => ({
-      id,
-      longitude: typeof longitude === 'number' ? longitude : parseFloat(longitude as string) || 0,
-    }));
-
-    const wheelSnapshot = {
-      planets,
-      houses: chartData.cusps,
-      asc: (chartData as { asc?: number }).asc ?? chartData.cusps[0] ?? 0,
-    };
-
-    // Compute renderer hash deterministically from snapshot
-    const rendererHash = await sha256Hex(stableStringify(wheelSnapshot));
-
-    // Store globally for wheel.js to access
-    (window as any).__wheelSnapshot = wheelSnapshot;
-    (window as any).__rendererHash = rendererHash;
-
-    // Trigger wheel render with compatibility for public/wheel.js
-    const g = window as any;
-    // Provide a compatibility shim if only Wheel.renderSnapshot is available
-    if (typeof g.__wheelRedraw !== 'function' && g.Wheel && typeof g.Wheel.renderSnapshot === 'function') {
-      g.__wheelRedraw = g.Wheel.renderSnapshot.bind(g.Wheel);
-    }
-    if (typeof g.__wheelRedraw === 'function') {
-      g.__wheelRedraw(wheelSnapshot);
-    } else if (g.Wheel && typeof g.Wheel.renderSnapshot === 'function') {
-      g.Wheel.renderSnapshot(wheelSnapshot);
-    }
-  };
+    const next = normalizeChartForWheel(chartData);
+    setNormalized(next);
+  }, [chartData, isLoading]);
 
   if (isLoading) {
     return (
       <div className={`wheel-container ${className}`}>
-        <div 
+        <div
           ref={containerRef}
           className="w-full aspect-square bg-bgElev border border-border rounded-2xl flex items-center justify-center"
         >
@@ -133,44 +149,38 @@ function WheelCanvas({
         className="w-full aspect-square bg-bgElev border border-border rounded-2xl overflow-hidden relative"
         style={{ minHeight: wheelSize }}
       >
-        {/* Wheel SVG Container */}
-        <div 
-          id="wheel" 
-          className="w-full h-full"
-          style={{ 
-            width: wheelSize, 
-            height: wheelSize,
-            margin: '0 auto'
-          }}
-        />
-        
-        {/* Overlay for interactions */}
-        <div className="wheel-overlay" />
-        
-        {/* Loading state overlay */}
-        {isLoading && (
-          <div className="absolute inset-0 bg-bgElev/80 flex items-center justify-center">
-            <div className="text-center">
-              <div className="loading-spinner mx-auto mb-4" />
-              <p className="text-subtext text-sm">Rendering wheel...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Empty state */}
-        {(!chartData || !chartData.positions || !chartData.cusps?.length) && !isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+        <div
+          id="wheel"
+          className="w-full h-full flex items-center justify-center"
+          style={{ width: wheelSize, height: wheelSize, margin: '0 auto' }}
+        >
+          {normalized ? (
+            <WheelSvg chart={normalized} size={wheelSize} />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-8 h-8 text-subtext"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-subtext text-sm">Waiting for chart data…</p>
+                <p className="text-xs text-subtext mt-1">Generate a chart to see the wheel</p>
               </div>
-              <p className="text-subtext text-sm">Waiting for chart data…</p>
-              <p className="text-xs text-subtext mt-1">Generate a chart to see the wheel</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        <div className="wheel-overlay" />
       </motion.div>
     </div>
   );
