@@ -22,17 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="aurora" className="starfield">
       <head>
-        {/* Preload critical resources */}
-        <link rel="preload" href="/tone.js" as="script" />
-        <link rel="preload" href="/vendor/tfjs/tf.min.js" as="script" />
-        <link rel="preload" href="/wheel.js" as="script" />
-        
-        {/* Load external dependencies */}
-        <script src="/tone.js" defer />
-        <script src="/vendor/tfjs/tf.min.js" defer />
-        <script src="/wheel.js" defer />
-        
-        {/* Development tools removed: avoided serving TS as static asset */}
+        {/* Tone/tfjs/wheel: use npm imports (e.g. dynamic import('tone') in page.tsx). No legacy script tags. */}
       </head>
       <body className={`${inter.className} min-h-screen bg-bg text-text-primary antialiased`}>
         {children}

@@ -11,8 +11,7 @@ export type TelemetryEvent =
 
 function getTelemetryEndpoint(): string {
   if (typeof window === 'undefined') return '/api/telemetry';
-  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
-  return base ? `${base}/api/telemetry` : '/api/telemetry';
+  return '/api/telemetry';
 }
 
 class TelemetryManager {

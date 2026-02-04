@@ -113,10 +113,23 @@ app.use(helmet({
   },
 }));
 
-// CORS configuration
+// CORS: allowlist from CORS_ORIGINS (comma-separated). Always allow localhost in dev. Allow https://*.vercel.app.
+function corsOrigin(origin, cb) {
+  const list = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (process.env.NODE_ENV !== 'production') list.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001');
+  if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) list.push(origin);
+  const allowed = list.length ? list : ['http://localhost:3000'];
+  if (!origin || allowed.includes(origin)) return cb(null, true);
+  cb(null, false);
+}
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: corsOrigin,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-beta-user', 'x-forwarded-for', 'x-real-ip'],
 }));
 
 // Add permissive CSP for audio development (allows blob URLs)

@@ -23,21 +23,18 @@
 
 Evidence: `apps/web/package.json` has `"build": "next build"` and only UI deps (no swisseph, no @tensorflow/tfjs-node). next.config.js, app/, src/ live under `apps/web`. Env vars unchanged.
 
-## 3. Wiring truth
+## 3. Wiring truth (same-origin, no CORS)
 
 | Env var | Usage |
 |---------|-------|
-| NEXT_PUBLIC_API_BASE_URL | Browser/client: `getApiBaseUrl()` returns this when set; all browser fetches use it as base |
-| API_BASE_URL | Server (Next API routes): app/api/compose, app/api/geocode proxy to this base |
+| API_BASE_URL | Server (Next API routes): all proxy routes use this to call Render (compose, chart, ip-geo, geocode, ml-status) |
+| NEXT_PUBLIC_API_BASE_URL | **Do not set on Vercel.** Client uses relative URLs only. |
 
-**Files changed:**
-- `app/api/geocode/route.ts` – use API_BASE_URL (fallback BACKEND_URL, localhost:3000)
-- `app/overlay/page.tsx` – use getApiBaseUrl(); when set, chart fetches go to Render `/chart`; else `/api/chart` (Next)
-- `src/core/social/hooks.ts` – connect, saveTrack now use getApiBaseUrl()
+**Architecture:** Vercel client calls relative `/api/compose`, `/api/chart`, `/api/ip-geo`, etc. Next API route handlers proxy to Render using `API_BASE_URL` server-side. No browser cross-origin requests → no CORS in console.
 
-**Already correct:** app/page.tsx, app/sandbox/page.tsx, CompatibilitySection, social hooks (useCompat, useTrending, etc.) already use getApiBaseUrl(). app/api/compose/route.ts uses API_BASE_URL.
+**Proxy routes:** `app/api/compose/route.ts`, `app/api/chart/route.ts`, `app/api/ip-geo/route.ts`, `app/api/ml-status/route.ts`, `app/api/geocode/route.ts` all proxy to `${API_BASE_URL}/...`.
 
-**API base behavior:** Browser calls use NEXT_PUBLIC_API_BASE_URL when present → hit Render directly. When unset (local dev), relative `/api/*` uses Next rewrites → localhost:3000. No hardcoded Render/localhost in client code.
+**Client:** `getApiBaseUrl()` always returns `''` so all fetches use relative paths. Telemetry uses `/api/telemetry`. No hardcoded Render URL in client code.
 
 ## 4. Commits and push
 
@@ -55,27 +52,33 @@ Install Command: pnpm install  (or leave default; Vercel detects pnpm when Root 
 Output Directory: .next (default)
 
 Environment Variables (Production + Preview):
-  NEXT_PUBLIC_API_BASE_URL = https://astradio-mvp-archive.onrender.com
   API_BASE_URL = https://astradio-mvp-archive.onrender.com
+  (Do NOT set NEXT_PUBLIC_API_BASE_URL; client uses same-origin /api/* only.)
 ```
 
 No vercel.json required. **Vercel Root Directory must be `apps/web`** so only frontend dependencies are installed (no swisseph, no @tensorflow/tfjs-node).
 
-## 6. Backend verification (Render)
+**Expected behavior:** Network tab shows requests to `https://<your-vercel-app>.vercel.app/api/compose`, `/api/chart`, `/api/ip-geo` (same-origin). No CORS errors. Legacy script 404s (/tone.js, /wheel.js, /tf.min.js) removed; Tone loaded via dynamic import.
+
+## 6. Backend CORS (Render)
+
+Render Express uses allowlist from env: `CORS_ORIGINS` (comma-separated). Localhost is always allowed in dev. `https://*.vercel.app` origins are allowed. Set `CORS_ORIGINS=https://your-app.vercel.app` on Render if needed; with same-origin proxy, browser never hits Render directly so CORS is rarely needed.
+
+## 7. Backend verification (Render)
 
 | Check | Result | Evidence |
 |-------|--------|----------|
 | GET /api/ml-status 200, ml_used=true | PASS | Invoke-RestMethod returned ml_used: True, tf_backend: wasm |
 | POST /api/compose 200, telemetry.ml_used=true | PASS | Invoke-RestMethod returned telemetry.ml_used: True |
 
-## 7. Step-3 inventory
+## 8. Step-3 inventory
 
 | Category | Item | PASS/FAIL | Verification | Evidence |
 |----------|------|-----------|--------------|----------|
 | **E2E Smoke** | Landing loads + nav tabs present | — | Open Vercel URL; confirm nav tabs Landing/Community/Sandbox/Education/Settings | Screenshot: landing-nav.png |
 | | Sandbox loads | — | Navigate to /sandbox; no white screen | Screenshot: sandbox.png |
 | | Community/Education/Settings load | — | Visit each route; each loads | Screenshot: community.png, education.png, settings.png |
-| | Compose from UI hits Render (not Vercel) | — | Network tab: Request URL starts with https://astradio-mvp-archive.onrender.com/api/compose | Network: compose-request.png |
+| | Compose from UI hits Vercel same-origin (Next proxies to Render) | — | Network tab: Request URL = *.vercel.app/api/compose; no CORS errors | Network: compose-request.png |
 | | Compose returns 200 | — | Response status 200 | Network: compose-response.png |
 | | telemetry.ml_used === true | — | Response JSON has telemetry.ml_used: true | Same as above |
 | | Chart/wheel renders (no blank) | — | After compose, wheel visible | Screenshot: wheel.png |
@@ -94,6 +97,6 @@ No vercel.json required. **Vercel Root Directory must be `apps/web`** so only fr
 
 1. In Network tab, filter by Fetch/XHR.
 2. Trigger compose from landing or sandbox.
-3. Expect: Request URL = `https://astradio-mvp-archive.onrender.com/api/compose` (not *.vercel.app).
-4. Response: status 200, JSON with `telemetry.ml_used: true`.
-5. If call goes to Vercel: NEXT_PUBLIC_API_BASE_URL is unset or wrong. Set it in Vercel env to `https://astradio-mvp-archive.onrender.com` and redeploy.
+3. Expect: Request URL = `https://<vercel-app>.vercel.app/api/compose` (same-origin, not Render).
+4. Response: status 200, JSON with `telemetry.ml_used: true`. No CORS errors in Console.
+5. No 404s for /tone.js, /wheel.js, /tf.min.js (legacy script tags removed).

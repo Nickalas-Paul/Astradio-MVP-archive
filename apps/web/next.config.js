@@ -2,20 +2,10 @@
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   // Proxy API requests to backend (Render or local). Build-time env sets destination.
+  // API/chart are handled by Next route handlers (app/api/*/route.ts) which proxy to API_BASE_URL.
+  // No rewrites needed; same-origin client calls avoid CORS.
   async rewrites() {
-    const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || '')
-      .replace(/\/$/, '');
-    const apiDest = apiBase || 'http://localhost:3000';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiDest}/api/:path*`,
-      },
-      {
-        source: '/chart',
-        destination: `${apiDest}/chart`,
-      },
-    ];
+    return [];
   },
   // Serve static files from public directory
   async headers() {
