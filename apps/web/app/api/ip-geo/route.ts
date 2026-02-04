@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function randomRequestId(): string {
   return `ipgeo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

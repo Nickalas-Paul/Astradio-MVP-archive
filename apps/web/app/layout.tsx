@@ -1,17 +1,20 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#0B1220',
+};
 
 export const metadata: Metadata = {
   title: 'Astradio — Astrological Wheel Composer',
   description: 'Generate personalized 60-second musical compositions based on your astrological chart',
   keywords: ['astrology', 'music', 'composition', 'wheel', 'chart'],
   authors: [{ name: 'Astradio Team' }],
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#0B1220',
-  colorScheme: 'dark',
 };
 
 export default function RootLayout({
