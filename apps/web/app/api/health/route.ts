@@ -2,19 +2,11 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // Basic health check
     const health = {
-      status: 'ok',
+      status: 'ok' as const,
+      build: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       timestamp: new Date().toISOString(),
-      version: '0.2.0',
-      services: {
-        api: 'ok',
-        compose: 'ok',
-        geocode: 'ok',
-        wheel: 'ok'
-      }
     };
-
     return NextResponse.json(health);
   } catch (error: any) {
     return NextResponse.json(
