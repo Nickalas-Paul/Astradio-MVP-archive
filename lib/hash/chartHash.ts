@@ -1,37 +1,54 @@
-// Single source of truth for chart hash generation
-// Deterministic hashing for astrological chart data
+// lib/hash/chartHash.ts
+// NOTE: This file intentionally inlines stableStringify + sha256Hex so vnext builds
+// do not depend on app-specific helpers (e.g. apps/web/src/core/hash) that may not
+// exist in the Render build context.
 
-import { sha256Hex, stableStringify } from '../../src/core/hash';
+import crypto from "crypto";
 
-export interface ChartData {
-  date: string;
-  time: string;
-  lat: number;
-  lon: number;
-  [key: string]: any;
+type JSONObject = { [k: string]: any };
+
+function stableStringify(value: any): string {
+  const seen = new WeakSet<object>();
+
+  const stringify = (v: any): any => {
+    if (v === null) return null;
+    const t = typeof v;
+
+    if (t === "number" || t === "boolean" || t === "string") return v;
+    if (t === "bigint") return v.toString();
+    if (t === "undefined" || t === "function" || t === "symbol") return null;
+
+    if (Array.isArray(v)) return v.map(stringify);
+
+    if (t === "object") {
+      if (seen.has(v)) return "[Circular]";
+      seen.add(v);
+
+      const obj = v as JSONObject;
+      const keys = Object.keys(obj).sort();
+      const out: JSONObject = {};
+      for (const k of keys) out[k] = stringify(obj[k]);
+      return out;
+    }
+
+    return String(v);
+  };
+
+  return JSON.stringify(stringify(value));
 }
 
-export interface ComparisonData {
-  requester: ChartData;
-  target: ChartData;
-  [key: string]: any;
+function sha256Hex(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
 }
 
 /**
- * Generate deterministic hash for chart data
- * Used for deduplication and caching
+ * Generates a stable chart hash from chart input.
+ * Keep deterministic, stable stringify order, no Date.now, no Math.random.
  */
-export async function generateChartHash(chartData: ChartData | ComparisonData): Promise<string> {
-  const normalized = stableStringify(chartData);
-  return await sha256Hex(normalized);
+export function generateChartHash(chart: any): string {
+  return sha256Hex(stableStringify(chart));
 }
 
-/**
- * Synchronous version for compatibility
- */
-export function generateChartHashSync(chartData: ChartData | ComparisonData): string {
-  const normalized = stableStringify(chartData);
-  // Use crypto.createHash for sync version
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(normalized).digest('hex');
+export function generateChartHashSync(chart: any): string {
+  return sha256Hex(stableStringify(chart));
 }
