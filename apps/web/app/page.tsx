@@ -263,8 +263,8 @@ export default function HomePage() {
 
         if (typeof Tone.start === 'function') await Tone.start();
 
-        // Import browser-safe plan converter (dynamic import to avoid bundling Node deps)
-        const { planToToneEvents } = await import('../../vnext/client/plan-to-tone-events');
+        // Import browser-safe plan converter (from Next.js app directory)
+        const { planToToneEvents } = await import('../src/core/plan-to-tone-events');
         const toneEvents = planToToneEvents(composePlan);
 
         // Create synths per channel
