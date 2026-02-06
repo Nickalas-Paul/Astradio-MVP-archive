@@ -146,7 +146,6 @@ export class ComposeAPI {
       let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
       let audio_export_available = false;
 
-      const debugAudioRequested = !!(request as any).debug_audio;
       let audioDebug: any = undefined;
       if (wavExportEnabled) {
         try {
@@ -155,8 +154,7 @@ export class ComposeAPI {
           const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
             sampleRate: 22050,
             channels: 1,
-            bitDepth: 16,
-            debugAudio: debugAudioRequested
+            bitDepth: 16
           });
           const audioEndTime = process.hrtime.bigint();
           const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
@@ -168,7 +166,6 @@ export class ComposeAPI {
             size_bytes: audioResult.size_bytes
           };
           audio_export_available = true;
-          if (debugAudioRequested && audioResult.debug) audioDebug = audioResult.debug;
         } catch (audioError) {
           if (!(global as any).__wav_export_unavailable_logged) {
             const err = audioError instanceof Error ? audioError : new Error(String(audioError));
