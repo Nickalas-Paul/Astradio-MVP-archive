@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { z } from 'zod';
 
 // Input validation schema
@@ -14,30 +13,6 @@ const ComposeSchema = z.object({
 });
 
 type ComposeBody = z.infer<typeof ComposeSchema>;
-
-const PLANETS = [
-  'sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto',
-] as const;
-
-function hnum(seed: string, mod: number) {
-  const n = parseInt(crypto.createHash('sha256').update(seed).digest('hex').slice(0, 8), 16);
-  return n % mod;
-}
-
-function makeSnapshot(seed: string) {
-  // seed influences asc + positions
-  const base = hnum(`${seed}:base`, 360);
-  const asc = (base + hnum(`${seed}:asc`, 360)) % 360;
-
-  const positions: Record<string, number> = {};
-  PLANETS.forEach((p, i) => {
-    const jitter = hnum(`${seed}:${p}`, 53); // small prime spread
-    positions[p] = (base + i * 31 + jitter) % 360;
-  });
-
-  const houses = Array.from({ length: 12 }, (_ , i) => (asc + i * 30) % 360);
-  return { positions, houses, asc };
-}
 
 export async function POST(req: Request) {
   try {

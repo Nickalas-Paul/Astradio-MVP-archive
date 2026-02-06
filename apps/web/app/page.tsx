@@ -23,6 +23,7 @@ export default function HomePage() {
   const [composeHash, setComposeHash] = useState<string>('');
   const [explanationText, setExplanationText] = useState<string>('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [composePlan, setComposePlan] = useState<any>(null); // Backend plan for Tone fallback
   const [specVersion, setSpecVersion] = useState<string | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [composeLatency, setComposeLatency] = useState<number | null>(null);
@@ -174,6 +175,13 @@ export default function HomePage() {
             setAudioUrl(null);
           }
 
+          // Store backend plan if present (for Tone fallback when WAV unavailable)
+          if (payload?.plan && typeof payload.plan === 'object') {
+            setComposePlan(payload.plan);
+          } else {
+            setComposePlan(null);
+          }
+
           // Update location label if we have coordinates but no human-readable label
           if (surface && geo.status === 'ok' && locationStr === 'Current Location' && surface.location) {
             setLocationStr(surface.location);
@@ -242,18 +250,44 @@ export default function HomePage() {
     async function startPlanFallback() {
       try {
         const Tone = await getTone();
-        if (!Tone) return;
+        if (!Tone) {
+          console.warn('[audio] Tone.js unavailable');
+          return;
+        }
+
+        // If no backend plan, show unavailable (no shadow engine)
+        if (!composePlan || !composePlan.events || composePlan.events.length === 0) {
+          console.warn('[audio] No backend plan available for playback');
+          return;
+        }
+
         if (typeof Tone.start === 'function') await Tone.start();
-        const synth = new Tone.MembraneSynth().toDestination();
-        let i = 0;
-        const seq = new Tone.Loop((time: number) => {
-          const n = (i++ % 8);
-          const pitch = 48 + (n * 2);
-          synth.triggerAttackRelease(Tone.Frequency(pitch, 'midi').toFrequency(), '8n', time, 0.6);
-        }, '8n');
-        seq.start(0);
-        toneSeqRef.current = seq;
+
+        // Import browser-safe plan converter (dynamic import to avoid bundling Node deps)
+        const { planToToneEvents } = await import('../../vnext/client/plan-to-tone-events');
+        const toneEvents = planToToneEvents(composePlan);
+
+        // Create synths per channel
+        const synths: Record<string, any> = {};
+        const channels = new Set(toneEvents.map(e => e.channel));
+        for (const ch of channels) {
+          synths[ch] = new Tone.MembraneSynth().toDestination();
+        }
+
+        // Schedule all events
+        for (const ev of toneEvents) {
+          const synth = synths[ev.channel] || synths['melody']; // fallback to melody
+          const freq = Tone.Frequency(ev.note).toFrequency();
+          synth.triggerAttackRelease(freq, ev.duration, ev.time, ev.velocity);
+        }
+
+        // Start transport and schedule stop at plan duration
         Tone.Transport.start();
+        Tone.Transport.scheduleOnce(() => {
+          Tone.Transport.stop();
+        }, composePlan.durationSec || 60);
+
+        console.log(`[audio] Scheduled ${toneEvents.length} events from backend plan (${composePlan.durationSec}s)`);
       } catch (e) {
         console.warn('[audio] Tone fallback failed', e);
       }
@@ -286,7 +320,7 @@ export default function HomePage() {
       window.removeEventListener('astradio:stop', handleStop as any);
       handleStop();
     };
-  }, [audioUrl, composeHash]);
+  }, [audioUrl, composePlan]);
 
   const disabled = isLoading || !chartData;
 

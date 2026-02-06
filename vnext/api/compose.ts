@@ -14,7 +14,9 @@ import { TextExplainerEngine } from '../explainer/text-explainer';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
 import { encodeFeatures } from '../feature-encode';
-import type { EphemerisSnapshot, FeatureVec } from '../contracts';
+import { computePlanHash } from '../plan-hash';
+import { planToMidiBase64 } from '../midi/plan-to-midi';
+import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 // import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
 // import { isFeatureEnabled } from '../../config/flags';
 
@@ -203,13 +205,15 @@ export class ComposeAPI {
         ]
       };
 
-      // Hashes for control, audio, explanation, viz (deterministic)
+      // Hashes for control, audio, explanation, viz, plan (deterministic)
       const controlHash = 'sha256:' + this.sha256(JSON.stringify(payload));
+      const planHash = computePlanHash(plan);
       const hashes = {
         control: controlHash,
         audio: audio.sha256, // Use actual audio SHA256 from renderer
         explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
-        viz: viz ? 'sha256:' + this.sha256(JSON.stringify(viz)) : null
+        viz: viz ? 'sha256:' + this.sha256(JSON.stringify(viz)) : null,
+        plan_sha256: planHash // Always include plan hash
       };
 
       // Structured observability log (single line) - CRITICAL for soak diagnostics
@@ -253,6 +257,39 @@ export class ComposeAPI {
         logAudit({ evt: 'compose_done', ...logEntry });
       } catch {}
 
+      // Determine if plan should be included in response
+      const shouldIncludePlan = !audio_export_available || 
+        request.includePlan === true || 
+        request.includePlan === 1 ||
+        process.env.ALWAYS_INCLUDE_PLAN === '1';
+
+      // Determine if MIDI should be included (will be computed if requested)
+      const shouldIncludeMidi = request.includeMidi === true || 
+        request.includeMidi === 1 ||
+        process.env.ENABLE_MIDI_EXPORT === '1';
+
+      // Generate MIDI if requested
+      let midiArtifact: any = undefined;
+      if (shouldIncludeMidi) {
+        try {
+          const midiStartTime = process.hrtime.bigint();
+          const midiResult = planToMidiBase64(plan);
+          const midiEndTime = process.hrtime.bigint();
+          midiArtifact = {
+            base64: midiResult.base64,
+            sha256: midiResult.sha256,
+            ppq: midiResult.ppq,
+            tracks: midiResult.tracks,
+            bytes: midiResult.bytes
+          };
+          (hashes as any).midi_sha256 = midiResult.sha256;
+          console.log(`[COMPOSE] MIDI generated: ${midiResult.bytes} bytes, ${midiResult.tracks} tracks, sha256=${midiResult.sha256.slice(0, 8)}`);
+        } catch (midiError) {
+          console.warn('[COMPOSE] MIDI generation failed:', midiError instanceof Error ? midiError.message : String(midiError));
+          // Don't fail the request if MIDI generation fails
+        }
+      }
+
       const response = {
         audio_export_available: audio_export_available,
         controls: payload,
@@ -290,6 +327,7 @@ export class ComposeAPI {
           gate: 'v2.3-final',
           mapping_tables_version: 'v1.1',
           timestamp: new Date().toISOString(),
+          ...(midiArtifact && { midi: midiArtifact }),
           provenance: {
             chartHash: 'mock_chart_hash',
             seed: (request as any).seed || payload.hash,
@@ -311,6 +349,7 @@ export class ComposeAPI {
           model_sha: mlLog.model_sha,
           tf_backend: mlLog.tf_backend,
         },
+        ...(shouldIncludePlan && { plan }),
         ...(audioDebug !== undefined && { audio_debug: audioDebug })
       } as any;
       

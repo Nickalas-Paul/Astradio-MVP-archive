@@ -104,7 +104,23 @@ export interface ComposeResponse {
     gate: string;
     mapping_tables_version: string;
     timestamp: string;
+    midi?: {
+      base64: string;
+      sha256: string;
+      ppq: number;
+      tracks: number;
+      bytes: number;
+    };
   };
+  plan?: import('../contracts').Plan; // Optional: returned when audio_export_available is false or includePlan=1
+  hashes: {
+    control: string;
+    audio: string;
+    explanation: string;
+    viz: string | null;
+    plan_sha256: string; // Always present
+    midi_sha256?: string; // Present when MIDI is included
+  } & { [key: string]: string | null | undefined }; // Allow dynamic hash fields
 }
 
 export interface ComposeRequest {
@@ -124,6 +140,8 @@ export interface ComposeRequest {
   };
   controls?: Partial<ControlSurfacePayload>; // For sandbox mode
   genre?: string;
+  includePlan?: boolean | number; // Optional: request plan in response (default: auto when audio_export_available is false)
+  includeMidi?: boolean | number; // Optional: request MIDI artifact in response
   testOverride?: {
     forceFail?: string;
     calibrated?: boolean;
