@@ -146,6 +146,8 @@ export class ComposeAPI {
       let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
       let audio_export_available = false;
 
+      const debugAudioRequested = !!(request as any).debug_audio;
+      let audioDebug: any = undefined;
       if (wavExportEnabled) {
         try {
           const mod = await import('../audio/wav-renderer');
@@ -153,7 +155,8 @@ export class ComposeAPI {
           const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
             sampleRate: 22050,
             channels: 1,
-            bitDepth: 16
+            bitDepth: 16,
+            debugAudio: debugAudioRequested
           });
           const audioEndTime = process.hrtime.bigint();
           const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
@@ -165,9 +168,13 @@ export class ComposeAPI {
             size_bytes: audioResult.size_bytes
           };
           audio_export_available = true;
+          if (debugAudioRequested && audioResult.debug) audioDebug = audioResult.debug;
         } catch (audioError) {
           if (!(global as any).__wav_export_unavailable_logged) {
-            console.warn('[COMPOSE] WAV export unavailable (module missing or render failed):', audioError instanceof Error ? audioError.message : String(audioError));
+            const err = audioError instanceof Error ? audioError : new Error(String(audioError));
+            const code = (err as Error & { code?: string }).code;
+            console.warn('[COMPOSE] WAV export unavailable (module missing or render failed):', err.message, code ? `code=${code}` : '');
+            if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] WAV stack:', err.stack);
             (global as any).__wav_export_unavailable_logged = true;
           }
         }
@@ -306,7 +313,8 @@ export class ComposeAPI {
           model_version: mlLog.model_version,
           model_sha: mlLog.model_sha,
           tf_backend: mlLog.tf_backend,
-        }
+        },
+        ...(audioDebug !== undefined && { audio_debug: audioDebug })
       } as any;
       
       // Store viz.json with CDN headers if viz payload exists
