@@ -44,6 +44,8 @@ const socialRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes"
 const libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "library"), "libraryRoutes");
 
 const app = express();
+// Behind Render (or any reverse proxy): trust first proxy so req.ip and X-Forwarded-* are correct; avoids express-rate-limit ValidationError ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const BETA_ENABLED = process.env.BETA_ACCESS !== 'false';
@@ -1150,9 +1152,21 @@ app.get("/api/ml-status", async (req, res) => {
 
 // Rate limiting middleware for /api/compose
 // Dev-only: DISABLE_RATE_LIMIT=1 or SOAK_MODE=1 disables limiter when NODE_ENV=development.
-// Dev-only: COMPOSE_RPM sets requests per minute (>=60) for soak; production limits unchanged.
+// Soak bypass: compose-only; when request has X-Soak-Token and it exactly matches SOAK_TOKEN env, skip limiter for that request only.
+// No bypass if SOAK_TOKEN is unset or empty. Production-safe: token is redacted in-place so it is never logged.
 const isDev = process.env.NODE_ENV !== 'production';
 const skipComposeLimit = isDev && (process.env.DISABLE_RATE_LIMIT === '1' || process.env.SOAK_MODE === '1');
+function soakBypassAllowed(req) {
+  const token = req.get && req.get('x-soak-token');
+  const secret = process.env.SOAK_TOKEN;
+  const allowed = typeof secret === 'string' && secret.length > 0 && token === secret;
+  // Redact x-soak-token so any request/error logging middleware never logs the value
+  if (req.headers && (req.headers['x-soak-token'] != null || req.headers['X-Soak-Token'] != null)) {
+    req.headers['x-soak-token'] = '[REDACTED]';
+    if (req.headers['X-Soak-Token'] != null) req.headers['X-Soak-Token'] = '[REDACTED]';
+  }
+  return allowed;
+}
 const composeRpm = process.env.COMPOSE_RPM ? Math.max(60, parseInt(process.env.COMPOSE_RPM, 10) || 60) : null;
 const composeWindowMs = composeRpm ? 60 * 1000 : 15 * 60 * 1000;
 const composeMax = composeRpm || 10;
@@ -1164,7 +1178,7 @@ const composeLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: true,
   requestPropertyName: 'rateLimit',
-  skip: () => skipComposeLimit,
+  skip: (req) => skipComposeLimit || soakBypassAllowed(req),
   handler: (req, res) => {
     const rl = req.rateLimit || {};
     const resetTime = rl.resetTime;
@@ -1176,6 +1190,15 @@ const composeLimiter = rateLimit({
       res.setHeader('X-RateLimit-Limit', String(rl.limit ?? composeMax));
       res.setHeader('X-RateLimit-Remaining', String(rl.remaining ?? 0));
       if (resetTime instanceof Date) res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetTime.getTime() / 1000)));
+      // Soak bypass diagnostics (429 only; no secrets): why bypass did not apply
+      const envPresent = !!(process.env.SOAK_TOKEN && typeof process.env.SOAK_TOKEN === 'string' && process.env.SOAK_TOKEN.trim().length > 0);
+      const headerPresent = !!(req.get && req.get('x-soak-token'));
+      const tokenMatch = envPresent && headerPresent && req.get('x-soak-token') === process.env.SOAK_TOKEN;
+      const bypassEligible = tokenMatch;
+      res.setHeader('X-Soak-Env-Present', envPresent ? '1' : '0');
+      res.setHeader('X-Soak-Header-Present', headerPresent ? '1' : '0');
+      res.setHeader('X-Soak-Token-Match', tokenMatch ? '1' : '0');
+      res.setHeader('X-Soak-Bypass-Eligible', bypassEligible ? '1' : '0');
     }
     res.status(429).json({ error: 'Too many composition requests', retryAfter: retryAfterSec });
   },
