@@ -85,6 +85,72 @@ BASE_URL=http://localhost:3000 SOAK_DURATION_MINUTES=30 SOAK_SLEEP_MIN_MS=5000 S
 
 Ensure the backend is started with one of the dev overrides above (e.g. `DISABLE_RATE_LIMIT=1` or `COMPOSE_RPM=72`) before running smoke or 30-min soak.
 
+### Live soak against Render (production-like)
+
+Runs the vnext live soak script against a deployed backend (e.g. `https://astradio-mvp-archive.onrender.com`). The script does a preflight (GET `/health`, one POST `/api/compose`), prints rate limit headers and `audio_export_available` / `audio.size_bytes` / `audio.sha256`, then runs N compose requests and asserts identical audio sha256 and gate pass.
+
+- **Default (no bypass):** 8 runs, fits the 10/15min compose limit. No `SOAK_TOKEN` needed.
+- **With soak bypass:** Set `SOAK_TOKEN` on Render and locally; script sends `X-Soak-Token` and runs 30 times (bypass does not count against the limiter).
+
+**Render env vars (optional but required for audio + 30-run soak):**
+
+| Variable | Value | Purpose |
+|----------|--------|---------|
+| `ENABLE_WAV_EXPORT` | `1` | Enable inline WAV in compose response (`audio_export_available`, `audio.size_bytes`, `audio.sha256`). Without it, preflight fails. |
+| `SOAK_TOKEN` | *secret string* | When request has header `X-Soak-Token` matching this value, the compose rate limiter is skipped for that request only. Set same value locally to run 30-run soak. |
+
+**PowerShell (from repo root):**
+
+```powershell
+# 8 runs, no bypass (works with default 10/15min limit)
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-live-soak
+
+# 30 runs with soak bypass (set SOAK_TOKEN on Render first)
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="your-secret"; npm run test:compose-live-soak
+```
+
+Override run count: `$env:LIVE_SOAK_RUNS="12"; ...` (must be ≤ limit if not using `SOAK_TOKEN`).
+
+### Golden set evaluation (no runtime changes)
+
+Side-car tooling: runs a canonical set of compose requests (from `vnext/eval/golden-set.json`) against the live `/api/compose` endpoint and writes versioned results + a diffable report. Does not change server or compose API behavior.
+
+**Artifacts:**
+
+- **Input:** `vnext/eval/golden-set.json` — 20–50 canonical request bodies (sandbox, sky, overlay).
+- **Output:** `vnext/eval/runs/<timestamp>_<gitsha>/results.json` and `report.md`.
+- **Baseline:** `vnext/eval/baseline/results.json` — previous run used for diffing (audio sha, wav_valid, http_status, elapsed_ms, etc.).
+
+**How to run against Render (PowerShell, from repo root):**
+
+```powershell
+# Run golden set; writes to vnext/eval/runs/<timestamp>_<gitsha>/
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-golden-run
+
+# Optional: use soak bypass if you hit rate limits (25 cases)
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="your-secret"; npm run test:compose-golden-run
+```
+
+**How to set/update baseline:**
+
+```powershell
+# Run golden set and copy latest results to vnext/eval/baseline/results.json
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-golden-baseline
+```
+
+Optional: `$env:GOLDEN_RUN_DELAY_MS="200"` (delay between requests, default 200).
+
+**No runtime changes:** The golden runner only calls the real `/api/compose`; it does not modify server, rate limits, or response shape.
+
+## Cross-service verification (Vercel ↔ Render)
+
+**Confirmed (no config change):**
+
+- **Frontend (Vercel):** Uses same-origin `/api/*` routes; Next API route handlers proxy to the engine using `API_BASE_URL` or `ENGINE_BASE_URL` or `BACKEND_URL` (server-side). Set one of these on Vercel to the Render base URL (e.g. `https://astradio-mvp-archive.onrender.com`) so compose/chart/ip-geo proxy to Render. No `NEXT_PUBLIC_*` needed; client never sees the backend URL.
+- **CORS (Render):** Server allowlist comes from `CORS_ORIGINS` or `FRONTEND_URL` (comma-separated) and always allows `https://*.vercel.app` origins. So Vercel deployments are allowed without adding env vars if the request origin matches `*.vercel.app`. For custom domains, add the origin to `CORS_ORIGINS` on Render.
+
+If the frontend is on Vercel and the backend on Render (same branch/commit): on Vercel set `API_BASE_URL` (or `ENGINE_BASE_URL` / `BACKEND_URL`) to the Render service URL. The backend (Render) does not use `API_BASE_URL`; that variable is only for the frontend’s server-side proxy.
+
 ## vNext ML model and assets
 
 ### Model files
