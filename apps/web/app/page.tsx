@@ -32,7 +32,12 @@ export default function HomePage() {
   const [dateStr, setDateStr] = useState<string>('');
   const [timeStr, setTimeStr] = useState<string>('');
   const [locationStr, setLocationStr] = useState<string>('');
+  const [locationLabel, setLocationLabel] = useState<string>('');
   const [geo, setGeo] = useState<GeoState>({ status: 'idle', lat: null, lon: null });
+
+  function formatCoords(lat: number, lon: number) {
+    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
   const audioBlobUrlRef = useRef<string | null>(null);
   const toneSeqRef = useRef<any>(null);
@@ -72,18 +77,22 @@ export default function HomePage() {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setGeo({ status: 'ok', lat: latitude, lon: longitude });
-          // keep label short for UI; server will get precise coords
           setLocationStr((prev) => prev || 'Current Location');
+          setLocationLabel((prev) => prev || 'Current Location');
         },
         () => {
           setGeo({ status: 'denied', lat: null, lon: null });
-          setLocationStr((prev) => prev || 'Buenos Aires, Argentina');
+          const fallback = 'Buenos Aires, Argentina';
+          setLocationStr((prev) => prev || fallback);
+          setLocationLabel((prev) => prev || fallback);
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
       );
     } else {
       setGeo({ status: 'error', lat: null, lon: null });
-      setLocationStr((prev) => prev || 'Buenos Aires, Argentina');
+      const fallback = 'Buenos Aires, Argentina';
+      setLocationStr((prev) => prev || fallback);
+      setLocationLabel((prev) => prev || fallback);
     }
   }, []);
 
@@ -182,10 +191,7 @@ export default function HomePage() {
             setComposePlan(null);
           }
 
-          // Update location label if we have coordinates but no human-readable label
-          if (surface && geo.status === 'ok' && locationStr === 'Current Location' && surface.location) {
-            setLocationStr(surface.location);
-          }
+          // Location display is handled by locationLabel + reverse-geocode effect; compose always uses geo lat/lon
         }
       } catch (e) {
         console.error('[compose] failed', e);
@@ -200,24 +206,34 @@ export default function HomePage() {
     };
   }, [dateStr, timeStr, locationStr, geo]);
 
-  // 2b) reverse-geocode label when we have coords but only the placeholder label
+  // 2b) reverse-geocode label when geo coords are available (display only; compose uses lat/lon)
   useEffect(() => {
     let cancelled = false;
     async function resolveLabel() {
-      if (geo.status === 'ok' && locationStr === 'Current Location') {
-        try {
-          const base = getApiBaseUrl();
-          const r = await fetch(`${base || ''}/api/ip-geo`);
-          const j = await r.json();
-          if (!cancelled && j && j.city) {
-            setLocationStr(j.city);
-          }
-        } catch {}
+      if (geo.status !== 'ok' || geo.lat == null || geo.lon == null) return;
+      const lat = geo.lat;
+      const lon = geo.lon;
+      try {
+        const base = getApiBaseUrl();
+        const r = await fetch(`${base || ''}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+        const j = await r.json();
+        if (cancelled) return;
+        const label = j?.label ?? formatCoords(lat, lon);
+        const parts = [j?.city, j?.region, j?.country].filter(Boolean);
+        const displayLabel = parts.length > 0 ? parts.join(', ') : label;
+        setLocationLabel(displayLabel);
+        setLocationStr(displayLabel);
+      } catch {
+        if (!cancelled) {
+          const fallback = formatCoords(lat, lon);
+          setLocationLabel(fallback);
+          setLocationStr(fallback);
+        }
       }
     }
     resolveLabel();
     return () => { cancelled = true; };
-  }, [geo, locationStr]);
+  }, [geo.status, geo.lat, geo.lon]);
 
   // Audio playback using compose response
   useEffect(() => {
@@ -374,8 +390,11 @@ export default function HomePage() {
               <DateInput value={dateStr} onChange={setDateStr} disabled={isLoading} />
               <TimeInput value={timeStr} onChange={setTimeStr} disabled={isLoading} />
               <LocationInput
-                value={locationStr}
-                onChange={setLocationStr}
+                value={locationLabel || locationStr}
+                onChange={(v) => {
+                  setLocationStr(v);
+                  setLocationLabel(v);
+                }}
                 disabled={isLoading}
               />
             </div>
