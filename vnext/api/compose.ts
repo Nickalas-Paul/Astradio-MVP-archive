@@ -756,6 +756,9 @@ export class ComposeAPI {
 const composeAPI = new ComposeAPI();
 
 export async function vnextCompose(req: any, res: any) {
+  const requestId = (req.headers && req.headers['x-request-id']) || require('crypto').randomBytes(4).toString('hex');
+  const mode = req.body && req.body.mode;
+  console.log('[api/compose] entered rid=%s mode=%s', requestId, mode ?? '—');
   try {
     const request = req.body;
     const response = await composeAPI.compose(request);

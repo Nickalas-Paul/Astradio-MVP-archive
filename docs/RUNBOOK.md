@@ -25,6 +25,11 @@ curl "http://localhost:3000?viz=0"
 # Monitor for abuse
 ```
 
+## Deployment / API gotchas
+
+### POST /api/compose returns 400 HTML
+The server uses **one** global `express.json()` (in `server/index.js`). Do **not** add a second `express.json()` on the `/api/compose` or `/api/render` route: the first parser consumes the request body; a second parser would read an empty stream, throw `SyntaxError`, and Express would return 400 with generic HTML. The route handlers use the body already parsed by the global middleware.
+
 ## Run soak locally (zero 429)
 
 The `/api/compose` rate limiter allows 10 requests per 15 minutes by default, which is too strict for soak (8–12 requests/min for 30 minutes). In **development only**, use one of the following so soak sees 0×429.
@@ -87,17 +92,17 @@ Ensure the backend is started with one of the dev overrides above (e.g. `DISABLE
 
 ### Live soak against Render (production-like)
 
-Runs the vnext live soak script against a deployed backend (e.g. `https://astradio-mvp-archive.onrender.com`). The script does a preflight (GET `/health`, one POST `/api/compose`), prints rate limit headers and `audio_export_available` / `audio.size_bytes` / `audio.sha256`, then runs N compose requests and asserts identical audio sha256 and gate pass.
+Runs the vnext live soak script against the deployed Render backend (`https://astradio-mvp-archive.onrender.com`). The script does a preflight (GET `/health`, one POST `/api/compose`), prints rate limit headers and `audio_export_available` / `audio.size_bytes` / `audio.sha256`, then runs N compose requests and asserts identical audio sha256 and gate pass.
 
 - **Default (no bypass):** 8 runs, fits the 10/15min compose limit. No `SOAK_TOKEN` needed.
-- **With soak bypass:** Set `SOAK_TOKEN` on Render and locally; script sends `X-Soak-Token` and runs 30 times (bypass does not count against the limiter).
+- **With soak bypass:** Set `SOAK_TOKEN` on Render and locally to the same value; script sends `X-Soak-Token` and runs 30 times (bypass does not count against the limiter).
 
 **Render env vars (optional but required for audio + 30-run soak):**
 
 | Variable | Value | Purpose |
 |----------|--------|---------|
 | `ENABLE_WAV_EXPORT` | `1` | Enable inline WAV in compose response (`audio_export_available`, `audio.size_bytes`, `audio.sha256`). Without it, preflight fails. |
-| `SOAK_TOKEN` | *secret string* | When request has header `X-Soak-Token` matching this value, the compose rate limiter is skipped for that request only. Set same value locally to run 30-run soak. |
+| `SOAK_TOKEN` | `astradio_soak_96db14c_prod` | When request has header `X-Soak-Token` matching this value, the compose rate limiter is skipped for that request only. Set same value locally to run 30-run soak. |
 
 **PowerShell (from repo root):**
 
@@ -105,11 +110,36 @@ Runs the vnext live soak script against a deployed backend (e.g. `https://astrad
 # 8 runs, no bypass (works with default 10/15min limit)
 $env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-live-soak
 
-# 30 runs with soak bypass (set SOAK_TOKEN on Render first)
-$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="your-secret"; npm run test:compose-live-soak
+# 30 runs with soak bypass (SOAK_TOKEN must match Render env)
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="astradio_soak_96db14c_prod"; npm run test:compose-live-soak
 ```
 
 Override run count: `$env:LIVE_SOAK_RUNS="12"; ...` (must be ≤ limit if not using `SOAK_TOKEN`).
+
+**Verify soak bypass on 429:** When you get a 429 “Too many composition requests” from `/api/compose`, the response includes diagnostic headers (no secrets):
+
+| Header | Value | Meaning |
+|--------|--------|--------|
+| `x-soak-env-present` | `1` or `0` | SOAK_TOKEN is set and non-empty on the server. |
+| `x-soak-header-present` | `1` or `0` | Request included `X-Soak-Token` header. |
+| `x-soak-token-match` | `1` or `0` | Header value exactly matches SOAK_TOKEN. |
+| `x-soak-bypass-eligible` | `1` or `0` | Bypass would apply if this request had been allowed (env + header + match). |
+
+Use these to see why bypass didn’t apply: env missing (`0`), header not sent (`0`), or token mismatch (`0`). Example (PowerShell): send one POST with `X-Soak-Token`, hit 429, then inspect headers:
+
+```powershell
+$body = '{"mode":"sandbox","chartData":{"date":"2025-01-15","time":"12:00","lat":40.7128,"lon":-74.006},"controls":{}}'
+$h = @{ "Content-Type" = "application/json"; "X-Soak-Token" = "astradio_soak_96db14c_prod" }
+try { Invoke-WebRequest -Uri "https://astradio-mvp-archive.onrender.com/api/compose" -Method POST -Headers $h -Body $body -UseBasicParsing } catch { $_.Exception.Response.Headers }
+```
+
+Or with curl (inspect response headers on 429):
+
+```bash
+curl -s -D - -X POST -H "Content-Type: application/json" -H "X-Soak-Token: astradio_soak_96db14c_prod" -d '{"mode":"sandbox","chartData":{"date":"2025-01-15","time":"12:00","lat":40.7128,"lon":-74.006},"controls":{}}' "https://astradio-mvp-archive.onrender.com/api/compose"
+```
+
+Look for `x-soak-env-present`, `x-soak-header-present`, `x-soak-token-match`, `x-soak-bypass-eligible` in the response headers (only present on 429 from the compose limiter).
 
 ### Golden set evaluation (no runtime changes)
 
@@ -127,15 +157,15 @@ Side-car tooling: runs a canonical set of compose requests (from `vnext/eval/gol
 # Run golden set; writes to vnext/eval/runs/<timestamp>_<gitsha>/
 $env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-golden-run
 
-# Optional: use soak bypass if you hit rate limits (25 cases)
-$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="your-secret"; npm run test:compose-golden-run
+# With soak bypass (recommended for 25 cases; SOAK_TOKEN must match Render env)
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="astradio_soak_96db14c_prod"; npm run test:compose-golden-run
 ```
 
 **How to set/update baseline:**
 
 ```powershell
 # Run golden set and copy latest results to vnext/eval/baseline/results.json
-$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-golden-baseline
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="astradio_soak_96db14c_prod"; npm run test:compose-golden-baseline
 ```
 
 Optional: `$env:GOLDEN_RUN_DELAY_MS="200"` (delay between requests, default 200).

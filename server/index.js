@@ -1798,12 +1798,13 @@ app.use("/api/compose", canaryRouter);
 
 
 // v1.1 Composition endpoint (Unified Spec v1.1)
-app.post("/api/compose", express.json(), vnextCompose);
+// Body is already parsed by global express.json() at line ~170; duplicate parser here consumed empty stream → SyntaxError → 400 HTML
+app.post("/api/compose", vnextCompose);
 
 // Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false)
 // This provides backward compatibility for soak tests and legacy clients
 if (!DEPRECATE_LEGACY) {
-  app.post("/api/render", express.json(), async (req, res) => {
+  app.post("/api/render", async (req, res) => {
     try {
       const { date, time, location, geo } = req.body;
       
@@ -2027,6 +2028,21 @@ app.get('/admin/metrics', (req, res) => {
 });
 
 function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }
+
+// API error handler: return JSON for /api/* when client accepts JSON (e.g. JSON parse errors from express.json())
+app.use((err, req, res, next) => {
+  const isApi = (req.originalUrl || req.url || '').split('?')[0].startsWith('/api/');
+  const wantsJson = req.accepts && req.accepts('json') === 'json';
+  if (isApi && wantsJson && !res.headersSent) {
+    const status = err.status ?? err.statusCode ?? (err.type === 'entity.parse.failed' || err instanceof SyntaxError ? 400 : 500);
+    res.status(status).json({
+      error: status === 400 ? 'invalid_request' : 'server_error',
+      message: process.env.NODE_ENV === 'production' ? (status === 400 ? 'Invalid request' : 'Internal error') : (err.message || String(err)),
+    });
+    return;
+  }
+  next(err);
+});
 
 // Catch-all handler for SPA
 app.get("*", (_, res) => {
