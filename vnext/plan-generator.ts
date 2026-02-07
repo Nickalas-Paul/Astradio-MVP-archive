@@ -82,11 +82,11 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
       console.warn(`⚠️ Failed to compute astro guidance: ${e}`);
     }
   }
-  
+  const guidanceWithSeed = guidance ? { ...guidance, seed: String(seedStr) } : { seed: String(seedStr) };
   const candidates = [base, ...Array.from({length: K-1}, () => jitter(base, JITTER, rng))];
 
   const scored = candidates.map(v6 => {
-    const plan = planFromVector(v6 as any, guidance);
+    const plan = planFromVector(v6 as any, guidanceWithSeed);
     const q = ruleQualityPass(plan);
     return { plan, q, v6 };
   }).sort((a,b)=> b.q.score - a.q.score);

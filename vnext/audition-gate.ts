@@ -75,7 +75,8 @@ export function audition(plan: Plan, cfg = {
 export function ruleQualityPass(plan: Plan): { ok: boolean; score: number; breakdown: any } {
 const THRESH = {
   arc: 0.40, motif: 0.35, contour: 0.35, stepLeap: 0.35, range: 0.5,
-  harmony: 0.4, rhythm: 0.4
+  harmony: 0.4, rhythm: 0.4,
+  duration_variety: 0, density_curve: 0  // metrics only; no gate fail (prevent monotone in future)
 };
 
   const m = scoreMelody(plan);
@@ -88,7 +89,9 @@ const THRESH = {
     m.step_leap_ratio >= THRESH.stepLeap &&
     m.range_ok >= THRESH.range &&
     h.progression_legality >= THRESH.harmony &&
-    r.syncopation >= THRESH.rhythm;
+    r.syncopation >= THRESH.rhythm &&
+    (r.duration_variety ?? 1) >= THRESH.duration_variety &&
+    (r.density_curve ?? 1) >= THRESH.density_curve;
 
   // Apply gaming penalty to melodic score
   const melodicScore = (m.arc + m.motif_recurrence + m.contour_entropy + m.step_leap_ratio + m.range_ok) / 5;
