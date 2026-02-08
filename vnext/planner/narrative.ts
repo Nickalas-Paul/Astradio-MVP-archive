@@ -17,7 +17,9 @@ const DUR_SEC = 60;
 const MAX_MELODY_NOTES_PER_BAR = 6;
 const MAX_INTERVAL_SEMI = 5;
 
-const DEGREE_TO_SEMI: number[] = [0, 2, 3, 5, 7, 8, 10, 11];
+/** Natural minor: 0=A,1=B,2=C,3=D,4=E,5=F,6=G,7=G(nat) default. Use leading-tone G#(11) only over V or cadence approach. */
+const NATURAL_MINOR_SEMI: number[] = [0, 2, 3, 5, 7, 8, 10, 10];
+const LEADING_TONE_SEMI = 11;
 const CADENCE_ENDS = [71, 72, 74, 76];
 
 /** One-bar hook: pos16 0–15, degree -1 = rest (no note). At least one dur16 >= 6 (breath). */
@@ -45,10 +47,11 @@ const PROG_IV_TRIAD: [number, number, number] = [0, 3, 7];
 const PROG_III_TRIAD: [number, number, number] = [0, 4, 7];
 const PROG_VII_TRIAD: [number, number, number] = [0, 4, 7];
 
+/** Chord tones per bar (scale degrees). V = 7,2,4; VII/III/VI use natural minor (no 7). */
 const CHORD_TONE_DEGREES: number[][] = [
   [0, 2, 4], [6, 1, 3], [7, 2, 4], [0, 2, 4],
   [0, 2, 4], [3, 5, 0], [7, 2, 4], [0, 2, 4],
-  [6, 1, 3], [2, 4, 6], [5, 0, 2], [0, 2, 4],
+  [6, 1, 3], [2, 4, 6], [6, 1, 3], [0, 2, 4],
 ];
 
 function lerp(a: number, b: number, t: number): number {
@@ -93,13 +96,41 @@ function chordForBar(barInPhrase: number, progId: number, isBSection: boolean): 
   return { root: r, triad: [r + shape[0], r + shape[1], r + shape[2]] };
 }
 
+/** Natural minor scale pitch classes (semitones above root). */
+const NATURAL_MINOR_PC = new Set([0, 2, 3, 5, 7, 8, 10]);
+
+/** True if pitch (MIDI) is in the natural minor scale of the given root (MIDI). */
+function isPitchInNaturalMinor(pitch: number, root: number): boolean {
+  const pc = ((pitch - root) % 12 + 12) % 12;
+  return NATURAL_MINOR_PC.has(pc);
+}
+
 function phraseArcOffset(phraseIdx: number): number {
   return [-2, 0, 3, 0][phraseIdx];
 }
 
+/** Natural minor default. */
 function degreeToSemitone(degree: number): number {
   const d = ((degree % 8) + 8) % 8;
-  return DEGREE_TO_SEMI[d] ?? 0;
+  return NATURAL_MINOR_SEMI[d] ?? 0;
+}
+
+/** Contextual leading tone: G#(11) only over V or in cadence approach into i; else G(10). Deterministic. */
+function semitoneForDegree(
+  degree: number,
+  barInPhrase: number,
+  isCadenceBar: boolean,
+  noteIndex: number,
+  notesLength: number,
+  progId: number,
+  isBSection: boolean
+): number {
+  const d = ((degree % 8) + 8) % 8;
+  if (d !== 7) return NATURAL_MINOR_SEMI[d] ?? 0;
+  const chordIsV = barInPhrase === 2 && !isBSection;
+  const cadenceApproach = isCadenceBar && noteIndex >= notesLength - 2;
+  const useLeadingTone = chordIsV || cadenceApproach;
+  return useLeadingTone ? LEADING_TONE_SEMI : 10;
 }
 
 function nearestChordTone(degree: number, chordTones: number[]): number {
@@ -113,10 +144,11 @@ function nearestChordTone(degree: number, chordTones: number[]): number {
   return best;
 }
 
-/** Cadence version of hook: last 2–3 notes use approach (2→7→0 or 4→7→0), final → cadencePitch. Same rhythm. */
-function makeCadenceVersion(hook: Hook, cadenceIdx: number): Hook {
+/** Cadence version: approach into tonic. Over V/i use 2→7→0 or 4→7→0; for B (no V) can use 2→6→0 to avoid G#. */
+function makeCadenceVersion(hook: Hook, cadenceIdx: number, isBSection: boolean): Hook {
   const out = hook.map(n => ({ ...n }));
-  const approach = cadenceIdx % 2 === 0 ? [2, 7, 0] : [4, 7, 0];
+  const useNaturalApproach = isBSection && cadenceIdx % 2 === 0;
+  const approach = useNaturalApproach ? [2, 6, 0] : (cadenceIdx % 2 === 0 ? [2, 7, 0] : [4, 7, 0]);
   const n = out.length;
   if (n >= 3) {
     out[n - 3].degree = approach[0];
@@ -153,7 +185,7 @@ function transposeHook(hook: Hook, delta: number): Hook {
   return hook.map(n => n.degree < 0 ? { ...n } : { ...n, degree: ((n.degree + delta) % 8 + 8) % 8 });
 }
 
-/** Stepwise clamp from previous pitch. */
+/** Stepwise clamp from previous pitch; uses natural minor for interval check. */
 function stepwiseDegree(degree: number, prevPitch: number, center: number, maxInterval: number): number {
   const nextSemi = degreeToSemitone(degree);
   const nextPitch = center + nextSemi;
@@ -162,12 +194,12 @@ function stepwiseDegree(degree: number, prevPitch: number, center: number, maxIn
   const target = prevPitch + sign * maxInterval;
   const rel = target - center;
   for (let d = 0; d < 8; d++) {
-    if (Math.abs(degreeToSemitone(d) - rel) <= 2) return d;
+    if (Math.abs(NATURAL_MINOR_SEMI[d] - rel) <= 2) return d;
   }
   return degree;
 }
 
-/** Prefer chord tone on long notes or phrase-end; else allow non-chord if next note resolves by step (within 4 pos16). */
+/** Prefer chord tone on long notes or phrase-end; sustained notes (dur16 >= 6) always chord tone to avoid dissonance. */
 function resolveDegree(
   deg: number,
   chordTones: number[],
@@ -176,7 +208,8 @@ function resolveDegree(
   hook: Hook,
   noteIndex: number
 ): number {
-  const ct = chordTones.includes(((deg % 8) + 8) % 8);
+  const degNorm = ((deg % 8) + 8) % 8;
+  const ct = chordTones.includes(degNorm);
   if (ct) return deg;
   if (isLongNote || isPhraseEndNote) return nearestChordTone(deg, chordTones);
   const nextPos = noteIndex + 1 < hook.length ? hook[noteIndex + 1].pos16 : 16;
@@ -259,7 +292,8 @@ export function planFromVector(
     if (isCadenceBar) {
       hook = makeCadenceVersion(
         sectionId === 1 ? applyAPrimeOrnament(baseHook, bar, density) : isBSection ? transposeHook(baseHook, 2) : baseHook,
-        cadenceIdx
+        cadenceIdx,
+        isBSection
       );
     } else if (sectionId === 1) {
       hook = applyAPrimeOrnament(baseHook, bar, density);
@@ -290,7 +324,7 @@ export function planFromVector(
         deg = stepwiseDegree(deg, lastMelodyPitch, center + regOffset, firstNoteOfPhrase ? 8 : allowLeap ? 8 : MAX_INTERVAL_SEMI);
         if (allowLeap) usedBLeap = true;
       }
-      const semi = degreeToSemitone(deg);
+      const semi = semitoneForDegree(deg, barInPhrase, isCadenceBar, i, notes.length, progId, isBSection);
       let pitch = Math.max(24, Math.min(96, center + regOffset + semi));
       if (isCadenceBar && i === notes.length - 1) pitch = cadencePitch;
       lastMelodyPitch = pitch;
@@ -310,18 +344,48 @@ export function planFromVector(
       push(barStart + 2, 2, bassRoot, 0.65, "bass");
     } else {
       push(barStart + 0, 3, bassRoot, 0.7, "bass");
+      // Diatonic, chord-aware approach: no approach on cadence; only scale tones that don't clash with current chord.
+      const isCadenceBar = barInPhrase === 3;
       const nextRoot = barInPhrase < 3 ? chordForBar(barInPhrase + 1, progId, isBSection).root - 24 : bassRoot;
-      const approach = (bar % 2 === 0) ? nextRoot - 2 : nextRoot + 5;
-      push(barStart + 3, 1, Math.max(24, Math.min(72, approach)), 0.6, "bass");
+      let approachPitch = nextRoot;
+      if (!isCadenceBar) {
+        const candWholeStep = nextRoot - 2;
+        const candFifthBelow = nextRoot + 5;
+        if (isPitchInNaturalMinor(candWholeStep, root) && candWholeStep >= 24 && candWholeStep <= 72) {
+          approachPitch = candWholeStep;
+        } else if (isPitchInNaturalMinor(candFifthBelow, root) && candFifthBelow >= 24 && candFifthBelow <= 72) {
+          approachPitch = candFifthBelow;
+        }
+      }
+      push(barStart + 3, 1, Math.max(24, Math.min(72, approachPitch)), 0.6, "bass");
     }
   }
 
+  // Harmony with deterministic inversion selection: minimize voice-leading movement from previous bar.
+  const HARMONY_LO = 48;
+  const HARMONY_HI = 76;
+  let prevHarmonyPitches: [number, number, number] | null = null;
   for (let bar = 0; bar < BARS; bar++) {
     const barInPhrase = bar % PHRASE;
     const isBSection = Math.floor(bar / PHRASE) === 2;
     const { triad } = chordForBar(barInPhrase, progId, isBSection);
+    const [a, b, c] = triad.slice().sort((x, y) => x - y);
+    const rootPos: [number, number, number] = [a, b, c];
+    const firstInv: [number, number, number] = [b, c, a + 12];
+    const secondInv: [number, number, number] = [c, a + 12, b + 12];
+    const clamp = (p: [number, number, number]) => p.map(x => Math.max(HARMONY_LO, Math.min(HARMONY_HI, x))) as [number, number, number];
+    const candidates = [clamp(rootPos), clamp(firstInv), clamp(secondInv)];
+    let best = candidates[0];
+    if (prevHarmonyPitches !== null) {
+      let bestCost = 1e9;
+      for (const cand of candidates) {
+        const cost = Math.abs(cand[0] - prevHarmonyPitches[0]) + Math.abs(cand[1] - prevHarmonyPitches[1]) + Math.abs(cand[2] - prevHarmonyPitches[2]);
+        if (cost < bestCost) { bestCost = cost; best = cand; }
+      }
+    }
+    prevHarmonyPitches = best;
     const barStart = bar * 4;
-    for (const p of triad) push(barStart, 4, p, 0.5, "harmony");
+    for (const p of best) push(barStart, 4, p, 0.5, "harmony");
   }
 
   for (let bar = 0; bar < BARS; bar++) {
@@ -340,6 +404,22 @@ export function planFromVector(
   }
 
   events.sort((a, b) => a.t0 - b.t0 || a.channel.localeCompare(b.channel) || a.pitch - b.pitch);
+
+  if (process.env.VNEXT_DEBUG_CHORD === "1") {
+    const sustainedDurThreshold = 6 * one16thSec;
+    for (let bar = 0; bar < BARS; bar++) {
+      const barInPhrase = bar % PHRASE;
+      const isBSection = Math.floor(bar / PHRASE) === 2;
+      const { root, triad } = chordForBar(barInPhrase, progId, isBSection);
+      const chordTonePC = new Set(triad.map(p => p % 12));
+      const barStart = bar * 4 * secondsPerBeat;
+      const barEnd = (bar + 1) * 4 * secondsPerBeat;
+      const bassInBar = events.filter(e => e.channel === "bass" && e.t0 >= barStart - 0.01 && e.t0 < barEnd + 0.01).map(e => e.pitch);
+      const melodyInBar = events.filter(e => e.channel === "melody" && e.t0 >= barStart - 0.01 && e.t0 < barEnd + 0.01);
+      const sustainedNonCt = melodyInBar.filter(e => (e.t1 - e.t0) >= sustainedDurThreshold && !chordTonePC.has(e.pitch % 12));
+      console.log(`[DEBUG_CHORD] bar=${bar} root=${root} triad=[${triad.join(",")}] bassPitches=[${bassInBar.join(",")}] sustainedNonChordTone=${sustainedNonCt.map(e => e.pitch).join(",") || "none"}`);
+    }
+  }
 
   const duration = Math.min(DUR_SEC, totalBeats * secondsPerBeat);
   const id = planIdFrom(guidance?.seed, bpm, baseCenter, motifIdx, cadenceIdx, phraseCenters);

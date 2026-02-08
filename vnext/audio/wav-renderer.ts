@@ -62,6 +62,7 @@ function seedFloat(seed: string, index: number): number {
 
 export interface PerformanceParams {
   timingJitterMs: { melody: number; harmony: number; bass: number; rhythm: number };
+  timingJitterLongNoteMs: number;
   swing: { enabled: boolean; ratio: number; grid: '8th' | '16th' };
   velocity: {
     phraseCurveMin: number;
@@ -71,7 +72,9 @@ export interface PerformanceParams {
     passingToneReduce: number;
     randomVar: number;
   };
-  articulation: { phraseGapMs: number; minNoteDurSec: number };
+  articulation: { phraseGapMsMelody: number; phraseGapMsHarmony: number; minNoteDurSec: number };
+  legatoOverlapMs: number;
+  releaseMinMs: number;
   adsr: {
     melody: { attackMs: number; decayMs: number; sustain: number; releaseMs: number };
     harmony: { attackMs: number; decayMs: number; sustain: number; releaseMs: number };
@@ -85,15 +88,17 @@ function getPerformanceParams(seed: string, bpm: number): PerformanceParams {
   const f = (key: string, lo: number, hi: number) => lo + rand01(seed, key) * (hi - lo);
   const fSigned = (key: string, absMax: number) => randSigned(seed, key) * absMax;
   return {
+    // Context-aware jitter applied per-note from these max values (long notes get less)
     timingJitterMs: {
-      melody: f('jitter:melody', 6, 12),
-      harmony: f('jitter:harmony', 0, 6),
-      bass: f('jitter:bass', 2, 6),
-      rhythm: f('jitter:rhythm', 0, 3),
+      melody: f('jitter:melody', 4, 8),
+      harmony: f('jitter:harmony', 0, 4),
+      bass: f('jitter:bass', 1, 4),
+      rhythm: f('jitter:rhythm', 0, 2),
     },
+    timingJitterLongNoteMs: 3,
     swing: {
       enabled: rand01(seed, 'swing:enabled') < 0.6,
-      ratio: f('swing:ratio', 0.52, 0.58),
+      ratio: f('swing:ratio', 0.52, 0.55),
       grid: '8th' as const,
     },
     velocity: {
@@ -105,27 +110,29 @@ function getPerformanceParams(seed: string, bpm: number): PerformanceParams {
       randomVar: f('vel:var', 0.03, 0.06),
     },
     articulation: {
-      phraseGapMs: f('art:gap', 18, 40),
+      phraseGapMsMelody: f('art:gapMel', 10, 18),
+      phraseGapMsHarmony: f('art:gapHarm', 12, 22),
       minNoteDurSec: 0.03,
     },
+    legatoOverlapMs: 80,
     adsr: {
       melody: {
-        attackMs: f('adsr:mel:a', 8, 18),
+        attackMs: f('adsr:mel:a', 5, 12),
         decayMs: f('adsr:mel:d', 40, 80),
         sustain: 0.75,
-        releaseMs: f('adsr:mel:r', 50, 120),
+        releaseMs: f('adsr:mel:r', 120, 220),
       },
       harmony: {
-        attackMs: f('adsr:harm:a', 15, 35),
+        attackMs: f('adsr:harm:a', 10, 25),
         decayMs: f('adsr:harm:d', 60, 120),
         sustain: 0.85,
-        releaseMs: f('adsr:harm:r', 80, 180),
+        releaseMs: f('adsr:harm:r', 220, 450),
       },
       bass: {
-        attackMs: f('adsr:bass:a', 5, 15),
+        attackMs: f('adsr:bass:a', 5, 12),
         decayMs: f('adsr:bass:d', 30, 70),
         sustain: 0.78,
-        releaseMs: f('adsr:bass:r', 40, 100),
+        releaseMs: f('adsr:bass:r', 120, 200),
       },
       rhythm: {
         attackMs: f('adsr:rhythm:a', 2, 8),
@@ -134,6 +141,7 @@ function getPerformanceParams(seed: string, bpm: number): PerformanceParams {
         releaseMs: f('adsr:rhythm:r', 25, 60),
       },
     },
+    releaseMinMs: 20,
     spatial: {
       panMelody: fSigned('pan:melody', 0.15),
       panHarmony: 0.25,
@@ -244,6 +252,21 @@ function buildWav(
     if (HUMANIZE_ENABLED) {
       const params = getPerformanceParams(seed, bpm);
 
+      // Precompute next same-channel event t0 for legato and phrase-gap (avoid mid-line silence)
+      const nextSameChannelT0: (number | null)[] = [];
+      for (let i = 0; i < sorted.length; i++) {
+        const ch = eventChannel(sorted[i]);
+        const t0Here = Number(sorted[i].t0) ?? 0;
+        let next: number | null = null;
+        for (let j = i + 1; j < sorted.length; j++) {
+          if (eventChannel(sorted[j]) === ch) {
+            next = Number(sorted[j].t0) ?? 0;
+            break;
+          }
+        }
+        nextSameChannelT0.push(next);
+      }
+
       for (let eventIndex = 0; eventIndex < sorted.length; eventIndex++) {
         const ev = sorted[eventIndex];
         const ch = eventChannel(ev);
@@ -251,15 +274,19 @@ function buildWav(
         const t1Plan = Number(ev.t1) ?? t0Plan + 0.5;
         const pitch = Number(ev.pitch) ?? 69;
         const velPlan = Math.max(0, Math.min(1, Number(ev.velocity) ?? 0.8));
+        const durPlan = t1Plan - t0Plan;
+        const nextT0 = nextSameChannelT0[eventIndex];
 
-        // --- C) Micro-timing (conservative) ---
-        const jitterMs = params.timingJitterMs[ch];
-        const jitterSec = (jitterMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${Math.floor(t0Plan / secPerBar)}`);
+        // --- C) Micro-timing: context-aware (long notes near-zero jitter) ---
+        const longNoteThresholdSec = 0.5;
+        const isLongNote = durPlan >= longNoteThresholdSec;
+        const jitterMaxMs = isLongNote ? params.timingJitterLongNoteMs : params.timingJitterMs[ch];
+        const jitterSec = (jitterMaxMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${Math.floor(t0Plan / secPerBar)}`);
         let t0 = t0Plan + jitterSec;
         let t1 = t1Plan;
 
-        // Optional swing: delay off-beat 8ths
-        if (params.swing.enabled && secPerBeat > 0) {
+        // Swing only for rhythm and melody short notes (not sustained harmony/bass)
+        if (params.swing.enabled && secPerBeat > 0 && (ch === 'rhythm' || (ch === 'melody' && durPlan < 0.3))) {
           const beatInBar = (t0Plan % secPerBar) / secPerBeat;
           const eighth = Math.floor(beatInBar * 2) / 2;
           const isOffEighth = Math.abs(beatInBar - eighth - 0.5) < 0.05;
@@ -272,16 +299,19 @@ function buildWav(
         const minDur = params.articulation.minNoteDurSec;
         if (t1 - t0 < minDur) t1 = t0 + minDur;
 
-        // --- E) Phrase breathing: shorten end at phrase boundaries ---
+        // --- E) Phrase breathing: small tail shortening only at phrase end; never create mid-line gap ---
         const bar = Math.floor(t0 / secPerBar);
-        const phrase = Math.floor(bar / 4);
         const barInPhrase = bar % 4;
-        const gapSec = (params.articulation.phraseGapMs * 0.001);
-        if (barInPhrase === 3 && (ch === 'melody' || ch === 'harmony')) {
-          t1 = Math.max(t0 + minDur, t1 - gapSec);
+        const gapMs = ch === 'melody' ? params.articulation.phraseGapMsMelody : ch === 'harmony' ? params.articulation.phraseGapMsHarmony : 0;
+        if (barInPhrase === 3 && gapMs > 0 && (ch === 'melody' || ch === 'harmony')) {
+          const gapSec = gapMs * 0.001;
+          const wouldCreateGap = nextT0 !== null && (t1 - gapSec) < nextT0 && nextT0 > t1;
+          if (!wouldCreateGap) {
+            t1 = Math.max(t0 + minDur, t1 - gapSec);
+          }
         }
 
-        // --- D) Velocity dynamics (phrase curve, downbeat, cadence, passing tone, variance) ---
+        // --- D) Velocity dynamics ---
         const phrasePosition = (bar % 16) / 16;
         const phraseSwell = lerp(params.velocity.phraseCurveMin, params.velocity.phraseCurveMax, phrasePosition);
         let vel = velPlan * phraseSwell;
@@ -291,7 +321,6 @@ function buildWav(
         if (isDownbeat) vel += params.velocity.accentDownbeat;
         if (barInPhrase === 3 && ch === 'melody') vel += params.velocity.cadenceAccent;
 
-        const durPlan = t1Plan - t0Plan;
         const isPassingTone = durPlan < 0.35 && !isDownbeat && Math.abs(beatInBar - 2) > 0.2;
         if (isPassingTone) vel += params.velocity.passingToneReduce;
 
@@ -299,13 +328,17 @@ function buildWav(
         vel += randSigned(seed, varKey) * params.velocity.randomVar;
         vel = Math.max(0, Math.min(1, vel));
 
-        // --- F) ADSR per channel ---
+        // --- F) ADSR with legato: extend release when next note in same channel is within overlap window ---
         const adsr = params.adsr[ch];
+        let releaseMs = Math.max(params.releaseMinMs, adsr.releaseMs);
+        if (nextT0 !== null && (nextT0 - t1) < (params.legatoOverlapMs * 0.001) && (nextT0 - t1) > 0 && (ch === 'melody' || ch === 'harmony')) {
+          const gapToNext = (nextT0 - t1) * 1000;
+          releaseMs = Math.max(releaseMs, gapToNext + 25);
+        }
         const durationSec = Math.max(minDur, t1 - t0);
         const attackMs = adsr.attackMs;
         const decayMs = adsr.decayMs;
         const sustain = adsr.sustain;
-        const releaseMs = adsr.releaseMs;
 
         const freq = A440 * Math.pow(2, (pitch - 69) / 12);
         const startS = Math.max(0, Math.floor(t0 * sampleRate));
