@@ -468,6 +468,43 @@ export function planFromVector(
     for (const p of best) push(barStart, 4, p, 0.5, "harmony");
   }
 
+  // Color-shift harmony blending: extend harmony t1 with overlap + voice stagger (deterministic from guidance).
+  const barSec = 4 * secondsPerBeat;
+  const durationSec = Math.min(DUR_SEC, totalBeats * secondsPerBeat);
+  const HARMONY_OVERLAP_CAP_SEC = 0.35;
+  const VOICE_STAGGER_SEC = 0.018;
+  const water = elementBlend?.water ?? 0.25;
+  const air = elementBlend?.air ?? 0.25;
+  const fire = elementBlend?.fire ?? 0.25;
+  const earth = elementBlend?.earth ?? 0.25;
+  const blendFactor = clamp01(flow * 0.4 + (water + air) * 0.3 - fire * 0.25 + earth * 0.2);
+  const overlapRatio = 0.05 + 0.07 * blendFactor;
+  const overlapBaseSec = Math.min(barSec * overlapRatio, HARMONY_OVERLAP_CAP_SEC);
+  const harmonyEvents = events.filter((e): e is EventToken => e.channel === "harmony");
+  const byChordT0 = new Map<number, EventToken[]>();
+  for (const ev of harmonyEvents) {
+    const key = Math.round(ev.t0 * 1000);
+    if (!byChordT0.has(key)) byChordT0.set(key, []);
+    byChordT0.get(key)!.push(ev);
+  }
+  const chordStarts = Array.from(byChordT0.keys()).sort((a, b) => a - b);
+  for (const key of chordStarts) {
+    const chordT0 = key / 1000;
+    const group = byChordT0.get(key)!;
+    const sortedByPitch = group.slice().sort((a, b) => a.pitch - b.pitch);
+    const nextChordT0 = chordT0 + barSec;
+    const maxT1 = Math.min(nextChordT0 + barSec, durationSec);
+    for (let voiceIndex = 0; voiceIndex < sortedByPitch.length; voiceIndex++) {
+      const ev = sortedByPitch[voiceIndex];
+      const nominalT1 = ev.t0 + barSec;
+      const stagger = voiceIndex * VOICE_STAGGER_SEC;
+      let newT1 = nominalT1 + overlapBaseSec - stagger;
+      newT1 = Math.min(newT1, maxT1, durationSec);
+      newT1 = Math.max(newT1, ev.t1);
+      ev.t1 = quantizeTo16th(newT1, bpm);
+    }
+  }
+
   for (let bar = 0; bar < BARS; bar++) {
     const barStart = bar * 4;
     const barInPhraseR = bar % PHRASE;

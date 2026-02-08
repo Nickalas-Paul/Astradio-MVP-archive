@@ -64,6 +64,7 @@
     "test:midi-determinism": "npm run vnext:build && node dist/vnext/vnext/scripts/test-midi-determinism.js",
     "mirror-report": "npm run vnext:build && node dist/vnext/vnext/scripts/mirror-report.js",
     "test:mirror-determinism": "npm run vnext:build && node dist/vnext/vnext/scripts/mirror-determinism.js",
+    "test:harmony-blend": "npm run vnext:build && node dist/vnext/vnext/scripts/harmony-blend-regression.js",
     "check:single-compose": "node scripts/check-single-compose.js",
     "worker:export": "node workers/export-worker.js"
   },

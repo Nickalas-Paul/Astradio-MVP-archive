@@ -123,10 +123,10 @@ function getPerformanceParams(seed: string, bpm: number): PerformanceParams {
         releaseMs: f('adsr:mel:r', 120, 220),
       },
       harmony: {
-        attackMs: f('adsr:harm:a', 10, 25),
+        attackMs: f('adsr:harm:a', 20, 40),
         decayMs: f('adsr:harm:d', 60, 120),
         sustain: 0.85,
-        releaseMs: f('adsr:harm:r', 220, 450),
+        releaseMs: f('adsr:harm:r', 120, 250),
       },
       bass: {
         attackMs: f('adsr:bass:a', 5, 12),
