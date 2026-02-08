@@ -11,16 +11,71 @@ export interface AstroGuidance {
   cadenceIdx: number;   // [0-3] based on moon phase
 }
 
+/** Sonic Mirror: element blend normalized 0..1 (sum ≈ 1). */
+export interface ElementBlend {
+  fire: number;
+  air: number;
+  water: number;
+  earth: number;
+}
+
+/** Sonic Mirror: motion profile from Fire→Air→Water→Earth weighting (fast→slow). */
+export interface MotionProfile {
+  motion: number;       // 0..1 perceived activity
+  articulation: number; // 0..1 staccato vs legato bias
+  shimmer: number;      // 0..1 upper-register / openness bias
+  gravity: number;      // 0..1 tonic pull / dwell bias
+  flow: number;         // 0..1 overlap/legato continuity bias
+}
+
+/** Sonic Mirror: fixed 60s narrative arc phase lengths (seconds). */
+export interface NarrativeArc {
+  encounterSec: number;
+  recognitionSec: number;
+  integrationSec: number;
+}
+
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
+}
+
+/** Normalize element vector to sum = 1; pure deterministic. */
+function normalizeElementBlend(fire: number, earth: number, air: number, water: number): ElementBlend {
+  const sum = fire + earth + air + water || 1;
+  return {
+    fire: clamp01(fire / sum),
+    air: clamp01(air / sum),
+    water: clamp01(water / sum),
+    earth: clamp01(earth / sum),
+  };
+}
+
+/** Derive motion profile from element blend (Fire→Air→Water→Earth order). Pure. */
+function motionProfileFromElementBlend(blend: ElementBlend): MotionProfile {
+  const { fire, air, water, earth } = blend;
+  // Fire = activity, articulation; Air = shimmer, lightness; Water = flow; Earth = gravity, dwell
+  const motion = clamp01(fire * 0.5 + air * 0.3 + (1 - earth) * 0.2);
+  const articulation = clamp01(fire * 0.6 + (1 - water) * 0.4);
+  const shimmer = clamp01(air * 0.6 + fire * 0.2 + (1 - earth) * 0.2);
+  const gravity = clamp01(earth * 0.5 + water * 0.3 + (1 - air) * 0.2);
+  const flow = clamp01(water * 0.5 + air * 0.2 + (1 - fire) * 0.3);
+  return { motion, articulation, shimmer, gravity, flow };
+}
+
 /**
  * Compute astrological guidance from feature vector and chart context
  * Pure function with no side effects
  */
-export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: EphemerisSnapshot): AstroGuidance {
+export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: EphemerisSnapshot): AstroGuidance & { elementBlend: ElementBlend; motionProfile: MotionProfile; narrativeArc: NarrativeArc } {
   // Extract element proportions from feature vector (indices 27-30)
-  const fire = featureVec[27] || 0;
-  const earth = featureVec[28] || 0;
-  const air = featureVec[29] || 0;
-  const water = featureVec[30] || 0;
+  const fire = featureVec[27] ?? 0;
+  const earth = featureVec[28] ?? 0;
+  const air = featureVec[29] ?? 0;
+  const water = featureVec[30] ?? 0;
+  
+  const elementBlend = normalizeElementBlend(fire, earth, air, water);
+  const motionProfile = motionProfileFromElementBlend(elementBlend);
+  const narrativeArc: NarrativeArc = { encounterSec: 15, recognitionSec: 30, integrationSec: 15 };
   
   // Tempo bias: fire+air vs earth+water proportion
   const dynamicElements = fire + air;
@@ -30,19 +85,19 @@ export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: Ephem
     -(stableElements - dynamicElements) / 2;
   
   // Arc bias: tension from squares+oppositions (index 32)
-  const tension = featureVec[32] || 0;
+  const tension = featureVec[32] ?? 0;
   const arcBias = Math.max(-1, Math.min(1, (tension - 0.5) * 2));
   
   // Density bias: cluster density (index 33)
-  const clusterDensity = featureVec[33] || 0;
+  const clusterDensity = featureVec[33] ?? 0;
   const densityBias = Math.max(-1, Math.min(1, (clusterDensity - 0.5) * 2));
   
   // Motif index: based on sun sign (0-11) mapped to 0-7
-  const sunLon = chartContext.planets.find(p => p.name === 'sun')?.lon || 0;
+  const sunLon = chartContext.planets.find(p => p.name === 'sun')?.lon ?? 0;
   const motifIdx = Math.floor(sunLon / 30) % 8; // Map to 0-7 motif range
   
   // Cadence index: based on moon phase (<0.5 vs >=0.5)
-  const moonPhase = featureVec[31] || 0;
+  const moonPhase = featureVec[31] ?? 0;
   const cadenceIdx = moonPhase < 0.5 ? 0 : 1; // Simple binary for now
   
   return {
@@ -50,7 +105,10 @@ export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: Ephem
     arcBias: Math.max(-1, Math.min(1, arcBias)),
     densityBias: Math.max(-1, Math.min(1, densityBias)),
     motifIdx,
-    cadenceIdx
+    cadenceIdx,
+    elementBlend,
+    motionProfile,
+    narrativeArc,
   };
 }
 

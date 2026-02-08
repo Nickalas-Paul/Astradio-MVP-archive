@@ -3,6 +3,8 @@
 
 import { Plan, EventToken } from '../contracts';
 
+export { scoreMirrorFidelity, type MirrorFidelityScores, type SonicMirrorGuidance } from './mirror-fidelity';
+
 // =============================================================================
 // MELODIC CRITIC - Evaluate melodic quality and arc
 // =============================================================================

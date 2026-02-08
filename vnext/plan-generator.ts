@@ -8,8 +8,11 @@ import { studentVector } from "./ml";
 import { planFromVector } from "./planner/narrative";
 import { guidanceFromFeatures } from "./astro/guidance";
 import { audition, ruleQualityPass } from "./audition-gate";
+import { scoreMirrorFidelity } from "./critics";
 import { logAudit } from "./logger";
 import { MIN_RULE_QUALITY } from "./config/quality";
+
+const MIRROR_FIDELITY_WEIGHT = 0.2;
 
 const K = Number(process.env.VNEXT_K || 8);
 const MIN_Q = MIN_RULE_QUALITY;
@@ -88,8 +91,10 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
   const scored = candidates.map(v6 => {
     const plan = planFromVector(v6 as any, guidanceWithSeed);
     const q = ruleQualityPass(plan);
-    return { plan, q, v6 };
-  }).sort((a,b)=> b.q.score - a.q.score);
+    const mirrorScore = guidance ? scoreMirrorFidelity(plan, guidance).score : 0.5;
+    const rankScore = q.score + MIRROR_FIDELITY_WEIGHT * mirrorScore;
+    return { plan, q, v6, rankScore, mirrorScore };
+  }).sort((a, b) => b.rankScore - a.rankScore);
 
   const best = scored[0];
   if (best.q.score < MIN_Q) {

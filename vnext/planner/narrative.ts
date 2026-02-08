@@ -1,14 +1,29 @@
 // vnext/planner/narrative.ts
 import { Plan, EventToken } from "../contracts";
+import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidance";
 
 /**
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
  * - 1-bar HOOK_TEMPLATES with breath (sustained note + rest gaps); A A' B A form.
  * - Chord-tone targeting only on long notes / phrase endpoints; bass/drums decoupled from melody accents.
+ * - Sonic Mirror: harmony = identity carrier, melody = motion inside harmony; 60s Encounter/Recognition/Integration.
  * - Deterministic: same (v, guidance) => identical Plan.events. No Date.now / Math.random.
  */
 
 type V6 = [number, number, number, number, number, number];
+
+/** Narrative phase: 0=Encounter (0–15s), 1=Recognition (15–45s), 2=Integration (45–60s). Bar-based. */
+const ENCOUNTER_BARS = 4;
+const RECOGNITION_BARS = 8;
+function narrativePhaseForBar(bar: number): 0 | 1 | 2 {
+  if (bar < ENCOUNTER_BARS) return 0;
+  if (bar < ENCOUNTER_BARS + RECOGNITION_BARS) return 1;
+  return 2;
+}
+
+const MIN_MELODY_PER_PHASE = [8, 12, 8] as const;
+const MAX_MELODY_SUSTAIN_SEC = 2.5;
+const MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH = 4;
 
 const GRID_16 = 4;
 const BARS = 16;
@@ -218,6 +233,19 @@ function resolveDegree(
   return nearestChordTone(deg, chordTones);
 }
 
+/** Harmonic field: prefer root position in Encounter and Integration when gravity high. */
+function preferRootPosition(phase: 0 | 1 | 2, gravity: number): boolean {
+  if (phase === 0) return true;
+  if (phase === 2 && gravity >= 0.4) return true;
+  return false;
+}
+
+function isEarthDominant(blend: ElementBlend | undefined): boolean {
+  if (!blend) return false;
+  const { earth, fire, air, water } = blend;
+  return earth >= 0.3 && earth >= Math.max(fire, air, water);
+}
+
 export function planFromVector(
   v: V6,
   guidance?: {
@@ -227,6 +255,9 @@ export function planFromVector(
     motifIdx?: number;
     cadenceIdx?: number;
     seed?: string;
+    elementBlend?: ElementBlend;
+    motionProfile?: MotionProfile;
+    narrativeArc?: NarrativeArc;
   }
 ): Plan {
   const [vTempo, vBright, vDense, vArc, vMotif, vCad] = v;
@@ -234,6 +265,12 @@ export function planFromVector(
   const tempoBias = guidance?.tempoBias ?? 0;
   const arcBias = guidance?.arcBias ?? 0;
   const densityBias = guidance?.densityBias ?? 0;
+  const motionProfile = guidance?.motionProfile;
+  const elementBlend = guidance?.elementBlend;
+  const gravity = motionProfile?.gravity ?? 0.5;
+  const flow = motionProfile?.flow ?? 0.5;
+  const articulation = motionProfile?.articulation ?? 0.5;
+  const shimmer = motionProfile?.shimmer ?? 0.5;
 
   const biasedTempo = clamp01(vTempo * (1 + 0.1 * tempoBias));
   const bpm = Math.round(lerp(70, 140, biasedTempo));
@@ -241,12 +278,13 @@ export function planFromVector(
 
   const biasedArc = clamp01(vArc * (1 + 0.3 * arcBias));
   const arcLift = lerp(3, 10, biasedArc);
+  const registerBias = Math.round((shimmer - 0.5) * 2 - (gravity - 0.5) * 1);
   const phraseCenters = [
-    baseCenter - Math.round(arcLift * 0.5),
-    baseCenter + Math.round(arcLift * 0.4),
-    baseCenter + Math.round(arcLift * 1.0),
-    baseCenter - Math.round(arcLift * 0.2),
-  ];
+    baseCenter - Math.round(arcLift * 0.5) + registerBias,
+    baseCenter + Math.round(arcLift * 0.4) + registerBias,
+    baseCenter + Math.round(arcLift * 1.0) + registerBias,
+    baseCenter - Math.round(arcLift * 0.2) + registerBias,
+  ].map(c => Math.max(48, Math.min(72, c)));
 
   const motifIdx = guidance?.motifIdx !== undefined ? guidance.motifIdx : Math.floor(clamp01(vMotif) * HOOK_TEMPLATES.length);
   const cadenceIdx = guidance?.cadenceIdx !== undefined ? guidance.cadenceIdx : Math.floor(clamp01(vCad) * CADENCE_ENDS.length);
@@ -328,7 +366,43 @@ export function planFromVector(
       let pitch = Math.max(24, Math.min(96, center + regOffset + semi));
       if (isCadenceBar && i === notes.length - 1) pitch = cadencePitch;
       lastMelodyPitch = pitch;
-      push(tBeats, Math.max(0.25, durBeats), pitch, 0.7 + 0.1 * (i % 2), "melody");
+      let effectiveDur = durBeats * (0.85 + 0.15 * flow) * (1.05 - 0.15 * articulation);
+      const phase = narrativePhaseForBar(bar);
+      const allowLongSustain = phase === 2 && isEarthDominant(elementBlend);
+      const capSec = allowLongSustain ? MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH : MAX_MELODY_SUSTAIN_SEC;
+      const capBeats = capSec / secondsPerBeat;
+      if (effectiveDur > capBeats) effectiveDur = capBeats;
+      push(tBeats, Math.max(0.25, effectiveDur), pitch, 0.7 + 0.1 * (i % 2), "melody");
+    }
+  }
+
+  const barsPerPhase = [ENCOUNTER_BARS, RECOGNITION_BARS, BARS - ENCOUNTER_BARS - RECOGNITION_BARS];
+  const melodySoFar = events.filter(e => e.channel === "melody");
+  const phaseCounts: [number, number, number] = [0, 0, 0];
+  for (const e of melodySoFar) {
+    const bar = Math.floor(e.t0 / (4 * secondsPerBeat));
+    const phase = narrativePhaseForBar(bar);
+    phaseCounts[phase]++;
+  }
+  const seedNum = (guidance?.seed ?? "v6").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  for (let phase = 0; phase < 3; phase++) {
+    const need = MIN_MELODY_PER_PHASE[phase] - phaseCounts[phase];
+    if (need <= 0) continue;
+    const firstBar = phase === 0 ? 0 : phase === 1 ? ENCOUNTER_BARS : ENCOUNTER_BARS + RECOGNITION_BARS;
+    const numBars = barsPerPhase[phase];
+    for (let i = 0; i < need; i++) {
+      const bar = firstBar + (seedNum + i) % numBars;
+      const beat = (seedNum + i * 7) % 4;
+      const tBeats = bar * 4 + beat;
+      const phraseIdx = Math.floor(bar / PHRASE);
+      const barInPhrase = bar % PHRASE;
+      const isBSection = phraseIdx === 2;
+      const center = phraseCenters[phraseIdx];
+      const chordTones = chordToneDegreesForBar(barInPhrase, progId, isBSection);
+      const degree = chordTones[0] ?? 0;
+      const semi = degreeToSemitone(degree);
+      const pitch = Math.max(24, Math.min(96, center + semi));
+      push(tBeats, 0.25, pitch, 0.6, "melody");
     }
   }
 
@@ -361,7 +435,7 @@ export function planFromVector(
     }
   }
 
-  // Harmony with deterministic inversion selection: minimize voice-leading movement from previous bar.
+  // Harmony with deterministic inversion selection: minimize voice-leading; prefer root in Encounter/Integration when gravity high.
   const HARMONY_LO = 48;
   const HARMONY_HI = 76;
   let prevHarmonyPitches: [number, number, number] | null = null;
@@ -375,13 +449,19 @@ export function planFromVector(
     const secondInv: [number, number, number] = [c, a + 12, b + 12];
     const clamp = (p: [number, number, number]) => p.map(x => Math.max(HARMONY_LO, Math.min(HARMONY_HI, x))) as [number, number, number];
     const candidates = [clamp(rootPos), clamp(firstInv), clamp(secondInv)];
+    const phase = narrativePhaseForBar(bar);
+    const preferRoot = preferRootPosition(phase, gravity);
     let best = candidates[0];
     if (prevHarmonyPitches !== null) {
       let bestCost = 1e9;
-      for (const cand of candidates) {
-        const cost = Math.abs(cand[0] - prevHarmonyPitches[0]) + Math.abs(cand[1] - prevHarmonyPitches[1]) + Math.abs(cand[2] - prevHarmonyPitches[2]);
+      for (let idx = 0; idx < candidates.length; idx++) {
+        const cand = candidates[idx];
+        let cost = Math.abs(cand[0] - prevHarmonyPitches[0]) + Math.abs(cand[1] - prevHarmonyPitches[1]) + Math.abs(cand[2] - prevHarmonyPitches[2]);
+        if (preferRoot && idx !== 0) cost += 20;
         if (cost < bestCost) { bestCost = cost; best = cand; }
       }
+    } else if (preferRoot) {
+      best = candidates[0];
     }
     prevHarmonyPitches = best;
     const barStart = bar * 4;
