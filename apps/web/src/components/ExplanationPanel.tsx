@@ -18,7 +18,11 @@ const DISPLAY_TITLES: Record<string, string> = {
 };
 
 /** Canonical order for sections. */
-const SECTION_ORDER = ["Astrological Signatures", "Personal Significance", "Musical Identity and Flow"] as const;
+const SECTION_ORDER: string[] = [
+  "Astrological Signatures",
+  "Personal Significance",
+  "Musical Identity and Flow",
+];
 
 interface ExplanationPanelProps {
   composeHash: string;
