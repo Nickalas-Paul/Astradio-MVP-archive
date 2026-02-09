@@ -18,6 +18,10 @@ import { encodeFeatures } from '../feature-encode';
 import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
+import { buildExplainSpecSingle } from '../explainer/text-generation-engine';
+import { renderExplainSpecToSections } from '../explainer/renderers/deterministic';
+import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
+import { buildPlanSummary } from '../explainer/plan-summary';
 // import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
 // import { isFeatureEnabled } from '../../config/flags';
 
@@ -97,8 +101,26 @@ export class ComposeAPI {
         };
       }
       
-      // Generate text explanation using shared features (Unified Spec v1.1)
-      // V1-A: real AstroSummary from same snapshot used for encodeFeatures
+      // Generate text explanation using new ExplainSpec engine (Text Generation Engine v1.0)
+      // Build guidanceSummary and planSummary from canonical inputs
+      const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
+      const planSummary = buildPlanSummary(plan);
+      
+      // Build ExplainSpec from canonical pipeline inputs
+      const spec = buildExplainSpecSingle({
+        seed: payload.hash,
+        snapshot,
+        featureVec,
+        guidanceSummary,
+        plan,
+        planSummary,
+        gateReport
+      });
+      
+      // Render ExplainSpec to sections
+      const rendered = renderExplainSpecToSections(spec);
+      
+      // Legacy text explainer (fallback for overlay mode and backward compatibility)
       const astro = astroSummaryFromSnapshot(snapshot, featureVec, payload.modality);
       const context: any = {
         mode: request.mode,
@@ -112,6 +134,7 @@ export class ComposeAPI {
       let text: any;
       let textMetricsMs: number | undefined;
       if (request.mode === 'overlay' && request.overlayParams) {
+        // Overlay mode: use legacy explainer for now (comparison mode TODO)
         const natalPayload = await this.generateSkyPayload({
           latitude: request.overlayParams.natalLatitude,
           longitude: request.overlayParams.natalLongitude,
@@ -131,14 +154,25 @@ export class ComposeAPI {
         text = overlayResult.text;
         textMetricsMs = overlayResult.metrics?.total_ms;
       } else {
-        const base = (this.textExplainer as any).generateExplanation(
-          payload,
-          gateReport,
-          context,
-          explainerInputs
-        );
-        text = base.text;
-        textMetricsMs = base.metrics?.total_ms;
+        // Single mode: use new ExplainSpec engine
+        // Build legacy text format for backward compatibility
+        const signaturesText = rendered.sections.find(s => s.id === 'signatures')?.text || '';
+        const significanceText = rendered.sections.find(s => s.id === 'significance')?.text || '';
+        const musicalSection = rendered.sections.find(s => s.id === 'musical');
+        const musicalText = musicalSection?.text || '';
+        const musicalBullets = musicalSection?.bullets || [];
+        
+        text = {
+          short: signaturesText,
+          long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
+          bullets: musicalBullets,
+          template_id: 'explainspec-v1',
+          signatures: signaturesText,
+          significance: significanceText,
+          musicalParagraph: musicalText,
+          musicalBullets: musicalBullets
+        };
+        textMetricsMs = 0; // ExplainSpec generation is fast (no ML)
       }
       
       // Generate audio only when ENABLE_WAV_EXPORT=1 (optional; default off for staging)
@@ -200,32 +234,46 @@ export class ComposeAPI {
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      // Unified Spec v1.1: structured sections with domain headings + backward compat (sectionId + legacy title map)
+      // Unified Spec v1.1: structured sections from ExplainSpec (or legacy fallback)
       const t = text as any;
-      const hasStructured = t?.signatures != null && t?.significance != null;
-      const sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> = hasStructured
-        ? [
-            { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
-            { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
-            { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
-          ]
-        : (() => {
-            const short = t?.short ?? '';
-            const long = t?.long ?? '';
-            const bulletsRaw = Array.isArray(t?.bullets) ? t.bullets : [] as string[];
-            const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
-            let detailsText = long;
-            if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
-              const toneEnd = long.indexOf('.');
-              const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
-              if (tonePrefix && long.startsWith(tonePrefix)) detailsText = long.slice(tonePrefix.length).trim();
-            }
-            return [
-              { sectionId: 'theme', title: 'Theme', text: short },
-              { sectionId: 'details', title: 'Details', text: detailsText },
-              { sectionId: 'bullets', title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
-            ];
-          })();
+      let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }>;
+      
+      if (request.mode === 'overlay' && request.overlayParams) {
+        // Overlay mode: use legacy sections for now
+        const hasStructured = t?.signatures != null && t?.significance != null;
+        sections = hasStructured
+          ? [
+              { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
+              { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
+              { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
+            ]
+          : (() => {
+              const short = t?.short ?? '';
+              const long = t?.long ?? '';
+              const bulletsRaw = Array.isArray(t?.bullets) ? t.bullets : [] as string[];
+              const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
+              let detailsText = long;
+              if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
+                const toneEnd = long.indexOf('.');
+                const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
+                if (tonePrefix && long.startsWith(tonePrefix)) detailsText = long.slice(tonePrefix.length).trim();
+              }
+              return [
+                { sectionId: 'theme', title: 'Theme', text: short },
+                { sectionId: 'details', title: 'Details', text: detailsText },
+                { sectionId: 'bullets', title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
+              ];
+            })();
+      } else {
+        // Single mode: use ExplainSpec-rendered sections
+        sections = rendered.sections.map(s => ({
+          sectionId: s.id,
+          title: s.title,
+          text: s.text,
+          bullets: s.bullets
+        }));
+      }
+      
       const explanation = {
         spec: 'UnifiedSpecV1.1',
         sections
