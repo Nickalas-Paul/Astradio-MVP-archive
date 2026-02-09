@@ -101,9 +101,9 @@ export class TextRealizer {
     if (atoms.music_facts_line) {
       sentences.push(atoms.music_facts_line);
     }
-    sentences.push('This is a personality-style reading mapped into musical decisions, not a prediction.');
-
-    let long = sentences.join(' ');
+    const main = sentences.slice(0, -1).join('. ').replace(/\s*\.\s*\./g, '.');
+    const disclaimer = 'This is a personality-style reading mapped into musical decisions, not a prediction.';
+    let long = main ? `${main}.\n\n${disclaimer}` : disclaimer;
     const maxLength = this.mappingTable.template_structures?.long?.max_length ?? 300;
     if (long.length > maxLength) {
       long = this.truncateText(long, maxLength);

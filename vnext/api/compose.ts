@@ -200,13 +200,25 @@ export class ComposeAPI {
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      // Unified Spec v1.1 explanation wrapper from text explainer
+      // Unified Spec v1.1 explanation wrapper: structured sections, no duplicate Tone, bullets as array
+      const short = (text as any)?.short ?? '';
+      const long = (text as any)?.long ?? '';
+      const bulletsRaw = Array.isArray((text as any)?.bullets) ? (text as any).bullets : [] as string[];
+      const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
+      let detailsText = long;
+      if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
+        const toneEnd = long.indexOf('.');
+        const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
+        if (tonePrefix && long.startsWith(tonePrefix)) {
+          detailsText = long.slice(tonePrefix.length).trim();
+        }
+      }
       const explanation = {
         spec: 'UnifiedSpecV1.1',
         sections: [
-          { title: 'Theme', text: (text as any)?.short ?? '' },
-          { title: 'Details', text: (text as any)?.long ?? '' },
-          { title: 'Bullets', text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '' }
+          { title: 'Theme', text: short },
+          { title: 'Details', text: detailsText },
+          { title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
         ]
       };
 

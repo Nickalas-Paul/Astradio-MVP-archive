@@ -207,7 +207,7 @@ export class AtomsGenerator {
     for (const planet of dominantPlanets) {
       const planetPhrase = this.mappingTable.planet_tints?.[planet];
       if (planetPhrase) {
-        planetTint = ` — ${planetPhrase}`;
+        planetTint = `, ${planetPhrase}`;
         break; // Use first matching planet
       }
     }

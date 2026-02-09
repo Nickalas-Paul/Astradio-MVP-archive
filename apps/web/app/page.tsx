@@ -21,7 +21,8 @@ export default function HomePage() {
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [composeHash, setComposeHash] = useState<string>('');
-  const [explanationText, setExplanationText] = useState<string>('');
+  const [analysisText, setAnalysisText] = useState<string>('');
+  const [explanationSections, setExplanationSections] = useState<Array<{ title: string; text?: string; bullets?: string[] }> | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [composePlan, setComposePlan] = useState<any>(null); // Backend plan for Tone fallback
   const [specVersion, setSpecVersion] = useState<string | null>(null);
@@ -149,9 +150,15 @@ export default function HomePage() {
               }
             } catch (_) {}
           }
-          if (payload?.explanation?.text) setExplanationText(payload.explanation.text);
-          else if (payload?.explanation?.sections?.length) {
-            setExplanationText(payload.explanation.sections.map((s: { text?: string }) => s?.text ?? '').filter(Boolean).join('\n\n'));
+          if (payload?.explanation?.text) {
+            setAnalysisText(payload.explanation.text);
+            setExplanationSections(null);
+          } else if (payload?.explanation?.sections?.length) {
+            setExplanationSections(payload.explanation.sections);
+            setAnalysisText('');
+          } else {
+            setAnalysisText('');
+            setExplanationSections(null);
           }
           // Prefer URL; when backend returns inline WAV (ENABLE_WAV_EXPORT=1), use base64 as blob URL
           if (payload?.audio?.url) {
@@ -367,7 +374,7 @@ export default function HomePage() {
           {/* Left: Text explainer */}
           <aside className="lg:col-span-2">
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-              <ExplanationPanel composeHash={composeHash} text={explanationText} isLoading={isLoading} />
+              <ExplanationPanel composeHash={composeHash} text={analysisText} sections={explanationSections ?? undefined} isLoading={isLoading} />
             </div>
           </aside>
 
@@ -391,9 +398,9 @@ export default function HomePage() {
               <TimeInput value={timeStr} onChange={setTimeStr} disabled={isLoading} />
               <LocationInput
                 value={locationLabel || locationStr}
-                onChange={(v) => {
-                  setLocationStr(v);
-                  setLocationLabel(v);
+                onChange={(value) => {
+                  setLocationStr(value);
+                  setLocationLabel(value);
                 }}
                 disabled={isLoading}
               />
