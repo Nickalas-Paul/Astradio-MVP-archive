@@ -22,11 +22,11 @@ async function main(): Promise<void> {
   console.log('Request:', JSON.stringify(request, null, 2));
   
   // First run
-  const result1 = await api.compose(request);
+  const result1 = await api.compose(request) as any;
   const sections1 = result1.explanation?.sections || [];
   
   // Second run (identical inputs)
-  const result2 = await api.compose(request);
+  const result2 = await api.compose(request) as any;
   const sections2 = result2.explanation?.sections || [];
   
   // Assert sections are identical
@@ -73,8 +73,8 @@ async function main(): Promise<void> {
   
   console.log('✅ PASS: Sections are identical across runs');
   console.log(`  Sections: ${sections1.length}`);
-  console.log(`  Section IDs: ${sections1.map(s => s.sectionId).join(', ')}`);
-  console.log(`  Titles: ${sections1.map(s => s.title).join(', ')}`);
+  console.log(`  Section IDs: ${sections1.map((s: any) => s.sectionId).join(', ')}`);
+  console.log(`  Titles: ${sections1.map((s: any) => s.title).join(', ')}`);
 }
 
 main().catch(err => {

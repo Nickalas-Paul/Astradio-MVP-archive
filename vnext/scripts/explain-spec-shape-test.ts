@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   
   console.log('Running ExplainSpec shape test...');
   
-  const result = await api.compose(request);
+  const result = await api.compose(request) as any;
   const sections = result.explanation?.sections || [];
   
   if (sections.length === 0) {
@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   
   // Check section order: signatures, significance, musical
   const expectedIds = ['signatures', 'significance', 'musical'];
-  const actualIds = sections.map(s => s.sectionId);
+  const actualIds = sections.map((s: any) => s.sectionId);
   
   if (actualIds.length !== expectedIds.length) {
     console.error(`❌ FAIL: Expected ${expectedIds.length} sections, got ${actualIds.length}`);
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
   console.log('✅ PASS: All shape checks passed');
   console.log(`  Sections: ${sections.length}`);
   console.log(`  Section IDs: ${actualIds.join(', ')}`);
-  console.log(`  Musical bullets: ${sections.find(s => s.sectionId === 'musical')?.bullets?.length || 0}`);
+  console.log(`  Musical bullets: ${sections.find((s: any) => s.sectionId === 'musical')?.bullets?.length || 0}`);
 }
 
 main().catch(err => {

@@ -138,7 +138,7 @@ export function buildExplainSpecComparison(inputs: ExplainSpecComparisonInputs):
     buckets: {
       tension: bucketValue(a.featureVec[32] ?? 0.5),
       clustering: bucketValue(a.featureVec[33] ?? 0.5),
-      density: a.planSummary.densityBucket
+      density: mapDensityBucket(a.planSummary.densityBucket)
     },
     planSummary: a.planSummary
   };
@@ -167,7 +167,7 @@ export function buildExplainSpecComparison(inputs: ExplainSpecComparisonInputs):
     buckets: {
       tension: bucketValue(b.featureVec[32] ?? 0.5),
       clustering: bucketValue(b.featureVec[33] ?? 0.5),
-      density: b.planSummary.densityBucket
+      density: mapDensityBucket(b.planSummary.densityBucket)
     },
     planSummary: b.planSummary
   };
@@ -238,6 +238,12 @@ function bucketValue(x: number): BucketValue {
   if (x < 0.33) return 'low';
   if (x < 0.67) return 'med';
   return 'high';
+}
+
+function mapDensityBucket(density: 'sparse' | 'balanced' | 'dense'): BucketValue {
+  if (density === 'sparse') return 'low';
+  if (density === 'dense') return 'high';
+  return 'med';
 }
 
 function buildPsychologyFacts(
@@ -335,10 +341,15 @@ function buildMusicFacts(
     ? `Integration resolves with ${planSummary.integrationTonicPull > 0.7 ? 'tonic' : 'color'} emphasis`
     : 'Integration brings closure';
   
+  // Map densityBucket from PlanSummary to BucketValue
+  const densityBucket: BucketValue = 
+    planSummary.densityBucket === 'sparse' ? 'low' :
+    planSummary.densityBucket === 'dense' ? 'high' : 'med';
+  
   return {
     bpm: planSummary.bpm,
     key: planSummary.key,
-    densityBucket: planSummary.densityBucket,
+    densityBucket,
     registerBias,
     articulationBucket,
     motionBucket,
@@ -466,7 +477,7 @@ function buildTempoBlend(aBpm: number, bBpm: number, seed: string): string {
   return `Chart B's faster tempo (${bBpm} BPM) complements Chart A's steadier pulse (${aBpm} BPM)`;
 }
 
-function buildDensityBlend(a: BucketValue, b: BucketValue, seed: string): string {
+function buildDensityBlend(a: PlanSummary['densityBucket'], b: PlanSummary['densityBucket'], seed: string): string {
   if (a === b) return `Both charts share ${a} density`;
   return `Chart A's ${a} density contrasts with Chart B's ${b} density`;
 }
