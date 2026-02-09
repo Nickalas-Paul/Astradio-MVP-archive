@@ -200,26 +200,35 @@ export class ComposeAPI {
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      // Unified Spec v1.1 explanation wrapper: structured sections, no duplicate Tone, bullets as array
-      const short = (text as any)?.short ?? '';
-      const long = (text as any)?.long ?? '';
-      const bulletsRaw = Array.isArray((text as any)?.bullets) ? (text as any).bullets : [] as string[];
-      const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
-      let detailsText = long;
-      if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
-        const toneEnd = long.indexOf('.');
-        const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
-        if (tonePrefix && long.startsWith(tonePrefix)) {
-          detailsText = long.slice(tonePrefix.length).trim();
-        }
-      }
+      // Unified Spec v1.1: structured sections with domain headings + backward compat (sectionId + legacy title map)
+      const t = text as any;
+      const hasStructured = t?.signatures != null && t?.significance != null;
+      const sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> = hasStructured
+        ? [
+            { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
+            { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
+            { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
+          ]
+        : (() => {
+            const short = t?.short ?? '';
+            const long = t?.long ?? '';
+            const bulletsRaw = Array.isArray(t?.bullets) ? t.bullets : [] as string[];
+            const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
+            let detailsText = long;
+            if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
+              const toneEnd = long.indexOf('.');
+              const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
+              if (tonePrefix && long.startsWith(tonePrefix)) detailsText = long.slice(tonePrefix.length).trim();
+            }
+            return [
+              { sectionId: 'theme', title: 'Theme', text: short },
+              { sectionId: 'details', title: 'Details', text: detailsText },
+              { sectionId: 'bullets', title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
+            ];
+          })();
       const explanation = {
         spec: 'UnifiedSpecV1.1',
-        sections: [
-          { title: 'Theme', text: short },
-          { title: 'Details', text: detailsText },
-          { title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
-        ]
+        sections
       };
 
       // Hashes for control, audio, explanation, viz, plan (deterministic)

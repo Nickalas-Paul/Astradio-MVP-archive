@@ -1,10 +1,30 @@
 'use client';
 
 export type ExplanationSection = {
+  sectionId?: string;
   title: string;
   text?: string;
   bullets?: string[];
 };
+
+/** Display title for section (new headings vs legacy Theme/Details/Bullets). */
+const DISPLAY_TITLES: Record<string, string> = {
+  Astrological Signatures: 'Astrological Signatures',
+  Personal Significance: 'Personal Significance',
+  Musical Identity and Flow: 'Musical Identity and Flow',
+  Theme: 'Astrological Signatures',
+  Details: 'Personal Significance',
+  Bullets: 'Musical Identity and Flow',
+  signatures: 'Astrological Signatures',
+  significance: 'Personal Significance',
+  musical: 'Musical Identity and Flow',
+  theme: 'Astrological Signatures',
+  details: 'Personal Significance',
+  bullets: 'Musical Identity and Flow',
+};
+
+/** Canonical order for sections. */
+const SECTION_ORDER = ['Astrological Signatures', 'Personal Significance', 'Musical Identity and Flow'];
 
 interface ExplanationPanelProps {
   composeHash: string;
@@ -65,57 +85,57 @@ export function ExplanationPanel({
   }
 
   if (hasSections) {
-    const themeSection = sections.find((s) => s.title === 'Theme');
-    const detailsSection = sections.find((s) => s.title === 'Details');
-    const bulletsSection = sections.find((s) => s.title === 'Bullets');
-    const themeText = themeSection?.text ?? '';
-    let detailsText = detailsSection?.text ?? '';
-    detailsText = dedupeTone(themeText, detailsText);
-
+    const displayTitle = (s: ExplanationSection) =>
+      DISPLAY_TITLES[s.title] ?? DISPLAY_TITLES[s.sectionId ?? ''] ?? s.title;
+    const orderKey = (s: ExplanationSection) => {
+      const t = displayTitle(s);
+      const i = SECTION_ORDER.indexOf(t);
+      return i >= 0 ? i : SECTION_ORDER.length;
+    };
+    const sorted = [...sections].sort((a, b) => orderKey(a) - orderKey(b));
+    let previousText = '';
     return (
       <div className={`space-y-4 ${className}`}>
         <h3 className="text-lg font-semibold text-zinc-100">Astrological Analysis</h3>
         <div className="prose prose-invert max-w-none space-y-5">
-          {themeText && (
-            <section>
-              <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2">Theme</h4>
-              <div className="text-zinc-400 leading-relaxed space-y-2">
-                {paragraphs(themeText).map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-                {paragraphs(themeText).length === 0 && <p>{themeText}</p>}
-              </div>
-            </section>
-          )}
-          {detailsText && (
-            <section>
-              <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2">Details</h4>
-              <div className="text-zinc-400 leading-relaxed space-y-2">
-                {paragraphs(detailsText).map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-                {paragraphs(detailsText).length === 0 && <p>{detailsText}</p>}
-              </div>
-            </section>
-          )}
-          {(bulletsSection?.bullets?.length || bulletsSection?.text) ? (
-            <section>
-              <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2">Bullets</h4>
-              {Array.isArray(bulletsSection?.bullets) && bulletsSection.bullets.length > 0 ? (
-                <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed">
-                  {bulletsSection.bullets.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              ) : bulletsSection?.text ? (
-                <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed">
-                  {parseLegacyBullets(bulletsSection.text).map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </section>
-          ) : null}
+          {sorted.map((sec, idx) => {
+            const title = displayTitle(sec);
+            let text = sec.text ?? '';
+            if (previousText.startsWith('Tone:') && text.startsWith('Tone:')) {
+              text = dedupeTone(previousText, text);
+            }
+            previousText = sec.text ?? '';
+            const hasBullets = Array.isArray(sec.bullets) && sec.bullets.length > 0;
+            const hasLegacyBulletText = !hasBullets && sec.text && /[•·]/.test(sec.text);
+            if (!text && !hasBullets && !hasLegacyBulletText) return null;
+            return (
+              <section key={sec.sectionId ?? sec.title ?? idx}>
+                <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2">{title}</h4>
+                {text && (
+                  <div className="text-zinc-400 leading-relaxed space-y-2">
+                    {paragraphs(text).map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                    {paragraphs(text).length === 0 && <p>{text}</p>}
+                  </div>
+                )}
+                {hasBullets && (
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed mt-2">
+                    {sec.bullets!.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+                {hasLegacyBulletText && (
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed mt-2">
+                    {parseLegacyBullets(sec.text!).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
         </div>
       </div>
     );

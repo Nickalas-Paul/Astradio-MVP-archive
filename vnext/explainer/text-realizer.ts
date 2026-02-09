@@ -29,32 +29,179 @@ export class TextRealizer {
     return fs.existsSync(v1Built) ? v1Built : v1Source;
   }
 
+  /** Banned filler phrases (replace or drop unless paired with concrete meaning) */
+  private static readonly BANNED_FILLER = /cosmic forces|celestial dance|stellar (forces|weight)|planetary energies (flow|move)|cosmic (clarity|weight|motifs)/gi;
+
   /**
-   * Generate complete text explainer from atoms (Section C)
+   * Generate complete text explainer from atoms (Section C).
+   * When gate passes, also produces structured sections: signatures, significance, musicalParagraph, musicalBullets.
    */
   generateText(
-    atoms: ExplainerAtoms, 
-    gateReport: any, 
+    atoms: ExplainerAtoms,
+    gateReport: any,
     seed: string
   ): {
     short: string;
     long: string;
     bullets: string[];
     template_id: string;
+    signatures?: string;
+    significance?: string;
+    musicalParagraph?: string;
+    musicalBullets?: string[];
   } {
     this.seed = seed;
-    
     const gatePassed = gateReport.calibrated?.overall || false;
     const templateId = gatePassed ? this.generateTemplateId() : "v1.fail.00";
-    
-    // Apply synonym variations to all atoms
     const variedAtoms = this.applySynonymVariations(atoms);
-    
+
+    const short = this.generateShort(variedAtoms, gatePassed, gateReport);
+    const long = this.generateLong(variedAtoms, gatePassed, gateReport);
+    const bullets = this.generateBullets(variedAtoms, gatePassed, gateReport);
+
+    if (!gatePassed) {
+      return { short, long, bullets, template_id: templateId };
+    }
+
+    let signatures = this.generateSignatures(variedAtoms);
+    let significance = this.generateSignificance(variedAtoms);
+    const musical = this.generateMusicalSection(variedAtoms, gateReport);
+    let musicalParagraph = musical.paragraph;
+    let musicalBullets = musical.bullets;
+
+    const deduped = this.dedupeAndClean(signatures, significance, musicalParagraph, musicalBullets);
+    signatures = deduped.signatures;
+    significance = deduped.significance;
+    musicalParagraph = deduped.musicalParagraph;
+    musicalBullets = deduped.musicalBullets;
+
     return {
-      short: this.generateShort(variedAtoms, gatePassed, gateReport),
-      long: this.generateLong(variedAtoms, gatePassed, gateReport),
-      bullets: this.generateBullets(variedAtoms, gatePassed, gateReport),
-      template_id: templateId
+      short: signatures,
+      long: significance + (musicalParagraph ? "\n\n" + musicalParagraph : ""),
+      bullets: musicalBullets,
+      template_id: templateId,
+      signatures,
+      significance,
+      musicalParagraph,
+      musicalBullets
+    };
+  }
+
+  /** Astrological Signatures: 2–4 sentences. Tone once (max 3 adjectives), then movement and arc; no repetition. */
+  private generateSignatures(atoms: ExplainerAtoms): string {
+    const toneLine = atoms.psych_tone ?? atoms.astro_color;
+    const capped = this.capToneAdjectives(toneLine, 3);
+    const sentences: string[] = [capped];
+    sentences.push(atoms.movement.endsWith('.') ? atoms.movement : atoms.movement + '.');
+    sentences.push(atoms.arc_desc.endsWith('.') ? atoms.arc_desc : atoms.arc_desc + '.');
+    let out = sentences.slice(0, 4).join(' ');
+    return this.stripBannedFiller(out);
+  }
+
+  /** Personal Significance: 1–2 paragraphs, temperament/motivation/relating, one "because" link. */
+  private generateSignificance(atoms: ExplainerAtoms): string {
+    const rhythm = atoms.rhythm_feel.replace(/\.+$/, '').toLowerCase();
+    const density = atoms.density_desc.replace(/\.+$/, '').toLowerCase();
+    const motif = atoms.motif_desc.replace(/\.+$/, '').toLowerCase();
+    const p1 = `The chart points to a particular style of attention and pacing: ${rhythm}, with ${density}.`;
+    const p2 = `Because the elemental and planetary mix shapes how we hold tension and repetition, this shows up as ${motif}.`;
+    const disclaimer = 'This is a personality-style reading mapped into musical decisions, not a prediction.';
+    let out = p1 + ' ' + p2 + '\n\n' + disclaimer;
+    return this.stripBannedFiller(out);
+  }
+
+  /** Musical Identity and Flow: 1 paragraph + 3–6 unique listening-anchor bullets (no "•"). */
+  private generateMusicalSection(atoms: ExplainerAtoms, gateReport: any): { paragraph: string; bullets: string[] } {
+    const tempoFragment = this.generateTempoFragment();
+    const sentences: string[] = [];
+    if (atoms.music_facts_line) sentences.push(atoms.music_facts_line);
+    sentences.push(`${atoms.rhythm_feel} ${tempoFragment}`);
+    if (atoms.motion_profile_line) sentences.push(atoms.motion_profile_line);
+    if (atoms.phase_story_lines?.length === 3) {
+      sentences.push(atoms.phase_story_lines.join(' '));
+    }
+    const paragraph = this.stripBannedFiller(sentences.join('. ').replace(/\s*\.\s*\./g, '.'));
+
+    const bulletCandidates = [
+      atoms.movement,
+      atoms.arc_desc,
+      atoms.rhythm_feel,
+      atoms.density_desc,
+      atoms.motif_desc
+    ].filter(Boolean);
+    if (atoms.motion_profile_line) bulletCandidates.push(atoms.motion_profile_line);
+    if (atoms.music_facts_line) bulletCandidates.push(atoms.music_facts_line);
+    const bullets: string[] = [];
+    const seen = new Set<string>();
+    for (const b of bulletCandidates) {
+      const clean = (b.replace(/^\s*[•·]\s*/, '').trim() || b).replace(/\.+$/, '');
+      const key = clean.toLowerCase().slice(0, 40);
+      if (clean && !seen.has(key) && bullets.length < 6) {
+        seen.add(key);
+        bullets.push(clean.endsWith('.') ? clean : clean + '.');
+      }
+    }
+    return { paragraph, bullets: bullets.slice(0, 6) };
+  }
+
+  private capToneAdjectives(toneLine: string, max: number): string {
+    const match = toneLine.match(/^Tone:\s*(.+)$/i);
+    if (!match) return toneLine;
+    const rest = match[1].trim();
+    const words = rest.split(/\s*,\s*|\s+and\s+|\s+/);
+    const adjectives: string[] = [];
+    for (const w of words) {
+      if (/\b(energetic|curious|grounded|structured|expressive|sensitive|balanced|driven|relating|adaptive|steady)\b/i.test(w)) {
+        adjectives.push(w);
+        if (adjectives.length >= max) break;
+      }
+    }
+    const adjStr = adjectives.length ? adjectives.join(', ') : rest.split(',')[0] || rest;
+    return `Tone: ${adjStr}.`;
+  }
+
+  private stripBannedFiller(text: string): string {
+    return text.replace(TextRealizer.BANNED_FILLER, (m) => {
+      const lower = m.toLowerCase();
+      if (lower.includes('cosmic')) return 'the chart';
+      if (lower.includes('celestial') || lower.includes('stellar')) return 'planetary';
+      if (lower.includes('planetary energies')) return 'the blend';
+      return 'it';
+    }).replace(/\s*[—–]\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  /** Remove duplicate sentences across sections; keep Tone only in signatures. */
+  private dedupeAndClean(
+    signatures: string,
+    significance: string,
+    musicalParagraph: string,
+    musicalBullets: string[]
+  ): { signatures: string; significance: string; musicalParagraph: string; musicalBullets: string[] } {
+    const toSentences = (t: string) => t.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    const sigS = toSentences(signatures);
+    const sigSet = new Set(sigS.map(s => s.toLowerCase().slice(0, 60)));
+    let signText = significance;
+    for (const s of toSentences(significance)) {
+      const key = s.toLowerCase().slice(0, 60);
+      if (sigSet.has(key) || (s.startsWith('Tone:') && sigS.some(x => x.startsWith('Tone:')))) {
+        signText = signText.replace(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), '').replace(/\s{2,}/g, ' ').trim();
+      }
+    }
+    let musText = musicalParagraph;
+    for (const s of toSentences(musicalParagraph)) {
+      const key = s.toLowerCase().slice(0, 60);
+      if (sigSet.has(key)) musText = musText.replace(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), '').replace(/\s{2,}/g, ' ').trim();
+    }
+    const bulletSet = new Set(toSentences(musText).map(s => s.toLowerCase().slice(0, 50)));
+    const musicalBulletsDeduped = musicalBullets.filter(b => {
+      const key = b.toLowerCase().slice(0, 50);
+      return !bulletSet.has(key) && !sigSet.has(key);
+    });
+    return {
+      signatures,
+      significance: signText.replace(/^\.\s*/, ''),
+      musicalParagraph: musText.replace(/^\.\s*/, ''),
+      musicalBullets: musicalBulletsDeduped.length >= 3 ? musicalBulletsDeduped : musicalBullets
     };
   }
 
@@ -351,13 +498,14 @@ export class TextRealizer {
     };
     
     return {
+      ...atoms,
       arc_desc: applyVariations(atoms.arc_desc),
       movement: applyVariations(atoms.movement),
       rhythm_feel: applyVariations(atoms.rhythm_feel),
       density_desc: applyVariations(atoms.density_desc),
       motif_desc: applyVariations(atoms.motif_desc),
       astro_color: applyVariations(atoms.astro_color)
-    };
+    } as ExplainerAtoms;
   }
 
   /**
