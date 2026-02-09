@@ -133,6 +133,15 @@ export type ExplainSpec = {
     signatures: SignatureFacts;
     psychology: PsychologyFacts;
     music: MusicFacts;
+    /** 1:1:1 correspondence: each prominent factor has astro / psych / music line */
+    factorMap?: {
+      factors: Array<{
+        id: string;
+        astro: string;
+        psych: string;
+        music: string;
+      }>;
+    };
   };
   comparison?: {
     a: ChartExplainFacts;

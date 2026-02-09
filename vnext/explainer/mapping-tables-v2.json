@@ -265,6 +265,33 @@
       ]
     }
   },
+  "aspect_operator": {
+    "conjunction": {
+      "astro": "fusion, concentration, singular focus",
+      "psych": "focused expression, consolidation of themes",
+      "music": "motif consolidation, fewer harmonic centers early, thematic recurrence"
+    },
+    "opposition": {
+      "astro": "polarity, mirroring, relational tension",
+      "psych": "tension between poles, dialogue between sides",
+      "music": "call/response motifs, polarity between registers, alternating density"
+    },
+    "square": {
+      "astro": "friction, challenge, activation",
+      "psych": "active tension, motivation through friction",
+      "music": "articulation contrast, harmonic color shifting, density spikes"
+    },
+    "trine": {
+      "astro": "ease, flow, supportive coherence",
+      "psych": "flowing expression, supportive patterns",
+      "music": "smoother motion, consistent register, stable harmonic posture"
+    },
+    "sextile": {
+      "astro": "opportunity, responsiveness, collaborative linkage",
+      "psych": "responsive, collaborative expression",
+      "music": "responsive phrasing, collaborative linkage between parts"
+    }
+  },
   "section_contracts": {
     "description": "ExplainSpec v1.1 section boundaries. Astrology only → Psychology only → Music only. No cross-leak.",
     "astrological_signatures": {

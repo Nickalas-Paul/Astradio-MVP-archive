@@ -28,6 +28,7 @@ import {
 import { astroSummaryFromSnapshot } from './astro-summary-from-snapshot';
 import { guidanceSummaryFromFeatureVec } from './guidance-atoms';
 import { buildPlanSummary } from './plan-summary';
+import { selectProminentFactors, type Factor } from './prominence';
 
 /**
  * Build ExplainSpec for a single chart.
@@ -81,6 +82,10 @@ export function buildExplainSpecSingle(inputs: ExplainSpecSingleInputs): Explain
   // Build listening cues (3-6 unique anchors)
   const listeningCues = buildListeningCues(signatures, psychology, music, seed);
 
+  // Build factor map (1:1:1 astro → psych → music) for prominent factors
+  const prominentFactors = selectProminentFactors(snapshot, featureVec);
+  const factorMap = buildFactorMap(prominentFactors, signatures, psychology, music, seed);
+
   // Build evidence items
   const evidence = buildEvidenceItems(snapshotHash, featureHash, featureVec, planSummary, gateReport);
 
@@ -99,7 +104,8 @@ export function buildExplainSpecSingle(inputs: ExplainSpecSingleInputs): Explain
     single: {
       signatures,
       psychology,
-      music
+      music,
+      factorMap: factorMap.factors.length > 0 ? factorMap : undefined
     },
     listeningCues,
     evidence,
@@ -399,6 +405,79 @@ function buildListeningCues(
   }
   
   return cues.slice(0, Math.min(6, Math.max(3, cues.length)));
+}
+
+const PLANET_OPERATOR: Record<string, string> = {
+  Sun: 'identity and vitality',
+  Moon: 'regulation and emotional rhythm',
+  Mercury: 'cognition and exchange',
+  Venus: 'relating and harmony',
+  Mars: 'initiative and drive',
+  Jupiter: 'expansion and meaning',
+  Saturn: 'structure and boundary',
+  Uranus: 'shift and innovation',
+  Neptune: 'dissolution and imagination',
+  Pluto: 'intensity and transformation'
+};
+
+const ASPECT_MEANING: Record<string, string> = {
+  conj: 'fusion and concentration',
+  opp: 'polarity and mirroring',
+  square: 'friction and activation',
+  trine: 'ease and supportive flow',
+  sextile: 'opportunity and responsive linkage'
+};
+
+function buildFactorMap(
+  factors: Factor[],
+  signatures: SignatureFacts,
+  psychology: PsychologyFacts,
+  music: MusicFacts,
+  seed: string
+): { factors: Array<{ id: string; astro: string; psych: string; music: string }> } {
+  const out: Array<{ id: string; astro: string; psych: string; music: string }> = [];
+  const maxWords = 28;
+
+  for (const f of factors) {
+    if (f.kind === 'planet') {
+      const op = PLANET_OPERATOR[f.planet] ?? 'influence';
+      const id = `planet:${f.planet}`;
+      const astro = `${f.planet} operates as ${op}.`;
+      const psych = `Because ${f.planet} shapes the chart, this tends to show up as ${psychology.attentionStyle} attention and ${psychology.relatingStyle} relating.`;
+      const musicLine = `In sound, this is mirrored by ${music.motionBucket} motion and ${music.articulationBucket} articulation at a ${music.bpm} BPM pulse.`;
+      out.push({ id, astro: trimToWords(astro, maxWords), psych: trimToWords(psych, maxWords), music: trimToWords(musicLine, maxWords) });
+    } else if (f.kind === 'aspect') {
+      const meaning = ASPECT_MEANING[f.aspect] ?? 'relationship';
+      const id = `aspect:${f.a}-${f.aspect}-${f.b}`;
+      const astro = `${f.a} ${f.aspect} ${f.b} describes ${meaning} in the chart.`;
+      const musicLine = f.aspect === 'square' || f.aspect === 'opp'
+        ? `In sound, this is mirrored by harmonic color shifting and ${music.densityBucket} texture.`
+        : f.aspect === 'trine' || f.aspect === 'sextile'
+          ? `In sound, this is mirrored by ${music.harmonicPosture} harmony and ${music.registerBias} register.`
+          : `In sound, this is mirrored by thematic recurrence and ${music.planSummary?.melodyEventCount ?? 0} melody events.`;
+      const psychLine = `Because this aspect brings ${meaning}, it tends to show up as ${psychology.pacing} pacing.`;
+      out.push({
+        id,
+        astro: trimToWords(astro, maxWords),
+        psych: trimToWords(psychLine, maxWords),
+        music: trimToWords(musicLine, maxWords)
+      });
+    } else if (f.kind === 'angle') {
+      const id = `angle:${f.angle}`;
+      const astro = `The ${f.angle} angle emphasizes the chart structure and orientation.`;
+      const psych = `Because the ${f.angle} sets the frame, expression tends toward ${psychology.relatingStyle} relating and ${psychology.attentionStyle} focus.`;
+      const musicLine = `In sound, this is mirrored by the arc from encounter to integration and ${music.registerBias} register.`;
+      out.push({ id, astro: trimToWords(astro, maxWords), psych: trimToWords(psych, maxWords), music: trimToWords(musicLine, maxWords) });
+    }
+  }
+
+  return { factors: out };
+}
+
+function trimToWords(s: string, max: number): string {
+  const words = s.trim().split(/\s+/);
+  if (words.length <= max) return s.trim();
+  return words.slice(0, max).join(' ').replace(/[,.]\s*$/, '').trim() + '.';
 }
 
 function buildEvidenceItems(

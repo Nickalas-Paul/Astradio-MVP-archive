@@ -28,17 +28,28 @@ export function renderExplainSpecToSections(spec: ExplainSpec): { sections: Expl
 
 function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] } {
   if (!spec.single) throw new Error("Single spec missing single facts");
-  
-  const { signatures, psychology, music } = spec.single;
-  
-  const signaturesText = buildAstrologicalNarrative(signatures, spec.seed);
-  const significanceText = buildPsychologicalNarrative(signatures, psychology, spec.seed);
-  const { paragraph: musicalText, bullets: musicalBullets } = buildMusicalNarrative(
+
+  const { signatures, psychology, music, factorMap } = spec.single;
+
+  let signaturesText = buildAstrologicalNarrative(signatures, spec.seed);
+  let significanceText = buildPsychologicalNarrative(signatures, psychology, spec.seed);
+  const { paragraph: musicalParagraph, bullets: musicalBullets } = buildMusicalNarrative(
     signatures,
     psychology,
     music,
     spec.seed
   );
+  let musicalText = musicalParagraph;
+
+  if (factorMap?.factors?.length) {
+    const factorLines = factorMap.factors.slice(0, 4);
+    const astroLines = factorLines.map((f) => f.astro).filter((s) => !signaturesText.includes(s));
+    const psychLines = factorLines.map((f) => f.psych).filter((s) => !significanceText.includes(s));
+    const musicLines = factorLines.map((f) => f.music).filter((s) => !musicalText.includes(s));
+    if (astroLines.length) signaturesText += '\n\n' + astroLines.join('\n');
+    if (psychLines.length) significanceText += '\n\n' + psychLines.join('\n');
+    if (musicLines.length) musicalText += '\n\n' + musicLines.join('\n');
+  }
 
   const deduped = dedupeSections(signaturesText, significanceText, musicalText, musicalBullets);
 
