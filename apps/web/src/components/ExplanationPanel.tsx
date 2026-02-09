@@ -9,22 +9,16 @@ export type ExplanationSection = {
 
 /** Display title for section (new headings vs legacy Theme/Details/Bullets). */
 const DISPLAY_TITLES: Record<string, string> = {
-  Astrological Signatures: 'Astrological Signatures',
-  Personal Significance: 'Personal Significance',
-  Musical Identity and Flow: 'Musical Identity and Flow',
-  Theme: 'Astrological Signatures',
-  Details: 'Personal Significance',
-  Bullets: 'Musical Identity and Flow',
-  signatures: 'Astrological Signatures',
-  significance: 'Personal Significance',
-  musical: 'Musical Identity and Flow',
-  theme: 'Astrological Signatures',
-  details: 'Personal Significance',
-  bullets: 'Musical Identity and Flow',
+  "Astrological Signatures": "Astrological Signatures",
+  "Personal Significance": "Personal Significance",
+  "Musical Identity and Flow": "Musical Identity and Flow",
+  Theme: "Astrological Signatures",
+  Details: "Personal Significance",
+  Bullets: "Musical Identity and Flow",
 };
 
 /** Canonical order for sections. */
-const SECTION_ORDER = ['Astrological Signatures', 'Personal Significance', 'Musical Identity and Flow'];
+const SECTION_ORDER = ["Astrological Signatures", "Personal Significance", "Musical Identity and Flow"] as const;
 
 interface ExplanationPanelProps {
   composeHash: string;
