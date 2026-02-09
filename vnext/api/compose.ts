@@ -3,14 +3,15 @@
  * Unified endpoint for audio + text generation from control-surface payload
  */
 
-import { 
-  ComposeRequest, 
-  ComposeResponse, 
-  ControlSurfacePayload, 
+import {
+  ComposeRequest,
+  ComposeResponse,
+  ControlSurfacePayload,
   GateReport,
-  ExplainerContext 
+  ExplainerContext
 } from '../explainer/contracts';
 import { TextExplainerEngine } from '../explainer/text-explainer';
+import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
 import { encodeFeatures } from '../feature-encode';
@@ -97,6 +98,8 @@ export class ComposeAPI {
       }
       
       // Generate text explanation using shared features (Unified Spec v1.1)
+      // V1-A: real AstroSummary from same snapshot used for encodeFeatures
+      const astro = astroSummaryFromSnapshot(snapshot, featureVec, payload.modality);
       const context: any = {
         mode: request.mode,
         session_id: this.generateSessionId(),
@@ -104,8 +107,8 @@ export class ComposeAPI {
         chartHash: 'mock_chart_hash',
         featuresVersion: 'v1.0'
       };
-      
-      // Overlay handling: compute overlay explanation with Δ thresholds when requested
+      const explainerInputs = { astro, featureVec, plan };
+
       let text: any;
       let textMetricsMs: number | undefined;
       if (request.mode === 'overlay' && request.overlayParams) {
@@ -114,7 +117,7 @@ export class ComposeAPI {
           longitude: request.overlayParams.natalLongitude,
           datetime: request.overlayParams.natalDatetime
         });
-        const currentPayload = payload; // already computed above
+        const currentPayload = payload;
         const natalGateReport = await this.runAuditionGates(plan, natalPayload.hash);
         const currentGateReport = gateReport;
         const overlayResult = (this.textExplainer as any).generateOverlayExplanation(
@@ -122,7 +125,8 @@ export class ComposeAPI {
           currentPayload,
           natalGateReport,
           currentGateReport,
-          context
+          context,
+          explainerInputs
         );
         text = overlayResult.text;
         textMetricsMs = overlayResult.metrics?.total_ms;
@@ -130,7 +134,8 @@ export class ComposeAPI {
         const base = (this.textExplainer as any).generateExplanation(
           payload,
           gateReport,
-          context
+          context,
+          explainerInputs
         );
         text = base.text;
         textMetricsMs = base.metrics?.total_ms;
@@ -368,6 +373,97 @@ export class ComposeAPI {
       if (error?.code === 'ML_INFERENCE_UNAVAILABLE') throw error;
       throw new Error(`Compose API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Compose from a pre-computed feature vector and payload (for compatibility / comparison flow).
+   * Same pipeline as compose(): plan → gates → explainer → optional WAV. Does not touch cache.
+   * Used by POST /api/comparisons only; /api/compose is unchanged.
+   */
+  async composeFromFeatures(
+    featureVec: FeatureVec,
+    payload: ControlSurfacePayload
+  ): Promise<{
+    plan: Plan;
+    planHash: string;
+    gateReport: GateReport;
+    text: any;
+    explanation: { spec: string; sections: Array<{ title: string; text: string }> };
+    audio: { format: 'wav'; base64: string; sha256: string; latency_ms: number; size_bytes: number };
+    hashes: { control: string; audio: string; explanation: string; plan_sha256: string };
+  }> {
+    const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+    if (!diag?.ml_used) {
+      const err = new Error('ML inference unavailable; cannot serve plan or audio') as Error & { code?: string };
+      err.code = 'ML_INFERENCE_UNAVAILABLE';
+      throw err;
+    }
+    const gateReport = await this.runAuditionGates(plan, payload.hash);
+    const context: any = {
+      mode: 'sandbox',
+      session_id: this.generateSessionId(),
+      request_id: this.generateRequestId(),
+      chartHash: payload.hash,
+      featuresVersion: 'v1.0'
+    };
+    const base = (this.textExplainer as any).generateExplanation(payload, gateReport, context);
+    const text = base.text;
+
+    const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
+    const stubAudio = {
+      format: 'wav' as const,
+      base64: '',
+      sha256: '',
+      latency_ms: 0,
+      size_bytes: 0
+    };
+    let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
+    if (wavExportEnabled) {
+      try {
+        const mod = await import('../audio/wav-renderer');
+        const audioStartTime = process.hrtime.bigint();
+        const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
+          sampleRate: 22050,
+          channels: 1,
+          bitDepth: 16
+        });
+        const audioEndTime = process.hrtime.bigint();
+        audio = {
+          format: 'wav',
+          base64: audioResult.buffer.toString('base64'),
+          sha256: audioResult.sha256,
+          latency_ms: Number((audioEndTime - audioStartTime) / BigInt(1_000_000)),
+          size_bytes: audioResult.size_bytes
+        };
+      } catch (_) {
+        // leave stub
+      }
+    }
+
+    const explanation = {
+      spec: 'UnifiedSpecV1.1',
+      sections: [
+        { title: 'Theme', text: (text as any)?.short ?? '' },
+        { title: 'Details', text: (text as any)?.long ?? '' },
+        { title: 'Bullets', text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '' }
+      ]
+    };
+    const planHash = computePlanHash(plan);
+    const hashes = {
+      control: 'sha256:' + this.sha256(JSON.stringify(payload)),
+      audio: audio.sha256,
+      explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
+      plan_sha256: planHash
+    };
+    return {
+      plan,
+      planHash,
+      gateReport,
+      text,
+      explanation,
+      audio,
+      hashes
+    };
   }
 
   /**
@@ -754,6 +850,8 @@ export class ComposeAPI {
 
 // Export handler function for server integration
 const composeAPI = new ComposeAPI();
+/** Singleton for compat/comparison flow only (composeFromFeatures). Do not use from /api/compose. */
+export { composeAPI };
 
 export async function vnextCompose(req: any, res: any) {
   const requestId = (req.headers && req.headers['x-request-id']) || require('crypto').randomBytes(4).toString('hex');

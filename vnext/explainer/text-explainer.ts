@@ -1,18 +1,21 @@
 /**
- * Text Explainer v1.0
+ * Text Explainer v1.0 + V1-B
  * Main orchestrator for generating text explanations from control-surface payload
  */
 
-import { 
-  ControlSurfacePayload, 
-  TextExplainer as TextExplainerContract, 
-  GateReport, 
+import {
+  ControlSurfacePayload,
+  TextExplainer as TextExplainerContract,
+  GateReport,
   ExplainerConfig,
   ExplainerMetrics,
-  ExplainerContext 
+  ExplainerContext,
+  ExplainerInputs
 } from './contracts';
 import { AtomsGenerator } from './atoms-generator';
 import { TextRealizer } from './text-realizer';
+import { buildPlanSummary } from './plan-summary';
+import { guidanceSummaryFromFeatureVec } from './guidance-atoms';
 
 export class TextExplainerEngine {
   private atomsGenerator: AtomsGenerator;
@@ -31,22 +34,30 @@ export class TextExplainerEngine {
   }
 
   /**
-   * Generate complete text explanation from control-surface payload
+   * Generate complete text explanation from control-surface payload.
+   * Optional fourth argument: real snapshot-derived astro + plan/featureVec for alignment.
    */
   generateExplanation(
     payload: ControlSurfacePayload,
     gateReport: GateReport,
-    context: ExplainerContext
+    context: ExplainerContext,
+    inputs?: ExplainerInputs
   ): { text: TextExplainerContract; metrics: ExplainerMetrics } {
     const startTime = process.hrtime.bigint();
-    
-    // Generate atoms (deterministic semantic facts)
+
+    const astro = inputs?.astro;
+    const planSummary = inputs?.plan ? buildPlanSummary(inputs.plan) : undefined;
+    const guidanceSummary = inputs?.featureVec ? guidanceSummaryFromFeatureVec(inputs.featureVec) : undefined;
+
     const atomsStartTime = process.hrtime.bigint();
-    const atoms = this.atomsGenerator.generateAtoms(payload);
+    const atoms = this.atomsGenerator.generateAtoms(payload, astro, {
+      planSummary,
+      guidanceSummary,
+      gateReport
+    });
     const atomsEndTime = process.hrtime.bigint();
     const atomsMs = Number(atomsEndTime - atomsStartTime) / 1000000;
-    
-    // Generate text from atoms
+
     const realizerStartTime = process.hrtime.bigint();
     const text = this.textRealizer.generateText(atoms, gateReport, payload.hash) as any;
     const realizerEndTime = process.hrtime.bigint();
@@ -87,28 +98,21 @@ export class TextExplainerEngine {
   }
 
   /**
-   * Generate overlay explanation comparing two control surfaces
+   * Generate overlay explanation comparing two control surfaces.
+   * Optional inputs: real astro/plan/featureVec for current chart (alignment).
    */
   generateOverlayExplanation(
     natalPayload: ControlSurfacePayload,
     currentPayload: ControlSurfacePayload,
     natalGateReport: GateReport,
     currentGateReport: GateReport,
-    context: ExplainerContext
+    context: ExplainerContext,
+    inputs?: ExplainerInputs
   ): { text: TextExplainerContract; metrics: ExplainerMetrics } {
-    // Calculate delta between natal and current
     const deltaPayload = this.calculateDelta(natalPayload, currentPayload);
-    
-    // Generate base explanation for current
-    const baseResult = this.generateExplanation(currentPayload, currentGateReport, context);
-    
-    // Modify text to include overlay context
+    const baseResult = this.generateExplanation(currentPayload, currentGateReport, context, inputs);
     const overlayText = this.addOverlayContext(baseResult.text, deltaPayload, natalGateReport, currentGateReport);
-    
-    return {
-      text: overlayText,
-      metrics: baseResult.metrics
-    };
+    return { text: overlayText, metrics: baseResult.metrics };
   }
 
   /**

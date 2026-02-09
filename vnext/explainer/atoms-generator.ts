@@ -1,31 +1,51 @@
 /**
- * Explainer Atoms Generator v1.1
+ * Explainer Atoms Generator v1.1 + V1-B
  * Deterministic generation of semantic facts from control-surface payload (Unified Spec v1.1)
  */
 
-import { ControlSurfacePayload, ExplainerAtoms, AstroSummary } from './contracts';
+import { ControlSurfacePayload, ExplainerAtoms, AstroSummary, GateReport } from './contracts';
 import { MappingTable } from './contracts';
+import type { PlanSummary } from './plan-summary';
+import type { GuidanceSummary } from './guidance-atoms';
 import * as fs from 'fs';
 import * as path from 'path';
+
+export interface AtomsGeneratorOptions {
+  planSummary?: PlanSummary;
+  guidanceSummary?: GuidanceSummary;
+  gateReport?: GateReport;
+}
 
 export class AtomsGenerator {
   private mappingTable: MappingTable;
   private seed: string = "";
 
   constructor(mappingTablePath?: string) {
-    const builtPath = path.resolve(__dirname, 'mapping-tables-v1.json');
-    const sourcePath = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v1.json');
-    const chosenPath = mappingTablePath || (fs.existsSync(builtPath) ? builtPath : sourcePath);
+    const chosenPath = this.resolveMappingTablePath(mappingTablePath);
     this.mappingTable = JSON.parse(fs.readFileSync(chosenPath, 'utf8'));
   }
 
+  private resolveMappingTablePath(mappingTablePath?: string): string {
+    if (mappingTablePath) return path.resolve(mappingTablePath);
+    const v2Built = path.resolve(__dirname, 'mapping-tables-v2.json');
+    const v2Source = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v2.json');
+    const v2 = fs.existsSync(v2Built) ? v2Built : (fs.existsSync(v2Source) ? v2Source : null);
+    if (v2) return v2;
+    const v1Built = path.resolve(__dirname, 'mapping-tables-v1.json');
+    const v1Source = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v1.json');
+    return fs.existsSync(v1Built) ? v1Built : v1Source;
+  }
+
   /**
-   * Generate explainer atoms from control-surface payload and astro summary
+   * Generate explainer atoms from control-surface payload and optional astro / plan / guidance
    */
-  generateAtoms(payload: ControlSurfacePayload, astro?: AstroSummary): ExplainerAtoms {
+  generateAtoms(
+    payload: ControlSurfacePayload,
+    astro?: AstroSummary,
+    options?: AtomsGeneratorOptions
+  ): ExplainerAtoms {
     this.seed = payload.hash;
-    
-    // Create default astro summary if not provided
+
     const astroSummary = astro || {
       elements: {
         fire: payload.element_dominance === 'fire' ? 0.6 : 0.1,
@@ -39,10 +59,10 @@ export class AtomsGenerator {
         fixed: payload.modality === 'fixed' ? 0.6 : 0.1,
         mutable: payload.modality === 'mutable' ? 0.6 : 0.1
       },
-      ts: new Date().toISOString()
+      ts: ''
     };
-    
-    return {
+
+    const base: ExplainerAtoms = {
       arc_desc: this.generateArcDescription(payload.arc_shape, astroSummary.elements),
       movement: this.generateMovementDescription(payload.step_bias, payload.leap_cap, astroSummary.dominant_planets),
       rhythm_feel: this.generateRhythmFeeling(payload.rhythm_template_id, payload.syncopation_bias, astroSummary.dominant_planets),
@@ -50,6 +70,87 @@ export class AtomsGenerator {
       motif_desc: this.generateMotifDescription(payload.motif_rate),
       astro_color: this.generateAstroColor(astroSummary.elements, astroSummary.dominant_planets)
     };
+
+    if (options?.guidanceSummary || options?.planSummary || options?.gateReport) {
+      if (options.guidanceSummary) {
+        base.psych_tone = this.buildPsychTone(astroSummary.elements, options.guidanceSummary);
+        base.motion_profile_line = this.buildMotionProfileLine(options.guidanceSummary);
+      }
+      if (options.planSummary) {
+        base.music_facts_line = this.buildMusicFactsLine(options.planSummary);
+      }
+      base.phase_story_lines = this.buildPhaseStoryLines();
+      if (options.gateReport && !options.gateReport.calibrated?.overall) {
+        base.gate_line = this.buildGateLine(options.gateReport);
+      }
+    }
+
+    return base;
+  }
+
+  private buildPsychTone(elements: AstroSummary['elements'], g: GuidanceSummary): string {
+    let top = 'balanced';
+    let max = 0;
+    for (const [el, v] of Object.entries(elements)) {
+      if ((v as number) > max) {
+        max = v as number;
+        top = el;
+      }
+    }
+    const adj = (this.mappingTable.astro_colors?.element_adjectives as Record<string, string>)?.[top] ?? top;
+    const tensionPhrase = g.tension === 'high' ? ' with noticeable tension' : g.tension === 'low' ? ' with low tension' : '';
+    return `Temperament leans ${adj}${tensionPhrase}.`;
+  }
+
+  private buildMotionProfileLine(g: GuidanceSummary): string {
+    const parts: string[] = [];
+    if (g.motion !== 'med') parts.push(`Motion ${g.motion}`);
+    if (g.gravity !== 'med') parts.push(`gravity ${g.gravity}`);
+    if (g.flow !== 'med') parts.push(`flow ${g.flow}`);
+    if (g.shimmer !== 'med') parts.push(`shimmer ${g.shimmer}`);
+    if (parts.length === 0) return 'Motion and weight are moderate.';
+    return parts.join(', ') + '.';
+  }
+
+  private buildPhaseStoryLines(): [string, string, string] {
+    const encounter = [
+      'Encounter: the opening establishes a clear harmonic center.',
+      'Encounter: the start grounds the listener in one tonal space.'
+    ];
+    const recognition = [
+      'Recognition: the middle section introduces melodic movement and contrast.',
+      'Recognition: the middle opens up motion and variety.'
+    ];
+    const integration = [
+      'Integration: the close settles back toward the tonic.',
+      'Integration: the end resolves with a pull to home.'
+    ];
+    return [
+      this.selectBySeed(encounter, 'phase_enc'),
+      this.selectBySeed(recognition, 'phase_rec'),
+      this.selectBySeed(integration, 'phase_int')
+    ];
+  }
+
+  private buildMusicFactsLine(ps: PlanSummary): string {
+    const tempoBucket = ps.bpm < 90 ? 'a slow range' : ps.bpm > 120 ? 'a brisk range' : 'a moderate range';
+    const density = ps.densityBucket;
+    let register = 'mid register';
+    if (ps.registerMax != null && ps.registerMin != null) {
+      const mid = (ps.registerMax + ps.registerMin) / 2;
+      if (mid < 70) register = 'low register';
+      else if (mid > 78) register = 'high register';
+    }
+    return `Tempo sits in ${tempoBucket}, density is ${density}, register leans ${register}.`;
+  }
+
+  private buildGateLine(gateReport: GateReport): string {
+    const failed: string[] = [];
+    if (!gateReport.calibrated?.melody_arc) failed.push('instability');
+    if (!gateReport.calibrated?.melody_step_leap || !gateReport.calibrated?.rhythm_diversity) failed.push('repetition');
+    if (!gateReport.calibrated?.melody_narrative) failed.push('sparsity');
+    if (failed.length === 0) return 'Some gates did not pass.';
+    return `Quality gates suggest: ${[...new Set(failed)].join(' and ')}.`;
   }
 
   /**

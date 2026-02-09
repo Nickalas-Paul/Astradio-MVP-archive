@@ -14,10 +14,19 @@ export class TextRealizer {
   private seed: string = "";
 
   constructor(mappingTablePath?: string) {
-    const builtPath = path.resolve(__dirname, 'mapping-tables-v1.json');
-    const sourcePath = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v1.json');
-    const chosenPath = mappingTablePath || (fs.existsSync(builtPath) ? builtPath : sourcePath);
+    const chosenPath = mappingTablePath || this.resolveMappingTablePath();
     this.mappingTable = JSON.parse(fs.readFileSync(chosenPath, 'utf8'));
+  }
+
+  /** Load v2 by default, fallback to v1 if v2 missing. */
+  private resolveMappingTablePath(): string {
+    const v2Built = path.resolve(__dirname, 'mapping-tables-v2.json');
+    const v2Source = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v2.json');
+    const v2 = fs.existsSync(v2Built) ? v2Built : (fs.existsSync(v2Source) ? v2Source : null);
+    if (v2) return v2;
+    const v1Built = path.resolve(__dirname, 'mapping-tables-v1.json');
+    const v1Source = path.resolve(__dirname, '../../../vnext/explainer/mapping-tables-v1.json');
+    return fs.existsSync(v1Built) ? v1Built : v1Source;
   }
 
   /**
@@ -50,32 +59,27 @@ export class TextRealizer {
   }
 
   /**
-   * Generate short form text (Section C)
+   * Generate short form text (Section C). When psych_tone present, use as psychology-tone lead.
    */
   private generateShort(atoms: ExplainerAtoms, gatePassed: boolean, gateReport: any): string {
     if (!gatePassed) {
-      return ""; // Empty string for fail-closed short text
+      return "";
     }
 
-    // Pattern: [astro_color] [movement] [arc_desc]
-    let short = `${atoms.astro_color} ${atoms.movement} ${atoms.arc_desc}`;
-    
-    // Optional: add rhythm_feel if space (max 120 chars)
+    const toneLine = atoms.psych_tone ?? atoms.astro_color;
+    let short = `${toneLine} ${atoms.movement} ${atoms.arc_desc}`;
     if (short.length < 80) {
       short += ` ${atoms.rhythm_feel}`;
     }
-    
-    // Ensure length constraint
-    const maxLength = this.mappingTable.template_structures.short.max_length;
+    const maxLength = this.mappingTable.template_structures?.short?.max_length ?? 120;
     if (short.length > maxLength) {
       short = this.truncateText(short, maxLength);
     }
-    
     return short;
   }
 
   /**
-   * Generate long form text (Section C)
+   * Generate long form text (Section C). Adds phase_story + music_facts when present; disclaimer once.
    */
   private generateLong(atoms: ExplainerAtoms, gatePassed: boolean, gateReport: any): string {
     if (!gatePassed) {
@@ -83,54 +87,54 @@ export class TextRealizer {
     }
 
     const sentences: string[] = [];
-    
-    // S1: [astro_color]
-    sentences.push(atoms.astro_color);
-    
-    // S2: [movement]
+    const toneLine = atoms.psych_tone ?? atoms.astro_color;
+    sentences.push(toneLine);
     sentences.push(atoms.movement);
-    
-    // S3: [rhythm_feel] + tempo fragment
     const tempoFragment = this.generateTempoFragment();
     sentences.push(`${atoms.rhythm_feel} ${tempoFragment}`);
-    
-    // S4: [density_desc]
     sentences.push(atoms.density_desc);
-    
-    // S5: [motif_desc]
     sentences.push(atoms.motif_desc);
-    
+
+    if (atoms.phase_story_lines?.length === 3) {
+      sentences.push(atoms.phase_story_lines.join(' '));
+    }
+    if (atoms.music_facts_line) {
+      sentences.push(atoms.music_facts_line);
+    }
+    sentences.push('This is a personality-style reading mapped into musical decisions, not a prediction.');
+
     let long = sentences.join(' ');
-    
-    // Ensure length constraint
-    const maxLength = this.mappingTable.template_structures.long.max_length;
+    const maxLength = this.mappingTable.template_structures?.long?.max_length ?? 300;
     if (long.length > maxLength) {
       long = this.truncateText(long, maxLength);
     }
-    
     return long;
   }
 
   /**
-   * Generate bullet points (Section C)
+   * Generate bullet points (Section C). Adds motion_profile + music_facts when present; gate_line when fail.
    */
   private generateBullets(atoms: ExplainerAtoms, gatePassed: boolean, gateReport?: any): string[] {
     if (!gatePassed) {
-      return [this.generateFailHint(gateReport)];
+      const failBullet = atoms.gate_line
+        ? `• ${atoms.gate_line} ${this.generateFailHint(gateReport)}`
+        : `• ${this.generateFailHint(gateReport)}`;
+      return [failBullet];
     }
 
     const bullets: string[] = [];
-    
-    // Core musical elements
     bullets.push(`• ${atoms.movement}`);
     bullets.push(`• ${atoms.arc_desc}`);
     bullets.push(`• ${atoms.rhythm_feel}`);
     bullets.push(`• ${atoms.density_desc}`);
     bullets.push(`• ${atoms.motif_desc}`);
-    
-    // Gate hints when applicable (would be added by calling code)
-    
-    return bullets.slice(0, 6); // Max 6 items
+    if (atoms.motion_profile_line) {
+      bullets.push(`• ${atoms.motion_profile_line}`);
+    }
+    if (atoms.music_facts_line) {
+      bullets.push(`• ${atoms.music_facts_line}`);
+    }
+    return bullets.slice(0, 8);
   }
 
   /**

@@ -10,6 +10,23 @@ export interface ExplainerAtoms {
   density_desc: string;
   motif_desc: string;
   astro_color: string;
+  /** V1-B: Psychology-tone line (element blend + tension). */
+  psych_tone?: string;
+  /** V1-B: Motion/gravity/flow/shimmer summary. */
+  motion_profile_line?: string;
+  /** V1-B: Three short lines for Encounter / Recognition / Integration. */
+  phase_story_lines?: [string, string, string];
+  /** V1-B: "Tempo sits in ___, density is ___, register leans ___". */
+  music_facts_line?: string;
+  /** V1-B: When gates fail, class of failure (no raw numbers). */
+  gate_line?: string;
+}
+
+/** Optional inputs for explainer alignment (real snapshot-derived astro + plan/guidance). */
+export interface ExplainerInputs {
+  astro?: AstroSummary;
+  featureVec?: import('../contracts').FeatureVec;
+  plan?: import('../contracts').Plan;
 }
 
 export interface TextExplainer {
