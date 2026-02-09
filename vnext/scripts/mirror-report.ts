@@ -81,7 +81,7 @@ function hashToSeed(seedStr: string): () => number {
 
 function generatePlanWithoutML(snapshot: EphemerisSnapshot, hash: string): Plan {
   const featureVec = encodeFeatures(snapshot) as FeatureVec;
-  const guidance = guidanceFromFeatures(featureVec, snapshot);
+  const guidance = guidanceFromFeatures(featureVec, snapshot, hash);
   const guidanceWithSeed = { ...guidance, seed: hash };
   const rng = hashToSeed(hash);
   const v6: [number, number, number, number, number, number] = [
@@ -178,7 +178,7 @@ function main(): void {
     const plan = generatePlanWithoutML(snapshot, payloadHash);
     const plan_sha256 = computePlanHash(plan);
     const metrics = compactMetrics(plan);
-    const guidance = guidanceFromFeatures(encodeFeatures(snapshot) as FeatureVec, snapshot);
+    const guidance = guidanceFromFeatures(encodeFeatures(snapshot) as FeatureVec, snapshot, payloadHash);
     const mirrorScores = scoreMirrorFidelity(plan, guidance);
 
     console.log(`--- Input ${i + 1}: ${input.datetime} ${input.lat},${input.lon} ---`);
@@ -189,6 +189,10 @@ function main(): void {
     console.log(`density_per_channel: ${JSON.stringify(metrics.densityPerChannel)}`);
     console.log(`rest_ratio: ${metrics.restRatio}`);
     console.log(`mirror_fidelity_score: ${mirrorScores.score.toFixed(4)}`);
+    if (i === 0 && guidance.personality) {
+      const p = guidance.personality;
+      console.log(`personality (pp.v1): temperament.gravity=${p.temperament.gravity.toFixed(2)} warmth=${p.temperament.warmth.toFixed(2)} | moon.permeability=${p.subsystems.moon.permeability.toFixed(2)} | venus.softness=${p.subsystems.venus.softness.toFixed(2)} | mars.propulsion=${p.subsystems.mars.propulsion.toFixed(2)} | outers(pluto/neptune/uranus)=${p.subsystems.outers.plutoDepth.toFixed(2)}/${p.subsystems.outers.neptuneMist.toFixed(2)}/${p.subsystems.outers.uranusEdge.toFixed(2)} | reveal.recognition core/inner/style=${p.reveal.recognition.core.toFixed(2)}/${p.reveal.recognition.inner.toFixed(2)}/${p.reveal.recognition.style.toFixed(2)}`);
+    }
     console.log("");
   }
 }

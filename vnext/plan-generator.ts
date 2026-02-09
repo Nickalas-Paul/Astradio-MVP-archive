@@ -63,7 +63,7 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
     try {
       // Convert chartContext to EphemerisSnapshot format
       const snapshot = {
-        ts: chartContext.ts || chartContext.date || new Date().toISOString(),
+        ts: chartContext.ts ?? chartContext.date ?? "",
         tz: chartContext.tz || chartContext.timezone || "UTC",
         lat: chartContext.lat || chartContext.latitude || 0,
         lon: chartContext.lon || chartContext.longitude || 0,
@@ -79,7 +79,7 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
           fire: 0.25, earth: 0.25, air: 0.25, water: 0.25
         }
       };
-      guidance = guidanceFromFeatures(feat, snapshot);
+      guidance = guidanceFromFeatures(feat, snapshot, String(seedStr));
       console.log(`🔮 Astro guidance: tempo=${guidance.tempoBias.toFixed(2)}, arc=${guidance.arcBias.toFixed(2)}, density=${guidance.densityBias.toFixed(2)}`);
     } catch (e) {
       console.warn(`⚠️ Failed to compute astro guidance: ${e}`);

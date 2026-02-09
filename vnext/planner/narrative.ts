@@ -1,6 +1,7 @@
 // vnext/planner/narrative.ts
 import { Plan, EventToken } from "../contracts";
 import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidance";
+import type { PersonalityProfileV1 } from "../astro/personality-profile";
 
 /**
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
@@ -233,10 +234,17 @@ function resolveDegree(
   return nearestChordTone(deg, chordTones);
 }
 
-/** Harmonic field: prefer root position in Encounter and Integration when gravity high. */
-function preferRootPosition(phase: 0 | 1 | 2, gravity: number): boolean {
+/** Harmonic field: prefer root position in Encounter and Integration when gravity/centeredness high. */
+function preferRootPosition(
+  phase: 0 | 1 | 2,
+  gravity: number,
+  personality?: PersonalityProfileV1
+): boolean {
+  const coreGravity = personality
+    ? clamp01((gravity + personality.temperament.gravity + personality.subsystems.saturn.restraint) / 3)
+    : gravity;
   if (phase === 0) return true;
-  if (phase === 2 && gravity >= 0.4) return true;
+  if (phase === 2 && coreGravity >= 0.4) return true;
   return false;
 }
 
@@ -258,6 +266,7 @@ export function planFromVector(
     elementBlend?: ElementBlend;
     motionProfile?: MotionProfile;
     narrativeArc?: NarrativeArc;
+    personality?: PersonalityProfileV1;
   }
 ): Plan {
   const [vTempo, vBright, vDense, vArc, vMotif, vCad] = v;
@@ -267,10 +276,20 @@ export function planFromVector(
   const densityBias = guidance?.densityBias ?? 0;
   const motionProfile = guidance?.motionProfile;
   const elementBlend = guidance?.elementBlend;
+  const personality = guidance?.personality;
   const gravity = motionProfile?.gravity ?? 0.5;
   const flow = motionProfile?.flow ?? 0.5;
   const articulation = motionProfile?.articulation ?? 0.5;
   const shimmer = motionProfile?.shimmer ?? 0.5;
+  const venusSoftness = personality?.subsystems.venus.softness ?? 0.5;
+  const moonPermeability = personality?.subsystems.moon.permeability ?? 0.5;
+  const marsPropulsion = personality?.subsystems.mars.propulsion ?? 0.5;
+  const marsEdge = personality?.subsystems.mars.edge ?? 0.5;
+  const mercuryAgility = personality?.subsystems.mercury.agility ?? 0.5;
+  const plutoDepth = personality?.subsystems.outers.plutoDepth ?? 0;
+  const revealEncounter = personality?.reveal.encounter ?? { core: 0.7, inner: 0.2, style: 0.1 };
+  const revealRecognition = personality?.reveal.recognition ?? { core: 0.45, inner: 0.3, style: 0.25 };
+  const seedNum = (guidance?.seed ?? "v6").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 
   const biasedTempo = clamp01(vTempo * (1 + 0.1 * tempoBias));
   const bpm = Math.round(lerp(70, 140, biasedTempo));
@@ -334,7 +353,8 @@ export function planFromVector(
         isBSection
       );
     } else if (sectionId === 1) {
-      hook = applyAPrimeOrnament(baseHook, bar, density);
+      const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
+      hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
     } else if (isBSection) {
       hook = transposeHook(baseHook, 2);
       if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
@@ -372,11 +392,14 @@ export function planFromVector(
       const capSec = allowLongSustain ? MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH : MAX_MELODY_SUSTAIN_SEC;
       const capBeats = capSec / secondsPerBeat;
       if (effectiveDur > capBeats) effectiveDur = capBeats;
-      push(tBeats, Math.max(0.25, effectiveDur), pitch, 0.7 + 0.1 * (i % 2), "melody");
+      const melodyVel = clamp01(0.7 + 0.1 * (i % 2) + 0.05 * marsEdge);
+      push(tBeats, Math.max(0.25, effectiveDur), pitch, melodyVel, "melody");
     }
   }
 
   const barsPerPhase = [ENCOUNTER_BARS, RECOGNITION_BARS, BARS - ENCOUNTER_BARS - RECOGNITION_BARS];
+  const minEncounter = Math.max(6, Math.floor(8 * (0.85 + 0.15 * (1 - revealEncounter.core))));
+  const minPerPhase: [number, number, number] = [minEncounter, MIN_MELODY_PER_PHASE[1], MIN_MELODY_PER_PHASE[2]];
   const melodySoFar = events.filter(e => e.channel === "melody");
   const phaseCounts: [number, number, number] = [0, 0, 0];
   for (const e of melodySoFar) {
@@ -384,9 +407,8 @@ export function planFromVector(
     const phase = narrativePhaseForBar(bar);
     phaseCounts[phase]++;
   }
-  const seedNum = (guidance?.seed ?? "v6").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   for (let phase = 0; phase < 3; phase++) {
-    const need = MIN_MELODY_PER_PHASE[phase] - phaseCounts[phase];
+    const need = minPerPhase[phase] - phaseCounts[phase];
     if (need <= 0) continue;
     const firstBar = phase === 0 ? 0 : phase === 1 ? ENCOUNTER_BARS : ENCOUNTER_BARS + RECOGNITION_BARS;
     const numBars = barsPerPhase[phase];
@@ -413,6 +435,9 @@ export function planFromVector(
     const { root } = chordForBar(barInPhrase, progId, isBSection);
     const barStart = bar * 4;
     const bassRoot = root - 24;
+    if (plutoDepth > 0.1 && bar % 4 === seedNum % 4) {
+      push(barStart + 1, 2, Math.max(24, bassRoot - 12), 0.25, "bass");
+    }
     if (bassPattern === 0) {
       push(barStart + 0, 2, bassRoot, 0.7, "bass");
       push(barStart + 2, 2, bassRoot, 0.65, "bass");
@@ -450,14 +475,15 @@ export function planFromVector(
     const clamp = (p: [number, number, number]) => p.map(x => Math.max(HARMONY_LO, Math.min(HARMONY_HI, x))) as [number, number, number];
     const candidates = [clamp(rootPos), clamp(firstInv), clamp(secondInv)];
     const phase = narrativePhaseForBar(bar);
-    const preferRoot = preferRootPosition(phase, gravity);
+    const preferRoot = preferRootPosition(phase, gravity, personality);
+    const rootPenalty = preferRoot ? (1 - venusSoftness) * 20 : 0;
     let best = candidates[0];
     if (prevHarmonyPitches !== null) {
       let bestCost = 1e9;
       for (let idx = 0; idx < candidates.length; idx++) {
         const cand = candidates[idx];
         let cost = Math.abs(cand[0] - prevHarmonyPitches[0]) + Math.abs(cand[1] - prevHarmonyPitches[1]) + Math.abs(cand[2] - prevHarmonyPitches[2]);
-        if (preferRoot && idx !== 0) cost += 20;
+        if (idx !== 0) cost += rootPenalty;
         if (cost < bestCost) { bestCost = cost; best = cand; }
       }
     } else if (preferRoot) {
@@ -477,7 +503,9 @@ export function planFromVector(
   const air = elementBlend?.air ?? 0.25;
   const fire = elementBlend?.fire ?? 0.25;
   const earth = elementBlend?.earth ?? 0.25;
-  const blendFactor = clamp01(flow * 0.4 + (water + air) * 0.3 - fire * 0.25 + earth * 0.2);
+  const blendFactor = clamp01(
+    flow * 0.4 + (water + air) * 0.3 - fire * 0.25 + earth * 0.2 + moonPermeability * 0.2 + venusSoftness * 0.2
+  );
   const overlapRatio = 0.05 + 0.07 * blendFactor;
   const overlapBaseSec = Math.min(barSec * overlapRatio, HARMONY_OVERLAP_CAP_SEC);
   const harmonyEvents = events.filter((e): e is EventToken => e.channel === "harmony");
@@ -509,12 +537,13 @@ export function planFromVector(
     const barStart = bar * 4;
     const barInPhraseR = bar % PHRASE;
     const isCadenceBar = barInPhraseR === 3;
+    const rhythmDensityThreshold = 0.5 + 0.1 * (1 - marsPropulsion);
     const omitBeat3Kick = !isCadenceBar && density < 0.65 && bar % 2 === 1;
     push(barStart + 0, 0.25, 36, 0.8, "rhythm");
     if (!omitBeat3Kick) push(barStart + 2, 0.25, 36, 0.7, "rhythm");
     push(barStart + 1, 0.25, 42, 0.4, "rhythm");
     push(barStart + 3, 0.25, 42, 0.4, "rhythm");
-    if (barInPhraseR === 2 && density > 0.55) {
+    if (barInPhraseR === 2 && density > rhythmDensityThreshold) {
       push(barStart + 0.5, 0.25, 42, 0.35, "rhythm");
       push(barStart + 2.5, 0.25, 42, 0.35, "rhythm");
     }

@@ -2,6 +2,7 @@
 // Pure function to compute astrological guidance from features and chart context
 
 import type { EphemerisSnapshot, FeatureVec } from "../contracts";
+import { computePersonalityProfileV1, type PersonalityProfileV1 } from "./personality-profile";
 
 export interface AstroGuidance {
   tempoBias: number;    // [-1, +1] based on fire+air vs earth+water
@@ -64,9 +65,13 @@ function motionProfileFromElementBlend(blend: ElementBlend): MotionProfile {
 
 /**
  * Compute astrological guidance from feature vector and chart context
- * Pure function with no side effects
+ * Pure function with no side effects. Optional seed (e.g. payload.hash) attached to personality.
  */
-export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: EphemerisSnapshot): AstroGuidance & { elementBlend: ElementBlend; motionProfile: MotionProfile; narrativeArc: NarrativeArc } {
+export function guidanceFromFeatures(
+  featureVec: FeatureVec,
+  chartContext: EphemerisSnapshot,
+  seed?: string
+): AstroGuidance & { elementBlend: ElementBlend; motionProfile: MotionProfile; narrativeArc: NarrativeArc; personality: PersonalityProfileV1 } {
   // Extract element proportions from feature vector (indices 27-30)
   const fire = featureVec[27] ?? 0;
   const earth = featureVec[28] ?? 0;
@@ -76,6 +81,13 @@ export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: Ephem
   const elementBlend = normalizeElementBlend(fire, earth, air, water);
   const motionProfile = motionProfileFromElementBlend(elementBlend);
   const narrativeArc: NarrativeArc = { encounterSec: 15, recognitionSec: 30, integrationSec: 15 };
+  const personality = computePersonalityProfileV1(
+    featureVec,
+    chartContext,
+    motionProfile,
+    elementBlend,
+    seed ?? ""
+  );
   
   // Tempo bias: fire+air vs earth+water proportion
   const dynamicElements = fire + air;
@@ -109,6 +121,7 @@ export function guidanceFromFeatures(featureVec: FeatureVec, chartContext: Ephem
     elementBlend,
     motionProfile,
     narrativeArc,
+    personality,
   };
 }
 
