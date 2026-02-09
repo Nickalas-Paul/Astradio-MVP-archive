@@ -1,15 +1,19 @@
 /**
- * Deterministic Renderer v1.0
- * Renders ExplainSpec to professional explanation sections.
- * 
- * Rules:
- * - No duplicate sentences across sections
- * - No inline bullet glyphs (bullets must be arrays)
- * - No em dashes (use commas or periods)
- * - Complete sentences, proper paragraph breaks
+ * Deterministic Renderer v1.1
+ * Renders ExplainSpec with strict section contracts: Astrology → Psychology → Music.
+ *
+ * 1) Astrological Signatures: Chart only. Elements as field/atmosphere, planets as symbolic operators, structure. No psychology, no music.
+ * 2) Personal Significance: Translate astrology → psychology with "because". No music, no raw astro repeat.
+ * 3) Musical Identity and Flow: How music mirrors prior sections. Bullets as "listen for..." / "notice how..." cues only.
  */
 
-import type { ExplainSpec, ExplanationSection } from '../spec-contracts';
+import type {
+  ExplainSpec,
+  ExplanationSection,
+  SignatureFacts,
+  PsychologyFacts,
+  MusicFacts
+} from '../spec-contracts';
 
 /**
  * Render ExplainSpec to explanation sections.
@@ -27,31 +31,21 @@ function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] }
   
   const { signatures, psychology, music } = spec.single;
   
-  // Build Astrological Signatures (2-4 sentences)
-  const signaturesText = renderSignatures(signatures, spec.seed);
-  
-  // Build Personal Significance (1-2 paragraphs)
-  const significanceText = renderSignificance(signatures, psychology, spec.seed);
-  
-  // Build Musical Identity and Flow (1 paragraph + bullets)
-  const musicalText = renderMusical(music, spec.seed);
-  const musicalBullets = spec.listeningCues.slice(0, 6);
-  
-  // Dedupe sentences across sections
+  const signaturesText = buildAstrologicalNarrative(signatures, spec.seed);
+  const significanceText = buildPsychologicalNarrative(signatures, psychology, spec.seed);
+  const { paragraph: musicalText, bullets: musicalBullets } = buildMusicalNarrative(
+    signatures,
+    psychology,
+    music,
+    spec.seed
+  );
+
   const deduped = dedupeSections(signaturesText, significanceText, musicalText, musicalBullets);
-  
+
   return {
     sections: [
-      {
-        id: "signatures",
-        title: spec.titles.signatures,
-        text: deduped.signatures
-      },
-      {
-        id: "significance",
-        title: spec.titles.significance,
-        text: deduped.significance
-      },
+      { id: "signatures", title: spec.titles.signatures, text: deduped.signatures },
+      { id: "significance", title: spec.titles.significance, text: deduped.significance },
       {
         id: "musical",
         title: spec.titles.musical,
@@ -102,97 +96,128 @@ function renderComparisonSpec(spec: ExplainSpec): { sections: ExplanationSection
 }
 
 // ============================================================================
-// Single-chart rendering
+// Section 1: Astrological Signatures (chart only; symbolic, archetypal)
 
-function renderSignatures(signatures: import('../spec-contracts').SignatureFacts, seed: string): string {
+/** Planet as symbolic operator (archetypal function in the chart). */
+const PLANET_OPERATOR: Record<string, string> = {
+  Sun: 'identity and vitality',
+  Moon: 'regulation and emotional rhythm',
+  Mercury: 'cognition and exchange',
+  Venus: 'relating and harmony',
+  Mars: 'initiative and drive',
+  Jupiter: 'expansion and meaning',
+  Saturn: 'structure and boundary',
+  Uranus: 'shift and innovation',
+  Neptune: 'dissolution and imagination',
+  Pluto: 'intensity and transformation'
+};
+
+/** Element as field or atmosphere (not personality traits). */
+const ELEMENT_FIELD: Record<string, string> = {
+  fire: 'a field of initiative and warmth',
+  earth: 'a field of substance and form',
+  air: 'a field of idea and exchange',
+  water: 'a field of feeling and flow'
+};
+
+function buildAstrologicalNarrative(signatures: SignatureFacts, _seed: string): string {
   const sentences: string[] = [];
-  
-  // Tone line (element blend + planets)
-  const topElement = Object.entries(signatures.elementBlend)
-    .sort((a, b) => b[1] - a[1])[0];
-  const elementAdjs: Record<string, string[]> = {
-    fire: ['energetic', 'passionate', 'bold'],
-    earth: ['grounded', 'practical', 'steady'],
-    air: ['curious', 'analytical', 'communicative'],
-    water: ['intuitive', 'empathetic', 'flowing']
-  };
-  const adj = elementAdjs[topElement[0]]?.[0] || 'balanced';
-  const planetStr = signatures.dominantPlanets.length > 0 
-    ? ` ${signatures.dominantPlanets[0]} and ${signatures.dominantPlanets.slice(1).join(', ')}` 
-    : '';
-  sentences.push(`Tone: ${adj}${planetStr ? ',' + planetStr : ''}.`);
-  
-  // Movement (element blend + tension)
-  const movementTemplates = [
-    "Motion stays mostly connected and stepwise",
-    "Movement flows with balanced temperament",
-    "The pattern moves with measured steps",
-    "Motion shifts with ${topElement[0]} element influence"
-  ];
-  const rng = createSeededRNG(seed);
-  const movementIdx = Math.floor(rng() * movementTemplates.length);
-  let movement = movementTemplates[movementIdx];
-  movement = movement.replace('${topElement[0]}', topElement[0]);
-  sentences.push(movement + '.');
-  
-  // Arc description
-  const arcTemplates = [
-    "The shape builds and releases, with balanced temperament",
-    "Tension rises then eases, reflecting the elemental mix",
-    "The arc lifts and comes down, showing ${topElement[0]} influence"
-  ];
-  const arcIdx = Math.floor(rng() * arcTemplates.length);
-  let arc = arcTemplates[arcIdx];
-  arc = arc.replace('${topElement[0]}', topElement[0]);
-  sentences.push(arc + '.');
-  
-  // Optional: tension/clustering note (if significant)
-  if (signatures.tensionBucket === 'high' || signatures.clusteringBucket === 'high') {
-    sentences.push(`Tension and clustering signals show ${signatures.tensionBucket} tension with ${signatures.clusteringBucket} clustering.`);
+
+  const sorted = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1]);
+  const top = sorted[0];
+  const topName = top[0];
+  const field = ELEMENT_FIELD[topName] ?? 'a balanced elemental field';
+  sentences.push(`The chart holds ${field}.`);
+
+  if (signatures.dominantPlanets.length > 0) {
+    const planet = signatures.dominantPlanets[0];
+    const op = PLANET_OPERATOR[planet] ?? 'influence';
+    sentences.push(`${planet} operates as ${op}.`);
+    if (signatures.dominantPlanets.length >= 2) {
+      const second = signatures.dominantPlanets[1];
+      const op2 = PLANET_OPERATOR[second] ?? 'influence';
+      sentences.push(`${second} contributes ${op2}.`);
+    }
   }
-  
+
+  if (signatures.tensionBucket !== 'low' || signatures.clusteringBucket !== 'low') {
+    const tensionPhrase =
+      signatures.tensionBucket === 'high'
+        ? 'Tension in the chart is pronounced'
+        : signatures.tensionBucket === 'med'
+          ? 'Tension is moderate'
+          : 'Tension is low';
+    const clusterPhrase =
+      signatures.clusteringBucket === 'high'
+        ? 'with strong clustering of energies'
+        : signatures.clusteringBucket === 'med'
+          ? 'with moderate clustering'
+          : 'with diffuse emphasis';
+    sentences.push(`${tensionPhrase}, ${clusterPhrase}.`);
+  }
+
   return sentences.slice(0, 4).join(' ');
 }
 
-function renderSignificance(
-  signatures: import('../spec-contracts').SignatureFacts,
-  psychology: import('../spec-contracts').PsychologyFacts,
+// ============================================================================
+// Section 2: Personal Significance (astrology → psychology; "because" clause)
+
+function buildPsychologicalNarrative(
+  signatures: SignatureFacts,
+  psychology: PsychologyFacts,
   seed: string
 ): string {
-  const paragraphs: string[] = [];
-  
-  // First paragraph: attention style and pacing
-  const p1 = `The chart points to a particular style of attention and pacing: ${psychology.attentionStyle}, with ${psychology.pacing} rhythm.`;
-  paragraphs.push(p1);
-  
-  // Second paragraph: "because" reasoning
-  const topElement = Object.entries(signatures.elementBlend)
-    .sort((a, b) => b[1] - a[1])[0];
-  const p2 = `Because the ${topElement[0]} element blend and ${signatures.dominantPlanets.length > 0 ? signatures.dominantPlanets[0] : 'planetary'} influences shape how we hold tension and repetition, this shows up as ${psychology.relatingStyle} relating style.`;
-  paragraphs.push(p2);
-  
-  // Disclaimer
-  paragraphs.push('\n\nThis is a personality-style reading mapped into musical decisions, not a prediction.');
-  
-  return paragraphs.join(' ');
+  const top = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1])[0];
+  const planet = signatures.dominantPlanets[0];
+
+  const planetPhrase = planet ? `${planet} ` : '';
+  const p1 = `Because the ${top[0]} element and ${planetPhrase}influence shape how tension and repetition are held, temperament leans toward ${psychology.temperamentWords.join(' and ')}.`;
+  const p2 = `Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`;
+
+  const disclaimer =
+    '\n\nThis is a personality-style reading mapped into musical decisions, not a prediction.';
+  return p1 + ' ' + p2 + disclaimer;
 }
 
-function renderMusical(music: import('../spec-contracts').MusicFacts, seed: string): string {
+// ============================================================================
+// Section 3: Musical Identity and Flow (mirrors prior sections; listening-cue bullets)
+
+function buildMusicalNarrative(
+  _signatures: SignatureFacts,
+  _psychology: PsychologyFacts,
+  music: MusicFacts,
+  _seed: string
+): { paragraph: string; bullets: string[] } {
   const sentences: string[] = [];
-  
-  // Tempo and density
-  sentences.push(`Tempo sits in a ${music.bpm} BPM range, density is ${music.densityBucket}, register leans ${music.registerBias}.`);
-  
-  // Motion and articulation
-  sentences.push(`Motion and articulation show ${music.motionBucket} motion with ${music.articulationBucket} articulation.`);
-  
-  // Harmonic posture
-  sentences.push(`Harmonic posture is ${music.harmonicPosture === 'root-stable' ? 'root-stable' : 'color-shifting'}.`);
-  
-  // Arc summary (begin/middle/end)
-  sentences.push(`${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`);
-  
-  return sentences.join(' ');
+
+  sentences.push(
+    `The composition mirrors these patterns in sound: a ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}.`
+  );
+  sentences.push(
+    `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance.`
+  );
+  sentences.push(
+    `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
+  );
+
+  const paragraph = sentences.join(' ');
+
+  const densityLabel =
+    music.densityBucket === 'high' ? 'layered texture' : music.densityBucket === 'low' ? 'open texture' : 'balanced texture';
+  const bullets: string[] = [];
+  bullets.push(`Listen for the ${music.bpm} BPM pulse.`);
+  bullets.push(`Notice how ${music.motionBucket} motion shapes the phrase.`);
+  bullets.push(`Listen for ${music.registerBias} register.`);
+  bullets.push(`Notice how ${densityLabel} supports the arc.`);
+  if (music.planSummary?.avgMelodicInterval != null) {
+    bullets.push(
+      `Listen for motion around ${music.planSummary.avgMelodicInterval.toFixed(0)}-semitone steps.`
+    );
+  }
+  bullets.push(`Notice how harmonic posture stays ${music.harmonicPosture}.`);
+
+  const unique = Array.from(new Set(bullets)).slice(0, 6);
+  return { paragraph, bullets: unique };
 }
 
 // ============================================================================

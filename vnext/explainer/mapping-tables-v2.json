@@ -264,5 +264,37 @@
         { "gentle": "delicate", "rise": "elevation", "fall": "lowering", "steady": "constant", "balanced": "equilibrated" }
       ]
     }
+  },
+  "section_contracts": {
+    "description": "ExplainSpec v1.1 section boundaries. Astrology only → Psychology only → Music only. No cross-leak.",
+    "astrological_signatures": {
+      "purpose": "Describe what is present in the chart astrologically.",
+      "allowed": ["elements as field/atmosphere", "planets as symbolic operators", "tension/clustering/polarity as structure", "archetypal language"],
+      "forbidden": ["psychological adjectives", "musical mechanics", "this shows up as"],
+      "element_field": {
+        "fire": "a field of initiative and warmth",
+        "earth": "a field of substance and form",
+        "air": "a field of idea and exchange",
+        "water": "a field of feeling and flow"
+      },
+      "planet_operator": {
+        "Moon": "regulation and emotional rhythm",
+        "Mercury": "cognition and exchange",
+        "Venus": "relating and harmony",
+        "Mars": "initiative and drive",
+        "Saturn": "structure and boundary",
+        "Jupiter": "expansion and meaning"
+      }
+    },
+    "personal_significance": {
+      "purpose": "Translate astrology into lived psychological patterns.",
+      "allowed": ["because clause linking astrology to psychology", "temperament, motivation, attention, pacing, boundaries, relating", "non-predictive disclaimer"],
+      "forbidden": ["musical metrics or phase structure", "repeating raw astrological diagnostics"]
+    },
+    "musical_identity_and_flow": {
+      "purpose": "Explain how the music mirrors astrology and psychology.",
+      "allowed": ["tempo, density, register, arc, harmony interpretively", "BPM/semitone when contextualized", "listen for / notice how bullets"],
+      "forbidden": ["new astrology or psychology in bullets", "bullets that restate prose"]
+    }
   }
 }
