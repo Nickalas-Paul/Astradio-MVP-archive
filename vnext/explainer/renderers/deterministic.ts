@@ -41,14 +41,17 @@ function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] }
   );
   let musicalText = musicalParagraph;
 
+  const debugExplain = typeof process !== 'undefined' && process.env?.DEBUG_EXPLAINER === '1';
+  const paraSep = '\n\n';
   if (factorMap?.factors?.length) {
     const factorLines = factorMap.factors.slice(0, 4);
     const astroLines = factorLines.map((f) => f.astro).filter((s) => !signaturesText.includes(s));
     const psychLines = factorLines.map((f) => f.psych).filter((s) => !significanceText.includes(s));
     const musicLines = factorLines.map((f) => f.music).filter((s) => !musicalText.includes(s));
-    if (astroLines.length) signaturesText += '\n\n' + astroLines.join('\n');
-    if (psychLines.length) significanceText += '\n\n' + psychLines.join('\n');
-    if (musicLines.length) musicalText += '\n\n' + musicLines.join('\n');
+    const sentinel = debugExplain ? '\n\n[correspondences]\n' : '';
+    if (astroLines.length) signaturesText += sentinel + paraSep + astroLines.join(paraSep);
+    if (psychLines.length) significanceText += sentinel + paraSep + psychLines.join(paraSep);
+    if (musicLines.length) musicalText += sentinel + paraSep + musicLines.join(paraSep);
   }
 
   const deduped = dedupeSections(signaturesText, significanceText, musicalText, musicalBullets);

@@ -37,7 +37,7 @@ interface ExplanationPanelProps {
 const FALLBACK_LOADING = 'Loading astrological analysis...';
 const FALLBACK_DEFAULT = "Your natal chart combined with today's transits creates a unique musical signature. The planetary positions influence the tempo, harmony, and emotional tone of your personalized soundtrack.";
 
-/** Split text into paragraphs (blank-line or double newline). */
+/** Split text into paragraphs (blank-line or double newline). Backend uses "\n\n" for paragraph breaks so factor correspondence lines render as separate paragraphs. */
 function paragraphs(text: string): string[] {
   if (!text || !text.trim()) return [];
   return text
@@ -114,6 +114,7 @@ export function ExplanationPanel({
                     {paragraphs(text).map((p, i) => (
                       <p key={i}>{p}</p>
                     ))}
+                    {/* Full section.text rendered; no truncation other than CSS */}
                     {paragraphs(text).length === 0 && <p>{text}</p>}
                   </div>
                 )}

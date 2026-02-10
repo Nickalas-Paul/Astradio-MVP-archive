@@ -273,10 +273,47 @@ export class ComposeAPI {
           bullets: s.bullets
         }));
       }
-      
+
+      const isSpecEngine = !(request.mode === 'overlay' && request.overlayParams);
+      const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
+      const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
+      const debugExplain = process.env.DEBUG_EXPLAINER === '1';
+
+      const explanationMeta: {
+        engine: 'legacy' | 'spec';
+        engineVersion: string;
+        hasFactorMap: boolean;
+        factorCount: number;
+        debug?: { aspectsCount: number; dominantPlanetsLength: number; housesPresent: boolean };
+      } = {
+        engine: isSpecEngine ? 'spec' : 'legacy',
+        engineVersion: 'tge-1.0',
+        hasFactorMap,
+        factorCount
+      };
+      if (debugExplain && isSpecEngine) {
+        explanationMeta.debug = {
+          aspectsCount: (snapshot as any)?.aspects?.length ?? 0,
+          dominantPlanetsLength: spec?.single?.signatures?.dominantPlanets?.length ?? 0,
+          housesPresent: !!((snapshot as any)?.houses?.length >= 10)
+        };
+      }
+
+      if (debugExplain && sections) {
+        sections = [
+          ...sections,
+          {
+            sectionId: 'debug',
+            title: 'Debug',
+            text: `engine=${explanationMeta.engine} factorCount=${factorCount} hasFactorMap=${hasFactorMap}`
+          }
+        ];
+      }
+
       const explanation = {
         spec: 'UnifiedSpecV1.1',
-        sections
+        sections,
+        meta: explanationMeta
       };
 
       // Hashes for control, audio, explanation, viz, plan (deterministic)
