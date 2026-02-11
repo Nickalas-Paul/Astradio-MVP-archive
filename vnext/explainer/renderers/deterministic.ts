@@ -14,6 +14,7 @@ import type {
   PsychologyFacts,
   MusicFacts
 } from '../spec-contracts';
+import type { AstroProfile } from '../../astro/profile-from-snapshot';
 
 /**
  * Render ExplainSpec to explanation sections.
@@ -29,15 +30,16 @@ export function renderExplainSpecToSections(spec: ExplainSpec): { sections: Expl
 function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] } {
   if (!spec.single) throw new Error("Single spec missing single facts");
 
-  const { signatures, psychology, music, factorMap } = spec.single;
+  const { signatures, psychology, music, factorMap, profile, prominentPlanets, prominentAspects } = spec.single;
 
-  let signaturesText = buildAstrologicalNarrative(signatures, spec.seed);
-  let significanceText = buildPsychologicalNarrative(signatures, psychology, spec.seed);
+  let signaturesText = buildAstrologicalNarrative(signatures, spec.seed, profile, prominentPlanets, prominentAspects);
+  let significanceText = buildPsychologicalNarrative(signatures, psychology, spec.seed, profile, prominentPlanets, prominentAspects);
   const { paragraph: musicalParagraph, bullets: musicalBullets } = buildMusicalNarrative(
     signatures,
     psychology,
     music,
-    spec.seed
+    spec.seed,
+    profile
   );
   let musicalText = musicalParagraph;
 
@@ -110,7 +112,7 @@ function renderComparisonSpec(spec: ExplainSpec): { sections: ExplanationSection
 }
 
 // ============================================================================
-// Section 1: Astrological Signatures (chart only; symbolic, archetypal)
+// Section 1: Astrological Signatures (chart only; placements, angles, aspects)
 
 /** Planet as symbolic operator (archetypal function in the chart). */
 const PLANET_OPERATOR: Record<string, string> = {
@@ -128,69 +130,182 @@ const PLANET_OPERATOR: Record<string, string> = {
 
 /** Element as field or atmosphere (not personality traits). */
 const ELEMENT_FIELD: Record<string, string> = {
-  fire: 'a field of initiative and warmth',
-  earth: 'a field of substance and form',
-  air: 'a field of idea and exchange',
-  water: 'a field of feeling and flow'
+  fire: 'initiative and warmth',
+  earth: 'substance and form',
+  air: 'idea and exchange',
+  water: 'feeling and flow'
 };
 
-function buildAstrologicalNarrative(signatures: SignatureFacts, _seed: string): string {
+/** Modality as quality of expression. */
+const MODALITY_FIELD: Record<string, string> = {
+  cardinal: 'forward momentum and initiation',
+  fixed: 'focus and persistence',
+  mutable: 'adaptation and flow'
+};
+
+/** House topic (short) for placement meaning. */
+const HOUSE_TOPIC: Record<number, string> = {
+  1: 'self and approach to life',
+  2: 'resources and values',
+  3: 'communication and local exchange',
+  4: 'home, roots, and private life',
+  5: 'creativity and expression',
+  6: 'service and routine',
+  7: 'partnership and the other',
+  8: 'transformation and depth',
+  9: 'meaning and the larger picture',
+  10: 'career and public role',
+  11: 'groups and ideals',
+  12: 'the unconscious and release'
+};
+
+/** One-line placement meaning: planet in sign + house topic. */
+function placementMeaning(p: AstroProfile['planets'][0]): string {
+  const op = PLANET_OPERATOR[p.name] ?? 'influence';
+  const topic = HOUSE_TOPIC[p.house] ?? 'the chart';
+  const angleNote = p.nearAngle ? `, accenting the ${p.nearAngle},` : '';
+  return `${op}${angleNote} expressed through ${topic}.`;
+}
+
+/** Ordinal for house (1st, 2nd, ...). */
+function ordinal(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return n + 'th';
+  const s = ['th', 'st', 'nd', 'rd'];
+  return n + (s[v % 10] ?? 'th');
+}
+
+const FIRE_SIGNS = ['Aries', 'Leo', 'Sagittarius'];
+const WATER_SIGNS = ['Cancer', 'Scorpio', 'Pisces'];
+const AIR_SIGNS = ['Gemini', 'Libra', 'Aquarius'];
+
+/** ASC sign to framing phrase. */
+function ascFraming(sign: string): string {
+  const el = FIRE_SIGNS.includes(sign) ? 'warmth and visibility' : WATER_SIGNS.includes(sign) ? 'depth and feeling' : AIR_SIGNS.includes(sign) ? 'exchange and idea' : 'substance and form';
+  return `frames the approach to life through ${el} and self-presentation.`;
+}
+
+/** Aspect type to short descriptor for sentence. */
+const ASPECT_DESC: Record<string, string> = {
+  conjunction: 'conjunction',
+  sextile: 'sextile',
+  square: 'square',
+  trine: 'trine',
+  opposition: 'opposition'
+};
+
+function buildAstrologicalNarrative(
+  signatures: SignatureFacts,
+  _seed: string,
+  profile?: AstroProfile,
+  prominentPlanets?: AstroProfile['planets'],
+  prominentAspects?: AstroProfile['aspects']
+): string {
   const sentences: string[] = [];
 
-  const sorted = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1]);
-  const top = sorted[0];
-  const topName = top[0];
-  const field = ELEMENT_FIELD[topName] ?? 'a balanced elemental field';
-  sentences.push(`The chart holds ${field}.`);
+  if (profile && prominentPlanets && prominentPlanets.length > 0) {
+    const emp = profile.emphasis;
+    const topEl = (['fire', 'earth', 'air', 'water'] as const).sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
+    const topMod = (['cardinal', 'fixed', 'mutable'] as const).sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
+    const elLabel = ELEMENT_FIELD[topEl] ?? 'balance';
+    const modLabel = MODALITY_FIELD[topMod] ?? 'expression';
+    sentences.push(`The chart's sign-based element emphasis leans ${topEl} (${elLabel}) with ${topMod} modality (${modLabel}).`);
 
-  if (signatures.dominantPlanets.length > 0) {
-    const planet = signatures.dominantPlanets[0];
-    const op = PLANET_OPERATOR[planet] ?? 'influence';
-    sentences.push(`${planet} operates as ${op}.`);
-    if (signatures.dominantPlanets.length >= 2) {
-      const second = signatures.dominantPlanets[1];
-      const op2 = PLANET_OPERATOR[second] ?? 'influence';
-      sentences.push(`${second} contributes ${op2}.`);
+    const seen = new Set<string>();
+    for (const p of prominentPlanets.slice(0, 5)) {
+      if (seen.has(p.name)) continue;
+      seen.add(p.name);
+      const houseOrd = ordinal(p.house);
+      const meaning = placementMeaning(p);
+      sentences.push(`${p.name} in ${p.sign} in the ${houseOrd} house emphasizes ${meaning}`);
+    }
+
+    sentences.push(`ASC in ${profile.angles.ASC.sign} ${ascFraming(profile.angles.ASC.sign)}.`);
+
+    if (prominentAspects && prominentAspects.length > 0) {
+      for (const a of prominentAspects.slice(0, 2)) {
+        const tightWord = a.tightness === 'tight' ? 'tight' : a.tightness === 'med' ? 'moderate' : 'wide';
+        const orbStr = a.orb.toFixed(1);
+        const typeStr = ASPECT_DESC[a.type] ?? a.type;
+        const hard = a.type === 'square' || a.type === 'opposition';
+        sentences.push(`A ${tightWord} ${a.a} ${typeStr} ${a.b} (orb ${orbStr}°) ${hard ? 'brings tension and activation between the planets involved.' : 'supports coherence between the planets involved.'}`);
+      }
+    }
+  } else {
+    const sorted = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1]);
+    const top = sorted[0];
+    const topName = top[0];
+    const field = ELEMENT_FIELD[topName] ?? 'a balanced elemental field';
+    sentences.push(`The chart holds a field of ${field}.`);
+    if (signatures.dominantPlanets.length > 0) {
+      const planet = signatures.dominantPlanets[0];
+      const op = PLANET_OPERATOR[planet] ?? 'influence';
+      sentences.push(`${planet} operates as ${op}.`);
+      if (signatures.dominantPlanets.length >= 2) {
+        const second = signatures.dominantPlanets[1];
+        const op2 = PLANET_OPERATOR[second] ?? 'influence';
+        sentences.push(`${second} contributes ${op2}.`);
+      }
+    }
+    if (signatures.tensionBucket !== 'low' || signatures.clusteringBucket !== 'low') {
+      const tensionPhrase = signatures.tensionBucket === 'high' ? 'Tension in the chart is pronounced' : signatures.tensionBucket === 'med' ? 'Tension is moderate' : 'Tension is low';
+      const clusterPhrase = signatures.clusteringBucket === 'high' ? 'with strong clustering of energies' : signatures.clusteringBucket === 'med' ? 'with moderate clustering' : 'with diffuse emphasis';
+      sentences.push(`${tensionPhrase}, ${clusterPhrase}.`);
     }
   }
 
-  if (signatures.tensionBucket !== 'low' || signatures.clusteringBucket !== 'low') {
-    const tensionPhrase =
-      signatures.tensionBucket === 'high'
-        ? 'Tension in the chart is pronounced'
-        : signatures.tensionBucket === 'med'
-          ? 'Tension is moderate'
-          : 'Tension is low';
-    const clusterPhrase =
-      signatures.clusteringBucket === 'high'
-        ? 'with strong clustering of energies'
-        : signatures.clusteringBucket === 'med'
-          ? 'with moderate clustering'
-          : 'with diffuse emphasis';
-    sentences.push(`${tensionPhrase}, ${clusterPhrase}.`);
-  }
-
-  return sentences.slice(0, 4).join(' ');
+  return sentences.slice(0, 8).join(' ');
 }
 
 // ============================================================================
 // Section 2: Personal Significance (astrology → psychology; "because" clause)
 
+/** Short psychological translation for planet-in-house (2–3 used). */
+function placementPsych(p: AstroProfile['planets'][0]): string {
+  const house = p.house;
+  if (house === 4) return 'a need to regulate through privacy and familiarity';
+  if (house === 7) return 'relating and balance showing up in partnership and one-to-one dynamics';
+  if (house === 10) return 'public role and responsibility shaping how identity is expressed';
+  if (house === 1) return 'self-presentation and approach to life colored by this influence';
+  if (house <= 3) return 'early-life and communicative patterns reflecting this energy';
+  if (house <= 6) return 'daily life and habits carrying this signature';
+  if (house <= 9) return 'meaning-making and depth informed by this placement';
+  return 'collective and inner life reflecting this influence';
+}
+
 function buildPsychologicalNarrative(
   signatures: SignatureFacts,
   psychology: PsychologyFacts,
-  seed: string
+  _seed: string,
+  profile?: AstroProfile,
+  prominentPlanets?: AstroProfile['planets'],
+  prominentAspects?: AstroProfile['aspects']
 ): string {
-  const top = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1])[0];
-  const planet = signatures.dominantPlanets[0];
+  const paragraphs: string[] = [];
 
-  const planetPhrase = planet ? `${planet} ` : '';
-  const p1 = `Because the ${top[0]} element and ${planetPhrase}influence shape how tension and repetition are held, temperament leans toward ${psychology.temperamentWords.join(' and ')}.`;
-  const p2 = `Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`;
+  if (profile && prominentPlanets && prominentPlanets.length > 0) {
+    for (const p of prominentPlanets.slice(0, 3)) {
+      const psych = placementPsych(p);
+      paragraphs.push(`Psychologically, ${p.name} in the ${ordinal(p.house)} house can show up as ${psych}.`);
+    }
+    if (prominentAspects && prominentAspects.length > 0) {
+      const a = prominentAspects[0];
+      const tensionNote = a.type === 'square' || a.type === 'opposition'
+        ? 'The tension between these planets often shows up as internal friction that can be channeled into focus and growth.'
+        : 'The supportive link between these planets tends to show up as ease in integrating identity and emotional life.';
+      paragraphs.push(tensionNote);
+    }
+    paragraphs.push(`Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`);
+  } else {
+    const top = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1])[0];
+    const planet = signatures.dominantPlanets[0];
+    const planetPhrase = planet ? `${planet} ` : '';
+    paragraphs.push(`Because the ${top[0]} element and ${planetPhrase}influence shape how tension and repetition are held, temperament leans toward ${psychology.temperamentWords.join(' and ')}.`);
+    paragraphs.push(`Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`);
+  }
 
-  const disclaimer =
-    '\n\nThis is a personality-style reading mapped into musical decisions, not a prediction.';
-  return p1 + ' ' + p2 + disclaimer;
+  const disclaimer = '\n\nThis is a personality-style reading mapped into musical decisions, not a prediction.';
+  return paragraphs.join(' ') + disclaimer;
 }
 
 // ============================================================================
@@ -200,19 +315,44 @@ function buildMusicalNarrative(
   _signatures: SignatureFacts,
   _psychology: PsychologyFacts,
   music: MusicFacts,
-  _seed: string
+  _seed: string,
+  profile?: AstroProfile
 ): { paragraph: string; bullets: string[] } {
   const sentences: string[] = [];
 
-  sentences.push(
-    `The composition mirrors these patterns in sound: a ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}.`
-  );
-  sentences.push(
-    `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance.`
-  );
-  sentences.push(
-    `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
-  );
+  if (profile) {
+    const emp = profile.emphasis;
+    const topEl = (['fire', 'earth', 'air', 'water'] as const).sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
+    const topMod = (['cardinal', 'fixed', 'mutable'] as const).sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
+    const mirrorLead =
+      topEl === 'fire' && (topMod === 'cardinal' || topMod === 'mutable')
+        ? 'Because the chart\'s sign-based emphasis is fire and ' + topMod + ', the piece favors forward motion and clearer attacks.'
+        : topEl === 'earth' || topMod === 'fixed'
+          ? 'Because the chart emphasizes substance and focus, the piece anchors around steady pulse and harmonic grounding.'
+          : topEl === 'water' || topEl === 'air'
+            ? 'Because the chart emphasizes flow and exchange, the piece favors continuity and register movement.'
+            : 'The composition mirrors these patterns in sound.';
+    sentences.push(mirrorLead);
+    sentences.push(
+      `A ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}, reflect the chart's angles and prominence.`
+    );
+    sentences.push(
+      `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance, mirroring aspect tension and support.`
+    );
+    sentences.push(
+      `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
+    );
+  } else {
+    sentences.push(
+      `The composition mirrors these patterns in sound: a ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}.`
+    );
+    sentences.push(
+      `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance.`
+    );
+    sentences.push(
+      `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
+    );
+  }
 
   const paragraph = sentences.join(' ');
 

@@ -29,6 +29,7 @@ import { astroSummaryFromSnapshot } from './astro-summary-from-snapshot';
 import { guidanceSummaryFromFeatureVec } from './guidance-atoms';
 import { buildPlanSummary } from './plan-summary';
 import { selectProminentFactors, type Factor } from './prominence';
+import { buildAstroProfile, type AstroProfile } from '../astro/profile-from-snapshot';
 
 /**
  * Build ExplainSpec for a single chart.
@@ -82,6 +83,11 @@ export function buildExplainSpecSingle(inputs: ExplainSpecSingleInputs): Explain
   // Build listening cues (3-6 unique anchors)
   const listeningCues = buildListeningCues(signatures, psychology, music, seed);
 
+  // Build AstroProfile (sign-based elements, placements, angles, aspects) for explainer narrative
+  const profile = buildAstroProfile(snapshot);
+  const prominentPlanets = selectProminentPlanetsFromProfile(profile);
+  const prominentAspects = selectProminentAspectsFromProfile(profile);
+
   // Build factor map (1:1:1 astro → psych → music) for prominent factors
   const prominentFactors = selectProminentFactors(snapshot, featureVec);
   const factorMap = buildFactorMap(prominentFactors, signatures, psychology, music, seed);
@@ -105,6 +111,9 @@ export function buildExplainSpecSingle(inputs: ExplainSpecSingleInputs): Explain
       signatures,
       psychology,
       music,
+      profile,
+      prominentPlanets: prominentPlanets.length > 0 ? prominentPlanets : undefined,
+      prominentAspects: prominentAspects.length > 0 ? prominentAspects : undefined,
       factorMap: factorMap.factors.length > 0 ? factorMap : undefined
     },
     listeningCues,
@@ -427,6 +436,41 @@ const ASPECT_MEANING: Record<string, string> = {
   trine: 'ease and supportive flow',
   sextile: 'opportunity and responsive linkage'
 };
+
+const PROFILE_PLANET_ORDER = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+const LUMINARIES = new Set(['Sun', 'Moon']);
+
+/** Select 3–5 prominent planets: luminaries + nearAngle + aspect involvement (weighted by tightness). Deterministic. */
+function selectProminentPlanetsFromProfile(profile: AstroProfile): AstroProfile['planets'] {
+  const aspectWeight: Record<string, number> = { tight: 3, med: 2, wide: 1 };
+  const involvement: Record<string, number> = {};
+  for (const p of profile.planets) involvement[p.name] = 0;
+  for (const a of profile.aspects) {
+    const w = aspectWeight[a.tightness] ?? 1;
+    involvement[a.a] = (involvement[a.a] ?? 0) + w;
+    involvement[a.b] = (involvement[a.b] ?? 0) + w;
+  }
+  const scored = profile.planets.map((p) => ({
+    p,
+    score: (LUMINARIES.has(p.name) ? 10 : 0) + (p.nearAngle ? 5 : 0) + (involvement[p.name] ?? 0)
+  }));
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return PROFILE_PLANET_ORDER.indexOf(a.p.name) - PROFILE_PLANET_ORDER.indexOf(b.p.name);
+  });
+  return scored.slice(0, 5).map((x) => x.p);
+}
+
+/** Select 3–5 prominent aspects: orb tightness + luminary involvement. Deterministic. */
+function selectProminentAspectsFromProfile(profile: AstroProfile): AstroProfile['aspects'] {
+  const aspectWeight: Record<string, number> = { tight: 3, med: 2, wide: 1 };
+  const scored = profile.aspects.map((a) => ({
+    a,
+    score: (aspectWeight[a.tightness] ?? 1) + (LUMINARIES.has(a.a) || LUMINARIES.has(a.b) ? 2 : 0)
+  }));
+  scored.sort((x, y) => y.score - x.score);
+  return scored.slice(0, 5).map((x) => x.a);
+}
 
 function buildFactorMap(
   factors: Factor[],

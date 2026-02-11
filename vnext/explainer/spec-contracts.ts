@@ -12,6 +12,7 @@
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 import type { PlanSummary } from './plan-summary';
 import type { GuidanceSummary } from './guidance-atoms';
+import type { AstroProfile } from '../astro/profile-from-snapshot';
 
 export type ExplainMode = "single" | "comparison";
 
@@ -133,6 +134,12 @@ export type ExplainSpec = {
     signatures: SignatureFacts;
     psychology: PsychologyFacts;
     music: MusicFacts;
+    /** AstroProfile from snapshot (sign-based elements, placements, angles, aspects). Explainer-only. */
+    profile?: AstroProfile;
+    /** 3–5 planets for placement sentences (luminaries + nearAngle + aspect involvement). */
+    prominentPlanets?: AstroProfile['planets'];
+    /** 3–5 aspects for aspect sentences (orb tightness + luminary involvement). */
+    prominentAspects?: AstroProfile['aspects'];
     /** 1:1:1 correspondence: each prominent factor has astro / psych / music line */
     factorMap?: {
       factors: Array<{

@@ -105,7 +105,28 @@ async function main(): Promise<void> {
       }
     }
   }
-  
+
+  // AstroProfile-driven Signatures: placement lines, ASC, orb when aspects mentioned
+  const sigSection = sections.find((s: any) => s.sectionId === 'signatures');
+  const sigText = (sigSection?.text ?? '') as string;
+  if (sigText.includes('sign-based')) {
+    const placementRe = /in \w+ in the \d+(?:st|nd|rd|th) house/gi;
+    const placementCount = (sigText.match(placementRe) ?? []).length;
+    if (placementCount < 2) {
+      console.error(`❌ FAIL: Astrological Signatures should include at least 2 planet placement lines (e.g. "in X in the Nth house"), got ${placementCount}`);
+      process.exit(1);
+    }
+    if (!sigText.includes('ASC in')) {
+      console.error(`❌ FAIL: Astrological Signatures should include "ASC in" (angle line)`);
+      process.exit(1);
+    }
+    const aspectTypeRe = /\b(trine|square|conjunction|sextile|opposition)\b/i;
+    if (aspectTypeRe.test(sigText) && !sigText.includes('orb')) {
+      console.error(`❌ FAIL: When aspect type is mentioned, Signatures should include "orb"`);
+      process.exit(1);
+    }
+  }
+
   console.log('✅ PASS: All shape checks passed');
   console.log(`  Sections: ${sections.length}`);
   console.log(`  Section IDs: ${actualIds.join(', ')}`);
