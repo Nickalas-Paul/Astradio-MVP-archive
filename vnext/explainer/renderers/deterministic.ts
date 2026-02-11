@@ -205,8 +205,10 @@ function buildAstrologicalNarrative(
 
   if (profile && prominentPlanets && prominentPlanets.length > 0) {
     const emp = profile.emphasis;
-    const topEl = (['fire', 'earth', 'air', 'water'] as const).sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
-    const topMod = (['cardinal', 'fixed', 'mutable'] as const).sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
+    const elKeys: Array<keyof typeof emp.elementsBySign> = ['fire', 'earth', 'air', 'water'];
+    const modKeys: Array<keyof typeof emp.modalitiesBySign> = ['cardinal', 'fixed', 'mutable'];
+    const topEl = elKeys.sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
+    const topMod = modKeys.sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
     const elLabel = ELEMENT_FIELD[topEl] ?? 'balance';
     const modLabel = MODALITY_FIELD[topMod] ?? 'expression';
     sentences.push(`The chart's sign-based element emphasis leans ${topEl} (${elLabel}) with ${topMod} modality (${modLabel}).`);
@@ -322,8 +324,10 @@ function buildMusicalNarrative(
 
   if (profile) {
     const emp = profile.emphasis;
-    const topEl = (['fire', 'earth', 'air', 'water'] as const).sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
-    const topMod = (['cardinal', 'fixed', 'mutable'] as const).sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
+    const elKeys: Array<keyof typeof emp.elementsBySign> = ['fire', 'earth', 'air', 'water'];
+    const modKeys: Array<keyof typeof emp.modalitiesBySign> = ['cardinal', 'fixed', 'mutable'];
+    const topEl = elKeys.sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
+    const topMod = modKeys.sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
     const mirrorLead =
       topEl === 'fire' && (topMod === 'cardinal' || topMod === 'mutable')
         ? 'Because the chart\'s sign-based emphasis is fire and ' + topMod + ', the piece favors forward motion and clearer attacks.'
