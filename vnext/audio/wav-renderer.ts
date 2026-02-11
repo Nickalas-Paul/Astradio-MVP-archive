@@ -23,6 +23,10 @@ const DURATION_SEC = 60;
 const DEFAULT_SAMPLE_RATE = 44100;
 const A440 = 440;
 
+/** Performance Layer v2: 4 phrases over 16 bars. */
+const PHRASE_BARS = 4;
+const TOTAL_BARS = 16;
+
 /** Channel role for rendering (matches EventToken.channel). */
 type ChannelRole = 'melody' | 'harmony' | 'rhythm' | 'bass';
 
@@ -281,9 +285,23 @@ function buildWav(
         const longNoteThresholdSec = 0.5;
         const isLongNote = durPlan >= longNoteThresholdSec;
         const jitterMaxMs = isLongNote ? params.timingJitterLongNoteMs : params.timingJitterMs[ch];
-        const jitterSec = (jitterMaxMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${Math.floor(t0Plan / secPerBar)}`);
+        const bar = Math.floor(t0Plan / secPerBar);
+        const jitterSec = (jitterMaxMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${bar}`);
         let t0 = t0Plan + jitterSec;
         let t1 = t1Plan;
+
+        // --- C2) Phrase-boundary rubato (Performance Layer v2): seeded shift near phrase boundaries ---
+        const phraseSec = PHRASE_BARS * secPerBar;
+        const phraseIndex = Math.min(3, Math.floor(t0Plan / phraseSec));
+        const barInPhrase = bar % PHRASE_BARS;
+        const isNearPhraseEnd = barInPhrase === 3;
+        const isNearPhraseStart = barInPhrase === 0;
+        const rubatoMs = (isNearPhraseEnd || isNearPhraseStart) && (ch === 'melody' || ch === 'harmony')
+          ? (rand01(seed, `rubato:${ch}:${bar}:${eventIndex}`) * 8 - 4) * 0.001
+          : 0;
+        t0 += rubatoMs;
+        t0 = Math.max(0, t0);
+        if (t1 - t0 < 0.001) t1 = t0 + 0.001;
 
         // Swing only for rhythm and melody short notes (not sustained harmony/bass)
         if (params.swing.enabled && secPerBeat > 0 && (ch === 'rhythm' || (ch === 'melody' && durPlan < 0.3))) {
@@ -300,8 +318,6 @@ function buildWav(
         if (t1 - t0 < minDur) t1 = t0 + minDur;
 
         // --- E) Phrase breathing: small tail shortening only at phrase end; never create mid-line gap ---
-        const bar = Math.floor(t0 / secPerBar);
-        const barInPhrase = bar % 4;
         const gapMs = ch === 'melody' ? params.articulation.phraseGapMsMelody : ch === 'harmony' ? params.articulation.phraseGapMsHarmony : 0;
         if (barInPhrase === 3 && gapMs > 0 && (ch === 'melody' || ch === 'harmony')) {
           const gapSec = gapMs * 0.001;
@@ -311,10 +327,19 @@ function buildWav(
           }
         }
 
-        // --- D) Velocity dynamics ---
-        const phrasePosition = (bar % 16) / 16;
+        // --- D) Velocity dynamics (legacy phrase swell) ---
+        const phrasePosition = (bar % TOTAL_BARS) / TOTAL_BARS;
         const phraseSwell = lerp(params.velocity.phraseCurveMin, params.velocity.phraseCurveMax, phrasePosition);
-        let vel = velPlan * phraseSwell;
+
+        // --- D2) Phrase envelope v2: rise -> peak -> fall + breath dip at phrase end (4 phrases over 16 bars) ---
+        const localPos = (t0Plan - phraseIndex * phraseSec) / phraseSec;
+        const arc = 0.94 + 0.08 * Math.sin(Math.PI * Math.max(0, Math.min(1, localPos)));
+        const breathDip = localPos > 0.9 ? 1 - 0.12 * (localPos - 0.9) / 0.1 : 1;
+        const phraseEnvelope = arc * breathDip;
+        const phraseWeight = ch === 'melody' || ch === 'harmony' ? 1 : ch === 'bass' ? 0.5 : 0.2;
+        const phraseCurve = 1 + (phraseEnvelope - 1) * phraseWeight;
+
+        let vel = velPlan * phraseSwell * phraseCurve;
 
         const beatInBar = (t0Plan % secPerBar) / secPerBeat;
         const isDownbeat = beatInBar < 0.15;
@@ -336,6 +361,12 @@ function buildWav(
           releaseMs = Math.max(releaseMs, gapToNext + 25);
         }
         const durationSec = Math.max(minDur, t1 - t0);
+        // Phrase-boundary release lengthening (Performance Layer v2): deterministic from seed
+        const phraseEndSec = (phraseIndex + 1) * phraseSec;
+        if (t1 >= phraseEndSec - 0.12 && (ch === 'melody' || ch === 'harmony')) {
+          const stretch = 1 + 0.25 * rand01(seed, `release:${ch}:${bar}:${eventIndex}`);
+          releaseMs = releaseMs * stretch;
+        }
         const attackMs = adsr.attackMs;
         const decayMs = adsr.decayMs;
         const sustain = adsr.sustain;

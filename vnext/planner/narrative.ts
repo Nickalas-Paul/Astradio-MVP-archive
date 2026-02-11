@@ -112,6 +112,18 @@ function chordForBar(barInPhrase: number, progId: number, isBSection: boolean): 
   return { root: r, triad: [r + shape[0], r + shape[1], r + shape[2]] };
 }
 
+/** Deterministic harmonic rhythm: onset offset in beats (0, 1.5, or 2) to avoid every chord on downbeat. */
+function harmonicOnsetBeats(phase: 0 | 1 | 2, barInPhrase: number, bar: number, seedNum: number): number {
+  if (phase === 0) return 0;
+  if (phase === 1) return (seedNum + bar) % 2 === 0 ? 0 : 1.5;
+  return barInPhrase === 3 ? 2 : 0;
+}
+
+/** One bar per phrase in Encounter gets a mid-bar color morph (add 7th); deterministic. */
+function colorMorphThisBar(phase: 0 | 1 | 2, barInPhrase: number, bar: number, seedNum: number): boolean {
+  return phase === 0 && barInPhrase === 1 && (seedNum + bar) % 2 === 0;
+}
+
 /** Natural minor scale pitch classes (semitones above root). */
 const NATURAL_MINOR_PC = new Set([0, 2, 3, 5, 7, 8, 10]);
 
@@ -407,6 +419,7 @@ export function planFromVector(
     const phase = narrativePhaseForBar(bar);
     phaseCounts[phase]++;
   }
+  const FILLER_DUR_BEATS = [0.25, 0.5, 0.75] as const;
   for (let phase = 0; phase < 3; phase++) {
     const need = minPerPhase[phase] - phaseCounts[phase];
     if (need <= 0) continue;
@@ -414,17 +427,20 @@ export function planFromVector(
     const numBars = barsPerPhase[phase];
     for (let i = 0; i < need; i++) {
       const bar = firstBar + (seedNum + i) % numBars;
-      const beat = (seedNum + i * 7) % 4;
+      const barInPhrase = bar % PHRASE;
+      const isCadenceBar = barInPhrase === 3;
+      const beat = isCadenceBar ? (seedNum + i) % 2 : (seedNum + i * 7) % 4;
       const tBeats = bar * 4 + beat;
       const phraseIdx = Math.floor(bar / PHRASE);
-      const barInPhrase = bar % PHRASE;
       const isBSection = phraseIdx === 2;
       const center = phraseCenters[phraseIdx];
       const chordTones = chordToneDegreesForBar(barInPhrase, progId, isBSection);
-      const degree = chordTones[0] ?? 0;
+      const degree = chordTones[(seedNum + i) % chordTones.length] ?? chordTones[0] ?? 0;
       const semi = degreeToSemitone(degree);
       const pitch = Math.max(24, Math.min(96, center + semi));
-      push(tBeats, 0.25, pitch, 0.6, "melody");
+      const durIdx = (seedNum + i * 3) % FILLER_DUR_BEATS.length;
+      const durBeats = FILLER_DUR_BEATS[durIdx];
+      push(tBeats, durBeats, pitch, 0.55 + 0.1 * (i % 2), "melody");
     }
   }
 
@@ -460,14 +476,15 @@ export function planFromVector(
     }
   }
 
-  // Harmony with deterministic inversion selection: minimize voice-leading; prefer root in Encounter/Integration when gravity high.
+  // Harmony with deterministic inversion selection + less-grid harmonic rhythm (onset offsets, color morph).
   const HARMONY_LO = 48;
   const HARMONY_HI = 76;
+  const MINOR_7TH_SEMI = 10;
   let prevHarmonyPitches: [number, number, number] | null = null;
   for (let bar = 0; bar < BARS; bar++) {
     const barInPhrase = bar % PHRASE;
     const isBSection = Math.floor(bar / PHRASE) === 2;
-    const { triad } = chordForBar(barInPhrase, progId, isBSection);
+    const { root, triad } = chordForBar(barInPhrase, progId, isBSection);
     const [a, b, c] = triad.slice().sort((x, y) => x - y);
     const rootPos: [number, number, number] = [a, b, c];
     const firstInv: [number, number, number] = [b, c, a + 12];
@@ -491,7 +508,13 @@ export function planFromVector(
     }
     prevHarmonyPitches = best;
     const barStart = bar * 4;
-    for (const p of best) push(barStart, 4, p, 0.5, "harmony");
+    const onsetBeats = harmonicOnsetBeats(phase, barInPhrase, bar, seedNum);
+    const t0Beats = barStart + onsetBeats;
+    for (const p of best) push(t0Beats, 4, p, 0.5, "harmony");
+    if (colorMorphThisBar(phase, barInPhrase, bar, seedNum)) {
+      const seventhPitch = Math.max(HARMONY_LO, Math.min(HARMONY_HI, root + MINOR_7TH_SEMI));
+      push(barStart + 2, 2, seventhPitch, 0.42, "harmony");
+    }
   }
 
   // Color-shift harmony blending: extend harmony t1 with overlap + voice stagger (deterministic from guidance).
