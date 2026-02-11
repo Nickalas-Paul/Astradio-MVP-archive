@@ -1,7 +1,8 @@
 /**
  * Minimal deterministic WAV renderer: plan + payload hash → 60s 16-bit PCM WAV.
  * Performance layer: humanization (velocity, ADSR, phrase breathing, micro-timing, pan)
- * only at render time; Plan/EventToken schema unchanged. Deterministic: same plan + hash ⇒ same WAV sha256.
+ * Instrumentation layer v1: genre-keyed instrument palette, procedural synthesis (kick/hat/clap/bass/harmony/melody),
+ * mix glue (pseudo-sidechain duck, per-channel EQ). Deterministic: same plan + hash ⇒ same WAV sha256.
  */
 
 import * as crypto from 'crypto';
@@ -30,8 +31,19 @@ const TOTAL_BARS = 16;
 /** Channel role for rendering (matches EventToken.channel). */
 type ChannelRole = 'melody' | 'harmony' | 'rhythm' | 'bass';
 
+/** Rhythm pitch mapping (GM drums): kick=36, snare/clap=38, hi-hat=42 */
+const PITCH_KICK = 36;
+const PITCH_CLAP = 38;
+const PITCH_HAT = 42;
+
 /** Humanization on by default; set VNEXT_HUMANIZE=0 to use legacy flat render for debugging. */
 const HUMANIZE_ENABLED = process.env.VNEXT_HUMANIZE !== '0';
+
+/** Instrumentation layer on by default when humanize on. Set VNEXT_INSTRUMENTATION=0 to bypass. */
+const INSTRUMENTATION_ENABLED = process.env.VNEXT_INSTRUMENTATION !== '0';
+
+/** Debug: print peak, RMS, kick count, duck stats when set. */
+const INSTRUMENTATION_DEBUG = process.env.VNEXT_INSTRUMENTATION_DEBUG === '1';
 
 // --- A) Deterministic hash-based PRNG (no global state, stable across runs) ---
 
@@ -60,6 +72,61 @@ function randSigned(seed: string, key: string): number {
 /** Deterministic 0..1 from string seed (legacy fallback path). */
 function seedFloat(seed: string, index: number): number {
   return rand01(seed, String(index));
+}
+
+// --- Instrumentation Layer v1: genre-keyed instrument palette ---
+
+export interface InstrumentPalette {
+  kick: { pitchDropMs: number; clickAmp: number; saturation: number };
+  clap: { decayMs: number; roomReflectMs: number; filterQ: number };
+  hat: { decayMs: number; highpassHz: number };
+  bass: { waveform: 'saw' | 'square'; lpfCutoffHz: number; saturation: number };
+  harmony: { stabDecayMs: number; lpfSweepMs: number; stereoWiden: number };
+  melody: { pluckDecayMs: number; vibratoRate: number; vibratoDepth: number };
+}
+
+function getInstrumentPalette(genre: string, seed: string): InstrumentPalette {
+  const g = (genre || 'house').toLowerCase();
+  const f = (key: string, lo: number, hi: number) => lo + rand01(seed, `palette:${g}:${key}`) * (hi - lo);
+  if (g === 'house') {
+    return {
+      kick: { pitchDropMs: f('kick:drop', 35, 55), clickAmp: f('kick:click', 0.15, 0.28), saturation: f('kick:sat', 0.12, 0.22) },
+      clap: { decayMs: f('clap:decay', 60, 100), roomReflectMs: f('clap:room', 12, 22), filterQ: f('clap:q', 1.5, 2.5) },
+      hat: { decayMs: f('hat:decay', 12, 28), highpassHz: f('hat:hp', 6000, 10000) },
+      bass: { waveform: rand01(seed, 'palette:bass:wave') < 0.5 ? 'saw' : 'square', lpfCutoffHz: f('bass:lpf', 800, 1400), saturation: f('bass:sat', 0.08, 0.18) },
+      harmony: { stabDecayMs: f('harm:decay', 80, 160), lpfSweepMs: f('harm:sweep', 40, 90), stereoWiden: f('harm:widen', 0.06, 0.14) },
+      melody: { pluckDecayMs: f('mel:pluck', 50, 120), vibratoRate: f('mel:vibRate', 4.5, 6.5), vibratoDepth: f('mel:vibDepth', 0.004, 0.012) },
+    };
+  }
+  return getInstrumentPalette('house', seed);
+}
+
+/** Deterministic PRNG stream from seed+key. Yields [0,1). */
+function makePrng(seed: string, key: string): () => number {
+  let s = hashU32(seed, key);
+  return () => {
+    s = Math.imul(s ^ (s >>> 15), 0x85ebca6b);
+    s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35);
+    return ((s ^ (s >>> 16)) >>> 0) / 0x100000000;
+  };
+}
+
+/** Soft saturation: keep headroom, deterministic. */
+function saturate(x: number, amount: number): number {
+  if (amount <= 0) return x;
+  const t = x * (1 + amount);
+  return Math.tanh(t);
+}
+
+/** One-pole lowpass: y = yPrev + coef * (x - yPrev). coef = 1 - exp(-2*pi*cutoff/sr). */
+function lpfCoef(cutoffHz: number, sampleRate: number): number {
+  return 1 - Math.exp(-2 * Math.PI * cutoffHz / sampleRate);
+}
+
+/** One-pole highpass: stateful, init state=0. */
+function hpFilter(x: number, prev: number, coef: number): { y: number; state: number } {
+  const state = prev + coef * (x - prev);
+  return { y: x - state, state };
 }
 
 // --- B) Performance params (all derived from seed + plan stats) ---
@@ -198,12 +265,86 @@ function eventChannel(ev: Record<string, unknown>): ChannelRole {
   return 'melody';
 }
 
+/** Compute rendered t0/t1 for an event (with jitter, swing, phrase breathing). Used for kick-onset collection and main loop. */
+function computeRenderedTiming(
+  ev: Record<string, unknown>,
+  ch: ChannelRole,
+  eventIndex: number,
+  nextT0: number | null,
+  params: PerformanceParams,
+  seed: string,
+  secPerBeat: number,
+  secPerBar: number
+): { t0: number; t1: number } {
+  const t0Plan = Number(ev.t0) ?? 0;
+  const t1Plan = Number(ev.t1) ?? t0Plan + 0.5;
+  const durPlan = t1Plan - t0Plan;
+  const bar = Math.floor(t0Plan / secPerBar);
+
+  let jitterSec = 0;
+  const longNoteThresholdSec = 0.5;
+  const isLongNote = durPlan >= longNoteThresholdSec;
+  const jitterMaxMs = isLongNote ? params.timingJitterLongNoteMs : params.timingJitterMs[ch];
+  jitterSec = (jitterMaxMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${bar}`);
+
+  let t0 = t0Plan + jitterSec;
+  let t1 = t1Plan;
+
+  const phraseSec = PHRASE_BARS * secPerBar;
+  const phraseIndex = Math.min(3, Math.floor(t0Plan / phraseSec));
+  const barInPhrase = bar % PHRASE_BARS;
+  const rubatoMs = (barInPhrase === 3 || barInPhrase === 0) && (ch === 'melody' || ch === 'harmony')
+    ? (rand01(seed, `rubato:${ch}:${bar}:${eventIndex}`) * 8 - 4) * 0.001
+    : 0;
+  t0 += rubatoMs;
+  t0 = Math.max(0, t0);
+  if (t1 - t0 < 0.001) t1 = t0 + 0.001;
+
+  if (params.swing.enabled && secPerBeat > 0 && (ch === 'rhythm' || (ch === 'melody' && durPlan < 0.3))) {
+    const beatInBar = (t0Plan % secPerBar) / secPerBeat;
+    const eighth = Math.floor(beatInBar * 2) / 2;
+    const isOffEighth = Math.abs(beatInBar - eighth - 0.5) < 0.05;
+    if (isOffEighth) {
+      t0 += (params.swing.ratio - 0.5) * (secPerBeat * 0.5);
+    }
+  }
+  t0 = Math.max(0, t0);
+  const minDur = params.articulation.minNoteDurSec;
+  if (t1 - t0 < minDur) t1 = t0 + minDur;
+
+  const gapMs = ch === 'melody' ? params.articulation.phraseGapMsMelody : ch === 'harmony' ? params.articulation.phraseGapMsHarmony : 0;
+  if (barInPhrase === 3 && gapMs > 0 && (ch === 'melody' || ch === 'harmony')) {
+    const gapSec = gapMs * 0.001;
+    const wouldCreateGap = nextT0 !== null && (t1 - gapSec) < nextT0 && nextT0 > t1;
+    if (!wouldCreateGap) {
+      t1 = Math.max(t0 + minDur, t1 - gapSec);
+    }
+  }
+  return { t0, t1 };
+}
+
+/** Duck gain at time t (0..1) from kick onsets. 1 = no duck, lower near kicks. */
+function duckGain(t: number, kickOnsets: number[], duckAmount: number, duckLenSec: number): number {
+  let g = 1;
+  for (const tk of kickOnsets) {
+    const dt = t - tk;
+    if (dt >= 0 && dt < duckLenSec) {
+      const fade = 1 - Math.exp(-dt * 12);
+      g = Math.min(g, 1 - duckAmount * fade);
+    } else if (dt < 0 && dt > -0.02) {
+      g = Math.min(g, 1 - duckAmount);
+    }
+  }
+  return Math.max(0.25, g);
+}
+
 /** Build 16-bit PCM WAV buffer for exactly 60 seconds. Deterministic from hash and plan. */
 function buildWav(
   seed: string,
   plan: unknown,
   sampleRate: number,
-  channels: number
+  channels: number,
+  genre?: string
 ): Buffer {
   const totalSamples = Math.floor(DURATION_SEC * sampleRate) * channels;
   const bytesPerSample = 2;
@@ -252,6 +393,8 @@ function buildWav(
     const sorted = [...events].sort((a, b) => (Number(a.t0) || 0) - (Number(b.t0) || 0));
     const secPerBeat = 60 / bpm;
     const secPerBar = secPerBeat * 4;
+    let kickOnsets: number[] = [];
+    let duckSumBass = 0, duckCountBass = 0, duckSumHarmony = 0, duckCountHarmony = 0;
 
     if (HUMANIZE_ENABLED) {
       const params = getPerformanceParams(seed, bpm);
@@ -260,7 +403,6 @@ function buildWav(
       const nextSameChannelT0: (number | null)[] = [];
       for (let i = 0; i < sorted.length; i++) {
         const ch = eventChannel(sorted[i]);
-        const t0Here = Number(sorted[i].t0) ?? 0;
         let next: number | null = null;
         for (let j = i + 1; j < sorted.length; j++) {
           if (eventChannel(sorted[j]) === ch) {
@@ -269,6 +411,21 @@ function buildWav(
           }
         }
         nextSameChannelT0.push(next);
+      }
+
+      const useInstrumentation = HUMANIZE_ENABLED && INSTRUMENTATION_ENABLED;
+      const palette = useInstrumentation ? getInstrumentPalette(genre || 'house', seed) : null;
+
+      if (useInstrumentation && palette) {
+        for (let i = 0; i < sorted.length; i++) {
+          const ev = sorted[i];
+          const ch = eventChannel(ev);
+          const pitch = Number(ev.pitch) ?? 69;
+          if (ch === 'rhythm' && pitch === PITCH_KICK) {
+            const { t0 } = computeRenderedTiming(ev, ch, i, nextSameChannelT0[i], params, seed, secPerBeat, secPerBar);
+            kickOnsets.push(t0);
+          }
+        }
       }
 
       for (let eventIndex = 0; eventIndex < sorted.length; eventIndex++) {
@@ -280,52 +437,14 @@ function buildWav(
         const velPlan = Math.max(0, Math.min(1, Number(ev.velocity) ?? 0.8));
         const durPlan = t1Plan - t0Plan;
         const nextT0 = nextSameChannelT0[eventIndex];
-
-        // --- C) Micro-timing: context-aware (long notes near-zero jitter) ---
-        const longNoteThresholdSec = 0.5;
-        const isLongNote = durPlan >= longNoteThresholdSec;
-        const jitterMaxMs = isLongNote ? params.timingJitterLongNoteMs : params.timingJitterMs[ch];
         const bar = Math.floor(t0Plan / secPerBar);
-        const jitterSec = (jitterMaxMs * 0.001) * randSigned(seed, `timing:${ch}:${eventIndex}:${bar}`);
-        let t0 = t0Plan + jitterSec;
-        let t1 = t1Plan;
 
-        // --- C2) Phrase-boundary rubato (Performance Layer v2): seeded shift near phrase boundaries ---
+        const { t0, t1 } = computeRenderedTiming(ev, ch, eventIndex, nextT0, params, seed, secPerBeat, secPerBar);
+        const minDur = params.articulation.minNoteDurSec;
+        const durationSec = Math.max(minDur, t1 - t0);
         const phraseSec = PHRASE_BARS * secPerBar;
         const phraseIndex = Math.min(3, Math.floor(t0Plan / phraseSec));
         const barInPhrase = bar % PHRASE_BARS;
-        const isNearPhraseEnd = barInPhrase === 3;
-        const isNearPhraseStart = barInPhrase === 0;
-        const rubatoMs = (isNearPhraseEnd || isNearPhraseStart) && (ch === 'melody' || ch === 'harmony')
-          ? (rand01(seed, `rubato:${ch}:${bar}:${eventIndex}`) * 8 - 4) * 0.001
-          : 0;
-        t0 += rubatoMs;
-        t0 = Math.max(0, t0);
-        if (t1 - t0 < 0.001) t1 = t0 + 0.001;
-
-        // Swing only for rhythm and melody short notes (not sustained harmony/bass)
-        if (params.swing.enabled && secPerBeat > 0 && (ch === 'rhythm' || (ch === 'melody' && durPlan < 0.3))) {
-          const beatInBar = (t0Plan % secPerBar) / secPerBeat;
-          const eighth = Math.floor(beatInBar * 2) / 2;
-          const isOffEighth = Math.abs(beatInBar - eighth - 0.5) < 0.05;
-          if (isOffEighth) {
-            const gridDur = secPerBeat * 0.5;
-            t0 += (params.swing.ratio - 0.5) * gridDur;
-          }
-        }
-        t0 = Math.max(0, t0);
-        const minDur = params.articulation.minNoteDurSec;
-        if (t1 - t0 < minDur) t1 = t0 + minDur;
-
-        // --- E) Phrase breathing: small tail shortening only at phrase end; never create mid-line gap ---
-        const gapMs = ch === 'melody' ? params.articulation.phraseGapMsMelody : ch === 'harmony' ? params.articulation.phraseGapMsHarmony : 0;
-        if (barInPhrase === 3 && gapMs > 0 && (ch === 'melody' || ch === 'harmony')) {
-          const gapSec = gapMs * 0.001;
-          const wouldCreateGap = nextT0 !== null && (t1 - gapSec) < nextT0 && nextT0 > t1;
-          if (!wouldCreateGap) {
-            t1 = Math.max(t0 + minDur, t1 - gapSec);
-          }
-        }
 
         // --- D) Velocity dynamics (legacy phrase swell) ---
         const phrasePosition = (bar % TOTAL_BARS) / TOTAL_BARS;
@@ -360,7 +479,6 @@ function buildWav(
           const gapToNext = (nextT0 - t1) * 1000;
           releaseMs = Math.max(releaseMs, gapToNext + 25);
         }
-        const durationSec = Math.max(minDur, t1 - t0);
         // Phrase-boundary release lengthening (Performance Layer v2): deterministic from seed
         const phraseEndSec = (phraseIndex + 1) * phraseSec;
         if (t1 >= phraseEndSec - 0.12 && (ch === 'melody' || ch === 'harmony')) {
@@ -383,20 +501,163 @@ function buildWav(
         const amp = vel * 0.3;
         const useMono = channels < 2;
 
-        let phase = 0;
-        const phaseInc = freq / sampleRate;
-        for (let i = startS; i < endS; i++) {
-          const t = i / sampleRate;
-          const localT = t - t0;
-          const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
-          const samp = Math.sin(2 * Math.PI * phase) * amp * env;
-          phase += phaseInc;
-          if (phase >= 1) phase -= 1;
-          if (useMono) {
-            bufL[i] = (bufL[i] ?? 0) + samp;
+        const duckAmount = 0.35;
+        const duckLenSec = 0.08;
+
+        if (useInstrumentation && palette) {
+          const eventKey = `inst:${ch}:${eventIndex}:${bar}`;
+          const prng = makePrng(seed, eventKey);
+
+          if (ch === 'rhythm' && pitch === PITCH_KICK && palette.kick) {
+            const k = palette.kick;
+            const dropSec = k.pitchDropMs * 0.001;
+            const clickDur = Math.min(0.003, durationSec * 0.3);
+            const freqStart = 120;
+            const freqEnd = 45;
+            let phase = 0;
+            for (let i = startS; i < endS; i++) {
+              const localT = i / sampleRate - t0;
+              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const pitchMult = localT < dropSec ? 1 - (localT / dropSec) * 0.65 : 0.35;
+              const f = freqEnd + (freqStart - freqEnd) * pitchMult;
+              phase += (2 * Math.PI * f) / sampleRate;
+              if (phase > Math.PI * 2) phase -= Math.PI * 2;
+              let samp = Math.sin(phase) * amp * env;
+              if (localT < clickDur) {
+                samp += (prng() * 2 - 1) * k.clickAmp * (1 - localT / clickDur);
+              }
+              samp = saturate(samp, k.saturation);
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
+            }
+          } else if (ch === 'rhythm' && pitch === PITCH_HAT && palette.hat) {
+            const h = palette.hat;
+            const hpCoef = lpfCoef(h.highpassHz, sampleRate);
+            let hpStateL = 0, hpStateR = 0;
+            for (let i = startS; i < endS; i++) {
+              const localT = i / sampleRate - t0;
+              const decay = Math.exp(-localT * 1000 / h.decayMs);
+              const n = (prng() * 2 - 1) * amp * decay * adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const { y: yL, state: sL } = hpFilter(n, hpStateL, hpCoef);
+              const { y: yR, state: sR } = hpFilter(n, hpStateR, hpCoef);
+              hpStateL = sL; hpStateR = sR;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + yL;
+              else { bufL[i] = (bufL[i] ?? 0) + yL * gainL; bufR[i] = (bufR[i] ?? 0) + yR * gainR; }
+            }
+          } else if (ch === 'rhythm' && pitch === PITCH_CLAP && palette.clap) {
+            const c = palette.clap;
+            const prngC = makePrng(seed, eventKey + ':clap');
+            const reflectSamples = Math.max(1, Math.floor(sampleRate * c.roomReflectMs * 0.001));
+            const ring = new Float32Array(reflectSamples);
+            let ri = 0;
+            for (let i = startS; i < endS; i++) {
+              const localT = i / sampleRate - t0;
+              const decay = Math.exp(-localT * 1000 / c.decayMs);
+              const n = (prngC() * 2 - 1) * amp * decay * adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const refl = ring[(ri + 1) % reflectSamples] * 0.25;
+              ring[ri] = n;
+              ri = (ri + 1) % reflectSamples;
+              const samp = n + refl;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
+            }
+          } else if (ch === 'bass' && palette.bass) {
+            const b = palette.bass;
+            let phase = rand01(seed, eventKey + ':phase');
+            const phaseInc = freq / sampleRate;
+            const lpfC = lpfCoef(b.lpfCutoffHz, sampleRate);
+            let lpfState = 0;
+            for (let i = startS; i < endS; i++) {
+              const t = i / sampleRate;
+              const localT = t - t0;
+              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const raw = b.waveform === 'saw' ? 2 * (phase - Math.floor(phase)) - 1 : phase < 0.5 ? 1 : -1;
+              phase += phaseInc;
+              if (phase >= 1) phase -= 1;
+              lpfState += lpfC * (raw - lpfState);
+              let samp = lpfState * amp * env;
+              samp = saturate(samp, b.saturation);
+              const duck = duckGain(t, kickOnsets, duckAmount, duckLenSec);
+              duckSumBass += duck; duckCountBass++;
+              samp *= duck;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
+            }
+          } else if (ch === 'harmony' && palette.harmony) {
+            const harm = palette.harmony;
+            const widen = harm.stereoWiden * randSigned(seed, eventKey + ':widen');
+            let phase = 0;
+            const phaseInc = freq / sampleRate;
+            const lpfSweep = harm.lpfSweepMs * 0.001;
+            const lpfStart = lpfCoef(400, sampleRate);
+            const lpfEnd = lpfCoef(1200, sampleRate);
+            let lpfState = 0;
+            let lpfC = lpfStart;
+            for (let i = startS; i < endS; i++) {
+              const t = i / sampleRate;
+              const localT = t - t0;
+              const sweepT = Math.min(1, localT / lpfSweep);
+              lpfC = lpfStart + (lpfEnd - lpfStart) * sweepT;
+              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const raw = Math.sin(2 * Math.PI * phase);
+              phase += phaseInc;
+              if (phase >= 1) phase -= 1;
+              lpfState += lpfC * (raw - lpfState);
+              let samp = lpfState * amp * env;
+              const duck = duckGain(t, kickOnsets, duckAmount, duckLenSec);
+              duckSumHarmony += duck; duckCountHarmony++;
+              samp *= duck;
+              const gL = gainL + widen;
+              const gR = gainR - widen;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * Math.max(0, gL); bufR[i] = (bufR[i] ?? 0) + samp * Math.max(0, gR); }
+            }
+          } else if (ch === 'melody' && palette.melody) {
+            const m = palette.melody;
+            let phase = 0;
+            const phaseInc = freq / sampleRate;
+            for (let i = startS; i < endS; i++) {
+              const t = i / sampleRate;
+              const localT = t - t0;
+              const pluckEnv = Math.exp(-localT * 1000 / m.pluckDecayMs);
+              const vibMod = 1 + m.vibratoDepth * Math.sin(2 * Math.PI * m.vibratoRate * localT);
+              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs) * pluckEnv;
+              phase += phaseInc * vibMod;
+              if (phase >= 1) phase -= 1;
+              const samp = Math.sin(2 * Math.PI * phase) * amp * env;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
+            }
           } else {
-            bufL[i] = (bufL[i] ?? 0) + samp * gainL;
-            bufR[i] = (bufR[i] ?? 0) + samp * gainR;
+            const fallbackPhase = rand01(seed, eventKey + ':ph');
+            let phase = fallbackPhase;
+            const phaseInc = freq / sampleRate;
+            for (let i = startS; i < endS; i++) {
+              const localT = i / sampleRate - t0;
+              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const samp = Math.sin(2 * Math.PI * phase) * amp * env;
+              phase += phaseInc;
+              if (phase >= 1) phase -= 1;
+              if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
+              else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
+            }
+          }
+        } else {
+          let phase = 0;
+          const phaseInc = freq / sampleRate;
+          for (let i = startS; i < endS; i++) {
+            const t = i / sampleRate;
+            const localT = t - t0;
+            const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+            const samp = Math.sin(2 * Math.PI * phase) * amp * env;
+            phase += phaseInc;
+            if (phase >= 1) phase -= 1;
+            if (useMono) {
+              bufL[i] = (bufL[i] ?? 0) + samp;
+            } else {
+              bufL[i] = (bufL[i] ?? 0) + samp * gainL;
+              bufR[i] = (bufR[i] ?? 0) + samp * gainR;
+            }
           }
         }
       }
@@ -418,6 +679,25 @@ function buildWav(
         for (let i = 0; i < len; i++) {
           bufL[i] = outL[i];
           bufR[i] = outR[i];
+        }
+      }
+
+      if (useInstrumentation) {
+        const len = bufL.length;
+        const hpCoef = lpfCoef(50, sampleRate);
+        const lpCoef = lpfCoef(14000, sampleRate);
+        let hpL = 0, hpR = 0, lpL = 0, lpR = 0;
+        for (let i = 0; i < len; i++) {
+          const l = bufL[i] ?? 0;
+          const r = channels >= 2 ? (bufR[i] ?? 0) : l;
+          hpL += hpCoef * (l - hpL);
+          hpR += hpCoef * (r - hpR);
+          const lHp = l - hpL;
+          const rHp = r - hpR;
+          lpL += lpCoef * (lHp - lpL);
+          lpR += lpCoef * (rHp - lpR);
+          bufL[i] = lpL;
+          if (channels >= 2) bufR[i] = lpR;
         }
       }
     } else {
@@ -445,11 +725,20 @@ function buildWav(
     }
 
     let peak = 0;
+    let sumSq = 0;
     for (let i = 0; i < bufL.length; i++) {
-      const v = Math.abs(bufL[i]);
-      if (v > peak) peak = v;
+      const v = bufL[i] ?? 0;
+      const a = Math.abs(v);
+      if (a > peak) peak = a;
+      sumSq += v * v;
     }
+    const rms = bufL.length > 0 ? Math.sqrt(sumSq / bufL.length) : 0;
     const scale = peak > 0.95 ? 0.95 / peak : 1;
+    if (INSTRUMENTATION_DEBUG && kickOnsets.length > 0) {
+      const avgDuckBass = duckCountBass > 0 ? duckSumBass / duckCountBass : 0;
+      const avgDuckHarmony = duckCountHarmony > 0 ? duckSumHarmony / duckCountHarmony : 0;
+      console.log('[INSTRUMENTATION] peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'kicks=', kickOnsets.length, 'avgDuckBass=', avgDuckBass.toFixed(4), 'avgDuckHarmony=', avgDuckHarmony.toFixed(4));
+    }
     offset = headerLen;
     for (let i = 0; i < bufL.length; i++) {
       const l = (bufL[i] ?? 0) * scale;
@@ -513,14 +802,17 @@ export function renderWav60s(
       'default';
     const sampleRate = Math.max(8000, Math.min(48000, options?.sampleRate ?? DEFAULT_SAMPLE_RATE));
     const channels = options?.channels === 2 ? 2 : 1;
-    const buffer = buildWav(seed, planInput, sampleRate, channels);
+    const genre = (payloadInput && typeof (payloadInput as Record<string, unknown>).genre === 'string')
+      ? ((payloadInput as Record<string, unknown>).genre as string)
+      : 'house';
+    const buffer = buildWav(seed, planInput, sampleRate, channels, genre);
     if (process.env.NODE_ENV !== 'production') assertValidWavInDev(buffer);
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
     const durationMs = DURATION_SEC * 1000;
     const sizeBytes = buffer.length;
     return { buffer, sha256, duration_ms: durationMs, size_bytes: sizeBytes };
   } catch {
-    const buffer = buildWav('fallback', null, DEFAULT_SAMPLE_RATE, 1);
+    const buffer = buildWav('fallback', null, DEFAULT_SAMPLE_RATE, 1, 'house');
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
     const durationMs = DURATION_SEC * 1000;
     const sizeBytes = buffer.length;
