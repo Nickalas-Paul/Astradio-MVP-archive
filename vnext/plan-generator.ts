@@ -85,7 +85,8 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
       console.warn(`⚠️ Failed to compute astro guidance: ${e}`);
     }
   }
-  const guidanceWithSeed = guidance ? { ...guidance, seed: String(seedStr) } : { seed: String(seedStr) };
+  const genre = chartContext?.genre || 'house';
+  const guidanceWithSeed = guidance ? { ...guidance, seed: String(seedStr), genre } : { seed: String(seedStr), genre };
   const candidates = [base, ...Array.from({length: K-1}, () => jitter(base, JITTER, rng))];
 
   const scored = candidates.map(v6 => {
@@ -115,6 +116,7 @@ export async function generatePlanMLOnly(feat: FeatureVec, chartContext?: any): 
       tf_backend: mlResult.tf_backend,
       model_sha: mlResult.model_sha,
       inference_ms: mlResult.inference_ms,
+      v6: best.v6, // Add v6 vector for provenance
     },
   };
 }

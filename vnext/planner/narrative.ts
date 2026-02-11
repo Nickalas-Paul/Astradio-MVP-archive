@@ -279,6 +279,7 @@ export function planFromVector(
     motionProfile?: MotionProfile;
     narrativeArc?: NarrativeArc;
     personality?: PersonalityProfileV1;
+    genre?: string; // Genre scaffolding: "house" | "classical" | "jazz" | "ambient" | "electronic"
   }
 ): Plan {
   const [vTempo, vBright, vDense, vArc, vMotif, vCad] = v;
@@ -302,6 +303,7 @@ export function planFromVector(
   const revealEncounter = personality?.reveal.encounter ?? { core: 0.7, inner: 0.2, style: 0.1 };
   const revealRecognition = personality?.reveal.recognition ?? { core: 0.45, inner: 0.3, style: 0.25 };
   const seedNum = (guidance?.seed ?? "v6").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const genre = guidance?.genre || 'house';
 
   const biasedTempo = clamp01(vTempo * (1 + 0.1 * tempoBias));
   const bpm = Math.round(lerp(70, 140, biasedTempo));
@@ -358,23 +360,41 @@ export function planFromVector(
     const isCadenceBar = barInPhrase === 3;
 
     let hook: Hook;
-    if (isCadenceBar) {
-      hook = makeCadenceVersion(
-        sectionId === 1 ? applyAPrimeOrnament(baseHook, bar, density) : isBSection ? transposeHook(baseHook, 2) : baseHook,
-        cadenceIdx,
-        isBSection
-      );
-    } else if (sectionId === 1) {
-      const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
-      hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
-    } else if (isBSection) {
-      hook = transposeHook(baseHook, 2);
-      if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
-        hook[hook.length - 1].degree = 4;
-        usedBLeap = true;
+    if (genre === 'house') {
+      // House: more motif repetition, call/response
+      // Phrases 1-2: same hook (call)
+      // Phrase 3: variation (response)
+      // Phrase 4: return to base (call)
+      if (isCadenceBar) {
+        hook = makeCadenceVersion(baseHook, cadenceIdx, isBSection);
+      } else if (phraseIdx === 2) {
+        // Phrase 3: variation (response)
+        const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
+        hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
+      } else {
+        // Phrases 1, 2, 4: same hook (repetition)
+        hook = baseHook.map(n => ({ ...n }));
       }
     } else {
-      hook = baseHook.map(n => ({ ...n }));
+      // Default behavior (existing logic)
+      if (isCadenceBar) {
+        hook = makeCadenceVersion(
+          sectionId === 1 ? applyAPrimeOrnament(baseHook, bar, density) : isBSection ? transposeHook(baseHook, 2) : baseHook,
+          cadenceIdx,
+          isBSection
+        );
+      } else if (sectionId === 1) {
+        const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
+        hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
+      } else if (isBSection) {
+        hook = transposeHook(baseHook, 2);
+        if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
+          hook[hook.length - 1].degree = 4;
+          usedBLeap = true;
+        }
+      } else {
+        hook = baseHook.map(n => ({ ...n }));
+      }
     }
 
     const chordTones = chordToneDegreesForBar(barInPhrase, progId, isBSection);
@@ -419,13 +439,18 @@ export function planFromVector(
     const phase = narrativePhaseForBar(bar);
     phaseCounts[phase]++;
   }
+  // Melody filler: house reduces wandering fills, prefers motif repetition
   const FILLER_DUR_BEATS = [0.25, 0.5, 0.75] as const;
+  const reduceFillerForHouse = genre === 'house';
   for (let phase = 0; phase < 3; phase++) {
     const need = minPerPhase[phase] - phaseCounts[phase];
     if (need <= 0) continue;
+    // House: reduce filler in Recognition (phase 1) to emphasize motif
+    const adjustedNeed = reduceFillerForHouse && phase === 1 ? Math.max(0, Math.floor(need * 0.7)) : need;
+    if (adjustedNeed <= 0) continue;
     const firstBar = phase === 0 ? 0 : phase === 1 ? ENCOUNTER_BARS : ENCOUNTER_BARS + RECOGNITION_BARS;
     const numBars = barsPerPhase[phase];
-    for (let i = 0; i < need; i++) {
+    for (let i = 0; i < adjustedNeed; i++) {
       const bar = firstBar + (seedNum + i) % numBars;
       const barInPhrase = bar % PHRASE;
       const isCadenceBar = barInPhrase === 3;
@@ -444,35 +469,68 @@ export function planFromVector(
     }
   }
 
-  const bassPattern = (cadenceIdx + Math.floor(density * 2)) % 2;
-  for (let bar = 0; bar < BARS; bar++) {
-    const barInPhrase = bar % PHRASE;
-    const isBSection = Math.floor(bar / PHRASE) === 2;
-    const { root } = chordForBar(barInPhrase, progId, isBSection);
-    const barStart = bar * 4;
-    const bassRoot = root - 24;
-    if (plutoDepth > 0.1 && bar % 4 === seedNum % 4) {
-      push(barStart + 1, 2, Math.max(24, bassRoot - 12), 0.25, "bass");
-    }
-    if (bassPattern === 0) {
-      push(barStart + 0, 2, bassRoot, 0.7, "bass");
-      push(barStart + 2, 2, bassRoot, 0.65, "bass");
-    } else {
-      push(barStart + 0, 3, bassRoot, 0.7, "bass");
-      // Diatonic, chord-aware approach: no approach on cadence; only scale tones that don't clash with current chord.
-      const isCadenceBar = barInPhrase === 3;
-      const nextRoot = barInPhrase < 3 ? chordForBar(barInPhrase + 1, progId, isBSection).root - 24 : bassRoot;
-      let approachPitch = nextRoot;
-      if (!isCadenceBar) {
-        const candWholeStep = nextRoot - 2;
-        const candFifthBelow = nextRoot + 5;
-        if (isPitchInNaturalMinor(candWholeStep, root) && candWholeStep >= 24 && candWholeStep <= 72) {
-          approachPitch = candWholeStep;
-        } else if (isPitchInNaturalMinor(candFifthBelow, root) && candFifthBelow >= 24 && candFifthBelow <= 72) {
-          approachPitch = candFifthBelow;
-        }
+  // Bass: house bassline when genre === 'house', else default
+  if (genre === 'house') {
+    // House bassline: root or fifth with syncopated pickups tied to Mars/Mercury
+    for (let bar = 0; bar < BARS; bar++) {
+      const barInPhrase = bar % PHRASE;
+      const isBSection = Math.floor(bar / PHRASE) === 2;
+      const { root } = chordForBar(barInPhrase, progId, isBSection);
+      const barStart = bar * 4;
+      const bassRoot = root - 24;
+      const phase = narrativePhaseForBar(bar);
+      
+      // Syncopation based on Mars propulsion and Mercury agility
+      const syncopation = (marsPropulsion + mercuryAgility) / 2;
+      const useFifth = (seedNum + bar) % 3 === 0; // Occasional fifth
+      const bassPitch = useFifth ? bassRoot + 7 : bassRoot;
+      
+      // Main bass note on downbeat
+      push(barStart + 0, 1.5, bassPitch, 0.75, "bass");
+      
+      // Syncopated pickup before beat 2 (if syncopation high)
+      if (syncopation > 0.5 && barInPhrase !== 3) {
+        const pickupBeat = 1.75 - (syncopation - 0.5) * 0.5; // 1.75 to 1.5
+        push(barStart + pickupBeat, 0.5, bassPitch, 0.65, "bass");
       }
-      push(barStart + 3, 1, Math.max(24, Math.min(72, approachPitch)), 0.6, "bass");
+      
+      // Second note on beat 2 or 2.5 (syncopated)
+      const secondBeat = syncopation > 0.6 ? 2.5 : 2.0;
+      push(barStart + secondBeat, 1.5, bassPitch, 0.70, "bass");
+      
+      // Avoid walking bass - keep it house-style
+    }
+  } else {
+    // Default bass (existing behavior)
+    const bassPattern = (cadenceIdx + Math.floor(density * 2)) % 2;
+    for (let bar = 0; bar < BARS; bar++) {
+      const barInPhrase = bar % PHRASE;
+      const isBSection = Math.floor(bar / PHRASE) === 2;
+      const { root } = chordForBar(barInPhrase, progId, isBSection);
+      const barStart = bar * 4;
+      const bassRoot = root - 24;
+      if (plutoDepth > 0.1 && bar % 4 === seedNum % 4) {
+        push(barStart + 1, 2, Math.max(24, bassRoot - 12), 0.25, "bass");
+      }
+      if (bassPattern === 0) {
+        push(barStart + 0, 2, bassRoot, 0.7, "bass");
+        push(barStart + 2, 2, bassRoot, 0.65, "bass");
+      } else {
+        push(barStart + 0, 3, bassRoot, 0.7, "bass");
+        const isCadenceBar = barInPhrase === 3;
+        const nextRoot = barInPhrase < 3 ? chordForBar(barInPhrase + 1, progId, isBSection).root - 24 : bassRoot;
+        let approachPitch = nextRoot;
+        if (!isCadenceBar) {
+          const candWholeStep = nextRoot - 2;
+          const candFifthBelow = nextRoot + 5;
+          if (isPitchInNaturalMinor(candWholeStep, root) && candWholeStep >= 24 && candWholeStep <= 72) {
+            approachPitch = candWholeStep;
+          } else if (isPitchInNaturalMinor(candFifthBelow, root) && candFifthBelow >= 24 && candFifthBelow <= 72) {
+            approachPitch = candFifthBelow;
+          }
+        }
+        push(barStart + 3, 1, Math.max(24, Math.min(72, approachPitch)), 0.6, "bass");
+      }
     }
   }
 
@@ -515,6 +573,13 @@ export function planFromVector(
       const seventhPitch = Math.max(HARMONY_LO, Math.min(HARMONY_HI, root + MINOR_7TH_SEMI));
       push(barStart + 2, 2, seventhPitch, 0.42, "harmony");
     }
+    
+    // House: chord stabs (short harmony events) on offbeats in Recognition phase
+    if (genre === 'house' && phase === 1 && barInPhrase % 2 === 0) {
+      const stabBeat = barStart + 1.5 + (seedNum + bar) % 2 * 1.0; // 1.5 or 2.5
+      const stabPitch = best[1]; // Middle voice
+      push(stabBeat, 0.25, stabPitch, 0.45, "harmony");
+    }
   }
 
   // Color-shift harmony blending: extend harmony t1 with overlap + voice stagger (deterministic from guidance).
@@ -556,19 +621,59 @@ export function planFromVector(
     }
   }
 
-  for (let bar = 0; bar < BARS; bar++) {
-    const barStart = bar * 4;
-    const barInPhraseR = bar % PHRASE;
-    const isCadenceBar = barInPhraseR === 3;
-    const rhythmDensityThreshold = 0.5 + 0.1 * (1 - marsPropulsion);
-    const omitBeat3Kick = !isCadenceBar && density < 0.65 && bar % 2 === 1;
-    push(barStart + 0, 0.25, 36, 0.8, "rhythm");
-    if (!omitBeat3Kick) push(barStart + 2, 0.25, 36, 0.7, "rhythm");
-    push(barStart + 1, 0.25, 42, 0.4, "rhythm");
-    push(barStart + 3, 0.25, 42, 0.4, "rhythm");
-    if (barInPhraseR === 2 && density > rhythmDensityThreshold) {
-      push(barStart + 0.5, 0.25, 42, 0.35, "rhythm");
-      push(barStart + 2.5, 0.25, 42, 0.35, "rhythm");
+  // Rhythm: house idioms when genre === 'house', else default
+  if (genre === 'house') {
+    // House: 4-on-the-floor kick + hats on offbeats + clap on 2&4
+    for (let bar = 0; bar < BARS; bar++) {
+      const barStart = bar * 4;
+      const phase = narrativePhaseForBar(bar);
+      const activation = personality?.temperament.activation ?? 0.5;
+      const useHalfTime = activation < 0.4; // Lower activation = half-time feel
+      
+      // Kick: 4-on-the-floor (beats 0,1,2,3) or half-time (0,2)
+      if (useHalfTime) {
+        push(barStart + 0, 0.25, 36, 0.85, "rhythm");
+        push(barStart + 2, 0.25, 36, 0.75, "rhythm");
+      } else {
+        push(barStart + 0, 0.25, 36, 0.85, "rhythm");
+        push(barStart + 1, 0.25, 36, 0.80, "rhythm");
+        push(barStart + 2, 0.25, 36, 0.80, "rhythm");
+        push(barStart + 3, 0.25, 36, 0.75, "rhythm");
+      }
+      
+      // Hats on offbeats (0.5, 1.5, 2.5, 3.5) with lower velocity
+      const hatVel = 0.35 + (seedNum + bar) % 2 * 0.05; // Slight variation
+      push(barStart + 0.5, 0.25, 42, hatVel, "rhythm");
+      push(barStart + 1.5, 0.25, 42, hatVel, "rhythm");
+      push(barStart + 2.5, 0.25, 42, hatVel, "rhythm");
+      push(barStart + 3.5, 0.25, 42, hatVel, "rhythm");
+      
+      // Clap/snare on beats 1 and 3 (2 and 4 in musical counting)
+      push(barStart + 1, 0.25, 38, 0.65, "rhythm");
+      push(barStart + 3, 0.25, 38, 0.60, "rhythm");
+      
+      // Occasional ghost hat (seeded, deterministic)
+      if ((seedNum + bar * 7) % 5 === 0 && phase === 1) {
+        const ghostBeat = barStart + 0.25 + ((seedNum + bar) % 2) * 0.5;
+        push(ghostBeat, 0.15, 42, 0.20, "rhythm");
+      }
+    }
+  } else {
+    // Default rhythm (existing behavior)
+    for (let bar = 0; bar < BARS; bar++) {
+      const barStart = bar * 4;
+      const barInPhraseR = bar % PHRASE;
+      const isCadenceBar = barInPhraseR === 3;
+      const rhythmDensityThreshold = 0.5 + 0.1 * (1 - marsPropulsion);
+      const omitBeat3Kick = !isCadenceBar && density < 0.65 && bar % 2 === 1;
+      push(barStart + 0, 0.25, 36, 0.8, "rhythm");
+      if (!omitBeat3Kick) push(barStart + 2, 0.25, 36, 0.7, "rhythm");
+      push(barStart + 1, 0.25, 42, 0.4, "rhythm");
+      push(barStart + 3, 0.25, 42, 0.4, "rhythm");
+      if (barInPhraseR === 2 && density > rhythmDensityThreshold) {
+        push(barStart + 0.5, 0.25, 42, 0.35, "rhythm");
+        push(barStart + 2.5, 0.25, 42, 0.35, "rhythm");
+      }
     }
   }
 

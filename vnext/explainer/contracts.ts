@@ -52,6 +52,9 @@ export interface ControlSurfacePayload {
   aspect_tension: number; // 0-1
   modality: string; // "cardinal" | "fixed" | "mutable"
   
+  // Genre scaffolding (default "house")
+  genre?: string; // "house" | "classical" | "jazz" | "ambient" | "electronic"
+  
   // Hash for deterministic variation (seed = controls.hash)
   hash: string;
 }

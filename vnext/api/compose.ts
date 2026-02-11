@@ -69,7 +69,14 @@ export class ComposeAPI {
       const snapshot = await this.fetchChartSnapshot(request);
       const featureVec = encodeFeatures(snapshot) as FeatureVec;
 
+      // Compute provenance hashes
+      const snapshot_sha256 = this.hashSnapshot(snapshot);
+      const featurevec_sha256 = this.hashFeatureVec(featureVec);
+
       const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+      
+      // Compute v6 hash from diag
+      const v6_sha256 = diag?.v6 ? this.hashV6(diag.v6) : '';
 
       const mlUsed = !!diag?.ml_used;
       const mlLog = {
@@ -126,7 +133,7 @@ export class ComposeAPI {
         mode: request.mode,
         session_id: this.generateSessionId(),
         request_id: this.generateRequestId(),
-        chartHash: 'mock_chart_hash',
+        chartHash: snapshot_sha256,
         featuresVersion: 'v1.0'
       };
       const explainerInputs = { astro, featureVec, plan };
@@ -432,7 +439,7 @@ export class ComposeAPI {
         artifacts: {
           model: '084c92dca9af2f09',
           encoder: 'db4eb96e52b3f63e',
-          chartHash: 'mock_chart_hash',
+          chartHash: snapshot_sha256,
           featuresVersion: 'v1.0',
           snapset: '185371267270f0ef',
           gate: 'v2.3-final',
@@ -440,9 +447,18 @@ export class ComposeAPI {
           timestamp: new Date().toISOString(),
           ...(midiArtifact && { midi: midiArtifact }),
           provenance: {
-            chartHash: 'mock_chart_hash',
+            snapshot_sha256,
+            featurevec_sha256,
+            v6_sha256,
+            model_id: diag?.modelVersion || this.runtimeModel,
+            model_sha: diag?.model_sha || 'unknown',
+            plan_sha256: planHash,
+            audio_sha256: audio.sha256,
+            payload_hash: payload.hash,
+            encoder_version: 'v1.0',
+            features_version: 'v1.0',
+            chartHash: snapshot_sha256, // Backward compat
             seed: (request as any).seed || payload.hash,
-            featuresVersion: 'v1.0',
             modelVersions: {
               audio: this.runtimeModel,
               text: 'v1.1',
@@ -509,7 +525,7 @@ export class ComposeAPI {
       mode: 'sandbox',
       session_id: this.generateSessionId(),
       request_id: this.generateRequestId(),
-      chartHash: payload.hash,
+      chartHash: payload.hash, // composeFromFeatures doesn't have snapshot, use payload hash
       featuresVersion: 'v1.0'
     };
     const base = (this.textExplainer as any).generateExplanation(payload, gateReport, context);
@@ -675,6 +691,7 @@ export class ComposeAPI {
       element_dominance: astroData.element_dominance,
       aspect_tension: astroData.aspect_tension,
       modality: astroData.modality,
+      genre: 'house', // Default genre
       hash: this.generateHash(astroData)
     } as ControlSurfacePayload;
   }
@@ -707,8 +724,11 @@ export class ComposeAPI {
     // Start with default payload
     const defaultPayload = await this.generateDefaultPayload();
     
-    // Merge with user controls
+    // Merge with user controls (genre defaults to 'house' if not specified)
     const mergedPayload = { ...defaultPayload, ...userControls };
+    if (!mergedPayload.genre) {
+      mergedPayload.genre = 'house';
+    }
     
     // Ensure hash is updated
     mergedPayload.hash = this.generateHash(mergedPayload);
@@ -737,7 +757,8 @@ export class ComposeAPI {
       motif_rate: (chart1Payload.motif_rate + chart2Payload.motif_rate) / 2,
       element_dominance: compatibilityScore > 0.7 ? chart1Payload.element_dominance : 'air',
       aspect_tension: compatibilityScore,
-      modality: 'mutable'
+      modality: 'mutable',
+      genre: 'house' // Default genre
     };
     
     (blendedPayload as any).hash = this.generateHash(blendedPayload);
@@ -882,6 +903,7 @@ export class ComposeAPI {
       element_dominance: 'air',
       aspect_tension: 0.4,
       modality: 'mutable',
+      genre: 'house', // Default genre
       hash: this.generateHash({ arc_shape: 0.45, density_level: 0.6 })
     };
   }
@@ -951,6 +973,51 @@ export class ComposeAPI {
   private sha256(input: string): string {
     const crypto = require('crypto');
     return crypto.createHash('sha256').update(input).digest('hex');
+  }
+
+  /**
+   * Canonical hash for EphemerisSnapshot (stable key order)
+   */
+  private hashSnapshot(snapshot: EphemerisSnapshot): string {
+    const canonical = {
+      ts: snapshot.ts,
+      tz: snapshot.tz,
+      lat: snapshot.lat,
+      lon: snapshot.lon,
+      houseSystem: snapshot.houseSystem,
+      planets: snapshot.planets.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => ({
+        name: p.name,
+        lon: p.lon,
+        lat: p.lat ?? null,
+        speed: p.speed ?? null
+      })),
+      houses: snapshot.houses,
+      aspects: snapshot.aspects.slice().sort((a, b) => {
+        const cmp = a.a.localeCompare(b.a);
+        return cmp !== 0 ? cmp : a.b.localeCompare(b.b);
+      }),
+      moonPhase: snapshot.moonPhase,
+      dominantElements: snapshot.dominantElements
+    };
+    return this.sha256(JSON.stringify(canonical));
+  }
+
+  /**
+   * Canonical hash for FeatureVec (fixed precision floats)
+   */
+  private hashFeatureVec(featureVec: FeatureVec): string {
+    const precision = 6;
+    const parts = Array.from(featureVec).map(v => v.toFixed(precision));
+    return this.sha256(parts.join(','));
+  }
+
+  /**
+   * Canonical hash for v6 vector (fixed precision floats)
+   */
+  private hashV6(v6: number[]): string {
+    const precision = 6;
+    const parts = v6.map(v => v.toFixed(precision));
+    return this.sha256(parts.join(','));
   }
 }
 
