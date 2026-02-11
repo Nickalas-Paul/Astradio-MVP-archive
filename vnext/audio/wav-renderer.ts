@@ -11,6 +11,12 @@ export interface RenderOptions {
   sampleRate?: number;
   channels?: number;
   bitDepth?: number;
+  returnChannelStats?: boolean;
+}
+
+export interface ChannelStats {
+  peak: number;
+  rms: number;
 }
 
 export interface RenderResult {
@@ -18,6 +24,7 @@ export interface RenderResult {
   sha256: string;
   duration_ms: number;
   size_bytes: number;
+  channelStats?: Record<string, ChannelStats>;
 }
 
 const DURATION_SEC = 60;
@@ -80,7 +87,14 @@ export interface InstrumentPalette {
   kick: { pitchDropMs: number; clickAmp: number; saturation: number };
   clap: { decayMs: number; roomReflectMs: number; filterQ: number };
   hat: { decayMs: number; highpassHz: number };
-  bass: { waveform: 'saw' | 'square'; lpfCutoffHz: number; saturation: number };
+  bass: {
+    waveform: 'saw' | 'square';
+    lpfCutoffHz: number;
+    saturation: number;
+    gain: number;
+    ampAttackMs: number;
+    releaseScale: number;
+  };
   harmony: { stabDecayMs: number; lpfSweepMs: number; stereoWiden: number };
   melody: { pluckDecayMs: number; vibratoRate: number; vibratoDepth: number };
 }
@@ -93,7 +107,14 @@ function getInstrumentPalette(genre: string, seed: string): InstrumentPalette {
       kick: { pitchDropMs: f('kick:drop', 35, 55), clickAmp: f('kick:click', 0.15, 0.28), saturation: f('kick:sat', 0.12, 0.22) },
       clap: { decayMs: f('clap:decay', 60, 100), roomReflectMs: f('clap:room', 12, 22), filterQ: f('clap:q', 1.5, 2.5) },
       hat: { decayMs: f('hat:decay', 12, 28), highpassHz: f('hat:hp', 6000, 10000) },
-      bass: { waveform: rand01(seed, 'palette:bass:wave') < 0.5 ? 'saw' : 'square', lpfCutoffHz: f('bass:lpf', 800, 1400), saturation: f('bass:sat', 0.08, 0.18) },
+      bass: {
+        waveform: rand01(seed, 'palette:bass:wave') < 0.5 ? 'saw' : 'square',
+        lpfCutoffHz: f('bass:lpf', 1400, 2200),
+        saturation: f('bass:sat', 0.03, 0.08),
+        gain: f('bass:gain', 0.55, 0.68),
+        ampAttackMs: f('bass:ampA', 8, 20),
+        releaseScale: f('bass:relScale', 0.72, 0.88),
+      },
       harmony: { stabDecayMs: f('harm:decay', 80, 160), lpfSweepMs: f('harm:sweep', 40, 90), stereoWiden: f('harm:widen', 0.06, 0.14) },
       melody: { pluckDecayMs: f('mel:pluck', 50, 120), vibratoRate: f('mel:vibRate', 4.5, 6.5), vibratoDepth: f('mel:vibDepth', 0.004, 0.012) },
     };
@@ -127,6 +148,18 @@ function lpfCoef(cutoffHz: number, sampleRate: number): number {
 function hpFilter(x: number, prev: number, coef: number): { y: number; state: number } {
   const state = prev + coef * (x - prev);
   return { y: x - state, state };
+}
+
+/** Compute peak and RMS for a float buffer. */
+function computeChannelStats(stem: Float32Array): ChannelStats {
+  let peak = 0;
+  let sumSq = 0;
+  for (let i = 0; i < stem.length; i++) {
+    const v = stem[i] ?? 0;
+    if (Math.abs(v) > peak) peak = Math.abs(v);
+    sumSq += v * v;
+  }
+  return { peak, rms: stem.length > 0 ? Math.sqrt(sumSq / stem.length) : 0 };
 }
 
 // --- B) Performance params (all derived from seed + plan stats) ---
@@ -323,19 +356,42 @@ function computeRenderedTiming(
   return { t0, t1 };
 }
 
-/** Duck gain at time t (0..1) from kick onsets. 1 = no duck, lower near kicks. */
-function duckGain(t: number, kickOnsets: number[], duckAmount: number, duckLenSec: number): number {
-  let g = 1;
+/** Envelope-based duck per kick onset: fast attack, short hold, fast recovery. Duck only after kick (dt >= 0). */
+function duckEnvelopeGain(t: number, kickOnsets: number[], depthBass: number, depthHarmony: number): { bass: number; harmony: number } {
+  const attackSec = 0.003;
+  const holdSec = 0.025;
+  const recoverySec = 0.05;
+  let gBass = 1;
+  let gHarmony = 1;
   for (const tk of kickOnsets) {
     const dt = t - tk;
-    if (dt >= 0 && dt < duckLenSec) {
-      const fade = 1 - Math.exp(-dt * 12);
-      g = Math.min(g, 1 - duckAmount * fade);
-    } else if (dt < 0 && dt > -0.02) {
-      g = Math.min(g, 1 - duckAmount);
+    if (dt >= 0 && dt < attackSec + holdSec + recoverySec) {
+      if (dt < attackSec) {
+        const fade = dt / attackSec;
+        gBass = Math.min(gBass, Math.max(0.4, 1 - depthBass * (1 - fade)));
+        gHarmony = Math.min(gHarmony, Math.max(0.75, 1 - depthHarmony * (1 - fade)));
+      } else if (dt < attackSec + holdSec) {
+        gBass = Math.min(gBass, Math.max(0.4, 1 - depthBass));
+        gHarmony = Math.min(gHarmony, Math.max(0.75, 1 - depthHarmony));
+      } else {
+        const recT = (dt - attackSec - holdSec) / recoverySec;
+        const fade = Math.min(1, recT);
+        gBass = Math.min(gBass, Math.max(0.4, 1 - depthBass * (1 - fade)));
+        gHarmony = Math.min(gHarmony, Math.max(0.75, 1 - depthHarmony * (1 - fade)));
+      }
     }
   }
-  return Math.max(0.25, g);
+  return { bass: gBass, harmony: gHarmony };
+}
+
+/** Stem buffers for per-channel stats when returnChannelStats or INSTRUMENTATION_DEBUG. */
+interface Stems {
+  kick: Float32Array;
+  hat: Float32Array;
+  clap: Float32Array;
+  bass: Float32Array;
+  harmony: Float32Array;
+  melody: Float32Array;
 }
 
 /** Build 16-bit PCM WAV buffer for exactly 60 seconds. Deterministic from hash and plan. */
@@ -344,7 +400,8 @@ function buildWav(
   plan: unknown,
   sampleRate: number,
   channels: number,
-  genre?: string
+  genre?: string,
+  stems?: Stems
 ): Buffer {
   const totalSamples = Math.floor(DURATION_SEC * sampleRate) * channels;
   const bytesPerSample = 2;
@@ -395,6 +452,7 @@ function buildWav(
     const secPerBar = secPerBeat * 4;
     let kickOnsets: number[] = [];
     let duckSumBass = 0, duckCountBass = 0, duckSumHarmony = 0, duckCountHarmony = 0;
+    let activeStems: Stems | null = null;
 
     if (HUMANIZE_ENABLED) {
       const params = getPerformanceParams(seed, bpm);
@@ -415,6 +473,15 @@ function buildWav(
 
       const useInstrumentation = HUMANIZE_ENABLED && INSTRUMENTATION_ENABLED;
       const palette = useInstrumentation ? getInstrumentPalette(genre || 'house', seed) : null;
+
+      const lenSamples = bufL.length;
+      const needStems = stems || (useInstrumentation && INSTRUMENTATION_DEBUG);
+      if (needStems) {
+        activeStems = stems ?? {
+          kick: new Float32Array(lenSamples), hat: new Float32Array(lenSamples), clap: new Float32Array(lenSamples),
+          bass: new Float32Array(lenSamples), harmony: new Float32Array(lenSamples), melody: new Float32Array(lenSamples),
+        };
+      }
 
       if (useInstrumentation && palette) {
         for (let i = 0; i < sorted.length; i++) {
@@ -501,9 +568,6 @@ function buildWav(
         const amp = vel * 0.3;
         const useMono = channels < 2;
 
-        const duckAmount = 0.35;
-        const duckLenSec = 0.08;
-
         if (useInstrumentation && palette) {
           const eventKey = `inst:${ch}:${eventIndex}:${bar}`;
           const prng = makePrng(seed, eventKey);
@@ -527,6 +591,7 @@ function buildWav(
                 samp += (prng() * 2 - 1) * k.clickAmp * (1 - localT / clickDur);
               }
               samp = saturate(samp, k.saturation);
+              if (activeStems) activeStems.kick[i] = (activeStems.kick[i] ?? 0) + samp;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -541,6 +606,7 @@ function buildWav(
               const { y: yL, state: sL } = hpFilter(n, hpStateL, hpCoef);
               const { y: yR, state: sR } = hpFilter(n, hpStateR, hpCoef);
               hpStateL = sL; hpStateR = sR;
+              if (activeStems) activeStems.hat[i] = (activeStems.hat[i] ?? 0) + yL;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + yL;
               else { bufL[i] = (bufL[i] ?? 0) + yL * gainL; bufR[i] = (bufR[i] ?? 0) + yR * gainR; }
             }
@@ -558,11 +624,15 @@ function buildWav(
               ring[ri] = n;
               ri = (ri + 1) % reflectSamples;
               const samp = n + refl;
+              if (activeStems) activeStems.clap[i] = (activeStems.clap[i] ?? 0) + samp;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
           } else if (ch === 'bass' && palette.bass) {
             const b = palette.bass;
+            const bassAmp = amp * b.gain;
+            const bassAttackMs = b.ampAttackMs;
+            const bassReleaseMs = releaseMs * b.releaseScale;
             let phase = rand01(seed, eventKey + ':phase');
             const phaseInc = freq / sampleRate;
             const lpfC = lpfCoef(b.lpfCutoffHz, sampleRate);
@@ -570,16 +640,17 @@ function buildWav(
             for (let i = startS; i < endS; i++) {
               const t = i / sampleRate;
               const localT = t - t0;
-              const env = adsrGain(localT, durationSec, attackMs, decayMs, sustain, releaseMs);
+              const env = adsrGain(localT, durationSec, bassAttackMs, decayMs, sustain, bassReleaseMs);
               const raw = b.waveform === 'saw' ? 2 * (phase - Math.floor(phase)) - 1 : phase < 0.5 ? 1 : -1;
               phase += phaseInc;
               if (phase >= 1) phase -= 1;
               lpfState += lpfC * (raw - lpfState);
-              let samp = lpfState * amp * env;
+              let samp = lpfState * bassAmp * env;
               samp = saturate(samp, b.saturation);
-              const duck = duckGain(t, kickOnsets, duckAmount, duckLenSec);
-              duckSumBass += duck; duckCountBass++;
-              samp *= duck;
+              const { bass: duckB } = duckEnvelopeGain(t, kickOnsets, 0.22, 0.10);
+              duckSumBass += duckB; duckCountBass++;
+              samp *= duckB;
+              if (activeStems) activeStems.bass[i] = (activeStems.bass[i] ?? 0) + samp;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -604,9 +675,10 @@ function buildWav(
               if (phase >= 1) phase -= 1;
               lpfState += lpfC * (raw - lpfState);
               let samp = lpfState * amp * env;
-              const duck = duckGain(t, kickOnsets, duckAmount, duckLenSec);
-              duckSumHarmony += duck; duckCountHarmony++;
-              samp *= duck;
+              const { harmony: duckH } = duckEnvelopeGain(t, kickOnsets, 0.22, 0.10);
+              duckSumHarmony += duckH; duckCountHarmony++;
+              samp *= duckH;
+              if (activeStems) activeStems.harmony[i] = (activeStems.harmony[i] ?? 0) + samp;
               const gL = gainL + widen;
               const gR = gainR - widen;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
@@ -625,6 +697,7 @@ function buildWav(
               phase += phaseInc * vibMod;
               if (phase >= 1) phase -= 1;
               const samp = Math.sin(2 * Math.PI * phase) * amp * env;
+              if (activeStems) activeStems.melody[i] = (activeStems.melody[i] ?? 0) + samp;
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -699,6 +772,31 @@ function buildWav(
           bufL[i] = lpL;
           if (channels >= 2) bufR[i] = lpR;
         }
+        const thr = 0.4;
+        const ratio = 3;
+        const makeup = 1.05;
+        let envL = 0, envR = 0;
+        const envCoef = lpfCoef(80, sampleRate);
+        for (let i = 0; i < len; i++) {
+          const l = bufL[i] ?? 0;
+          const r = channels >= 2 ? (bufR[i] ?? 0) : l;
+          const peak = Math.max(Math.abs(l), Math.abs(r));
+          envL += envCoef * (Math.abs(l) - envL);
+          envR += envCoef * (Math.abs(r) - envR);
+          const env = Math.max(envL, envR);
+          let gain = 1;
+          if (env > thr) {
+            const over = env / thr;
+            gain = thr / (thr + (over - 1) / ratio);
+          }
+          gain *= makeup;
+          let lOut = l * gain;
+          let rOut = (channels >= 2 ? r : l) * gain;
+          lOut = Math.tanh(lOut * 1.02);
+          rOut = Math.tanh(rOut * 1.02);
+          bufL[i] = lOut;
+          if (channels >= 2) bufR[i] = rOut;
+        }
       }
     } else {
       // Legacy path: no humanization (flat envelope, no channel, no pan)
@@ -734,10 +832,22 @@ function buildWav(
     }
     const rms = bufL.length > 0 ? Math.sqrt(sumSq / bufL.length) : 0;
     const scale = peak > 0.95 ? 0.95 / peak : 1;
-    if (INSTRUMENTATION_DEBUG && kickOnsets.length > 0) {
-      const avgDuckBass = duckCountBass > 0 ? duckSumBass / duckCountBass : 0;
-      const avgDuckHarmony = duckCountHarmony > 0 ? duckSumHarmony / duckCountHarmony : 0;
-      console.log('[INSTRUMENTATION] peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'kicks=', kickOnsets.length, 'avgDuckBass=', avgDuckBass.toFixed(4), 'avgDuckHarmony=', avgDuckHarmony.toFixed(4));
+    if (INSTRUMENTATION_DEBUG && activeStems) {
+      const st = activeStems;
+      const kickS = computeChannelStats(st.kick);
+      const hatS = computeChannelStats(st.hat);
+      const clapS = computeChannelStats(st.clap);
+      const bassS = computeChannelStats(st.bass);
+      const harmS = computeChannelStats(st.harmony);
+      const melS = computeChannelStats(st.melody);
+      const bassToMaster = peak > 0.001 ? bassS.peak / peak : 0;
+      console.log('[INSTRUMENTATION] kick peak=', kickS.peak.toFixed(4), 'rms=', kickS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] hat peak=', hatS.peak.toFixed(4), 'rms=', hatS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] clap peak=', clapS.peak.toFixed(4), 'rms=', clapS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] bass peak=', bassS.peak.toFixed(4), 'rms=', bassS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] harmony peak=', harmS.peak.toFixed(4), 'rms=', harmS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] melody peak=', melS.peak.toFixed(4), 'rms=', melS.rms.toFixed(4));
+      console.log('[INSTRUMENTATION] master peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'bass_to_master_ratio=', bassToMaster.toFixed(4));
     }
     offset = headerLen;
     for (let i = 0; i < bufL.length; i++) {
@@ -805,12 +915,25 @@ export function renderWav60s(
     const genre = (payloadInput && typeof (payloadInput as Record<string, unknown>).genre === 'string')
       ? ((payloadInput as Record<string, unknown>).genre as string)
       : 'house';
-    const buffer = buildWav(seed, planInput, sampleRate, channels, genre);
+    const lenSamples = Math.floor(DURATION_SEC * sampleRate);
+    const stems = options?.returnChannelStats ? {
+      kick: new Float32Array(lenSamples), hat: new Float32Array(lenSamples), clap: new Float32Array(lenSamples),
+      bass: new Float32Array(lenSamples), harmony: new Float32Array(lenSamples), melody: new Float32Array(lenSamples),
+    } : undefined;
+    const buffer = buildWav(seed, planInput, sampleRate, channels, genre, stems);
     if (process.env.NODE_ENV !== 'production') assertValidWavInDev(buffer);
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
     const durationMs = DURATION_SEC * 1000;
     const sizeBytes = buffer.length;
-    return { buffer, sha256, duration_ms: durationMs, size_bytes: sizeBytes };
+    const channelStats = stems ? {
+      kick: computeChannelStats(stems.kick),
+      hat: computeChannelStats(stems.hat),
+      clap: computeChannelStats(stems.clap),
+      bass: computeChannelStats(stems.bass),
+      harmony: computeChannelStats(stems.harmony),
+      melody: computeChannelStats(stems.melody),
+    } : undefined;
+    return { buffer, sha256, duration_ms: durationMs, size_bytes: sizeBytes, channelStats };
   } catch {
     const buffer = buildWav('fallback', null, DEFAULT_SAMPLE_RATE, 1, 'house');
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');

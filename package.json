@@ -67,6 +67,7 @@
     "test:harmony-blend": "npm run vnext:build && node dist/vnext/vnext/scripts/harmony-blend-regression.js",
     "test:performance-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/performance-verification.js",
     "test:instrumentation-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/instrumentation-verification.js",
+    "test:mix-balance-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/mix-balance-verification.js",
     "test:provenance-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/provenance-verification.js",
     "check:single-compose": "node scripts/check-single-compose.js",
     "worker:export": "node workers/export-worker.js"
