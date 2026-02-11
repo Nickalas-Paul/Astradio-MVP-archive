@@ -12,11 +12,19 @@ export interface RenderOptions {
   channels?: number;
   bitDepth?: number;
   returnChannelStats?: boolean;
+  returnFxRoutingStats?: boolean;
 }
 
 export interface ChannelStats {
   peak: number;
   rms: number;
+}
+
+export interface FxRoutingStats {
+  bass_send_room: number;
+  bass_send_plate: number;
+  bass_send_delay: number;
+  reverb_return_lowband_rms: number;
 }
 
 export interface RenderResult {
@@ -25,6 +33,7 @@ export interface RenderResult {
   duration_ms: number;
   size_bytes: number;
   channelStats?: Record<string, ChannelStats>;
+  fxRoutingStats?: FxRoutingStats;
 }
 
 const DURATION_SEC = 60;
@@ -49,8 +58,28 @@ const HUMANIZE_ENABLED = process.env.VNEXT_HUMANIZE !== '0';
 /** Instrumentation layer on by default when humanize on. Set VNEXT_INSTRUMENTATION=0 to bypass. */
 const INSTRUMENTATION_ENABLED = process.env.VNEXT_INSTRUMENTATION !== '0';
 
-/** Debug: print peak, RMS, kick count, duck stats when set. */
+/** Debug: print peak, RMS, send amounts, reverb return stats when set. */
 const INSTRUMENTATION_DEBUG = process.env.VNEXT_INSTRUMENTATION_DEBUG === '1';
+
+/** FX send targets: ROOM (short), PLATE (longer), DELAY (optional). */
+interface FXSendAmounts {
+  room: { kick: number; hat: number; clap: number; bass: number; harmony: number; melody: number };
+  plate: { kick: number; hat: number; clap: number; bass: number; harmony: number; melody: number };
+  delay: { kick: number; hat: number; clap: number; bass: number; harmony: number; melody: number };
+}
+
+function getFXSendAmounts(genre: string, seed: string): FXSendAmounts {
+  const g = (genre || 'house').toLowerCase();
+  const f = (key: string, lo: number, hi: number) => lo + rand01(seed, `fx:${g}:${key}`) * (hi - lo);
+  if (g === 'house') {
+    return {
+      room: { kick: 0, hat: 0, clap: f('room:clap', 0.28, 0.42), bass: 0, harmony: 0, melody: 0 },
+      plate: { kick: 0, hat: 0, clap: 0, bass: 0, harmony: f('plate:harm', 0.08, 0.16), melody: f('plate:mel', 0.05, 0.11) },
+      delay: { kick: 0, hat: 0, clap: 0, bass: 0, harmony: 0, melody: f('delay:mel', 0.03, 0.08) },
+    };
+  }
+  return getFXSendAmounts('house', seed);
+}
 
 // --- A) Deterministic hash-based PRNG (no global state, stable across runs) ---
 
@@ -148,6 +177,43 @@ function lpfCoef(cutoffHz: number, sampleRate: number): number {
 function hpFilter(x: number, prev: number, coef: number): { y: number; state: number } {
   const state = prev + coef * (x - prev);
   return { y: x - state, state };
+}
+
+/** Add to FX send buses. ch+pitch identify the source; send amounts from fxSends. */
+function addToSends(
+  i: number,
+  samp: number,
+  gainL: number,
+  gainR: number,
+  ch: ChannelRole,
+  pitch: number,
+  fxSends: FXSendAmounts,
+  roomL: Float32Array, roomR: Float32Array | null,
+  plateL: Float32Array, plateR: Float32Array | null,
+  delayL: Float32Array, delayR: Float32Array | null,
+  useMono: boolean
+): void {
+  const sRoom = ch === 'rhythm'
+    ? (pitch === PITCH_KICK ? fxSends.room.kick : pitch === PITCH_HAT ? fxSends.room.hat : fxSends.room.clap)
+    : ch === 'bass' ? fxSends.room.bass : ch === 'harmony' ? fxSends.room.harmony : fxSends.room.melody;
+  const sPlate = ch === 'rhythm'
+    ? (pitch === PITCH_KICK ? fxSends.plate.kick : pitch === PITCH_HAT ? fxSends.plate.hat : fxSends.plate.clap)
+    : ch === 'bass' ? fxSends.plate.bass : ch === 'harmony' ? fxSends.plate.harmony : fxSends.plate.melody;
+  const sDelay = ch === 'rhythm'
+    ? (pitch === PITCH_KICK ? fxSends.delay.kick : pitch === PITCH_HAT ? fxSends.delay.hat : fxSends.delay.clap)
+    : ch === 'bass' ? fxSends.delay.bass : ch === 'harmony' ? fxSends.delay.harmony : fxSends.delay.melody;
+  if (sRoom > 0) {
+    roomL[i] = (roomL[i] ?? 0) + samp * gainL * sRoom;
+    if (roomR && !useMono) roomR[i] = (roomR[i] ?? 0) + samp * gainR * sRoom;
+  }
+  if (sPlate > 0) {
+    plateL[i] = (plateL[i] ?? 0) + samp * gainL * sPlate;
+    if (plateR && !useMono) plateR[i] = (plateR[i] ?? 0) + samp * gainR * sPlate;
+  }
+  if (sDelay > 0) {
+    delayL[i] = (delayL[i] ?? 0) + samp * gainL * sDelay;
+    if (delayR && !useMono) delayR[i] = (delayR[i] ?? 0) + samp * gainR * sDelay;
+  }
 }
 
 /** Compute peak and RMS for a float buffer. */
@@ -401,7 +467,8 @@ function buildWav(
   sampleRate: number,
   channels: number,
   genre?: string,
-  stems?: Stems
+  stems?: Stems,
+  fxStatsOut?: FxRoutingStats
 ): Buffer {
   const totalSamples = Math.floor(DURATION_SEC * sampleRate) * channels;
   const bytesPerSample = 2;
@@ -453,6 +520,8 @@ function buildWav(
     let kickOnsets: number[] = [];
     let duckSumBass = 0, duckCountBass = 0, duckSumHarmony = 0, duckCountHarmony = 0;
     let activeStems: Stems | null = null;
+    let debugFxSends: FXSendAmounts | null = null;
+    let debugFxStats: FxRoutingStats | null = null;
 
     if (HUMANIZE_ENABLED) {
       const params = getPerformanceParams(seed, bpm);
@@ -473,8 +542,16 @@ function buildWav(
 
       const useInstrumentation = HUMANIZE_ENABLED && INSTRUMENTATION_ENABLED;
       const palette = useInstrumentation ? getInstrumentPalette(genre || 'house', seed) : null;
+      const fxSends = useInstrumentation ? getFXSendAmounts(genre || 'house', seed) : null;
+      if (fxSends && INSTRUMENTATION_DEBUG) debugFxSends = fxSends;
 
       const lenSamples = bufL.length;
+      const roomSendL = useInstrumentation ? new Float32Array(lenSamples) : null;
+      const roomSendR = useInstrumentation && channels >= 2 ? new Float32Array(lenSamples) : null;
+      const plateSendL = useInstrumentation ? new Float32Array(lenSamples) : null;
+      const plateSendR = useInstrumentation && channels >= 2 ? new Float32Array(lenSamples) : null;
+      const delaySendL = useInstrumentation ? new Float32Array(lenSamples) : null;
+      const delaySendR = useInstrumentation && channels >= 2 ? new Float32Array(lenSamples) : null;
       const needStems = stems || (useInstrumentation && INSTRUMENTATION_DEBUG);
       if (needStems) {
         activeStems = stems ?? {
@@ -592,6 +669,9 @@ function buildWav(
               }
               samp = saturate(samp, k.saturation);
               if (activeStems) activeStems.kick[i] = (activeStems.kick[i] ?? 0) + samp;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, samp, gainL, gainR, ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -607,6 +687,9 @@ function buildWav(
               const { y: yR, state: sR } = hpFilter(n, hpStateR, hpCoef);
               hpStateL = sL; hpStateR = sR;
               if (activeStems) activeStems.hat[i] = (activeStems.hat[i] ?? 0) + yL;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, yL, gainL, gainR, ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + yL;
               else { bufL[i] = (bufL[i] ?? 0) + yL * gainL; bufR[i] = (bufR[i] ?? 0) + yR * gainR; }
             }
@@ -625,6 +708,9 @@ function buildWav(
               ri = (ri + 1) % reflectSamples;
               const samp = n + refl;
               if (activeStems) activeStems.clap[i] = (activeStems.clap[i] ?? 0) + samp;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, samp, gainL, gainR, ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -651,6 +737,9 @@ function buildWav(
               duckSumBass += duckB; duckCountBass++;
               samp *= duckB;
               if (activeStems) activeStems.bass[i] = (activeStems.bass[i] ?? 0) + samp;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, samp, gainL, gainR, ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -681,6 +770,9 @@ function buildWav(
               if (activeStems) activeStems.harmony[i] = (activeStems.harmony[i] ?? 0) + samp;
               const gL = gainL + widen;
               const gR = gainR - widen;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, samp, Math.max(0, gL), Math.max(0, gR), ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * Math.max(0, gL); bufR[i] = (bufR[i] ?? 0) + samp * Math.max(0, gR); }
             }
@@ -698,6 +790,9 @@ function buildWav(
               if (phase >= 1) phase -= 1;
               const samp = Math.sin(2 * Math.PI * phase) * amp * env;
               if (activeStems) activeStems.melody[i] = (activeStems.melody[i] ?? 0) + samp;
+              if (fxSends && roomSendL && plateSendL && delaySendL) {
+                addToSends(i, samp, gainL, gainR, ch, pitch, fxSends, roomSendL, roomSendR, plateSendL, plateSendR, delaySendL, delaySendR, useMono);
+              }
               if (useMono) bufL[i] = (bufL[i] ?? 0) + samp;
               else { bufL[i] = (bufL[i] ?? 0) + samp * gainL; bufR[i] = (bufR[i] ?? 0) + samp * gainR; }
             }
@@ -735,23 +830,144 @@ function buildWav(
         }
       }
 
-      // Light deterministic reverb: simple short stereo delay mix (fixed taps)
-      const reverbMix = params.spatial.reverbMix;
-      if (channels >= 2 && reverbMix > 0) {
+      if (useInstrumentation && roomSendL && plateSendL && delaySendL && fxSends) {
         const len = bufL.length;
-        const d1 = Math.floor(sampleRate * 0.03);
-        const d2 = Math.floor(sampleRate * 0.07);
-        const g1 = 0.4 * reverbMix;
-        const g2 = 0.25 * reverbMix;
-        const outL = new Float32Array(len);
-        const outR = new Float32Array(len);
+        const hpFreq = 250;
+        const lpFreq = 9000;
+        const hpCoefIn = lpfCoef(hpFreq, sampleRate);
+        const lpCoefOut = lpfCoef(lpFreq, sampleRate);
+
+        const roomD1 = Math.floor(sampleRate * 0.025);
+        const roomD2 = Math.floor(sampleRate * 0.065);
+        const plateD1 = Math.floor(sampleRate * 0.04);
+        const plateD2 = Math.floor(sampleRate * 0.11);
+        const delayD = Math.floor(sampleRate * 0.28);
+
+        const roomInL = new Float32Array(len);
+        const roomInR = roomSendR ? new Float32Array(len) : roomInL;
+        let rhpL = 0, rhpR = 0;
         for (let i = 0; i < len; i++) {
-          outL[i] = (bufL[i] ?? 0) + (i >= d1 ? (bufL[i - d1] ?? 0) * g1 : 0) + (i >= d2 ? (bufR[i - d2] ?? 0) * g2 : 0);
-          outR[i] = (bufR[i] ?? 0) + (i >= d1 ? (bufR[i - d1] ?? 0) * g1 : 0) + (i >= d2 ? (bufL[i - d2] ?? 0) * g2 : 0);
+          const sL = roomSendL[i] ?? 0;
+          const sR = roomSendR ? (roomSendR[i] ?? 0) : sL;
+          rhpL += hpCoefIn * (sL - rhpL);
+          rhpR += hpCoefIn * (sR - rhpR);
+          roomInL[i] = sL - rhpL;
+          roomInR[i] = sR - rhpR;
         }
+        const roomRawL = new Float32Array(len);
+        const roomRawR = new Float32Array(len);
         for (let i = 0; i < len; i++) {
-          bufL[i] = outL[i];
-          bufR[i] = outR[i];
+          roomRawL[i] = (i >= roomD1 ? roomInL[i - roomD1] * 0.38 : 0) + (i >= roomD2 && roomSendR ? roomInR[i - roomD2] * 0.22 : 0);
+          roomRawR[i] = (i >= roomD1 ? roomInR[i - roomD1] * 0.38 : 0) + (i >= roomD2 ? roomInL[i - roomD2] * 0.22 : 0);
+        }
+        let rlpL = 0, rlpR = 0;
+        for (let i = 0; i < len; i++) {
+          rlpL += lpCoefOut * (roomRawL[i] - rlpL);
+          rlpR += lpCoefOut * (roomRawR[i] - rlpR);
+          roomRawL[i] = rlpL;
+          roomRawR[i] = rlpR;
+        }
+
+        const plateInL = new Float32Array(len);
+        const plateInR = plateSendR ? new Float32Array(len) : plateInL;
+        let phpL = 0, phpR = 0;
+        for (let i = 0; i < len; i++) {
+          const sL = plateSendL[i] ?? 0;
+          const sR = plateSendR ? (plateSendR[i] ?? 0) : sL;
+          phpL += hpCoefIn * (sL - phpL);
+          phpR += hpCoefIn * (sR - phpR);
+          plateInL[i] = sL - phpL;
+          plateInR[i] = sR - phpR;
+        }
+        const plateRawL = new Float32Array(len);
+        const plateRawR = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+          plateRawL[i] = (i >= plateD1 ? plateInL[i - plateD1] * 0.32 : 0) + (i >= plateD2 && plateSendR ? plateInR[i - plateD2] * 0.18 : 0);
+          plateRawR[i] = (i >= plateD1 ? plateInR[i - plateD1] * 0.32 : 0) + (i >= plateD2 ? plateInL[i - plateD2] * 0.18 : 0);
+        }
+        let plpL = 0, plpR = 0;
+        for (let i = 0; i < len; i++) {
+          plpL += lpCoefOut * (plateRawL[i] - plpL);
+          plpR += lpCoefOut * (plateRawR[i] - plpR);
+          plateRawL[i] = plpL;
+          plateRawR[i] = plpR;
+        }
+
+        const delayInL = new Float32Array(len);
+        const delayInR = delaySendR ? new Float32Array(len) : delayInL;
+        let dhpL = 0, dhpR = 0;
+        for (let i = 0; i < len; i++) {
+          const sL = delaySendL[i] ?? 0;
+          const sR = delaySendR ? (delaySendR[i] ?? 0) : sL;
+          dhpL += hpCoefIn * (sL - dhpL);
+          dhpR += hpCoefIn * (sR - dhpR);
+          delayInL[i] = sL - dhpL;
+          delayInR[i] = sR - dhpR;
+        }
+        const delayRawL = new Float32Array(len);
+        const delayRawR = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+          delayRawL[i] = i >= delayD ? delayInL[i - delayD] * 0.35 : 0;
+          delayRawR[i] = i >= delayD ? (delaySendR ? delayInR[i - delayD] : delayInL[i - delayD]) * 0.35 : 0;
+        }
+        let dlpL = 0, dlpR = 0;
+        for (let i = 0; i < len; i++) {
+          dlpL += lpCoefOut * (delayRawL[i] - dlpL);
+          dlpR += lpCoefOut * (delayRawR[i] - dlpR);
+          delayRawL[i] = dlpL;
+          delayRawR[i] = dlpR;
+        }
+
+        const reverbReturnL = new Float32Array(len);
+        const reverbReturnR = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+          reverbReturnL[i] = roomRawL[i] + plateRawL[i] + delayRawL[i];
+          reverbReturnR[i] = roomRawR[i] + plateRawR[i] + delayRawR[i];
+        }
+
+        const duckAttackSec = 0.002;
+        const duckRecoverySec = 0.035;
+        const duckDepth = 0.18;
+        for (let i = 0; i < len; i++) {
+          const t = i / sampleRate;
+          let duck = 1;
+          for (const tk of kickOnsets) {
+            const dt = t - tk;
+            if (dt >= 0 && dt < duckAttackSec + duckRecoverySec) {
+              if (dt < duckAttackSec) {
+                duck = Math.min(duck, 1 - duckDepth * (1 - dt / duckAttackSec));
+              } else {
+                const recT = (dt - duckAttackSec) / duckRecoverySec;
+                duck = Math.min(duck, 1 - duckDepth * Math.max(0, 1 - recT));
+              }
+            }
+          }
+          duck = Math.max(0.7, duck);
+          reverbReturnL[i] *= duck;
+          reverbReturnR[i] *= duck;
+        }
+
+        for (let i = 0; i < len; i++) {
+          bufL[i] = (bufL[i] ?? 0) + reverbReturnL[i];
+          bufR[i] = (bufR[i] ?? 0) + reverbReturnR[i];
+        }
+
+        const statsToFill = fxStatsOut ?? (INSTRUMENTATION_DEBUG ? { bass_send_room: 0, bass_send_plate: 0, bass_send_delay: 0, reverb_return_lowband_rms: 0 } : undefined);
+        if (statsToFill && fxSends) {
+          const lpf200 = lpfCoef(200, sampleRate);
+          let lpL = 0, lpR = 0;
+          let sumSq = 0;
+          for (let i = 0; i < len; i++) {
+            lpL += lpf200 * (reverbReturnL[i] - lpL);
+            lpR += lpf200 * (reverbReturnR[i] - lpR);
+            const mono = (lpL + lpR) * 0.5;
+            sumSq += mono * mono;
+          }
+          statsToFill.bass_send_room = fxSends.room.bass;
+          statsToFill.bass_send_plate = fxSends.plate.bass;
+          statsToFill.bass_send_delay = fxSends.delay.bass;
+          statsToFill.reverb_return_lowband_rms = len > 0 ? Math.sqrt(sumSq / len) : 0;
+          if (INSTRUMENTATION_DEBUG) debugFxStats = statsToFill;
         }
       }
 
@@ -832,22 +1048,29 @@ function buildWav(
     }
     const rms = bufL.length > 0 ? Math.sqrt(sumSq / bufL.length) : 0;
     const scale = peak > 0.95 ? 0.95 / peak : 1;
-    if (INSTRUMENTATION_DEBUG && activeStems) {
-      const st = activeStems;
-      const kickS = computeChannelStats(st.kick);
-      const hatS = computeChannelStats(st.hat);
-      const clapS = computeChannelStats(st.clap);
-      const bassS = computeChannelStats(st.bass);
-      const harmS = computeChannelStats(st.harmony);
-      const melS = computeChannelStats(st.melody);
-      const bassToMaster = peak > 0.001 ? bassS.peak / peak : 0;
-      console.log('[INSTRUMENTATION] kick peak=', kickS.peak.toFixed(4), 'rms=', kickS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] hat peak=', hatS.peak.toFixed(4), 'rms=', hatS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] clap peak=', clapS.peak.toFixed(4), 'rms=', clapS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] bass peak=', bassS.peak.toFixed(4), 'rms=', bassS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] harmony peak=', harmS.peak.toFixed(4), 'rms=', harmS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] melody peak=', melS.peak.toFixed(4), 'rms=', melS.rms.toFixed(4));
-      console.log('[INSTRUMENTATION] master peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'bass_to_master_ratio=', bassToMaster.toFixed(4));
+    if (INSTRUMENTATION_DEBUG && (activeStems || fxStatsOut)) {
+      if (activeStems) {
+        const st = activeStems;
+        const kickS = computeChannelStats(st.kick);
+        const hatS = computeChannelStats(st.hat);
+        const clapS = computeChannelStats(st.clap);
+        const bassS = computeChannelStats(st.bass);
+        const harmS = computeChannelStats(st.harmony);
+        const melS = computeChannelStats(st.melody);
+        const bassToMaster = peak > 0.001 ? bassS.peak / peak : 0;
+        console.log('[INSTRUMENTATION] kick peak=', kickS.peak.toFixed(4), 'rms=', kickS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] hat peak=', hatS.peak.toFixed(4), 'rms=', hatS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] clap peak=', clapS.peak.toFixed(4), 'rms=', clapS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] bass peak=', bassS.peak.toFixed(4), 'rms=', bassS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] harmony peak=', harmS.peak.toFixed(4), 'rms=', harmS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] melody peak=', melS.peak.toFixed(4), 'rms=', melS.rms.toFixed(4));
+        console.log('[INSTRUMENTATION] master peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'bass_to_master_ratio=', bassToMaster.toFixed(4));
+      }
+      if (debugFxStats && debugFxSends) {
+        console.log('[INSTRUMENTATION] bass_send room=', debugFxStats.bass_send_room.toFixed(4), 'plate=', debugFxStats.bass_send_plate.toFixed(4), 'delay=', debugFxStats.bass_send_delay.toFixed(4));
+        console.log('[INSTRUMENTATION] reverb_return_lowband_rms=', debugFxStats.reverb_return_lowband_rms.toFixed(6));
+        console.log('[INSTRUMENTATION] sends: clap_room=', debugFxSends.room.clap.toFixed(4), 'harm_plate=', debugFxSends.plate.harmony.toFixed(4), 'mel_plate=', debugFxSends.plate.melody.toFixed(4), 'mel_delay=', debugFxSends.delay.melody.toFixed(4));
+      }
     }
     offset = headerLen;
     for (let i = 0; i < bufL.length; i++) {
@@ -920,7 +1143,10 @@ export function renderWav60s(
       kick: new Float32Array(lenSamples), hat: new Float32Array(lenSamples), clap: new Float32Array(lenSamples),
       bass: new Float32Array(lenSamples), harmony: new Float32Array(lenSamples), melody: new Float32Array(lenSamples),
     } : undefined;
-    const buffer = buildWav(seed, planInput, sampleRate, channels, genre, stems);
+    const fxStatsOut: FxRoutingStats | undefined = options?.returnFxRoutingStats
+      ? { bass_send_room: 0, bass_send_plate: 0, bass_send_delay: 0, reverb_return_lowband_rms: 0 }
+      : undefined;
+    const buffer = buildWav(seed, planInput, sampleRate, channels, genre, stems, fxStatsOut);
     if (process.env.NODE_ENV !== 'production') assertValidWavInDev(buffer);
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
     const durationMs = DURATION_SEC * 1000;
@@ -933,7 +1159,7 @@ export function renderWav60s(
       harmony: computeChannelStats(stems.harmony),
       melody: computeChannelStats(stems.melody),
     } : undefined;
-    return { buffer, sha256, duration_ms: durationMs, size_bytes: sizeBytes, channelStats };
+    return { buffer, sha256, duration_ms: durationMs, size_bytes: sizeBytes, channelStats, fxRoutingStats: fxStatsOut };
   } catch {
     const buffer = buildWav('fallback', null, DEFAULT_SAMPLE_RATE, 1, 'house');
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
