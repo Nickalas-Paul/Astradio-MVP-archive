@@ -117,12 +117,17 @@ export interface InstrumentPalette {
   clap: { decayMs: number; roomReflectMs: number; filterQ: number };
   hat: { decayMs: number; highpassHz: number };
   bass: {
-    waveform: 'saw' | 'square';
-    lpfCutoffHz: number;
-    saturation: number;
+    /** Option A two-layer: sub anchor + mid character. */
+    subAttackMs: number;
+    subReleaseMs: number;
+    subGainShare: number;
+    midWaveform: 'saw' | 'square';
+    midDetuneCents: number;
+    midLpfHz: number;
+    midSaturation: number;
+    midReleaseScale: number;
+    bassHpfHz: number;
     gain: number;
-    ampAttackMs: number;
-    releaseScale: number;
   };
   harmony: { stabDecayMs: number; lpfSweepMs: number; stereoWiden: number };
   melody: { pluckDecayMs: number; vibratoRate: number; vibratoDepth: number };
@@ -137,12 +142,16 @@ function getInstrumentPalette(genre: string, seed: string): InstrumentPalette {
       clap: { decayMs: f('clap:decay', 60, 100), roomReflectMs: f('clap:room', 12, 22), filterQ: f('clap:q', 1.5, 2.5) },
       hat: { decayMs: f('hat:decay', 12, 28), highpassHz: f('hat:hp', 6000, 10000) },
       bass: {
-        waveform: rand01(seed, 'palette:bass:wave') < 0.5 ? 'saw' : 'square',
-        lpfCutoffHz: f('bass:lpf', 1400, 2200),
-        saturation: f('bass:sat', 0.03, 0.08),
-        gain: f('bass:gain', 0.55, 0.68),
-        ampAttackMs: f('bass:ampA', 8, 20),
-        releaseScale: f('bass:relScale', 0.72, 0.88),
+        subAttackMs: f('bass:subA', 8, 15),
+        subReleaseMs: f('bass:subR', 180, 320),
+        subGainShare: f('bass:subShare', 0.70, 0.85),
+        midWaveform: rand01(seed, 'palette:bass:midWave') < 0.5 ? 'saw' : 'square',
+        midDetuneCents: randSigned(seed, 'palette:bass:midDetune') * 3,
+        midLpfHz: f('bass:midLpf', 700, 1100),
+        midSaturation: f('bass:midSat', 0.02, 0.06),
+        midReleaseScale: f('bass:midRel', 0.70, 0.85),
+        bassHpfHz: f('bass:hpf', 35, 40),
+        gain: f('bass:gain', 0.52, 0.68),
       },
       harmony: { stabDecayMs: f('harm:decay', 80, 160), lpfSweepMs: f('harm:sweep', 40, 90), stereoWiden: f('harm:widen', 0.06, 0.14) },
       melody: { pluckDecayMs: f('mel:pluck', 50, 120), vibratoRate: f('mel:vibRate', 4.5, 6.5), vibratoDepth: f('mel:vibDepth', 0.004, 0.012) },
@@ -519,6 +528,7 @@ function buildWav(
     const secPerBar = secPerBeat * 4;
     let kickOnsets: number[] = [];
     let duckSumBass = 0, duckCountBass = 0, duckSumHarmony = 0, duckCountHarmony = 0;
+    let debugSubPeak = 0, debugSubSumSq = 0, debugMidPeak = 0, debugMidSumSq = 0, debugBassSampleCount = 0;
     let activeStems: Stems | null = null;
     let debugFxSends: FXSendAmounts | null = null;
     let debugFxStats: FxRoutingStats | null = null;
@@ -716,23 +726,52 @@ function buildWav(
             }
           } else if (ch === 'bass' && palette.bass) {
             const b = palette.bass;
-            const bassAmp = amp * b.gain;
-            const bassAttackMs = b.ampAttackMs;
-            const bassReleaseMs = releaseMs * b.releaseScale;
-            let phase = rand01(seed, eventKey + ':phase');
-            const phaseInc = freq / sampleRate;
-            const lpfC = lpfCoef(b.lpfCutoffHz, sampleRate);
-            let lpfState = 0;
+            const subShare = b.subGainShare;
+            const midShare = 1 - subShare;
+            const subGain = amp * b.gain * subShare;
+            const midGain = amp * b.gain * midShare;
+            const subAttackMs = b.subAttackMs;
+            const subReleaseMs = b.subReleaseMs;
+            const midReleaseMs = subReleaseMs * b.midReleaseScale;
+            const freqMid = freq * Math.pow(2, b.midDetuneCents / 1200);
+            const subPhaseInc = freq / sampleRate;
+            const midPhaseInc = freqMid / sampleRate;
+            let subPhase = rand01(seed, eventKey + ':subPh');
+            let midPhase = rand01(seed, eventKey + ':midPh');
+            const subLpfC = lpfCoef(120, sampleRate);
+            const midLpfC = lpfCoef(b.midLpfHz, sampleRate);
+            const bassHpfC = lpfCoef(b.bassHpfHz, sampleRate);
+            let subLpfState = 0;
+            let midLpfState = 0;
+            let bassHpfState = 0;
             for (let i = startS; i < endS; i++) {
               const t = i / sampleRate;
               const localT = t - t0;
-              const env = adsrGain(localT, durationSec, bassAttackMs, decayMs, sustain, bassReleaseMs);
-              const raw = b.waveform === 'saw' ? 2 * (phase - Math.floor(phase)) - 1 : phase < 0.5 ? 1 : -1;
-              phase += phaseInc;
-              if (phase >= 1) phase -= 1;
-              lpfState += lpfC * (raw - lpfState);
-              let samp = lpfState * bassAmp * env;
-              samp = saturate(samp, b.saturation);
+              const subEnv = adsrGain(localT, durationSec, subAttackMs, decayMs, sustain, subReleaseMs);
+              const midEnv = adsrGain(localT, durationSec, subAttackMs, decayMs, sustain, midReleaseMs);
+              const subRaw = Math.sin(2 * Math.PI * subPhase);
+              subPhase += subPhaseInc;
+              if (subPhase >= 1) subPhase -= 1;
+              subLpfState += subLpfC * (subRaw - subLpfState);
+              const midRaw = b.midWaveform === 'saw' ? 2 * (midPhase - Math.floor(midPhase)) - 1 : midPhase < 0.5 ? 1 : -1;
+              midPhase += midPhaseInc;
+              if (midPhase >= 1) midPhase -= 1;
+              midLpfState += midLpfC * (midRaw - midLpfState);
+              const midSaturated = saturate(midLpfState, b.midSaturation);
+              const subSamp = subLpfState * subGain * subEnv;
+              const midSamp = midSaturated * midGain * midEnv;
+              const combined = subSamp + midSamp;
+              bassHpfState += bassHpfC * (combined - bassHpfState);
+              let samp = combined - bassHpfState;
+              if (INSTRUMENTATION_DEBUG) {
+                const sSub = Math.abs(subSamp);
+                const sMid = Math.abs(midSamp);
+                if (sSub > debugSubPeak) debugSubPeak = sSub;
+                if (sMid > debugMidPeak) debugMidPeak = sMid;
+                debugSubSumSq += subSamp * subSamp;
+                debugMidSumSq += midSamp * midSamp;
+                debugBassSampleCount++;
+              }
               const { bass: duckB } = duckEnvelopeGain(t, kickOnsets, 0.22, 0.10);
               duckSumBass += duckB; duckCountBass++;
               samp *= duckB;
@@ -1062,6 +1101,11 @@ function buildWav(
         console.log('[INSTRUMENTATION] hat peak=', hatS.peak.toFixed(4), 'rms=', hatS.rms.toFixed(4));
         console.log('[INSTRUMENTATION] clap peak=', clapS.peak.toFixed(4), 'rms=', clapS.rms.toFixed(4));
         console.log('[INSTRUMENTATION] bass peak=', bassS.peak.toFixed(4), 'rms=', bassS.rms.toFixed(4));
+        if (debugBassSampleCount > 0) {
+          const subRms = Math.sqrt(debugSubSumSq / debugBassSampleCount);
+          const midRms = Math.sqrt(debugMidSumSq / debugBassSampleCount);
+          console.log('[INSTRUMENTATION] bass sub peak=', debugSubPeak.toFixed(4), 'rms=', subRms.toFixed(4), 'mid peak=', debugMidPeak.toFixed(4), 'rms=', midRms.toFixed(4));
+        }
         console.log('[INSTRUMENTATION] harmony peak=', harmS.peak.toFixed(4), 'rms=', harmS.rms.toFixed(4));
         console.log('[INSTRUMENTATION] melody peak=', melS.peak.toFixed(4), 'rms=', melS.rms.toFixed(4));
         console.log('[INSTRUMENTATION] master peak=', peak.toFixed(4), 'RMS=', rms.toFixed(4), 'bass_to_master_ratio=', bassToMaster.toFixed(4));
