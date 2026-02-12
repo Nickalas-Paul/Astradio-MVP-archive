@@ -48,8 +48,12 @@ function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] }
   if (factorMap?.factors?.length) {
     const factorLines = factorMap.factors.slice(0, 4);
     const astroLines = factorLines.map((f) => f.astro).filter((s) => !signaturesText.includes(s));
-    const psychLines = factorLines.map((f) => f.psych).filter((s) => !significanceText.includes(s));
-    const musicLines = factorLines.map((f) => f.music).filter((s) => !musicalText.includes(s));
+    const psychLines = factorLines
+      .map((f) => normalizeFactorPsychLine(f.psych))
+      .filter((s) => !significanceText.includes(s));
+    const musicLines = factorLines
+      .map((f) => normalizeFactorMusicLine(f.music))
+      .filter((s) => !musicalText.includes(s));
     const sentinel = debugExplain ? '\n\n[correspondences]\n' : '';
     if (astroLines.length) signaturesText += sentinel + paraSep + astroLines.join(paraSep);
     if (psychLines.length) significanceText += sentinel + paraSep + psychLines.join(paraSep);
@@ -283,31 +287,50 @@ function buildPsychologicalNarrative(
   prominentPlanets?: AstroProfile['planets'],
   prominentAspects?: AstroProfile['aspects']
 ): string {
+  const emitted = new Set<string>();
   const paragraphs: string[] = [];
 
   if (profile && prominentPlanets && prominentPlanets.length > 0) {
-    for (const p of prominentPlanets.slice(0, 3)) {
-      const psych = placementPsych(p);
-      paragraphs.push(`Psychologically, ${p.name} in the ${ordinal(p.house)} house can show up as ${psych}.`);
-    }
+    const picks = prominentPlanets.slice(0, Math.min(4, prominentPlanets.length));
+    const p1 = picks[0];
+    const p2 = picks[1] ?? picks[0];
+    const p3 = picks[2] ?? picks[1] ?? picks[0];
+    const p4 = picks[3];
+
+    const para1: string[] = [];
+    para1.push(...psychSentencesForPlacement(p1));
+    if (p2 && p2.name !== p1.name) para1.push(...psychSentencesForPlacement(p2));
+    if (p3 && p3.name !== p2?.name && p3.name !== p1.name) para1.push(...psychSentencesForPlacement(p3));
+
+    // Aspect bridge (only if present)
     if (prominentAspects && prominentAspects.length > 0) {
       const a = prominentAspects[0];
-      const tensionNote = a.type === 'square' || a.type === 'opposition'
-        ? 'The tension between these planets often shows up as internal friction that can be channeled into focus and growth.'
-        : 'The supportive link between these planets tends to show up as ease in integrating identity and emotional life.';
-      paragraphs.push(tensionNote);
+      para1.push(psychSentenceForAspect(a));
     }
-    paragraphs.push(`Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`);
+
+    paragraphs.push(emitParagraph(para1, emitted));
+
+    // Second paragraph: grounded synthesis + extra placement to meet "2–3 placements" per paragraph
+    const para2: string[] = [];
+    if (p4) para2.push(...psychSentencesForPlacement(p4));
+    // Reuse a different placement for anchoring the attention/pacing sentence without duplicating prior wording.
+    para2.push(psychSentenceForAttentionStyle(psychology, [p1, p2, p3, p4].filter(Boolean) as AstroProfile['planets']));
+    paragraphs.push(emitParagraph(para2, emitted));
   } else {
     const top = Object.entries(signatures.elementBlend).sort((a, b) => b[1] - a[1])[0];
     const planet = signatures.dominantPlanets[0];
-    const planetPhrase = planet ? `${planet} ` : '';
-    paragraphs.push(`Because the ${top[0]} element and ${planetPhrase}influence shape how tension and repetition are held, temperament leans toward ${psychology.temperamentWords.join(' and ')}.`);
-    paragraphs.push(`Attention tends toward ${psychology.attentionStyle} focus, with ${psychology.pacing} pacing and ${psychology.relatingStyle} relating.`);
+    const temperament = psychology.temperamentWords.join(' and ');
+    const para: string[] = [];
+    para.push(
+      `A ${top[0]}-leaning chart paired with ${planet ?? 'a dominant planet'} often reads as ${temperament} in day-to-day decision-making.`
+    );
+    para.push(`Focus tends to be ${psychology.attentionStyle} rather than diffuse when a task feels meaningful.`);
+    para.push(`Pacing stays ${psychology.pacing} under pressure, and connection is usually ${psychology.relatingStyle} instead of performative.`);
+    paragraphs.push(emitParagraph(para, emitted));
   }
 
   const disclaimer = '\n\nThis is a personality-style reading mapped into musical decisions, not a prediction.';
-  return paragraphs.join(' ') + disclaimer;
+  return dedupeSentences(paragraphs.filter(Boolean).join('\n\n') + disclaimer);
 }
 
 // ============================================================================
@@ -320,61 +343,66 @@ function buildMusicalNarrative(
   _seed: string,
   profile?: AstroProfile
 ): { paragraph: string; bullets: string[] } {
-  const sentences: string[] = [];
+  const emitted = new Set<string>();
 
+  // Paragraph structure:
+  // 1) single-sentence causal link
+  // 2) technical specifics (introduced once)
+  // 3) synthesis back to psychology
+  const sentences: string[] = [];
   if (profile) {
     const emp = profile.emphasis;
     const elKeys: Array<keyof typeof emp.elementsBySign> = ['fire', 'earth', 'air', 'water'];
     const modKeys: Array<keyof typeof emp.modalitiesBySign> = ['cardinal', 'fixed', 'mutable'];
     const topEl = elKeys.sort((a, b) => emp.elementsBySign[b] - emp.elementsBySign[a])[0];
     const topMod = modKeys.sort((a, b) => emp.modalitiesBySign[b] - emp.modalitiesBySign[a])[0];
-    const mirrorLead =
-      topEl === 'fire' && (topMod === 'cardinal' || topMod === 'mutable')
-        ? 'Because the chart\'s sign-based emphasis is fire and ' + topMod + ', the piece favors forward motion and clearer attacks.'
-        : topEl === 'earth' || topMod === 'fixed'
-          ? 'Because the chart emphasizes substance and focus, the piece anchors around steady pulse and harmonic grounding.'
-          : topEl === 'water' || topEl === 'air'
-            ? 'Because the chart emphasizes flow and exchange, the piece favors continuity and register movement.'
-            : 'The composition mirrors these patterns in sound.';
-    sentences.push(mirrorLead);
-    sentences.push(
-      `A ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}, reflect the chart's angles and prominence.`
-    );
-    sentences.push(
-      `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance, mirroring aspect tension and support.`
-    );
-    sentences.push(
-      `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
-    );
+    const aspectTone = profile.aspects?.some(a => a.type === 'square' || a.type === 'opposition') ? 'tension' : 'support';
+    sentences.push(emitSentence(musicCausalLead(topEl, topMod, aspectTone), emitted));
   } else {
-    sentences.push(
-      `The composition mirrors these patterns in sound: a ${music.bpm} BPM pulse and ${music.densityBucket} texture, with register leaning ${music.registerBias}.`
-    );
-    sentences.push(
-      `Motion is ${music.motionBucket}, articulation ${music.articulationBucket}; harmony holds a ${music.harmonicPosture} stance.`
-    );
-    sentences.push(
-      `${music.arcSummary.begin}. ${music.arcSummary.middle}. ${music.arcSummary.end}.`
-    );
+    sentences.push(emitSentence('Element balance and aspect geometry translate into a musical posture of density, articulation, and motion.', emitted));
   }
 
-  const paragraph = sentences.join(' ');
+  sentences.push(
+    emitSentence(
+      `Tempo sits at ${music.bpm} BPM with ${music.densityBucket} density, a ${music.registerBias}-leaning register, and ${music.harmonicPosture} harmony.`,
+      emitted
+    )
+  );
+
+  // Collapse motion + articulation into one sentence if they would read redundant.
+  sentences.push(emitSentence(musicMotionArticulationSentence(music.motionBucket, music.articulationBucket), emitted));
+
+  sentences.push(
+    emitSentence(
+      `Arc: ${music.arcSummary.begin}; ${music.arcSummary.middle}; ${music.arcSummary.end}.`,
+      emitted
+    )
+  );
+
+  sentences.push(
+    emitSentence(
+      `The steadiness of the pulse and the way the arc resolves tend to echo a psychological pattern of ${safePhrase(music.motionBucket)} movement paired with ${safePhrase(music.articulationBucket)} response.`,
+      emitted
+    )
+  );
+
+  const paragraph = dedupeSentences(sentences.filter(Boolean).join(' '));
 
   const densityLabel =
     music.densityBucket === 'high' ? 'layered texture' : music.densityBucket === 'low' ? 'open texture' : 'balanced texture';
   const bullets: string[] = [];
-  bullets.push(`Listen for the ${music.bpm} BPM pulse.`);
-  bullets.push(`Notice how ${music.motionBucket} motion shapes the phrase.`);
-  bullets.push(`Listen for ${music.registerBias} register.`);
-  bullets.push(`Notice how ${densityLabel} supports the arc.`);
+  bullets.push(`Notice how the steady ${music.bpm} BPM pulse keeps time even when harmony changes color.`);
+  bullets.push(`Listen for stepwise contour when motion is ${music.motionBucket}, and expect larger interval jumps when it is high.`);
+  bullets.push(`Track where melodies sit most often; a ${music.registerBias} bias changes how weight and brightness feel.`);
+  bullets.push(`Count layers entering and leaving; ${densityLabel} should feel intentional rather than constant.`);
   if (music.planSummary?.avgMelodicInterval != null) {
     bullets.push(
-      `Listen for motion around ${music.planSummary.avgMelodicInterval.toFixed(0)}-semitone steps.`
+      `When the melody moves, compare steps to leaps; the average interval hovers around ${music.planSummary.avgMelodicInterval.toFixed(0)} semitones.`
     );
   }
-  bullets.push(`Notice how harmonic posture stays ${music.harmonicPosture}.`);
+  bullets.push(`Notice whether harmony stays ${music.harmonicPosture} by returning to a clear root or by shifting color without fully settling.`);
 
-  const unique = Array.from(new Set(bullets)).slice(0, 6);
+  const unique = Array.from(new Set(bullets.map(b => b.trim()))).filter(Boolean).slice(0, 6);
   return { paragraph, bullets: unique };
 }
 
@@ -490,9 +518,9 @@ function dedupeSections(
   // Strip banned filler and em dashes
   return {
     signatures: stripBannedFiller(signatures),
-    significance: stripBannedFiller(sigText),
-    musical: stripBannedFiller(musText),
-    bullets: dedupedBullets.map(stripBannedFiller)
+    significance: stripBannedFiller(dedupeSentences(sigText)),
+    musical: stripBannedFiller(dedupeSentences(musText)),
+    bullets: dedupedBullets.map((b) => stripBannedFiller(dedupeSentences(b)))
   };
 }
 
@@ -502,6 +530,177 @@ function extractSentences(text: string): string[] {
     .map(s => s.trim())
     .filter(s => s.length > 0)
     .map(s => s.endsWith('.') || s.endsWith('!') || s.endsWith('?') ? s : s + '.');
+}
+
+/**
+ * Remove identical or near-identical sentences while preserving order.
+ * Deterministic, whitespace/punctuation tolerant, no randomness.
+ */
+export function dedupeSentences(text: string): string {
+  const raw = extractSentences(text.replace(/\s+\n/g, '\n'));
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const s of raw) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+    const key = sentenceFingerprint(trimmed);
+    if (seen.has(key)) continue;
+    // Near-duplicate guard: same first ~9 words after normalization.
+    const near = sentenceNearFingerprint(trimmed);
+    if (Array.from(seen).some((k) => k.startsWith(near) || near.startsWith(k))) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+
+  // Preserve paragraph breaks if present in original text.
+  const rebuilt = out.join(' ');
+  return rebuilt.replace(/\s+\./g, '.').trim();
+}
+
+function sentenceFingerprint(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[\u2019']/g, "'")
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sentenceNearFingerprint(s: string): string {
+  const words = sentenceFingerprint(s).split(' ').filter(Boolean);
+  return words.slice(0, 9).join(' ');
+}
+
+function emitSentence(sentence: string, emitted: Set<string>): string {
+  const s = sentence.trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  const key = sentenceFingerprint(s);
+  if (emitted.has(key)) return '';
+  emitted.add(key);
+  return s.endsWith('.') ? s : s + '.';
+}
+
+function emitParagraph(lines: string[], emitted: Set<string>): string {
+  const cleaned = lines
+    .map((s) => emitSentence(s, emitted))
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return dedupeSentences(cleaned);
+}
+
+function safePhrase(bucket: string): string {
+  if (bucket === 'high') return 'more';
+  if (bucket === 'low') return 'less';
+  return 'moderate';
+}
+
+function psychSentencesForPlacement(p: AstroProfile['planets'][0]): string[] {
+  const houseOrd = ordinal(p.house);
+  const base = `${p.name} in ${p.sign} in the ${houseOrd} house`;
+
+  // One idea per sentence, grounded in behavior.
+  switch (p.name) {
+    case 'Moon':
+      return [
+        `With ${base}, emotional regulation is pulled toward the ${HOUSE_TOPIC[p.house] ?? 'themes of that house'} and processed through immediate routines rather than theory.`,
+        `When feelings spike, the first move is usually to do something concrete in that life area instead of waiting it out.`
+      ];
+    case 'Mercury':
+      return [
+        `With ${base}, thinking is most fluent when it has a specific audience or practical context.`,
+        `Decisions tend to be tested in conversation, notes, or iteration rather than decided once and left alone.`
+      ];
+    case 'Venus':
+      return [
+        `With ${base}, relationship comfort is built through repeated, observable gestures tied to the ${HOUSE_TOPIC[p.house] ?? 'topic of that house'}.`,
+        `Preference shows up as what you maintain consistently, not what you say you like in the abstract.`
+      ];
+    case 'Mars':
+      return [
+        `With ${base}, action starts easiest when the goal is concrete and time-bounded.`,
+        `Frustration often turns into fixing, training, or competing in the ${HOUSE_TOPIC[p.house] ?? 'area of that house'} rather than venting.`
+      ];
+    case 'Saturn':
+      return [
+        `With ${base}, responsibility becomes a daily practice instead of a one-time promise.`,
+        `There is a strong bias toward systems and standards in the ${HOUSE_TOPIC[p.house] ?? 'area of that house'}, even when it slows you down at first.`
+      ];
+    case 'Sun':
+      return [
+        `With ${base}, identity stabilizes when you can point to real outputs inside the ${HOUSE_TOPIC[p.house] ?? 'house topic'} rather than private intention.`,
+        `Confidence grows through repetition and visible competence, not hype.`
+      ];
+    default:
+      return [
+        `With ${base}, the ${PLANET_OPERATOR[p.name] ?? 'drive'} tends to operate through the ${HOUSE_TOPIC[p.house] ?? 'house topic'} in observable habits.`,
+        `The pattern is easiest to spot in what you repeat when nobody is watching.`
+      ];
+  }
+}
+
+function psychSentenceForAspect(a: AstroProfile['aspects'][0]): string {
+  const type = ASPECT_DESC[a.type] ?? a.type;
+  const orbStr = a.orb.toFixed(1);
+  const hard = a.type === 'square' || a.type === 'opposition';
+  const frame = `${a.a} ${type} ${a.b} (orb ${orbStr}°)`;
+  if (hard) {
+    return `${frame} describes a recurring push-pull that often gets resolved through strategy rather than impulse.`;
+  }
+  return `${frame} describes an internal agreement that makes it easier to follow through without forcing it.`;
+}
+
+function psychSentenceForAttentionStyle(psychology: PsychologyFacts, anchors: AstroProfile['planets']): string {
+  const a = anchors[0];
+  const b = anchors[1] ?? anchors[0];
+  const aRef = a ? `${a.name} in the ${ordinal(a.house)}` : 'the most prominent placements';
+  const bRef = b ? `${b.name} in the ${ordinal(b.house)}` : 'the chart emphasis';
+  return `Taken together, ${aRef} and ${bRef} often produce ${psychology.attentionStyle} attention, ${psychology.pacing} pacing, and ${psychology.relatingStyle} connection in real conversations.`;
+}
+
+function musicCausalLead(
+  topEl: 'fire' | 'earth' | 'air' | 'water',
+  topMod: 'cardinal' | 'fixed' | 'mutable',
+  aspectTone: 'tension' | 'support'
+): string {
+  const el = topEl === 'fire' ? 'fire' : topEl === 'earth' ? 'earth' : topEl === 'air' ? 'air' : 'water';
+  const mod = topMod;
+  if (el === 'earth' || mod === 'fixed') return `Earth and fixed signatures lean toward weight and repeatability, so the music prioritizes stable grounding even when ${aspectTone} is present.`;
+  if (el === 'fire') return `Fire combined with ${mod} expression tends to push forward, so the music favors clear attacks and directional motion without constant acceleration.`;
+  if (el === 'water') return `Water emphasis invites continuity, so the music prefers connected phrasing and gradual shifts rather than abrupt resets.`;
+  return `Air emphasis pulls toward variation and exchange, so the music uses contrast and register movement to keep attention engaged.`;
+}
+
+function musicMotionArticulationSentence(motion: string, articulation: string): string {
+  if (motion === articulation) return `Motion and articulation both sit in the same ${motion} bucket, which makes the groove feel unified rather than conflicted.`;
+  return `Motion is ${motion} while articulation is ${articulation}, creating a specific blend of contour and attack.`;
+}
+
+function normalizeFactorPsychLine(line: string): string {
+  // Rewrite common scaffolding to avoid repeated "Because..." templates.
+  let s = (line ?? '').trim();
+  if (!s) return s;
+  s = s.replace(/^Because\s+/i, '');
+  s = s.replace(/\bthis tends to show up as\b/gi, 'this often shows up as');
+  s = s.replace(/\b(tends to show up as)\b/gi, 'often shows up as');
+  s = s.replace(/\brelating\b/gi, 'connection');
+  // Ensure it reads as a standalone sentence.
+  if (!/[.!?]$/.test(s)) s += '.';
+  return s;
+}
+
+function normalizeFactorMusicLine(line: string): string {
+  // Remove repeated "In sound..." lead-ins while keeping the information.
+  let s = (line ?? '').trim();
+  if (!s) return s;
+  s = s.replace(/^In sound,\s*this is mirrored by\s+/i, '');
+  s = s.replace(/^In sound,\s*/i, '');
+  s = s.replace(/\bmirrored by\b/gi, 'expressed as');
+  if (!/[.!?]$/.test(s)) s += '.';
+  // Avoid ending up with a fragment after stripping.
+  if (s.split(/\s+/).length < 4) return line.trim().endsWith('.') ? line.trim() : line.trim() + '.';
+  return s;
 }
 
 function stripBannedFiller(text: string): string {
