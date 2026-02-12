@@ -1,8 +1,10 @@
 /**
  * Minimal deterministic WAV renderer: plan + payload hash → 60s 16-bit PCM WAV.
  * Performance layer: humanization (velocity, ADSR, phrase breathing, micro-timing, pan)
- * Instrumentation layer v1: genre-keyed instrument palette, procedural synthesis (kick/hat/clap/bass/harmony/melody),
- * mix glue (pseudo-sidechain duck, per-channel EQ). Deterministic: same plan + hash ⇒ same WAV sha256.
+ * Instrumentation v1: genre-keyed instrument palette, procedural synthesis (kick/hat/clap/bass/harmony/melody),
+ * mix glue (pseudo-sidechain duck, per-channel EQ).
+ * Instrumentation v2: polyBLEP band-limited saw/square, reverb send bus (HPF 180–260 Hz, LPF 7–10 kHz,
+ * pre-delay 15–30 ms), bass dry/mono. Deterministic: same plan + hash ⇒ same WAV sha256.
  */
 
 import * as crypto from 'crypto';
@@ -20,11 +22,22 @@ export interface ChannelStats {
   rms: number;
 }
 
+export interface ReverbSendAmounts {
+  kick: number;
+  bass: number;
+  hat: number;
+  clap: number;
+  harmony: number;
+  melody: number;
+}
+
 export interface FxRoutingStats {
   bass_send_room: number;
   bass_send_plate: number;
   bass_send_delay: number;
   reverb_return_lowband_rms: number;
+  /** v2: per-channel reverb send (room+plate) for verification */
+  reverbSendAmounts?: ReverbSendAmounts;
 }
 
 export interface RenderResult {
@@ -180,6 +193,32 @@ function saturate(x: number, amount: number): number {
 /** One-pole lowpass: y = yPrev + coef * (x - yPrev). coef = 1 - exp(-2*pi*cutoff/sr). */
 function lpfCoef(cutoffHz: number, sampleRate: number): number {
   return 1 - Math.exp(-2 * Math.PI * cutoffHz / sampleRate);
+}
+
+/** PolyBLEP band-limited step. t in [0,1), dt = phaseInc. */
+function polyBlep(t: number, dt: number): number {
+  if (t < dt) {
+    const x = t / dt - 1;
+    return -x * x;
+  }
+  if (t > 1 - dt) {
+    const x = (t - 1) / dt + 1;
+    return x * x;
+  }
+  return 0;
+}
+
+/** Band-limited saw: phase in [0,1), output in [-1,1]. */
+function polyBlepSaw(phase: number, phaseInc: number): number {
+  const y = 2 * phase - 1;
+  return y - polyBlep(phase, phaseInc);
+}
+
+/** Band-limited square: phase in [0,1), output in [-1,1]. */
+function polyBlepSquare(phase: number, phaseInc: number): number {
+  const t2 = phase >= 0.5 ? phase - 0.5 : phase + 0.5;
+  const y = phase < 0.5 ? 1 : -1;
+  return y + polyBlep(phase, phaseInc) - polyBlep(t2, phaseInc);
 }
 
 /** One-pole highpass: stateful, init state=0. */
@@ -753,7 +792,9 @@ function buildWav(
               subPhase += subPhaseInc;
               if (subPhase >= 1) subPhase -= 1;
               subLpfState += subLpfC * (subRaw - subLpfState);
-              const midRaw = b.midWaveform === 'saw' ? 2 * (midPhase - Math.floor(midPhase)) - 1 : midPhase < 0.5 ? 1 : -1;
+              const midRaw = b.midWaveform === 'saw'
+                ? polyBlepSaw(midPhase, midPhaseInc)
+                : polyBlepSquare(midPhase, midPhaseInc);
               midPhase += midPhaseInc;
               if (midPhase >= 1) midPhase -= 1;
               midLpfState += midLpfC * (midRaw - midLpfState);
@@ -871,8 +912,10 @@ function buildWav(
 
       if (useInstrumentation && roomSendL && plateSendL && delaySendL && fxSends) {
         const len = bufL.length;
-        const hpFreq = 250;
-        const lpFreq = 9000;
+        const hpFreq = 180 + rand01(seed, 'rev:hpf') * 80;
+        const lpFreq = 7000 + rand01(seed, 'rev:lpf') * 3000;
+        const preDelayMs = 15 + rand01(seed, 'rev:predelay') * 15;
+        const preDelaySamples = Math.floor(sampleRate * preDelayMs * 0.001);
         const hpCoefIn = lpfCoef(hpFreq, sampleRate);
         const lpCoefOut = lpfCoef(lpFreq, sampleRate);
 
@@ -886,8 +929,8 @@ function buildWav(
         const roomInR = roomSendR ? new Float32Array(len) : roomInL;
         let rhpL = 0, rhpR = 0;
         for (let i = 0; i < len; i++) {
-          const sL = roomSendL[i] ?? 0;
-          const sR = roomSendR ? (roomSendR[i] ?? 0) : sL;
+          const sL = i >= preDelaySamples ? (roomSendL[i - preDelaySamples] ?? 0) : 0;
+          const sR = i >= preDelaySamples ? (roomSendR ? (roomSendR[i - preDelaySamples] ?? 0) : sL) : 0;
           rhpL += hpCoefIn * (sL - rhpL);
           rhpR += hpCoefIn * (sR - rhpR);
           roomInL[i] = sL - rhpL;
@@ -911,8 +954,8 @@ function buildWav(
         const plateInR = plateSendR ? new Float32Array(len) : plateInL;
         let phpL = 0, phpR = 0;
         for (let i = 0; i < len; i++) {
-          const sL = plateSendL[i] ?? 0;
-          const sR = plateSendR ? (plateSendR[i] ?? 0) : sL;
+          const sL = i >= preDelaySamples ? (plateSendL[i - preDelaySamples] ?? 0) : 0;
+          const sR = i >= preDelaySamples ? (plateSendR ? (plateSendR[i - preDelaySamples] ?? 0) : sL) : 0;
           phpL += hpCoefIn * (sL - phpL);
           phpR += hpCoefIn * (sR - phpR);
           plateInL[i] = sL - phpL;
@@ -936,8 +979,8 @@ function buildWav(
         const delayInR = delaySendR ? new Float32Array(len) : delayInL;
         let dhpL = 0, dhpR = 0;
         for (let i = 0; i < len; i++) {
-          const sL = delaySendL[i] ?? 0;
-          const sR = delaySendR ? (delaySendR[i] ?? 0) : sL;
+          const sL = i >= preDelaySamples ? (delaySendL[i - preDelaySamples] ?? 0) : 0;
+          const sR = i >= preDelaySamples ? (delaySendR ? (delaySendR[i - preDelaySamples] ?? 0) : sL) : 0;
           dhpL += hpCoefIn * (sL - dhpL);
           dhpR += hpCoefIn * (sR - dhpR);
           delayInL[i] = sL - dhpL;
@@ -1006,6 +1049,14 @@ function buildWav(
           statsToFill.bass_send_plate = fxSends.plate.bass;
           statsToFill.bass_send_delay = fxSends.delay.bass;
           statsToFill.reverb_return_lowband_rms = len > 0 ? Math.sqrt(sumSq / len) : 0;
+          statsToFill.reverbSendAmounts = {
+            kick: fxSends.room.kick + fxSends.plate.kick,
+            bass: fxSends.room.bass + fxSends.plate.bass,
+            hat: fxSends.room.hat + fxSends.plate.hat,
+            clap: fxSends.room.clap + fxSends.plate.clap,
+            harmony: fxSends.room.harmony + fxSends.plate.harmony,
+            melody: fxSends.room.melody + fxSends.plate.melody,
+          };
           if (INSTRUMENTATION_DEBUG) debugFxStats = statsToFill;
         }
       }
@@ -1114,6 +1165,10 @@ function buildWav(
         console.log('[INSTRUMENTATION] bass_send room=', debugFxStats.bass_send_room.toFixed(4), 'plate=', debugFxStats.bass_send_plate.toFixed(4), 'delay=', debugFxStats.bass_send_delay.toFixed(4));
         console.log('[INSTRUMENTATION] reverb_return_lowband_rms=', debugFxStats.reverb_return_lowband_rms.toFixed(6));
         console.log('[INSTRUMENTATION] sends: clap_room=', debugFxSends.room.clap.toFixed(4), 'harm_plate=', debugFxSends.plate.harmony.toFixed(4), 'mel_plate=', debugFxSends.plate.melody.toFixed(4), 'mel_delay=', debugFxSends.delay.melody.toFixed(4));
+        if (debugFxStats.reverbSendAmounts) {
+          const r = debugFxStats.reverbSendAmounts;
+          console.log('[INSTRUMENTATION] reverb_send_totals: kick=', r.kick.toFixed(4), 'bass=', r.bass.toFixed(4), 'harmony=', r.harmony.toFixed(4));
+        }
       }
     }
     offset = headerLen;
