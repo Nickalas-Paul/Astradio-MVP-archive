@@ -24,7 +24,8 @@ export default function HomePage() {
   const [analysisText, setAnalysisText] = useState<string>('');
   const [explanationSections, setExplanationSections] = useState<Array<{ title: string; text?: string; bullets?: string[] }> | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [composePlan, setComposePlan] = useState<any>(null); // Backend plan for Tone fallback
+  const [composePlan, setComposePlan] = useState<any>(null); // Backend plan for browser engine / Tone fallback
+  const [composeGenre, setComposeGenre] = useState<string>('house'); // payload.controls.genre, default house
   const [specVersion, setSpecVersion] = useState<string | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [composeLatency, setComposeLatency] = useState<number | null>(null);
@@ -43,6 +44,7 @@ export default function HomePage() {
   const audioBlobUrlRef = useRef<string | null>(null);
   const toneSeqRef = useRef<any>(null);
   const toneModuleRef = useRef<typeof import('tone') | null>(null);
+  const browserEngineRef = useRef<{ stop: () => void } | null>(null);
 
   async function getTone(): Promise<typeof import('tone') | null> {
     if (typeof window === 'undefined') return null;
@@ -191,12 +193,13 @@ export default function HomePage() {
             setAudioUrl(null);
           }
 
-          // Store backend plan if present (for Tone fallback when WAV unavailable)
+          // Store backend plan and genre (for browser performance engine / Tone fallback)
           if (payload?.plan && typeof payload.plan === 'object') {
             setComposePlan(payload.plan);
           } else {
             setComposePlan(null);
           }
+          setComposeGenre(payload?.controls?.genre ?? 'house');
 
           // Location display is handled by locationLabel + reverse-geocode effect; compose always uses geo lat/lon
         }
@@ -242,29 +245,49 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [geo.status, geo.lat, geo.lon]);
 
-  // Audio playback using compose response
+  // Audio playback: prefer Browser Performance Engine (House pack), then server WAV, then legacy Tone fallback
   useEffect(() => {
     let audioElement: HTMLAudioElement | null = null;
-    
+
     async function handlePlay() {
+      const audioStartTime = performance.now();
       try {
-        const audioStartTime = performance.now();
-        // Audio Path Priority: URL first (Beta), then plan fallback
+        // 1) Prefer browser performance engine when we have plan + seed (House default)
+        const hasPlan = composePlan?.events?.length > 0 && composeHash;
+        if (hasPlan) {
+          try {
+            const { createBrowserPerformanceEngine } = await import('../src/core/audio/browser-performance-engine');
+            const handle = await createBrowserPerformanceEngine({
+              plan: composePlan,
+              seed: composeHash,
+              genre: composeGenre ?? 'house',
+            });
+            browserEngineRef.current = handle;
+            await handle.start();
+            setAudioStartupTime(performance.now() - audioStartTime);
+            console.log('[audio] Browser Performance Engine started (House pack)');
+            return;
+          } catch (e) {
+            console.warn('[audio] Browser engine failed, falling back:', e);
+            browserEngineRef.current = null;
+          }
+        }
+
+        // 2) Server WAV (URL or base64 blob)
         if (audioUrl) {
-          // Primary: HTML5 audio for URL-based playback
           audioElement = new Audio(audioUrl);
           audioElement.play().then(() => {
-            const startupTime = performance.now() - audioStartTime;
-            setAudioStartupTime(startupTime);
-            console.log(`[telemetry] audio_startup_ms: ${startupTime.toFixed(2)}`);
-          }).catch(e => {
+            setAudioStartupTime(performance.now() - audioStartTime);
+            console.log(`[telemetry] audio_startup_ms: ${(performance.now() - audioStartTime).toFixed(2)}`);
+          }).catch((e) => {
             console.warn('[audio] URL playback failed, falling back to plan:', e);
             startPlanFallback();
           });
-        } else {
-          // Fallback: Tone.js plan-based synthesis (module import)
-          await startPlanFallback();
+          return;
         }
+
+        // 3) Legacy Tone fallback (MembraneSynth only)
+        await startPlanFallback();
       } catch (e) {
         console.warn('[audio] play failed', e);
       }
@@ -277,40 +300,26 @@ export default function HomePage() {
           console.warn('[audio] Tone.js unavailable');
           return;
         }
-
-        // If no backend plan, show unavailable (no shadow engine)
-        if (!composePlan || !composePlan.events || composePlan.events.length === 0) {
+        if (!composePlan?.events?.length) {
           console.warn('[audio] No backend plan available for playback');
           return;
         }
-
         if (typeof Tone.start === 'function') await Tone.start();
-
-        // Import browser-safe plan converter (from Next.js app directory)
         const { planToToneEvents } = await import('../src/core/plan-to-tone-events');
         const toneEvents = planToToneEvents(composePlan);
-
-        // Create synths per channel
         const synths: Record<string, any> = {};
-        const channels = new Set(toneEvents.map(e => e.channel));
+        const channels = new Set(toneEvents.map((e: any) => e.channel));
         for (const ch of channels) {
           synths[ch] = new Tone.MembraneSynth().toDestination();
         }
-
-        // Schedule all events
         for (const ev of toneEvents) {
-          const synth = synths[ev.channel] || synths['melody']; // fallback to melody
+          const synth = synths[ev.channel] || synths['melody'];
           const freq = Tone.Frequency(ev.note).toFrequency();
           synth.triggerAttackRelease(freq, ev.duration, ev.time, ev.velocity);
         }
-
-        // Start transport and schedule stop at plan duration
         Tone.Transport.start();
-        Tone.Transport.scheduleOnce(() => {
-          Tone.Transport.stop();
-        }, composePlan.durationSec || 60);
-
-        console.log(`[audio] Scheduled ${toneEvents.length} events from backend plan (${composePlan.durationSec}s)`);
+        Tone.Transport.scheduleOnce(() => Tone.Transport.stop(), composePlan.durationSec || 60);
+        console.log('[audio] Legacy Tone fallback scheduled');
       } catch (e) {
         console.warn('[audio] Tone fallback failed', e);
       }
@@ -318,24 +327,27 @@ export default function HomePage() {
 
     function handleStop() {
       try {
+        if (browserEngineRef.current) {
+          browserEngineRef.current.stop();
+          browserEngineRef.current = null;
+        }
         if (audioElement) {
           audioElement.pause();
           audioElement.currentTime = 0;
           audioElement = null;
-        } else {
-          if (toneSeqRef.current) {
-            toneSeqRef.current.stop();
-            toneSeqRef.current.dispose?.();
-            toneSeqRef.current = null;
-          }
-          const Tone = toneModuleRef.current;
-          if (Tone?.Transport) Tone.Transport.stop();
         }
+        if (toneSeqRef.current) {
+          toneSeqRef.current.stop();
+          toneSeqRef.current.dispose?.();
+          toneSeqRef.current = null;
+        }
+        const Tone = toneModuleRef.current;
+        if (Tone?.Transport) Tone.Transport.stop();
       } catch (e) {
         console.warn('[audio] stop failed', e);
       }
     }
-    
+
     window.addEventListener('astradio:play', handlePlay as any);
     window.addEventListener('astradio:stop', handleStop as any);
     return () => {
@@ -343,7 +355,7 @@ export default function HomePage() {
       window.removeEventListener('astradio:stop', handleStop as any);
       handleStop();
     };
-  }, [audioUrl, composePlan]);
+  }, [audioUrl, composePlan, composeHash, composeGenre]);
 
   const disabled = isLoading || !chartData;
 
