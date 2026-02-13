@@ -15,20 +15,30 @@ export interface DrumKit {
   openHat: string;
 }
 
-/** Synth patch params for Tone.js (seeded variations applied by getGenrePack). */
+/** Optional instrument samples (bass, harmony stab, melody pluck). Empty string = use synth fallback. */
+export interface InstrumentSamples {
+  bass?: string; // Bass one-shot or short loop sample URL
+  harmony?: string; // Chord stab sample URL
+  melody?: string; // Pluck/lead sample URL
+}
+
+/** Synth patch params for Tone.js (seeded variations applied by getGenrePack). Used as fallback when samples unavailable. */
 export interface SynthPatches {
   bass: {
-    filterCutoffHz: [number, number];
+    filterCutoffHz: [number, number]; // LPF range [lo, hi]
+    highpassHz?: number; // HPF to remove sub-bass rumble
     decaySec: [number, number];
     gain: number;
+    saturation?: number; // Subtle saturation (0-1)
   };
   harmony: {
-    filterCutoffHz: [number, number];
+    filterCutoffHz: [number, number]; // LPF range [lo, hi]
     decaySec: [number, number];
     stereoWiden: number;
   };
   melody: {
-    filterCutoffHz: [number, number];
+    filterCutoffHz: [number, number]; // LPF range [lo, hi]
+    highpassHz?: number; // HPF to remove low-end fizz
     pluckDecayMs: [number, number];
     vibratoDepth: number;
   };
@@ -57,7 +67,8 @@ export interface GenrePack {
   id: GenreId;
   displayName: string;
   drumKit: DrumKit;
-  synthPatches: SynthPatches;
+  instrumentSamples?: InstrumentSamples; // Optional: sample-first for bass/harmony/melody
+  synthPatches: SynthPatches; // Fallback when samples unavailable
   fxProfile: FxProfile;
   mixProfile: MixProfile;
 }

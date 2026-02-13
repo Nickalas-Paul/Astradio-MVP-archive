@@ -261,6 +261,7 @@ export default function HomePage() {
               plan: composePlan,
               seed: composeHash,
               genre: composeGenre ?? 'house',
+              debug: process.env.NODE_ENV === 'development', // Enable verification logging in dev
             });
             browserEngineRef.current = handle;
             await handle.start();

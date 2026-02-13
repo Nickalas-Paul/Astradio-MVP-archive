@@ -6,7 +6,7 @@
 import type { GenreId, GenrePack } from './types';
 import { getHousePack } from './house';
 
-export type { GenreId, GenrePack, DrumKit, SynthPatches, FxProfile, MixProfile } from './types';
+export type { GenreId, GenrePack, DrumKit, InstrumentSamples, SynthPatches, FxProfile, MixProfile } from './types';
 export { rand01, randSigned, hashU32, lerpFromSeed } from './seed';
 
 /** Return genre pack for given genre and seed. Default genre is "house". */

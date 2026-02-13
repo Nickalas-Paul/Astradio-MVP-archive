@@ -3,7 +3,7 @@
  * Structure allows adding more genres later without changing the playback engine.
  */
 
-import type { GenrePack, DrumKit, SynthPatches, FxProfile, MixProfile } from './types';
+import type { GenrePack, DrumKit, InstrumentSamples, SynthPatches, FxProfile, MixProfile } from './types';
 import { lerpFromSeed } from './seed';
 
 /** House drum kit: reuse existing 808 samples under public/audio/samples/drums/808. */
@@ -12,9 +12,15 @@ const HOUSE_BASE: Omit<GenrePack, 'synthPatches' | 'fxProfile' | 'mixProfile'> =
   displayName: 'House',
   drumKit: {
     kick: '/audio/samples/drums/808/kick.wav',
-    clap: '/audio/samples/drums/808/snare.wav',
+    clap: '/audio/samples/drums/808/snare.wav', // Map clap to snare (house often uses snare/clap interchangeably)
     closedHat: '/audio/samples/drums/808/hat.wav',
     openHat: '/audio/samples/drums/808/hat.wav',
+  },
+  // Optional instrument samples (empty = use synth fallback)
+  instrumentSamples: {
+    bass: '', // Future: '/audio/samples/house/bass.wav'
+    harmony: '', // Future: '/audio/samples/house/stab.wav'
+    melody: '', // Future: '/audio/samples/house/pluck.wav'
   },
 };
 
@@ -23,27 +29,34 @@ export function getHousePack(seed: string): GenrePack {
 
   const synthPatches: SynthPatches = {
     bass: {
-      filterCutoffHz: [f('bass:lpfLo', 600, 800), f('bass:lpfHi', 1000, 1400)],
-      decaySec: [f('bass:decayLo', 0.18, 0.25), f('bass:decayHi', 0.28, 0.38)],
-      gain: f('bass:gain', 0.52, 0.68),
+      // Darker bass: lower LPF, HPF to remove rumble, subtle saturation
+      filterCutoffHz: [f('bass:lpfLo', 400, 550), f('bass:lpfHi', 700, 950)], // Lowered from 600-1400
+      highpassHz: f('bass:hpf', 35, 45), // Remove sub-bass rumble
+      decaySec: [f('bass:decayLo', 0.20, 0.28), f('bass:decayHi', 0.30, 0.42)],
+      gain: f('bass:gain', 0.55, 0.70),
+      saturation: f('bass:sat', 0.02, 0.05), // Subtle warmth
     },
     harmony: {
-      filterCutoffHz: [f('harm:lpfLo', 400, 600), f('harm:lpfHi', 1000, 1400)],
-      decaySec: [f('harm:decayLo', 0.08, 0.12), f('harm:decayHi', 0.14, 0.22)],
-      stereoWiden: f('harm:widen', 0.06, 0.14),
+      // Warmer harmony: lower LPF, shorter decay for stab character
+      filterCutoffHz: [f('harm:lpfLo', 350, 500), f('harm:lpfHi', 900, 1200)], // Lowered from 400-1400
+      decaySec: [f('harm:decayLo', 0.10, 0.15), f('harm:decayHi', 0.18, 0.28)], // Slightly longer for stab
+      stereoWiden: f('harm:widen', 0.08, 0.16),
     },
     melody: {
-      filterCutoffHz: [f('mel:lpfLo', 1200, 1800), f('mel:lpfHi', 2400, 3600)],
-      pluckDecayMs: [f('mel:pluckLo', 50, 80), f('mel:pluckHi', 90, 140)],
-      vibratoDepth: f('mel:vib', 0.004, 0.012),
+      // Clearer melody: moderate LPF, HPF to remove fizz, controlled pluck
+      filterCutoffHz: [f('mel:lpfLo', 1000, 1400), f('mel:lpfHi', 2000, 2800)], // Lowered from 1200-3600
+      highpassHz: f('mel:hpf', 200, 300), // Remove low-end fizz
+      pluckDecayMs: [f('mel:pluckLo', 60, 90), f('mel:pluckHi', 100, 150)],
+      vibratoDepth: f('mel:vib', 0.003, 0.010), // Slightly less vibrato
     },
   };
 
   const fxProfile: FxProfile = {
-    plateWet: f('fx:plate', 0.08, 0.16),
-    delayWet: f('fx:delay', 0.03, 0.08),
-    delayTimeMs: 250 + f('fx:delayTime', 0, 80),
-    clapRoomWet: f('fx:clapRoom', 0.28, 0.42),
+    // Reverb discipline: limited tails, clarity prioritized
+    plateWet: f('fx:plate', 0.06, 0.12), // Reduced from 0.08-0.16
+    delayWet: f('fx:delay', 0.02, 0.06), // Reduced from 0.03-0.08
+    delayTimeMs: 240 + f('fx:delayTime', 0, 60), // Slightly shorter
+    clapRoomWet: f('fx:clapRoom', 0.25, 0.38), // Reduced from 0.28-0.42
   };
 
   const mixProfile: MixProfile = {
