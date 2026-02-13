@@ -32,12 +32,19 @@ export type Plan = {
   bpm: number; 
   key: string;
   events: EventToken[];
-  /** Optional debug metadata for novelty tracking (no API breaking changes) */
+  /** Optional debug metadata for novelty and musicality (no API breaking changes) */
   debug?: {
     progressionId?: number;
     motifId?: number;
     bassPatternId?: number;
     transformationSequence?: string[];
+    hookCellId?: string;
+    hookCellOccurrences?: number;
+    sectionCellUsage?: [number, number, number, number];
+    chordToneOnStrongBeatRate?: number;
+    averageStepwiseRate?: number;
+    leapResolutionRate?: number;
+    restDensityPerPhrase?: [number, number, number, number];
   };
 };
 

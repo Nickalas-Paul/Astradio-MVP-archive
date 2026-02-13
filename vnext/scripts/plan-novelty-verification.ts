@@ -45,6 +45,9 @@ function printNoveltyIds(plan: any, seed: string) {
     console.log(`  Motif ID: ${plan.debug.motifId ?? 'N/A'}`);
     console.log(`  Bass Pattern ID: ${plan.debug.bassPatternId ?? 'N/A'}`);
     console.log(`  Transformation Sequence: ${plan.debug.transformationSequence?.join(', ') ?? 'N/A'}`);
+    console.log(`  Hook Cell ID: ${plan.debug.hookCellId ?? 'N/A'}`);
+    console.log(`  Hook Cell Occurrences: ${plan.debug.hookCellOccurrences ?? 'N/A'} (target >= 6)`);
+    console.log(`  Section Cell Usage [A, A', B, A]: ${JSON.stringify(plan.debug.sectionCellUsage ?? [])}`);
   } else {
     console.log('  (Debug IDs not available - ensure planner includes debug metadata)');
   }
@@ -56,6 +59,20 @@ function printNoveltyIds(plan: any, seed: string) {
     return acc;
   }, {});
   console.log(`  Channels: ${JSON.stringify(byChannel)}`);
+}
+
+function printMelodyMetrics(plan: any) {
+  if (!plan.debug) return;
+  console.log('\n=== Melody musicality metrics ===');
+  const ct = plan.debug.chordToneOnStrongBeatRate;
+  const step = plan.debug.averageStepwiseRate;
+  const leap = plan.debug.leapResolutionRate;
+  const rest = plan.debug.restDensityPerPhrase;
+  console.log(`  chordToneOnStrongBeatRate: ${ct != null ? ct.toFixed(3) : 'N/A'} (target >= 0.60)`);
+  console.log(`  hookCellOccurrenceCount: ${plan.debug.hookCellOccurrences ?? 'N/A'} (target >= 6)`);
+  console.log(`  averageStepwiseRate: ${step != null ? step.toFixed(3) : 'N/A'}`);
+  console.log(`  leapResolutionRate: ${leap != null ? leap.toFixed(3) : 'N/A'}`);
+  console.log(`  restDensityPerPhrase [A, A', B, A]: ${rest ? rest.map((r: number) => r.toFixed(2)).join(', ') : 'N/A'}`);
 }
 
 async function main() {
@@ -72,14 +89,19 @@ async function main() {
   
   console.log('Test 1: Determinism (same seed + inputs)');
   printNoveltyIds(plan1a, seed1);
+  printMelodyMetrics(plan1a);
   printNoveltyIds(plan1b, seed1);
+  printMelodyMetrics(plan1b);
   
   if (plan1a.debug && plan1b.debug) {
     const same = 
       plan1a.debug.progressionId === plan1b.debug.progressionId &&
       plan1a.debug.motifId === plan1b.debug.motifId &&
       plan1a.debug.bassPatternId === plan1b.debug.bassPatternId &&
-      JSON.stringify(plan1a.debug.transformationSequence) === JSON.stringify(plan1b.debug.transformationSequence);
+      JSON.stringify(plan1a.debug.transformationSequence) === JSON.stringify(plan1b.debug.transformationSequence) &&
+      plan1a.debug.hookCellId === plan1b.debug.hookCellId &&
+      plan1a.debug.hookCellOccurrences === plan1b.debug.hookCellOccurrences &&
+      Math.abs((plan1a.debug.chordToneOnStrongBeatRate ?? 0) - (plan1b.debug.chordToneOnStrongBeatRate ?? 0)) < 1e-6;
     console.log(`\n  ✓ Determinism check: ${same ? 'PASS' : 'FAIL'}`);
   }
   
@@ -92,6 +114,7 @@ async function main() {
   
   console.log('\nTest 2: Novelty (different seed)');
   printNoveltyIds(plan2, seed2);
+  printMelodyMetrics(plan2);
   
   if (plan1a.debug && plan2.debug) {
     const different = 
@@ -109,6 +132,7 @@ async function main() {
   
   console.log('\nTest 3: Feature-driven selection (same seed, different features)');
   printNoveltyIds(plan3, seed1);
+  printMelodyMetrics(plan3);
   
   console.log('\n=== Verification Complete ===\n');
 }

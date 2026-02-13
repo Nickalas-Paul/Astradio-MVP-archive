@@ -249,27 +249,30 @@ export function selectTransformationSequence(
     'ornament',
   ];
   
-  // Prefer rhythmic/ornamental for high agility
-  const preferred = agility > 0.6
-    ? ['rhythmic_shift', 'ornament', 'add_pickup']
-    : fire + air > 0.6
-    ? ['transpose', 'octave_displace', 'extend']
-    : ['transpose', 'rhythmic_shift', 'invert'];
+  // Preferred: rhythm/ornament/pickup/rest (preserve hook cell identity). Limited: invert/octave_displace/transpose (max one per section).
+  const preferred: TransformationType[] = ['rhythmic_shift', 'ornament', 'add_pickup', 'add_rest_before_cadence'];
+  const limited: TransformationType[] = ['invert', 'octave_displace', 'transpose'];
   
   const sequence: TransformationType[] = [];
   const used = new Set<string>();
+  let limitedUsed = 0;
+  const maxLimited = 1; // at most one of invert/octave_displace/transpose in sequence
   
   for (let i = 0; i < count; i++) {
-    const candidates = i < preferred.length
-      ? available.filter(t => !used.has(t) && preferred.includes(t))
-      : available.filter(t => !used.has(t));
-    
+    let candidates = available.filter(t => !used.has(t));
+    const limitedCandidates = candidates.filter(t => limited.includes(t));
+    if (limitedUsed >= maxLimited && limitedCandidates.length > 0) {
+      candidates = candidates.filter(t => !limited.includes(t));
+    }
     if (candidates.length === 0) break;
     
-    const idx = randInt(seed, 'transform_' + i, candidates.length);
-    const selected = candidates[idx];
+    const preferredAvailable = candidates.filter(t => preferred.includes(t));
+    const pool = preferredAvailable.length > 0 ? preferredAvailable : candidates;
+    const idx = randInt(seed, 'transform_' + i, pool.length);
+    const selected = pool[idx];
     sequence.push(selected);
     used.add(selected);
+    if (limited.includes(selected)) limitedUsed++;
   }
   
   return sequence;

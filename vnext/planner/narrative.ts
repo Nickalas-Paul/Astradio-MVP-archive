@@ -4,6 +4,12 @@ import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidanc
 import type { PersonalityProfileV1 } from "../astro/personality-profile";
 import { selectChordProgression, selectBasslinePattern, selectHookMotif } from "./libraries";
 import { selectTransformationSequence, applyTransformationSequence } from "./transformations";
+import {
+  extractHookCell,
+  countHookCellOccurrences,
+  applyMelodyGrammarRepair,
+  computeMelodyMetrics,
+} from "./melody-grammar";
 
 /**
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
@@ -375,12 +381,16 @@ export function planFromVector(
   const baseHookRaw = hookMotif.notes.map(n => ({ ...n }));
   const transformedHook = applyTransformationSequence(baseHookRaw, transformationSequence, seed, 'hook_base', density);
   
-  // Store debug IDs
-  const debugIds = {
+  // Motif memory: derive hook cell (2–4 notes) for recurrence and identity
+  const hookCell = extractHookCell(hookMotif.notes, hookMotif.id, seed);
+  
+  // Store debug IDs (extended after melody + grammar below)
+  const debugIds: Record<string, unknown> = {
     progressionId: chordProgression.id,
     motifId: hookMotif.id,
     bassPatternId: bassPattern.id,
     transformationSequence: transformationSequence,
+    hookCellId: hookCell.id,
   };
 
   const events: EventToken[] = [];
@@ -425,9 +435,12 @@ export function planFromVector(
         const aPrimeTransform = transformationSequence[0] ?? 'rhythmic_shift';
         hook = applyTransformationSequence(transformedHook, [aPrimeTransform], seed, 'hook_aprime_' + bar, density * 0.5);
       } else if (phraseIdx === 2) {
-        // B: Contrast (different register or motif family)
-        const contrastHook = selectHookMotif(seed + '_b', clusterDensity * 0.7, dominantPlanet, center + 3);
-        hook = contrastHook.notes.map(n => ({ ...n }));
+        // B: Same hook in altered register (response form) so cell stays recognizable
+        const registerLift = 2; // +2 degrees for "response" register
+        hook = transformedHook.map(n => ({
+          ...n,
+          degree: n.degree >= 0 ? ((n.degree + registerLift) % 8 + 8) % 8 : n.degree,
+        }));
       } else {
         // A: Return to base
         hook = transformedHook.map(n => ({ ...n }));
@@ -521,6 +534,36 @@ export function planFromVector(
       push(tBeats, durBeats, pitch, 0.55 + 0.1 * (i % 2), "melody");
     }
   }
+
+  // Melody grammar repair: strong-beat chord tones, leap resolution, register narrative
+  const melodyEvents = events.filter((e): e is EventToken => e.channel === "melody");
+  const getChordTonesForBar = (bar: number) => {
+    const barInPhrase = bar % PHRASE;
+    const isBSection = Math.floor(bar / PHRASE) === 2;
+    return chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
+  };
+  applyMelodyGrammarRepair(melodyEvents, {
+    seed,
+    bpm,
+    phraseCenters,
+    getChordTonesForBar,
+    strongBeatChordToneBias: 0.65,
+    registerBandHalfWidth: 7,
+    bSectionLift: 4,
+  });
+
+  const { total: hookCellOccurrences, bySection: sectionCellUsage } = countHookCellOccurrences(
+    melodyEvents,
+    hookCell,
+    secondsPerBeat
+  );
+  const metrics = computeMelodyMetrics(melodyEvents, hookCell, secondsPerBeat, getChordTonesForBar);
+  debugIds.hookCellOccurrences = hookCellOccurrences;
+  debugIds.sectionCellUsage = sectionCellUsage;
+  debugIds.chordToneOnStrongBeatRate = metrics.chordToneOnStrongBeatRate;
+  debugIds.averageStepwiseRate = metrics.averageStepwiseRate;
+  debugIds.leapResolutionRate = metrics.leapResolutionRate;
+  debugIds.restDensityPerPhrase = metrics.restDensityPerPhrase;
 
   // Bass: use selected bassline pattern
   for (let bar = 0; bar < BARS; bar++) {
