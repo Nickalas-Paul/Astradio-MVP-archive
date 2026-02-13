@@ -74,37 +74,43 @@ export async function createBrowserPerformanceEngine(
     Object.values(players).forEach((p) => p.dispose());
   }
 
-  // --- Synths (always used for bass/harmony/melody) ---
+  // --- Synths (always used for bass/harmony/melody); filter via Tone.Filter nodes (SynthOptions don't support filter) ---
   const bassGain = new Tone.Gain(pack.mixProfile.bassGain);
   const harmonyGain = new Tone.Gain(pack.mixProfile.harmonyGain);
   const melodyGain = new Tone.Gain(pack.mixProfile.melodyGain);
 
   const [bassLpfLo, bassLpfHi] = pack.synthPatches.bass.filterCutoffHz;
   const [bassDecayLo, bassDecayHi] = pack.synthPatches.bass.decaySec;
+  const bassFilter = new Tone.Filter({ type: 'lowpass', frequency: bassLpfHi, Q: 0.7 });
+  bassFilter.connect(bassGain);
   const bassSynth = new Tone.MonoSynth({
     oscillator: { type: 'sawtooth' },
-    filter: { type: 'lowpass', frequency: bassLpfHi },
     envelope: {
       attack: 0.01,
       decay: (bassDecayLo + bassDecayHi) / 2,
       sustain: 0.7,
       release: 0.2,
     },
-  }).connect(bassGain);
+  });
+  bassSynth.connect(bassFilter);
 
   const [harmLpfLo, harmLpfHi] = pack.synthPatches.harmony.filterCutoffHz;
+  const harmonyFilter = new Tone.Filter({ type: 'lowpass', frequency: harmLpfHi, Q: 0.7 });
+  harmonyFilter.connect(harmonyGain);
   const harmSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: 'sine' },
-    filter: { type: 'lowpass', frequency: harmLpfHi },
     envelope: { attack: 0.02, decay: 0.12, sustain: 0.8, release: 0.25 },
-  }).connect(harmonyGain);
+  });
+  harmSynth.connect(harmonyFilter);
 
   const [melLpfLo, melLpfHi] = pack.synthPatches.melody.filterCutoffHz;
+  const melodyFilter = new Tone.Filter({ type: 'lowpass', frequency: melLpfHi, Q: 0.7 });
+  melodyFilter.connect(melodyGain);
   const melSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: 'triangle' },
-    filter: { type: 'lowpass', frequency: melLpfHi },
     envelope: { attack: 0.005, decay: 0.08, sustain: 0.6, release: 0.15 },
-  }).connect(melodyGain);
+  });
+  melSynth.connect(melodyFilter);
 
   bassGain.connect(Tone.getDestination());
   harmonyGain.connect(Tone.getDestination());
@@ -205,6 +211,9 @@ export async function createBrowserPerformanceEngine(
       bassSynth.dispose();
       harmSynth.dispose();
       melSynth.dispose();
+      bassFilter.dispose();
+      harmonyFilter.dispose();
+      melodyFilter.dispose();
       bassGain.dispose();
       harmonyGain.dispose();
       melodyGain.dispose();
