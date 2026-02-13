@@ -6,6 +6,7 @@
  */
 
 import type { Plan, EventToken } from '../plan-to-tone-events';
+import type { Player } from 'tone';
 import { getGenrePack } from '../genre';
 
 const PITCH_KICK = 36;
@@ -58,7 +59,7 @@ export async function createBrowserPerformanceEngine(
     openHat: pack.drumKit.openHat,
   };
 
-  const players: Record<string, Tone.Player> = {};
+  const players: Record<string, Player> = {};
   let samplesOk = true;
   try {
     for (const [key, url] of Object.entries(sampleUrls)) {
