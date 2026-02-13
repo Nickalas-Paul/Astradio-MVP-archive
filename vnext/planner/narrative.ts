@@ -2,7 +2,7 @@
 import { Plan, EventToken } from "../contracts";
 import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidance";
 import type { PersonalityProfileV1 } from "../astro/personality-profile";
-import { selectChordProgression, selectBasslinePattern, selectHookMotif, type Hook } from "./libraries";
+import { selectChordProgression, selectBasslinePattern, selectHookMotif } from "./libraries";
 import { selectTransformationSequence, applyTransformationSequence } from "./transformations";
 
 /**
@@ -362,7 +362,7 @@ export function planFromVector(
   const aspectTension = (elementBlend?.fire ?? 0.25) + (elementBlend?.air ?? 0.25); // Approximate tension from elements
   const moonPhase = personality?.subsystems.moon.permeability ?? 0.5;
   const clusterDensity = density;
-  const dominantPlanet = personality?.subsystems.sun?.core ?? 0.5 > 0.5 ? 'sun' : 'moon'; // Simplified
+  const dominantPlanet = (personality?.subsystems.sun?.presence ?? 0.5) > 0.5 ? 'sun' : 'moon'; // Simplified
   
   const chordProgression = selectChordProgression(seed, elementBlend, aspectTension, moonPhase);
   const bassPattern = selectBasslinePattern(seed, genre, motionProfile);
