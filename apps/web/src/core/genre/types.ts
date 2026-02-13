@@ -22,6 +22,14 @@ export interface InstrumentSamples {
   melody?: string; // Pluck/lead sample URL
 }
 
+/** Optional SoundFont program numbers (MIDI program change). Used for browser SoundFont player or server FluidSynth. */
+export interface SoundFontPrograms {
+  bass?: number; // MIDI program number for bass (e.g., 33 = electric bass)
+  harmony?: number; // MIDI program number for harmony (e.g., 1 = acoustic piano, 49 = strings)
+  melody?: number; // MIDI program number for melody (e.g., 81 = lead synth)
+  soundfontUrl?: string; // URL to SF2 file (optional, can use default)
+}
+
 /** Synth patch params for Tone.js (seeded variations applied by getGenrePack). Used as fallback when samples unavailable. */
 export interface SynthPatches {
   bass: {
@@ -68,7 +76,8 @@ export interface GenrePack {
   displayName: string;
   drumKit: DrumKit;
   instrumentSamples?: InstrumentSamples; // Optional: sample-first for bass/harmony/melody
-  synthPatches: SynthPatches; // Fallback when samples unavailable
+  soundfontPrograms?: SoundFontPrograms; // Optional: SoundFont program numbers (browser/server)
+  synthPatches: SynthPatches; // Fallback when samples/SoundFont unavailable
   fxProfile: FxProfile;
   mixProfile: MixProfile;
 }

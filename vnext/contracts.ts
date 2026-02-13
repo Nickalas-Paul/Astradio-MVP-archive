@@ -32,6 +32,13 @@ export type Plan = {
   bpm: number; 
   key: string;
   events: EventToken[];
+  /** Optional debug metadata for novelty tracking (no API breaking changes) */
+  debug?: {
+    progressionId?: number;
+    motifId?: number;
+    bassPatternId?: number;
+    transformationSequence?: string[];
+  };
 };
 
 export type AuditionResult = {

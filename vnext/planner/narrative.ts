@@ -2,6 +2,8 @@
 import { Plan, EventToken } from "../contracts";
 import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidance";
 import type { PersonalityProfileV1 } from "../astro/personality-profile";
+import { selectChordProgression, selectBasslinePattern, selectHookMotif, type Hook } from "./libraries";
+import { selectTransformationSequence, applyTransformationSequence } from "./transformations";
 
 /**
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
@@ -97,19 +99,49 @@ function planIdFrom(
   return `plan_v6_${stable}`;
 }
 
-function chordToneDegreesForBar(barInPhrase: number, progId: number, isBSection: boolean): number[] {
-  const idx = (isBSection ? 2 : progId) * 4 + barInPhrase;
-  return CHORD_TONE_DEGREES[idx] ?? [0, 2, 4];
+function chordToneDegreesForBar(
+  barInPhrase: number,
+  bar: number,
+  chordProgression: ReturnType<typeof selectChordProgression>,
+  isBSection: boolean
+): number[] {
+  const progBars = chordProgression.bars;
+  const barIndex = isBSection ? (barInPhrase + 4) % progBars : barInPhrase;
+  const actualBarIndex = barIndex % chordProgression.roots.length;
+  
+  const root = chordProgression.roots[actualBarIndex];
+  const triadShape = chordProgression.triads[actualBarIndex] ?? [0, 3, 7];
+  
+  // Convert triad semitones to scale degrees (simplified: assume natural minor)
+  // Root = 0, third = 2 or 3, fifth = 4
+  const degrees = [0]; // Root
+  if (triadShape[1] === 3) degrees.push(2); // Minor third
+  else if (triadShape[1] === 4) degrees.push(3); // Major third
+  if (triadShape[2] === 7) degrees.push(4); // Perfect fifth
+  
+  return degrees.length > 0 ? degrees : [0, 2, 4];
 }
 
-function chordForBar(barInPhrase: number, progId: number, isBSection: boolean): { root: number; triad: [number, number, number] } {
-  const roots = PROG_ROOTS[isBSection ? 2 : progId];
-  const r = roots[barInPhrase];
-  const shapes: [number, number, number][] = [PROG_TRIADS[0], PROG_TRIADS[1], PROG_TRIADS[2], PROG_TRIADS[3]];
-  const shape = !isBSection
-    ? (barInPhrase === 1 && progId === 1 ? PROG_IV_TRIAD : shapes[barInPhrase])
-    : (barInPhrase === 0 ? shapes[0] : barInPhrase === 1 ? PROG_III_TRIAD : barInPhrase === 2 ? PROG_VII_TRIAD : shapes[3]);
-  return { root: r, triad: [r + shape[0], r + shape[1], r + shape[2]] };
+function chordForBar(
+  barInPhrase: number,
+  bar: number,
+  chordProgression: ReturnType<typeof selectChordProgression>,
+  isBSection: boolean
+): { root: number; triad: [number, number, number]; extensions?: number[] } {
+  // Handle 4-bar vs 8-bar progressions
+  const progBars = chordProgression.bars;
+  const barIndex = isBSection ? (barInPhrase + 4) % progBars : barInPhrase;
+  const actualBarIndex = barIndex % chordProgression.roots.length;
+  
+  const root = chordProgression.roots[actualBarIndex];
+  const triadShape = chordProgression.triads[actualBarIndex] ?? [0, 3, 7];
+  const extensions = chordProgression.extensions?.[actualBarIndex];
+  
+  return {
+    root,
+    triad: [root + triadShape[0], root + triadShape[1], root + triadShape[2]] as [number, number, number],
+    extensions,
+  };
 }
 
 /** Deterministic harmonic rhythm: onset offset in beats (0, 1.5, or 2) to avoid every chord on downbeat. */
@@ -319,13 +351,37 @@ export function planFromVector(
     baseCenter - Math.round(arcLift * 0.2) + registerBias,
   ].map(c => Math.max(48, Math.min(72, c)));
 
-  const motifIdx = guidance?.motifIdx !== undefined ? guidance.motifIdx : Math.floor(clamp01(vMotif) * HOOK_TEMPLATES.length);
+  const seed = guidance?.seed ?? "v6";
   const cadenceIdx = guidance?.cadenceIdx !== undefined ? guidance.cadenceIdx : Math.floor(clamp01(vCad) * CADENCE_ENDS.length);
   const cadencePitch = CADENCE_ENDS[cadenceIdx % CADENCE_ENDS.length];
 
   const biasedDensity = clamp01(vDense + 0.2 * densityBias);
   const density = lerp(0.3, 0.9, biasedDensity);
-  const progId = (motifIdx + cadenceIdx) % 2;
+  
+  // Select from expanded libraries
+  const aspectTension = (elementBlend?.fire ?? 0.25) + (elementBlend?.air ?? 0.25); // Approximate tension from elements
+  const moonPhase = personality?.subsystems.moon.permeability ?? 0.5;
+  const clusterDensity = density;
+  const dominantPlanet = personality?.subsystems.sun?.core ?? 0.5 > 0.5 ? 'sun' : 'moon'; // Simplified
+  
+  const chordProgression = selectChordProgression(seed, elementBlend, aspectTension, moonPhase);
+  const bassPattern = selectBasslinePattern(seed, genre, motionProfile);
+  const hookMotif = selectHookMotif(seed, clusterDensity, dominantPlanet, baseCenter);
+  
+  // Select transformation sequence
+  const transformationSequence = selectTransformationSequence(seed, elementBlend, mercuryAgility);
+  
+  // Apply transformations to base hook
+  const baseHookRaw = hookMotif.notes.map(n => ({ ...n }));
+  const transformedHook = applyTransformationSequence(baseHookRaw, transformationSequence, seed, 'hook_base', density);
+  
+  // Store debug IDs
+  const debugIds = {
+    progressionId: chordProgression.id,
+    motifId: hookMotif.id,
+    bassPatternId: bassPattern.id,
+    transformationSequence: transformationSequence,
+  };
 
   const events: EventToken[] = [];
   const secondsPerBeat = 60 / bpm;
@@ -345,7 +401,6 @@ export function planFromVector(
     events.push({ t0, t1, pitch, velocity: vel, channel });
   };
 
-  const baseHook = HOOK_TEMPLATES[motifIdx % HOOK_TEMPLATES.length].map(n => ({ ...n }));
   let lastMelodyPitch: number | null = null;
   let usedBLeap = false;
 
@@ -359,45 +414,43 @@ export function planFromVector(
     const barStartBeats = bar * 4;
     const isCadenceBar = barInPhrase === 3;
 
+    // Apply A/A'/B/A structure with transformations
     let hook: Hook;
     if (genre === 'house') {
-      // House: more motif repetition, call/response
-      // Phrases 1-2: same hook (call)
-      // Phrase 3: variation (response)
-      // Phrase 4: return to base (call)
+      // House: A A' B A form
       if (isCadenceBar) {
-        hook = makeCadenceVersion(baseHook, cadenceIdx, isBSection);
+        hook = makeCadenceVersion(transformedHook, cadenceIdx, isBSection);
+      } else if (phraseIdx === 1) {
+        // A': Apply one additional transformation
+        const aPrimeTransform = transformationSequence[0] ?? 'rhythmic_shift';
+        hook = applyTransformationSequence(transformedHook, [aPrimeTransform], seed, 'hook_aprime_' + bar, density * 0.5);
       } else if (phraseIdx === 2) {
-        // Phrase 3: variation (response)
-        const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
-        hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
+        // B: Contrast (different register or motif family)
+        const contrastHook = selectHookMotif(seed + '_b', clusterDensity * 0.7, dominantPlanet, center + 3);
+        hook = contrastHook.notes.map(n => ({ ...n }));
       } else {
-        // Phrases 1, 2, 4: same hook (repetition)
-        hook = baseHook.map(n => ({ ...n }));
+        // A: Return to base
+        hook = transformedHook.map(n => ({ ...n }));
       }
     } else {
-      // Default behavior (existing logic)
+      // Default behavior: use transformed hook with variations
       if (isCadenceBar) {
-        hook = makeCadenceVersion(
-          sectionId === 1 ? applyAPrimeOrnament(baseHook, bar, density) : isBSection ? transposeHook(baseHook, 2) : baseHook,
-          cadenceIdx,
-          isBSection
-        );
+        hook = makeCadenceVersion(transformedHook, cadenceIdx, isBSection);
       } else if (sectionId === 1) {
         const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
-        hook = applyAPrimeOrnament(baseHook, bar, ornamentDensity);
+        hook = applyTransformationSequence(transformedHook, ['ornament'], seed, 'hook_orn_' + bar, ornamentDensity);
       } else if (isBSection) {
-        hook = transposeHook(baseHook, 2);
+        hook = applyTransformationSequence(transformedHook, ['transpose'], seed, 'hook_b_' + bar, 0.5);
         if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
           hook[hook.length - 1].degree = 4;
           usedBLeap = true;
         }
       } else {
-        hook = baseHook.map(n => ({ ...n }));
+        hook = transformedHook.map(n => ({ ...n }));
       }
     }
 
-    const chordTones = chordToneDegreesForBar(barInPhrase, progId, isBSection);
+    const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
     const notes = hook.filter(n => n.degree >= 0 && n.dur16 > 0);
     if (notes.length > MAX_MELODY_NOTES_PER_BAR) notes.length = MAX_MELODY_NOTES_PER_BAR;
 
@@ -414,7 +467,7 @@ export function planFromVector(
         deg = stepwiseDegree(deg, lastMelodyPitch, center + regOffset, firstNoteOfPhrase ? 8 : allowLeap ? 8 : MAX_INTERVAL_SEMI);
         if (allowLeap) usedBLeap = true;
       }
-      const semi = semitoneForDegree(deg, barInPhrase, isCadenceBar, i, notes.length, progId, isBSection);
+      const semi = semitoneForDegree(deg, barInPhrase, isCadenceBar, i, notes.length, chordProgression.id % 2, isBSection);
       let pitch = Math.max(24, Math.min(96, center + regOffset + semi));
       if (isCadenceBar && i === notes.length - 1) pitch = cadencePitch;
       lastMelodyPitch = pitch;
@@ -459,7 +512,7 @@ export function planFromVector(
       const phraseIdx = Math.floor(bar / PHRASE);
       const isBSection = phraseIdx === 2;
       const center = phraseCenters[phraseIdx];
-      const chordTones = chordToneDegreesForBar(barInPhrase, progId, isBSection);
+      const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
       const degree = chordTones[(seedNum + i) % chordTones.length] ?? chordTones[0] ?? 0;
       const semi = degreeToSemitone(degree);
       const pitch = Math.max(24, Math.min(96, center + semi));
@@ -469,67 +522,34 @@ export function planFromVector(
     }
   }
 
-  // Bass: house bassline when genre === 'house', else default
-  if (genre === 'house') {
-    // House bassline: root or fifth with syncopated pickups tied to Mars/Mercury
-    for (let bar = 0; bar < BARS; bar++) {
-      const barInPhrase = bar % PHRASE;
-      const isBSection = Math.floor(bar / PHRASE) === 2;
-      const { root } = chordForBar(barInPhrase, progId, isBSection);
-      const barStart = bar * 4;
-      const bassRoot = root - 24;
-      const phase = narrativePhaseForBar(bar);
-      
-      // Syncopation based on Mars propulsion and Mercury agility
-      const syncopation = (marsPropulsion + mercuryAgility) / 2;
-      const useFifth = (seedNum + bar) % 3 === 0; // Occasional fifth
-      const bassPitch = useFifth ? bassRoot + 7 : bassRoot;
-      
-      // Main bass note on downbeat
-      push(barStart + 0, 1.5, bassPitch, 0.75, "bass");
-      
-      // Syncopated pickup before beat 2 (if syncopation high)
-      if (syncopation > 0.5 && barInPhrase !== 3) {
-        const pickupBeat = 1.75 - (syncopation - 0.5) * 0.5; // 1.75 to 1.5
-        push(barStart + pickupBeat, 0.5, bassPitch, 0.65, "bass");
-      }
-      
-      // Second note on beat 2 or 2.5 (syncopated)
-      const secondBeat = syncopation > 0.6 ? 2.5 : 2.0;
-      push(barStart + secondBeat, 1.5, bassPitch, 0.70, "bass");
-      
-      // Avoid walking bass - keep it house-style
-    }
-  } else {
-    // Default bass (existing behavior)
-    const bassPattern = (cadenceIdx + Math.floor(density * 2)) % 2;
-    for (let bar = 0; bar < BARS; bar++) {
-      const barInPhrase = bar % PHRASE;
-      const isBSection = Math.floor(bar / PHRASE) === 2;
-      const { root } = chordForBar(barInPhrase, progId, isBSection);
-      const barStart = bar * 4;
-      const bassRoot = root - 24;
-      if (plutoDepth > 0.1 && bar % 4 === seedNum % 4) {
-        push(barStart + 1, 2, Math.max(24, bassRoot - 12), 0.25, "bass");
-      }
-      if (bassPattern === 0) {
-        push(barStart + 0, 2, bassRoot, 0.7, "bass");
-        push(barStart + 2, 2, bassRoot, 0.65, "bass");
-      } else {
-        push(barStart + 0, 3, bassRoot, 0.7, "bass");
-        const isCadenceBar = barInPhrase === 3;
-        const nextRoot = barInPhrase < 3 ? chordForBar(barInPhrase + 1, progId, isBSection).root - 24 : bassRoot;
-        let approachPitch = nextRoot;
-        if (!isCadenceBar) {
-          const candWholeStep = nextRoot - 2;
-          const candFifthBelow = nextRoot + 5;
-          if (isPitchInNaturalMinor(candWholeStep, root) && candWholeStep >= 24 && candWholeStep <= 72) {
-            approachPitch = candWholeStep;
-          } else if (isPitchInNaturalMinor(candFifthBelow, root) && candFifthBelow >= 24 && candFifthBelow <= 72) {
-            approachPitch = candFifthBelow;
-          }
-        }
-        push(barStart + 3, 1, Math.max(24, Math.min(72, approachPitch)), 0.6, "bass");
+  // Bass: use selected bassline pattern
+  for (let bar = 0; bar < BARS; bar++) {
+    const barInPhrase = bar % PHRASE;
+    const isBSection = Math.floor(bar / PHRASE) === 2;
+    const { root } = chordForBar(barInPhrase, bar, chordProgression, isBSection);
+    const barStart = bar * 4;
+    const bassRoot = root - 24;
+    
+    // Apply bassline pattern (pattern repeats every patternBars bars)
+    const patternBars = bassPattern.bars;
+    const patternBarIndex = bar % patternBars;
+    
+    // Get events for this bar in the pattern
+    const patternEvents = bassPattern.events.filter(e => {
+      const eventBar = Math.floor(e.beat / 4);
+      return eventBar === patternBarIndex;
+    });
+    
+    // If no events for this bar, use root on downbeat as fallback
+    if (patternEvents.length === 0) {
+      push(barStart + 0, 2, bassRoot, 0.7, "bass");
+    } else {
+      for (const event of patternEvents) {
+        const beatInBar = event.beat % 4;
+        const degree = event.degree;
+        const semi = degreeToSemitone(degree);
+        const pitch = Math.max(24, Math.min(72, bassRoot + semi));
+        push(barStart + beatInBar, event.durBeats, pitch, event.velocity, "bass");
       }
     }
   }
@@ -542,7 +562,7 @@ export function planFromVector(
   for (let bar = 0; bar < BARS; bar++) {
     const barInPhrase = bar % PHRASE;
     const isBSection = Math.floor(bar / PHRASE) === 2;
-    const { root, triad } = chordForBar(barInPhrase, progId, isBSection);
+    const { root, triad, extensions } = chordForBar(barInPhrase, bar, chordProgression, isBSection);
     const [a, b, c] = triad.slice().sort((x, y) => x - y);
     const rootPos: [number, number, number] = [a, b, c];
     const firstInv: [number, number, number] = [b, c, a + 12];
@@ -569,7 +589,14 @@ export function planFromVector(
     const onsetBeats = harmonicOnsetBeats(phase, barInPhrase, bar, seedNum);
     const t0Beats = barStart + onsetBeats;
     for (const p of best) push(t0Beats, 4, p, 0.5, "harmony");
-    if (colorMorphThisBar(phase, barInPhrase, bar, seedNum)) {
+    
+    // Add extensions if defined in progression
+    if (extensions && extensions.length > 0) {
+      for (const ext of extensions) {
+        const extPitch = Math.max(HARMONY_LO, Math.min(HARMONY_HI, root + ext));
+        push(barStart + 2, 2, extPitch, 0.42, "harmony");
+      }
+    } else if (colorMorphThisBar(phase, barInPhrase, bar, seedNum)) {
       const seventhPitch = Math.max(HARMONY_LO, Math.min(HARMONY_HI, root + MINOR_7TH_SEMI));
       push(barStart + 2, 2, seventhPitch, 0.42, "harmony");
     }
@@ -684,7 +711,7 @@ export function planFromVector(
     for (let bar = 0; bar < BARS; bar++) {
       const barInPhrase = bar % PHRASE;
       const isBSection = Math.floor(bar / PHRASE) === 2;
-      const { root, triad } = chordForBar(barInPhrase, progId, isBSection);
+      const { root, triad } = chordForBar(barInPhrase, bar, chordProgression, isBSection);
       const chordTonePC = new Set(triad.map(p => p % 12));
       const barStart = bar * 4 * secondsPerBeat;
       const barEnd = (bar + 1) * 4 * secondsPerBeat;
@@ -696,7 +723,7 @@ export function planFromVector(
   }
 
   const duration = Math.min(DUR_SEC, totalBeats * secondsPerBeat);
-  const id = planIdFrom(guidance?.seed, bpm, baseCenter, motifIdx, cadenceIdx, phraseCenters);
+  const id = planIdFrom(guidance?.seed, bpm, baseCenter, hookMotif.id, cadenceIdx, phraseCenters);
 
   return {
     id,
@@ -705,5 +732,6 @@ export function planFromVector(
     bpm,
     key: "A minor",
     events,
+    debug: debugIds,
   };
 }

@@ -9,6 +9,39 @@ Layered server/browser approach and future export plan. Sample-first instrumenta
 - **Determinism:** Same inputs → same plan.
 - **Output:** `plan` (events with t0/t1/pitch/velocity/channel), `payload.hash` (seed), `payload.genre` (default "house"), provenance hashes.
 
+### Plan Novelty Strategy (Library + Transformation)
+
+**Problem:** Formulaic scale melodies over repeated chord loops.
+
+**Solution:** Expanded libraries + deterministic transformations:
+
+1. **Expanded Libraries** (`vnext/planner/libraries.ts`):
+   - **30-60 chord progressions:** Diatonic loops, modal interchange, secondary dominants, pedal variations (4 or 8 bars)
+   - **12 bassline patterns:** Offbeat, rolling, syncopated pickup, sustained, walking, pedal
+   - **50 hook motifs:** Ascending, descending, arc, call-response, repetitive, ornamental families (1-2 bars)
+
+2. **Deterministic Selection:**
+   - Seeded from `payload.hash` + snapshot/features
+   - Elements/modality/aspect_tension → brightness families
+   - Moon phase → cadence style
+   - Cluster density → rhythmic density of hook
+   - Dominant planet → register and repetition
+
+3. **Transformation Pipeline** (`vnext/planner/transformations.ts`):
+   - **2-4 transformations per track:** transpose, rhythmic shift, invert, octave displace, truncate/extend, add pickup, add rest before cadence, ornament
+   - **A/A'/B/A structure:** A (original), A' (one transformation), B (contrast), A (return with fill)
+   - Seeded and feature-driven (Mercury agility → rhythmic/ornamental, Fire/Air → transpose/extend)
+
+4. **Harmonic Rhythm & Voicing Variation:**
+   - More chord rhythm patterns per phrase
+   - Chord extensions (6/7/9) controlled by tension and personality gravity
+   - Voice-leading with constraints (no mechanical jumps)
+
+5. **Novelty Budget (Debug IDs):**
+   - `plan.debug.progressionId`, `motifId`, `bassPatternId`, `transformationSequence`
+   - Ensures each new plan differs measurably from previous
+   - Verification script: `vnext/scripts/plan-novelty-verification.ts`
+
 ## Layer B: Browser Performance Engine (authoritative for "play" in beta)
 
 - **Input:** `plan`, `seed` (payload.hash), `genre` (payload.genre ?? 'house')
@@ -31,8 +64,11 @@ Layered server/browser approach and future export plan. Sample-first instrumenta
 ## Genre Packs
 
 - **Location:** `apps/web/src/core/genre/` (shared contract and House pack).
-- **Contract:** `GenreId`, `GenrePack` (drumKit, instrumentSamples?, synthPatches, fxProfile, mixProfile), `getGenrePack(genre, seed)`.
-- **Sample-first:** `instrumentSamples` (optional bass/harmony/melody URLs) tried first; `synthPatches` used as fallback when samples unavailable.
+- **Contract:** `GenreId`, `GenrePack` (drumKit, instrumentSamples?, soundfontPrograms?, synthPatches, fxProfile, mixProfile), `getGenrePack(genre, seed)`.
+- **Instrument Source Strategy (Sample-First → SoundFont → Synth Fallback):**
+  1. **Samples:** `instrumentSamples` (optional bass/harmony/melody URLs) tried first
+  2. **SoundFont:** `soundfontPrograms` (MIDI program numbers) used if samples unavailable (browser: `apps/web/src/core/audio/soundfont-loader.ts`, server: FluidSynth SF2)
+  3. **Synth:** `synthPatches` used as final fallback (Tone.js synths in browser, procedural in server)
 - **Seeding:** All param variations (filter cutoff, decay, gain, FX wet, saturation, HPF/LPF) are derived from `payload.hash` + key (no `Math.random`). Same chart → same pack params.
 - **Reuse:** Future `ServerOfflineRenderEngine` will:
   1. Export MIDI from plan (`vnext/midi/plan-to-midi.ts` already exists)
@@ -56,10 +92,17 @@ Layered server/browser approach and future export plan. Sample-first instrumenta
 
 ## Verification / Debug
 
-Browser engine logs (when `debug=true`):
+**Browser engine logs** (when `debug=true`):
 - Which samples loaded vs synth fallbacks used
 - Reverb send totals by channel
 - Sidechain kick count
 - FX wet amounts
 
-Determinism verification: same plan + seed → same scheduled event times, same chosen parameters (filter cutoff, decay, gain, FX wet).
+**Plan novelty verification** (`vnext/scripts/plan-novelty-verification.ts`):
+- Prints `progressionId`, `motifId`, `bassPatternId`, `transformationSequence`
+- Confirms determinism: same seed + inputs → same IDs
+- Confirms novelty: different seed → different IDs
+
+**Determinism verification:**
+- Same plan + seed → same scheduled event times, same chosen parameters (filter cutoff, decay, gain, FX wet)
+- Same seed + inputs → same progression/motif/bass pattern IDs and transformation sequence
