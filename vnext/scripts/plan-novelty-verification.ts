@@ -75,6 +75,27 @@ function printMelodyMetrics(plan: any) {
   console.log(`  restDensityPerPhrase [A, A', B, A]: ${rest ? rest.map((r: number) => r.toFixed(2)).join(', ') : 'N/A'}`);
 }
 
+function printMelodyAudition(plan: any) {
+  if (!plan.debug) return;
+  const count = plan.debug.melodyCandidateCount;
+  const scores = plan.debug.melodyCandidateScores as number[] | undefined;
+  const selected = plan.debug.melodySelectedIndex;
+  if (count == null && selected == null) return;
+  console.log('\n=== Melody audition ===');
+  console.log(`  melodyCandidateCount: ${count ?? 'N/A'} (expected >= 4)`);
+  console.log(`  melodySelectedIndex: ${selected ?? 'N/A'}`);
+  if (scores && scores.length) {
+    const top3 = scores.slice(0, 3).map((s: number) => s.toFixed(4));
+    console.log(`  top-3 scores: [${top3.join(', ')}]`);
+    const chosen = selected != null ? scores[selected] : undefined;
+    if (chosen != null) {
+      const maxScore = Math.max(...scores);
+      const isMax = Math.abs(chosen - maxScore) < 1e-9;
+      console.log(`  chosen score: ${chosen.toFixed(4)} (is max: ${isMax})`);
+    }
+  }
+}
+
 async function main() {
   console.log('Plan Novelty Verification\n');
   
@@ -90,19 +111,44 @@ async function main() {
   console.log('Test 1: Determinism (same seed + inputs)');
   printNoveltyIds(plan1a, seed1);
   printMelodyMetrics(plan1a);
+  printMelodyAudition(plan1a);
   printNoveltyIds(plan1b, seed1);
   printMelodyMetrics(plan1b);
-  
+  printMelodyAudition(plan1b);
+
   if (plan1a.debug && plan1b.debug) {
-    const same = 
+    const same =
       plan1a.debug.progressionId === plan1b.debug.progressionId &&
       plan1a.debug.motifId === plan1b.debug.motifId &&
       plan1a.debug.bassPatternId === plan1b.debug.bassPatternId &&
       JSON.stringify(plan1a.debug.transformationSequence) === JSON.stringify(plan1b.debug.transformationSequence) &&
       plan1a.debug.hookCellId === plan1b.debug.hookCellId &&
       plan1a.debug.hookCellOccurrences === plan1b.debug.hookCellOccurrences &&
-      Math.abs((plan1a.debug.chordToneOnStrongBeatRate ?? 0) - (plan1b.debug.chordToneOnStrongBeatRate ?? 0)) < 1e-6;
-    console.log(`\n  ✓ Determinism check: ${same ? 'PASS' : 'FAIL'}`);
+      Math.abs((plan1a.debug.chordToneOnStrongBeatRate ?? 0) - (plan1b.debug.chordToneOnStrongBeatRate ?? 0)) < 1e-6 &&
+      plan1a.debug.melodySelectedIndex === plan1b.debug.melodySelectedIndex &&
+      plan1a.debug.melodyCandidateCount === plan1b.debug.melodyCandidateCount;
+    const scoresSame =
+      !plan1a.debug.melodyCandidateScores || !plan1b.debug.melodyCandidateScores ||
+      (Array.isArray(plan1a.debug.melodyCandidateScores) &&
+       Array.isArray(plan1b.debug.melodyCandidateScores) &&
+       plan1a.debug.melodyCandidateScores.length === plan1b.debug.melodyCandidateScores.length &&
+       (plan1a.debug.melodyCandidateScores as number[]).every((s: number, i: number) =>
+         Math.abs(s - (plan1b.debug!.melodyCandidateScores as number[])[i]) < 1e-9));
+    console.log(`\n  ✓ Determinism check: ${same && scoresSame ? 'PASS' : 'FAIL'}`);
+  }
+
+  if (plan1a.debug) {
+    const count = plan1a.debug.melodyCandidateCount as number | undefined;
+    const scores = plan1a.debug.melodyCandidateScores as number[] | undefined;
+    const selected = plan1a.debug.melodySelectedIndex as number | undefined;
+    const candidateCountOk = count != null && count >= 4;
+    let chosenIsMax = true;
+    if (scores && scores.length && selected != null && selected >= 0 && selected < scores.length) {
+      const maxScore = Math.max(...scores);
+      chosenIsMax = Math.abs(scores[selected] - maxScore) < 1e-9;
+    }
+    console.log(`  ✓ candidateCount >= 4: ${candidateCountOk ? 'PASS' : 'FAIL'}`);
+    console.log(`  ✓ chosen score is max (or tie): ${chosenIsMax ? 'PASS' : 'FAIL'}`);
   }
   
   // Test 2: Different seed => different IDs (novelty)
@@ -115,13 +161,16 @@ async function main() {
   console.log('\nTest 2: Novelty (different seed)');
   printNoveltyIds(plan2, seed2);
   printMelodyMetrics(plan2);
-  
+  printMelodyAudition(plan2);
+
   if (plan1a.debug && plan2.debug) {
-    const different = 
+    const different =
       plan1a.debug.progressionId !== plan2.debug.progressionId ||
       plan1a.debug.motifId !== plan2.debug.motifId ||
       plan1a.debug.bassPatternId !== plan2.debug.bassPatternId;
+    const melodyDiff = plan1a.debug.melodySelectedIndex !== plan2.debug.melodySelectedIndex;
     console.log(`\n  ✓ Novelty check: ${different ? 'PASS (IDs differ)' : 'WARN (some IDs same)'}`);
+    console.log(`  ✓ Melody selection differs with seed: ${melodyDiff ? 'PASS' : 'WARN (same selected index)'}`);
   }
   
   // Test 3: Different features => different IDs
@@ -133,7 +182,8 @@ async function main() {
   console.log('\nTest 3: Feature-driven selection (same seed, different features)');
   printNoveltyIds(plan3, seed1);
   printMelodyMetrics(plan3);
-  
+  printMelodyAudition(plan3);
+
   console.log('\n=== Verification Complete ===\n');
 }
 

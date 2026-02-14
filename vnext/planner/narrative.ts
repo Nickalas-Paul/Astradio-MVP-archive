@@ -10,6 +10,7 @@ import {
   applyMelodyGrammarRepair,
   computeMelodyMetrics,
 } from "./melody-grammar";
+import { createSoftMelodyScorer, auditionMelodyCandidates } from "./melody-audition";
 
 /**
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
@@ -83,6 +84,28 @@ function lerp(a: number, b: number, t: number): number {
 }
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
+}
+
+/** Deterministic [0,1) from seed+key for candidate jitter. No Math.random. */
+function jitter01(seed: string, key: string): number {
+  let h = 0;
+  const s = seed + "\0" + key;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h = h & h;
+  }
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  return (h >>> 0) / 0x100000000;
+}
+
+function hashMod(seed: string, key: string, mod: number): number {
+  let h = 0;
+  const s = seed + "\0" + key;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h = h & h;
+  }
+  return Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0 % Math.max(1, mod);
 }
 
 function quantizeTo16th(timeSec: number, bpm: number): number {
@@ -398,160 +421,161 @@ export function planFromVector(
   const totalBeats = BARS * 4;
   const one16thSec = (1 / GRID_16) * secondsPerBeat;
 
-  const push = (
-    tBeats: number,
-    durBeats: number,
-    pitch: number,
-    vel: number,
-    channel: "melody" | "harmony" | "bass" | "rhythm"
-  ) => {
-    const t0 = quantizeTo16th(tBeats * secondsPerBeat, bpm);
-    let t1 = quantizeTo16th((tBeats + durBeats) * secondsPerBeat, bpm);
-    if (t1 <= t0) t1 = t0 + one16thSec;
-    events.push({ t0, t1, pitch, velocity: vel, channel });
-  };
-
-  let lastMelodyPitch: number | null = null;
-  let usedBLeap = false;
-
-  for (let bar = 0; bar < BARS; bar++) {
-    const phraseIdx = Math.floor(bar / PHRASE);
-    const barInPhrase = bar % PHRASE;
-    const isBSection = phraseIdx === 2;
-    const sectionId = phraseIdx === 3 ? 0 : phraseIdx;
-    const center = phraseCenters[phraseIdx];
-    const regOffset = phraseArcOffset(phraseIdx);
-    const barStartBeats = bar * 4;
-    const isCadenceBar = barInPhrase === 3;
-
-    // Apply A/A'/B/A structure with transformations
-    let hook: Hook;
-    if (genre === 'house') {
-      // House: A A' B A form
-      if (isCadenceBar) {
-        hook = makeCadenceVersion(transformedHook, cadenceIdx, isBSection);
-      } else if (phraseIdx === 1) {
-        // A': Apply one additional transformation
-        const aPrimeTransform = transformationSequence[0] ?? 'rhythmic_shift';
-        hook = applyTransformationSequence(transformedHook, [aPrimeTransform], seed, 'hook_aprime_' + bar, density * 0.5);
-      } else if (phraseIdx === 2) {
-        // B: Same hook in altered register (response form) so cell stays recognizable
-        const registerLift = 2; // +2 degrees for "response" register
-        hook = transformedHook.map(n => ({
-          ...n,
-          degree: n.degree >= 0 ? ((n.degree + registerLift) % 8 + 8) % 8 : n.degree,
-        }));
-      } else {
-        // A: Return to base
-        hook = transformedHook.map(n => ({ ...n }));
-      }
-    } else {
-      // Default behavior: use transformed hook with variations
-      if (isCadenceBar) {
-        hook = makeCadenceVersion(transformedHook, cadenceIdx, isBSection);
-      } else if (sectionId === 1) {
-        const ornamentDensity = clamp01(density + (mercuryAgility - 0.5) * 0.15);
-        hook = applyTransformationSequence(transformedHook, ['ornament'], seed, 'hook_orn_' + bar, ornamentDensity);
-      } else if (isBSection) {
-        hook = applyTransformationSequence(transformedHook, ['transpose'], seed, 'hook_b_' + bar, 0.5);
-        if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
-          hook[hook.length - 1].degree = 4;
-          usedBLeap = true;
-        }
-      } else {
-        hook = transformedHook.map(n => ({ ...n }));
-      }
-    }
-
-    const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
-    const notes = hook.filter(n => n.degree >= 0 && n.dur16 > 0);
-    if (notes.length > MAX_MELODY_NOTES_PER_BAR) notes.length = MAX_MELODY_NOTES_PER_BAR;
-
-    const firstNoteOfPhrase = barInPhrase === 0 && bar > 0;
-    for (let i = 0; i < notes.length; i++) {
-      const { pos16, degree, dur16 } = notes[i];
-      const tBeats = barStartBeats + (pos16 / 16) * 4;
-      const durBeats = (dur16 / 16) * 4;
-      const isLongNote = dur16 >= 6;
-      const isPhraseEndNote = isCadenceBar && (i >= notes.length - 2);
-      let deg = resolveDegree(degree, chordTones, isLongNote, isPhraseEndNote, notes, i);
-      if (lastMelodyPitch !== null) {
-        const allowLeap = isBSection && biasedArc > 0.6 && !usedBLeap && i === notes.length - 1;
-        deg = stepwiseDegree(deg, lastMelodyPitch, center + regOffset, firstNoteOfPhrase ? 8 : allowLeap ? 8 : MAX_INTERVAL_SEMI);
-        if (allowLeap) usedBLeap = true;
-      }
-      const semi = semitoneForDegree(deg, barInPhrase, isCadenceBar, i, notes.length, chordProgression.id % 2, isBSection);
-      let pitch = Math.max(24, Math.min(96, center + regOffset + semi));
-      if (isCadenceBar && i === notes.length - 1) pitch = cadencePitch;
-      lastMelodyPitch = pitch;
-      let effectiveDur = durBeats * (0.85 + 0.15 * flow) * (1.05 - 0.15 * articulation);
-      const phase = narrativePhaseForBar(bar);
-      const allowLongSustain = phase === 2 && isEarthDominant(elementBlend);
-      const capSec = allowLongSustain ? MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH : MAX_MELODY_SUSTAIN_SEC;
-      const capBeats = capSec / secondsPerBeat;
-      if (effectiveDur > capBeats) effectiveDur = capBeats;
-      const melodyVel = clamp01(0.7 + 0.1 * (i % 2) + 0.05 * marsEdge);
-      push(tBeats, Math.max(0.25, effectiveDur), pitch, melodyVel, "melody");
-    }
-  }
-
-  const barsPerPhase = [ENCOUNTER_BARS, RECOGNITION_BARS, BARS - ENCOUNTER_BARS - RECOGNITION_BARS];
-  const minEncounter = Math.max(6, Math.floor(8 * (0.85 + 0.15 * (1 - revealEncounter.core))));
-  const minPerPhase: [number, number, number] = [minEncounter, MIN_MELODY_PER_PHASE[1], MIN_MELODY_PER_PHASE[2]];
-  const melodySoFar = events.filter(e => e.channel === "melody");
-  const phaseCounts: [number, number, number] = [0, 0, 0];
-  for (const e of melodySoFar) {
-    const bar = Math.floor(e.t0 / (4 * secondsPerBeat));
-    const phase = narrativePhaseForBar(bar);
-    phaseCounts[phase]++;
-  }
-  // Melody filler: house reduces wandering fills, prefers motif repetition
-  const FILLER_DUR_BEATS = [0.25, 0.5, 0.75] as const;
-  const reduceFillerForHouse = genre === 'house';
-  for (let phase = 0; phase < 3; phase++) {
-    const need = minPerPhase[phase] - phaseCounts[phase];
-    if (need <= 0) continue;
-    // House: reduce filler in Recognition (phase 1) to emphasize motif
-    const adjustedNeed = reduceFillerForHouse && phase === 1 ? Math.max(0, Math.floor(need * 0.7)) : need;
-    if (adjustedNeed <= 0) continue;
-    const firstBar = phase === 0 ? 0 : phase === 1 ? ENCOUNTER_BARS : ENCOUNTER_BARS + RECOGNITION_BARS;
-    const numBars = barsPerPhase[phase];
-    for (let i = 0; i < adjustedNeed; i++) {
-      const bar = firstBar + (seedNum + i) % numBars;
-      const barInPhrase = bar % PHRASE;
-      const isCadenceBar = barInPhrase === 3;
-      const beat = isCadenceBar ? (seedNum + i) % 2 : (seedNum + i * 7) % 4;
-      const tBeats = bar * 4 + beat;
-      const phraseIdx = Math.floor(bar / PHRASE);
-      const isBSection = phraseIdx === 2;
-      const center = phraseCenters[phraseIdx];
-      const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
-      const degree = chordTones[(seedNum + i) % chordTones.length] ?? chordTones[0] ?? 0;
-      const semi = degreeToSemitone(degree);
-      const pitch = Math.max(24, Math.min(96, center + semi));
-      const durIdx = (seedNum + i * 3) % FILLER_DUR_BEATS.length;
-      const durBeats = FILLER_DUR_BEATS[durIdx];
-      push(tBeats, durBeats, pitch, 0.55 + 0.1 * (i % 2), "melody");
-    }
-  }
-
-  // Melody grammar repair: strong-beat chord tones, leap resolution, register narrative
-  const melodyEvents = events.filter((e): e is EventToken => e.channel === "melody");
   const getChordTonesForBar = (bar: number) => {
     const barInPhrase = bar % PHRASE;
     const isBSection = Math.floor(bar / PHRASE) === 2;
     return chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
   };
-  applyMelodyGrammarRepair(melodyEvents, {
-    seed,
-    bpm,
-    phraseCenters,
-    getChordTonesForBar,
-    strongBeatChordToneBias: 0.65,
-    registerBandHalfWidth: 7,
-    bSectionLift: 4,
-  });
 
+  const barsPerPhase = [ENCOUNTER_BARS, RECOGNITION_BARS, BARS - ENCOUNTER_BARS - RECOGNITION_BARS];
+  const minEncounter = Math.max(6, Math.floor(8 * (0.85 + 0.15 * (1 - revealEncounter.core))));
+  const minPerPhase: [number, number, number] = [minEncounter, MIN_MELODY_PER_PHASE[1], MIN_MELODY_PER_PHASE[2]];
+  const FILLER_DUR_BEATS = [0.25, 0.5, 0.75] as const;
+
+  /** Build one melody candidate (melody events only). Deterministic from candidateSeed. */
+  function buildOneMelodyCandidate(candidateSeed: string): EventToken[] {
+    const isBase = candidateSeed === seed;
+    const seq = isBase ? transformationSequence : selectTransformationSequence(candidateSeed, elementBlend, mercuryAgility);
+    const densityJitter = isBase ? density : clamp01(density + (jitter01(candidateSeed, "d") - 0.5) * 0.12);
+    const thook = isBase ? transformedHook : applyTransformationSequence(baseHookRaw, seq, candidateSeed, "hook_base", densityJitter);
+    const centers = isBase ? phraseCenters : phraseCenters.map((c, i) => Math.max(48, Math.min(72, c + Math.round((jitter01(candidateSeed, "pc" + i) - 0.5) * 2))));
+    const bLift = isBase ? 2 : 2 + hashMod(candidateSeed, "blift", 2);
+    const fillerSeedNum = isBase ? seedNum : hashMod(candidateSeed, "filler", 1000000);
+    const mel: EventToken[] = [];
+    const pushMel = (tBeats: number, durBeats: number, pitch: number, vel: number) => {
+      const t0 = quantizeTo16th(tBeats * secondsPerBeat, bpm);
+      let t1 = quantizeTo16th((tBeats + durBeats) * secondsPerBeat, bpm);
+      if (t1 <= t0) t1 = t0 + one16thSec;
+      mel.push({ t0, t1, pitch, velocity: vel, channel: "melody" });
+    };
+    let lastMelodyPitch: number | null = null;
+    let usedBLeap = false;
+    for (let bar = 0; bar < BARS; bar++) {
+      const phraseIdx = Math.floor(bar / PHRASE);
+      const barInPhrase = bar % PHRASE;
+      const isBSection = phraseIdx === 2;
+      const sectionId = phraseIdx === 3 ? 0 : phraseIdx;
+      const center = centers[phraseIdx];
+      const regOffset = phraseArcOffset(phraseIdx);
+      const barStartBeats = bar * 4;
+      const isCadenceBar = barInPhrase === 3;
+      let hook: Hook;
+      if (genre === "house") {
+        if (isCadenceBar) {
+          hook = makeCadenceVersion(thook, cadenceIdx, isBSection);
+        } else if (phraseIdx === 1) {
+          const aPrimeTransform = seq[0] ?? "rhythmic_shift";
+          hook = applyTransformationSequence(thook, [aPrimeTransform], candidateSeed, "hook_aprime_" + bar, densityJitter * 0.5);
+        } else if (phraseIdx === 2) {
+          hook = thook.map(n => ({
+            ...n,
+            degree: n.degree >= 0 ? ((n.degree + bLift) % 8 + 8) % 8 : n.degree,
+          }));
+        } else {
+          hook = thook.map(n => ({ ...n }));
+        }
+      } else {
+        if (isCadenceBar) {
+          hook = makeCadenceVersion(thook, cadenceIdx, isBSection);
+        } else if (sectionId === 1) {
+          const ornamentDensity = clamp01(densityJitter + (mercuryAgility - 0.5) * 0.15);
+          hook = applyTransformationSequence(thook, ["ornament"], candidateSeed, "hook_orn_" + bar, ornamentDensity);
+        } else if (isBSection) {
+          hook = applyTransformationSequence(thook, ["transpose"], candidateSeed, "hook_b_" + bar, 0.5);
+          if (barInPhrase === 1 && biasedArc > 0.5 && !usedBLeap && hook.length > 2) {
+            hook[hook.length - 1].degree = 4;
+            usedBLeap = true;
+          }
+        } else {
+          hook = thook.map(n => ({ ...n }));
+        }
+      }
+      const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, isBSection);
+      const notes = hook.filter(n => n.degree >= 0 && n.dur16 > 0);
+      if (notes.length > MAX_MELODY_NOTES_PER_BAR) notes.length = MAX_MELODY_NOTES_PER_BAR;
+      const firstNoteOfPhrase = barInPhrase === 0 && bar > 0;
+      for (let i = 0; i < notes.length; i++) {
+        const { pos16, degree, dur16 } = notes[i];
+        const tBeats = barStartBeats + (pos16 / 16) * 4;
+        const durBeats = (dur16 / 16) * 4;
+        const isLongNote = dur16 >= 6;
+        const isPhraseEndNote = isCadenceBar && (i >= notes.length - 2);
+        let deg = resolveDegree(degree, chordTones, isLongNote, isPhraseEndNote, notes, i);
+        if (lastMelodyPitch !== null) {
+          const allowLeap = isBSection && biasedArc > 0.6 && !usedBLeap && i === notes.length - 1;
+          deg = stepwiseDegree(deg, lastMelodyPitch, center + regOffset, firstNoteOfPhrase ? 8 : allowLeap ? 8 : MAX_INTERVAL_SEMI);
+          if (allowLeap) usedBLeap = true;
+        }
+        const semi = semitoneForDegree(deg, barInPhrase, isCadenceBar, i, notes.length, chordProgression.id % 2, isBSection);
+        let pitch = Math.max(24, Math.min(96, center + regOffset + semi));
+        if (isCadenceBar && i === notes.length - 1) pitch = cadencePitch;
+        lastMelodyPitch = pitch;
+        let effectiveDur = durBeats * (0.85 + 0.15 * flow) * (1.05 - 0.15 * articulation);
+        const phase = narrativePhaseForBar(bar);
+        const allowLongSustain = phase === 2 && isEarthDominant(elementBlend);
+        const capSec = allowLongSustain ? MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH : MAX_MELODY_SUSTAIN_SEC;
+        const capBeats = capSec / secondsPerBeat;
+        if (effectiveDur > capBeats) effectiveDur = capBeats;
+        const melodyVel = clamp01(0.7 + 0.1 * (i % 2) + 0.05 * marsEdge);
+        pushMel(tBeats, Math.max(0.25, effectiveDur), pitch, melodyVel);
+      }
+    }
+    const melodySoFar = mel;
+    const phaseCounts: [number, number, number] = [0, 0, 0];
+    for (const e of melodySoFar) {
+      const bar = Math.floor(e.t0 / (4 * secondsPerBeat));
+      phaseCounts[narrativePhaseForBar(bar)]++;
+    }
+    const reduceFillerForHouse = genre === "house";
+    for (let phase = 0; phase < 3; phase++) {
+      let need = minPerPhase[phase] - phaseCounts[phase];
+      if (need <= 0) continue;
+      if (reduceFillerForHouse && phase === 1) need = Math.max(0, Math.floor(need * 0.7));
+      if (need <= 0) continue;
+      const firstBar = phase === 0 ? 0 : phase === 1 ? ENCOUNTER_BARS : ENCOUNTER_BARS + RECOGNITION_BARS;
+      const numBars = barsPerPhase[phase];
+      for (let i = 0; i < need; i++) {
+        const bar = firstBar + (fillerSeedNum + i) % numBars;
+        const barInPhrase = bar % PHRASE;
+        const isCadenceBar = barInPhrase === 3;
+        const beat = isCadenceBar ? (fillerSeedNum + i) % 2 : (fillerSeedNum + i * 7) % 4;
+        const tBeats = bar * 4 + beat;
+        const phraseIdx = Math.floor(bar / PHRASE);
+        const center = centers[phraseIdx];
+        const chordTones = chordToneDegreesForBar(barInPhrase, bar, chordProgression, phraseIdx === 2);
+        const degree = chordTones[(fillerSeedNum + i) % chordTones.length] ?? chordTones[0] ?? 0;
+        const semi = degreeToSemitone(degree);
+        const pitch = Math.max(24, Math.min(96, center + semi));
+        const durBeats = FILLER_DUR_BEATS[(fillerSeedNum + i * 3) % FILLER_DUR_BEATS.length];
+        pushMel(tBeats, durBeats, pitch, 0.55 + 0.1 * (i % 2));
+      }
+    }
+    return mel;
+  }
+
+  const N = Math.max(4, Math.min(8, Number(process.env.VNEXT_MELODY_CANDIDATES) || 6));
+  const buildOneWithRepair = (candidateSeed: string): EventToken[] => {
+    const melody = buildOneMelodyCandidate(candidateSeed);
+    applyMelodyGrammarRepair(melody, {
+      seed: candidateSeed,
+      bpm,
+      phraseCenters,
+      getChordTonesForBar,
+      strongBeatChordToneBias: 0.65,
+      registerBandHalfWidth: 7,
+      bSectionLift: 4,
+    });
+    return melody;
+  };
+  const scorer = createSoftMelodyScorer({ hookCell, getChordTonesForBar, secondsPerBeat });
+  const { melody: winningMelody, selectedIndex, scores } = auditionMelodyCandidates(buildOneWithRepair, seed, scorer, N);
+
+  for (const e of winningMelody) events.push(e);
+  debugIds.melodyCandidateCount = N;
+  debugIds.melodyCandidateScores = scores.slice(0, 8);
+  debugIds.melodySelectedIndex = selectedIndex;
+
+  const melodyEvents = winningMelody;
   const { total: hookCellOccurrences, bySection: sectionCellUsage } = countHookCellOccurrences(
     melodyEvents,
     hookCell,
@@ -564,6 +588,19 @@ export function planFromVector(
   debugIds.averageStepwiseRate = metrics.averageStepwiseRate;
   debugIds.leapResolutionRate = metrics.leapResolutionRate;
   debugIds.restDensityPerPhrase = metrics.restDensityPerPhrase;
+
+  const push = (
+    tBeats: number,
+    durBeats: number,
+    pitch: number,
+    vel: number,
+    channel: "melody" | "harmony" | "bass" | "rhythm"
+  ) => {
+    const t0 = quantizeTo16th(tBeats * secondsPerBeat, bpm);
+    let t1 = quantizeTo16th((tBeats + durBeats) * secondsPerBeat, bpm);
+    if (t1 <= t0) t1 = t0 + one16thSec;
+    events.push({ t0, t1, pitch, velocity: vel, channel });
+  };
 
   // Bass: use selected bassline pattern
   for (let bar = 0; bar < BARS; bar++) {

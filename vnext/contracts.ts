@@ -45,6 +45,9 @@ export type Plan = {
     averageStepwiseRate?: number;
     leapResolutionRate?: number;
     restDensityPerPhrase?: [number, number, number, number];
+    melodyCandidateCount?: number;
+    melodyCandidateScores?: number[];
+    melodySelectedIndex?: number;
   };
 };
 
