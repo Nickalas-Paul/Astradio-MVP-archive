@@ -6,15 +6,19 @@ This document defines the API contract for Astradio MVP. All endpoints must foll
 
 ## Endpoint Matrix
 
-### Active Routes (10)
+### Active Routes (14)
 
-#### Next.js Routes (6)
+#### Next.js Routes (10)
 - `GET /api/chart` - Chart data retrieval
 - `GET /api/community/feed` - Community feed
 - `POST /api/compose` - Composition generation
 - `GET /api/exports` - Export listing
 - `POST /api/report` - Content reporting
 - `GET /api/trending` - Trending content
+- `GET /api/profile` - Current user profile (stub: user + primary chart)
+- `GET /api/profile/chart` - Profile chart snapshot + explainer (proxies to engine)
+- `GET /api/compat/health` - Compatibility service health (proxies to engine)
+- `GET /api/compat/matches` - Compatibility matches (proxies to engine; query: chartId, mode, limit)
 
 #### Parameterized Next.js Routes (4)
 - `POST /api/connect/[userId]` - User connections
@@ -22,9 +26,44 @@ This document defines the API contract for Astradio MVP. All endpoints must foll
 - `POST /api/like/[itemId]` - Like content
 - `POST /api/save/[trackId]` - Save tracks
 
-#### Express Routes (2)
-- `GET /api/compat/matches` - Compatibility matches
-- `GET /api/compat/health` - Compatibility service health
+#### Engine (vnext compat) Routes (served by Express when compat router mounted)
+- `GET /api/profile/chart?chartId=` - Chart snapshot + explainer (vnext encoder + ExplainSpec)
+- `GET /api/compat/health` - Compatibility health
+- `GET /api/compat/matches?chartId=&mode=friend|lover|rival&limit=&cursor=` - Matches (real 64-D encoder). Query: chartId (required), mode (default friend), limit (default 10), cursor (optional).
+
+### Response shapes (community)
+
+**GET /api/profile** (Next.js)
+```json
+{
+  "user": { "id": "string", "displayName": "string" },
+  "primaryChart": { "id": "string", "label": "string", "date": "string", "time": "string", "lat": number, "lon": number, "timezone": "string?" }
+}
+```
+`primaryChart.id` is guaranteed to exist in engine storage (e.g. `chart_profile_default`).
+
+**GET /api/profile/chart** (proxy → engine)
+```json
+{
+  "chart": { "id", "label", "date", "time", "lat", "lon", ... },
+  "snapshot": { "planets", "houses", ... },
+  "explainer": { "spec": "UnifiedSpecV1.1", "sections": [ { "id", "title", "text", "bullets?" } ] },
+  "meta": { "encoderVersion", "explainerVersion", "generatedAt" }
+}
+```
+
+**GET /api/compat/matches** (proxy → engine)
+```json
+{
+  "chartId": "string",
+  "mode": "friend|lover|rival",
+  "limit": number,
+  "matches": [ { "userId", "chartId", "displayName?", "score", "facets", "rationale", "lastUpdated" } ],
+  "generatedAt": "ISO8601",
+  "version": "v1"
+}
+```
+Scores are clamped to [0,1]. Same chartId + candidates ⇒ same order and scores (stable sort by score desc, then chartId asc).
 
 ### Deprecated Routes (5) - 410 Gone
 
