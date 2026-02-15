@@ -33,12 +33,11 @@ export function getHousePack(seed: string): GenrePack {
 
   const synthPatches: SynthPatches = {
     bass: {
-      // Darker bass: lower LPF, HPF to remove rumble, subtle saturation
-      filterCutoffHz: [f('bass:lpfLo', 400, 550), f('bass:lpfHi', 700, 950)], // Lowered from 600-1400
-      highpassHz: f('bass:hpf', 35, 45), // Remove sub-bass rumble
+      filterCutoffHz: [f('bass:lpfLo', 200, 400), f('bass:lpfHi', 600, 800)], // LPF 200–800 Hz
+      highpassHz: f('bass:hpf', 30, 40), // HPF 30–40 Hz
       decaySec: [f('bass:decayLo', 0.20, 0.28), f('bass:decayHi', 0.30, 0.42)],
       gain: f('bass:gain', 0.55, 0.70),
-      saturation: f('bass:sat', 0.02, 0.05), // Subtle warmth
+      saturation: f('bass:sat', 0.02, 0.05),
     },
     harmony: {
       // Darker harmony when using sample: LPF 600–1200 Hz, shorter decay

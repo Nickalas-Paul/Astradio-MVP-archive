@@ -38,6 +38,8 @@ export interface EngineStats {
   soundfontLoaded?: { bass: boolean; harmony: boolean; melody: boolean };
   stemGains: { kick: number; bass: number; harmony: number; melody: number; hat: number; clap: number };
   reverbSends: { harmony: number; melody: number; clap: number; bass: number };
+  sampleLoadErrors?: string[];
+  sampleUrlsLoaded?: string[];
 }
 
 function midiToNote(pitch: number): string {
@@ -89,6 +91,9 @@ export async function createBrowserPerformanceEngine(
     if (ev.channel === 'rhythm' && ev.pitch === PITCH_KICK) kickOnsets.push(ev.t0);
   }
 
+  const sampleLoadErrors: string[] = [];
+  const sampleUrlsLoaded: string[] = [];
+
   const stats: EngineStats = {
     samplesLoaded: { drums: false, bass: false, harmony: false, melody: false },
     synthFallbacks: { bass: true, harmony: true, melody: true },
@@ -102,13 +107,14 @@ export async function createBrowserPerformanceEngine(
       hat: (pack.mixProfile as { hatGain?: number }).hatGain ?? 0.5,
       clap: (pack.mixProfile as { clapGain?: number }).clapGain ?? 0.55,
     },
-    // Actual reverb send per stem (pack-defined; bass always 0)
     reverbSends: {
       harmony: pack.fxProfile.plateWet,
       melody: pack.fxProfile.plateWet,
       clap: pack.fxProfile.clapRoomWet,
       bass: 0,
     },
+    sampleLoadErrors,
+    sampleUrlsLoaded,
   };
 
   const instrumentSamples = pack.instrumentSamples ?? {};
@@ -160,6 +166,8 @@ export async function createBrowserPerformanceEngine(
     clapGain.connect(masterBus);
     hatGain.connect(masterBus);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    sampleLoadErrors.push(`drums: ${msg}`);
     if (debug) console.warn('[BrowserEngine] Drum samples failed to load:', e);
     Object.values(drumPlayers).forEach((p) => p.dispose());
   }
@@ -174,6 +182,7 @@ export async function createBrowserPerformanceEngine(
   let melodySampleOk = false;
 
   if (bassUrls) {
+    const bassUrlList = Object.values(bassUrls);
     try {
       bassSampler = await new Promise<InstanceType<typeof Tone.Sampler>>((resolve, reject) => {
         const s = new Tone.Sampler({
@@ -187,18 +196,22 @@ export async function createBrowserPerformanceEngine(
       stats.samplesLoaded.bass = true;
       stats.synthFallbacks.bass = false;
       stats.voiceMode.bass = 'sample';
+      sampleUrlsLoaded.push(...bassUrlList);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      sampleLoadErrors.push(`bass: ${msg}`);
       if (debug) console.warn('[BrowserEngine] Bass sample failed:', e);
       bassSampler = null;
     }
   }
 
   if (harmonyUrls) {
+    const harmonyUrlList = Object.values(harmonyUrls);
     try {
       harmonySampler = await new Promise<InstanceType<typeof Tone.Sampler>>((resolve, reject) => {
         const s = new Tone.Sampler({
           urls: harmonyUrls!,
-          release: 0.25, // shorter than melody for stab character
+          release: 0.25,
           onload: () => resolve(s as any),
           onerror: (e: Error) => reject(e),
         });
@@ -207,13 +220,17 @@ export async function createBrowserPerformanceEngine(
       stats.samplesLoaded.harmony = true;
       stats.synthFallbacks.harmony = false;
       stats.voiceMode.harmony = 'sample';
+      sampleUrlsLoaded.push(...harmonyUrlList);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      sampleLoadErrors.push(`harmony: ${msg}`);
       if (debug) console.warn('[BrowserEngine] Harmony sample failed:', e);
       harmonySampler = null;
     }
   }
 
   if (melodyUrls) {
+    const melodyUrlList = Object.values(melodyUrls);
     try {
       melodySampler = await new Promise<InstanceType<typeof Tone.Sampler>>((resolve, reject) => {
         const s = new Tone.Sampler({
@@ -227,7 +244,10 @@ export async function createBrowserPerformanceEngine(
       stats.samplesLoaded.melody = true;
       stats.synthFallbacks.melody = false;
       stats.voiceMode.melody = 'sample';
+      sampleUrlsLoaded.push(...melodyUrlList);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      sampleLoadErrors.push(`melody: ${msg}`);
       if (debug) console.warn('[BrowserEngine] Melody sample failed:', e);
       melodySampler = null;
     }
