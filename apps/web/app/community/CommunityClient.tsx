@@ -7,7 +7,10 @@ import { AppShell } from '../../src/components/AppShell';
 import { TrendingSection } from '../../src/components/TrendingSection';
 import { SocialFeed } from '../../src/components/SocialFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
+import { CompareChartsPanel } from '../../src/components/community/CompareChartsPanel';
+import { ProfilePanel } from '../../src/components/community/ProfilePanel';
 import LibraryPanel from '../../src/components/library/LibraryPanel';
+import { useProfile } from '../../src/core/social/hooks';
 import AtlasSearch from '../../src/components/atlas/AtlasSearch';
 import { useChartsStore, useCompositionStore } from '../../src/store';
 import { isFeatureEnabled } from '../../src/core/config/flags';
@@ -22,11 +25,12 @@ const SessionsPanel = dynamic(
 );
 
 export default function CommunityClient() {
-  const [activeTab, setActiveTab] = useState<'feed' | 'matches' | 'connections' | 'saved' | 'search' | 'circles' | 'sessions'>('feed');
+  const [activeTab, setActiveTab] = useState<'profile' | 'feed' | 'compare' | 'matches' | 'connections' | 'saved' | 'search' | 'circles' | 'sessions'>('profile');
   const [filter, setFilter] = useState<'all' | 'charts' | 'compositions'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { charts } = useChartsStore();
   const { jobHistory } = useCompositionStore();
+  const { primaryChart } = useProfile();
 
   const filteredCharts = charts.filter(chart =>
     chart.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -49,7 +53,9 @@ export default function CommunityClient() {
   const items = getFilteredItems();
 
   const tabs = [
+    { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'feed', label: 'Feed', icon: '📱' },
+    { id: 'compare', label: 'Compare Charts', icon: '⚖️' },
     { id: 'matches', label: 'Matches', icon: '💫' },
     { id: 'connections', label: 'Connections', icon: '👥' },
     { id: 'saved', label: 'Saved Tracks', icon: '💾' },
@@ -157,6 +163,10 @@ export default function CommunityClient() {
           )}
         </motion.div>
 
+        {activeTab === 'profile' && (
+          <ProfilePanel onSwitchToMatches={() => setActiveTab('matches')} />
+        )}
+
         {activeTab === 'feed' && (
           <div className="space-y-6">
             <SocialFeed limit={10} />
@@ -164,9 +174,15 @@ export default function CommunityClient() {
           </div>
         )}
 
+        {activeTab === 'compare' && (
+          <div className="max-w-4xl mx-auto">
+            <CompareChartsPanel />
+          </div>
+        )}
+
         {activeTab === 'matches' && (
           <div className="max-w-4xl mx-auto">
-            <CompatibilitySection chartId="natal-1" limit={10} />
+            <CompatibilitySection chartId={primaryChart?.id ?? null} limit={10} />
           </div>
         )}
 

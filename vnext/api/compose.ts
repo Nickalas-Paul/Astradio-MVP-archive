@@ -589,6 +589,45 @@ export class ComposeAPI {
   }
 
   /**
+   * Explainer-only path for profile chart (no audio). Used by GET /api/profile/chart.
+   * Same pipeline: plan → gates → ExplainSpec → render. Additive; does not change compose().
+   */
+  async getExplainerSectionsForFeatures(
+    featureVec: FeatureVec,
+    payload: ControlSurfacePayload,
+    snapshot: EphemerisSnapshot
+  ): Promise<{ spec: string; sections: Array<{ id: string; title: string; text: string; bullets?: string[] }> }> {
+    const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+    if (!diag?.ml_used) {
+      const err = new Error('ML inference unavailable') as Error & { code?: string };
+      err.code = 'ML_INFERENCE_UNAVAILABLE';
+      throw err;
+    }
+    const gateReport = await this.runAuditionGates(plan, payload.hash);
+    const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
+    const planSummary = buildPlanSummary(plan);
+    const spec = buildExplainSpecSingle({
+      seed: payload.hash,
+      snapshot,
+      featureVec,
+      guidanceSummary,
+      plan,
+      planSummary,
+      gateReport
+    });
+    const rendered = renderExplainSpecToSections(spec);
+    return {
+      spec: 'UnifiedSpecV1.1',
+      sections: rendered.sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        text: s.text,
+        bullets: s.bullets
+      }))
+    };
+  }
+
+  /**
    * Store viz artifact to S3 with CDN headers
    */
   private async storeVizArtifact(hash: string, payload: any): Promise<void> {
