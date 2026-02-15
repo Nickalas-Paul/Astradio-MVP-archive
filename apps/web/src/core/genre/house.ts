@@ -17,8 +17,8 @@ const HOUSE_BASE: Omit<GenrePack, 'synthPatches' | 'fxProfile' | 'mixProfile'> =
     openHat: '/audio/samples/house/drums/hat_open.wav',
   },
   instrumentSamples: {
-    bassNotes: { C2: '/audio/samples/house/bass/bass_C2.wav' },
-    melodyNotes: { C4: '/audio/samples/house/melody/pluck_C4.wav' },
+    bass: '/audio/samples/house/bass/bass_C2.wav',
+    melody: '/audio/samples/house/melody/pluck_C4.wav',
     // harmony omitted – synth fallback
   },
 };
