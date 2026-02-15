@@ -6,21 +6,20 @@
 import type { GenrePack, DrumKit, InstrumentSamples, SynthPatches, FxProfile, MixProfile } from './types';
 import { lerpFromSeed } from './seed';
 
-/** House drum kit: reuse existing 808 samples under public/audio/samples/drums/808. */
+/** House drum kit and tonal samples under public/audio/samples/house/. */
 const HOUSE_BASE: Omit<GenrePack, 'synthPatches' | 'fxProfile' | 'mixProfile'> = {
   id: 'house',
   displayName: 'House',
   drumKit: {
-    kick: '/audio/samples/drums/808/kick.wav',
-    clap: '/audio/samples/drums/808/snare.wav', // Map clap to snare (house often uses snare/clap interchangeably)
-    closedHat: '/audio/samples/drums/808/hat.wav',
-    openHat: '/audio/samples/drums/808/hat.wav',
+    kick: '/audio/samples/house/drums/kick.wav',
+    clap: '/audio/samples/house/drums/clap.wav',
+    closedHat: '/audio/samples/house/drums/hat_open.wav',
+    openHat: '/audio/samples/house/drums/hat_open.wav',
   },
-  // Optional instrument samples (empty = use synth fallback)
   instrumentSamples: {
-    bass: '', // Future: '/audio/samples/house/bass.wav'
-    harmony: '', // Future: '/audio/samples/house/stab.wav'
-    melody: '', // Future: '/audio/samples/house/pluck.wav'
+    bassNotes: { C2: '/audio/samples/house/bass/bass_C2.wav' },
+    melodyNotes: { C4: '/audio/samples/house/melody/pluck_C4.wav' },
+    // harmony omitted – synth fallback
   },
 };
 
@@ -52,11 +51,12 @@ export function getHousePack(seed: string): GenrePack {
   };
 
   const fxProfile: FxProfile = {
-    // Reverb discipline: limited tails, clarity prioritized
-    plateWet: f('fx:plate', 0.06, 0.12), // Reduced from 0.08-0.16
-    delayWet: f('fx:delay', 0.02, 0.06), // Reduced from 0.03-0.08
-    delayTimeMs: 240 + f('fx:delayTime', 0, 60), // Slightly shorter
-    clapRoomWet: f('fx:clapRoom', 0.25, 0.38), // Reduced from 0.28-0.42
+    plateWet: f('fx:plate', 0.06, 0.12),
+    delayWet: f('fx:delay', 0.02, 0.06),
+    delayTimeMs: 240 + f('fx:delayTime', 0, 60),
+    clapRoomWet: f('fx:clapRoom', 0.25, 0.38),
+    saturationAmount: f('fx:saturation', 0.04, 0.08),
+    chorusWidth: f('fx:chorus', 0.02, 0.06),
   };
 
   const mixProfile: MixProfile = {
@@ -64,6 +64,8 @@ export function getHousePack(seed: string): GenrePack {
     bassGain: f('mix:bass', 0.5, 0.65),
     harmonyGain: f('mix:harmony', 0.35, 0.5),
     melodyGain: f('mix:melody', 0.3, 0.45),
+    hatGain: f('mix:hat', 0.4, 0.55),
+    clapGain: f('mix:clap', 0.45, 0.6),
     sidechainDuckBass: f('mix:duckBass', 0.18, 0.26),
     sidechainDuckHarmony: f('mix:duckHarmony', 0.08, 0.14),
   };
