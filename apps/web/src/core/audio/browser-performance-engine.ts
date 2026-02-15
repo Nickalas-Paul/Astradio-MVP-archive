@@ -111,9 +111,10 @@ export async function createBrowserPerformanceEngine(
   };
 
   const instrumentSamples = pack.instrumentSamples ?? {};
-  const bassUrls = buildSamplerUrls(instrumentSamples.bass, instrumentSamples.bassNotes);
-  const harmonyUrls = buildHarmonyUrls(instrumentSamples.harmony, instrumentSamples.harmonyNotes);
-  const melodyUrls = buildMelodyUrls(instrumentSamples.melody, instrumentSamples.melodyNotes);
+  const samples = instrumentSamples as { bass?: string; bassNotes?: Record<string, string>; harmony?: string; harmonyNotes?: Record<string, string>; melody?: string; melodyNotes?: Record<string, string> };
+  const bassUrls = buildSamplerUrls(samples.bass, samples.bassNotes);
+  const harmonyUrls = buildHarmonyUrls(samples.harmony, samples.harmonyNotes);
+  const melodyUrls = buildMelodyUrls(samples.melody, samples.melodyNotes);
 
   // --- Master bus + limiter ---
   const masterBus = new Tone.Gain(1);
