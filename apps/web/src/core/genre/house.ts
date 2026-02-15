@@ -55,8 +55,6 @@ export function getHousePack(seed: string): GenrePack {
     delayWet: f('fx:delay', 0.02, 0.06),
     delayTimeMs: 240 + f('fx:delayTime', 0, 60),
     clapRoomWet: f('fx:clapRoom', 0.25, 0.38),
-    saturationAmount: f('fx:saturation', 0.04, 0.08),
-    chorusWidth: f('fx:chorus', 0.02, 0.06),
   };
 
   const mixProfile: MixProfile = {
@@ -64,8 +62,6 @@ export function getHousePack(seed: string): GenrePack {
     bassGain: f('mix:bass', 0.5, 0.65),
     harmonyGain: f('mix:harmony', 0.35, 0.5),
     melodyGain: f('mix:melody', 0.3, 0.45),
-    hatGain: f('mix:hat', 0.4, 0.55),
-    clapGain: f('mix:clap', 0.45, 0.6),
     sidechainDuckBass: f('mix:duckBass', 0.18, 0.26),
     sidechainDuckHarmony: f('mix:duckHarmony', 0.08, 0.14),
   };
