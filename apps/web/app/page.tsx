@@ -252,8 +252,8 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [geo.status, geo.lat, geo.lon]);
 
-  // Audio playback: layered strategy. ?engine=browser|server|legacy (default: browser).
-  // Order: try chosen engine first, then fallbacks (browser → server WAV → legacy).
+  // Audio playback: ?engine=browser|server|legacy is a preference (default: browser), not a hard lock.
+  // Resolution: try requested engine first, then fallback in canonical order browser → server WAV → legacy.
   useEffect(() => {
     let audioElement: HTMLAudioElement | null = null;
 
@@ -523,7 +523,7 @@ export default function HomePage() {
                 <>
                   {engineChosen && (
                     <p className="text-xs text-amber-400/90 font-mono">
-                      Engine: {engineChosen}
+                      Engine: {engineChosen} (preference; fallback: browser → server → legacy)
                     </p>
                   )}
                   {engineStats && (
