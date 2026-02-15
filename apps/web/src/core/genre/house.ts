@@ -56,10 +56,10 @@ export function getHousePack(seed: string): GenrePack {
   };
 
   const fxProfile: FxProfile = {
-    plateWet: f('fx:plate', 0.06, 0.12),
-    delayWet: f('fx:delay', 0.02, 0.06),
+    plateWet: f('fx:plate', 0.04, 0.08),
+    delayWet: f('fx:delay', 0.02, 0.05),
     delayTimeMs: 240 + f('fx:delayTime', 0, 60),
-    clapRoomWet: f('fx:clapRoom', 0.25, 0.38),
+    clapRoomWet: f('fx:clapRoom', 0.15, 0.25),
   };
 
   const mixProfile: MixProfile = {

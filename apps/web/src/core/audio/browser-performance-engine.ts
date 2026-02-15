@@ -1,8 +1,8 @@
 /**
  * Browser Performance Engine (House default).
- * Sample-first instrumentation with improved voicing. Consumes Plan + payload.hash + payload.genre,
- * plays via Tone.js with genre pack (samples + synths). Deterministic event scheduling and param
- * choice from seed; audio output may vary slightly across devices. Export remains server-authoritative.
+ * Voice priority: sample first → SoundFont (if enabled) → synth fallback. Consumes Plan + payload.hash + genre
+ * (e.g. payload.controls.genre). Plays via Tone.js with genre pack (samples + synths). Deterministic
+ * event scheduling and param choice from seed; audio output may vary slightly across devices. Export remains server-authoritative.
  */
 
 import type { Plan, EventToken } from '../plan-to-tone-events';
@@ -102,6 +102,7 @@ export async function createBrowserPerformanceEngine(
       hat: (pack.mixProfile as { hatGain?: number }).hatGain ?? 0.5,
       clap: (pack.mixProfile as { clapGain?: number }).clapGain ?? 0.55,
     },
+    // Actual reverb send per stem (pack-defined; bass always 0)
     reverbSends: {
       harmony: pack.fxProfile.plateWet,
       melody: pack.fxProfile.plateWet,
@@ -360,9 +361,9 @@ export async function createBrowserPerformanceEngine(
   melSat.connect(melodyGain);
   melodyGain.connect(masterBus);
 
-  // --- FX: plate (harmony/melody only), room (clap only), delay ---
-  const plateReverb = new Tone.Reverb({ decay: 1.2, wet: pack.fxProfile.plateWet });
-  const clapRoom = new Tone.Reverb({ decay: 0.4, wet: pack.fxProfile.clapRoomWet });
+  // --- FX: plate (harmony/melody only), room (clap only), delay. Shorter decay for drier house; bass stays dry. ---
+  const plateReverb = new Tone.Reverb({ decay: 1.0, wet: pack.fxProfile.plateWet });
+  const clapRoom = new Tone.Reverb({ decay: 0.3, wet: pack.fxProfile.clapRoomWet });
   const delay = new Tone.FeedbackDelay({
     delayTime: pack.fxProfile.delayTimeMs / 1000,
     feedback: 0.25,
