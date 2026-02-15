@@ -1,23 +1,48 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../core/api-base';
 import { useCompat } from '../core/social/hooks';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 
+type CompatMode = 'friend' | 'lover' | 'rival';
+
 interface CompatibilitySectionProps {
-  chartId: string;
+  chartId: string | null;
   limit?: number;
   className?: string;
 }
 
-export function CompatibilitySection({ chartId, limit = 3, className = '' }: CompatibilitySectionProps) {
-  const { matches, isLoading: loading, error } = useCompat({ goal: 'friend', pageSize: limit });
+const MODES: { value: CompatMode; label: string }[] = [
+  { value: 'friend', label: 'Friend' },
+  { value: 'lover', label: 'Lover' },
+  { value: 'rival', label: 'Rival' },
+];
+
+export function CompatibilitySection({ chartId, limit = 10, className = '' }: CompatibilitySectionProps) {
+  const [mode, setMode] = useState<CompatMode>('friend');
+  const { matches, isLoading: loading, error, refresh } = useCompat({
+    chartId,
+    mode,
+    limit,
+  });
 
   // Don't render if feature is disabled
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
     return null;
+  }
+
+  if (!chartId) {
+    return (
+      <div className={`card ${className}`}>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
+        <p className="text-subtext text-sm">
+          Go to Profile to set your primary chart, then come back to see matches.
+        </p>
+      </div>
+    );
   }
 
   const handlePlayCompatibility = async (targetChartId: string, score: number) => {
@@ -67,12 +92,40 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
     return 'Fair';
   };
 
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+      <h3 className="text-lg font-semibold text-text">Compatibility Matches</h3>
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-full bg-bgElev border border-border p-0.5">
+          {MODES.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => setMode(m.value)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                mode === m.value ? 'bg-emerald text-bg' : 'text-subtext hover:text-text'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => refresh()}
+          disabled={loading}
+          className="px-3 py-1.5 rounded-lg text-sm bg-bgElev text-subtext hover:text-text border border-border disabled:opacity-50"
+        >
+          Refresh
+        </button>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
-          Compatibility Matches
-        </h3>
+        {header}
         <div className="space-y-3">
           {Array.from({ length: limit }).map((_, i) => (
             <div key={i} className="skeleton h-24 rounded-lg" />
@@ -85,9 +138,7 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
   if (error) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
-          Compatibility Matches
-        </h3>
+        {header}
         <div className="text-center py-8">
           <p className="text-subtext text-sm">Unable to load compatibility matches</p>
         </div>
@@ -98,9 +149,7 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
   if (matches.length === 0) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
-          Compatibility Matches
-        </h3>
+        {header}
         <div className="text-center py-8">
           <p className="text-subtext text-sm">No compatibility matches found</p>
           <p className="text-xs text-subtext mt-1">
@@ -113,9 +162,7 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
 
   return (
     <div className={`card ${className}`}>
-      <h3 className="text-lg font-semibold text-text mb-4">
-        Compatibility Matches
-      </h3>
+      {header}
       
       <div className="space-y-4">
         {matches.map((match, index) => (
@@ -136,7 +183,7 @@ export function CompatibilitySection({ chartId, limit = 3, className = '' }: Com
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-text">
-                    User {match.userId.slice(-4)}
+                    {match.displayName ?? `User ${match.userId.slice(-4)}`}
                   </h4>
                   <p className="text-xs text-subtext">
                     Chart {match.chartId.slice(-4)}

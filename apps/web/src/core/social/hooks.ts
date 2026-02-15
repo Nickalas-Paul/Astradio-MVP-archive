@@ -272,11 +272,115 @@ export function useUserActivity(userId?: string) {
   return { activities, addActivity, loading, error };
 }
 
-// Compatibility hooks
+// Profile (stub user + primary chart + chart explainer)
+export interface ProfileUser {
+  id: string;
+  displayName: string;
+}
+export interface ProfilePrimaryChart {
+  id: string;
+  label: string;
+  date: string;
+  time: string;
+  lat: number;
+  lon: number;
+  timezone?: string;
+}
+export interface ProfileChartSection {
+  id: string;
+  title: string;
+  text: string;
+  bullets?: string[];
+}
+export interface ProfileChartResponse {
+  chart: ProfilePrimaryChart & { createdAt?: string; updatedAt?: string };
+  snapshot: Record<string, unknown>;
+  explainer: { spec: string; sections: ProfileChartSection[] };
+  meta: { encoderVersion?: string; explainerVersion?: string; generatedAt: string };
+}
+
+export function useProfile() {
+  const [user, setUser] = useState<ProfileUser | null>(null);
+  const [primaryChart, setPrimaryChart] = useState<ProfilePrimaryChart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setLoading(true);
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/profile`, { credentials: 'same-origin' });
+      if (!r.ok) throw new Error('Failed to fetch profile');
+      const data = await r.json();
+      setUser(data.user ?? null);
+      setPrimaryChart(data.primaryChart ?? null);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      setUser(null);
+      setPrimaryChart(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { user, primaryChart, loading, error, refresh };
+}
+
+export function useProfileChart(chartId: string | null) {
+  const [data, setData] = useState<ProfileChartResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!chartId) {
+      setData(null);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const r = await fetch(
+        `${getApiBaseUrl() || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`,
+        { credentials: 'same-origin' }
+      );
+      if (!r.ok) throw new Error('Failed to fetch profile chart');
+      const json = await r.json();
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load chart explainer');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [chartId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
+}
+
+// Compatibility hooks. Standard params: chartId, mode, limit, cursor. goal/pageSize accepted as backward-compat aliases (goal→mode, pageSize→limit).
+function goalToMode(goal?: string): 'friend' | 'lover' | 'rival' {
+  if (goal === 'lover' || goal === 'romantic') return 'lover';
+  if (goal === 'rival') return 'rival';
+  return 'friend';
+}
+
 export function useCompat(params: {
-  goal: 'friend' | 'romantic' | 'mentor' | 'rival';
+  chartId: string | null;
+  mode?: 'friend' | 'lover' | 'rival';
   cursor?: string;
   pageSize?: number;
+  limit?: number;
+  /** @deprecated Use mode. Maps romantic→lover, rival→rival, else→friend */
+  goal?: 'friend' | 'romantic' | 'mentor' | 'rival';
+  facets?: string[];
   filters?: {
     distanceKm?: number;
     languages?: string[];
@@ -289,31 +393,38 @@ export function useCompat(params: {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const effectiveMode = params.mode ?? goalToMode(params.goal);
+  const effectiveLimit = params.limit ?? params.pageSize ?? 10;
+
   const refresh = useCallback(async () => {
+    if (!params.chartId) {
+      setMatches([]);
+      setIsLoading(false);
+      return;
+    }
     const abortController = new AbortController();
-    
     try {
       setIsLoading(true);
-      // Convert params to query string for GET request
       const queryParams = new URLSearchParams();
-      if (params.goal) queryParams.set('goal', params.goal);
+      queryParams.set('chartId', params.chartId);
+      queryParams.set('mode', effectiveMode);
+      queryParams.set('limit', String(effectiveLimit));
       if (params.cursor) queryParams.set('cursor', params.cursor);
-      if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+      if (params.facets?.length) queryParams.set('facets', params.facets.join(','));
       if (params.filters) {
         Object.entries(params.filters).forEach(([key, value]) => {
           if (value) queryParams.set(`filter_${key}`, value.toString());
         });
       }
-      
       const base = getApiBaseUrl();
       const response = await fetch(`${base || ''}/api/compat/matches?${queryParams.toString()}`, {
         method: 'GET',
         signal: abortController.signal,
-        credentials: 'same-origin'
+        credentials: 'same-origin',
       });
       if (!response.ok) throw new Error('Failed to fetch matches');
       const data = await response.json();
-      setMatches(data.matches || []);
+      setMatches(Array.isArray(data.matches) ? data.matches : []);
       setNextCursor(data.nextCursor);
       setError(null);
     } catch (err) {
@@ -323,9 +434,8 @@ export function useCompat(params: {
     } finally {
       setIsLoading(false);
     }
-    
     return () => abortController.abort();
-  }, [params.goal, params.cursor, params.pageSize, JSON.stringify(params.filters)]);
+  }, [params.chartId, effectiveMode, effectiveLimit, params.cursor, params.facets, JSON.stringify(params.filters)]);
 
   useEffect(() => {
     refresh();

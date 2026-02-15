@@ -34,6 +34,7 @@ export type ScoreResult = {
 export type CompatMatch = {
   userId: string;
   chartId: ChartID;
+  displayName?: string;
   score: number;
   facets: CompatFacet[];
   rationale: string;
