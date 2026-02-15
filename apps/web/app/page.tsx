@@ -47,7 +47,10 @@ export default function HomePage() {
     voiceMode: { bass: string; harmony: string; melody: string };
     soundfontLoaded?: { bass: boolean; harmony: boolean; melody: boolean };
     reverbSends?: { bass: number; harmony: number; melody: number; clap: number };
+    sampleLoadErrors?: string[];
+    sampleUrlsLoaded?: string[];
   } | null>(null);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const audioBlobUrlRef = useRef<string | null>(null);
   const toneSeqRef = useRef<any>(null);
   const toneModuleRef = useRef<typeof import('tone') | null>(null);
@@ -72,6 +75,14 @@ export default function HomePage() {
         audioBlobUrlRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const dev = process.env.NODE_ENV === 'development';
+    const fromUrl =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('debug') === '1';
+    setShowDebugPanel(dev || fromUrl);
   }, []);
 
   // 1) defaults: today / now / geolocation
@@ -278,12 +289,14 @@ export default function HomePage() {
       });
       browserEngineRef.current = handle;
       if (debug && handle.getStats) {
-        const s = handle.getStats();
+        const s = handle.getStats() as any;
         setEngineStats({
-          samplesLoaded: (s as any).samplesLoaded ?? { drums: false, bass: false, harmony: false, melody: false },
-          voiceMode: (s as any).voiceMode ?? { bass: 'synth', harmony: 'synth', melody: 'synth' },
-          soundfontLoaded: (s as any).soundfontLoaded,
-          reverbSends: (s as any).reverbSends,
+          samplesLoaded: s.samplesLoaded ?? { drums: false, bass: false, harmony: false, melody: false },
+          voiceMode: s.voiceMode ?? { bass: 'synth', harmony: 'synth', melody: 'synth' },
+          soundfontLoaded: s.soundfontLoaded,
+          reverbSends: s.reverbSends,
+          ...(s.sampleLoadErrors && { sampleLoadErrors: s.sampleLoadErrors }),
+          ...(s.sampleUrlsLoaded && { sampleUrlsLoaded: s.sampleUrlsLoaded }),
         });
       }
       await handle.start();
@@ -519,7 +532,7 @@ export default function HomePage() {
                   ⚠️ {engineError}
                 </p>
               )}
-              {(process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1')) && (
+              {showDebugPanel && (
                 <>
                   {engineChosen && (
                     <p className="text-xs text-amber-400/90 font-mono">
@@ -529,11 +542,21 @@ export default function HomePage() {
                   {engineStats && (
                     <>
                       <p className="text-xs text-amber-400/90 font-mono">
-                        Samples: bass {engineStats.samplesLoaded.bass ? 'yes' : 'no'} / harmony {engineStats.samplesLoaded.harmony ? 'yes' : 'no'} / melody {engineStats.samplesLoaded.melody ? 'yes' : 'no'}
-                      </p>
-                      <p className="text-xs text-amber-400/90 font-mono">
                         Voices: {engineStats.voiceMode.bass} / {engineStats.voiceMode.harmony} / {engineStats.voiceMode.melody}
                       </p>
+                      <p className="text-xs text-amber-400/90 font-mono">
+                        Samples: bass {engineStats.samplesLoaded.bass ? 'yes' : 'no'} / harmony {engineStats.samplesLoaded.harmony ? 'yes' : 'no'} / melody {engineStats.samplesLoaded.melody ? 'yes' : 'no'}
+                      </p>
+                      {engineStats.sampleUrlsLoaded && engineStats.sampleUrlsLoaded.length > 0 && (
+                        <p className="text-xs text-amber-400/90 font-mono truncate" title={engineStats.sampleUrlsLoaded.join(', ')}>
+                          Loaded: {engineStats.sampleUrlsLoaded.slice(0, 3).join(', ')}{engineStats.sampleUrlsLoaded.length > 3 ? '…' : ''}
+                        </p>
+                      )}
+                      {engineStats.sampleLoadErrors && engineStats.sampleLoadErrors.length > 0 && (
+                        <p className="text-xs text-red-400 font-mono" title={engineStats.sampleLoadErrors.join(', ')}>
+                          Sample errors: {engineStats.sampleLoadErrors.join('; ')}
+                        </p>
+                      )}
                       {engineStats.reverbSends && (
                         <p className="text-xs text-amber-400/90 font-mono">
                           Reverb: bass {engineStats.reverbSends.bass} · harm {engineStats.reverbSends.harmony} · mel {engineStats.reverbSends.melody} · clap {engineStats.reverbSends.clap}
