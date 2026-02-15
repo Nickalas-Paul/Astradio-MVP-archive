@@ -4,8 +4,9 @@ Layered server/browser approach and export plan. Plan is the single source of tr
 
 ## Engine selection (web app)
 
-- **Query param:** `?engine=browser|server|legacy` (default: `browser`).
-- **Playback order:** Try chosen engine first; on failure fall back in order: browser → server WAV → legacy Tone.
+- **Query param:** `?engine=browser|server|legacy` (default: `browser`) is a **preference**, not a hard lock.
+- **Resolution:** Try requested engine first; on failure fall back in canonical order **browser → server WAV → legacy**. Same fallback order regardless of preference.
+- **Hard lock (future):** A separate param e.g. `?engineLock=1` may be used to disable fallback; do not change behavior without documenting it.
 - **Debug:** `?debug=1` shows engine chosen, voice mode per stem (sample | soundfont | synth), samples loaded, soundfont programs loaded, reverb send per stem.
 
 ## Layer A (existing): Composition Pipeline (server)
@@ -13,54 +14,24 @@ Layered server/browser approach and export plan. Plan is the single source of tr
 - **Request** → snapshot → features → ML → guidance → **plan** → provenance
 - No changes. Swiss Ephemeris snapshot, feature encoding, ML, guidance, plan generation, Plan/EventToken schema, API request/response shapes, payload hashing, and provenance hashes are unchanged.
 - **Determinism:** Same inputs → same plan.
-- **Output:** `plan` (events with t0/t1/pitch/velocity/channel), `payload.hash` (seed), `payload.genre` (default "house"), provenance hashes.
+- **Output:** `plan` (events with t0/t1/pitch/velocity/channel), `payload.hash` (seed), `payload.controls.genre` (default "house"), provenance hashes.
 
-### Plan Novelty Strategy (Library + Transformation)
+### Future: Plan Novelty Strategy (Library + Transformation)
 
-**Problem:** Formulaic scale melodies over repeated chord loops.
-
-**Solution:** Expanded libraries + deterministic transformations:
-
-1. **Expanded Libraries** (`vnext/planner/libraries.ts`):
-   - **30-60 chord progressions:** Diatonic loops, modal interchange, secondary dominants, pedal variations (4 or 8 bars)
-   - **12 bassline patterns:** Offbeat, rolling, syncopated pickup, sustained, walking, pedal
-   - **50 hook motifs:** Ascending, descending, arc, call-response, repetitive, ornamental families (1-2 bars)
-
-2. **Deterministic Selection:**
-   - Seeded from `payload.hash` + snapshot/features
-   - Elements/modality/aspect_tension → brightness families
-   - Moon phase → cadence style
-   - Cluster density → rhythmic density of hook
-   - Dominant planet → register and repetition
-
-3. **Transformation Pipeline** (`vnext/planner/transformations.ts`):
-   - **2-4 transformations per track:** transpose, rhythmic shift, invert, octave displace, truncate/extend, add pickup, add rest before cadence, ornament
-   - **A/A'/B/A structure:** A (original), A' (one transformation), B (contrast), A (return with fill)
-   - Seeded and feature-driven (Mercury agility → rhythmic/ornamental, Fire/Air → transpose/extend)
-
-4. **Harmonic Rhythm & Voicing Variation:**
-   - More chord rhythm patterns per phrase
-   - Chord extensions (6/7/9) controlled by tension and personality gravity
-   - Voice-leading with constraints (no mechanical jumps)
-
-5. **Novelty Budget (Debug IDs):**
-   - `plan.debug.progressionId`, `motifId`, `bassPatternId`, `transformationSequence`
-   - Ensures each new plan differs measurably from previous
-   - Verification script: `vnext/scripts/plan-novelty-verification.ts`
+Planner changes (libraries, transformations, novelty budget) are out of scope for this playback/engine stage. See `vnext/planner/` and future docs for Plan Novelty Strategy.
 
 ## Layer B: Browser Performance Engine (primary for "play")
 
-- **Input:** `plan`, `seed` (payload.hash), `genre` (payload.genre ?? 'house')
+- **Input:** `plan`, `seed` (payload.hash), `genre` from runtime (e.g. `payload.controls.genre` ?? 'house'). Use `payload.controls.genre` as the canonical genre field; do not introduce a second source.
 - **Voice priority:** Sample first → SoundFont (if `NEXT_PUBLIC_SOUNDFONT=1`) → synth fallback
 - **Stem chain per voice:** source (Sampler / SoundFont / Synth) → HPF + LPF (separate nodes, no filter inside Synth opts) → subtle saturation (WaveShaper) → optional chorus (harmony only) → stem gain → reverb/delay per pack; bass is mono, dry, never reverb/chorus
 - **Bass:** MonoSynth (saw) when no sample; HPF ~30–40 Hz, LPF 200–800 Hz from pack; fast attack, short decay; no reverb
 - **Harmony:** LPF 600–1200 Hz, HPF to remove mud; subtle chorus; plate + delay
 - **Melody:** Triangle/sine when synth; HPF + LPF; plate + delay
 - **Drums:** Sample-first (kick, clap, hat); closed hat uses shorter fade when same sample as open
-- **Sidechain:** Bass and harmony duck from kick; short release; melody not ducked
-- **Master:** Limiter at -1 dB
-- **Determinism:** Same plan + seed + genre → same scheduling and parameter choices (no Math.random / Date.now)
-- **Output:** Handle `start()` / `stop()` / `getStats()`; stats include voiceMode (sample | soundfont | synth), samplesLoaded, soundfontLoaded, reverbSends
+- **Master routing:** All stems route to a shared master bus. Reverb and delay returns also route to master bus. Sidechain duck is applied on bass and harmony stem gain, triggered by kick onsets from Plan. Final limiter at -1 dB on master.
+- **Determinism:** Same plan + seed + genre → same scheduling and parameter choices (no Math.random / Date.now). GenrePack provides base mix and FX values; seeded variation applies only as bounded deltas around the base (no wide parameter swings by seed).
+- **Output:** Handle `start()` / `stop()` / `getStats()`; stats include voiceMode (sample | soundfont | synth), samplesLoaded, soundfontLoaded, reverbSends (actual send per stem)
 
 ## Layer C: Server Render Engines
 
@@ -77,10 +48,10 @@ Layered server/browser approach and export plan. Plan is the single source of tr
   1. **Samples:** `instrumentSamples` (optional bass/harmony/melody URLs) tried first
   2. **SoundFont:** `soundfontPrograms` (MIDI program numbers) used if samples unavailable (browser: `apps/web/src/core/audio/soundfont-loader.ts`, server: FluidSynth SF2)
   3. **Synth:** `synthPatches` used as final fallback (Tone.js synths in browser, procedural in server)
-- **Seeding:** All param variations (filter cutoff, decay, gain, FX wet, saturation, HPF/LPF) are derived from `payload.hash` + key (no `Math.random`). Same chart → same pack params.
+- **Seeding:** GenrePack base values plus bounded seeded deltas only (no wide swings). All param variation from `payload.hash` + key (no `Math.random`). Same chart → same pack params.
 - **Reuse:** Future `ServerOfflineRenderEngine` will:
-  1. Export MIDI from plan (`vnext/midi/plan-to-midi.ts` already exists)
-  2. Render MIDI through SoundFont or curated sample packs using the same Genre Pack definitions
+  1. Export MIDI from plan (`vnext/midi/plan-to-midi.ts` exists)
+  2. Render MIDI through FluidSynth (SF2) or sample packs using same Genre Pack; scaffold: `vnext/audio/server-offline-render-engine.ts`
   3. Ensure export WAV matches browser playback character (same samples, same patches)
 
 ## Why browser playback is not export-authoritative
@@ -103,11 +74,5 @@ Layered server/browser approach and export plan. Plan is the single source of tr
 - Sidechain kick count
 - FX wet amounts
 
-**Plan novelty verification** (`vnext/scripts/plan-novelty-verification.ts`):
-- Prints `progressionId`, `motifId`, `bassPatternId`, `transformationSequence`
-- Confirms determinism: same seed + inputs → same IDs
-- Confirms novelty: different seed → different IDs
-
 **Determinism verification:**
-- Same plan + seed → same scheduled event times, same chosen parameters (filter cutoff, decay, gain, FX wet)
-- Same seed + inputs → same progression/motif/bass pattern IDs and transformation sequence
+- Same plan + seed + genre → same scheduled event times and chosen parameters (filter cutoff, decay, gain, FX wet)
