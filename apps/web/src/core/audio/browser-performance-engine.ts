@@ -99,8 +99,8 @@ export async function createBrowserPerformanceEngine(
       bass: pack.mixProfile.bassGain,
       harmony: pack.mixProfile.harmonyGain,
       melody: pack.mixProfile.melodyGain,
-      hat: pack.mixProfile.hatGain ?? 0.5,
-      clap: pack.mixProfile.clapGain ?? 0.55,
+      hat: (pack.mixProfile as { hatGain?: number }).hatGain ?? 0.5,
+      clap: (pack.mixProfile as { clapGain?: number }).clapGain ?? 0.55,
     },
     reverbSends: {
       harmony: pack.fxProfile.plateWet,
@@ -132,8 +132,8 @@ export async function createBrowserPerformanceEngine(
   const drumPlayers: Record<string, InstanceType<typeof Tone.Player>> = {};
   let drumsOk = false;
   const kickGain = new Tone.Gain(pack.mixProfile.kickGain);
-  const clapGain = new Tone.Gain(pack.mixProfile.clapGain ?? 0.55);
-  const hatGain = new Tone.Gain(pack.mixProfile.hatGain ?? 0.5);
+  const clapGain = new Tone.Gain((pack.mixProfile as { clapGain?: number }).clapGain ?? 0.55);
+  const hatGain = new Tone.Gain((pack.mixProfile as { hatGain?: number }).hatGain ?? 0.5);
   const hatHpf = new Tone.Filter({ type: 'highpass', frequency: 400, Q: 0.7 });
 
   try {
@@ -287,7 +287,7 @@ export async function createBrowserPerformanceEngine(
     frequency: pack.synthPatches.harmony.filterCutoffHz[1],
     Q: 0.7,
   });
-  const harmSatAmount = pack.fxProfile.saturationAmount ?? 0.05;
+  const harmSatAmount = (pack.fxProfile as { saturationAmount?: number }).saturationAmount ?? 0.05;
   const harmSat = new Tone.WaveShaper((x: number) => {
     const t = x * (1 + harmSatAmount);
     return Math.tanh(t);
@@ -330,7 +330,7 @@ export async function createBrowserPerformanceEngine(
     frequency: pack.synthPatches.melody.filterCutoffHz[1],
     Q: 0.7,
   });
-  const melSatAmount = pack.fxProfile.saturationAmount ?? 0.05;
+  const melSatAmount = (pack.fxProfile as { saturationAmount?: number }).saturationAmount ?? 0.05;
   const melSat = new Tone.WaveShaper((x: number) => {
     const t = x * (1 + melSatAmount);
     return Math.tanh(t);
