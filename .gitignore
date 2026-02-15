@@ -76,6 +76,10 @@ jspm_packages/
 # Gatsby files
 .cache/
 public
+!apps/web/public/
+!apps/web/public/audio/
+!apps/web/public/audio/samples/
+!apps/web/public/audio/samples/house/
 
 # Storybook build outputs
 .out
