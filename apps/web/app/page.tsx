@@ -41,10 +41,17 @@ export default function HomePage() {
     return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
   }
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+  const [engineChosen, setEngineChosen] = useState<'browser' | 'server' | 'legacy' | null>(null);
+  const [engineStats, setEngineStats] = useState<{
+    samplesLoaded: { drums: boolean; bass: boolean; harmony: boolean; melody: boolean };
+    voiceMode: { bass: string; harmony: string; melody: string };
+    soundfontLoaded?: { bass: boolean; harmony: boolean; melody: boolean };
+    reverbSends?: { bass: number; harmony: number; melody: number; clap: number };
+  } | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
   const toneSeqRef = useRef<any>(null);
   const toneModuleRef = useRef<typeof import('tone') | null>(null);
-  const browserEngineRef = useRef<{ stop: () => void } | null>(null);
+  const browserEngineRef = useRef<{ stop: () => void; getStats?: () => unknown } | null>(null);
 
   async function getTone(): Promise<typeof import('tone') | null> {
     if (typeof window === 'undefined') return null;
@@ -245,50 +252,96 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [geo.status, geo.lat, geo.lon]);
 
-  // Audio playback: prefer Browser Performance Engine (House pack), then server WAV, then legacy Tone fallback
+  // Audio playback: layered strategy. ?engine=browser|server|legacy (default: browser).
+  // Order: try chosen engine first, then fallbacks (browser → server WAV → legacy).
   useEffect(() => {
     let audioElement: HTMLAudioElement | null = null;
 
+    function getEnginePreference(): 'browser' | 'server' | 'legacy' {
+      if (typeof window === 'undefined') return 'browser';
+      const p = new URLSearchParams(window.location.search).get('engine');
+      if (p === 'server' || p === 'legacy') return p;
+      return 'browser';
+    }
+
+    async function tryBrowser(): Promise<boolean> {
+      const hasPlan = composePlan?.events?.length > 0 && composeHash;
+      if (!hasPlan) return false;
+      const urlDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1';
+      const debug = urlDebug || process.env.NODE_ENV === 'development';
+      const { createBrowserPerformanceEngine } = await import('../src/core/audio/browser-performance-engine');
+      const handle = await createBrowserPerformanceEngine({
+        plan: composePlan,
+        seed: composeHash,
+        genre: composeGenre ?? 'house',
+        debug,
+      });
+      browserEngineRef.current = handle;
+      if (debug && handle.getStats) {
+        const s = handle.getStats();
+        setEngineStats({
+          samplesLoaded: (s as any).samplesLoaded ?? { drums: false, bass: false, harmony: false, melody: false },
+          voiceMode: (s as any).voiceMode ?? { bass: 'synth', harmony: 'synth', melody: 'synth' },
+          soundfontLoaded: (s as any).soundfontLoaded,
+          reverbSends: (s as any).reverbSends,
+        });
+      }
+      await handle.start();
+      return true;
+    }
+
+    async function tryServerWav(): Promise<boolean> {
+      if (!audioUrl) return false;
+      return new Promise((resolve) => {
+        audioElement = new Audio(audioUrl);
+        audioElement!.play().then(() => resolve(true)).catch(() => resolve(false));
+      });
+    }
+
     async function handlePlay() {
       const audioStartTime = performance.now();
+      setEngineChosen(null);
+      const preference = getEnginePreference();
       try {
-        // 1) Prefer browser performance engine when we have plan + seed (House default)
-        const hasPlan = composePlan?.events?.length > 0 && composeHash;
-        if (hasPlan) {
-          try {
-            const { createBrowserPerformanceEngine } = await import('../src/core/audio/browser-performance-engine');
-            const handle = await createBrowserPerformanceEngine({
-              plan: composePlan,
-              seed: composeHash,
-              genre: composeGenre ?? 'house',
-              debug: process.env.NODE_ENV === 'development', // Enable verification logging in dev
-            });
-            browserEngineRef.current = handle;
-            await handle.start();
+        const tryOrder: Array<'browser' | 'server' | 'legacy'> =
+          preference === 'server' ? ['server', 'browser', 'legacy'] :
+          preference === 'legacy' ? ['legacy', 'browser', 'server'] :
+          ['browser', 'server', 'legacy'];
+
+        for (const engine of tryOrder) {
+          if (engine === 'browser') {
+            try {
+              const ok = await tryBrowser();
+              if (ok) {
+                setEngineChosen('browser');
+                setAudioStartupTime(performance.now() - audioStartTime);
+                console.log('[audio] Browser Performance Engine started');
+                return;
+              }
+            } catch (e) {
+              console.warn('[audio] Browser engine failed:', e);
+              browserEngineRef.current = null;
+            }
+          } else if (engine === 'server') {
+            const ok = await tryServerWav();
+            if (ok) {
+              setEngineChosen('server');
+              setAudioStartupTime(performance.now() - audioStartTime);
+              console.log('[audio] Server WAV playback');
+              return;
+            }
+            if (audioElement) {
+              audioElement.pause();
+              audioElement = null;
+            }
+          } else {
+            await startPlanFallback();
+            setEngineChosen('legacy');
             setAudioStartupTime(performance.now() - audioStartTime);
-            console.log('[audio] Browser Performance Engine started (House pack)');
+            console.log('[audio] Legacy Tone fallback');
             return;
-          } catch (e) {
-            console.warn('[audio] Browser engine failed, falling back:', e);
-            browserEngineRef.current = null;
           }
         }
-
-        // 2) Server WAV (URL or base64 blob)
-        if (audioUrl) {
-          audioElement = new Audio(audioUrl);
-          audioElement.play().then(() => {
-            setAudioStartupTime(performance.now() - audioStartTime);
-            console.log(`[telemetry] audio_startup_ms: ${(performance.now() - audioStartTime).toFixed(2)}`);
-          }).catch((e) => {
-            console.warn('[audio] URL playback failed, falling back to plan:', e);
-            startPlanFallback();
-          });
-          return;
-        }
-
-        // 3) Legacy Tone fallback (MembraneSynth only)
-        await startPlanFallback();
       } catch (e) {
         console.warn('[audio] play failed', e);
       }
@@ -465,6 +518,30 @@ export default function HomePage() {
                 <p className="text-xs text-red-400">
                   ⚠️ {engineError}
                 </p>
+              )}
+              {(process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1')) && (
+                <>
+                  {engineChosen && (
+                    <p className="text-xs text-amber-400/90 font-mono">
+                      Engine: {engineChosen}
+                    </p>
+                  )}
+                  {engineStats && (
+                    <>
+                      <p className="text-xs text-amber-400/90 font-mono">
+                        Samples: bass {engineStats.samplesLoaded.bass ? 'yes' : 'no'} / harmony {engineStats.samplesLoaded.harmony ? 'yes' : 'no'} / melody {engineStats.samplesLoaded.melody ? 'yes' : 'no'}
+                      </p>
+                      <p className="text-xs text-amber-400/90 font-mono">
+                        Voices: {engineStats.voiceMode.bass} / {engineStats.voiceMode.harmony} / {engineStats.voiceMode.melody}
+                      </p>
+                      {engineStats.reverbSends && (
+                        <p className="text-xs text-amber-400/90 font-mono">
+                          Reverb: bass {engineStats.reverbSends.bass} · harm {engineStats.reverbSends.harmony} · mel {engineStats.reverbSends.melody} · clap {engineStats.reverbSends.clap}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </>
               )}
               {specVersion && (
                 <p className="text-xs text-green-400">

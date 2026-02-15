@@ -1,54 +1,79 @@
 /**
- * SoundFont loader scaffolding for browser playback.
- * Lightweight wrapper for future SoundFont player integration.
- * Falls back to synth if SoundFont unavailable.
+ * SoundFont loader for browser playback.
+ * Optional: enabled via NEXT_PUBLIC_SOUNDFONT=1.
+ * Priority: sample first → SoundFont (if enabled) → synth fallback.
  */
 
 import type { SoundFontPrograms } from '../genre/types';
 
-export interface SoundFontPlayer {
-  playNote: (pitch: number, velocity: number, startTime: number, duration: number) => void;
-  dispose: () => void;
+export interface SoundFontVoice {
+  triggerNote(note: string, time: number, duration: number, velocity: number): void;
+  dispose(): void;
 }
 
+export interface SoundFontLoadOptions {
+  soundfontUrl?: string;
+  /** Base URL for pre-rendered soundfont assets (e.g. MP3). */
+  baseUrl?: string;
+}
+
+const GM_PROGRAM_TO_NAME: Record<number, string> = {
+  1: 'acoustic_grand_piano',
+  11: 'music_box',
+  12: 'vibraphone',
+  34: 'fretless_bass',
+  33: 'electric_bass_finger',
+  39: 'synth_bass_1',
+  49: 'string_ensemble_1',
+  80: 'lead_1_square',
+  81: 'lead_2_sawtooth',
+  88: 'pad_1_new_age',
+  89: 'pad_2_warm',
+  90: 'pad_3_polysynth',
+};
+
 /**
- * Create SoundFont player (scaffolding - not fully implemented yet).
- * Returns null if SoundFont unavailable, triggering synth fallback.
- * 
- * Future implementation:
- * - Use lightweight browser SoundFont player (e.g., soundfont-player or similar)
- * - Load SF2 file from pack.soundfontPrograms.soundfontUrl or default
- * - Map program numbers to instruments
- * - Route MIDI notes from plan.events
+ * Load a playable SoundFont voice for the given program number.
+ * Returns null if SoundFont is disabled (NEXT_PUBLIC_SOUNDFONT=1 not set),
+ * or when the optional soundfont-player library is not installed.
+ *
+ * To enable: set NEXT_PUBLIC_SOUNDFONT=1 and add dependency:
+ *   pnpm add soundfont-player
+ * Then implement loading via Soundfont.instrument(ctx, GM name) and
+ * return a voice with triggerNote(note, time, duration, velocity) and dispose().
  */
-export async function createSoundFontPlayer(
-  programs: SoundFontPrograms | undefined,
-  channel: 'bass' | 'harmony' | 'melody'
-): Promise<SoundFontPlayer | null> {
-  if (!programs) return null;
-  
-  const programNumber = 
-    channel === 'bass' ? programs.bass :
-    channel === 'harmony' ? programs.harmony :
-    channel === 'melody' ? programs.melody :
-    undefined;
-  
-  if (programNumber === undefined) return null;
-  
-  // TODO: Implement SoundFont loading
-  // For now, return null to trigger synth fallback
-  // Future: Load SF2, create player, return interface
-  
+export async function loadSoundFontVoice(
+  _programNumber: number,
+  _options: SoundFontLoadOptions = {}
+): Promise<SoundFontVoice | null> {
+  const enabled =
+    typeof process !== 'undefined' &&
+    process.env.NEXT_PUBLIC_SOUNDFONT === '1';
+  if (!enabled) return null;
+  // Optional: dynamic import('soundfont-player') and map programNumber to GM name
+  // via GM_PROGRAM_TO_NAME, then return { triggerNote, dispose }
   return null;
 }
 
 /**
- * MIDI program number to instrument name mapping (for reference)
+ * Create SoundFont players for bass/harmony/melody from pack.
+ * Returns null if SoundFont is disabled or pack has no soundfontPrograms.
  */
-export const MIDI_PROGRAM_NAMES: Record<number, string> = {
-  1: 'Acoustic Piano',
-  33: 'Electric Bass',
-  49: 'Strings',
-  81: 'Lead Synth',
-  88: 'Pad',
-};
+export async function createSoundFontPlayers(
+  programs: SoundFontPrograms | undefined
+): Promise<{
+  bass: SoundFontVoice | null;
+  harmony: SoundFontVoice | null;
+  melody: SoundFontVoice | null;
+} | null> {
+  if (!programs) return null;
+  const [bass, harmony, melody] = await Promise.all([
+    programs.bass != null ? loadSoundFontVoice(programs.bass) : Promise.resolve(null),
+    programs.harmony != null ? loadSoundFontVoice(programs.harmony) : Promise.resolve(null),
+    programs.melody != null ? loadSoundFontVoice(programs.melody) : Promise.resolve(null),
+  ]);
+  if (!bass && !harmony && !melody) return null;
+  return { bass, harmony, melody };
+}
+
+export { GM_PROGRAM_TO_NAME as MIDI_PROGRAM_NAMES };

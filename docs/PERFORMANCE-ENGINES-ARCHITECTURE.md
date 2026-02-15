@@ -1,6 +1,12 @@
 # Performance Engines Architecture
 
-Layered server/browser approach and future export plan. Sample-first instrumentation with improved voicing.
+Layered server/browser approach and export plan. Plan is the single source of truth; no recomposition in playback. All variability is seeded from payload.hash (deterministic).
+
+## Engine selection (web app)
+
+- **Query param:** `?engine=browser|server|legacy` (default: `browser`).
+- **Playback order:** Try chosen engine first; on failure fall back in order: browser → server WAV → legacy Tone.
+- **Debug:** `?debug=1` shows engine chosen, voice mode per stem (sample | soundfont | synth), samples loaded, soundfont programs loaded, reverb send per stem.
 
 ## Layer A (existing): Composition Pipeline (server)
 
@@ -42,24 +48,26 @@ Layered server/browser approach and future export plan. Sample-first instrumenta
    - Ensures each new plan differs measurably from previous
    - Verification script: `vnext/scripts/plan-novelty-verification.ts`
 
-## Layer B: Browser Performance Engine (authoritative for "play" in beta)
+## Layer B: Browser Performance Engine (primary for "play")
 
 - **Input:** `plan`, `seed` (payload.hash), `genre` (payload.genre ?? 'house')
-- **Uses:** Tone.js + sample-first instrumentation (drums: 808 samples; bass/harmony/melody: samples if provided, synth fallback)
-- **Genre Pack:** `apps/web/src/core/genre/` — House pack with improved voicing:
-  - **Bass:** Darker LPF (400-950Hz), HPF (35-45Hz), subtle saturation, mono, no reverb
-  - **Harmony:** Warmer stab (350-1200Hz LPF), plate reverb + delay
-  - **Melody:** Clearer pluck (1000-2800Hz LPF), HPF (200-300Hz), plate reverb + delay
-- **FX:** Sidechain ducking (bass/harmony from kick), plate reverb (harmony/melody only), tempo delay
-- **Determinism:** Same plan + seed + genre → same scheduled events, same parameter choices (filter cutoff, decay, gain, FX wet)
-- **Output:** Live playback handle (`start()` / `stop()`); not export-authoritative
+- **Voice priority:** Sample first → SoundFont (if `NEXT_PUBLIC_SOUNDFONT=1`) → synth fallback
+- **Stem chain per voice:** source (Sampler / SoundFont / Synth) → HPF + LPF (separate nodes, no filter inside Synth opts) → subtle saturation (WaveShaper) → optional chorus (harmony only) → stem gain → reverb/delay per pack; bass is mono, dry, never reverb/chorus
+- **Bass:** MonoSynth (saw) when no sample; HPF ~30–40 Hz, LPF 200–800 Hz from pack; fast attack, short decay; no reverb
+- **Harmony:** LPF 600–1200 Hz, HPF to remove mud; subtle chorus; plate + delay
+- **Melody:** Triangle/sine when synth; HPF + LPF; plate + delay
+- **Drums:** Sample-first (kick, clap, hat); closed hat uses shorter fade when same sample as open
+- **Sidechain:** Bass and harmony duck from kick; short release; melody not ducked
+- **Master:** Limiter at -1 dB
+- **Determinism:** Same plan + seed + genre → same scheduling and parameter choices (no Math.random / Date.now)
+- **Output:** Handle `start()` / `stop()` / `getStats()`; stats include voiceMode (sample | soundfont | synth), samplesLoaded, soundfontLoaded, reverbSends
 
 ## Layer C: Server Render Engines
 
 | Engine | Role | Output |
 |--------|------|--------|
-| **ServerRenderEngine** (existing wav-renderer) | Fallback and legacy. Procedural synthesis in Node (`vnext/audio/wav-renderer.ts`). Keep as fallback; stop investing heavily in procedural synth quality. | WAV buffer (base64 or URL). |
-| **ServerOfflineRenderEngine** (future) | High-quality WAV for share/export. **MIDI → offline render** using SoundFont or curated sample packs. Reuses same Genre Pack definitions (drum samples + synth patches) so export matches browser character. | Export WAV (authoritative). |
+| **ServerRenderEngine** (existing) | Fallback. Procedural synthesis in Node (`vnext/audio/wav-renderer.ts`). | WAV buffer (base64 or URL). |
+| **ServerOfflineRenderEngine** (scaffold) | Export path when `VNEXT_OFFLINE_SF2=1`. MIDI → FluidSynth (SF2) or sample packs; same Genre Pack. See `docs/SERVER-OFFLINE-RENDER-ENGINE.md`. | WAV (authoritative for export). |
 
 ## Genre Packs
 
@@ -83,12 +91,9 @@ Layered server/browser approach and future export plan. Sample-first instrumenta
 ## Interfaces (inputs/outputs)
 
 - **Browser engine input:** `{ plan: Plan, seed: string (payload.hash), genre?: string, debug?: boolean }`
-- **Browser engine output:** Handle with `start()` / `stop()`; verification stats (samples loaded, synth fallbacks, reverb sends) when `debug=true`.
+- **Browser engine output:** Handle `start()` / `stop()` / `getStats()`. Stats: engine (from page), samplesLoaded, voiceMode (sample | soundfont | synth), soundfontLoaded, reverbSends.
 - **Server WAV renderer input:** `plan`, `payload`, `hash`; output: `{ buffer, sha256, duration_ms, size_bytes }`.
-- **Future offline render:** 
-  - **Step 1:** Export MIDI from plan (`planToMidiBase64(plan)` → MIDI bytes)
-  - **Step 2:** Render MIDI through SoundFont/sample packs using Genre Pack (same samples/patches as browser)
-  - **Output:** WAV file for download/share (authoritative, matches browser character)
+- **Offline render (scaffold):** Input: Plan, genrePack, seed. Export MIDI → FluidSynth (SF2 from SOUNDFONT_PATH) → WAV + sha256. See `vnext/audio/server-offline-render-engine.ts` and `docs/SERVER-OFFLINE-RENDER-ENGINE.md`.
 
 ## Verification / Debug
 

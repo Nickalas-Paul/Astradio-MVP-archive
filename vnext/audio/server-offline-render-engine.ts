@@ -1,14 +1,21 @@
 /**
- * ServerOfflineRenderEngine interface (scaffolding).
- * Future: Renders MIDI → WAV using FluidSynth (SF2) or curated sample packs.
+ * ServerOfflineRenderEngine (scaffolding).
+ * Renders MIDI → WAV using FluidSynth (SF2) or curated sample packs.
  * Reuses same Genre Pack definitions so export matches browser playback character.
- * 
- * This is a design document and interface definition only.
- * Full implementation will:
- * 1. Export MIDI from Plan (vnext/midi/plan-to-midi.ts already exists)
- * 2. Load Genre Pack (same contract as browser)
- * 3. Render MIDI through SoundFont or sample packs
- * 4. Output high-quality WAV for export/sharing
+ *
+ * Enable via env: VNEXT_OFFLINE_SF2=1 (when implemented).
+ *
+ * Design:
+ * 1. Export MIDI from Plan (vnext/midi/plan-to-midi.ts)
+ * 2. Load Genre Pack: getGenrePack(genre, seed) from apps/web/src/core/genre
+ * 3. Map instruments via mapGenrePackToFluidSynthPrograms(pack)
+ * 4. Render MIDI through FluidSynth with SF2 file
+ * 5. Apply FX/mix from pack; output WAV buffer + sha256
+ *
+ * SF2 supply:
+ * - Local dev: path in env e.g. SOUNDFONT_PATH=./assets/FluidR3_GM.sf2
+ * - Production: deploy SF2 to asset store or CDN; do not commit large binaries
+ * - Licensing: FluidR3_GM is free; verify attribution and license for any other SF2
  */
 
 import type { Plan } from '../contracts';
@@ -56,13 +63,15 @@ export interface ServerOfflineRenderResult {
 export async function renderPlanOffline(
   options: ServerOfflineRenderOptions
 ): Promise<ServerOfflineRenderResult> {
-  // TODO: Implement offline rendering
-  // 1. Export MIDI from plan
-  // 2. Load Genre Pack
-  // 3. Render through FluidSynth or sample renderer
-  // 4. Apply FX and mix
-  // 5. Return WAV/MP3 buffer
-  
+  const useSf2 = process.env.VNEXT_OFFLINE_SF2 === '1';
+  if (!useSf2) {
+    throw new Error('ServerOfflineRenderEngine not enabled. Set VNEXT_OFFLINE_SF2=1 and implement FluidSynth path.');
+  }
+  // 1. planToMidiBase64(options.plan)
+  // 2. options.genrePack already provided
+  // 3. mapGenrePackToFluidSynthPrograms(options.genrePack)
+  // 4. FluidSynth render (Node binding or child_process) with SF2 from SOUNDFONT_PATH
+  // 5. Return { buffer, durationSec, sampleRate, bitDepth, format: 'wav', sha256 }
   throw new Error('ServerOfflineRenderEngine not yet implemented. Use existing WAV renderer as fallback.');
 }
 
@@ -76,8 +85,8 @@ export function mapGenrePackToFluidSynthPrograms(pack: GenrePack): {
 } {
   const programs = pack.soundfontPrograms;
   return {
-    bass: programs?.bass ?? 33, // Default: Electric Bass
-    harmony: programs?.harmony ?? 49, // Default: Strings
-    melody: programs?.melody ?? 81, // Default: Lead Synth
+    bass: programs?.bass ?? 34,   // GM: Fretless Bass
+    harmony: programs?.harmony ?? 89, // GM: Pad (warm)
+    melody: programs?.melody ?? 81,   // GM: Lead Synth
   };
 }

@@ -18,8 +18,13 @@ const HOUSE_BASE: Omit<GenrePack, 'synthPatches' | 'fxProfile' | 'mixProfile'> =
   },
   instrumentSamples: {
     bass: '/audio/samples/house/bass/bass_C2.wav',
+    harmony: '/audio/samples/house/melody/pluck_C4.wav', // same pluck as melody (pitch-shifted), shared timbre
     melody: '/audio/samples/house/melody/pluck_C4.wav',
-    // harmony omitted – synth fallback
+  },
+  soundfontPrograms: {
+    bass: 34,   // GM: fretless bass
+    harmony: 89, // GM: pad (warm)
+    melody: 81, // GM: lead synth
   },
 };
 
@@ -36,10 +41,10 @@ export function getHousePack(seed: string): GenrePack {
       saturation: f('bass:sat', 0.02, 0.05), // Subtle warmth
     },
     harmony: {
-      // Warmer harmony: lower LPF, shorter decay for stab character
-      filterCutoffHz: [f('harm:lpfLo', 350, 500), f('harm:lpfHi', 900, 1200)], // Lowered from 400-1400
-      decaySec: [f('harm:decayLo', 0.10, 0.15), f('harm:decayHi', 0.18, 0.28)], // Slightly longer for stab
-      stereoWiden: f('harm:widen', 0.08, 0.16),
+      // Darker harmony when using sample: LPF 600–1200 Hz, shorter decay
+      filterCutoffHz: [f('harm:lpfLo', 600, 800), f('harm:lpfHi', 1000, 1200)],
+      decaySec: [f('harm:decayLo', 0.06, 0.10), f('harm:decayHi', 0.12, 0.18)],
+      stereoWiden: f('harm:widen', 0.06, 0.12),
     },
     melody: {
       // Clearer melody: moderate LPF, HPF to remove fizz, controlled pluck
@@ -60,8 +65,8 @@ export function getHousePack(seed: string): GenrePack {
   const mixProfile: MixProfile = {
     kickGain: f('mix:kick', 0.85, 1),
     bassGain: f('mix:bass', 0.5, 0.65),
-    harmonyGain: f('mix:harmony', 0.35, 0.5),
-    melodyGain: f('mix:melody', 0.3, 0.45),
+    harmonyGain: f('mix:harmony', 0.25, 0.38), // below melody
+    melodyGain: f('mix:melody', 0.35, 0.48),
     sidechainDuckBass: f('mix:duckBass', 0.18, 0.26),
     sidechainDuckHarmony: f('mix:duckHarmony', 0.08, 0.14),
   };
