@@ -1,10 +1,21 @@
 /**
  * Canonical API base URL for frontend (browser) calls.
- * Always returns '' so the client uses same-origin relative URLs (/api/compose, /api/chart, /api/ip-geo).
- * Next API routes proxy to Render using API_BASE_URL server-side, avoiding CORS.
- * Do not set NEXT_PUBLIC_API_BASE_URL on Vercel; set API_BASE_URL only (server-side proxy target).
+ *
+ * Dev:
+ * - Default to http://localhost:4000 (engine) unless NEXT_PUBLIC_API_BASE_URL is set.
+ *
+ * Prod:
+ * - Default to same-origin relative URLs (''), unless NEXT_PUBLIC_API_BASE_URL is set.
  */
 export function getApiBaseUrl(): string {
+  // On the server (SSR / Next API), always use same-origin.
   if (typeof window === 'undefined') return '';
-  return '';
+
+  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (process.env.NODE_ENV === 'development') {
+    return explicit || 'http://localhost:4000';
+  }
+
+  return explicit || '';
 }

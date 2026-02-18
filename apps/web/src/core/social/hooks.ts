@@ -365,6 +365,60 @@ export function useProfileChart(chartId: string | null) {
   return { data, loading, error, refresh };
 }
 
+// Directory user (community search)
+export interface DirectoryUser {
+  userId: string;
+  displayName: string;
+  chartId: string;
+  label?: string;
+  locationLabel?: string;
+}
+
+export function useUserSearch(params: { q: string; limit?: number; cursor?: string }) {
+  const [users, setUsers] = useState<DirectoryUser[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [debouncedQ, setDebouncedQ] = useState(params.q);
+  const limit = params.limit ?? 10;
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(params.q), 250);
+    return () => clearTimeout(t);
+  }, [params.q]);
+
+  const search = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const qp = new URLSearchParams();
+      if (debouncedQ) qp.set('q', debouncedQ);
+      qp.set('limit', String(limit));
+      if (params.cursor) qp.set('cursor', params.cursor);
+      const r = await fetch(
+        `${getApiBaseUrl() || ''}/api/community/search?${qp.toString()}`,
+        { credentials: 'same-origin' }
+      );
+      if (!r.ok) throw new Error('Search failed');
+      const data = await r.json();
+      setUsers(Array.isArray(data.users) ? data.users : []);
+      setNextCursor(data.nextCursor ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+      setUsers([]);
+      setNextCursor(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedQ, limit, params.cursor]);
+
+  useEffect(() => {
+    search();
+  }, [search]);
+
+  return { users, nextCursor, loading, error, refresh: search };
+}
+
 // Compatibility hooks. Standard params: chartId, mode, limit, cursor. goal/pageSize accepted as backward-compat aliases (goal→mode, pageSize→limit).
 function goalToMode(goal?: string): 'friend' | 'lover' | 'rival' {
   if (goal === 'lover' || goal === 'romantic') return 'lover';

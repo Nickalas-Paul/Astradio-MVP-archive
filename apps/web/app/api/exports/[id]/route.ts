@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 // Proxy to backend /api/exports/:id (Render). No local filesystem in web app.
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const backend = (process.env.API_BASE_URL || process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const backend = getEngineBaseUrl();
   const { id } = params;
   if (!/^[a-f0-9]{16}$/.test(id)) {
     return NextResponse.json({ error: 'Invalid export ID format' }, { status: 400 });

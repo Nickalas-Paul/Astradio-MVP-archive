@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 // Proxy to backend /chart (Render). No Swiss Ephemeris in web app.
+
 export async function GET(req: NextRequest) {
-  const backend = (process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const backend = getEngineBaseUrl();
   const { searchParams } = new URL(req.url);
   const qs = searchParams.toString();
   const url = qs ? `${backend}/chart?${qs}` : `${backend}/chart`;

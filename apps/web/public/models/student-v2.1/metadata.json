@@ -1,0 +1,48 @@
+{
+  "version": "2.1_enhanced",
+  "trainingDate": "2025-09-24T13:13:35.307Z",
+  "recordCount": 624,
+  "architecture": {
+    "inputShape": [
+      64
+    ],
+    "outputHeads": {
+      "ctrl": 6,
+      "arc": 3,
+      "density": 4,
+      "cadence": 4,
+      "motif": 8
+    },
+    "lossWeights": {
+      "ctrl": 0.2,
+      "arc": 0.35,
+      "density": 0.2,
+      "cadence": 0.15,
+      "motif": 0.1
+    }
+  },
+  "calibration": {
+    "arc": {
+      "scale": 6.14,
+      "offset": 0.02,
+      "temperature": 1.1
+    },
+    "density": {
+      "scale": 4,
+      "offset": 0,
+      "temperature": 1
+    },
+    "motif": {
+      "scale": 8,
+      "offset": 0,
+      "temperature": 1
+    }
+  },
+  "provenance": {
+    "datasetChecksum": "ac64be1ac424f7012057135a47337990b20734619f2c0c7b3f38301caaa120b6",
+    "modelChecksum": "0629a9c33c2cfb12e33b6c42171c4908e7296cd9162eba945777b172b5435dca",
+    "weightsChecksum": "6d4870949892f826d9039839b970e7b6b95d31fbad049b71fb085da3497c87c2",
+    "commitSha": "pre-v2.1-train",
+    "frozenEvalSeed": 42
+  }
+}

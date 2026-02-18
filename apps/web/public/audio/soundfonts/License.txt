@@ -1,0 +1,28 @@
+SFZ-files:
+
+All .sfz files are marked with CC0 1.0 Universal. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
+
+
+
+Samples:
+
+"Samplesflac" from http://www.leisureland.us/mellotron.htm
+The Mellotron samples in this SFZ file were made by taijiguy, a.k.a. Bernie Kornowicz, and are his copyright. They are free to use, but cannot be used in any commercial, for profit software. You are free to use the samples in any way you like, except to package them for commercial purposes. This licence gives you the right to use these samples, together or separately, in any creative musical work whatever, free or commercial. These musical works may be distributed in any way, without any attribution whatever. You MAY NOT sell the samples and you may not repackage the samples in a different format and sell that.
+
+A quote from taijiguy on https://www.kvraudio.com/forum/viewtopic.php?t=304393&start=30
+"Just to clarify the copyright issue, several years ago, I was in contact with Streetly Electronics, the original manufacturer of Mellotrons, and was told that I could make samples of the classic sounds available because they are old enough to be in the public domain. That's not the case with the new sounds (1995-present), so I can't make any of those that I have available. Streetly continues to produce new sounds for the old and the new breed of Mellotrons. It is far from a dead instrument."
+
+
+
+Images:
+
+"Background_scherp" from https://commons.wikimedia.org/wiki/File:Mellotron,_Museum_of_Making_Music_-_edit1.jpg
+Mellotron, Museum of Making Music.jpg: doryfourderivative work: User:Clusternote, CC BY-SA 3.0 <https://creativecommons.org/licenses/by-sa/3.0>, via Wikimedia Commons
+
+This is a retouched picture, which means that it has been digitally altered from its original version. Modifications: erased background and edited brightness/warmth.
+
+
+"Background_vaag" from https://commons.wikimedia.org/wiki/File:MELLOTRON_(panel).jpg
+Tobias Akerboom (at hutmeelz), CC BY 2.0 <https://creativecommons.org/licenses/by/2.0>, via Wikimedia Commons
+
+This is a retouched picture, which means that it has been digitally altered from its original version. Modifications: erased background.

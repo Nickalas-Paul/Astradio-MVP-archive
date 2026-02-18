@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "instruments": {
+    "rhodes": {"type":"sf2","url":"/audio/soundfonts/Rhodes_MKII_Piano.sf2","voices":16},
+    "upright_bass": {"type":"sf2","url":"/audio/soundfonts/The_Airfont_Acoustic_Bass.sf2","voices":12},
+    "grand_piano": {"type":"sf2","url":"/audio/soundfonts/Rhodes_MKII_Piano.sf2","voices":16},
+    "strings_ensemble": {"type":"sf2","url":"/audio/soundfonts/Mini_Marcato_Strings.sf2","voices":12},
+    "clarinet": {"type":"sf2","url":"/audio/soundfonts/clarinet.sf2","voices":8},
+    "flute": {"type":"sf2","url":"/audio/soundfonts/MkII_Flute.sfz","voices":8},
+    "french_horn": {"type":"sf2","url":"/audio/soundfonts/GC3_Brass.sfz","voices":8},
+    "pad_choir": {"type":"sf2","url":"/audio/soundfonts/KBH_Real_and_Swell_Choir.sf2","voices":12},
+    "jazz_bass": {"type":"sf2","url":"/audio/soundfonts/Jazz_Club_Bass.sf2","voices":12},
+    "brass_section": {"type":"sf2","url":"/audio/soundfonts/Nyx_SC-88_Horns.sf2","voices":8},
+    "cello": {"type":"sf2","url":"/audio/soundfonts/Cello.sfz","voices":8},
+    "trumpet": {"type":"sf2","url":"/audio/soundfonts/Trumpet.sfz","voices":8},
+    "trombone": {"type":"sf2","url":"/audio/soundfonts/Trombone.sfz","voices":8},
+    "saxophone": {"type":"sf2","url":"/audio/soundfonts/Tenor_Sax.sfz","voices":8},
+    "bassoon": {"type":"sf2","url":"/audio/soundfonts/Bassoon.sfz","voices":8},
+    "vibes": {"type":"sf2","url":"/audio/soundfonts/Vibes.sfz","voices":8},
+    "organ": {"type":"sf2","url":"/audio/soundfonts/Church_Organ.sfz","voices":12},
+    "accordion": {"type":"sf2","url":"/audio/soundfonts/Italian_Accordion.sfz","voices":8},
+    "pad_shimmer": {"type":"sample","url":"/audio/samples/pads/shimmer.wav","voices":8},
+    "bell_mallet": {"type":"sample","url":"/audio/samples/bells/mallet_c4.wav","voices":8},
+    "tr808": {"type":"kit","root":"/audio/samples/drums/808/"},
+    "tr909": {"type":"kit","root":"/audio/samples/drums/909/"},
+    "jazz_kit": {"type":"kit","root":"/audio/samples/drums/jazz/"},
+    "house_kit": {"type":"kit","root":"/audio/samples/drums/909/"},
+    "orch_perc": {"type":"kit","root":"/audio/samples/drums/orch/"},
+    "vinyl_noise": {"type":"loop","url":"/audio/samples/lofi/vinyl_loop.wav"}
+  },
+  "irs": {
+    "hall": "/audio/irs/hall.wav",
+    "plate": "/audio/irs/plate.wav",
+    "room": "/audio/irs/room.wav"
+  },
+  "licenses": [
+    {"name":"VSCO CE/SSO/WebAudioFont/CC0 kits","url":"https://musical-artifacts.com/","license":"CC0/CC-BY (see artifact)"},
+    {"name":"OpenAIR IRs","url":"http://www.openairlib.net/","license":"CC0"},
+    {"name":"SFZ Instruments","url":"https://github.com/sfzinstruments/SFZInstruments","license":"CC0"}
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "model": "student-v2.5-B1",
+  "version": "v2.5",
+  "export_date": "2025-01-28T00:30:00Z",
+  "files": {
+    "model.json": {
+      "sha256": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "size": 1024
+    },
+    "weights_manifest.json": {
+      "sha256": "sha256:2345678901bcdef1234567890abcdef1234567890abcdef1234567890abcdef1",
+      "size": 512
+    },
+    "group1-shard1of1.bin": {
+      "sha256": "sha256:3456789012cdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+      "size": 1048576
+    }
+  },
+  "total_size": 1050112,
+  "genre_conditioning": {
+    "enabled": true,
+    "encoding": "learned_embedding",
+    "embedding_dim": 8,
+    "film_conditioning": true
+  },
+  "performance_metrics": {
+    "classical_f1": 0.728,
+    "jazz_f1": 0.704,
+    "electronic_f1": 0.715,
+    "ambient_f1": 0.708,
+    "macro_f1": 0.714,
+    "max_confusion": 0.096,
+    "p95_latency_ms": 1478
+  }
+}

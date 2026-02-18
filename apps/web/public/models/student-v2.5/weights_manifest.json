@@ -1,0 +1,13 @@
+[
+  {
+    "paths": ["group1-shard1of1.bin"],
+    "weights": [
+      { "name": "melodic_head/kernel", "shape": [128, 1], "dtype": "float32" },
+      { "name": "melodic_head/bias", "shape": [1], "dtype": "float32" },
+      { "name": "rhythm_head/kernel", "shape": [128, 1], "dtype": "float32" },
+      { "name": "rhythm_head/bias", "shape": [1], "dtype": "float32" },
+      { "name": "polyphony_head/kernel", "shape": [128, 1], "dtype": "float32" },
+      { "name": "polyphony_head/bias", "shape": [1], "dtype": "float32" }
+    ]
+  }
+]

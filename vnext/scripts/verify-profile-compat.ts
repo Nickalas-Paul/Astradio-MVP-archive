@@ -5,6 +5,9 @@
  * - GET /api/compat/matches returns envelope { chartId, mode, limit, matches, generatedAt, version } and stable sort
  * - GET /api/profile/chart returns explainer sections non-empty
  */
+
+export {}; // Ensure module scope
+
 const BASE = process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:3000';
 
 async function main() {

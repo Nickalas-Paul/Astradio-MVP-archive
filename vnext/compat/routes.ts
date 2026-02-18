@@ -7,7 +7,10 @@ import * as storage from './storage';
 import { createComparison } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { getCompatMatches, type CompatMatchMode } from './matches';
+import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import type { RelationshipMode } from './types';
+import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
+import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 
 const express = require('express') as typeof import('express');
 const RELATIONSHIP_MODES: RelationshipMode[] = ['friends', 'rivals', 'lovers', 'mentor', 'collaborator', 'neutral'];
@@ -65,10 +68,27 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // GET /api/profile/chart?chartId= (optional; default = chart_profile_default)
+  // GET /api/community/search?q=&limit=&cursor= (directory search; seeded users only)
+  router.get('/community/search', (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const q = (req.query.q as string) || '';
+      const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
+      const cursor = (req.query.cursor as string) || undefined;
+      const result = searchDirectoryUsers({ q, limit, cursor });
+      return res.status(200).json(result);
+    } catch (e: any) {
+      console.error('[compat] GET /community/search', e);
+      return res.status(500).json({ error: e?.message || 'Search failed' });
+    }
+  });
+
+  // GET /api/profile/chart?chartId= (optional; default = chart_profile_default). V1: chartId must be in directory allowlist.
   router.get('/profile/chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const chartId = (req.query.chartId as string) || storage.DEFAULT_PROFILE_CHART_ID;
+      if (!isDirectoryChartId(chartId)) {
+        return res.status(403).json({ error: 'Chart not in public directory' });
+      }
       const result = await getProfileChartExplainer(chartId);
       return res.status(200).json(result);
     } catch (e: any) {
@@ -168,6 +188,75 @@ export function createCompatRouter(): import('express').Router {
     const comparison = storage.getComparison(id);
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
     return res.json(comparison);
+  });
+
+  // POST /api/community/groups/profile — GroupProfile aggregate (no music/gates)
+  router.post('/community/groups/profile', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const body = (req.body || {}) as GroupsProfileRequest;
+      const { groupId, chartIds, featureVecs, aggregationMode, seed } = body;
+      if (!groupId) {
+        return res.status(400).json({ error: 'groupId required' });
+      }
+      if (!chartIds?.length && !featureVecs?.length) {
+        return res.status(400).json({ error: 'Either chartIds or featureVecs must be provided' });
+      }
+      const result = await createGroupProfile({
+        groupId,
+        chartIds: chartIds?.length ? chartIds : undefined,
+        featureVecs: featureVecs?.length ? featureVecs : undefined,
+        aggregationMode,
+        seed
+      });
+      // Serialize Float32Array for JSON
+      const out = {
+        ...result,
+        featuresAgg: Array.from(result.featuresAgg)
+      };
+      return res.status(200).json(out);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error('[compat] POST /community/groups/profile', err);
+      const code = err?.message?.includes('not found') ? 404 : 500;
+      return res.status(code).json({ error: err?.message || 'Failed to create group profile' });
+    }
+  });
+
+  // POST /api/compatibility/intent — curated clusters (no ranked list; no percentages in response)
+  router.post('/compatibility/intent', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const body = (req.body || {}) as CompatibilityIntentRequest;
+      const { seekerChartId, chart, intent, limit, facets, scope, groupId, seekerUserId } = body;
+      if (!intent) {
+        return res.status(400).json({ error: 'intent required' });
+      }
+      const validIntents = ['friendship', 'dating', 'collaboration', 'mentor', 'roommate', 'study'];
+      if (!validIntents.includes(intent)) {
+        return res.status(400).json({ error: 'Invalid intent', allowed: validIntents });
+      }
+      if (!seekerChartId && !chart) {
+        return res.status(400).json({ error: 'Either seekerChartId or chart must be provided' });
+      }
+      if (scope === 'group' && !groupId) {
+        return res.status(400).json({ error: 'groupId required when scope is group' });
+      }
+      const result = await computeCompatibilityIntent({
+        seekerChartId,
+        chart,
+        intent,
+        limit,
+        facets,
+        scope,
+        groupId,
+        seekerUserId
+      });
+      return res.status(200).json(result);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error('[compat] POST /compatibility/intent', err);
+      const code = err?.message?.includes('not found') ? 404 : 500;
+      return res.status(code).json({ error: err?.message || 'Failed to compute compatibility intent' });
+    }
   });
 
   return router;

@@ -144,6 +144,11 @@ artifacts/viz/*
 *.bundle
 repo-sync-*.bundle
 
+# Large soundfonts (over GitHub 50MB limit)
+**/Rhodes_MKII_Piano.sf2
+**/Jazz_Club_Bass.sf2
+**/KBH_Real_and_Swell_Choir.sf2
+
 # Large data files
 *.csv
 *.jsonl

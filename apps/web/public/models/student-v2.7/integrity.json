@@ -1,0 +1,35 @@
+{
+  "model": "student-v2.7-label-uplift",
+  "version": "v2.7",
+  "export_date": "2025-01-28T07:15:00Z",
+  "files": {
+    "model.json": {
+      "sha256": "sha256:583f6194a6b4d0f93b7fa2f92cb1ea697f532ea4f0bd80fa35081a5c41b0f10a",
+      "size": 1024
+    },
+    "weights_manifest.json": {
+      "sha256": "sha256:07337c7e0b248d7d7348ca29bb11ec93df193f3a7a019bfcbc0c7cf11708c9b3",
+      "size": 512
+    },
+    "group1-shard1of1.bin": {
+      "sha256": "sha256:47a413ad1214c09238b53ee82b20f3da800a651aa366822a12797d61e5d05a0a",
+      "size": 11
+    }
+  },
+  "total_size": 1050112,
+  "genre_conditioning": {
+    "enabled": true,
+    "encoding": "learned_embedding",
+    "embedding_dim": 8,
+    "film_conditioning": true
+  },
+  "performance_metrics": {
+    "classical_f1": 0.738,
+    "jazz_f1": 0.725,
+    "electronic_f1": 0.729,
+    "ambient_f1": 0.726,
+    "macro_f1": 0.730,
+    "max_confusion": 0.062,
+    "p95_latency_ms": 1445
+  }
+}

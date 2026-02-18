@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 /** Proxy GET /api/ml-status to Render. Same-origin so no CORS. */
 export async function GET() {
   try {
-    const backend = (process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/ml-status`, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(5000),

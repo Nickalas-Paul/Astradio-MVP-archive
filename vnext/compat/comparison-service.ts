@@ -1,10 +1,9 @@
 /**
  * Community Compatibility V1 — comparison generation.
- * Uses existing encodeFeatures + mergeFeatureVectors + composeFromFeatures only.
+ * Uses architecture-engine (generateArchitecture) + mergeFeatureVectors + composeFromFeatures only.
  */
 
-import type { EphemerisSnapshot } from '../contracts';
-import { encodeFeatures } from '../feature-encode';
+import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import { composeAPI } from '../api/compose';
 import { mergeFeatureVectors } from './fusion';
 import { controlPayloadFromSeed, comparisonSeed } from './payload-from-seed';
@@ -13,15 +12,8 @@ import type { Chart, ChartBInline, Comparison, CompatibilityTextStructured, Rela
 import { FUSION_METHOD_BLEND_V1 } from './types';
 import * as crypto from 'crypto';
 
-const PORT = process.env.PORT || '3000';
-const BASE_URL = process.env.COMPAT_CHART_BASE_URL || `http://localhost:${PORT}`;
-
-async function fetchChartSnapshot(date: string, time: string, lat: number, lon: number): Promise<EphemerisSnapshot> {
-  const t = time.length === 5 ? time : time.slice(0, 5);
-  const q = new URLSearchParams({ date, time: t, lat: String(lat), lon: String(lon) });
-  const r = await fetch(`${BASE_URL}/api/chart-snapshot?${q}`);
-  if (!r.ok) throw new Error(`chart-snapshot failed: ${r.status}`);
-  return r.json() as Promise<EphemerisSnapshot>;
+function chartToChartInput(chart: Chart): ChartInput {
+  return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
 }
 
 function mergedFeatureHash(vec: Float32Array | number[]): string {
@@ -75,11 +67,12 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
   if (!chartA) throw new Error(`Chart not found: ${input.chartAId}`);
   const chartB = resolveChartB(input.chartBId, input.chartBInline);
 
-  const snapA = await fetchChartSnapshot(chartA.date, chartA.time, chartA.lat, chartA.lon);
-  const snapB = await fetchChartSnapshot(chartB.date, chartB.time, chartB.lat, chartB.lon);
-
-  const vecA = encodeFeatures(snapA);
-  const vecB = encodeFeatures(snapB);
+  const [archA, archB] = await Promise.all([
+    generateArchitecture(chartToChartInput(chartA)),
+    generateArchitecture(chartToChartInput(chartB))
+  ]);
+  const vecA = archA.features;
+  const vecB = archB.features;
 
   const wA = input.fusion?.wA ?? 0.5;
   const wB = input.fusion?.wB ?? 0.5;

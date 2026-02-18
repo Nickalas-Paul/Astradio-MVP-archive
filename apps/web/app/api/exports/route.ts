@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 // Proxy to backend /api/exports (Render). No queue/hash lib in web app.
 export async function POST(request: NextRequest) {
-  const backend = (process.env.API_BASE_URL || process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const backend = getEngineBaseUrl();
   try {
     const body = await request.json();
     const r = await fetch(`${backend}/api/exports`, {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const backend = (process.env.API_BASE_URL || process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const backend = getEngineBaseUrl();
   try {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');

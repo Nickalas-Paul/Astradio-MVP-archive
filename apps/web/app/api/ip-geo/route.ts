@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   headers.set('Cache-Control', 'no-store');
 
   try {
-    const base = (process.env.API_BASE_URL ?? process.env.BACKEND_URL ?? 'http://localhost:3000').trim().replace(/\/+$/, '');
+    const base = getEngineBaseUrl();
     const url = `${base}/api/ip-geo`;
     const fwdHeaders: Record<string, string> = { Accept: 'application/json' };
     const forwarded = req.headers.get('x-forwarded-for');

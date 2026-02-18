@@ -8,9 +8,9 @@
 | Path | c:\Users\nicka\OneDrive\Astradio_MVP |
 | Origin | https://github.com/Nickalas-Paul/Astradio-MVP-archive.git |
 | Branch | beta-ui-vercel |
-| HEAD | c9238fc vercel: npm run build, API base wiring, geocode/overlay fixes |
-| Status | Clean (no uncommitted changes on branch) |
-| Pushed | Yes, origin/beta-ui-vercel |
+| HEAD | (see latest: `git log -1 --oneline origin/beta-ui-vercel`) |
+| Remote | origin/beta-ui-vercel |
+| Pushed | Yes; ensure Vercel Production Branch = beta-ui-vercel so it matches Render SHA. |
 
 ## 2. Build truth
 
@@ -40,7 +40,9 @@ Evidence: `apps/web/package.json` has `"build": "next build"` and only UI deps (
 
 | Commit | Hash | Pushed |
 |--------|------|--------|
-| vercel: npm run build, API base wiring, geocode/overlay fixes | c9238fc | Yes to origin/beta-ui-vercel |
+| (latest) | Run `git log -1 --oneline origin/beta-ui-vercel` | Yes to origin/beta-ui-vercel |
+
+Ensure Render and Vercel both deploy from **beta-ui-vercel** so they use the same SHA (see RUNBOOK: "Single deployment branch").
 
 ## 5. Vercel settings block (copy-paste)
 

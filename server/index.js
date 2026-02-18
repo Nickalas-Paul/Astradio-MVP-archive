@@ -19,6 +19,9 @@ const canaryMod = optionalRequire(path.join(vnextRoot, "api", "canary"));
 const renderMod = optionalRequire(path.join(vnextRoot, "api", "render"));
 const healthMod = optionalRequire(path.join(vnextRoot, "api", "health"));
 const astroDebugMod = optionalRequire(path.join(vnextRoot, "api", "astro-debug"));
+const compatMod = optionalRequire(path.join(vnextRoot, "compat", "routes"));
+const personalityMod = optionalRequire(path.join(vnextRoot, "api", "personality-routes"));
+const sandboxMod = optionalRequire(path.join(vnextRoot, "api", "sandbox-routes"));
 
 const vnextCompose = composeMod?.vnextCompose || ((req, res) => res.status(501).json({ ok: false, error: "compose_unavailable" }));
 const shadowMiddleware = shadowMod?.shadowMiddleware || noopMw;
@@ -46,7 +49,8 @@ const libraryRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes
 const app = express();
 // Behind Render (or any reverse proxy): trust first proxy so req.ip and X-Forwarded-* are correct; avoids express-rate-limit ValidationError ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3000;
+// Engine default port: 4000 (can be overridden via PORT env)
+const PORT = process.env.PORT || 4000;
 const HOST = process.env.HOST || '0.0.0.0';
 const BETA_ENABLED = process.env.BETA_ACCESS !== 'false';
 const BETA_KILL = process.env.BETA_KILL_SWITCH === 'true';
@@ -181,9 +185,21 @@ function requireBeta(req, res, next){
   next();
 }
 
-// Static file serving
+// Static file serving — API-only safe: do not crash when frontend is not built (e.g. Render API-only, frontend on Vercel)
 const PUBLIC_DIR = path.join(__dirname, "../public");
-app.use(express.static(PUBLIC_DIR));
+const INDEX_HTML = path.join(PUBLIC_DIR, "index.html");
+const HAS_SPA = (function () {
+  try {
+    return fs.existsSync(INDEX_HTML);
+  } catch {
+    return false;
+  }
+})();
+if (HAS_SPA) {
+  app.use(express.static(PUBLIC_DIR));
+} else {
+  console.log("[static] index.html not found; running API-only");
+}
 
 // Media file serving for generated audio
 const MEDIA_DIR = path.join(__dirname, "../media");
@@ -1801,6 +1817,25 @@ app.use("/api/compose", canaryRouter);
 // Body is already parsed by global express.json() at line ~170; duplicate parser here consumed empty stream → SyntaxError → 400 HTML
 app.post("/api/compose", vnextCompose);
 
+// Community Compatibility V1 — charts and comparisons (additive; uses same plan+render pipeline)
+if (compatMod && typeof compatMod.createCompatRouter === "function") {
+  app.use("/api", compatMod.createCompatRouter());
+}
+
+// Personality API — Phase 1 Foundation (personality reports without music)
+if (personalityMod && typeof personalityMod.createPersonalityRouter === "function") {
+  app.use("/api", personalityMod.createPersonalityRouter());
+}
+
+// Phase 3A — Community (groups, posts, comments, report, group profile; no compose)
+const communityRoutes = require("./routes/community");
+app.use("/api", communityRoutes.communityRouter);
+
+// Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
+if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
+  app.use("/api", sandboxMod.createSandboxRouter());
+}
+
 // Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false)
 // This provides backward compatibility for soak tests and legacy clients
 if (!DEPRECATE_LEGACY) {
@@ -1866,8 +1901,10 @@ if (!DEPRECATE_LEGACY) {
 
 console.log("[ROUTES]", dumpRoutes(app));
 
-// Serve static files
-app.use(express.static(PUBLIC_DIR));
+// Static already mounted above only when HAS_SPA; do not mount again
+if (HAS_SPA) {
+  app.use(express.static(PUBLIC_DIR));
+}
 
 // Serve ML models (for HTTP backend fallback)
 app.use("/models", express.static(path.join(__dirname, "../models")));
@@ -2044,16 +2081,22 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Catch-all handler for SPA
-app.get("*", (_, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
-});
+// Catch-all handler for SPA — only when index.html exists (avoid ENOENT 502 on API-only deploys)
+if (HAS_SPA) {
+  app.get("*", (_, res) => {
+    res.sendFile(INDEX_HTML);
+  });
+} else {
+  app.get("*", (_, res) => {
+    res.status(404).json({ error: "not_found", message: "API-only server; frontend is served elsewhere." });
+  });
+}
 
 // Start server
-app.listen(PORT, HOST, async () => {
+const server = app.listen(PORT, HOST, async () => {
   try {
-    console.log(`Astradio server running on http://localhost:${PORT}`);
-    console.log(`Serving static from ${PUBLIC_DIR}`);
+    console.log(`🚀 Engine listening on http://localhost:${PORT}`);
+    if (HAS_SPA) console.log(`Serving static from ${PUBLIC_DIR}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`API version: v2 (vector-based)`);
     console.log(`Vector audition system: enabled`);
@@ -2061,4 +2104,13 @@ app.listen(PORT, HOST, async () => {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+});
+
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} already in use.`);
+    process.exit(1);
+  }
+  console.error('Server failed to start:', err);
+  process.exit(1);
 });

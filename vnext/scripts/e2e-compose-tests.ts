@@ -1,6 +1,8 @@
 // vnext/scripts/e2e-compose-tests.ts
 // Consolidated E2E runner for /api/compose validations: schema, determinism, fail-closed, overlay-Δ, latency
 
+export {}; // Ensure module scope
+
 type Json = Record<string, any>;
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';

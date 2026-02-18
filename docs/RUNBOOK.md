@@ -25,6 +25,19 @@ curl "http://localhost:3000?viz=0"
 # Monitor for abuse
 ```
 
+## Single deployment branch (Render + Vercel)
+
+Use **one** shared branch so both Render (backend) and Vercel (frontend) deploy the same SHA.
+
+| Item | Value |
+|------|--------|
+| **Branch** | `beta-ui-vercel` |
+| **Remote tracking** | `origin/beta-ui-vercel` |
+| **Verify Render** | Dashboard → Service → Build & Deploy → **Branch** = `beta-ui-vercel`. Redeploy to pick up latest SHA. |
+| **Verify Vercel** | Project Settings → Git → **Production Branch** = `beta-ui-vercel`. Redeploy to pick up latest SHA. |
+
+After pushing to `beta-ui-vercel`, confirm both platforms show the same commit (e.g. `git rev-parse HEAD` = Render deploy commit = Vercel deploy commit).
+
 ## Deployment / API gotchas
 
 ### POST /api/compose returns 400 HTML

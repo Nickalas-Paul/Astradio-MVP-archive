@@ -1,0 +1,187 @@
+{
+  "meta": {
+    "timestamp": "2026-02-06T00:32:36.002Z",
+    "git_sha": "96db14c",
+    "base_url": "https://astradio-mvp-archive.onrender.com",
+    "total": 25,
+    "passed": 0,
+    "failed": 25
+  },
+  "results": [
+    {
+      "case_id": "golden-001",
+      "name": "New York 1990 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 160,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":548}"
+    },
+    {
+      "case_id": "golden-002",
+      "name": "Los Angeles 1985 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 80,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":548}"
+    },
+    {
+      "case_id": "golden-003",
+      "name": "London 1992 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 100,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":547}"
+    },
+    {
+      "case_id": "golden-004",
+      "name": "Tokyo 2000 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 119,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":547}"
+    },
+    {
+      "case_id": "golden-005",
+      "name": "Sydney 2010 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 84,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":547}"
+    },
+    {
+      "case_id": "golden-006",
+      "name": "Berlin 1989 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 88,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":546}"
+    },
+    {
+      "case_id": "golden-007",
+      "name": "Paris 1995 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 105,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":546}"
+    },
+    {
+      "case_id": "golden-008",
+      "name": "Moscow 1991 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 111,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":546}"
+    },
+    {
+      "case_id": "golden-009",
+      "name": "São Paulo 1984 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 130,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":545}"
+    },
+    {
+      "case_id": "golden-010",
+      "name": "Mexico City 1995 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 182,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":545}"
+    },
+    {
+      "case_id": "golden-011",
+      "name": "Cairo 2011 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 103,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":545}"
+    },
+    {
+      "case_id": "golden-012",
+      "name": "Mumbai 2008 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 171,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":544}"
+    },
+    {
+      "case_id": "golden-013",
+      "name": "Toronto 1999 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 132,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":544}"
+    },
+    {
+      "case_id": "golden-014",
+      "name": "Buenos Aires 1978 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 104,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":544}"
+    },
+    {
+      "case_id": "golden-015",
+      "name": "Seoul 1988 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 104,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":543}"
+    },
+    {
+      "case_id": "golden-016",
+      "name": "Sky NYC 2025",
+      "http_status": 429,
+      "elapsed_ms": 117,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":543}"
+    },
+    {
+      "case_id": "golden-017",
+      "name": "Sky London 2025",
+      "http_status": 429,
+      "elapsed_ms": 103,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":543}"
+    },
+    {
+      "case_id": "golden-018",
+      "name": "Sky Tokyo 2025",
+      "http_status": 429,
+      "elapsed_ms": 106,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":542}"
+    },
+    {
+      "case_id": "golden-019",
+      "name": "Sky Sydney 2025",
+      "http_status": 429,
+      "elapsed_ms": 89,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":542}"
+    },
+    {
+      "case_id": "golden-020",
+      "name": "Sky Berlin 2025",
+      "http_status": 429,
+      "elapsed_ms": 83,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":542}"
+    },
+    {
+      "case_id": "golden-021",
+      "name": "Overlay natal NYC current LA",
+      "http_status": 429,
+      "elapsed_ms": 86,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":541}"
+    },
+    {
+      "case_id": "golden-022",
+      "name": "Overlay natal London current Paris",
+      "http_status": 429,
+      "elapsed_ms": 88,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":541}"
+    },
+    {
+      "case_id": "golden-023",
+      "name": "Sandbox minimal controls",
+      "http_status": 429,
+      "elapsed_ms": 93,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":541}"
+    },
+    {
+      "case_id": "golden-024",
+      "name": "Sandbox high density",
+      "http_status": 429,
+      "elapsed_ms": 100,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":541}"
+    },
+    {
+      "case_id": "golden-025",
+      "name": "Sandbox low density",
+      "http_status": 429,
+      "elapsed_ms": 103,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":540}"
+    }
+  ]
+}

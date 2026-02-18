@@ -67,7 +67,17 @@ Commits are organized by directory scope:
 #### Local Development
 ```bash
 npm install
-npm run dev
+npm run dev:all
+```
+
+This starts both services:
+- **Engine** → `http://localhost:4000` (API server)
+- **Frontend** → `http://localhost:3000` (Next.js)
+
+To run services separately:
+```bash
+npm run engine:dev  # Engine only (port 4000)
+npm run web:dev      # Frontend only (port 3000)
 ```
 
 #### Soak Testing

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Astradio — Astrological Wheel Composer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <style>
+    :root { color-scheme: dark; --bg:#0f1620; --fg:#e7eefc; --muted:#93a1b3; --accent:#22c55e; --panel:#151e2b; }
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Arial;}
+    .wrap{max-width:1100px;margin:28px auto;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:24px;align-items:start}
+    h1{grid-column:1/-1;font-size:36px;margin:0 0 12px;}
+    .panel{background:var(--panel);border-radius:14px;padding:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+    .label{font-weight:600;color:var(--muted)}
+    input,select,button{border:0;border-radius:10px;background:#0c1320;color:var(--fg);padding:10px 12px;outline:1px solid #243142}
+    button.primary{background:var(--accent);color:#07240f;font-weight:700;outline:none}
+    button.ghost{background:#223146}
+    .status{margin-top:8px;color:var(--muted)}
+    #wheel{width:100%;aspect-ratio:1;border-radius:16px;background:#0b1220;display:block}
+
+    /* Planet glyph styling */
+    .planet { font-family: "Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", "DejaVu Sans", system-ui, sans-serif;
+              font-size:14px; font-weight:700; fill:#e7eefc; text-shadow: 0 1px 0 #000; }
+    .planet.sun      { fill:#ffd166; }
+    .planet.moon     { fill:#d2d6ff; }
+    .planet.mercury  { fill:#7cd4ff; }
+    .planet.venus    { fill:#ffa7c4; }
+    .planet.mars     { fill:#ff7b7b; }
+    .planet.jupiter  { fill:#a3ffb0; }
+    .planet.saturn   { fill:#c5caa3; }
+    .planet.uranus   { fill:#77ffee; }
+    .planet.neptune  { fill:#91a7ff; }
+    .planet.pluto    { fill:#ffcc91; }
+
+    .house-num { fill:#9fb2d3; font-size:11px; }
+    .note{font-size:12px;color:#9fb2d3}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Astradio — Astrological Wheel Composer</h1>
+
+    <!-- Left: Wheel -->
+    <div class="panel">
+      <svg id="wheel" viewBox="-220 -220 440 440" xmlns="http://www.w3.org/2000/svg" aria-label="Astrological Wheel"></svg>
+      <div class="note">Wheel shows 12 houses (equal-house for now) and planet positions. Active house highlights during playback. Orientation matches standard charts (ASC at 9 o’clock; houses run counter-clockwise).</div>
+    </div>
+
+    <!-- Right: Controls -->
+    <div class="panel">
+      <div class="row">
+        <span class="label">Date</span><input id="date" type="date">
+        <span class="label">Time (UT)</span><input id="time" type="time" value="12:00">
+      </div>
+      <div class="row">
+        <span class="label">Place</span>
+        <input id="place" list="places" placeholder="Type a city…" class="grow">
+        <datalist id="places"></datalist>
+      </div>
+      <div class="row">
+        <span class="label">Lat</span><input id="lat" type="text" placeholder="auto">
+        <span class="label">Lon</span><input id="lon" type="text" placeholder="auto">
+      </div>
+      <div class="row">
+        <span class="label">Genre</span>
+        <select id="genre">
+          <option value="ambient">Ambient</option>
+          <option value="electronic">Electronic</option>
+          <option value="classical">Classical</option>
+          <option value="jazz">Jazz</option>
+        </select>
+        <span class="label">Intensity</span>
+        <input id="intensity" type="range" min="50" max="200" step="5" value="100">
+      </div>
+      <div class="row">
+        <button id="start" class="primary">Start / Restart (60s)</button>
+        <button id="stop" class="ghost">Stop</button>
+      </div>
+      <div id="status" class="status">Ready.</div>
+    </div>
+  </div>
+  <!-- CTA: encourage users to hear their own chart -->
+<a href="/overlay.html?auto=1"
+   style="display:inline-block;margin-top:16px;padding:12px 16px;border:1px solid #203052;border-radius:12px;background:#0f1728;color:#e6f0ff;text-decoration:none;font-weight:600">
+  Create Your Soundtrack
+</a>
+
+<a href="/overlay.html" style="display:inline-block;padding:10px 14px;border:1px solid #203052;border-radius:10px;background:#111a2e;color:#e6f0ff;text-decoration:none">Overlay</a>
+
+  <script>
+    // default date
+    document.addEventListener("DOMContentLoaded", () => {
+      try { document.getElementById('date').value = new Date().toISOString().slice(0,10); } catch {}
+    });
+  </script>
+  <script src="./wheel.js"></script>
+  <script src="./engine.js"></script>
+</body>
+</html>

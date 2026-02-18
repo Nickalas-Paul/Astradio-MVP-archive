@@ -14,7 +14,7 @@ import { TextExplainerEngine } from '../explainer/text-explainer';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-import { encodeFeatures } from '../feature-encode';
+import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
@@ -66,14 +66,31 @@ export class ComposeAPI {
       // Generate control-surface payload based on mode
       const payload = await this.generateControlPayload(request);
 
-      const snapshot = await this.fetchChartSnapshot(request);
-      const featureVec = encodeFeatures(snapshot) as FeatureVec;
+      // Use canonical architecture engine for all transformations
+      const chartInput = this.extractChartInput(request);
+      const architecture = await generateArchitecture(chartInput, payload.hash);
+      const { snapshot, features: featureVec, guidance } = architecture;
 
       // Compute provenance hashes
       const snapshot_sha256 = this.hashSnapshot(snapshot);
       const featurevec_sha256 = this.hashFeatureVec(featureVec);
 
-      const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+      // Pass architecture output to plan generator (features + payload with guidance context)
+      // Note: generatePlanMLOnly will use guidance internally, but we pass payload for compatibility
+      const { plan, diag } = await generatePlanMLOnly(featureVec, {
+        ...payload,
+        // Ensure plan-generator can access snapshot for guidance computation
+        ts: snapshot.ts,
+        tz: snapshot.tz,
+        lat: snapshot.lat,
+        lon: snapshot.lon,
+        houseSystem: snapshot.houseSystem,
+        planets: snapshot.planets,
+        houses: snapshot.houses,
+        aspects: snapshot.aspects,
+        moonPhase: snapshot.moonPhase,
+        dominantElements: snapshot.dominantElements
+      });
       
       // Compute v6 hash from diag
       const v6_sha256 = diag?.v6 ? this.hashV6(diag.v6) : '';
@@ -109,15 +126,15 @@ export class ComposeAPI {
       }
       
       // Generate text explanation using new ExplainSpec engine (Text Generation Engine v1.0)
-      // Build guidanceSummary and planSummary from canonical inputs
+      // Use architecture output (already computed)
       const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
       const planSummary = buildPlanSummary(plan);
       
-      // Build ExplainSpec from canonical pipeline inputs
+      // Build ExplainSpec from canonical pipeline inputs (using architecture output)
       const spec = buildExplainSpecSingle({
         seed: payload.hash,
-        snapshot,
-        featureVec,
+        snapshot: architecture.snapshot,
+        featureVec: architecture.features,
         guidanceSummary,
         plan,
         planSummary,
@@ -128,7 +145,7 @@ export class ComposeAPI {
       const rendered = renderExplainSpecToSections(spec);
       
       // Legacy text explainer (fallback for overlay mode and backward compatibility)
-      const astro = astroSummaryFromSnapshot(snapshot, featureVec, payload.modality);
+      const astro = astroSummaryFromSnapshot(architecture.snapshot, architecture.features, payload.modality);
       const context: any = {
         mode: request.mode,
         session_id: this.generateSessionId(),
@@ -136,7 +153,7 @@ export class ComposeAPI {
         chartHash: snapshot_sha256,
         featuresVersion: 'v1.0'
       };
-      const explainerInputs = { astro, featureVec, plan };
+      const explainerInputs = { astro, featureVec: architecture.features, plan };
 
       let text: any;
       let textMetricsMs: number | undefined;
@@ -657,16 +674,16 @@ export class ComposeAPI {
   }
 
   /**
-   * Fetch EphemerisSnapshot from /api/chart-snapshot for real feature encoding.
+   * Extract chart input from compose request.
+   * Used by architecture engine to fetch snapshot.
    */
-  private async fetchChartSnapshot(request: ComposeRequest): Promise<EphemerisSnapshot> {
-    const PORT = process.env.PORT || '3000';
-    const base = `http://localhost:${PORT}`;
+  private extractChartInput(request: ComposeRequest): ChartInput {
+    const req = request as any;
     let date: string;
     let time: string;
     let lat: number;
     let lon: number;
-    const req = request as any;
+    
     if (req.mode === 'sky' && req.skyParams) {
       const dt = req.skyParams.datetime || '';
       const [d, t] = dt.split('T');
@@ -687,10 +704,8 @@ export class ComposeAPI {
       lat = req.chartData?.lat ?? 40.7128;
       lon = req.chartData?.lon ?? -74.006;
     }
-    const q = new URLSearchParams({ date, time, lat: String(lat), lon: String(lon) });
-    const r = await fetch(`${base}/api/chart-snapshot?${q}`);
-    if (!r.ok) throw new Error(`chart-snapshot failed: ${r.status}`);
-    return r.json() as Promise<EphemerisSnapshot>;
+    
+    return { date, time, lat, lon };
   }
 
   /**

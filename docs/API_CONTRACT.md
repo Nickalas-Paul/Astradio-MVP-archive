@@ -17,6 +17,7 @@ This document defines the API contract for Astradio MVP. All endpoints must foll
 - `GET /api/trending` - Trending content
 - `GET /api/profile` - Current user profile (stub: user + primary chart)
 - `GET /api/profile/chart` - Profile chart snapshot + explainer (proxies to engine)
+- `GET /api/community/search` - Directory user search (proxies to engine; query: q, limit, cursor). V1: powered by seeded directory only.
 - `GET /api/compat/health` - Compatibility service health (proxies to engine)
 - `GET /api/compat/matches` - Compatibility matches (proxies to engine; query: chartId, mode, limit)
 
@@ -27,7 +28,8 @@ This document defines the API contract for Astradio MVP. All endpoints must foll
 - `POST /api/save/[trackId]` - Save tracks
 
 #### Engine (vnext compat) Routes (served by Express when compat router mounted)
-- `GET /api/profile/chart?chartId=` - Chart snapshot + explainer (vnext encoder + ExplainSpec)
+- `GET /api/profile/chart?chartId=` - Chart snapshot + explainer (vnext encoder + ExplainSpec). V1: only chartIds in the seeded directory (or default profile) are allowed (403 otherwise).
+- `GET /api/community/search?q=&limit=&cursor=` - Directory user search. V1: seeded users only (match candidates). Query: q (optional, case-insensitive substring on displayName/userId), limit (default 10), cursor (optional offset). Response: `{ q, limit, users: [{ userId, displayName, chartId, label?, locationLabel? }], nextCursor?, generatedAt, version }`. Deterministic: same query returns same ordered list.
 - `GET /api/compat/health` - Compatibility health
 - `GET /api/compat/matches?chartId=&mode=friend|lover|rival&limit=&cursor=` - Matches (real 64-D encoder). Query: chartId (required), mode (default friend), limit (default 10), cursor (optional).
 

@@ -1,0 +1,919 @@
+<control>
+set_cc74=127
+label_cc74=Tone 
+set_cc1=64
+label_cc1=Pitch
+set_cc73=0
+label_cc73=Attack
+set_cc72=0
+label_cc72=Release
+set_cc2=0
+label_cc2=Instrument
+
+default_path=samplesflac/
+
+octave_offset=1		//shift occupied region in octaves on keyboard
+
+image=Background_scherp.png
+image_controls=Background_vaag_CC.png
+
+<global>
+amp_veltrack=0		//change to 100 to make volume react to velocity
+
+loop_mode=no_loop     //set to "loop_continuous" for infinite notes when holding down key
+loop_start=20000
+loop_end=160000
+loop_crossfade=20000
+
+ampeg_attack=0.001
+ampeg_attack_oncc73=5
+ampeg_release=0.001
+ampeg_release_oncc72=5
+
+gain_oncc130=6		//cc130 is poly-aftertouch
+pitch_oncc130=-30
+gain_oncc129=6		//cc129 is channel-aftertouch
+pitch_oncc129=-30
+
+fil_type=lpf_1p
+cutoff=50
+cutoff_oncc74=6400
+cutoff_smoothcc74=100			//inertia or smoothness in milliseconds
+
+tune=-1200
+pitch_oncc1=2400
+pitch_smoothcc1=100		//inertia or smoothness in milliseconds
+
+<group>
+locc2=0 hicc2=0
+<region> sample=Cello\G2.flac key=43
+<region> sample=Cello\G#2.flac key=44 
+<region> sample=Cello\A2.flac key=45 
+<region> sample=Cello\A#2.flac key=46 
+<region> sample=Cello\B2.flac key=47
+<region> sample=Cello\C3.flac key=48
+<region> sample=Cello\C#3.flac key=49
+<region> sample=Cello\D3.flac key=50
+<region> sample=Cello\D#3.flac key=51
+<region> sample=Cello\E3.flac key=52
+<region> sample=Cello\F3.flac key=53
+<region> sample=Cello\F#3.flac key=54
+<region> sample=Cello\G3.flac key=55 
+<region> sample=Cello\G#3.flac key=56 
+<region> sample=Cello\A3.flac key=57 
+<region> sample=Cello\A#3.flac key=58 
+<region> sample=Cello\B3.flac key=59 
+<region> sample=Cello\C4.flac key=60 
+<region> sample=Cello\C#4.flac key=61 
+<region> sample=Cello\D4.flac key=62 
+<region> sample=Cello\D#4.flac key=63 
+<region> sample=Cello\E4.flac key=64 
+<region> sample=Cello\F4.flac key=65 
+<region> sample=Cello\F#4.flac key=66 
+<region> sample=Cello\G4.flac key=67 
+<region> sample=Cello\G#4.flac key=68 
+<region> sample=Cello\A4.flac key=69 
+<region> sample=Cello\A#4.flac key=70 
+<region> sample=Cello\B4.flac key=71 
+<region> sample=Cello\C5.flac key=72 
+<region> sample=Cello\C#5.flac key=73 
+<region> sample=Cello\D5.flac key=74 
+<region> sample=Cello\D#5.flac key=75 
+<region> sample=Cello\E5.flac key=76 
+<region> sample=Cello\F5.flac key=77
+
+<group>
+locc2=1 hicc2=1
+<region> sample=MkII_Violins/G2.flac key=43 
+<region> sample=MkII_Violins/G#2.flac key=44 
+<region> sample=MkII_Violins/A2.flac key=45 
+<region> sample=MkII_Violins/A#2.flac key=46 
+<region> sample=MkII_Violins/B2.flac key=47 
+<region> sample=MkII_Violins/C3.flac key=48 
+<region> sample=MkII_Violins/C#3.flac key=49 
+<region> sample=MkII_Violins/D3.flac key=50 
+<region> sample=MkII_Violins/D#3.flac key=51 
+<region> sample=MkII_Violins/E3.flac key=52 
+<region> sample=MkII_Violins/F3.flac key=53 
+<region> sample=MkII_Violins/F#3.flac key=54 
+<region> sample=MkII_Violins/G3.flac key=55 
+<region> sample=MkII_Violins/G#3.flac key=56 
+<region> sample=MkII_Violins/A3.flac key=57 
+<region> sample=MkII_Violins/A#3.flac key=58 
+<region> sample=MkII_Violins/B3.flac key=59 
+<region> sample=MkII_Violins/C4.flac key=60 
+<region> sample=MkII_Violins/C#4.flac key=61 
+<region> sample=MkII_Violins/D4.flac key=62 
+<region> sample=MkII_Violins/D#4.flac key=63 
+<region> sample=MkII_Violins/E4.flac key=64 
+<region> sample=MkII_Violins/F4.flac key=65 
+<region> sample=MkII_Violins/F#4.flac key=66 
+<region> sample=MkII_Violins/G4.flac key=67 
+<region> sample=MkII_Violins/G#4.flac key=68 
+<region> sample=MkII_Violins/A4.flac key=69 
+<region> sample=MkII_Violins/A#4.flac key=70 
+<region> sample=MkII_Violins/B4.flac key=71 
+<region> sample=MkII_Violins/C5.flac key=72 
+<region> sample=MkII_Violins/C#5.flac key=73 
+<region> sample=MkII_Violins/D5.flac key=74 
+<region> sample=MkII_Violins/D#5.flac key=75 
+<region> sample=MkII_Violins/E5.flac key=76 
+<region> sample=MkII_Violins/F5.flac key=77 
+
+<group>
+locc2=2 hicc2=2
+<region> sample=M300A/G2.flac key=43 
+<region> sample=M300A/G#2.flac key=44 
+<region> sample=M300A/A2.flac key=45 
+<region> sample=M300A/A#2.flac key=46 
+<region> sample=M300A/B2.flac key=47 
+<region> sample=M300A/C3.flac key=48 
+<region> sample=M300A/C#3.flac key=49 
+<region> sample=M300A/D3.flac key=50 
+<region> sample=M300A/D#3.flac key=51 
+<region> sample=M300A/E3.flac key=52 
+<region> sample=M300A/F3.flac key=53 
+<region> sample=M300A/F#3.flac key=54 
+<region> sample=M300A/G3.flac key=55 
+<region> sample=M300A/G#3.flac key=56 
+<region> sample=M300A/A3.flac key=57 
+<region> sample=M300A/A#3.flac key=58 
+<region> sample=M300A/B3.flac key=59 
+<region> sample=M300A/C4.flac key=60 
+<region> sample=M300A/C#4.flac key=61 
+<region> sample=M300A/D4.flac key=62 
+<region> sample=M300A/D#4.flac key=63 
+<region> sample=M300A/E4.flac key=64 
+<region> sample=M300A/F4.flac key=65 
+<region> sample=M300A/F#4.flac key=66 
+<region> sample=M300A/G4.flac key=67 
+<region> sample=M300A/G#4.flac key=68 
+<region> sample=M300A/A4.flac key=69 
+<region> sample=M300A/A#4.flac key=70 
+<region> sample=M300A/B4.flac key=71 
+<region> sample=M300A/C5.flac key=72 
+<region> sample=M300A/C#5.flac key=73 
+<region> sample=M300A/D5.flac key=74 
+<region> sample=M300A/D#5.flac key=75 
+<region> sample=M300A/E5.flac key=76 
+<region> sample=M300A/F5.flac key=77
+
+<group>
+locc2=3 hicc2=3
+<region> sample=M300B/G2.flac key=43 
+<region> sample=M300B/G#2.flac key=44 
+<region> sample=M300B/A2.flac key=45 
+<region> sample=M300B/A#2.flac key=46 
+<region> sample=M300B/B2.flac key=47 
+<region> sample=M300B/C3.flac key=48 
+<region> sample=M300B/C#3.flac key=49 
+<region> sample=M300B/D3.flac key=50 
+<region> sample=M300B/D#3.flac key=51 
+<region> sample=M300B/E3.flac key=52 
+<region> sample=M300B/F3.flac key=53 
+<region> sample=M300B/F#3.flac key=54 
+<region> sample=M300B/G3.flac key=55 
+<region> sample=M300B/G#3.flac key=56 
+<region> sample=M300B/A3.flac key=57 
+<region> sample=M300B/A#3.flac key=58 
+<region> sample=M300B/B3.flac key=59 
+<region> sample=M300B/C4.flac key=60 
+<region> sample=M300B/C#4.flac key=61 
+<region> sample=M300B/D4.flac key=62 
+<region> sample=M300B/D#4.flac key=63 
+<region> sample=M300B/E4.flac key=64 
+<region> sample=M300B/F4.flac key=65 
+<region> sample=M300B/F#4.flac key=66 
+<region> sample=M300B/G4.flac key=67 
+<region> sample=M300B/G#4.flac key=68 
+<region> sample=M300B/A4.flac key=69 
+<region> sample=M300B/A#4.flac key=70 
+<region> sample=M300B/B4.flac key=71 
+<region> sample=M300B/C5.flac key=72 
+<region> sample=M300B/C#5.flac key=73 
+<region> sample=M300B/D5.flac key=74 
+<region> sample=M300B/D#5.flac key=75 
+<region> sample=M300B/E5.flac key=76 
+<region> sample=M300B/F5.flac key=77 
+
+<group>
+locc2=4 hicc2=4
+<region> sample=String_Section/G2.flac key=43 
+<region> sample=String_Section/G#2.flac key=44 
+<region> sample=String_Section/A2.flac key=45 
+<region> sample=String_Section/A#2.flac key=46 
+<region> sample=String_Section/B2.flac key=47 
+<region> sample=String_Section/C3.flac key=48 
+<region> sample=String_Section/C#3.flac key=49 
+<region> sample=String_Section/D3.flac key=50 
+<region> sample=String_Section/D#3.flac key=51 
+<region> sample=String_Section/E3.flac key=52 
+<region> sample=String_Section/F3.flac key=53 
+<region> sample=String_Section/F#3.flac key=54 
+<region> sample=String_Section/G3.flac key=55 
+<region> sample=String_Section/G#3.flac key=56 
+<region> sample=String_Section/A3.flac key=57 
+<region> sample=String_Section/A#3.flac key=58 
+<region> sample=String_Section/B3.flac key=59 
+<region> sample=String_Section/C4.flac key=60 
+<region> sample=String_Section/C#4.flac key=61 
+<region> sample=String_Section/D4.flac key=62 
+<region> sample=String_Section/D#4.flac key=63 
+<region> sample=String_Section/E4.flac key=64 
+<region> sample=String_Section/F4.flac key=65 
+<region> sample=String_Section/F#4.flac key=66 
+<region> sample=String_Section/G4.flac key=67 
+<region> sample=String_Section/G#4.flac key=68 
+<region> sample=String_Section/A4.flac key=69 
+<region> sample=String_Section/A#4.flac key=70 
+<region> sample=String_Section/B4.flac key=71 
+<region> sample=String_Section/C5.flac key=72 
+<region> sample=String_Section/C#5.flac key=73 
+<region> sample=String_Section/D5.flac key=74 
+<region> sample=String_Section/D#5.flac key=75 
+<region> sample=String_Section/E5.flac key=76 
+<region> sample=String_Section/F5.flac key=77 
+
+<group>
+locc2=5 hicc2=5
+<region> sample=Orchestra/G2.flac key=43 
+<region> sample=Orchestra/G#2.flac key=44 
+<region> sample=Orchestra/A2.flac key=45 
+<region> sample=Orchestra/A#2.flac key=46 
+<region> sample=Orchestra/B2.flac key=47 
+<region> sample=Orchestra/C3.flac key=48 
+<region> sample=Orchestra/C#3.flac key=49 
+<region> sample=Orchestra/D3.flac key=50 
+<region> sample=Orchestra/D#3.flac key=51 
+<region> sample=Orchestra/E3.flac key=52 
+<region> sample=Orchestra/F3.flac key=53 
+<region> sample=Orchestra/F#3.flac key=54 
+<region> sample=Orchestra/G3.flac key=55 
+<region> sample=Orchestra/G#3.flac key=56 
+<region> sample=Orchestra/A3.flac key=57 
+<region> sample=Orchestra/A#3.flac key=58 
+<region> sample=Orchestra/B3.flac key=59 
+<region> sample=Orchestra/C4.flac key=60 
+<region> sample=Orchestra/C#4.flac key=61 
+<region> sample=Orchestra/D4.flac key=62 
+<region> sample=Orchestra/D#4.flac key=63 
+<region> sample=Orchestra/E4.flac key=64 
+<region> sample=Orchestra/F4.flac key=65 
+<region> sample=Orchestra/F#4.flac key=66 
+<region> sample=Orchestra/G4.flac key=67 
+<region> sample=Orchestra/G#4.flac key=68 
+<region> sample=Orchestra/A4.flac key=69 
+<region> sample=Orchestra/A#4.flac key=70 
+<region> sample=Orchestra/B4.flac key=71 
+<region> sample=Orchestra/C5.flac key=72 
+<region> sample=Orchestra/C#5.flac key=73 
+<region> sample=Orchestra/D5.flac key=74 
+<region> sample=Orchestra/D#5.flac key=75 
+<region> sample=Orchestra/E5.flac key=76 
+<region> sample=Orchestra/F5.flac key=77 
+
+<group>
+locc2=6 hicc2=6
+<region> sample=MkII_Combined_Brass/G2.flac key=43 
+<region> sample=MkII_Combined_Brass/G#2.flac key=44 
+<region> sample=MkII_Combined_Brass/A2.flac key=45 
+<region> sample=MkII_Combined_Brass/A#2.flac key=46 
+<region> sample=MkII_Combined_Brass/B2.flac key=47 
+<region> sample=MkII_Combined_Brass/C3.flac key=48 
+<region> sample=MkII_Combined_Brass/C#3.flac key=49 
+<region> sample=MkII_Combined_Brass/D3.flac key=50 
+<region> sample=MkII_Combined_Brass/D#3.flac key=51 
+<region> sample=MkII_Combined_Brass/E3.flac key=52 
+<region> sample=MkII_Combined_Brass/F3.flac key=53 
+<region> sample=MkII_Combined_Brass/F#3.flac key=54 
+<region> sample=MkII_Combined_Brass/G3.flac key=55 
+<region> sample=MkII_Combined_Brass/G#3.flac key=56 
+<region> sample=MkII_Combined_Brass/A3.flac key=57 
+<region> sample=MkII_Combined_Brass/A#3.flac key=58 
+<region> sample=MkII_Combined_Brass/B3.flac key=59 
+<region> sample=MkII_Combined_Brass/C4.flac key=60 
+<region> sample=MkII_Combined_Brass/C#4.flac key=61 
+<region> sample=MkII_Combined_Brass/D4.flac key=62 
+<region> sample=MkII_Combined_Brass/D#4.flac key=63 
+<region> sample=MkII_Combined_Brass/E4.flac key=64 
+<region> sample=MkII_Combined_Brass/F4.flac key=65 
+<region> sample=MkII_Combined_Brass/F#4.flac key=66 
+<region> sample=MkII_Combined_Brass/G4.flac key=67 
+<region> sample=MkII_Combined_Brass/G#4.flac key=68 
+<region> sample=MkII_Combined_Brass/A4.flac key=69 
+<region> sample=MkII_Combined_Brass/A#4.flac key=70 
+<region> sample=MkII_Combined_Brass/B4.flac key=71 
+<region> sample=MkII_Combined_Brass/C5.flac key=72 
+<region> sample=MkII_Combined_Brass/C#5.flac key=73 
+<region> sample=MkII_Combined_Brass/D5.flac key=74 
+<region> sample=MkII_Combined_Brass/D#5.flac key=75 
+<region> sample=MkII_Combined_Brass/E5.flac key=76 
+<region> sample=MkII_Combined_Brass/F5.flac key=77 
+
+<group>
+locc2=7 hicc2=7
+<region> sample=Mixed_Brass_B/G2.flac key=43 
+<region> sample=Mixed_Brass_B/G#2.flac key=44 
+<region> sample=Mixed_Brass_B/A2.flac key=45 
+<region> sample=Mixed_Brass_B/A#2.flac key=46 
+<region> sample=Mixed_Brass_B/B2.flac key=47 
+<region> sample=Mixed_Brass_B/C3.flac key=48 
+<region> sample=Mixed_Brass_B/C#3.flac key=49 
+<region> sample=Mixed_Brass_B/D3.flac key=50 
+<region> sample=Mixed_Brass_B/D#3.flac key=51 
+<region> sample=Mixed_Brass_B/E3.flac key=52 
+<region> sample=Mixed_Brass_B/F3.flac key=53 
+<region> sample=Mixed_Brass_B/F#3.flac key=54 
+<region> sample=Mixed_Brass_B/G3.flac key=55 
+<region> sample=Mixed_Brass_B/G#3.flac key=56 
+<region> sample=Mixed_Brass_B/A3.flac key=57 
+<region> sample=Mixed_Brass_B/A#3.flac key=58 
+<region> sample=Mixed_Brass_B/B3.flac key=59 
+<region> sample=Mixed_Brass_B/C4.flac key=60 
+<region> sample=Mixed_Brass_B/C#4.flac key=61 
+<region> sample=Mixed_Brass_B/D4.flac key=62 
+<region> sample=Mixed_Brass_B/D#4.flac key=63 
+<region> sample=Mixed_Brass_B/E4.flac key=64 
+<region> sample=Mixed_Brass_B/F4.flac key=65 
+<region> sample=Mixed_Brass_B/F#4.flac key=66 
+<region> sample=Mixed_Brass_B/G4.flac key=67 
+<region> sample=Mixed_Brass_B/G#4.flac key=68 
+<region> sample=Mixed_Brass_B/A4.flac key=69 
+<region> sample=Mixed_Brass_B/A#4.flac key=70 
+<region> sample=Mixed_Brass_B/B4.flac key=71 
+<region> sample=Mixed_Brass_B/C5.flac key=72 
+<region> sample=Mixed_Brass_B/C#5.flac key=73 
+<region> sample=Mixed_Brass_B/D5.flac key=74 
+<region> sample=Mixed_Brass_B/D#5.flac key=75 
+<region> sample=Mixed_Brass_B/E5.flac key=76 
+<region> sample=Mixed_Brass_B/F5.flac key=77 
+
+<group>
+locc2=8 hicc2=8
+<region> sample=GC3_Brass/G2.flac key=43 
+<region> sample=GC3_Brass/G#2.flac key=44 
+<region> sample=GC3_Brass/A2.flac key=45 
+<region> sample=GC3_Brass/A#2.flac key=46 
+<region> sample=GC3_Brass/B2.flac key=47 
+<region> sample=GC3_Brass/C3.flac key=48 
+<region> sample=GC3_Brass/C#3.flac key=49 
+<region> sample=GC3_Brass/D3.flac key=50 
+<region> sample=GC3_Brass/D#3.flac key=51 
+<region> sample=GC3_Brass/E3.flac key=52 
+<region> sample=GC3_Brass/F3.flac key=53 
+<region> sample=GC3_Brass/F#3.flac key=54 
+<region> sample=GC3_Brass/G3.flac key=55 
+<region> sample=GC3_Brass/G#3.flac key=56 
+<region> sample=GC3_Brass/A3.flac key=57 
+<region> sample=GC3_Brass/A#3.flac key=58 
+<region> sample=GC3_Brass/B3.flac key=59 
+<region> sample=GC3_Brass/C4.flac key=60 
+<region> sample=GC3_Brass/C#4.flac key=61 
+<region> sample=GC3_Brass/D4.flac key=62 
+<region> sample=GC3_Brass/D#4.flac key=63 
+<region> sample=GC3_Brass/E4.flac key=64 
+<region> sample=GC3_Brass/F4.flac key=65 
+<region> sample=GC3_Brass/F#4.flac key=66 
+<region> sample=GC3_Brass/G4.flac key=67 
+<region> sample=GC3_Brass/G#4.flac key=68 
+<region> sample=GC3_Brass/A4.flac key=69 
+<region> sample=GC3_Brass/A#4.flac key=70 
+<region> sample=GC3_Brass/B4.flac key=71 
+<region> sample=GC3_Brass/C5.flac key=72 
+<region> sample=GC3_Brass/C#5.flac key=73 
+<region> sample=GC3_Brass/D5.flac key=74 
+<region> sample=GC3_Brass/D#5.flac key=75 
+<region> sample=GC3_Brass/E5.flac key=76 
+<region> sample=GC3_Brass/F5.flac key=77 
+
+<group>
+locc2=9 hicc2=9
+<region> sample=Trombone/G2.flac key=43 
+<region> sample=Trombone/G#2.flac key=44 
+<region> sample=Trombone/A2.flac key=45 
+<region> sample=Trombone/A#2.flac key=46 
+<region> sample=Trombone/B2.flac key=47 
+<region> sample=Trombone/C3.flac key=48 
+<region> sample=Trombone/C#3.flac key=49 
+<region> sample=Trombone/D3.flac key=50 
+<region> sample=Trombone/D#3.flac key=51 
+<region> sample=Trombone/E3.flac key=52 
+<region> sample=Trombone/F3.flac key=53 
+<region> sample=Trombone/F#3.flac key=54 
+<region> sample=Trombone/G3.flac key=55 
+<region> sample=Trombone/G#3.flac key=56 
+<region> sample=Trombone/A3.flac key=57 
+<region> sample=Trombone/A#3.flac key=58 
+<region> sample=Trombone/B3.flac key=59 
+<region> sample=Trombone/C4.flac key=60 
+<region> sample=Trombone/C#4.flac key=61 
+<region> sample=Trombone/D4.flac key=62 
+<region> sample=Trombone/D#4.flac key=63 
+<region> sample=Trombone/E4.flac key=64 
+<region> sample=Trombone/F4.flac key=65 
+<region> sample=Trombone/F#4.flac key=66 
+<region> sample=Trombone/G4.flac key=67 
+<region> sample=Trombone/G#4.flac key=68 
+<region> sample=Trombone/A4.flac key=69 
+<region> sample=Trombone/A#4.flac key=70 
+<region> sample=Trombone/B4.flac key=71 
+<region> sample=Trombone/C5.flac key=72 
+<region> sample=Trombone/C#5.flac key=73 
+<region> sample=Trombone/D5.flac key=74 
+<region> sample=Trombone/D#5.flac key=75 
+<region> sample=Trombone/E5.flac key=76 
+<region> sample=Trombone/F5.flac key=77 
+
+<group>
+locc2=10 hicc2=10
+<region> sample=Trumpet/G2.flac key=43 
+<region> sample=Trumpet/G#2.flac key=44 
+<region> sample=Trumpet/A2.flac key=45 
+<region> sample=Trumpet/A#2.flac key=46 
+<region> sample=Trumpet/B2.flac key=47 
+<region> sample=Trumpet/C3.flac key=48 
+<region> sample=Trumpet/C#3.flac key=49 
+<region> sample=Trumpet/D3.flac key=50 
+<region> sample=Trumpet/D#3.flac key=51 
+<region> sample=Trumpet/E3.flac key=52 
+<region> sample=Trumpet/F3.flac key=53 
+<region> sample=Trumpet/F#3.flac key=54 
+<region> sample=Trumpet/G3.flac key=55 
+<region> sample=Trumpet/G#3.flac key=56 
+<region> sample=Trumpet/A3.flac key=57 
+<region> sample=Trumpet/A#3.flac key=58 
+<region> sample=Trumpet/B3.flac key=59 
+<region> sample=Trumpet/C4.flac key=60 
+<region> sample=Trumpet/C#4.flac key=61 
+<region> sample=Trumpet/D4.flac key=62 
+<region> sample=Trumpet/D#4.flac key=63 
+<region> sample=Trumpet/E4.flac key=64 
+<region> sample=Trumpet/F4.flac key=65 
+<region> sample=Trumpet/F#4.flac key=66 
+<region> sample=Trumpet/G4.flac key=67 
+<region> sample=Trumpet/G#4.flac key=68 
+<region> sample=Trumpet/A4.flac key=69 
+<region> sample=Trumpet/A#4.flac key=70 
+<region> sample=Trumpet/B4.flac key=71 
+<region> sample=Trumpet/C5.flac key=72 
+<region> sample=Trumpet/C#5.flac key=73 
+<region> sample=Trumpet/D5.flac key=74 
+<region> sample=Trumpet/D#5.flac key=75 
+<region> sample=Trumpet/E5.flac key=76 
+<region> sample=Trumpet/F5.flac key=77 
+
+<group>
+locc2=11 hicc2=11
+<region> sample=Trombone_Trumpet/G2.flac key=43 
+<region> sample=Trombone_Trumpet/G#2.flac key=44 
+<region> sample=Trombone_Trumpet/A2.flac key=45 
+<region> sample=Trombone_Trumpet/A#2.flac key=46 
+<region> sample=Trombone_Trumpet/B2.flac key=47 
+<region> sample=Trombone_Trumpet/C3.flac key=48 
+<region> sample=Trombone_Trumpet/C#3.flac key=49 
+<region> sample=Trombone_Trumpet/D3.flac key=50 
+<region> sample=Trombone_Trumpet/D#3.flac key=51 
+<region> sample=Trombone_Trumpet/E3.flac key=52 
+<region> sample=Trombone_Trumpet/F3.flac key=53 
+<region> sample=Trombone_Trumpet/F#3.flac key=54 
+<region> sample=Trombone_Trumpet/G3.flac key=55 
+<region> sample=Trombone_Trumpet/G#3.flac key=56 
+<region> sample=Trombone_Trumpet/A3.flac key=57 
+<region> sample=Trombone_Trumpet/A#3.flac key=58 
+<region> sample=Trombone_Trumpet/B3.flac key=59 
+<region> sample=Trombone_Trumpet/C4.flac key=60 
+<region> sample=Trombone_Trumpet/C#4.flac key=61 
+<region> sample=Trombone_Trumpet/D4.flac key=62 
+<region> sample=Trombone_Trumpet/D#4.flac key=63 
+<region> sample=Trombone_Trumpet/E4.flac key=64 
+<region> sample=Trombone_Trumpet/F4.flac key=65 
+<region> sample=Trombone_Trumpet/F#4.flac key=66 
+<region> sample=Trombone_Trumpet/G4.flac key=67 
+<region> sample=Trombone_Trumpet/G#4.flac key=68 
+<region> sample=Trombone_Trumpet/A4.flac key=69 
+<region> sample=Trombone_Trumpet/A#4.flac key=70 
+<region> sample=Trombone_Trumpet/B4.flac key=71 
+<region> sample=Trombone_Trumpet/C5.flac key=72 
+<region> sample=Trombone_Trumpet/C#5.flac key=73 
+<region> sample=Trombone_Trumpet/D5.flac key=74 
+<region> sample=Trombone_Trumpet/D#5.flac key=75 
+<region> sample=Trombone_Trumpet/E5.flac key=76 
+<region> sample=Trombone_Trumpet/F5.flac key=77 
+
+<group>
+locc2=12 hicc2=12
+<region> sample=Tenor_Sax/G2.flac key=43 
+<region> sample=Tenor_Sax/G#2.flac key=44 
+<region> sample=Tenor_Sax/A2.flac key=45 
+<region> sample=Tenor_Sax/A#2.flac key=46 
+<region> sample=Tenor_Sax/B2.flac key=47 
+<region> sample=Tenor_Sax/C3.flac key=48 
+<region> sample=Tenor_Sax/C#3.flac key=49 
+<region> sample=Tenor_Sax/D3.flac key=50 
+<region> sample=Tenor_Sax/D#3.flac key=51 
+<region> sample=Tenor_Sax/E3.flac key=52 
+<region> sample=Tenor_Sax/F3.flac key=53 
+<region> sample=Tenor_Sax/F#3.flac key=54 
+<region> sample=Tenor_Sax/G3.flac key=55 
+<region> sample=Tenor_Sax/G#3.flac key=56 
+<region> sample=Tenor_Sax/A3.flac key=57 
+<region> sample=Tenor_Sax/A#3.flac key=58 
+<region> sample=Tenor_Sax/B3.flac key=59 
+<region> sample=Tenor_Sax/C4.flac key=60 
+<region> sample=Tenor_Sax/C#4.flac key=61 
+<region> sample=Tenor_Sax/D4.flac key=62 
+<region> sample=Tenor_Sax/D#4.flac key=63 
+<region> sample=Tenor_Sax/E4.flac key=64 
+<region> sample=Tenor_Sax/F4.flac key=65 
+<region> sample=Tenor_Sax/F#4.flac key=66 
+<region> sample=Tenor_Sax/G4.flac key=67 
+<region> sample=Tenor_Sax/G#4.flac key=68 
+<region> sample=Tenor_Sax/A4.flac key=69 
+<region> sample=Tenor_Sax/A#4.flac key=70 
+<region> sample=Tenor_Sax/B4.flac key=71 
+<region> sample=Tenor_Sax/C5.flac key=72 
+<region> sample=Tenor_Sax/C#5.flac key=73 
+<region> sample=Tenor_Sax/D5.flac key=74 
+<region> sample=Tenor_Sax/D#5.flac key=75 
+<region> sample=Tenor_Sax/E5.flac key=76 
+<region> sample=Tenor_Sax/F5.flac key=77 
+
+<group>
+locc2=13 hicc2=13
+<region> sample=Tenor_Alto_Sax/G2.flac key=43 
+<region> sample=Tenor_Alto_Sax/G#2.flac key=44 
+<region> sample=Tenor_Alto_Sax/A2.flac key=45 
+<region> sample=Tenor_Alto_Sax/A#2.flac key=46 
+<region> sample=Tenor_Alto_Sax/B2.flac key=47 
+<region> sample=Tenor_Alto_Sax/C3.flac key=48 
+<region> sample=Tenor_Alto_Sax/C#3.flac key=49 
+<region> sample=Tenor_Alto_Sax/D3.flac key=50 
+<region> sample=Tenor_Alto_Sax/D#3.flac key=51 
+<region> sample=Tenor_Alto_Sax/E3.flac key=52 
+<region> sample=Tenor_Alto_Sax/F3.flac key=53 
+<region> sample=Tenor_Alto_Sax/F#3.flac key=54 
+<region> sample=Tenor_Alto_Sax/G3.flac key=55 
+<region> sample=Tenor_Alto_Sax/G#3.flac key=56 
+<region> sample=Tenor_Alto_Sax/A3.flac key=57 
+<region> sample=Tenor_Alto_Sax/A#3.flac key=58 
+<region> sample=Tenor_Alto_Sax/B3.flac key=59 
+<region> sample=Tenor_Alto_Sax/C4.flac key=60 
+<region> sample=Tenor_Alto_Sax/C#4.flac key=61 
+<region> sample=Tenor_Alto_Sax/D4.flac key=62 
+<region> sample=Tenor_Alto_Sax/D#4.flac key=63 
+<region> sample=Tenor_Alto_Sax/E4.flac key=64 
+<region> sample=Tenor_Alto_Sax/F4.flac key=65 
+<region> sample=Tenor_Alto_Sax/F#4.flac key=66 
+<region> sample=Tenor_Alto_Sax/G4.flac key=67 
+<region> sample=Tenor_Alto_Sax/G#4.flac key=68 
+<region> sample=Tenor_Alto_Sax/A4.flac key=69 
+<region> sample=Tenor_Alto_Sax/A#4.flac key=70 
+<region> sample=Tenor_Alto_Sax/B4.flac key=71 
+<region> sample=Tenor_Alto_Sax/C5.flac key=72 
+<region> sample=Tenor_Alto_Sax/C#5.flac key=73 
+<region> sample=Tenor_Alto_Sax/D5.flac key=74 
+<region> sample=Tenor_Alto_Sax/D#5.flac key=75 
+<region> sample=Tenor_Alto_Sax/E5.flac key=76 
+<region> sample=Tenor_Alto_Sax/F5.flac key=77 
+
+<group>
+locc2=14 hicc2=14
+<region> sample=MkII_Flute/G2.flac key=43 
+<region> sample=MkII_Flute/G#2.flac key=44 
+<region> sample=MkII_Flute/A2.flac key=45 
+<region> sample=MkII_Flute/A#2.flac key=46 
+<region> sample=MkII_Flute/B2.flac key=47 
+<region> sample=MkII_Flute/C3.flac key=48 
+<region> sample=MkII_Flute/C#3.flac key=49 
+<region> sample=MkII_Flute/D3.flac key=50 
+<region> sample=MkII_Flute/D#3.flac key=51 
+<region> sample=MkII_Flute/E3.flac key=52 
+<region> sample=MkII_Flute/F3.flac key=53 
+<region> sample=MkII_Flute/F#3.flac key=54 
+<region> sample=MkII_Flute/G3.flac key=55 
+<region> sample=MkII_Flute/G#3.flac key=56 
+<region> sample=MkII_Flute/A3.flac key=57 
+<region> sample=MkII_Flute/A#3.flac key=58 
+<region> sample=MkII_Flute/B3.flac key=59 
+<region> sample=MkII_Flute/C4.flac key=60 
+<region> sample=MkII_Flute/C#4.flac key=61 
+<region> sample=MkII_Flute/D4.flac key=62 
+<region> sample=MkII_Flute/D#4.flac key=63 
+<region> sample=MkII_Flute/E4.flac key=64 
+<region> sample=MkII_Flute/F4.flac key=65 
+<region> sample=MkII_Flute/F#4.flac key=66 
+<region> sample=MkII_Flute/G4.flac key=67 
+<region> sample=MkII_Flute/G#4.flac key=68 
+<region> sample=MkII_Flute/A4.flac key=69 
+<region> sample=MkII_Flute/A#4.flac key=70 
+<region> sample=MkII_Flute/B4.flac key=71 
+<region> sample=MkII_Flute/C5.flac key=72 
+<region> sample=MkII_Flute/C#5.flac key=73 
+<region> sample=MkII_Flute/D5.flac key=74 
+<region> sample=MkII_Flute/D#5.flac key=75 
+<region> sample=MkII_Flute/E5.flac key=76 
+<region> sample=MkII_Flute/F5.flac key=77 
+
+<group>
+locc2=15 hicc2=15
+<region> sample=Bassoon/G2.flac key=43 
+<region> sample=Bassoon/G#2.flac key=44 
+<region> sample=Bassoon/A2.flac key=45 
+<region> sample=Bassoon/A#2.flac key=46 
+<region> sample=Bassoon/B2.flac key=47 
+<region> sample=Bassoon/C3.flac key=48 
+<region> sample=Bassoon/C#3.flac key=49 
+<region> sample=Bassoon/D3.flac key=50 
+<region> sample=Bassoon/D#3.flac key=51 
+<region> sample=Bassoon/E3.flac key=52 
+<region> sample=Bassoon/F3.flac key=53 
+<region> sample=Bassoon/F#3.flac key=54 
+<region> sample=Bassoon/G3.flac key=55 
+<region> sample=Bassoon/G#3.flac key=56 
+<region> sample=Bassoon/A3.flac key=57 
+<region> sample=Bassoon/A#3.flac key=58 
+<region> sample=Bassoon/B3.flac key=59 
+<region> sample=Bassoon/C4.flac key=60 
+<region> sample=Bassoon/C#4.flac key=61 
+<region> sample=Bassoon/D4.flac key=62 
+<region> sample=Bassoon/D#4.flac key=63 
+<region> sample=Bassoon/E4.flac key=64 
+<region> sample=Bassoon/F4.flac key=65 
+<region> sample=Bassoon/F#4.flac key=66 
+<region> sample=Bassoon/G4.flac key=67 
+<region> sample=Bassoon/G#4.flac key=68 
+<region> sample=Bassoon/A4.flac key=69 
+<region> sample=Bassoon/A#4.flac key=70 
+<region> sample=Bassoon/B4.flac key=71 
+<region> sample=Bassoon/C5.flac key=72 
+<region> sample=Bassoon/C#5.flac key=73 
+<region> sample=Bassoon/D5.flac key=74 
+<region> sample=Bassoon/D#5.flac key=75 
+<region> sample=Bassoon/E5.flac key=76 
+<region> sample=Bassoon/F5.flac key=77 
+
+<group>
+locc2=16 hicc2=16
+<region> sample=Woodwind_2/G2.flac key=43 
+<region> sample=Woodwind_2/G#2.flac key=44 
+<region> sample=Woodwind_2/A2.flac key=45 
+<region> sample=Woodwind_2/A#2.flac key=46 
+<region> sample=Woodwind_2/B2.flac key=47 
+<region> sample=Woodwind_2/C3.flac key=48 
+<region> sample=Woodwind_2/C#3.flac key=49 
+<region> sample=Woodwind_2/D3.flac key=50 
+<region> sample=Woodwind_2/D#3.flac key=51 
+<region> sample=Woodwind_2/E3.flac key=52 
+<region> sample=Woodwind_2/F3.flac key=53 
+<region> sample=Woodwind_2/F#3.flac key=54 
+<region> sample=Woodwind_2/G3.flac key=55 
+<region> sample=Woodwind_2/G#3.flac key=56 
+<region> sample=Woodwind_2/A3.flac key=57 
+<region> sample=Woodwind_2/A#3.flac key=58 
+<region> sample=Woodwind_2/B3.flac key=59 
+<region> sample=Woodwind_2/C4.flac key=60 
+<region> sample=Woodwind_2/C#4.flac key=61 
+<region> sample=Woodwind_2/D4.flac key=62 
+<region> sample=Woodwind_2/D#4.flac key=63 
+<region> sample=Woodwind_2/E4.flac key=64 
+<region> sample=Woodwind_2/F4.flac key=65 
+<region> sample=Woodwind_2/F#4.flac key=66 
+<region> sample=Woodwind_2/G4.flac key=67 
+<region> sample=Woodwind_2/G#4.flac key=68 
+<region> sample=Woodwind_2/A4.flac key=69 
+<region> sample=Woodwind_2/A#4.flac key=70 
+<region> sample=Woodwind_2/B4.flac key=71 
+<region> sample=Woodwind_2/C5.flac key=72 
+<region> sample=Woodwind_2/C#5.flac key=73 
+<region> sample=Woodwind_2/D5.flac key=74 
+<region> sample=Woodwind_2/D#5.flac key=75 
+<region> sample=Woodwind_2/E5.flac key=76 
+<region> sample=Woodwind_2/F5.flac key=77 
+
+<group>
+locc2=17 hicc2=17
+<region> sample=Church_Organ/G2.flac key=43 
+<region> sample=Church_Organ/G#2.flac key=44 
+<region> sample=Church_Organ/A2.flac key=45 
+<region> sample=Church_Organ/A#2.flac key=46 
+<region> sample=Church_Organ/B2.flac key=47 
+<region> sample=Church_Organ/C3.flac key=48 
+<region> sample=Church_Organ/C#3.flac key=49 
+<region> sample=Church_Organ/D3.flac key=50 
+<region> sample=Church_Organ/D#3.flac key=51 
+<region> sample=Church_Organ/E3.flac key=52 
+<region> sample=Church_Organ/F3.flac key=53 
+<region> sample=Church_Organ/F#3.flac key=54 
+<region> sample=Church_Organ/G3.flac key=55 
+<region> sample=Church_Organ/G#3.flac key=56 
+<region> sample=Church_Organ/A3.flac key=57 
+<region> sample=Church_Organ/A#3.flac key=58 
+<region> sample=Church_Organ/B3.flac key=59 
+<region> sample=Church_Organ/C4.flac key=60 
+<region> sample=Church_Organ/C#4.flac key=61 
+<region> sample=Church_Organ/D4.flac key=62 
+<region> sample=Church_Organ/D#4.flac key=63 
+<region> sample=Church_Organ/E4.flac key=64 
+<region> sample=Church_Organ/F4.flac key=65 
+<region> sample=Church_Organ/F#4.flac key=66 
+<region> sample=Church_Organ/G4.flac key=67 
+<region> sample=Church_Organ/G#4.flac key=68 
+<region> sample=Church_Organ/A4.flac key=69 
+<region> sample=Church_Organ/A#4.flac key=70 
+<region> sample=Church_Organ/B4.flac key=71 
+<region> sample=Church_Organ/C5.flac key=72 
+<region> sample=Church_Organ/C#5.flac key=73 
+<region> sample=Church_Organ/D5.flac key=74 
+<region> sample=Church_Organ/D#5.flac key=75 
+<region> sample=Church_Organ/E5.flac key=76 
+<region> sample=Church_Organ/F5.flac key=77 
+
+<group>
+locc2=18 hicc2=18
+<region> sample=Church_Pipe_Organ/G2.flac key=43 
+<region> sample=Church_Pipe_Organ/G#2.flac key=44 
+<region> sample=Church_Pipe_Organ/A2.flac key=45 
+<region> sample=Church_Pipe_Organ/A#2.flac key=46 
+<region> sample=Church_Pipe_Organ/B2.flac key=47 
+<region> sample=Church_Pipe_Organ/C3.flac key=48 
+<region> sample=Church_Pipe_Organ/C#3.flac key=49 
+<region> sample=Church_Pipe_Organ/D3.flac key=50 
+<region> sample=Church_Pipe_Organ/D#3.flac key=51 
+<region> sample=Church_Pipe_Organ/E3.flac key=52 
+<region> sample=Church_Pipe_Organ/F3.flac key=53 
+<region> sample=Church_Pipe_Organ/F#3.flac key=54 
+<region> sample=Church_Pipe_Organ/G3.flac key=55 
+<region> sample=Church_Pipe_Organ/G#3.flac key=56 
+<region> sample=Church_Pipe_Organ/A3.flac key=57 
+<region> sample=Church_Pipe_Organ/A#3.flac key=58 
+<region> sample=Church_Pipe_Organ/B3.flac key=59 
+<region> sample=Church_Pipe_Organ/C4.flac key=60 
+<region> sample=Church_Pipe_Organ/C#4.flac key=61 
+<region> sample=Church_Pipe_Organ/D4.flac key=62 
+<region> sample=Church_Pipe_Organ/D#4.flac key=63 
+<region> sample=Church_Pipe_Organ/E4.flac key=64 
+<region> sample=Church_Pipe_Organ/F4.flac key=65 
+<region> sample=Church_Pipe_Organ/F#4.flac key=66 
+<region> sample=Church_Pipe_Organ/G4.flac key=67 
+<region> sample=Church_Pipe_Organ/G#4.flac key=68 
+<region> sample=Church_Pipe_Organ/A4.flac key=69 
+<region> sample=Church_Pipe_Organ/A#4.flac key=70 
+<region> sample=Church_Pipe_Organ/B4.flac key=71 
+<region> sample=Church_Pipe_Organ/C5.flac key=72 
+<region> sample=Church_Pipe_Organ/C#5.flac key=73 
+<region> sample=Church_Pipe_Organ/D5.flac key=74 
+<region> sample=Church_Pipe_Organ/D#5.flac key=75 
+<region> sample=Church_Pipe_Organ/E5.flac key=76 
+<region> sample=Church_Pipe_Organ/F5.flac key=77 
+
+<group>
+locc2=19 hicc2=19
+<region> sample=Italian_Accordion/G2.flac key=43 
+<region> sample=Italian_Accordion/G#2.flac key=44 
+<region> sample=Italian_Accordion/A2.flac key=45 
+<region> sample=Italian_Accordion/A#2.flac key=46 
+<region> sample=Italian_Accordion/B2.flac key=47 
+<region> sample=Italian_Accordion/C3.flac key=48 
+<region> sample=Italian_Accordion/C#3.flac key=49 
+<region> sample=Italian_Accordion/D3.flac key=50 
+<region> sample=Italian_Accordion/D#3.flac key=51 
+<region> sample=Italian_Accordion/E3.flac key=52 
+<region> sample=Italian_Accordion/F3.flac key=53 
+<region> sample=Italian_Accordion/F#3.flac key=54 
+<region> sample=Italian_Accordion/G3.flac key=55 
+<region> sample=Italian_Accordion/G#3.flac key=56 
+<region> sample=Italian_Accordion/A3.flac key=57 
+<region> sample=Italian_Accordion/A#3.flac key=58 
+<region> sample=Italian_Accordion/B3.flac key=59 
+<region> sample=Italian_Accordion/C4.flac key=60 
+<region> sample=Italian_Accordion/C#4.flac key=61 
+<region> sample=Italian_Accordion/D4.flac key=62 
+<region> sample=Italian_Accordion/D#4.flac key=63 
+<region> sample=Italian_Accordion/E4.flac key=64 
+<region> sample=Italian_Accordion/F4.flac key=65 
+<region> sample=Italian_Accordion/F#4.flac key=66 
+<region> sample=Italian_Accordion/G4.flac key=67 
+<region> sample=Italian_Accordion/G#4.flac key=68 
+<region> sample=Italian_Accordion/A4.flac key=69 
+<region> sample=Italian_Accordion/A#4.flac key=70 
+<region> sample=Italian_Accordion/B4.flac key=71 
+<region> sample=Italian_Accordion/C5.flac key=72 
+<region> sample=Italian_Accordion/C#5.flac key=73 
+<region> sample=Italian_Accordion/D5.flac key=74 
+<region> sample=Italian_Accordion/D#5.flac key=75 
+<region> sample=Italian_Accordion/E5.flac key=76 
+<region> sample=Italian_Accordion/F5.flac key=77 
+
+<group>
+locc2=20 hicc2=20
+<region> sample=Vibes/G2.flac key=43 
+<region> sample=Vibes/G#2.flac key=44 
+<region> sample=Vibes/A2.flac key=45 
+<region> sample=Vibes/A#2.flac key=46 
+<region> sample=Vibes/B2.flac key=47 
+<region> sample=Vibes/C3.flac key=48 
+<region> sample=Vibes/C#3.flac key=49 
+<region> sample=Vibes/D3.flac key=50 
+<region> sample=Vibes/D#3.flac key=51 
+<region> sample=Vibes/E3.flac key=52 
+<region> sample=Vibes/F3.flac key=53 
+<region> sample=Vibes/F#3.flac key=54 
+<region> sample=Vibes/G3.flac key=55 
+<region> sample=Vibes/G#3.flac key=56 
+<region> sample=Vibes/A3.flac key=57 
+<region> sample=Vibes/A#3.flac key=58 
+<region> sample=Vibes/B3.flac key=59 
+<region> sample=Vibes/C4.flac key=60 
+<region> sample=Vibes/C#4.flac key=61 
+<region> sample=Vibes/D4.flac key=62 
+<region> sample=Vibes/D#4.flac key=63 
+<region> sample=Vibes/E4.flac key=64 
+<region> sample=Vibes/F4.flac key=65 
+<region> sample=Vibes/F#4.flac key=66 
+<region> sample=Vibes/G4.flac key=67 
+<region> sample=Vibes/G#4.flac key=68 
+<region> sample=Vibes/A4.flac key=69 
+<region> sample=Vibes/A#4.flac key=70 
+<region> sample=Vibes/B4.flac key=71 
+<region> sample=Vibes/C5.flac key=72 
+<region> sample=Vibes/C#5.flac key=73 
+<region> sample=Vibes/D5.flac key=74 
+<region> sample=Vibes/D#5.flac key=75 
+<region> sample=Vibes/E5.flac key=76 
+<region> sample=Vibes/F5.flac key=77 
+
+<group>
+locc2=21 hicc2=21
+<region> sample=8Choir/G2.flac key=43 
+<region> sample=8Choir/G#2.flac key=44 
+<region> sample=8Choir/A2.flac key=45 
+<region> sample=8Choir/A#2.flac key=46 
+<region> sample=8Choir/B2.flac key=47 
+<region> sample=8Choir/C3.flac key=48 
+<region> sample=8Choir/C#3.flac key=49 
+<region> sample=8Choir/D3.flac key=50 
+<region> sample=8Choir/D#3.flac key=51 
+<region> sample=8Choir/E3.flac key=52 
+<region> sample=8Choir/F3.flac key=53 
+<region> sample=8Choir/F#3.flac key=54 
+<region> sample=8Choir/G3.flac key=55 
+<region> sample=8Choir/G#3.flac key=56 
+<region> sample=8Choir/A3.flac key=57 
+<region> sample=8Choir/A#3.flac key=58 
+<region> sample=8Choir/B3.flac key=59 
+<region> sample=8Choir/C4.flac key=60 
+<region> sample=8Choir/C#4.flac key=61 
+<region> sample=8Choir/D4.flac key=62 
+<region> sample=8Choir/D#4.flac key=63 
+<region> sample=8Choir/E4.flac key=64 
+<region> sample=8Choir/F4.flac key=65 
+<region> sample=8Choir/F#4.flac key=66 
+<region> sample=8Choir/G4.flac key=67 
+<region> sample=8Choir/G#4.flac key=68 
+<region> sample=8Choir/A4.flac key=69 
+<region> sample=8Choir/A#4.flac key=70 
+<region> sample=8Choir/B4.flac key=71 
+<region> sample=8Choir/C5.flac key=72 
+<region> sample=8Choir/C#5.flac key=73 
+<region> sample=8Choir/D5.flac key=74 
+<region> sample=8Choir/D#5.flac key=75 
+<region> sample=8Choir/E5.flac key=76 
+<region> sample=8Choir/F5.flac key=77 
+
+<group>
+locc2=22 hicc2=22
+<region> sample=Combined_Choir/G2.flac key=43 
+<region> sample=Combined_Choir/G#2.flac key=44 
+<region> sample=Combined_Choir/A2.flac key=45 
+<region> sample=Combined_Choir/A#2.flac key=46 
+<region> sample=Combined_Choir/B2.flac key=47 
+<region> sample=Combined_Choir/C3.flac key=48 
+<region> sample=Combined_Choir/C#3.flac key=49 
+<region> sample=Combined_Choir/D3.flac key=50 
+<region> sample=Combined_Choir/D#3.flac key=51 
+<region> sample=Combined_Choir/E3.flac key=52 
+<region> sample=Combined_Choir/F3.flac key=53 
+<region> sample=Combined_Choir/F#3.flac key=54 
+<region> sample=Combined_Choir/G3.flac key=55 
+<region> sample=Combined_Choir/G#3.flac key=56 
+<region> sample=Combined_Choir/A3.flac key=57 
+<region> sample=Combined_Choir/A#3.flac key=58 
+<region> sample=Combined_Choir/B3.flac key=59 
+<region> sample=Combined_Choir/C4.flac key=60 
+<region> sample=Combined_Choir/C#4.flac key=61 
+<region> sample=Combined_Choir/D4.flac key=62 
+<region> sample=Combined_Choir/D#4.flac key=63 
+<region> sample=Combined_Choir/E4.flac key=64 
+<region> sample=Combined_Choir/F4.flac key=65 
+<region> sample=Combined_Choir/F#4.flac key=66 
+<region> sample=Combined_Choir/G4.flac key=67 
+<region> sample=Combined_Choir/G#4.flac key=68 
+<region> sample=Combined_Choir/A4.flac key=69 
+<region> sample=Combined_Choir/A#4.flac key=70 
+<region> sample=Combined_Choir/B4.flac key=71 
+<region> sample=Combined_Choir/C5.flac key=72 
+<region> sample=Combined_Choir/C#5.flac key=73 
+<region> sample=Combined_Choir/D5.flac key=74 
+<region> sample=Combined_Choir/D#5.flac key=75 
+<region> sample=Combined_Choir/E5.flac key=76 
+<region> sample=Combined_Choir/F5.flac key=77  

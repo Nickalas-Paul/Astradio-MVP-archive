@@ -1,0 +1,82 @@
+<control>
+set_cc74=127
+label_cc74=Tone 
+set_cc1=64
+label_cc1=Pitch
+set_cc73=0
+label_cc73=Attack
+set_cc72=0
+label_cc72=Release
+set_cc2=0
+label_cc2=Instrument
+
+default_path=samplesflac/
+
+octave_offset=1		//shift occupied region in octaves on keyboard
+
+image=Background_scherp.png
+image_controls=Background_vaag_CC.png
+
+<global>
+amp_veltrack=0		//change to 100 to make volume react to velocity
+
+loop_mode=no_loop     //set to "loop_continuous" for infinite notes when holding down key
+loop_start=20000
+loop_end=160000
+loop_crossfade=20000
+
+ampeg_attack=0.001
+ampeg_attack_oncc73=5
+ampeg_release=0.001
+ampeg_release_oncc72=5
+
+gain_oncc130=6		//cc130 is poly-aftertouch
+pitch_oncc130=-30
+gain_oncc129=6		//cc129 is channel-aftertouch
+pitch_oncc129=-30
+
+fil_type=lpf_1p
+cutoff=50
+cutoff_oncc74=6400
+cutoff_smoothcc74=100			//inertia or smoothness in milliseconds
+
+tune=-1200
+pitch_oncc1=2400
+pitch_smoothcc1=100		//inertia or smoothness in milliseconds
+
+<group>
+<region> sample=Mixed_Brass_B/G2.flac key=43 
+<region> sample=Mixed_Brass_B/G#2.flac key=44 
+<region> sample=Mixed_Brass_B/A2.flac key=45 
+<region> sample=Mixed_Brass_B/A#2.flac key=46 
+<region> sample=Mixed_Brass_B/B2.flac key=47 
+<region> sample=Mixed_Brass_B/C3.flac key=48 
+<region> sample=Mixed_Brass_B/C#3.flac key=49 
+<region> sample=Mixed_Brass_B/D3.flac key=50 
+<region> sample=Mixed_Brass_B/D#3.flac key=51 
+<region> sample=Mixed_Brass_B/E3.flac key=52 
+<region> sample=Mixed_Brass_B/F3.flac key=53 
+<region> sample=Mixed_Brass_B/F#3.flac key=54 
+<region> sample=Mixed_Brass_B/G3.flac key=55 
+<region> sample=Mixed_Brass_B/G#3.flac key=56 
+<region> sample=Mixed_Brass_B/A3.flac key=57 
+<region> sample=Mixed_Brass_B/A#3.flac key=58 
+<region> sample=Mixed_Brass_B/B3.flac key=59 
+<region> sample=Mixed_Brass_B/C4.flac key=60 
+<region> sample=Mixed_Brass_B/C#4.flac key=61 
+<region> sample=Mixed_Brass_B/D4.flac key=62 
+<region> sample=Mixed_Brass_B/D#4.flac key=63 
+<region> sample=Mixed_Brass_B/E4.flac key=64 
+<region> sample=Mixed_Brass_B/F4.flac key=65 
+<region> sample=Mixed_Brass_B/F#4.flac key=66 
+<region> sample=Mixed_Brass_B/G4.flac key=67 
+<region> sample=Mixed_Brass_B/G#4.flac key=68 
+<region> sample=Mixed_Brass_B/A4.flac key=69 
+<region> sample=Mixed_Brass_B/A#4.flac key=70 
+<region> sample=Mixed_Brass_B/B4.flac key=71 
+<region> sample=Mixed_Brass_B/C5.flac key=72 
+<region> sample=Mixed_Brass_B/C#5.flac key=73 
+<region> sample=Mixed_Brass_B/D5.flac key=74 
+<region> sample=Mixed_Brass_B/D#5.flac key=75 
+<region> sample=Mixed_Brass_B/E5.flac key=76 
+<region> sample=Mixed_Brass_B/F5.flac key=77 

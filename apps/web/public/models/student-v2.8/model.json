@@ -1,0 +1,50 @@
+{
+  "format": "layers-model",
+  "generatedBy": "astradio-v2.8-slice-batch",
+  "convertedBy": "tfjs-converter",
+  "modelTopology": {
+    "class_name": "Sequential",
+    "config": {
+      "name": "student-v2.8-slice-batch",
+      "layers": [
+        {
+          "class_name": "Dense",
+          "config": {
+            "name": "melodic_head",
+            "units": 1,
+            "activation": "sigmoid"
+          }
+        },
+        {
+          "class_name": "Dense",
+          "config": {
+            "name": "rhythm_head",
+            "units": 1,
+            "activation": "sigmoid"
+          }
+        },
+        {
+          "class_name": "Dense",
+          "config": {
+            "name": "polyphony_head",
+            "units": 1,
+            "activation": "sigmoid"
+          }
+        }
+      ]
+    }
+  },
+  "weightsManifest": [
+    {
+      "paths": ["group1-shard1of1.bin"],
+      "weights": [
+        { "name": "melodic_head/kernel", "shape": [128, 1], "dtype": "float32" },
+        { "name": "melodic_head/bias", "shape": [1], "dtype": "float32" },
+        { "name": "rhythm_head/kernel", "shape": [128, 1], "dtype": "float32" },
+        { "name": "rhythm_head/bias", "shape": [1], "dtype": "float32" },
+        { "name": "polyphony_head/kernel", "shape": [128, 1], "dtype": "float32" },
+        { "name": "polyphony_head/bias", "shape": [1], "dtype": "float32" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "version": "2.2_retrained",
+  "trainingDate": "2025-09-24T18:10:28.917Z",
+  "recordCount": 4409,
+  "devCount": 551,
+  "architecture": {
+    "inputShape": [
+      64
+    ],
+    "outputHeads": {
+      "ctrl": 6,
+      "arc": 3,
+      "density": 4,
+      "cadence": 4,
+      "motif": 8
+    },
+    "hiddenLayers": [
+      384,
+      192
+    ],
+    "lossWeights": {
+      "ctrl": 1,
+      "arc": 5,
+      "density": 2,
+      "cadence": 1,
+      "motif": 2
+    }
+  },
+  "training": {
+    "epochs": 50,
+    "batchSize": 32,
+    "optimizer": "AdamW",
+    "learningRate": 0.001,
+    "earlyStopping": "arc_AUROC",
+    "bestArcAUROC": 0.5129926002409224,
+    "patience": 10
+  },
+  "provenance": {
+    "datasetChecksum": "e4dd53c3ee812a58e887626babe8acf16c15a7f20b6dfc5b5f584146547e7852",
+    "modelChecksum": "03d34b3352c2d286fd109b190c7f2601b2503c5669e944384d6559af14ad8e59",
+    "weightsChecksum": "e9faf3206756f230b57dffdbb5a5ece2e4ad8b2aedee13d6862c281fa8525f29",
+    "commitSha": "pre-v2.2-retrain"
+  }
+}

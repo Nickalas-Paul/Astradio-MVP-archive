@@ -1,0 +1,247 @@
+{
+  "meta": {
+    "timestamp": "2026-02-06T00:26:45.554Z",
+    "git_sha": "96db14c",
+    "base_url": "https://astradio-mvp-archive.onrender.com",
+    "total": 25,
+    "passed": 10,
+    "failed": 15
+  },
+  "results": [
+    {
+      "case_id": "golden-001",
+      "name": "New York 1990 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 1119,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "247f29c5"
+    },
+    {
+      "case_id": "golden-002",
+      "name": "Los Angeles 1985 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 306,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "1a854f7b"
+    },
+    {
+      "case_id": "golden-003",
+      "name": "London 1992 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 151,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "3dd1428c"
+    },
+    {
+      "case_id": "golden-004",
+      "name": "Tokyo 2000 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 138,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "6097a279"
+    },
+    {
+      "case_id": "golden-005",
+      "name": "Sydney 2010 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 191,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "4e515cc9"
+    },
+    {
+      "case_id": "golden-006",
+      "name": "Berlin 1989 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 196,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "7e57be0d"
+    },
+    {
+      "case_id": "golden-007",
+      "name": "Paris 1995 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 100,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "7b86165"
+    },
+    {
+      "case_id": "golden-008",
+      "name": "Moscow 1991 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 185,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "195fe4e7"
+    },
+    {
+      "case_id": "golden-009",
+      "name": "São Paulo 1984 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 126,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "6fe529dd"
+    },
+    {
+      "case_id": "golden-010",
+      "name": "Mexico City 1995 sandbox",
+      "http_status": 200,
+      "elapsed_ms": 140,
+      "audio_export_available": false,
+      "audio_size_bytes": 0,
+      "audio_sha256": "",
+      "model_sha": "7cf2c57ac22f685c",
+      "model_version": "2.2",
+      "tf_backend": "wasm",
+      "controls_hash": "75c3b590"
+    },
+    {
+      "case_id": "golden-011",
+      "name": "Cairo 2011 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 128,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":896}"
+    },
+    {
+      "case_id": "golden-012",
+      "name": "Mumbai 2008 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 119,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":895}"
+    },
+    {
+      "case_id": "golden-013",
+      "name": "Toronto 1999 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 103,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":895}"
+    },
+    {
+      "case_id": "golden-014",
+      "name": "Buenos Aires 1978 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 162,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":895}"
+    },
+    {
+      "case_id": "golden-015",
+      "name": "Seoul 1988 sandbox",
+      "http_status": 429,
+      "elapsed_ms": 174,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":894}"
+    },
+    {
+      "case_id": "golden-016",
+      "name": "Sky NYC 2025",
+      "http_status": 429,
+      "elapsed_ms": 109,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":894}"
+    },
+    {
+      "case_id": "golden-017",
+      "name": "Sky London 2025",
+      "http_status": 429,
+      "elapsed_ms": 266,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":894}"
+    },
+    {
+      "case_id": "golden-018",
+      "name": "Sky Tokyo 2025",
+      "http_status": 429,
+      "elapsed_ms": 156,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":893}"
+    },
+    {
+      "case_id": "golden-019",
+      "name": "Sky Sydney 2025",
+      "http_status": 429,
+      "elapsed_ms": 224,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":893}"
+    },
+    {
+      "case_id": "golden-020",
+      "name": "Sky Berlin 2025",
+      "http_status": 429,
+      "elapsed_ms": 101,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":893}"
+    },
+    {
+      "case_id": "golden-021",
+      "name": "Overlay natal NYC current LA",
+      "http_status": 429,
+      "elapsed_ms": 183,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":892}"
+    },
+    {
+      "case_id": "golden-022",
+      "name": "Overlay natal London current Paris",
+      "http_status": 429,
+      "elapsed_ms": 118,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":892}"
+    },
+    {
+      "case_id": "golden-023",
+      "name": "Sandbox minimal controls",
+      "http_status": 429,
+      "elapsed_ms": 230,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":891}"
+    },
+    {
+      "case_id": "golden-024",
+      "name": "Sandbox high density",
+      "http_status": 429,
+      "elapsed_ms": 119,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":891}"
+    },
+    {
+      "case_id": "golden-025",
+      "name": "Sandbox low density",
+      "http_status": 429,
+      "elapsed_ms": 110,
+      "error": "{\"error\":\"Too many composition requests\",\"retryAfter\":891}"
+    }
+  ]
+}

@@ -66,3 +66,35 @@ export type AuditionResult = {
     };
   };
 };
+
+// Phase 4A: Sandbox Draft contract
+export type PlanetKey = 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto';
+
+export type SandboxBirth = {
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  lat: number;
+  lon: number;
+  tz?: string; // optional, defaults to UTC
+  houseSystem?: string; // optional, defaults to 'placidus'
+};
+
+export type SandboxOverrides = {
+  planets: Partial<Record<PlanetKey, { lonDeg: number }>>; // 0..360, supports decimals
+  angles?: {
+    ascDeg?: number; // optional in 4A
+    mcDeg?: number; // optional in 4A
+  };
+};
+
+export type SandboxDraft = {
+  birth: SandboxBirth;
+  baseSnapshot: EphemerisSnapshot;
+  overrides: SandboxOverrides;
+  overriddenSnapshot?: EphemerisSnapshot;
+  hash?: {
+    birthHash: string;
+    overridesHash: string;
+    combinedHash?: string;
+  };
+};

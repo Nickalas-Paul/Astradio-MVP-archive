@@ -1,32 +1,18 @@
 /**
  * Compatibility matches: real vnext 64-D encoder, deterministic scoring.
- * Used by GET /api/compat/matches. Additive; does not change compose or comparisons.
+ * Used by GET /api/compat/matches. Uses architecture-engine (generateArchitecture).
  */
 
-import type { EphemerisSnapshot } from '../contracts';
-import { encodeFeatures } from '../feature-encode';
+import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import * as storage from './storage';
+import type { Chart } from './types';
 
-const PORT = process.env.PORT || '3000';
-const BASE_URL = process.env.COMPAT_CHART_BASE_URL || `http://localhost:${PORT}`;
-
-async function fetchChartSnapshot(
-  date: string,
-  time: string,
-  lat: number,
-  lon: number
-): Promise<EphemerisSnapshot> {
-  const t = time.length === 5 ? time : time.slice(0, 5);
-  const q = new URLSearchParams({ date, time: t, lat: String(lat), lon: String(lon) });
-  const r = await fetch(`${BASE_URL}/api/chart-snapshot?${q}`);
-  if (!r.ok) throw new Error(`chart-snapshot failed: ${r.status}`);
-  return r.json() as Promise<EphemerisSnapshot>;
+function chartToChartInput(chart: Chart): ChartInput {
+  return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
 }
 
-function toVec64(chart: storage.Chart): Promise<Float32Array | number[]> {
-  return fetchChartSnapshot(chart.date, chart.time, chart.lat, chart.lon).then((snap) =>
-    encodeFeatures(snap)
-  );
+function toVec64(chart: Chart): Promise<Float32Array | number[]> {
+  return generateArchitecture(chartToChartInput(chart), chart.id).then((arch) => arch.features);
 }
 
 /** Deterministic: cosine similarity in 64-D. Same inputs => same score. */
@@ -112,7 +98,7 @@ function clampScore(x: number): number {
 }
 
 /**
- * Get compatibility matches for a chart. Uses real encodeFeatures; deterministic candidate set.
+ * Get compatibility matches for a chart. Uses architecture-engine (generateArchitecture); deterministic candidate set.
  * Caller must have called ensureDefaultProfileChart/ensureMatchCandidateCharts at startup.
  */
 export async function getCompatMatches(

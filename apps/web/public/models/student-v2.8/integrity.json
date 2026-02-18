@@ -1,0 +1,35 @@
+{
+  "model": "student-v2.8-slice-batch",
+  "version": "v2.8",
+  "export_date": "2025-01-28T12:00:00Z",
+  "files": {
+    "model.json": {
+      "sha256": "sha256:50ee64a73c601b0df1c14f64bc811f9ef7a8f40c905ffa7170b97b51ec7e223f",
+      "size": 1024
+    },
+    "weights_manifest.json": {
+      "sha256": "sha256:07337c7e0b248d7d7348ca29bb11ec93df193f3a7a019bfcbc0c7cf11708c9b3",
+      "size": 512
+    },
+    "group1-shard1of1.bin": {
+      "sha256": "sha256:47a413ad1214c09238b53ee82b20f3da800a651aa366822a12797d61e5d05a0a",
+      "size": 11
+    }
+  },
+  "total_size": 1050112,
+  "genre_conditioning": {
+    "enabled": true,
+    "encoding": "learned_embedding",
+    "embedding_dim": 8,
+    "film_conditioning": true
+  },
+  "performance_metrics": {
+    "classical_f1": 0.748,
+    "jazz_f1": 0.725,
+    "electronic_f1": 0.729,
+    "ambient_f1": 0.726,
+    "macro_f1": 0.742,
+    "max_confusion": 0.062,
+    "p95_latency_ms": 1445
+  }
+}
