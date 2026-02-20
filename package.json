@@ -64,6 +64,8 @@
     "test:compose-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-determinism-soak.js",
     "test:compose-live-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-live-soak.js",
     "test:compose-golden-run": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-golden-run.js",
+    "vnext:golden": "npm run vnext:build && node dist/vnext/vnext/scripts/test-golden-compose.js && node dist/vnext/vnext/scripts/test-golden-compat.js",
+    "vnext:golden:update": "npm run vnext:build && echo Run with UPDATE_GOLDEN=1 node dist/vnext/vnext/scripts/test-golden-compose.js and test-golden-compat.js to refresh baselines",
     "test:compose-golden-baseline": "npm run vnext:build && node scripts/golden-baseline.js",
     "test:plan-hash": "npm run vnext:build && node dist/vnext/vnext/scripts/test-plan-hash.js",
     "test:midi-determinism": "npm run vnext:build && node dist/vnext/vnext/scripts/test-midi-determinism.js",
@@ -80,6 +82,7 @@
     "worker:export": "node workers/export-worker.js"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.14.0",
     "@simplewebauthn/server": "^8.3.6",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
@@ -95,6 +98,7 @@
     "cors": "^2.8.5",
     "csurf": "^1.11.0",
     "dotenv": "^16.3.1",
+    "google-auth-library": "^9.14.0",
     "express": "^4.19.2",
     "express-http-proxy": "^1.6.3",
     "express-mongo-sanitize": "^2.2.0",

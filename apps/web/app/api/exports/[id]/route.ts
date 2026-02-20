@@ -8,7 +8,7 @@ export async function GET(
 ) {
   const backend = getEngineBaseUrl();
   const { id } = params;
-  if (!/^[a-f0-9]{16}$/.test(id)) {
+  if (!/^[a-f0-9]{64}$/.test(id)) {
     return NextResponse.json({ error: 'Invalid export ID format' }, { status: 400 });
   }
   try {

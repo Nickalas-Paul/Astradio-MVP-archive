@@ -14,14 +14,25 @@ import { TextExplainerEngine } from '../explainer/text-explainer';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
+import { generateArchitecture, fetchChartSnapshot, type ChartInput } from '../core/architecture-engine';
 import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
-import { buildExplainSpecSingle } from '../explainer/text-generation-engine';
+import { encodeFeatures } from '../feature-encode';
+import { buildExplainSpecSingle, buildExplainSpecOverlay } from '../explainer/text-generation-engine';
 import { renderExplainSpecToSections } from '../explainer/renderers/deterministic';
 import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
 import { buildPlanSummary } from '../explainer/plan-summary';
+import { DEFAULT_DURATION_S } from '../constants';
+import { renderWithProvider, buildLyriaPrompt, getProvider } from '../render';
+import {
+  computeExportKey,
+  hashPrompt,
+  getCachedWav,
+  writeExport,
+  readIntegrity,
+  type IntegrityMeta,
+} from '../render/export-cache';
 // import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
 // import { isFeatureEnabled } from '../../config/flags';
 
@@ -158,25 +169,60 @@ export class ComposeAPI {
       let text: any;
       let textMetricsMs: number | undefined;
       if (request.mode === 'overlay' && request.overlayParams) {
-        // Overlay mode: use legacy explainer for now (comparison mode TODO)
-        const natalPayload = await this.generateSkyPayload({
-          latitude: request.overlayParams.natalLatitude,
-          longitude: request.overlayParams.natalLongitude,
-          datetime: request.overlayParams.natalDatetime
-        });
-        const currentPayload = payload;
-        const natalGateReport = await this.runAuditionGates(plan, natalPayload.hash);
-        const currentGateReport = gateReport;
-        const overlayResult = (this.textExplainer as any).generateOverlayExplanation(
-          natalPayload,
-          currentPayload,
-          natalGateReport,
-          currentGateReport,
-          context,
-          explainerInputs
-        );
-        text = overlayResult.text;
-        textMetricsMs = overlayResult.metrics?.total_ms;
+        const useOverlayExplainSpec = process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
+        if (useOverlayExplainSpec) {
+          const natalDt = request.overlayParams.natalDatetime || '';
+          const [natalDate, natalTimePart] = natalDt.split('T');
+          const natalTime = natalTimePart ? natalTimePart.slice(0, 5) : '12:00';
+          const natalInput: ChartInput = {
+            date: natalDate || '1990-01-01',
+            time: natalTime,
+            lat: request.overlayParams.natalLatitude ?? 40.7128,
+            lon: request.overlayParams.natalLongitude ?? -74.006,
+          };
+          const natalSnapshot = await fetchChartSnapshot(natalInput);
+          const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
+          const overlaySpec = buildExplainSpecOverlay({
+            seed: payload.hash,
+            natalSnapshot,
+            natalFeatureVec,
+            currentSnapshot: architecture.snapshot,
+            currentFeatureVec: architecture.features,
+            plan,
+            gateReport,
+          });
+          const overlayRendered = renderExplainSpecToSections(overlaySpec);
+          text = {
+            short: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
+            long: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
+            bullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
+            template_id: 'explainspec-overlay-v1',
+            signatures: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
+            significance: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
+            musicalParagraph: overlayRendered.sections.find(s => s.id === 'musical')?.text ?? '',
+            musicalBullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
+          };
+          textMetricsMs = 0;
+        } else {
+          const natalPayload = await this.generateSkyPayload({
+            latitude: request.overlayParams.natalLatitude,
+            longitude: request.overlayParams.natalLongitude,
+            datetime: request.overlayParams.natalDatetime
+          });
+          const currentPayload = payload;
+          const natalGateReport = await this.runAuditionGates(plan, natalPayload.hash);
+          const currentGateReport = gateReport;
+          const overlayResult = (this.textExplainer as any).generateOverlayExplanation(
+            natalPayload,
+            currentPayload,
+            natalGateReport,
+            currentGateReport,
+            context,
+            explainerInputs
+          );
+          text = overlayResult.text;
+          textMetricsMs = overlayResult.metrics?.total_ms;
+        }
       } else {
         // Single mode: use new ExplainSpec engine
         // Build legacy text format for backward compatibility
@@ -199,7 +245,7 @@ export class ComposeAPI {
         textMetricsMs = 0; // ExplainSpec generation is fast (no ML)
       }
       
-      // Generate audio only when ENABLE_WAV_EXPORT=1 (optional; default off for staging)
+      // Generate audio: cache-first, then RenderProvider (Lyria primary, local_wav fallback)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
       const stubAudio = {
         format: 'wav' as const,
@@ -210,33 +256,81 @@ export class ComposeAPI {
       };
       let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
       let audio_export_available = false;
+      let export_id: string | undefined;
+      let export_meta: { provider: string; modelVersion: string; promptHash: string; payload_hash: string; duration_s: number; sha256: string } | undefined;
+
+      const store = (process as any).__astradio_export_store as { get?: (k: string) => Promise<Buffer | null>; put?: (k: string, buf: Buffer, meta: IntegrityMeta) => Promise<void> } | undefined;
 
       let audioDebug: any = undefined;
       if (wavExportEnabled) {
         try {
-          const mod = await import('../audio/wav-renderer');
+          const prompt = buildLyriaPrompt(payload, plan);
+          const promptHash = hashPrompt(prompt);
+          const provider = getProvider();
+          const modelVersion = provider.name === 'lyria' ? 'lyria-002' : 'local-v1';
+          const exportKey = computeExportKey(payload.hash, provider.name, modelVersion, promptHash, DEFAULT_DURATION_S);
+
+          let cached: Buffer | null = null;
+          if (store?.get) {
+            cached = await store.get(exportKey);
+          }
+          if (!cached && (!store || !store.get)) {
+            cached = getCachedWav(exportKey);
+          }
           const audioStartTime = process.hrtime.bigint();
-          const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
-            sampleRate: 22050,
-            channels: 1,
-            bitDepth: 16
-          });
-          const audioEndTime = process.hrtime.bigint();
-          const audioLatencyMs = Number((audioEndTime - audioStartTime) / BigInt(1_000_000));
-          audio = {
-            format: 'wav',
-            base64: audioResult.buffer.toString('base64'),
-            sha256: audioResult.sha256,
-            latency_ms: audioLatencyMs,
-            size_bytes: audioResult.size_bytes
-          };
-          audio_export_available = true;
+          if (cached && cached.length > 0) {
+            const integrity = readIntegrity(exportKey);
+            const sha256 = integrity?.sha256 ?? require('crypto').createHash('sha256').update(cached).digest('hex');
+            audio = {
+              format: 'wav',
+              base64: cached.toString('base64'),
+              sha256,
+              latency_ms: 0,
+              size_bytes: cached.length
+            };
+            export_id = exportKey;
+            export_meta = integrity ? { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 } : undefined;
+            audio_export_available = true;
+          } else {
+            const result = await renderWithProvider({
+              prompt,
+              seed: payload.hash,
+              duration_s: DEFAULT_DURATION_S,
+              plan,
+              payload
+            });
+            const integrity: IntegrityMeta = {
+              sha256: result.sha256,
+              size_bytes: result.size_bytes,
+              createdAt: new Date().toISOString(),
+              payload_hash: payload.hash,
+              promptHash,
+              provider: result.provider_meta.provider as string,
+              modelVersion: (result.provider_meta.modelVersion as string) ?? modelVersion,
+              duration_s: DEFAULT_DURATION_S
+            };
+            if (store?.put) {
+              await store.put(exportKey, result.wavBuffer, integrity);
+            } else {
+              writeExport(exportKey, result.wavBuffer, integrity);
+            }
+            export_meta = { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 };
+            audio = {
+              format: 'wav',
+              base64: result.wavBuffer.toString('base64'),
+              sha256: result.sha256,
+              latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
+              size_bytes: result.size_bytes
+            };
+            export_id = exportKey;
+            audio_export_available = true;
+          }
         } catch (audioError) {
           if (!(global as any).__wav_export_unavailable_logged) {
             const err = audioError instanceof Error ? audioError : new Error(String(audioError));
             const code = (err as Error & { code?: string }).code;
-            console.warn('[COMPOSE] WAV export unavailable (module missing or render failed):', err.message, code ? `code=${code}` : '');
-            if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] WAV stack:', err.stack);
+            console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
+            if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
             (global as any).__wav_export_unavailable_logged = true;
           }
         }
@@ -247,13 +341,30 @@ export class ComposeAPI {
         }
       }
 
-      // Generate viz payload if enabled (stub for now)
-      let viz = null;
-      // TODO: Implement viz engine integration when ready
+      // Generate viz payload when VNEXT_VIZ=1 (feature-flagged)
+      let viz: import('../viz/viz-payload').VizPayload | null = null;
+      if (process.env.VNEXT_VIZ === '1') {
+        try {
+          const { buildVizPayload } = await import('../viz/viz-payload');
+          viz = buildVizPayload({
+            plan,
+            payload: {
+              element_dominance: payload.element_dominance,
+              arc_shape: payload.arc_shape,
+              density_level: payload.density_level,
+              tempo_norm: payload.tempo_norm,
+              aspect_tension: payload.aspect_tension,
+            },
+            seed: payload.hash,
+          });
+        } catch (vizErr) {
+          if (process.env.DEBUG_VIZ === '1') {
+            console.warn('[COMPOSE] Viz payload failed:', vizErr instanceof Error ? vizErr.message : vizErr);
+          }
+        }
+      }
 
-      // Normalize length to 60s ± 0.5s (Phase-6 guardrail)
-      const targetLengthSec = 60;
-      const lengthSec = targetLengthSec; // Real engine outputs exact 60s
+      const targetLengthSec = DEFAULT_DURATION_S;
       
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
@@ -263,15 +374,21 @@ export class ComposeAPI {
       let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }>;
       
       if (request.mode === 'overlay' && request.overlayParams) {
-        // Overlay mode: use legacy sections for now
-        const hasStructured = t?.signatures != null && t?.significance != null;
-        sections = hasStructured
-          ? [
-              { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
-              { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
-              { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
-            ]
-          : (() => {
+        if (process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1' && (text as any)?.template_id === 'explainspec-overlay-v1') {
+          sections = [
+            { sectionId: 'signatures', title: 'Natal Signatures', text: t.signatures ?? '' },
+            { sectionId: 'significance', title: 'Transit vs Natal', text: t.significance ?? '' },
+            { sectionId: 'musical', title: 'Musical Relationship', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
+          ];
+        } else {
+          const hasStructured = t?.signatures != null && t?.significance != null;
+          sections = hasStructured
+            ? [
+                { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
+                { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
+                { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
+              ]
+            : (() => {
               const short = t?.short ?? '';
               const long = t?.long ?? '';
               const bulletsRaw = Array.isArray(t?.bullets) ? t.bullets : [] as string[];
@@ -288,6 +405,7 @@ export class ComposeAPI {
                 { sectionId: 'bullets', title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
               ];
             })();
+        }
       } else {
         // Single mode: use ExplainSpec-rendered sections
         sections = rendered.sections.map(s => ({
@@ -298,7 +416,7 @@ export class ComposeAPI {
         }));
       }
 
-      const isSpecEngine = !(request.mode === 'overlay' && request.overlayParams);
+      const isSpecEngine = !(request.mode === 'overlay' && request.overlayParams) || process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
       const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
       const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
@@ -426,6 +544,9 @@ export class ComposeAPI {
       }
 
       const response = {
+        duration_s: DEFAULT_DURATION_S,
+        ...(export_id != null && { export_id }),
+        ...(export_meta != null && { export_meta }),
         audio_export_available: audio_export_available,
         controls: payload,
         astro: {
@@ -448,10 +569,7 @@ export class ComposeAPI {
         },
         // Phase-6 Spec v1.1 surface with shared FeatureEncoder provenance
         explanation,
-        viz: viz ? {
-          url: `https://cdn.astradio.io/viz/${hashes.viz}.json`,
-          digest: hashes.viz
-        } : null,
+        viz: viz ? { ...viz, digest: hashes.viz } : null,
         hashes,
         artifacts: {
           model: '084c92dca9af2f09',
