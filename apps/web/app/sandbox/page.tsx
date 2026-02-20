@@ -29,9 +29,10 @@ export default function SandboxPage() {
   const [vizPayload, setVizPayload] = useState<any>(null);
   const [lastComposition, setLastComposition] = useState<{ export_id?: string; hashes?: { control?: string }; duration_s?: number } | null>(null);
   const [sandboxCombinedHash, setSandboxCombinedHash] = useState<string | null>(null);
+  const [snapshotForWheel, setSnapshotForWheel] = useState<ChartData | null>(null);
   const { stage, audioUrl, layers: jobLayers, start } = useCompositionJob();
 
-  // Obtain sandbox snapshot on mount so we have combinedHash for seed (chart → unique composition)
+  // Obtain sandbox snapshot on mount: combinedHash for seed + snapshot for wheel
   useEffect(() => {
     let cancelled = false;
     const base = getApiBaseUrl();
@@ -42,7 +43,29 @@ export default function SandboxPage() {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled && data?.meta?.combinedHash) setSandboxCombinedHash(data.meta.combinedHash);
+        if (cancelled) return;
+        if (data?.meta?.combinedHash) setSandboxCombinedHash(data.meta.combinedHash);
+        if (data?.snapshot && typeof data.snapshot === 'object') {
+          const snap = data.snapshot as Record<string, unknown>;
+          setSnapshotForWheel({
+            positions: {},
+            cusps: Array.isArray(snap.houses) ? (snap.houses as number[]).slice(0, 12) : [],
+            aspects: [],
+            moonPhase: 0,
+            dominantElements: { fire: 0, earth: 0, air: 0, water: 0 },
+            ...(snap.planets && Array.isArray(snap.planets)
+              ? {
+                  positions: (snap.planets as Array<{ name?: string; lon?: number }>).reduce(
+                    (acc, p) => {
+                      if (p?.name != null && Number.isFinite(p.lon)) acc[p.name] = p.lon as number;
+                      return acc;
+                    },
+                    {} as Record<string, number>
+                  ),
+                }
+              : {}),
+          });
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -134,8 +157,8 @@ export default function SandboxPage() {
                 </h2>
                 
                 <WheelCanvas 
-                  chartData={chartData ?? undefined}
-                  isLoading={false}
+                  chartData={snapshotForWheel ?? chartData ?? undefined}
+                  isLoading={!snapshotForWheel && !chartData}
                   className="w-full"
                 />
                 
