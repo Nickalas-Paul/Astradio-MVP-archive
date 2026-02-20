@@ -2,6 +2,7 @@
 import { Plan, EventToken } from "../contracts";
 import type { ElementBlend, MotionProfile, NarrativeArc } from "../astro/guidance";
 import type { PersonalityProfileV1 } from "../astro/personality-profile";
+import { DEFAULT_DURATION_S } from "../constants";
 import { selectChordProgression, selectBasslinePattern, selectHookMotif } from "./libraries";
 import { selectTransformationSequence, applyTransformationSequence } from "./transformations";
 import {
@@ -16,13 +17,13 @@ import { createSoftMelodyScorer, auditionMelodyCandidates } from "./melody-audit
  * Songwriting-focused planner: hummable hook, motif-derived cadence, reduced 1-3 stack.
  * - 1-bar HOOK_TEMPLATES with breath (sustained note + rest gaps); A A' B A form.
  * - Chord-tone targeting only on long notes / phrase endpoints; bass/drums decoupled from melody accents.
- * - Sonic Mirror: harmony = identity carrier, melody = motion inside harmony; 60s Encounter/Recognition/Integration.
+ * - Sonic Mirror: harmony = identity carrier, melody = motion inside harmony; 30s Encounter/Recognition/Integration.
  * - Deterministic: same (v, guidance) => identical Plan.events. No Date.now / Math.random.
  */
 
 type V6 = [number, number, number, number, number, number];
 
-/** Narrative phase: 0=Encounter (0–15s), 1=Recognition (15–45s), 2=Integration (45–60s). Bar-based. */
+/** Narrative phase: 0=Encounter, 1=Recognition, 2=Integration (30s total). Bar-based. */
 const ENCOUNTER_BARS = 4;
 const RECOGNITION_BARS = 8;
 function narrativePhaseForBar(bar: number): 0 | 1 | 2 {
@@ -38,7 +39,6 @@ const MAX_MELODY_SUSTAIN_SEC_INTEGRATION_EARTH = 4;
 const GRID_16 = 4;
 const BARS = 16;
 const PHRASE = 4;
-const DUR_SEC = 60;
 const MAX_MELODY_NOTES_PER_BAR = 6;
 const MAX_INTERVAL_SEMI = 5;
 
@@ -691,7 +691,7 @@ export function planFromVector(
 
   // Color-shift harmony blending: extend harmony t1 with overlap + voice stagger (deterministic from guidance).
   const barSec = 4 * secondsPerBeat;
-  const durationSec = Math.min(DUR_SEC, totalBeats * secondsPerBeat);
+  const durationSec = Math.min(DEFAULT_DURATION_S, totalBeats * secondsPerBeat);
   const HARMONY_OVERLAP_CAP_SEC = 0.35;
   const VOICE_STAGGER_SEC = 0.018;
   const water = elementBlend?.water ?? 0.25;
@@ -802,7 +802,7 @@ export function planFromVector(
     }
   }
 
-  const duration = Math.min(DUR_SEC, totalBeats * secondsPerBeat);
+  const duration = Math.min(DEFAULT_DURATION_S, totalBeats * secondsPerBeat);
   const id = planIdFrom(guidance?.seed, bpm, baseCenter, hookMotif.id, cadenceIdx, phraseCenters);
 
   return {

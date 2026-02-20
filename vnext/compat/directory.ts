@@ -1,5 +1,6 @@
 /**
  * Community directory search (V1). Seeded users from match candidates; deterministic, no DB.
+ * All methods async (storage is async).
  */
 
 import * as storage from './storage';
@@ -23,35 +24,35 @@ export interface SearchDirectoryResult {
 
 const DIRECTORY_VERSION = 'v1';
 
-/** Chart IDs that are allowed for public profile/snapshot-explainer (directory + default profile). */
-let allowedChartIds: Set<string> | null = null;
+let allowedChartIdsCache: Set<string> | null = null;
 
-function getAllowedChartIds(): Set<string> {
-  if (allowedChartIds) return allowedChartIds;
+async function getAllowedChartIds(): Promise<Set<string>> {
+  if (allowedChartIdsCache) return allowedChartIdsCache;
+  await storage.ensureDefaultProfileChart();
+  const candidates = await storage.ensureMatchCandidateCharts();
   const ids = new Set<string>([storage.DEFAULT_PROFILE_CHART_ID]);
-  const candidates = storage.ensureMatchCandidateCharts();
   for (const c of candidates) ids.add(c.chartId);
-  allowedChartIds = ids;
+  allowedChartIdsCache = ids;
   return ids;
 }
 
-/** V1: only directory charts (and default profile chart) can be fetched for public profile. */
-export function isDirectoryChartId(chartId: string): boolean {
-  return getAllowedChartIds().has(chartId);
+export async function isDirectoryChartId(chartId: string): Promise<boolean> {
+  const ids = await getAllowedChartIds();
+  return ids.has(chartId);
 }
 
-/** Build full directory list (deterministic order: by displayName then userId). */
-function getDirectoryUsers(): DirectoryUser[] {
-  const candidates = storage.ensureMatchCandidateCharts();
-  const users: DirectoryUser[] = candidates.map((c) => {
-    const chart = storage.getChart(c.chartId);
-    return {
+async function getDirectoryUsers(): Promise<DirectoryUser[]> {
+  const candidates = await storage.ensureMatchCandidateCharts();
+  const users: DirectoryUser[] = [];
+  for (const c of candidates) {
+    const chart = await storage.getChart(c.chartId);
+    users.push({
       userId: c.userId,
       displayName: c.displayName,
       chartId: c.chartId,
       label: chart?.label,
-    };
-  });
+    });
+  }
   users.sort((a, b) => {
     const d = a.displayName.localeCompare(b.displayName);
     if (d !== 0) return d;
@@ -60,7 +61,6 @@ function getDirectoryUsers(): DirectoryUser[] {
   return users;
 }
 
-/** Rank for stable sort: 0 = prefix match on displayName, 1 = prefix on userId, 2 = substring displayName, 3 = substring userId, 4 = no match. */
 function matchRank(user: DirectoryUser, q: string): number {
   if (!q || !q.trim()) return 4;
   const ql = q.toLowerCase().trim();
@@ -73,19 +73,16 @@ function matchRank(user: DirectoryUser, q: string): number {
   return 4;
 }
 
-/**
- * Search directory users. Empty q = browse first N. Cursor = offset string (e.g. "0", "10"); nextCursor null if no more.
- */
-export function searchDirectoryUsers(params: {
+export async function searchDirectoryUsers(params: {
   q: string;
   limit: number;
   cursor?: string;
-}): SearchDirectoryResult {
+}): Promise<SearchDirectoryResult> {
   const { q, limit: rawLimit, cursor } = params;
   const limit = Math.min(50, Math.max(1, rawLimit || 10));
   const offset = Math.max(0, parseInt(cursor || '0', 10) || 0);
 
-  const all = getDirectoryUsers();
+  const all = await getDirectoryUsers();
   const ql = (q || '').trim().toLowerCase();
 
   let list: DirectoryUser[];

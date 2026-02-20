@@ -35,9 +35,10 @@ export interface ArchitectureOutput {
 }
 
 /**
- * Fetch EphemerisSnapshot from /api/chart-snapshot
+ * Fetch EphemerisSnapshot from /api/chart-snapshot.
+ * Exported for request-local use (e.g. comparison: fetch once per chart, then generateArchitectureFromSnapshot).
  */
-async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSnapshot> {
+export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSnapshot> {
   const PORT = process.env.PORT || '4000';
   const base = process.env.API_BASE_URL || `http://localhost:${PORT}`;
   const { date, time, lat, lon } = input;

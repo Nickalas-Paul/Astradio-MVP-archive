@@ -238,6 +238,73 @@ export function buildExplainSpecComparison(inputs: ExplainSpecComparisonInputs):
   };
 }
 
+/**
+ * Overlay (natal vs current/transit) ExplainSpec.
+ * Same structure as comparison; titles overridden for overlay.
+ * Used when VNEXT_OVERLAY_EXPLAINSPEC=1.
+ */
+export type ExplainSpecOverlayInputs = {
+  seed: string;
+  natalSnapshot: EphemerisSnapshot;
+  natalFeatureVec: FeatureVec;
+  currentSnapshot: EphemerisSnapshot;
+  currentFeatureVec: FeatureVec;
+  plan: Plan;
+  gateReport?: GateReport;
+};
+
+export function buildExplainSpecOverlay(inputs: ExplainSpecOverlayInputs): ExplainSpec {
+  const { seed, natalSnapshot, natalFeatureVec, currentSnapshot, currentFeatureVec, plan, gateReport } = inputs;
+  const planSummary = buildPlanSummary(plan);
+  const natalGuidance = guidanceSummaryFromFeatureVec(natalFeatureVec);
+  const currentGuidance = guidanceSummaryFromFeatureVec(currentFeatureVec);
+
+  const elementBlendDiff = {
+    fire: Math.abs(clamp01(natalFeatureVec[27] ?? 0) - clamp01(currentFeatureVec[27] ?? 0)),
+    earth: Math.abs(clamp01(natalFeatureVec[28] ?? 0) - clamp01(currentFeatureVec[28] ?? 0)),
+    air: Math.abs(clamp01(natalFeatureVec[29] ?? 0) - clamp01(currentFeatureVec[29] ?? 0)),
+    water: Math.abs(clamp01(natalFeatureVec[30] ?? 0) - clamp01(currentFeatureVec[30] ?? 0)),
+  };
+  const natalAstro = astroSummaryFromSnapshot(natalSnapshot, natalFeatureVec);
+  const currentAstro = astroSummaryFromSnapshot(currentSnapshot, currentFeatureVec);
+  const dominantPlanetOverlap = natalAstro.dominant_planets.filter((p) =>
+    currentAstro.dominant_planets.includes(p)
+  );
+
+  const comparisonInputs: ExplainSpecComparisonInputs = {
+    seed,
+    a: {
+      snapshot: natalSnapshot,
+      featureVec: natalFeatureVec,
+      guidanceSummary: natalGuidance,
+      plan,
+      planSummary,
+    },
+    b: {
+      snapshot: currentSnapshot,
+      featureVec: currentFeatureVec,
+      guidanceSummary: currentGuidance,
+      plan,
+      planSummary,
+    },
+    delta: {
+      elementBlendDiff,
+      tensionDiff: Math.abs((natalFeatureVec[32] ?? 0.5) - (currentFeatureVec[32] ?? 0.5)),
+      clusteringDiff: Math.abs((natalFeatureVec[33] ?? 0.5) - (currentFeatureVec[33] ?? 0.5)),
+      dominantPlanetOverlap,
+    },
+    gateReport,
+  };
+
+  const spec = buildExplainSpecComparison(comparisonInputs);
+  spec.titles = {
+    signatures: "Natal Signatures",
+    significance: "Transit vs Natal",
+    musical: "Musical Relationship",
+  };
+  return spec;
+}
+
 // ============================================================================
 // Helper functions
 

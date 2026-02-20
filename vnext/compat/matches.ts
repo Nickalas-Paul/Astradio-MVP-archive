@@ -4,6 +4,7 @@
  */
 
 import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
+import { getChartById } from './chart-store';
 import * as storage from './storage';
 import type { Chart } from './types';
 
@@ -106,15 +107,15 @@ export async function getCompatMatches(
   mode: CompatMatchMode,
   limit: number
 ): Promise<CompatMatchResult[]> {
-  const chart = storage.getChart(chartId);
+  const chart = await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
 
-  const candidates = storage.ensureMatchCandidateCharts().filter((c) => c.chartId !== chartId);
+  const candidates = (await storage.ensureMatchCandidateCharts()).filter((c) => c.chartId !== chartId);
   const vecA = await toVec64(chart);
 
   const results: CompatMatchResult[] = [];
   for (const cand of candidates) {
-    const c = storage.getChart(cand.chartId);
+    const c = await getChartById(cand.chartId);
     if (!c) continue;
     const vecB = await toVec64(c);
     const { score, rationale, facets } = scoreCompatibility(vecA, vecB, mode);

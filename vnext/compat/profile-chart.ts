@@ -6,6 +6,7 @@
 import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import { composeAPI } from '../api/compose';
 import { controlPayloadFromSeed } from './payload-from-seed';
+import { getChartById } from './chart-store';
 import * as storage from './storage';
 import type { Chart } from './types';
 
@@ -25,8 +26,8 @@ export interface ProfileChartResult {
  */
 export async function getProfileChartExplainer(chartId: string): Promise<ProfileChartResult> {
   const chart = chartId === storage.DEFAULT_PROFILE_CHART_ID
-    ? storage.getChart(storage.DEFAULT_PROFILE_CHART_ID)!
-    : storage.getChart(chartId);
+    ? await getChartById(storage.DEFAULT_PROFILE_CHART_ID)
+    : await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
 
   const architecture = await generateArchitecture(chartToChartInput(chart), `profile_${chart.id}`);

@@ -4,7 +4,7 @@
  */
 
 import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
-import * as storage from '../compat/storage';
+import { getChartById } from '../compat/chart-store';
 import type { Chart } from '../compat/types';
 import { scoreCompatibility, type CompatMatchMode } from '../compat/matches';
 import { getScopedCandidates } from './scope-resolver';
@@ -141,7 +141,7 @@ export async function computeCompatibilityIntent(
   let seekerChartIdResolved: string;
 
   if (seekerChartId) {
-    const chart = storage.getChart(seekerChartId);
+    const chart = await getChartById(seekerChartId);
     if (!chart) throw new Error(`Chart not found: ${seekerChartId}`);
     const arch = await generateArchitecture(chartToChartInput(chart), seekerChartId);
     seekerVec = arch.features;
@@ -155,11 +155,11 @@ export async function computeCompatibilityIntent(
   }
 
   const mode = INTENT_TO_MODE[intent];
-  const candidates = getScopedCandidates(scope, groupId, seekerUserId);
+  const candidates = await getScopedCandidates(scope, groupId, seekerUserId);
   const memberVecs: Array<{ userId: string; chartId: string; displayName?: string; vec: Float32Array | number[] }> = [];
 
   for (const cand of candidates) {
-    const c = storage.getChart(cand.chartId);
+    const c = await getChartById(cand.chartId);
     if (!c) continue;
     const arch = await generateArchitecture(chartToChartInput(c), cand.chartId);
     memberVecs.push({

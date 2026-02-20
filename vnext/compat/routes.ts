@@ -4,6 +4,7 @@
  */
 
 import * as storage from './storage';
+import { getChartById, createChart } from './chart-store';
 import { createComparison } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { getCompatMatches, type CompatMatchMode } from './matches';
@@ -29,16 +30,21 @@ const COMPAT_RESPONSE_VERSION = 'v1';
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
 
-  // Seed default profile chart and match candidates once at startup (idempotent; no per-request mutation).
-  storage.ensureDefaultProfileChart();
-  storage.ensureMatchCandidateCharts();
+  // Seed default profile chart and match candidates once at startup (async; idempotent).
+  setImmediate(() => {
+    storage.ensureDefaultProfileChart().catch((e) => console.error('[compat] seed ensureDefaultProfileChart', e));
+    storage.ensureMatchCandidateCharts().catch((e) => console.error('[compat] seed ensureMatchCandidateCharts', e));
+  });
 
-  // GET /api/compat/health
+  // GET /api/compat/health — report synastry/mock state for beta clarity
   router.get('/compat/health', (_req: import('express').Request, res: import('express').Response) => {
+    const matchesMock = process.env.VNEXT_MATCHES_MOCK === '1';
     res.status(200).json({
       status: 'healthy',
       service: 'compatibility',
       timestamp: new Date().toISOString(),
+      synastry: 'disabled',
+      matchesMock,
     });
   });
 
@@ -53,6 +59,7 @@ export function createCompatRouter(): import('express').Router {
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
       const matches = await getCompatMatches(chartId, mode, limit);
       const generatedAt = new Date().toISOString();
+      const matchesMock = process.env.VNEXT_MATCHES_MOCK === '1';
       return res.status(200).json({
         chartId,
         mode,
@@ -60,6 +67,8 @@ export function createCompatRouter(): import('express').Router {
         matches,
         generatedAt,
         version: COMPAT_RESPONSE_VERSION,
+        synastryEnabled: false,
+        matchesMock,
       });
     } catch (e: any) {
       if (e?.message?.includes('not found')) return res.status(404).json({ error: e.message });
@@ -69,12 +78,12 @@ export function createCompatRouter(): import('express').Router {
   });
 
   // GET /api/community/search?q=&limit=&cursor= (directory search; seeded users only)
-  router.get('/community/search', (req: import('express').Request, res: import('express').Response) => {
+  router.get('/community/search', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const q = (req.query.q as string) || '';
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
       const cursor = (req.query.cursor as string) || undefined;
-      const result = searchDirectoryUsers({ q, limit, cursor });
+      const result = await searchDirectoryUsers({ q, limit, cursor });
       return res.status(200).json(result);
     } catch (e: any) {
       console.error('[compat] GET /community/search', e);
@@ -86,7 +95,7 @@ export function createCompatRouter(): import('express').Router {
   router.get('/profile/chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const chartId = (req.query.chartId as string) || storage.DEFAULT_PROFILE_CHART_ID;
-      if (!isDirectoryChartId(chartId)) {
+      if (!(await isDirectoryChartId(chartId))) {
         return res.status(403).json({ error: 'Chart not in public directory' });
       }
       const result = await getProfileChartExplainer(chartId);
@@ -100,7 +109,7 @@ export function createCompatRouter(): import('express').Router {
   });
 
   // POST /api/charts
-  router.post('/charts', (req: import('express').Request, res: import('express').Response) => {
+  router.post('/charts', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
       const { ownerId, label, date, time, lat, lon, timezone, snapshotHash } = body;
@@ -110,7 +119,7 @@ export function createCompatRouter(): import('express').Router {
           message: 'Required: label, date, time, lat, lon'
         });
       }
-      const chart = storage.createChart({
+      const chart = await createChart({
         ownerId: ownerId || undefined,
         label,
         date: String(date).slice(0, 10),
@@ -128,9 +137,9 @@ export function createCompatRouter(): import('express').Router {
   });
 
   // GET /api/charts/:id
-  router.get('/charts/:id', (req: import('express').Request, res: import('express').Response) => {
+  router.get('/charts/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const chart = storage.getChart(id);
+    const chart = await getChartById(id);
     if (!chart) return res.status(404).json({ error: 'Chart not found' });
     return res.json(chart);
   });
@@ -183,9 +192,9 @@ export function createCompatRouter(): import('express').Router {
   });
 
   // GET /api/comparisons/:id
-  router.get('/comparisons/:id', (req: import('express').Request, res: import('express').Response) => {
+  router.get('/comparisons/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const comparison = storage.getComparison(id);
+    const comparison = await storage.getComparison(id);
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
     return res.json(comparison);
   });

@@ -13,12 +13,17 @@ export function createPersonalityRouter(): import('express').Router {
   // GET /api/personality/:chartId
   router.get('/personality/:chartId', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const chartId = req.params.chartId;
-      // TODO: Load chart from storage by ID
-      // For now, return error
-      return res.status(501).json({ error: 'chartId lookup not yet implemented; use POST /api/personality with inline chart' });
+      const chartId = (Array.isArray(req.params.chartId) ? req.params.chartId[0] : req.params.chartId) as string;
+      const result = await generatePersonalityReport({ chartId });
+      return res.status(200).json(result);
     } catch (e: any) {
       console.error('[personality] GET /personality/:chartId', e);
+      if (e?.message?.includes('Chart not found')) {
+        return res.status(404).json({ error: e.message });
+      }
+      if (e?.message?.includes('chart-snapshot failed')) {
+        return res.status(502).json({ error: 'Chart snapshot service unavailable' });
+      }
       return res.status(500).json({ error: e?.message || 'Failed to get personality' });
     }
   });

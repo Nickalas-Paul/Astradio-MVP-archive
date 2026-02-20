@@ -6,6 +6,7 @@
  */
 
 import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
+import { getChartById } from '../compat/chart-store';
 import { buildExplainSpecSingle } from '../explainer/text-generation-engine';
 import { renderExplainSpecToSections } from '../explainer/renderers/deterministic';
 import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
@@ -44,13 +45,14 @@ export interface PersonalityResponse {
 export async function generatePersonalityReport(
   request: PersonalityRequest
 ): Promise<PersonalityResponse> {
-  // Resolve chart input
+  // Resolve chart input (chart-store is single source for chart by id)
   let chartInput: ChartInput;
   if (request.chart) {
     chartInput = request.chart;
   } else if (request.chartId) {
-    // TODO: Load chart from storage by ID
-    throw new Error('chartId lookup not yet implemented; use inline chart');
+    const chart = await getChartById(request.chartId);
+    if (!chart) throw new Error(`Chart not found: ${request.chartId}`);
+    chartInput = { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
   } else {
     throw new Error('Either chart or chartId must be provided');
   }
@@ -66,7 +68,7 @@ export async function generatePersonalityReport(
   const planStub = {
     id: `personality_${architecture.seed.slice(0, 8)}`,
     featureHash: '',
-    durationSec: 60,
+    durationSec: 30,
     bpm: 0,
     key: '',
     events: []

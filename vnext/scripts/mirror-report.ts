@@ -136,7 +136,7 @@ function compactMetrics(plan: Plan): {
     prevRoot = root;
   }
 
-  const durationSec = plan.durationSec || 60;
+  const durationSec = plan.durationSec || 30;
   const densityPerChannel: Record<string, number> = {};
   for (const ch of ["melody", "harmony", "bass", "rhythm"]) {
     const count = plan.events.filter((e) => e.channel === ch).length;

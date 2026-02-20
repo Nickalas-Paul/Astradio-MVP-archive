@@ -1,12 +1,13 @@
 /**
  * Community Compatibility V1 — comparison generation.
- * Uses architecture-engine (generateArchitecture) + mergeFeatureVectors + composeFromFeatures only.
+ * Uses architecture-engine (fetch once per chart, then generateArchitectureFromSnapshot) + mergeFeatureVectors + composeFromFeatures only.
  */
 
-import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
+import { fetchChartSnapshot, generateArchitectureFromSnapshot, type ChartInput } from '../core/architecture-engine';
 import { composeAPI } from '../api/compose';
 import { mergeFeatureVectors } from './fusion';
 import { controlPayloadFromSeed, comparisonSeed } from './payload-from-seed';
+import { getChartById, resolveChartOrInline } from './chart-store';
 import * as storage from './storage';
 import type { Chart, ChartBInline, Comparison, CompatibilityTextStructured, RelationshipMode } from './types';
 import { FUSION_METHOD_BLEND_V1 } from './types';
@@ -20,28 +21,6 @@ function mergedFeatureHash(vec: Float32Array | number[]): string {
   const arr = Array.from(vec.length >= 64 ? vec : new Float32Array(64));
   const str = arr.map((x) => x.toFixed(6)).join(',');
   return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
-}
-
-/**
- * Resolve chart B: either load by chartBId or create ephemeral chart from chartBInline (persist as Chart for simplicity).
- */
-function resolveChartB(chartBId: string | undefined, chartBInline: ChartBInline | undefined): Chart {
-  if (chartBId) {
-    const c = storage.getChart(chartBId);
-    if (!c) throw new Error(`Chart not found: ${chartBId}`);
-    return c;
-  }
-  if (chartBInline && chartBInline.date && chartBInline.time && Number.isFinite(chartBInline.lat) && Number.isFinite(chartBInline.lon)) {
-    return storage.createChart({
-      label: chartBInline.label || 'Chart B',
-      date: chartBInline.date,
-      time: chartBInline.time,
-      lat: chartBInline.lat,
-      lon: chartBInline.lon,
-      timezone: chartBInline.timezone
-    });
-  }
-  throw new Error('Either chartBId or chartBInline (date, time, lat, lon) required');
 }
 
 export interface CreateComparisonInput {
@@ -63,13 +42,22 @@ export interface CreateComparisonResult {
 }
 
 export async function createComparison(input: CreateComparisonInput): Promise<CreateComparisonResult> {
-  const chartA = storage.getChart(input.chartAId);
+  const chartA = await getChartById(input.chartAId);
   if (!chartA) throw new Error(`Chart not found: ${input.chartAId}`);
-  const chartB = resolveChartB(input.chartBId, input.chartBInline);
+  if (!input.chartBId && !input.chartBInline) throw new Error('Either chartBId or chartBInline (date, time, lat, lon) required');
+  const chartB = input.chartBId
+    ? await getChartById(input.chartBId)
+    : await resolveChartOrInline({ chartInline: input.chartBInline! });
+  if (!chartB) throw new Error(`Chart not found: ${input.chartBId}`);
 
+  // Single snapshot fetch per chart per request
+  const [snapA, snapB] = await Promise.all([
+    fetchChartSnapshot(chartToChartInput(chartA)),
+    fetchChartSnapshot(chartToChartInput(chartB)),
+  ]);
   const [archA, archB] = await Promise.all([
-    generateArchitecture(chartToChartInput(chartA)),
-    generateArchitecture(chartToChartInput(chartB))
+    generateArchitectureFromSnapshot(snapA),
+    generateArchitectureFromSnapshot(snapB),
   ]);
   const vecA = archA.features;
   const vecB = archB.features;
@@ -100,7 +88,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     bullets: Array.isArray((result.text as any)?.bullets) ? (result.text as any).bullets : []
   };
 
-  const comparison = storage.createComparison({
+  const comparison = await storage.createComparison({
     chartAId: chartA.id,
     chartBId: chartB.id,
     relationshipMode: input.relationshipMode,

@@ -103,14 +103,14 @@ async function main(): Promise<void> {
     throw new Error('Unexpected fetch: ' + u);
   };
 
-  const chartA = storage.createChart({
+  const chartA = await storage.createChart({
     label: 'Chart A',
     date: FIXED_DATE,
     time: FIXED_TIME,
     lat: FIXED_LAT,
     lon: FIXED_LON,
   });
-  const chartB = storage.createChart({
+  const chartB = await storage.createChart({
     label: 'Chart B',
     date: '1990-06-01',
     time: '14:30',
