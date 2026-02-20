@@ -10,7 +10,7 @@ import {
   computeGroupProfileFromMemberArtifacts,
   type GroupProfileOutput
 } from '../community/group-profile';
-import * as storage from '../compat/storage';
+import { getChartById } from '../compat/chart-store';
 import type { Chart } from '../compat/types';
 
 function chartToChartInput(chart: Chart): ChartInput {
@@ -42,8 +42,8 @@ export async function createGroupProfile(request: GroupsProfileRequest): Promise
 
   if (chartIds && chartIds.length > 0) {
     const archResults = await Promise.all(
-      chartIds.map((id) => {
-        const chart = storage.getChart(id);
+      chartIds.map(async (id) => {
+        const chart = await getChartById(id);
         if (!chart) throw new Error(`Chart not found: ${id}`);
         return generateArchitecture(chartToChartInput(chart), `group_${groupId}_${id}`);
       })

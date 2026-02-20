@@ -50,13 +50,13 @@ const communityPostLimiter = rateLimit({
   legacyHeaders: false
 });
 
-function resolveGroup(slugOrId) {
+async function resolveGroup(slugOrId) {
   if (slugOrId && slugOrId.startsWith('grp_')) return store.getGroup(slugOrId);
   return store.getGroupBySlug(slugOrId);
 }
 
-function getDevUserId(req) {
-  const u = store.ensureDevUser();
+async function getDevUserId(req) {
+  const u = await store.ensureDevUser();
   return u.id;
 }
 
@@ -70,15 +70,15 @@ router.get('/community/guidance', (req, res) => {
 });
 
 // GET /api/community/groups
-router.get('/community/groups', (req, res) => {
+router.get('/community/groups', async (req, res) => {
   try {
     const tag = req.query.tag;
     const q = req.query.q;
-    const list = store.listGroups({ tag, q });
-    const groups = list.map(g => ({
+    const list = await store.listGroups({ tag, q });
+    const groups = await Promise.all(list.map(async (g) => ({
       ...g,
-      memberCount: store.getMembershipsByGroup(g.id).length
-    }));
+      memberCount: (await store.getMembershipsByGroup(g.id)).length
+    })));
     return res.json({ groups });
   } catch (e) {
     console.error('[community] GET /community/groups', e);
@@ -87,18 +87,18 @@ router.get('/community/groups', (req, res) => {
 });
 
 // POST /api/community/groups
-router.post('/community/groups', (req, res) => {
+router.post('/community/groups', async (req, res) => {
   try {
     const { slug, name, description, tags } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' });
-    const userId = getDevUserId(req);
-    const group = store.createGroup({
+    const userId = (await getDevUserId(req));
+    const group = await store.createGroup({
       slug: (slug && String(slug).trim()) || null,
       name: String(name).trim(),
       description: (description && String(description).trim()) || '',
       tags: Array.isArray(tags) ? tags : []
     });
-    store.createMembership({ groupId: group.id, userId, role: 'mod' });
+    await store.createMembership({ groupId: group.id, userId, role: 'mod' });
     return res.status(201).json(group);
   } catch (e) {
     console.error('[community] POST /community/groups', e);
@@ -107,13 +107,13 @@ router.post('/community/groups', (req, res) => {
 });
 
 // GET /api/community/groups/:slugOrId
-router.get('/community/groups/:slugOrId', (req, res) => {
+router.get('/community/groups/:slugOrId', async (req, res) => {
   try {
     const slugOrId = req.params.slugOrId;
-    const group = resolveGroup(slugOrId);
+    const group = await resolveGroup(slugOrId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    const memberCount = store.getMembershipsByGroup(group.id).length;
-    return res.json({ ...group, memberCount });
+    const members = await store.getMembershipsByGroup(group.id);
+    return res.json({ ...group, memberCount: members.length });
   } catch (e) {
     console.error('[community] GET /community/groups/:slugOrId', e);
     return res.status(500).json({ error: e.message || 'Failed to get group' });
@@ -121,15 +121,16 @@ router.get('/community/groups/:slugOrId', (req, res) => {
 });
 
 // POST /api/community/groups/:groupId/join
-router.post('/community/groups/:groupId/join', (req, res) => {
+router.post('/community/groups/:groupId/join', async (req, res) => {
   try {
     const groupId = req.params.groupId;
-    const group = store.getGroup(groupId) || (groupId.startsWith('grp_') ? null : resolveGroup(groupId));
+    let group = await store.getGroup(groupId);
+    if (!group && !groupId.startsWith('grp_')) group = await resolveGroup(groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    const userId = (req.body && req.body.userId) || getDevUserId(req);
+    const userId = (req.body && req.body.userId) || (await getDevUserId(req));
     const chartId = req.body && req.body.chartId;
-    if (store.isMember(group.id, userId)) return res.status(200).json({ joined: true, already: true });
-    const membership = store.createMembership({ groupId: group.id, userId, role: 'member', chartId });
+    if (await store.isMember(group.id, userId)) return res.status(200).json({ joined: true, already: true });
+    const membership = await store.createMembership({ groupId: group.id, userId, role: 'member', chartId });
     return res.status(201).json({ joined: true, membership });
   } catch (e) {
     console.error('[community] POST /community/groups/:groupId/join', e);
@@ -138,25 +139,26 @@ router.post('/community/groups/:groupId/join', (req, res) => {
 });
 
 // GET /api/community/groups/:groupId/members — paginated, minimal fields, no compat scores
-router.get('/community/groups/:groupId/members', (req, res) => {
+router.get('/community/groups/:groupId/members', async (req, res) => {
   try {
     const groupId = req.params.groupId;
-    const group = store.getGroup(groupId) || resolveGroup(groupId);
+    let group = await store.getGroup(groupId);
+    if (!group) group = await resolveGroup(groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
     const rawLimit = parseInt(req.query.limit, 10);
     const limit = Number.isNaN(rawLimit) ? 25 : Math.min(50, Math.max(1, rawLimit));
     const offset = Math.max(0, parseInt(req.query.cursor, 10) || 0);
-    const memberships = store.getMembershipsByGroup(group.id);
+    const memberships = await store.getMembershipsByGroup(group.id);
     const slice = memberships.slice(offset, offset + limit);
-    const members = slice.map((m) => {
-      const u = store.getUser(m.userId);
+    const members = await Promise.all(slice.map(async (m) => {
+      const u = await store.getUser(m.userId);
       return {
         userId: m.userId,
         handle: u?.handle || m.userId,
         displayName: u?.displayName || u?.handle || m.userId,
         chartId: m.chartId || undefined
       };
-    });
+    }));
     const nextCursor = offset + slice.length < memberships.length ? String(offset + limit) : undefined;
     return res.json({ members, nextCursor });
   } catch (e) {
@@ -166,13 +168,14 @@ router.get('/community/groups/:groupId/members', (req, res) => {
 });
 
 // GET /api/community/groups/:groupId/posts
-router.get('/community/groups/:groupId/posts', (req, res) => {
+router.get('/community/groups/:groupId/posts', async (req, res) => {
   try {
     const groupId = req.params.groupId;
-    const group = store.getGroup(groupId) || resolveGroup(groupId);
+    let group = await store.getGroup(groupId);
+    if (!group) group = await resolveGroup(groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 50);
-    const posts = store.listPostsByGroup(group.id, { limit });
+    const posts = await store.listPostsByGroup(group.id, { limit });
     return res.json({ posts });
   } catch (e) {
     console.error('[community] GET /community/groups/:groupId/posts', e);
@@ -181,15 +184,16 @@ router.get('/community/groups/:groupId/posts', (req, res) => {
 });
 
 // POST /api/community/groups/:groupId/posts (rate limited)
-router.post('/community/groups/:groupId/posts', communityPostLimiter, (req, res) => {
+router.post('/community/groups/:groupId/posts', communityPostLimiter, async (req, res) => {
   try {
     const groupId = req.params.groupId;
-    const group = store.getGroup(groupId) || resolveGroup(groupId);
+    let group = await store.getGroup(groupId);
+    if (!group) group = await resolveGroup(groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    const userId = getDevUserId(req);
+    const userId = await getDevUserId(req);
     const validated = validatePostBody(req.body || {});
     if (validated.error) return res.status(400).json({ error: validated.error });
-    const post = store.createPost({
+    const post = await store.createPost({
       groupId: group.id,
       userId,
       title: validated.title,
@@ -203,13 +207,13 @@ router.post('/community/groups/:groupId/posts', communityPostLimiter, (req, res)
 });
 
 // GET /api/community/posts/:postId
-router.get('/community/posts/:postId', (req, res) => {
+router.get('/community/posts/:postId', async (req, res) => {
   try {
-    const post = store.getPost(req.params.postId);
+    const post = await store.getPost(req.params.postId);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    const group = store.getGroup(post.groupId);
-    const author = store.getUser(post.userId);
-    const commentList = store.listCommentsByPost(post.id);
+    const group = await store.getGroup(post.groupId);
+    const author = await store.getUser(post.userId);
+    const commentList = await store.listCommentsByPost(post.id);
     return res.json({
       ...post,
       group: group ? { id: group.id, slug: group.slug, name: group.name } : null,
@@ -223,14 +227,14 @@ router.get('/community/posts/:postId', (req, res) => {
 });
 
 // POST /api/community/posts/:postId/comments (rate limited)
-router.post('/community/posts/:postId/comments', communityPostLimiter, (req, res) => {
+router.post('/community/posts/:postId/comments', communityPostLimiter, async (req, res) => {
   try {
-    const post = store.getPost(req.params.postId);
+    const post = await store.getPost(req.params.postId);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const validated = validateCommentBody(req.body || {});
     if (validated.error) return res.status(400).json({ error: validated.error });
-    const userId = getDevUserId(req);
-    const comment = store.createComment({ postId: post.id, userId, body: validated.body });
+    const userId = await getDevUserId(req);
+    const comment = await store.createComment({ postId: post.id, userId, body: validated.body });
     return res.status(201).json(comment);
   } catch (e) {
     console.error('[community] POST /community/posts/:postId/comments', e);
@@ -242,9 +246,10 @@ router.post('/community/posts/:postId/comments', communityPostLimiter, (req, res
 router.post('/community/groups/:groupId/profile', async (req, res) => {
   try {
     const groupId = req.params.groupId;
-    const group = store.getGroup(groupId) || resolveGroup(groupId);
+    let group = await store.getGroup(groupId);
+    if (!group) group = await resolveGroup(groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    const memberships = store.getMembershipsByGroup(group.id);
+    const memberships = await store.getMembershipsByGroup(group.id);
     const chartIds = memberships.map(m => m.chartId).filter(Boolean);
     if (!chartIds.length) {
       return res.status(400).json({ error: 'No member charts; add chartId when joining to compute group profile' });
@@ -266,7 +271,7 @@ router.post('/community/groups/:groupId/profile', async (req, res) => {
 });
 
 // POST /api/community/report
-router.post('/community/report', (req, res) => {
+router.post('/community/report', async (req, res) => {
   try {
     const body = req.body || {};
     const targetType = body.targetType;
@@ -277,7 +282,7 @@ router.post('/community/report', (req, res) => {
       return res.status(400).json({ error: 'targetType, targetId, and reason required' });
     }
     if (note.length > REPORT_BODY_MAX) return res.status(400).json({ error: `note max ${REPORT_BODY_MAX} characters` });
-    const report = store.createReport({ targetType, targetId, reason, note: note || null });
+    const report = await store.createReport({ targetType, targetId, reason, note: note || null });
     return res.status(201).json({ id: report.id, createdAt: report.createdAt });
   } catch (e) {
     console.error('[community] POST /community/report', e);

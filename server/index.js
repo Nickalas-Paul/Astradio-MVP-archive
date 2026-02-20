@@ -6,6 +6,23 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
+// Render-compatible GCP credentials: GOOGLE_SERVICE_ACCOUNT_JSON → temp file + ADC
+try {
+  require('../lib/gcp-credentials').loadGcpCredentials();
+} catch (e) {
+  console.warn('[BOOT] GCP credentials loader skipped:', e.message);
+}
+
+// Export store (GCS when GCS_BUCKET set; else disk). Set before loading compose so vnext can use it.
+const { createExportStore } = require('../lib/export-store');
+const exportStore = createExportStore();
+process.__astradio_export_store = exportStore;
+if (process.env.GCS_BUCKET) {
+  console.log('[EXPORTS] Using GCS bucket:', process.env.GCS_BUCKET, 'prefix:', process.env.GCS_PREFIX || 'exports/');
+} else {
+  console.log('[EXPORTS] Using local disk (ephemeral on Render)');
+}
+
 // vNext compiled handlers (do NOT import .ts directly) — optional for dev boot
 const { optionalRequire, noopMiddleware, noopRouter } = require('../lib/opt/optional');
 
@@ -1817,8 +1834,80 @@ app.use("/api/compose", canaryRouter);
 // Body is already parsed by global express.json() at line ~170; duplicate parser here consumed empty stream → SyntaxError → 400 HTML
 app.post("/api/compose", vnextCompose);
 
+// Exports: create or return export id (cache-first); stream WAV from store (GCS or disk). Postgres records job when POSTGRES_URL set.
+const exportsSubdir = path.join(EXPORT_ROOT, 'exports');
+try { fs.mkdirSync(exportsSubdir, { recursive: true }); } catch (_) {}
+
+app.post('/api/exports', requireBeta, async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!composeMod?.composeAPI) return res.status(501).json({ error: 'compose_unavailable' });
+    const response = await composeMod.composeAPI.compose(body);
+    const id = response.export_id;
+    if (!id) return res.status(502).json({ error: 'no_export', message: 'Compose did not return an export (enable ENABLE_WAV_EXPORT=1)' });
+    if (process.env.POSTGRES_URL) {
+      try {
+        const pgStore = optionalRequire(path.join(__dirname, '..', 'lib', 'pg-store'));
+        if (pgStore && pgStore.createExportJob) {
+          const storageKey = exportStore.storageKey ? exportStore.storageKey(id) : null;
+          const filePath = storageKey || path.join(exportsSubdir, id + '.wav');
+          await pgStore.createExportJob({
+            id,
+            requestId: id,
+            planHash: response.hashes?.plan_sha256 || null,
+            chartHash: response.controls?.hash || null,
+            filePath,
+            contentType: 'audio/wav',
+            sizeBytes: response.audio?.size_bytes || null,
+            storageKey: storageKey || undefined,
+            exportMeta: response.export_meta ? {
+              provider: response.export_meta.provider,
+              modelVersion: response.export_meta.modelVersion,
+              promptHash: response.export_meta.promptHash,
+              payload_hash: response.export_meta.payload_hash,
+              duration_s: response.export_meta.duration_s,
+              sha256: response.export_meta.sha256,
+            } : undefined,
+          });
+        }
+      } catch (dbErr) {
+        if (dbErr.code !== '23505') console.warn('[EXPORTS] DB record skipped:', dbErr.message);
+      }
+    }
+    res.status(200).json({ id });
+  } catch (e) {
+    console.error('[EXPORTS] POST failed:', e.message);
+    res.status(500).json({ error: 'export_failed', message: e.message });
+  }
+});
+app.get('/api/exports/:id', async (req, res) => {
+  try {
+    const id = (req.params.id || '').trim();
+    if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).json({ error: 'invalid_id', message: 'Export id must be 64 hex characters' });
+    if (process.env.POSTGRES_URL) {
+      const pgStore = optionalRequire(path.join(__dirname, '..', 'lib', 'pg-store'));
+      if (pgStore && pgStore.getExportJob) {
+        const job = await pgStore.getExportJob(id);
+        if (!job) return res.status(404).json({ error: 'not_found', message: 'Export not found' });
+      }
+    }
+    const streamed = await exportStore.stream(id, res);
+    if (!streamed) return res.status(404).json({ error: 'not_found', message: 'Export not found' });
+  } catch (e) {
+    if (!res.headersSent) res.status(500).json({ error: 'export_stream_failed', message: e.message });
+  }
+});
+
 // Community Compatibility V1 — charts and comparisons (additive; uses same plan+render pipeline)
+// Inject durable storage when POSTGRES_URL is set; otherwise use in-memory (memory-store).
 if (compatMod && typeof compatMod.createCompatRouter === "function") {
+  const compatStorage = optionalRequire(path.join(vnextRoot, "compat", "storage"));
+  const pgStore = process.env.POSTGRES_URL ? optionalRequire(path.join(__dirname, "..", "lib", "pg-store")) : null;
+  const memoryStore = optionalRequire(path.join(vnextRoot, "compat", "memory-store"));
+  const store = pgStore || memoryStore;
+  if (compatStorage && typeof compatStorage.setStorage === "function" && store) {
+    compatStorage.setStorage(store);
+  }
   app.use("/api", compatMod.createCompatRouter());
 }
 
@@ -1936,9 +2025,13 @@ app.post('/api/compositions/generate', requireBeta, async (req, res) => {
     const dir = path.join(EXPORTS_DIR, id);
     ensureDir(dir);
 
-    // track.wav (placeholder minimal PCM data)
+    // track.wav from compose response (real renderer output)
     const audioPath = path.join(dir, 'track.wav');
-    fs.writeFileSync(audioPath, Buffer.from('RIFF0000WAVEfmt '));
+    if (composeJson.audio && typeof composeJson.audio.base64 === 'string' && composeJson.audio.base64.length > 0) {
+      fs.writeFileSync(audioPath, Buffer.from(composeJson.audio.base64, 'base64'));
+    } else {
+      fs.writeFileSync(audioPath, Buffer.alloc(0));
+    }
 
     // explanation.json
     writeJson(path.join(dir, 'explanation.json'), composeJson.explanation || {});
@@ -1990,7 +2083,7 @@ app.post('/api/compositions/generate', requireBeta, async (req, res) => {
       model_id: modelJson.model_id,
       registry_hash: modelJson.registry_hash,
       latency_ms: endMs - startMs,
-      length_sec: 60,
+      length_sec: 30,
       confusion_hotpair_delta: null,
       result: 'PASS',
       beta_user: (req).betaUser || null
@@ -2034,6 +2127,7 @@ app.get('/api/user/history', requireBeta, (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'history_failed', message: e.message });
   }
+});
 
 // Feedback capture (thumbs/comment)
 const FEEDBACK_LOG = path.join(__dirname, '../logs/feedback.jsonl');
@@ -2056,12 +2150,11 @@ app.get('/admin/metrics', (req, res) => {
     const latencies = last.map(x=>x.latency_ms).filter(x=>typeof x==='number').sort((a,b)=>a-b);
     const p95 = latencies[Math.ceil(0.95*latencies.length)-1] || 0;
     const determinismRate = 1.0; // deterministic by design with seeded hash
-    const lengthOk = last.every(x=>x.length_sec===60);
+    const lengthOk = last.every(x=>x.length_sec===30);
     res.json({ p95_latency_ms: p95, determinism_rate: determinismRate, length_ok: lengthOk, count: last.length });
   } catch (e) {
     res.status(500).json({ error: 'metrics_failed', message: e.message });
   }
-});
 });
 
 function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }
@@ -2100,6 +2193,13 @@ const server = app.listen(PORT, HOST, async () => {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`API version: v2 (vector-based)`);
     console.log(`Vector audition system: enabled`);
+    // Beta flags (visible in Render/deploy logs)
+    const betaFlags = {
+      VNEXT_VIZ: process.env.VNEXT_VIZ === '1' ? 'on (compose returns viz)' : 'off',
+      VNEXT_OVERLAY_EXPLAINSPEC: process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1' ? 'on (overlay uses ExplainSpec)' : 'off',
+      VNEXT_MATCHES_MOCK: process.env.VNEXT_MATCHES_MOCK === '1' ? 'on (matches mock)' : 'off (real vectors)',
+    };
+    console.log('[BETA_FLAGS]', JSON.stringify(betaFlags));
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
