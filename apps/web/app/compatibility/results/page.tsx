@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -8,7 +9,7 @@ import { ClusterCards } from '@/components/compatibility/ClusterCards';
 import type { Cluster } from '@/components/compatibility/ClusterCards';
 import { useProfile } from '@/core/social/hooks';
 
-export default function CompatibilityResultsPage() {
+function ResultsContent() {
   const searchParams = useSearchParams();
   const { primaryChart } = useProfile();
   const [data, setData] = useState<{ intent: string; clusters: Cluster[] } | null>(null);
@@ -50,5 +51,13 @@ export default function CompatibilityResultsPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function CompatibilityResultsPage() {
+  return (
+    <Suspense fallback={<AppShell><div className="max-w-4xl mx-auto p-6 text-subtext">Loading…</div></AppShell>}>
+      <ResultsContent />
+    </Suspense>
   );
 }

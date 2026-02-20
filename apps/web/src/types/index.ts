@@ -12,7 +12,7 @@ export type CompositionRequest = {
   chartA: string; // id
   chartB?: string; // id (optional for overlay)
   genre: 'classical' | 'jazz' | 'electronic' | 'house' | 'lofi' | 'ambient';
-  durationSec: 60;
+  durationSec: 30;
   seed?: string;
   controlHash?: string;
 };

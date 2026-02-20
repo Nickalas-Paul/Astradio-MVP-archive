@@ -33,7 +33,7 @@ export function GenerateCard({
       const request = {
         chartA: active?.id || 'natal',
         genre: selectedGenre as CompositionRequest['genre'],
-        durationSec: 30 as const,
+        durationSec: 30,
         seed: (window as any).__lastSeed || 'fixed-seed',
         controlHash: (window as any).__lastControlHash || undefined,
       } as CompositionRequest;

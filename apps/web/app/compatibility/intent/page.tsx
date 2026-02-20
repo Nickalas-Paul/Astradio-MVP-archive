@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { IntentForm } from '@/components/compatibility/IntentForm';
 import { useProfile } from '@/core/social/hooks';
 
-export default function CompatibilityIntentPage() {
+function IntentContent() {
   const searchParams = useSearchParams();
   const { primaryChart } = useProfile();
   const groupId = searchParams?.get('groupId') ?? null;
@@ -26,5 +27,13 @@ export default function CompatibilityIntentPage() {
         />
       </div>
     </AppShell>
+  );
+}
+
+export default function CompatibilityIntentPage() {
+  return (
+    <Suspense fallback={<AppShell><div className="max-w-3xl mx-auto p-6 text-subtext">Loading…</div></AppShell>}>
+      <IntentContent />
+    </Suspense>
   );
 }
