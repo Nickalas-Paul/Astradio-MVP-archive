@@ -1,5 +1,10 @@
 // Consolidated Feature Flag System - Single source of truth
 // Fail-closed behavior for new features
+//
+// REGRESSION GUARD: FLAGS must be read lazily (getFlags()) so that no top-level
+// getRuntimeFlags() runs at module load. Eager FLAGS = {...getRuntimeFlags()} causes
+// "Cannot access 'O' before initialization" (TDZ) in client bundles when Community
+// (or other) routes load. Do not revert to eager initialization.
 
 export interface FeatureFlags {
   USE_MOCK: boolean;
@@ -43,12 +48,32 @@ const getRuntimeFlags = (): Partial<FeatureFlags> => {
   return flags;
 };
 
-export const FLAGS: FeatureFlags = Object.freeze({
-  ...DEFAULT_FLAGS,
-  ...getRuntimeFlags(),
+// Lazy init: avoid TDZ in client bundle (module load order). Do not read at top level.
+let _flags: FeatureFlags | null = null;
+function getFlags(): FeatureFlags {
+  if (_flags === null) {
+    _flags = Object.freeze({ ...DEFAULT_FLAGS, ...getRuntimeFlags() }) as FeatureFlags;
+  }
+  return _flags;
+}
+
+const FLAGS_KEYS: (keyof FeatureFlags)[] = [
+  'USE_MOCK', 'ENABLE_TRENDING', 'ENABLE_COMPAT', 'ENABLE_SOCIAL', 'ENABLE_ATLAS',
+  'ENABLE_ANALYTICS', 'ENABLE_SHARING', 'ENABLE_PLAYLISTS', 'ENABLE_VIZ_ENGINE',
+];
+export const FLAGS: FeatureFlags = new Proxy({} as FeatureFlags, {
+  get(_, prop) {
+    return getFlags()[prop as keyof FeatureFlags];
+  },
+  ownKeys() {
+    return FLAGS_KEYS;
+  },
+  getOwnPropertyDescriptor(_, prop) {
+    return { configurable: true, enumerable: true, writable: false, value: getFlags()[prop as keyof FeatureFlags] };
+  },
 });
 
-export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => FLAGS[flag];
+export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => getFlags()[flag];
 
 // Legacy compatibility - map old flag names
 export const isFeatureEnabledLegacy = (flag: string): boolean => {
