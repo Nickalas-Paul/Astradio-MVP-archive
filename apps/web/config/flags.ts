@@ -1,5 +1,8 @@
 // Consolidated Feature Flag System - Single source of truth
 // Fail-closed behavior for new features
+//
+// REGRESSION: FLAGS must be read lazily (getFlags()) to avoid TDZ in client bundle
+// when Community (and other) routes load. Do not revert to eager init.
 
 export interface FeatureFlags {
   USE_MOCK: boolean;
@@ -42,15 +45,34 @@ const getRuntimeFlags = (): Partial<FeatureFlags> => {
   return flags;
 };
 
-export const FLAGS: FeatureFlags = Object.freeze({
-  ...DEFAULT_FLAGS,
-  ...getRuntimeFlags(),
+let _flags: FeatureFlags | null = null;
+function getFlags(): FeatureFlags {
+  if (_flags === null) {
+    _flags = Object.freeze({ ...DEFAULT_FLAGS, ...getRuntimeFlags() }) as FeatureFlags;
+  }
+  return _flags;
+}
+
+const FLAGS_KEYS: (keyof FeatureFlags)[] = [
+  'USE_MOCK', 'ENABLE_TRENDING', 'ENABLE_COMPAT', 'ENABLE_SOCIAL', 'ENABLE_ATLAS',
+  'ENABLE_ANALYTICS', 'ENABLE_SHARING', 'ENABLE_PLAYLISTS', 'ENABLE_VIZ_ENGINE',
+];
+export const FLAGS: FeatureFlags = new Proxy({} as FeatureFlags, {
+  get(_, prop) {
+    return getFlags()[prop as keyof FeatureFlags];
+  },
+  ownKeys() {
+    return FLAGS_KEYS;
+  },
+  getOwnPropertyDescriptor(_, prop) {
+    return { configurable: true, enumerable: true, writable: false, value: getFlags()[prop as keyof FeatureFlags] };
+  },
 });
 
-export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => FLAGS[flag];
+export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => getFlags()[flag];
 
 export const isFeatureEnabledLegacy = (flag: string): boolean => {
-  if (flag === 'ENABLE_NOTIFICATIONS') return FLAGS.ENABLE_SOCIAL;
+  if (flag === 'ENABLE_NOTIFICATIONS') return getFlags().ENABLE_SOCIAL;
   return isFeatureEnabled(flag as keyof FeatureFlags);
 };
 
@@ -72,11 +94,11 @@ export const disableFeature = (flag: keyof FeatureFlags) => {
   }
 };
 
-export const getFeatureFlags = (): FeatureFlags => ({ ...FLAGS });
+export const getFeatureFlags = (): FeatureFlags => ({ ...getFlags() });
 
 export const getFeatureFlagStatusString = (): string | null => {
   if (process.env.NODE_ENV !== 'development') return null;
-  return Object.entries(FLAGS)
+  return Object.entries(getFlags())
     .map(([k, v]) => `${k}: ${v ? 'ON' : 'OFF'}`)
     .join(', ');
 };
