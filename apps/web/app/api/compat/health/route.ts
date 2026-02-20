@@ -4,6 +4,8 @@
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const backend = getEngineBaseUrl();

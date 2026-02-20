@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
+export const dynamic = 'force-dynamic';
+
 // Proxy to backend /api/exports (Render). No queue/hash lib in web app.
 export async function POST(request: NextRequest) {
   const backend = getEngineBaseUrl();
