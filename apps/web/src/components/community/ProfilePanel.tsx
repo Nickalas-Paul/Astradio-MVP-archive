@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
@@ -58,9 +59,15 @@ export interface ProfilePanelProps {
 }
 
 export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
-  const { user, primaryChart, loading: profileLoading, error: profileError } = useProfile();
+  const { user, primaryChart, loading: profileLoading, error: profileError, refresh } = useProfile();
   const chartId = primaryChart?.id ?? null;
   const { data: chartData, loading: chartLoading, error: chartError } = useProfileChart(chartId);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createHandle, setCreateHandle] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const isStub = user?.id === 'usr_stub_v1';
 
   if (profileLoading || !user) {
     return (
@@ -94,6 +101,51 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card space-y-6"
       >
+        {isStub && createOpen && (
+          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-3">
+            <h3 className="text-sm font-medium text-text">Create profile (dev)</h3>
+            <p className="text-xs text-subtext">Persists on backend when ENGINE_BASE_URL and POSTGRES_URL are set.</p>
+            <input
+              placeholder="Display name"
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              className="input w-full"
+            />
+            <input
+              placeholder="Handle (optional)"
+              value={createHandle}
+              onChange={(e) => setCreateHandle(e.target.value)}
+              className="input w-full"
+            />
+            {createError && <p className="text-red-500 text-xs">{createError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={creating || !createName.trim()}
+                onClick={async () => {
+                  setCreating(true); setCreateError(null);
+                  try {
+                    const r = await fetch('/api/profile', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ displayName: createName.trim(), handle: createHandle.trim() || undefined }),
+                    });
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
+                    setCreateOpen(false); setCreateName(''); setCreateHandle('');
+                    await refresh();
+                  } finally {
+                    setCreating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium disabled:opacity-50"
+              >
+                {creating ? 'Creating…' : 'Create'}
+              </button>
+              <button type="button" onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm">Cancel</button>
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-text">{user.displayName}</h2>
@@ -103,7 +155,12 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
               </p>
             )}
           </div>
-          {onSwitchToMatches && (
+          {isStub && !createOpen && (
+            <button type="button" onClick={() => setCreateOpen(true)} className="px-4 py-2 rounded-lg border border-border text-sm text-text hover:bg-bgElev">
+              Create profile
+            </button>
+          )}
+          {onSwitchToMatches && !isStub && (
             <button
               type="button"
               onClick={onSwitchToMatches}

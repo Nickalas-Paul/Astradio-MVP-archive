@@ -91,6 +91,62 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
+  // GET /api/profile?userId= — current user + primary chart (for dev/preview; no auth)
+  router.get('/profile', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const userId = (req.query.userId as string) || undefined;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId query required (dev: use cookie or query)' });
+      }
+      const u = await storage.getUser(userId);
+      if (!u) return res.status(404).json({ error: 'User not found' });
+      const chartId = await storage.getUserPrimaryChart(userId) || storage.DEFAULT_PROFILE_CHART_ID;
+      const chart = await getChartById(chartId);
+      return res.status(200).json({
+        user: { id: u.id, displayName: u.displayName, handle: u.handle },
+        primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
+      });
+    } catch (e: any) {
+      console.error('[compat] GET /profile', e);
+      return res.status(500).json({ error: e?.message || 'Failed to get profile' });
+    }
+  });
+
+  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon } }
+  router.post('/profile', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const body = (req.body || {}) as { displayName: string; handle?: string; email?: string; chart?: { label: string; date: string; time: string; lat: number; lon: number } };
+      const { displayName, handle, email, chart: chartInput } = body;
+      if (!displayName || typeof displayName !== 'string' || !displayName.trim()) {
+        return res.status(400).json({ error: 'displayName required' });
+      }
+      const user = await storage.createUser({ displayName: displayName.trim(), handle: handle?.trim() || undefined, email: email?.trim() || undefined });
+      let primaryChart: import('./types').Chart | null = null;
+      if (chartInput && chartInput.label && chartInput.date && chartInput.time && Number.isFinite(chartInput.lat) && Number.isFinite(chartInput.lon)) {
+        primaryChart = await storage.createChart({
+          ownerId: user.id,
+          label: chartInput.label,
+          date: String(chartInput.date).slice(0, 10),
+          time: String(chartInput.time).slice(0, 5),
+          lat: Number(chartInput.lat),
+          lon: Number(chartInput.lon),
+        });
+        await storage.setUserPrimaryChart(user.id, primaryChart.id);
+      } else {
+        const defaultChart = await storage.ensureDefaultProfileChart();
+        await storage.setUserPrimaryChart(user.id, defaultChart.id);
+        primaryChart = defaultChart;
+      }
+      return res.status(201).json({
+        user: { id: user.id, displayName: user.displayName, handle: user.handle },
+        primaryChart: primaryChart ? { id: primaryChart.id, label: primaryChart.label, date: primaryChart.date, time: primaryChart.time, lat: primaryChart.lat, lon: primaryChart.lon, timezone: primaryChart.timezone } : null,
+      });
+    } catch (e: any) {
+      console.error('[compat] POST /profile', e);
+      return res.status(500).json({ error: e?.message || 'Failed to create profile' });
+    }
+  });
+
   // GET /api/profile/chart?chartId= (optional; default = chart_profile_default). V1: chartId must be in directory allowlist.
   router.get('/profile/chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
