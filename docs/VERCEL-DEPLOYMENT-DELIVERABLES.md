@@ -27,12 +27,12 @@ Evidence: `apps/web/package.json` has `"build": "next build"` and only UI deps (
 
 | Env var | Usage |
 |---------|-------|
-| API_BASE_URL | Server (Next API routes): all proxy routes use this to call Render (compose, chart, ip-geo, geocode, ml-status) |
-| NEXT_PUBLIC_API_BASE_URL | **Do not set on Vercel.** Client uses relative URLs only. |
+| **API_BASE_URL** or **ENGINE_BASE_URL** | Server (Next API routes): `getEngineBaseUrl()` in `apps/web/src/lib/engine-base.ts` uses either (API_BASE_URL first). Set to your Render backend URL (e.g. `https://astradio-mvp-archive.onrender.com`) so `/api/compose`, `/api/sandbox/*`, `/api/compat/*`, `/api/community/*`, `/api/profile/*`, `/api/exports` proxies reach the engine. |
+| NEXT_PUBLIC_API_BASE_URL | **Do not set on Vercel.** Client uses same-origin `/api/*` only. |
 
 **Architecture:** Vercel client calls relative `/api/compose`, `/api/chart`, `/api/ip-geo`, etc. Next API route handlers proxy to Render using `API_BASE_URL` server-side. No browser cross-origin requests → no CORS in console.
 
-**Proxy routes:** `app/api/compose/route.ts`, `app/api/chart/route.ts`, `app/api/ip-geo/route.ts`, `app/api/ml-status/route.ts`, `app/api/geocode/route.ts` all proxy to `${API_BASE_URL}/...`.
+**Proxy routes:** All use `getEngineBaseUrl()` (API_BASE_URL or ENGINE_BASE_URL). Include: compose, chart, sandbox, compat, community, profile, exports. GET `/api/engine-diagnostic` returns `{ engineBaseUrl, source }` to confirm backend URL.
 
 **Client:** `getApiBaseUrl()` always returns `''` so all fetches use relative paths. Telemetry uses `/api/telemetry`. No hardcoded Render URL in client code.
 
@@ -54,8 +54,11 @@ Install Command: pnpm install  (or leave default; Vercel detects pnpm when Root 
 Output Directory: .next (default)
 
 Environment Variables (Production + Preview):
-  API_BASE_URL = https://astradio-mvp-archive.onrender.com
+  API_BASE_URL = https://<your-render-service>.onrender.com
+  (Or ENGINE_BASE_URL; both work. getEngineBaseUrl() uses API_BASE_URL first.)
   (Do NOT set NEXT_PUBLIC_API_BASE_URL; client uses same-origin /api/* only.)
+
+  To confirm in preview: open /api/engine-diagnostic and check engineBaseUrl is your Render URL.
 ```
 
 No vercel.json required. **Vercel Root Directory must be `apps/web`** so only frontend dependencies are installed (no swisseph, no @tensorflow/tfjs-node).

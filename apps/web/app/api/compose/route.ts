@@ -18,59 +18,43 @@ export async function POST(req: Request) {
   try {
     const rawBody = await req.json().catch(() => ({}));
 
-    // Validate basic shape before proxying
-    const validationResult = ComposeSchema.safeParse(rawBody);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: 'Invalid input',
-          details: validationResult.error.issues.map(issue => ({
-            field: issue.path.join('.'),
-            message: issue.message
-          }))
-        },
-        { status: 400 }
-      );
+    // Pass through engine-shaped requests (sandbox, overlay) to backend as-is
+    const isEngineShape = rawBody && (rawBody.mode === 'sandbox' || rawBody.mode === 'overlay');
+    let bodyToSend: string;
+    if (isEngineShape) {
+      bodyToSend = JSON.stringify(rawBody);
+    } else {
+      const validationResult = ComposeSchema.safeParse(rawBody);
+      if (!validationResult.success) {
+        return NextResponse.json(
+          {
+            error: 'Invalid input',
+            details: validationResult.error.issues.map((issue) => ({
+              field: issue.path.map(String).join('.'),
+              message: issue.message
+            }))
+          },
+          { status: 400 }
+        );
+      }
+      const data = validationResult.data;
+      const date = data.date || new Date().toISOString().split('T')[0];
+      const time = data.time || '12:00';
+      const latitude = data.geo?.lat ?? 40.7128;
+      const longitude = data.geo?.lon ?? -74.0060;
+      const datetime = `${date}T${time}:00Z`;
+      bodyToSend = JSON.stringify({
+        mode: 'sky' as const,
+        skyParams: { latitude, longitude, datetime },
+      });
     }
 
-    const data = validationResult.data;
-
-    // Convert simplified input to "sky" mode format for ComposeAPI
-    // Default to current time and New York if not provided
-    const date = data.date || new Date().toISOString().split('T')[0];
-    const time = data.time || '12:00';
-    const latitude = data.geo?.lat ?? 40.7128; // Default to New York
-    const longitude = data.geo?.lon ?? -74.0060;
-
-    const sanitized = {
-      date,
-      time,
-      location: data.location ?? undefined,
-      geo: data.geo ? { lat: data.geo.lat, lon: data.geo.lon } : undefined,
-    };
-    console.log('[COMPOSE_API] Request body (sanitized):', JSON.stringify(sanitized));
-    console.log('[COMPOSE_API] Interpreted coords:', { latitude, longitude, from_geo: !!data.geo });
-
-    // Construct ISO 8601 datetime string
-    const datetime = `${date}T${time}:00Z`;
-
-    // Build sky mode request for ComposeAPI
-    const composeRequest = {
-      mode: 'sky' as const,
-      skyParams: {
-        latitude,
-        longitude,
-        datetime
-      }
-    };
-
-    // Proxy to unified vNext ComposeAPI on Express (engine of record)
-    const engineBase = process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:4000';
-    const base = (engineBase as string).replace(/\/$/, '');
+    const { getEngineBaseUrl } = await import('@/lib/engine-base');
+    const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/compose`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(composeRequest)
+      body: bodyToSend,
     });
 
     // If engine is reachable, return its unified response (audio/text/viz)
