@@ -337,7 +337,7 @@ function calculateDensityCurve(plan: Plan): number {
   const secPerBar = (60 / bpm) * 4;
   const events = plan.events.filter(e => e.channel !== 'harmony').sort((a, b) => a.t0 - b.t0);
   if (events.length < 8) return 1;
-  const bars = Math.ceil((plan.durationSec || 60) / secPerBar) || 16;
+  const bars = Math.ceil((plan.durationSec || 30) / secPerBar) || 16;
   const perBar: number[] = Array(bars).fill(0);
   for (const e of events) {
     const barIdx = Math.min(Math.floor(e.t0 / secPerBar), bars - 1);

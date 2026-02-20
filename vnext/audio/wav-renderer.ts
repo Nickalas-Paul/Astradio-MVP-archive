@@ -1,5 +1,5 @@
 /**
- * Minimal deterministic WAV renderer: plan + payload hash → 60s 16-bit PCM WAV.
+ * Minimal deterministic WAV renderer: plan + payload hash → 30s 16-bit PCM WAV (fallback when Lyria unavailable).
  * Performance layer: humanization (velocity, ADSR, phrase breathing, micro-timing, pan)
  * Instrumentation v1: genre-keyed instrument palette, procedural synthesis (kick/hat/clap/bass/harmony/melody),
  * mix glue (pseudo-sidechain duck, per-channel EQ).
@@ -49,7 +49,7 @@ export interface RenderResult {
   fxRoutingStats?: FxRoutingStats;
 }
 
-const DURATION_SEC = 60;
+const DURATION_SEC = 30;
 const DEFAULT_SAMPLE_RATE = 44100;
 const A440 = 440;
 
@@ -508,7 +508,7 @@ interface Stems {
   melody: Float32Array;
 }
 
-/** Build 16-bit PCM WAV buffer for exactly 60 seconds. Deterministic from hash and plan. */
+/** Build 16-bit PCM WAV buffer for exactly 30 seconds. Deterministic from hash and plan. */
 function buildWav(
   seed: string,
   plan: unknown,

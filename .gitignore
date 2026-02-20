@@ -11,6 +11,9 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+Astradio_VNEXT_working/
 
 # Environment variables
 .env

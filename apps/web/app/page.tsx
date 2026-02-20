@@ -21,6 +21,7 @@ export default function HomePage() {
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [composeHash, setComposeHash] = useState<string>('');
+  const [exportId, setExportId] = useState<string | null>(null);
   const [analysisText, setAnalysisText] = useState<string>('');
   const [explanationSections, setExplanationSections] = useState<Array<{ title: string; text?: string; bullets?: string[] }> | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -157,6 +158,7 @@ export default function HomePage() {
           const surface = payload?.controlSurface ?? payload?.controls ?? null;
           setChartData(surface);
           setComposeHash(payload?.controls?.hash ?? payload?.hash ?? '');
+          setExportId(payload?.export_id ?? null);
           // If compose response has no positions/cusps, fetch chart from /api/chart for wheel
           const hasChart = surface?.positions && Object.keys(surface.positions).length > 0 && Array.isArray(surface?.cusps) && surface.cusps.length === 12;
           if (!cancelled && !hasChart && dateStr && timeStr) {
@@ -385,7 +387,7 @@ export default function HomePage() {
           synth.triggerAttackRelease(freq, ev.duration, ev.time, ev.velocity);
         }
         Tone.Transport.start();
-        Tone.Transport.scheduleOnce(() => Tone.Transport.stop(), composePlan.durationSec || 60);
+        Tone.Transport.scheduleOnce(() => Tone.Transport.stop(), composePlan.durationSec ?? 30);
         console.log('[audio] Legacy Tone fallback scheduled');
       } catch (e) {
         console.warn('[audio] Tone fallback failed', e);
@@ -521,6 +523,15 @@ export default function HomePage() {
                   >
                     Stop
                   </button>
+                  {exportId && (
+                    <a
+                      href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+                      download={`${exportId}-30s.wav`}
+                      className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 inline-flex items-center justify-center"
+                    >
+                      Download WAV (30s)
+                    </a>
+                  )}
                 </>
               )}
             </div>

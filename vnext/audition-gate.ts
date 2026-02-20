@@ -6,7 +6,7 @@ import { scoreMelody, scoreHarmony, scoreRhythm } from "./critics";
 
 export function audition(plan: Plan, cfg = {
   minEvents: +(process.env.VNEXT_MIN_EVENTS || 120),
-  duration: +(process.env.VNEXT_DURATION_SEC || 60),
+  duration: +(process.env.VNEXT_DURATION_SEC || 30),
   requireChannels: new Set(['melody', 'harmony'])
 }): AuditionResult {
   const issues: string[] = [];
