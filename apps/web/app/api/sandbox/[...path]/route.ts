@@ -16,13 +16,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const data = await r.json().catch(() => ({}));
+    const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
+    if (!r.ok) {
+      return NextResponse.json(
+        { error: (data && typeof data.error === 'string' ? data.error : data) || r.statusText },
+        { status: r.status >= 400 ? r.status : 502 }
+      );
+    }
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
-    console.error('[api/sandbox] proxy POST error:', e instanceof Error ? e.message : e);
+    const message = e instanceof Error ? e.message : 'Sandbox API unavailable';
+    console.error('[api/sandbox] proxy POST error:', message);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Sandbox API unavailable' },
+      { error: message },
       { status: 502 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method not allowed. Use POST /api/sandbox/snapshot or POST /api/sandbox/report.' },
+    { status: 405 }
+  );
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../../src/core/api-base';
+import { sha256Hex, stableStringify } from '../../src/core/hash';
 import { AppShell } from '../../src/components/AppShell';
 import WheelCanvas from '../../src/components/WheelCanvas';
 import { GenerateCard } from '../../src/components/GenerateCard';
@@ -11,13 +12,41 @@ import VizCanvas from '../../src/components/VizCanvas';
 import { useCompositionJob } from '../../src/hooks/useCompositionJob';
 import type { ChartData, LayerMeta } from '../../src/types';
 
+const DEFAULT_SANDBOX_BIRTH = {
+  date: '2000-01-01',
+  time: '12:00',
+  lat: 40.7128,
+  lon: -74.006,
+  tz: 'UTC',
+  houseSystem: 'placidus',
+};
+
 export default function SandboxPage() {
   const [selectedGenre, setSelectedGenre] = useState('ambient');
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [layers, setLayers] = useState<LayerMeta[]>([]);
   const [hasValidInputs, setHasValidInputs] = useState(false);
   const [vizPayload, setVizPayload] = useState<any>(null);
+  const [lastComposition, setLastComposition] = useState<{ export_id?: string; hashes?: { control?: string }; duration_s?: number } | null>(null);
+  const [sandboxCombinedHash, setSandboxCombinedHash] = useState<string | null>(null);
   const { stage, audioUrl, layers: jobLayers, start } = useCompositionJob();
+
+  // Obtain sandbox snapshot on mount so we have combinedHash for seed (chart → unique composition)
+  useEffect(() => {
+    let cancelled = false;
+    const base = getApiBaseUrl();
+    fetch(`${base || ''}/api/sandbox/snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ birth: DEFAULT_SANDBOX_BIRTH, overrides: { planets: {} } }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data?.meta?.combinedHash) setSandboxCombinedHash(data.meta.combinedHash);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // Update layers when job completes
   useEffect(() => {
@@ -26,44 +55,44 @@ export default function SandboxPage() {
     }
   }, [jobLayers]);
 
-  const handleGenerate = async (request: any) => {
+  const handleGenerate = useCallback(async (request: any) => {
     try {
-      // Check if we have valid inputs for composition
       if (!hasValidInputs) {
-        // First valid input - compose audio+text+viz
+        const controls = {
+          arc_shape: 0.5,
+          density_level: 0.6,
+          tempo_norm: 0.7,
+          step_bias: 0.7,
+          leap_cap: 5,
+          rhythm_template_id: 3,
+          syncopation_bias: 0.3,
+          motif_rate: 0.6,
+        };
+        const combinedHash = sandboxCombinedHash || '';
+        const controlsHash = await sha256Hex(stableStringify(controls));
+        const seed = combinedHash ? `${combinedHash}:${controlsHash}` : controlsHash;
         const compositionRequest = {
           mode: 'sandbox',
-          controls: {
-            arc_shape: 0.5,
-            density_level: 0.6,
-            tempo_norm: 0.7,
-            step_bias: 0.7,
-            leap_cap: 5,
-            rhythm_template_id: 3,
-            syncopation_bias: 0.3,
-            motif_rate: 0.6
-          },
-          seed: Date.now()
+          controls,
+          seed,
         };
-        
         const base = getApiBaseUrl();
         const response = await fetch(`${base || ''}/api/compose`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(compositionRequest)
+          body: JSON.stringify(compositionRequest),
         });
-        
         const composition = await response.json();
         console.log('Sandbox composition generated:', composition);
         setVizPayload(composition.viz);
+        setLastComposition(composition);
         setHasValidInputs(true);
       }
-      
       await start(request);
     } catch (error) {
       console.error('Generation failed:', error);
     }
-  };
+  }, [hasValidInputs, sandboxCombinedHash, start]);
 
   const handleLayerChange = (key: string, changes: Partial<LayerMeta>) => {
     setLayers(prev => prev.map(layer => 
@@ -172,6 +201,22 @@ export default function SandboxPage() {
               </div>
             )}
 
+            {/* Download WAV */}
+            {lastComposition?.export_id && (
+              <div className="card">
+                <h3 className="text-lg font-semibold text-text mb-4">
+                  Export
+                </h3>
+                <a
+                  href={`${getApiBaseUrl() || ''}/api/exports/${lastComposition.export_id}`}
+                  download={`${lastComposition.export_id}-30s.wav`}
+                  className="btn-primary w-full inline-flex items-center justify-center gap-2"
+                >
+                  Download WAV (30s)
+                </a>
+              </div>
+            )}
+
             {/* Quick Actions */}
             <div className="card">
               <h3 className="text-lg font-semibold text-text mb-4">
@@ -200,7 +245,7 @@ export default function SandboxPage() {
               <ul className="space-y-2 text-xs text-subtext">
                 <li>• Click on the wheel to add planets at specific degrees</li>
                 <li>• Use the "Add Planet" button for quick planet placement</li>
-                <li>• Select a genre and generate a 60-second composition</li>
+                <li>• Select a genre and generate a 30-second composition</li>
                 <li>• Use the layer mixer to control individual audio elements</li>
                 <li>• Save your custom charts for future use</li>
               </ul>

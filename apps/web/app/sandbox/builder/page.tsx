@@ -92,6 +92,8 @@ export default function SandboxBuilderPage() {
   });
   
   const [report, setReport] = useState<SandboxReport | null>(null);
+  const [builderExportId, setBuilderExportId] = useState<string | null>(null);
+  const [builderExportLoading, setBuilderExportLoading] = useState(false);
   
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -140,11 +142,11 @@ export default function SandboxBuilderPage() {
           return; // Outdated response, ignore
         }
         
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(`Failed to update snapshot: ${res.status}`);
+          const msg = (data && (data.error ?? data.message)) || `Failed to update snapshot: ${res.status}`;
+          throw new Error(typeof msg === 'string' ? msg : String(msg));
         }
-        
-        const data = await res.json();
         setDraft((prev) => ({
           ...prev,
           overriddenSnapshot: data.snapshot,
@@ -178,11 +180,11 @@ export default function SandboxBuilderPage() {
         body: JSON.stringify({ birth, overrides: { planets: {} } }),
       });
       
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(`Failed to load chart: ${res.status}`);
+        const msg = (data && (data.error ?? data.message)) || `Failed to load chart: ${res.status}`;
+        throw new Error(typeof msg === 'string' ? msg : String(msg));
       }
-      
-      const data = await res.json();
       const snapshot = data.snapshot;
       
       setDraft({
@@ -273,6 +275,7 @@ export default function SandboxBuilderPage() {
     const sequenceId = ++reportSequenceRef.current;
     setState('generating_report');
     setError(null);
+    setBuilderExportId(null);
     
     const controller = new AbortController();
     reportAbortControllerRef.current = controller;
@@ -286,7 +289,7 @@ export default function SandboxBuilderPage() {
         body: JSON.stringify({
           birth: draft.birth,
           overrides: normalized,
-          seed: `sandbox-${Date.now()}`,
+          seed: draft.hash?.combinedHash ?? undefined,
         }),
         signal: controller.signal,
       });
@@ -296,11 +299,11 @@ export default function SandboxBuilderPage() {
         return; // Outdated response
       }
       
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(`Failed to generate report: ${res.status}`);
+        const msg = (data && (data.error ?? data.message)) || `Failed to generate report: ${res.status}`;
+        throw new Error(typeof msg === 'string' ? msg : String(msg));
       }
-      
-      const data = await res.json();
       setReport(data);
       setState('report_ready');
     } catch (err) {
@@ -314,6 +317,41 @@ export default function SandboxBuilderPage() {
       }
     }
   }, [draft]);
+
+  const handleGenerateTrack = useCallback(async () => {
+    const combinedHash = draft.hash?.combinedHash ?? report?.meta?.combinedHash;
+    if (!combinedHash) return;
+    setBuilderExportLoading(true);
+    setBuilderExportId(null);
+    try {
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'sandbox',
+          controls: {
+            arc_shape: 0.5,
+            density_level: 0.6,
+            tempo_norm: 0.7,
+            step_bias: 0.7,
+            leap_cap: 5,
+            rhythm_template_id: 3,
+            syncopation_bias: 0.3,
+            motif_rate: 0.6,
+          },
+          seed: combinedHash,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || `Compose failed: ${res.status}`);
+      if (data.export_id) setBuilderExportId(data.export_id);
+    } catch (e) {
+      console.error('Generate track failed:', e);
+    } finally {
+      setBuilderExportLoading(false);
+    }
+  }, [draft.hash?.combinedHash, report?.meta?.combinedHash]);
 
   const currentSnapshot = draft.overriddenSnapshot || draft.baseSnapshot;
   const basePositions: Record<string, number> = {};
@@ -450,6 +488,24 @@ export default function SandboxBuilderPage() {
 
                 {report && (
                   <div className="space-y-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={handleGenerateTrack}
+                        disabled={builderExportLoading || !(draft.hash?.combinedHash ?? report?.meta?.combinedHash)}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {builderExportLoading ? 'Generating…' : 'Generate 30s track'}
+                      </button>
+                      {builderExportId && (
+                        <a
+                          href={`${getApiBaseUrl() || ''}/api/exports/${builderExportId}`}
+                          download={`${builderExportId}-30s.wav`}
+                          className="px-4 py-2 bg-white/10 border border-border rounded-lg font-medium hover:bg-white/15"
+                        >
+                          Download WAV (30s)
+                        </a>
+                      )}
+                    </div>
                     {report.personality && (
                       <section className="rounded-lg border border-border bg-bgElev p-4">
                         <h3 className="text-lg font-semibold text-text mb-3">Personality</h3>

@@ -38,7 +38,7 @@ export default function ComposerPage() {
       addToast({
         type: 'info',
         title: 'Composition started',
-        message: 'Your 60-second track is being generated...',
+        message: 'Your 30-second track is being generated...',
       });
     } catch (error) {
       addToast({

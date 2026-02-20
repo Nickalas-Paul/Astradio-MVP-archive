@@ -100,6 +100,25 @@ function calcMoonPhase(sunLon: number, moonLon: number): number {
 }
 
 /**
+ * Validate overrides: longitudes 0-360 (or normalized); angles explicitly unsupported in 4A.
+ */
+export function validateSandboxOverrides(overrides: SandboxOverrides): void {
+  const angles = overrides.angles;
+  if (angles && (angles.ascDeg !== undefined || angles.mcDeg !== undefined)) {
+    throw new Error('Angle overrides (ASC/MC) are not supported in this version. Use planet longitude overrides only.');
+  }
+  const planets = overrides.planets || {};
+  for (const [key, val] of Object.entries(planets)) {
+    if (val && typeof val.lonDeg !== 'number') {
+      throw new Error(`Override for ${key}: lonDeg must be a number.`);
+    }
+    if (val && (Number.isNaN(val.lonDeg) || !Number.isFinite(val.lonDeg))) {
+      throw new Error(`Override for ${key}: lonDeg must be a finite number (0-360).`);
+    }
+  }
+}
+
+/**
  * Generate snapshot with overrides applied.
  * Takes base snapshot and applies planet longitude overrides, then recalculates dependent fields.
  */
@@ -107,16 +126,16 @@ export function generateSnapshotWithOverrides(
   baseSnapshot: EphemerisSnapshot,
   overrides: SandboxOverrides
 ): EphemerisSnapshot {
-  // Start with base snapshot
+  validateSandboxOverrides(overrides);
+
   const overriddenPlanets = baseSnapshot.planets.map(p => ({ ...p }));
-  
-  // Apply planet overrides
   const positions: Record<string, number> = {};
+
   for (const planet of overriddenPlanets) {
     const override = overrides.planets[planet.name as PlanetKey];
     if (override) {
-      // Normalize to 0-360
-      let lonDeg = override.lonDeg;
+      let lonDeg = Number(override.lonDeg);
+      if (!Number.isFinite(lonDeg)) lonDeg = 0;
       while (lonDeg < 0) lonDeg += 360;
       while (lonDeg >= 360) lonDeg -= 360;
       planet.lon = lonDeg;

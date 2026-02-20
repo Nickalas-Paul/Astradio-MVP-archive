@@ -17,6 +17,8 @@ export default function OverlayPage() {
   const [chartA, setChartA] = useState<ChartSummary | null>(null);
   const [chartB, setChartB] = useState<ChartSummary | null>(null);
   const [combinedChartData, setCombinedChartData] = useState<ChartData | null>(null);
+  const [overlayExportId, setOverlayExportId] = useState<string | null>(null);
+  const [overlayLoading, setOverlayLoading] = useState(false);
   const { charts, addChart } = useChartsStore();
 
   // Load default charts on mount
@@ -106,8 +108,37 @@ export default function OverlayPage() {
     }
   };
 
-  const handleGenerate = async (request: any) => {
-    console.log('Generate overlay composition:', request);
+  const handleGenerate = async (_request: any) => {
+    if (!chartA || !chartB) return;
+    setOverlayLoading(true);
+    setOverlayExportId(null);
+    try {
+      const now = new Date();
+      const currentDatetime = now.toISOString().slice(0, 19) + 'Z';
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base || ''}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'overlay',
+          overlayParams: {
+            natalLatitude: 40.7128,
+            natalLongitude: -74.006,
+            natalDatetime: '1990-06-15T14:30:00Z',
+            currentLatitude: 40.7128,
+            currentLongitude: -74.006,
+            currentDatetime,
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || `Compose failed: ${res.status}`);
+      if (data.export_id) setOverlayExportId(data.export_id);
+    } catch (e) {
+      console.error('Overlay compose failed:', e);
+    } finally {
+      setOverlayLoading(false);
+    }
   };
 
   return (
@@ -221,8 +252,20 @@ export default function OverlayPage() {
               selectedGenre={selectedGenre}
               onGenreChange={setSelectedGenre}
               onGenerate={handleGenerate}
-              isGenerating={false}
+              isGenerating={overlayLoading}
             />
+
+            {overlayExportId && (
+              <div className="card">
+                <a
+                  href={`${getApiBaseUrl() || ''}/api/exports/${overlayExportId}`}
+                  download={`${overlayExportId}-30s.wav`}
+                  className="btn-primary w-full inline-flex items-center justify-center"
+                >
+                  Download WAV (30s)
+                </a>
+              </div>
+            )}
 
             {/* Recent Compositions */}
             <div className="card">

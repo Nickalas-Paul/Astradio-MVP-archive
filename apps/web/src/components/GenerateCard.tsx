@@ -33,7 +33,7 @@ export function GenerateCard({
       const request = {
         chartA: active?.id || 'natal',
         genre: selectedGenre as CompositionRequest['genre'],
-        durationSec: 60 as const,
+        durationSec: 30 as const,
         seed: (window as any).__lastSeed || 'fixed-seed',
         controlHash: (window as any).__lastControlHash || undefined,
       } as CompositionRequest;
@@ -44,7 +44,7 @@ export function GenerateCard({
       addToast({
         type: 'info',
         title: 'Composition started',
-        message: 'Your 60-second track is being generated...',
+        message: 'Your 30-second track is being generated...',
       });
     } catch (err) {
       addToast({
@@ -97,7 +97,7 @@ export function GenerateCard({
         {/* Header */}
         <div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            Generate 60-Second Track
+            Generate 30-Second Track
           </h3>
           <p className="text-sm text-text-secondary">
             Create a personalized musical composition based on your astrological chart
@@ -172,7 +172,7 @@ export function GenerateCard({
               disabled={!canGenerate}
               className="btn-primary flex-1"
             >
-              {stage === 'ready' ? 'Generate New Track' : 'Generate 60s Track'}
+              {stage === 'ready' ? 'Generate New Track' : 'Generate 30s Track'}
             </button>
           )}
           

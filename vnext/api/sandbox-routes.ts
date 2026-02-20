@@ -5,7 +5,7 @@
  */
 
 import type { SandboxBirth, SandboxOverrides, EphemerisSnapshot } from '../contracts';
-import { generateSnapshotWithOverrides, hashBirth, hashOverrides } from './sandbox-snapshot';
+import { generateSnapshotWithOverrides, hashBirth, hashOverrides, validateSandboxOverrides } from './sandbox-snapshot';
 import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
 
 const express = require('express') as typeof import('express');
@@ -43,6 +43,12 @@ export function createSandboxRouter(): import('express').Router {
 
       if (!birth || !birth.date || !birth.time || typeof birth.lat !== 'number' || typeof birth.lon !== 'number') {
         return res.status(400).json({ error: 'birth object with date, time, lat, lon required' });
+      }
+      try {
+        validateSandboxOverrides(overrides);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Invalid overrides';
+        return res.status(400).json({ error: msg });
       }
 
       // Fetch base snapshot
@@ -83,6 +89,12 @@ export function createSandboxRouter(): import('express').Router {
 
       if (!birth || !birth.date || !birth.time || typeof birth.lat !== 'number' || typeof birth.lon !== 'number') {
         return res.status(400).json({ error: 'birth object with date, time, lat, lon required' });
+      }
+      try {
+        validateSandboxOverrides(overrides);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Invalid overrides';
+        return res.status(400).json({ error: msg });
       }
 
       // Fetch base snapshot
