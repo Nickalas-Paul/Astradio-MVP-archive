@@ -67,7 +67,7 @@ export function IntentForm({
         throw new Error(d?.error || `Request failed ${r.status}`);
       }
       const data = await r.json();
-      if (typeof sessionStorage !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem('compat_intent_results', JSON.stringify(data));
       }
 

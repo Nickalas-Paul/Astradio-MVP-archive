@@ -79,6 +79,7 @@
     "test:reverb-send-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/reverb-send-verification.js",
     "test:provenance-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/provenance-verification.js",
     "check:single-compose": "node scripts/check-single-compose.js",
+    "lint:web:safety": "node scripts/check-no-browser-globals-top-level.js",
     "worker:export": "node workers/export-worker.js"
   },
   "dependencies": {

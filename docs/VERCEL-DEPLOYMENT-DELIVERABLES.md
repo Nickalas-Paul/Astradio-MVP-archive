@@ -63,6 +63,8 @@ Environment Variables (Production + Preview):
 
 No vercel.json required. **Vercel Root Directory must be `apps/web`** so only frontend dependencies are installed (no swisseph, no @tensorflow/tfjs-node).
 
+**Guardrail (TDZ / browser globals):** Run `npm run lint:web:safety` (from repo root). Script `scripts/check-no-browser-globals-top-level.js` scans `apps/web/src`, `apps/web/config`, and `apps/web/app` and fails if a file uses `window.`, `new URLSearchParams(window`, or `localStorage.`/`sessionStorage.` without containing `typeof window`. Add to CI or run locally before pushing to avoid client-bundle TDZ regressions.
+
 **Expected behavior:** Network tab shows requests to `https://<your-vercel-app>.vercel.app/api/compose`, `/api/chart`, `/api/ip-geo` (same-origin). No CORS errors. Legacy script 404s (/tone.js, /wheel.js, /tf.min.js) removed; Tone loaded via dynamic import.
 
 ## 6. Backend CORS (Render)

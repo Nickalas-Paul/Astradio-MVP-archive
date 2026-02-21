@@ -20,28 +20,26 @@ export default function GlossaryTooltip({ term, children, className = '' }: Glos
   const article = AtlasRegistry.get(`glossary.${term.toLowerCase()}`);
 
   useEffect(() => {
-    if (open && buttonRef.current && tooltipRef.current) {
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const tooltipRect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+    if (typeof window === 'undefined' || !open || !buttonRef.current || !tooltipRef.current) return;
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
 
       let top = buttonRect.bottom + 8;
       let left = buttonRect.left;
 
-      // Adjust if tooltip would go off screen
-      if (left + tooltipRect.width > viewportWidth - 16) {
-        left = viewportWidth - tooltipRect.width - 16;
-      }
-      if (left < 16) {
-        left = 16;
-      }
-      if (top + tooltipRect.height > viewportHeight - 16) {
-        top = buttonRect.top - tooltipRect.height - 8;
-      }
-
-      setPosition({ top, left });
+    // Adjust if tooltip would go off screen
+    if (left + tooltipRect.width > viewportWidth - 16) {
+      left = viewportWidth - tooltipRect.width - 16;
     }
+    if (left < 16) {
+      left = 16;
+    }
+    if (top + tooltipRect.height > viewportHeight - 16) {
+      top = buttonRect.top - tooltipRect.height - 8;
+    }
+    setPosition({ top, left });
   }, [open]);
 
   useEffect(() => {

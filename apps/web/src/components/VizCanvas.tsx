@@ -75,7 +75,7 @@ function VizCanvas({ payload, className = '' }: VizCanvasProps) {
     const radius = 150;
 
     // Check for reduced motion preference
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReducedMotion = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
     // Draw background circle
     ctx.beginPath();

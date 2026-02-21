@@ -19,7 +19,7 @@ function ResultsContent() {
   const keyword = searchParams?.get('keyword') ?? '';
 
   useEffect(() => {
-    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('compat_intent_results') : null;
+    const stored = typeof window !== 'undefined' && typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('compat_intent_results') : null;
     if (stored) {
       try {
         const parsed = JSON.parse(stored);

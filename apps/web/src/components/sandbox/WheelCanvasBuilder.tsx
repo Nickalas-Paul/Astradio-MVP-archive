@@ -136,8 +136,10 @@ export function WheelCanvasBuilder({
       }
     };
     updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateSize);
+      return () => window.removeEventListener('resize', updateSize);
+    }
   }, []);
 
   const normalized = snapshot ? normalizeChartForWheel(snapshot) : null;

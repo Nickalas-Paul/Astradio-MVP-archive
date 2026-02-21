@@ -27,6 +27,7 @@ export default function AtlasArticlePage() {
   }, [article]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onScroll = () => {
       const sc = document.documentElement.scrollTop;
       const max = document.documentElement.scrollHeight - window.innerHeight;

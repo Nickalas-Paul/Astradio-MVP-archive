@@ -40,6 +40,7 @@ export function useBookmarks() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(BK_KEY);
       setIds(stored ? JSON.parse(stored) : []);
@@ -56,7 +57,7 @@ export function useBookmarks() {
       const has = prev.includes(id);
       const next = has ? prev.filter(x => x !== id) : [id, ...prev].slice(0, 200);
       try {
-        localStorage.setItem(BK_KEY, JSON.stringify(next));
+        if (typeof window !== 'undefined') localStorage.setItem(BK_KEY, JSON.stringify(next));
       } catch (err) {
         console.error('Failed to save bookmarks:', err);
       }
@@ -67,7 +68,7 @@ export function useBookmarks() {
   const clear = () => {
     setIds([]);
     try {
-      localStorage.removeItem(BK_KEY);
+      if (typeof window !== 'undefined') localStorage.removeItem(BK_KEY);
     } catch (err) {
       console.error('Failed to clear bookmarks:', err);
     }
@@ -88,6 +89,7 @@ export function useReadingProgress(id: string) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(RP_KEY);
       const progress = stored ? JSON.parse(stored) : {};
@@ -103,6 +105,7 @@ export function useReadingProgress(id: string) {
   const save = (p: number) => {
     setPct(p);
     try {
+      if (typeof window === 'undefined') return;
       const stored = localStorage.getItem(RP_KEY);
       const progress = stored ? JSON.parse(stored) : {};
       progress[id] = p;
@@ -115,6 +118,7 @@ export function useReadingProgress(id: string) {
   const clear = () => {
     setPct(0);
     try {
+      if (typeof window === 'undefined') return;
       const stored = localStorage.getItem(RP_KEY);
       const progress = stored ? JSON.parse(stored) : {};
       delete progress[id];
@@ -231,6 +235,7 @@ export function useAtlasStats() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const index = AtlasRegistry.all();
       const bookmarks = JSON.parse(localStorage.getItem(BK_KEY) || '[]');
