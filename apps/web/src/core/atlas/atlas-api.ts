@@ -1,288 +1,9 @@
 // Astro Atlas API
 // Education hub for astrological knowledge
-// @ts-nocheck - MDX_REGISTRY/TRANSITS reference consts declared later in file
+// @ts-nocheck - content consts used by lazy getRegistry/getTransits
 import type { WikiArticle, TransitExplainer } from '../social/types';
 
-export const AtlasAPI = {
-  async article(id: string): Promise<WikiArticle | null> { 
-    return MDX_REGISTRY[id] || null; 
-  },
-
-  async search(q: string): Promise<WikiArticle[]> {
-    const s = q.toLowerCase();
-    return Object.values(MDX_REGISTRY).filter(a => 
-      a.title.toLowerCase().includes(s) || 
-      a.summary.toLowerCase().includes(s) ||
-      a.id.toLowerCase().includes(s)
-    );
-  },
-
-  async transit(id: string): Promise<TransitExplainer | null> { 
-    return TRANSITS[id] || null; 
-  },
-
-  async getArticlesByKind(kind: WikiArticle['kind']): Promise<WikiArticle[]> {
-    return Object.values(MDX_REGISTRY).filter(a => a.kind === kind);
-  },
-
-  async getRelatedArticles(articleId: string): Promise<WikiArticle[]> {
-    const article = MDX_REGISTRY[articleId];
-    if (!article || !article.links) return [];
-    
-    return article.links
-      .map(linkId => MDX_REGISTRY[linkId])
-      .filter(Boolean);
-  }
-};
-
-// Minimal seed registry (expand as needed)
-const MDX_REGISTRY: Record<string, WikiArticle> = {
-  'planet.venus': { 
-    id: 'planet.venus', 
-    title: 'Venus', 
-    kind: 'planet', 
-    summary: 'The planet of love, beauty, harmony, and values. Rules relationships, aesthetics, and what we find attractive.',
-    bodyMD: VENUS_MDX, 
-    links: ['sign.taurus', 'sign.libra', 'house.7', 'aspect.trine'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'planet.mars': { 
-    id: 'planet.mars', 
-    title: 'Mars', 
-    kind: 'planet', 
-    summary: 'The planet of action, energy, and desire. Rules motivation, courage, and how we assert ourselves.',
-    bodyMD: MARS_MDX, 
-    links: ['sign.aries', 'sign.scorpio', 'house.1', 'aspect.square'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'planet.sun': { 
-    id: 'planet.sun', 
-    title: 'Sun', 
-    kind: 'planet', 
-    summary: 'The core of our identity and ego. Represents our essential self, vitality, and life purpose.',
-    bodyMD: SUN_MDX, 
-    links: ['sign.leo', 'house.5', 'aspect.conjunction'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'planet.moon': { 
-    id: 'planet.moon', 
-    title: 'Moon', 
-    kind: 'planet', 
-    summary: 'Our emotional nature and instincts. Rules our inner world, habits, and unconscious patterns.',
-    bodyMD: MOON_MDX, 
-    links: ['sign.cancer', 'house.4', 'aspect.opposition'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'sign.taurus': { 
-    id: 'sign.taurus', 
-    title: 'Taurus', 
-    kind: 'sign', 
-    summary: 'The Bull. Fixed Earth sign. Values stability, beauty, and material security.',
-    bodyMD: TAURUS_MDX, 
-    links: ['planet.venus', 'element.earth', 'modality.fixed'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'sign.libra': { 
-    id: 'sign.libra', 
-    title: 'Libra', 
-    kind: 'sign', 
-    summary: 'The Scales. Cardinal Air sign. Seeks balance, harmony, and partnership.',
-    bodyMD: LIBRA_MDX, 
-    links: ['planet.venus', 'element.air', 'modality.cardinal'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'sign.aries': { 
-    id: 'sign.aries', 
-    title: 'Aries', 
-    kind: 'sign', 
-    summary: 'The Ram. Cardinal Fire sign. Pioneering, energetic, and action-oriented.',
-    bodyMD: ARIES_MDX, 
-    links: ['planet.mars', 'element.fire', 'modality.cardinal'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'sign.cancer': { 
-    id: 'sign.cancer', 
-    title: 'Cancer', 
-    kind: 'sign', 
-    summary: 'The Crab. Cardinal Water sign. Nurturing, protective, and emotionally intuitive.',
-    bodyMD: CANCER_MDX, 
-    links: ['planet.moon', 'element.water', 'modality.cardinal'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'sign.leo': { 
-    id: 'sign.leo', 
-    title: 'Leo', 
-    kind: 'sign', 
-    summary: 'The Lion. Fixed Fire sign. Creative, confident, and naturally dramatic.',
-    bodyMD: LEO_MDX, 
-    links: ['planet.sun', 'element.fire', 'modality.fixed'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'house.7': { 
-    id: 'house.7', 
-    title: '7th House', 
-    kind: 'house', 
-    summary: 'The House of Partnerships. Rules relationships, marriage, and one-on-one connections.',
-    bodyMD: HOUSE_7_MDX, 
-    links: ['planet.venus', 'sign.libra', 'aspect.opposition'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'house.1': { 
-    id: 'house.1', 
-    title: '1st House', 
-    kind: 'house', 
-    summary: 'The House of Self. Rules identity, appearance, and how we present ourselves to the world.',
-    bodyMD: HOUSE_1_MDX, 
-    links: ['planet.mars', 'sign.aries', 'aspect.conjunction'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'house.5': { 
-    id: 'house.5', 
-    title: '5th House', 
-    kind: 'house', 
-    summary: 'The House of Creativity. Rules self-expression, romance, children, and creative projects.',
-    bodyMD: HOUSE_5_MDX, 
-    links: ['planet.sun', 'sign.leo', 'aspect.trine'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'house.4': { 
-    id: 'house.4', 
-    title: '4th House', 
-    kind: 'house', 
-    summary: 'The House of Home. Rules family, roots, emotional foundation, and private life.',
-    bodyMD: HOUSE_4_MDX, 
-    links: ['planet.moon', 'sign.cancer', 'aspect.opposition'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'aspect.trine': { 
-    id: 'aspect.trine', 
-    title: 'Trine (120°)', 
-    kind: 'aspect', 
-    summary: 'A harmonious aspect that brings ease and natural flow between planets.',
-    bodyMD: TRINE_MDX, 
-    links: ['planet.venus', 'planet.jupiter', 'element.fire'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'aspect.square': { 
-    id: 'aspect.square', 
-    title: 'Square (90°)', 
-    kind: 'aspect', 
-    summary: 'A challenging aspect that creates tension and forces growth through conflict.',
-    bodyMD: SQUARE_MDX, 
-    links: ['planet.mars', 'planet.saturn', 'modality.cardinal'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'aspect.conjunction': { 
-    id: 'aspect.conjunction', 
-    title: 'Conjunction (0°)', 
-    kind: 'aspect', 
-    summary: 'Planets in the same sign or very close together. Intensifies their combined energy.',
-    bodyMD: CONJUNCTION_MDX, 
-    links: ['planet.sun', 'planet.moon', 'planet.mercury'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'aspect.opposition': { 
-    id: 'aspect.opposition', 
-    title: 'Opposition (180°)', 
-    kind: 'aspect', 
-    summary: 'Planets directly across from each other. Creates tension and the need for balance.',
-    bodyMD: OPPOSITION_MDX, 
-    links: ['planet.sun', 'planet.moon', 'house.1', 'house.7'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'element.fire': { 
-    id: 'element.fire', 
-    title: 'Fire Element', 
-    kind: 'concept', 
-    summary: 'Aries, Leo, Sagittarius. Energetic, passionate, and action-oriented.',
-    bodyMD: FIRE_ELEMENT_MDX, 
-    links: ['sign.aries', 'sign.leo', 'sign.sagittarius'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'element.earth': { 
-    id: 'element.earth', 
-    title: 'Earth Element', 
-    kind: 'concept', 
-    summary: 'Taurus, Virgo, Capricorn. Practical, grounded, and material-focused.',
-    bodyMD: EARTH_ELEMENT_MDX, 
-    links: ['sign.taurus', 'sign.virgo', 'sign.capricorn'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'element.air': { 
-    id: 'element.air', 
-    title: 'Air Element', 
-    kind: 'concept', 
-    summary: 'Gemini, Libra, Aquarius. Intellectual, communicative, and relationship-oriented.',
-    bodyMD: AIR_ELEMENT_MDX, 
-    links: ['sign.gemini', 'sign.libra', 'sign.aquarius'],
-    updatedAt: new Date().toISOString() 
-  },
-  
-  'element.water': { 
-    id: 'element.water', 
-    title: 'Water Element', 
-    kind: 'concept', 
-    summary: 'Cancer, Scorpio, Pisces. Emotional, intuitive, and deeply feeling.',
-    bodyMD: WATER_ELEMENT_MDX, 
-    links: ['sign.cancer', 'sign.scorpio', 'sign.pisces'],
-    updatedAt: new Date().toISOString() 
-  }
-};
-
-const TRANSITS: Record<string, TransitExplainer> = {
-  'venus-trine-mars': { 
-    id: 'venus-trine-mars', 
-    title: 'Venus Trine Mars', 
-    tags: ['venus', 'trine', 'mars'], 
-    excerpt: 'Harmony between love and action. Natural chemistry and creative flow.',
-    bodyMD: VENUS_TRINE_MARS_MDX 
-  },
-  
-  'sun-conjunction-moon': { 
-    id: 'sun-conjunction-moon', 
-    title: 'Sun Conjunction Moon', 
-    tags: ['sun', 'conjunction', 'moon'], 
-    excerpt: 'New Moon energy. Fresh starts and new beginnings.',
-    bodyMD: SUN_CONJUNCTION_MOON_MDX 
-  },
-  
-  'mars-square-saturn': { 
-    id: 'mars-square-saturn', 
-    title: 'Mars Square Saturn', 
-    tags: ['mars', 'square', 'saturn'], 
-    excerpt: 'Frustration and obstacles. Time to build discipline and patience.',
-    bodyMD: MARS_SQUARE_SATURN_MDX 
-  },
-  
-  'venus-opposition-jupiter': { 
-    id: 'venus-opposition-jupiter', 
-    title: 'Venus Opposition Jupiter', 
-    tags: ['venus', 'opposition', 'jupiter'], 
-    excerpt: 'Excess and overindulgence. Finding balance in pleasure and expansion.',
-    bodyMD: VENUS_OPPOSITION_JUPITER_MDX 
-  }
-};
-
-// Content definitions
+// Content definitions (must be declared before getRegistry/getTransits so no TDZ at import)
 const VENUS_MDX = `### Venus 🌟
 **Keywords:** Love, beauty, harmony, values, relationships, aesthetics
 
@@ -926,3 +647,73 @@ This transit brings a tendency toward excess and overindulgence, particularly in
 
 **In Music:**
 This transit encourages you to create music that is expansive and generous, but be mindful of overdoing it. It's a time to create music that brings joy and beauty to others while maintaining artistic integrity.`;
+
+// Lazy init: no top-level registry/transits to avoid TDZ (constants above are now defined when these run).
+let _registry: Record<string, WikiArticle> | null = null;
+let _transits: Record<string, TransitExplainer> | null = null;
+
+function getRegistry(): Record<string, WikiArticle> {
+  if (_registry) return _registry;
+  const t = () => new Date().toISOString();
+  _registry = {
+    'planet.venus': { id: 'planet.venus', title: 'Venus', kind: 'planet', summary: 'The planet of love, beauty, harmony, and values. Rules relationships, aesthetics, and what we find attractive.', bodyMD: VENUS_MDX, links: ['sign.taurus', 'sign.libra', 'house.7', 'aspect.trine'], updatedAt: t() },
+    'planet.mars': { id: 'planet.mars', title: 'Mars', kind: 'planet', summary: 'The planet of action, energy, and desire. Rules motivation, courage, and how we assert ourselves.', bodyMD: MARS_MDX, links: ['sign.aries', 'sign.scorpio', 'house.1', 'aspect.square'], updatedAt: t() },
+    'planet.sun': { id: 'planet.sun', title: 'Sun', kind: 'planet', summary: 'The core of our identity and ego. Represents our essential self, vitality, and life purpose.', bodyMD: SUN_MDX, links: ['sign.leo', 'house.5', 'aspect.conjunction'], updatedAt: t() },
+    'planet.moon': { id: 'planet.moon', title: 'Moon', kind: 'planet', summary: 'Our emotional nature and instincts. Rules our inner world, habits, and unconscious patterns.', bodyMD: MOON_MDX, links: ['sign.cancer', 'house.4', 'aspect.opposition'], updatedAt: t() },
+    'sign.taurus': { id: 'sign.taurus', title: 'Taurus', kind: 'sign', summary: 'The Bull. Fixed Earth sign. Values stability, beauty, and material security.', bodyMD: TAURUS_MDX, links: ['planet.venus', 'element.earth', 'modality.fixed'], updatedAt: t() },
+    'sign.libra': { id: 'sign.libra', title: 'Libra', kind: 'sign', summary: 'The Scales. Cardinal Air sign. Seeks balance, harmony, and partnership.', bodyMD: LIBRA_MDX, links: ['planet.venus', 'element.air', 'modality.cardinal'], updatedAt: t() },
+    'sign.aries': { id: 'sign.aries', title: 'Aries', kind: 'sign', summary: 'The Ram. Cardinal Fire sign. Pioneering, energetic, and action-oriented.', bodyMD: ARIES_MDX, links: ['planet.mars', 'element.fire', 'modality.cardinal'], updatedAt: t() },
+    'sign.cancer': { id: 'sign.cancer', title: 'Cancer', kind: 'sign', summary: 'The Crab. Cardinal Water sign. Nurturing, protective, and emotionally intuitive.', bodyMD: CANCER_MDX, links: ['planet.moon', 'element.water', 'modality.cardinal'], updatedAt: t() },
+    'sign.leo': { id: 'sign.leo', title: 'Leo', kind: 'sign', summary: 'The Lion. Fixed Fire sign. Creative, confident, and naturally dramatic.', bodyMD: LEO_MDX, links: ['planet.sun', 'element.fire', 'modality.fixed'], updatedAt: t() },
+    'house.7': { id: 'house.7', title: '7th House', kind: 'house', summary: 'The House of Partnerships. Rules relationships, marriage, and one-on-one connections.', bodyMD: HOUSE_7_MDX, links: ['planet.venus', 'sign.libra', 'aspect.opposition'], updatedAt: t() },
+    'house.1': { id: 'house.1', title: '1st House', kind: 'house', summary: 'The House of Self. Rules identity, appearance, and how we present ourselves to the world.', bodyMD: HOUSE_1_MDX, links: ['planet.mars', 'sign.aries', 'aspect.conjunction'], updatedAt: t() },
+    'house.5': { id: 'house.5', title: '5th House', kind: 'house', summary: 'The House of Creativity. Rules self-expression, romance, children, and creative projects.', bodyMD: HOUSE_5_MDX, links: ['planet.sun', 'sign.leo', 'aspect.trine'], updatedAt: t() },
+    'house.4': { id: 'house.4', title: '4th House', kind: 'house', summary: 'The House of Home. Rules family, roots, emotional foundation, and private life.', bodyMD: HOUSE_4_MDX, links: ['planet.moon', 'sign.cancer', 'aspect.opposition'], updatedAt: t() },
+    'aspect.trine': { id: 'aspect.trine', title: 'Trine (120°)', kind: 'aspect', summary: 'A harmonious aspect that brings ease and natural flow between planets.', bodyMD: TRINE_MDX, links: ['planet.venus', 'planet.jupiter', 'element.fire'], updatedAt: t() },
+    'aspect.square': { id: 'aspect.square', title: 'Square (90°)', kind: 'aspect', summary: 'A challenging aspect that creates tension and forces growth through conflict.', bodyMD: SQUARE_MDX, links: ['planet.mars', 'planet.saturn', 'modality.cardinal'], updatedAt: t() },
+    'aspect.conjunction': { id: 'aspect.conjunction', title: 'Conjunction (0°)', kind: 'aspect', summary: 'Planets in the same sign or very close together. Intensifies their combined energy.', bodyMD: CONJUNCTION_MDX, links: ['planet.sun', 'planet.moon', 'planet.mercury'], updatedAt: t() },
+    'aspect.opposition': { id: 'aspect.opposition', title: 'Opposition (180°)', kind: 'aspect', summary: 'Planets directly across from each other. Creates tension and the need for balance.', bodyMD: OPPOSITION_MDX, links: ['planet.sun', 'planet.moon', 'house.1', 'house.7'], updatedAt: t() },
+    'element.fire': { id: 'element.fire', title: 'Fire Element', kind: 'concept', summary: 'Aries, Leo, Sagittarius. Energetic, passionate, and action-oriented.', bodyMD: FIRE_ELEMENT_MDX, links: ['sign.aries', 'sign.leo', 'sign.sagittarius'], updatedAt: t() },
+    'element.earth': { id: 'element.earth', title: 'Earth Element', kind: 'concept', summary: 'Taurus, Virgo, Capricorn. Practical, grounded, and material-focused.', bodyMD: EARTH_ELEMENT_MDX, links: ['sign.taurus', 'sign.virgo', 'sign.capricorn'], updatedAt: t() },
+    'element.air': { id: 'element.air', title: 'Air Element', kind: 'concept', summary: 'Gemini, Libra, Aquarius. Intellectual, communicative, and relationship-oriented.', bodyMD: AIR_ELEMENT_MDX, links: ['sign.gemini', 'sign.libra', 'sign.aquarius'], updatedAt: t() },
+    'element.water': { id: 'element.water', title: 'Water Element', kind: 'concept', summary: 'Cancer, Scorpio, Pisces. Emotional, intuitive, and deeply feeling.', bodyMD: WATER_ELEMENT_MDX, links: ['sign.cancer', 'sign.scorpio', 'sign.pisces'], updatedAt: t() },
+  };
+  return _registry;
+}
+
+function getTransits(): Record<string, TransitExplainer> {
+  if (_transits) return _transits;
+  _transits = {
+    'venus-trine-mars': { id: 'venus-trine-mars', title: 'Venus Trine Mars', tags: ['venus', 'trine', 'mars'], excerpt: 'Harmony between love and action. Natural chemistry and creative flow.', bodyMD: VENUS_TRINE_MARS_MDX },
+    'sun-conjunction-moon': { id: 'sun-conjunction-moon', title: 'Sun Conjunction Moon', tags: ['sun', 'conjunction', 'moon'], excerpt: 'New Moon energy. Fresh starts and new beginnings.', bodyMD: SUN_CONJUNCTION_MOON_MDX },
+    'mars-square-saturn': { id: 'mars-square-saturn', title: 'Mars Square Saturn', tags: ['mars', 'square', 'saturn'], excerpt: 'Frustration and obstacles. Time to build discipline and patience.', bodyMD: MARS_SQUARE_SATURN_MDX },
+    'venus-opposition-jupiter': { id: 'venus-opposition-jupiter', title: 'Venus Opposition Jupiter', tags: ['venus', 'opposition', 'jupiter'], excerpt: 'Excess and overindulgence. Finding balance in pleasure and expansion.', bodyMD: VENUS_OPPOSITION_JUPITER_MDX },
+  };
+  return _transits;
+}
+
+export const AtlasAPI = {
+  async article(id: string): Promise<WikiArticle | null> {
+    return getRegistry()[id] || null;
+  },
+  async search(q: string): Promise<WikiArticle[]> {
+    const s = q.toLowerCase();
+    return Object.values(getRegistry()).filter(a =>
+      a.title.toLowerCase().includes(s) ||
+      a.summary.toLowerCase().includes(s) ||
+      a.id.toLowerCase().includes(s)
+    );
+  },
+  async transit(id: string): Promise<TransitExplainer | null> {
+    return getTransits()[id] || null;
+  },
+  async getArticlesByKind(kind: WikiArticle['kind']): Promise<WikiArticle[]> {
+    return Object.values(getRegistry()).filter(a => a.kind === kind);
+  },
+  async getRelatedArticles(articleId: string): Promise<WikiArticle[]> {
+    const reg = getRegistry();
+    const article = reg[articleId];
+    if (!article || !article.links) return [];
+    return article.links.map(linkId => reg[linkId]).filter(Boolean);
+  },
+};
