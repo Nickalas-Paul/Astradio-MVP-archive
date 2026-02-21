@@ -49,15 +49,19 @@ const getRuntimeFlags = (): Partial<FeatureFlags> => {
   return flags;
 };
 
-// Merge runtime flags with defaults and freeze to prevent mutations
-export const FLAGS: FeatureFlags = Object.freeze({
-  ...DEFAULT_FLAGS,
-  ...getRuntimeFlags(),
-});
+// Lazy init to avoid TDZ when this file is loaded in client bundle (no top-level window/location).
+let _flags: FeatureFlags | null = null;
+function getFlags(): FeatureFlags {
+  if (_flags === null) {
+    _flags = Object.freeze({ ...DEFAULT_FLAGS, ...getRuntimeFlags() }) as FeatureFlags;
+  }
+  return _flags;
+}
 
+// FLAGS not exported to avoid load-time access; use isFeatureEnabled or getFeatureFlags().
 // Feature flag utilities
 export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => {
-  return FLAGS[flag];
+  return getFlags()[flag];
 };
 
 export const withFeatureFlag = <T>(
@@ -96,12 +100,7 @@ export const disableFeature = (flag: keyof FeatureFlags) => {
 
 // Debug information
 export const getFeatureFlags = (): FeatureFlags => {
-  return { ...FLAGS };
-};
-
-// Log current flags in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log('[Feature Flags] Current configuration:', FLAGS);
+  return { ...getFlags() };
 }
 
 // URL parameter helpers for testing
@@ -125,7 +124,7 @@ export const removeFeatureFlagFromUrl = (flag: keyof FeatureFlags) => {
 // Dev helper: return a plain string summary instead of JSX, to avoid TSX in this file
 export const getFeatureFlagStatusString = (): string | null => {
   if (process.env.NODE_ENV !== 'development') return null;
-  return Object.entries(FLAGS)
+  return Object.entries(getFlags())
     .map(([k, v]) => `${k}: ${v ? 'ON' : 'OFF'}`)
     .join(', ');
 };

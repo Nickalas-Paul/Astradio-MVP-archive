@@ -53,22 +53,9 @@ function getFlags(): FeatureFlags {
   return _flags;
 }
 
-const FLAGS_KEYS: (keyof FeatureFlags)[] = [
-  'USE_MOCK', 'ENABLE_TRENDING', 'ENABLE_COMPAT', 'ENABLE_SOCIAL', 'ENABLE_ATLAS',
-  'ENABLE_ANALYTICS', 'ENABLE_SHARING', 'ENABLE_PLAYLISTS', 'ENABLE_VIZ_ENGINE',
-];
-export const FLAGS: FeatureFlags = new Proxy({} as FeatureFlags, {
-  get(_, prop) {
-    return getFlags()[prop as keyof FeatureFlags];
-  },
-  ownKeys() {
-    return FLAGS_KEYS;
-  },
-  getOwnPropertyDescriptor(_, prop) {
-    return { configurable: true, enumerable: true, writable: false, value: getFlags()[prop as keyof FeatureFlags] };
-  },
-});
-
+// FLAGS is not exported to avoid any load-time property access (Proxy/getOwnPropertyDescriptor
+// can run during bundler or module init and trigger getFlags() before module is ready).
+// Use isFeatureEnabled(flag) or getFeatureFlags() instead.
 export const isFeatureEnabled = (flag: keyof FeatureFlags): boolean => getFlags()[flag];
 
 export const isFeatureEnabledLegacy = (flag: string): boolean => {
