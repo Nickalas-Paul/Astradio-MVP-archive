@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
+  productionBrowserSourceMaps: true,
   // Proxy API requests to backend (Render or local). Build-time env sets destination.
   // API/chart are handled by Next route handlers (app/api/*/route.ts) which proxy to API_BASE_URL.
   // No rewrites needed; same-origin client calls avoid CORS.
