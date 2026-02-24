@@ -13,8 +13,8 @@ const PROVIDER: 'lyria' | 'local_wav' | null =
   RAW_PROVIDER === 'lyria' || RAW_PROVIDER === 'local_wav' ? RAW_PROVIDER : null;
 const ALLOW_FALLBACK = process.env.ALLOW_RENDER_FALLBACK === '1';
 
-function assertValidProvider(): asserts PROVIDER is 'lyria' | 'local_wav' {
-  if (!PROVIDER) {
+function assertValidProvider(provider: string | null): asserts provider is 'lyria' | 'local_wav' {
+  if (provider !== 'lyria' && provider !== 'local_wav') {
     const allowed = ['lyria', 'local_wav'];
     throw new Error(
       `Invalid RENDER_PROVIDER "${RAW_PROVIDER}". Expected one of: ${allowed.join(', ')}.`
@@ -23,7 +23,7 @@ function assertValidProvider(): asserts PROVIDER is 'lyria' | 'local_wav' {
 }
 
 function getProvider(): RenderProvider {
-  assertValidProvider();
+  assertValidProvider(PROVIDER);
   if (PROVIDER === 'local_wav') return localWavProvider;
   return lyriaProvider;
 }
