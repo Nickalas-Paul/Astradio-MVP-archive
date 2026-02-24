@@ -46,6 +46,23 @@ function cookieFromSetCookie(setCookieHeader) {
   return part;
 }
 
+function sanitizeRequestHeaders(h) {
+  const out = {};
+  for (const [k, v] of Object.entries(h || {})) {
+    const key = String(k).toLowerCase();
+    if (
+      key === 'content-length' ||
+      key === 'transfer-encoding' ||
+      key === 'host' ||
+      key === 'connection'
+    ) {
+      continue;
+    }
+    out[key] = v;
+  }
+  return out;
+}
+
 function withShare(url) {
   if (!VERCEL_SHARE_TOKEN) return url;
   try {
@@ -62,14 +79,15 @@ function withShare(url) {
   }
 }
 
-function buildWebJsonHeaders() {
-  const headers = {
+function buildWebJsonHeaders(extra = {}) {
+  const base = {
     'content-type': 'application/json',
   };
   if (VERCEL_BYPASS_TOKEN) {
-    headers['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+    base['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
   }
-  return headers;
+  const headers = { ...base, ...extra };
+  return sanitizeRequestHeaders(headers);
 }
 
 function buildWebHeaders(extra = {}) {
@@ -77,7 +95,8 @@ function buildWebHeaders(extra = {}) {
   if (VERCEL_BYPASS_TOKEN) {
     base['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
   }
-  return { ...base, ...extra };
+  const headers = { ...base, ...extra };
+  return sanitizeRequestHeaders({ ...headers, ...extra });
 }
 
 async function step1() {
@@ -87,10 +106,17 @@ async function step1() {
     chart: { label: 'Smoke Chart', date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
   };
   const createUrl = withShare(`${WEB_URL}/api/profile`);
+  const createHeaders = buildWebJsonHeaders();
+  const createBodyStr = JSON.stringify(createBody);
+  console.log('Step1 POST URL:', createUrl);
+  console.log('Step1 headers keys:', Object.keys(createHeaders));
+  if (Object.keys(createHeaders).some((k) => k.toLowerCase() === 'content-length')) {
+    throw new Error('BUG: content-length header is being set in request headers');
+  }
   const createRes = await fetch(createUrl, {
     method: 'POST',
-    headers: buildWebJsonHeaders(),
-    body: JSON.stringify(createBody),
+    headers: createHeaders,
+    body: createBodyStr,
   });
   const createText = await createRes.text().catch(() => '');
   let createData = {};
