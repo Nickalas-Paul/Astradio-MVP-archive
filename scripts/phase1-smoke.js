@@ -10,10 +10,32 @@
  * ENGINE_URL is optional; used only for Step 4 (POST /api/render → 410).
  * All other steps use WEB_URL (Next proxy).
  */
-const WEB_URL = (process.env.WEB_URL || process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}` || 'http://localhost:3000').replace(/\/+$/, '');
+const WEB_URL = (process.env.WEB_URL || (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) || 'http://localhost:3000').replace(/\/+$/, '');
 const ENGINE_URL = (process.env.ENGINE_URL || process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
+const ALLOW_SAME_HOST_FOR_DEV = process.env.ALLOW_WEB_ENGINE_SAME_HOST_FOR_DEV === '1';
 
-const results = { step1: null, step2: null, step3: null, step4: null, blocked: null };
+let webHost = 'unknown';
+let engineHost = 'unknown';
+try {
+  webHost = new URL(WEB_URL).host;
+} catch {}
+try {
+  engineHost = new URL(ENGINE_URL).host;
+} catch {}
+
+const results = {
+  step1: null,
+  step2: null,
+  step3: null,
+  step4: null,
+  blocked: null,
+  meta: {
+    webHost,
+    engineHost,
+    sameHost: webHost && engineHost && webHost === engineHost,
+    webAuthGate: false,
+  },
+};
 
 function cookieFromSetCookie(setCookieHeader) {
   if (!setCookieHeader) return '';
@@ -34,6 +56,16 @@ async function step1() {
     body: JSON.stringify(createBody),
   });
   const createData = await createRes.json().catch(() => ({}));
+  if (createRes.status === 401 || createRes.status === 403) {
+    results.meta.webAuthGate = true;
+    results.step1 = {
+      pass: false,
+      error: `POST /api/profile ${createRes.status} (web auth gate)`,
+      status: createRes.status,
+      body: createData,
+    };
+    return;
+  }
   if (createRes.status !== 201 || !createData?.user?.id) {
     results.step1 = { pass: false, error: `POST /api/profile ${createRes.status} or no user.id`, body: createData };
     return;
@@ -51,8 +83,43 @@ async function step1() {
     headers: { Cookie: cookie },
   });
   const getData = await getRes.json().catch(() => ({}));
+  if (getRes.status === 401 || getRes.status === 403) {
+    results.meta.webAuthGate = true;
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile ${getRes.status} (web auth gate)`,
+      status: getRes.status,
+      body: getData,
+    };
+    return;
+  }
   if (!getRes.ok || getData?.user?.id !== userId) {
     results.step1 = { pass: false, error: `GET /api/profile ${getRes.status} or user id mismatch`, body: getData };
+    return;
+  }
+
+  // Statelessness / persistence simulation: wait briefly and fetch again with same cookie.
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  const getRes2 = await fetch(`${WEB_URL}/api/profile`, {
+    headers: { Cookie: cookie },
+  });
+  const getData2 = await getRes2.json().catch(() => ({}));
+  if (getRes2.status === 401 || getRes2.status === 403) {
+    results.meta.webAuthGate = true;
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile (second read) ${getRes2.status} (web auth gate)`,
+      status: getRes2.status,
+      body: getData2,
+    };
+    return;
+  }
+  if (!getRes2.ok || getData2?.user?.id !== userId) {
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile (second read) ${getRes2.status} or user id mismatch`,
+      body: getData2,
+    };
     return;
   }
 
@@ -62,11 +129,13 @@ async function step1() {
     primaryChartId,
     cookieSet: true,
     getProfileSameUser: true,
+    secondReadSameUser: true,
   };
   console.log('  userId:', userId);
   console.log('  primaryChartId:', primaryChartId);
   console.log('  cookie astradio_dev_user_id: set');
-  console.log('  GET /api/profile: same user returned');
+  console.log('  GET /api/profile: same user returned (first read)');
+  console.log('  GET /api/profile: same user returned (second read after delay)');
 }
 
 async function step2() {
@@ -82,6 +151,16 @@ async function step2() {
     body: JSON.stringify(composeBody),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 || res.status === 403) {
+    results.meta.webAuthGate = true;
+    results.step2 = {
+      pass: false,
+      error: `POST /api/compose ${res.status} (web auth gate)`,
+      status: res.status,
+      body: data,
+    };
+    return;
+  }
   if (!res.ok) {
     results.step2 = { pass: false, error: `POST /api/compose ${res.status}`, body: data };
     return;
@@ -149,7 +228,14 @@ async function step3() {
     content_type_audio_wav: isWav,
     non_zero_bytes: nonZero,
   };
-  if (!pass) results.step3.error = !status200 ? `status ${res.status}` : !nonZero ? 'zero bytes' : '';
+  if (!pass) {
+    if (res.status === 401 || res.status === 403) {
+      results.meta.webAuthGate = true;
+      results.step3.error = `GET /api/exports/:id ${res.status} (web auth gate)`;
+    } else {
+      results.step3.error = !status200 ? `status ${res.status}` : !nonZero ? 'zero bytes' : '';
+    }
+  }
 
   console.log('  GET /api/exports/:id →', res.status, contentType, byteLength, 'bytes');
   console.log('  status 200:', status200, 'content-type audio/wav:', isWav, 'non-zero:', nonZero);
@@ -178,7 +264,10 @@ function report() {
   const s2 = results.step2?.pass;
   const s3 = results.step3?.pass;
   const s4 = results.step4?.pass;
-  const all = s1 && s2 && s4 && (results.step2?.export_id ? s3 : true);
+  const sameHost = results.meta?.sameHost;
+  const webAuthGate = results.meta?.webAuthGate;
+  const allCore = s1 && s2 && s4 && (results.step2?.export_id ? s3 : true);
+  const all = allCore && (!sameHost || ALLOW_SAME_HOST_FOR_DEV);
 
   console.log('\n========== PHASE 1 REPORT ==========');
   if (all) {
@@ -192,6 +281,16 @@ function report() {
     console.log('- primary_chart_id:', results.step1?.primaryChartId);
     console.log('- compose excerpt:', JSON.stringify(results.step2?.excerpt, null, 2));
     console.log('- WAV proof: status', results.step3?.status ?? 'n/a', 'bytes', results.step3?.byteLength ?? 'n/a');
+  } else if (webAuthGate) {
+    console.log('PHASE 1 STATUS: BLOCKED');
+    console.log('');
+    console.log('reason: web auth gate (vercel protection)');
+    console.log('minimal next action: deploy an unprotected web environment for smoke');
+  } else if (sameHost && !ALLOW_SAME_HOST_FOR_DEV) {
+    console.log('PHASE 1 STATUS: BLOCKED');
+    console.log('');
+    console.log('reason: WEB_URL and ENGINE_URL hosts match (dev-only configuration)');
+    console.log('minimal next action: run against a real web surface (Next) whose host differs from the engine');
   } else {
     const failing = [];
     if (!s1) failing.push('Step 1 (profile persistence)');

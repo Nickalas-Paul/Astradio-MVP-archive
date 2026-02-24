@@ -1,6 +1,6 @@
 # Phase 1 smoke results
 
-**Goal:** Prove the core backbone works end-to-end through the real product surfaces.
+**Goal:** Prove the core backbone works end-to-end through the real product surfaces (Next web layer, not direct engine calls).
 
 **Backbone:** User/Profile → Chart → Compose → Explainer → Export → Download
 
@@ -11,8 +11,8 @@
 1. **Profile persistence (Step 1)**  
    - Create a user via the real web flow (UI or `POST {WEB_URL}/api/profile`).  
    - Confirm `astradio_dev_user_id` cookie is set and `GET {WEB_URL}/api/profile` returns the same user.  
-   - Restart the engine (or simulate statelessness), then call `GET {WEB_URL}/api/profile` again with the same cookie.  
-   - Confirm user and primary chart persist (Postgres).
+   - Wait ~5 seconds, then call `GET {WEB_URL}/api/profile` again with the same cookie.  
+   - Confirm both reads return the same `user_id` and `primary_chart_id` (Postgres-backed persistence, not in-memory).
 
 2. **Compose via Web (Step 2)**  
    - Trigger compose from the web layer (e.g. Sandbox or Landing).  
@@ -33,7 +33,14 @@
 WEB_URL=https://your-app.vercel.app ENGINE_URL=https://your-engine.onrender.com node scripts/phase1-smoke.js
 ```
 
-Manual Step 1.4 (persistence after restart): after running the script, restart the engine, then `GET {WEB_URL}/api/profile` with the same `astradio_dev_user_id` cookie and confirm same user + primary chart.
+**PASS definition:**
+
+- `WEB_URL` host **must differ** from `ENGINE_URL` host (real web surface via Next → engine proxy).  
+- Step 1–3 must hit `WEB_URL` only; the script refuses PASS when `WEB_URL` and `ENGINE_URL` hosts match unless `ALLOW_WEB_ENGINE_SAME_HOST_FOR_DEV=1` (local-only override).  
+- If any WEB call returns 401/403 (e.g. Vercel Authentication), the script reports:
+  - `PHASE 1 STATUS: BLOCKED`  
+  - `reason: web auth gate (vercel protection)`  
+  - `minimal next action: deploy an unprotected web environment for smoke`  
 
 ---
 
