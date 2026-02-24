@@ -13,7 +13,6 @@
 const WEB_URL = (process.env.WEB_URL || (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) || 'http://localhost:3000').replace(/\/+$/, '');
 const ENGINE_URL = (process.env.ENGINE_URL || process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const ALLOW_SAME_HOST_FOR_DEV = process.env.ALLOW_WEB_ENGINE_SAME_HOST_FOR_DEV === '1';
-const VERCEL_BYPASS_TOKEN = process.env.VERCEL_BYPASS_TOKEN || '';
 const VERCEL_SHARE_TOKEN = process.env.VERCEL_SHARE_TOKEN || '';
 
 let webHost = 'unknown';
@@ -83,8 +82,9 @@ function buildWebJsonHeaders(extra = {}) {
   const base = {
     'content-type': 'application/json',
   };
-  if (VERCEL_BYPASS_TOKEN) {
-    base['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+  const bypass = process.env.VERCEL_BYPASS_TOKEN;
+  if (bypass && bypass.trim().length > 0) {
+    base['x-vercel-protection-bypass'] = bypass;
   }
   const headers = { ...base, ...extra };
   return sanitizeRequestHeaders(headers);
@@ -92,15 +92,21 @@ function buildWebJsonHeaders(extra = {}) {
 
 function buildWebHeaders(extra = {}) {
   const base = {};
-  if (VERCEL_BYPASS_TOKEN) {
-    base['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+  const bypass = process.env.VERCEL_BYPASS_TOKEN;
+  if (bypass && bypass.trim().length > 0) {
+    base['x-vercel-protection-bypass'] = bypass;
   }
   const headers = { ...base, ...extra };
-  return sanitizeRequestHeaders({ ...headers, ...extra });
+  return sanitizeRequestHeaders(headers);
 }
 
 async function step1() {
   console.log('\n--- Step 1: Profile persistence ---');
+  const bypass = process.env.VERCEL_BYPASS_TOKEN;
+  const share = process.env.VERCEL_SHARE_TOKEN;
+  console.log('bypassTokenPresent:', !!(bypass && bypass.trim().length > 0));
+  console.log('bypassTokenLength:', (bypass || '').length);
+  console.log('shareTokenPresent:', !!(share && share.trim().length > 0));
   const createBody = {
     displayName: 'Phase1 Smoke ' + Date.now(),
     chart: { label: 'Smoke Chart', date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
