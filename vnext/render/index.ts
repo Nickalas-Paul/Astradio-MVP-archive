@@ -9,8 +9,10 @@ import { lyriaProvider } from './lyria-provider';
 import { localWavProvider } from './local-wav-provider';
 
 const RAW_PROVIDER = (process.env.RENDER_PROVIDER || 'lyria').toLowerCase();
+const hasLyriaCreds = !!process.env.GOOGLE_CLOUD_PROJECT;
+const effectiveRaw = RAW_PROVIDER === 'lyria' && !hasLyriaCreds ? 'local_wav' : RAW_PROVIDER;
 const PROVIDER: 'lyria' | 'local_wav' | null =
-  RAW_PROVIDER === 'lyria' || RAW_PROVIDER === 'local_wav' ? RAW_PROVIDER : null;
+  effectiveRaw === 'lyria' || effectiveRaw === 'local_wav' ? effectiveRaw : null;
 const ALLOW_FALLBACK = process.env.ALLOW_RENDER_FALLBACK === '1';
 
 function assertValidProvider(provider: string | null): asserts provider is 'lyria' | 'local_wav' {
