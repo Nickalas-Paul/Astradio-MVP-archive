@@ -137,13 +137,21 @@ async function step1() {
   const createSnippet = createText ? createText.slice(0, 200) : '';
   const createStatus = createRes.statusCode;
   if (createStatus === 301 || createStatus === 302 || createStatus === 307 || createStatus === 308) {
+    const loc = createRes.headers.location || '';
+    const sc = createRes.headers['set-cookie'];
+    const setCookieCount = Array.isArray(sc) ? sc.length : sc ? 1 : 0;
     results.step1 = {
       pass: false,
       error: `POST /api/profile redirect ${createStatus}`,
       status: createStatus,
-      location: createRes.headers.location || '',
+      location: loc,
+      setCookieCount,
       snippet: createSnippet,
     };
+    console.log('  status:', createStatus);
+    console.log('  location:', loc);
+    console.log('  set-cookie count:', setCookieCount);
+    console.log('  reason: bypass token not applied or not enabled for this deployment');
     return;
   }
   if (createStatus === 401 || createStatus === 403) {
@@ -169,7 +177,8 @@ async function step1() {
   }
   const userId = createData.user.id;
   const primaryChartId = createData.primaryChart?.id || null;
-  const setCookie = createRes.headers.get('set-cookie');
+  const setCookieRaw = createRes.headers['set-cookie'];
+  const setCookie = Array.isArray(setCookieRaw) ? setCookieRaw[0] : (setCookieRaw || '');
   const cookie = cookieFromSetCookie(setCookie);
   if (!cookie || !cookie.includes('astradio_dev_user_id')) {
     results.step1 = { pass: false, error: 'astradio_dev_user_id cookie not set', cookie: setCookie || '(none)' };
@@ -194,13 +203,21 @@ async function step1() {
   const getSnippet = getText ? getText.slice(0, 200) : '';
   const getStatus = getRes.statusCode;
   if (getStatus === 301 || getStatus === 302 || getStatus === 307 || getStatus === 308) {
+    const loc = getRes.headers.location || '';
+    const sc = getRes.headers['set-cookie'];
+    const setCookieCount = Array.isArray(sc) ? sc.length : sc ? 1 : 0;
     results.step1 = {
       pass: false,
       error: `GET /api/profile redirect ${getStatus}`,
       status: getStatus,
-      location: getRes.headers.location || '',
+      location: loc,
+      setCookieCount,
       snippet: getSnippet,
     };
+    console.log('  status:', getStatus);
+    console.log('  location:', loc);
+    console.log('  set-cookie count:', setCookieCount);
+    console.log('  reason: bypass token not applied or not enabled for this deployment');
     return;
   }
   if (getStatus === 401 || getStatus === 403) {
@@ -244,13 +261,21 @@ async function step1() {
   const getSnippet2 = getText2 ? getText2.slice(0, 200) : '';
   const getStatus2 = getRes2.statusCode;
   if (getStatus2 === 301 || getStatus2 === 302 || getStatus2 === 307 || getStatus2 === 308) {
+    const loc = getRes2.headers.location || '';
+    const sc = getRes2.headers['set-cookie'];
+    const setCookieCount = Array.isArray(sc) ? sc.length : sc ? 1 : 0;
     results.step1 = {
       pass: false,
       error: `GET /api/profile (second read) redirect ${getStatus2}`,
       status: getStatus2,
-      location: getRes2.headers.location || '',
+      location: loc,
+      setCookieCount,
       snippet: getSnippet2,
     };
+    console.log('  status:', getStatus2);
+    console.log('  location:', loc);
+    console.log('  set-cookie count:', setCookieCount);
+    console.log('  reason: bypass token not applied or not enabled for this deployment');
     return;
   }
   if (getStatus2 === 401 || getStatus2 === 403) {
@@ -317,13 +342,21 @@ async function step2() {
   const snippet = text ? text.slice(0, 200) : '';
   const status = res.statusCode;
   if (status === 301 || status === 302 || status === 307 || status === 308) {
+    const loc = res.headers.location || '';
+    const sc = res.headers['set-cookie'];
+    const setCookieCount = Array.isArray(sc) ? sc.length : sc ? 1 : 0;
     results.step2 = {
       pass: false,
       error: `POST /api/compose redirect ${status}`,
       status,
-      location: res.headers.location || '',
+      location: loc,
+      setCookieCount,
       snippet,
     };
+    console.log('  status:', status);
+    console.log('  location:', loc);
+    console.log('  set-cookie count:', setCookieCount);
+    console.log('  reason: bypass token not applied or not enabled for this deployment');
     return;
   }
   if (status === 401 || status === 403) {
