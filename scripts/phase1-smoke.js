@@ -14,6 +14,7 @@ const WEB_URL = (process.env.WEB_URL || (process.env.VERCEL_URL && `https://${pr
 const ENGINE_URL = (process.env.ENGINE_URL || process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const ALLOW_SAME_HOST_FOR_DEV = process.env.ALLOW_WEB_ENGINE_SAME_HOST_FOR_DEV === '1';
 const VERCEL_BYPASS_TOKEN = process.env.VERCEL_BYPASS_TOKEN || '';
+const VERCEL_SHARE_TOKEN = process.env.VERCEL_SHARE_TOKEN || '';
 
 let webHost = 'unknown';
 let engineHost = 'unknown';
@@ -45,6 +46,22 @@ function cookieFromSetCookie(setCookieHeader) {
   return part;
 }
 
+function withShare(url) {
+  if (!VERCEL_SHARE_TOKEN) return url;
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has('_vercel_share')) {
+      u.searchParams.append('_vercel_share', VERCEL_SHARE_TOKEN);
+    }
+    return u.toString();
+  } catch {
+    // Fallback: naive query append
+    if (url.includes('_vercel_share=')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}_vercel_share=${encodeURIComponent(VERCEL_SHARE_TOKEN)}`;
+  }
+}
+
 function withBypass(headers = {}) {
   const h = { ...headers };
   if (VERCEL_BYPASS_TOKEN) {
@@ -59,12 +76,20 @@ async function step1() {
     displayName: 'Phase1 Smoke ' + Date.now(),
     chart: { label: 'Smoke Chart', date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
   };
-  const createRes = await fetch(`${WEB_URL}/api/profile`, {
+  const createUrl = withShare(`${WEB_URL}/api/profile`);
+  const createRes = await fetch(createUrl, {
     method: 'POST',
     headers: withBypass({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(createBody),
   });
-  const createData = await createRes.json().catch(() => ({}));
+  const createText = await createRes.text().catch(() => '');
+  let createData = {};
+  try {
+    createData = createText ? JSON.parse(createText) : {};
+  } catch {
+    createData = {};
+  }
+  const createSnippet = createText ? createText.slice(0, 200) : '';
   if (createRes.status === 401 || createRes.status === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
@@ -72,11 +97,18 @@ async function step1() {
       error: `POST /api/profile ${createRes.status} (web auth gate)`,
       status: createRes.status,
       body: createData,
+      snippet: createSnippet,
     };
     return;
   }
   if (createRes.status !== 201 || !createData?.user?.id) {
-    results.step1 = { pass: false, error: `POST /api/profile ${createRes.status} or no user.id`, body: createData };
+    results.step1 = {
+      pass: false,
+      error: `POST /api/profile ${createRes.status} or no user.id`,
+      status: createRes.status,
+      body: createData,
+      snippet: createSnippet,
+    };
     return;
   }
   const userId = createData.user.id;
@@ -88,10 +120,18 @@ async function step1() {
     return;
   }
 
-  const getRes = await fetch(`${WEB_URL}/api/profile`, {
+  const getUrl = withShare(`${WEB_URL}/api/profile`);
+  const getRes = await fetch(getUrl, {
     headers: withBypass({ Cookie: cookie }),
   });
-  const getData = await getRes.json().catch(() => ({}));
+  const getText = await getRes.text().catch(() => '');
+  let getData = {};
+  try {
+    getData = getText ? JSON.parse(getText) : {};
+  } catch {
+    getData = {};
+  }
+  const getSnippet = getText ? getText.slice(0, 200) : '';
   if (getRes.status === 401 || getRes.status === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
@@ -99,20 +139,35 @@ async function step1() {
       error: `GET /api/profile ${getRes.status} (web auth gate)`,
       status: getRes.status,
       body: getData,
+      snippet: getSnippet,
     };
     return;
   }
   if (!getRes.ok || getData?.user?.id !== userId) {
-    results.step1 = { pass: false, error: `GET /api/profile ${getRes.status} or user id mismatch`, body: getData };
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile ${getRes.status} or user id mismatch`,
+      status: getRes.status,
+      body: getData,
+      snippet: getSnippet,
+    };
     return;
   }
 
   // Statelessness / persistence simulation: wait briefly and fetch again with same cookie.
   await new Promise((resolve) => setTimeout(resolve, 5000));
-  const getRes2 = await fetch(`${WEB_URL}/api/profile`, {
+  const getUrl2 = withShare(`${WEB_URL}/api/profile`);
+  const getRes2 = await fetch(getUrl2, {
     headers: withBypass({ Cookie: cookie }),
   });
-  const getData2 = await getRes2.json().catch(() => ({}));
+  const getText2 = await getRes2.text().catch(() => '');
+  let getData2 = {};
+  try {
+    getData2 = getText2 ? JSON.parse(getText2) : {};
+  } catch {
+    getData2 = {};
+  }
+  const getSnippet2 = getText2 ? getText2.slice(0, 200) : '';
   if (getRes2.status === 401 || getRes2.status === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
@@ -120,6 +175,7 @@ async function step1() {
       error: `GET /api/profile (second read) ${getRes2.status} (web auth gate)`,
       status: getRes2.status,
       body: getData2,
+      snippet: getSnippet2,
     };
     return;
   }
@@ -127,7 +183,9 @@ async function step1() {
     results.step1 = {
       pass: false,
       error: `GET /api/profile (second read) ${getRes2.status} or user id mismatch`,
+      status: getRes2.status,
       body: getData2,
+      snippet: getSnippet2,
     };
     return;
   }
@@ -154,12 +212,20 @@ async function step2() {
     chartData: { date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
     controls: {},
   };
-  const res = await fetch(`${WEB_URL}/api/compose`, {
+  const composeUrl = withShare(`${WEB_URL}/api/compose`);
+  const res = await fetch(composeUrl, {
     method: 'POST',
     headers: withBypass({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(composeBody),
   });
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text().catch(() => '');
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
+  const snippet = text ? text.slice(0, 200) : '';
   if (res.status === 401 || res.status === 403) {
     results.meta.webAuthGate = true;
     results.step2 = {
@@ -167,11 +233,18 @@ async function step2() {
       error: `POST /api/compose ${res.status} (web auth gate)`,
       status: res.status,
       body: data,
+      snippet,
     };
     return;
   }
   if (!res.ok) {
-    results.step2 = { pass: false, error: `POST /api/compose ${res.status}`, body: data };
+    results.step2 = {
+      pass: false,
+      error: `POST /api/compose ${res.status}`,
+      status: res.status,
+      body: data,
+      snippet,
+    };
     return;
   }
   const planSha = data.hashes?.plan_sha256;
@@ -218,7 +291,8 @@ async function step3() {
     console.log('  (skipped: no export_id)');
     return;
   }
-  const res = await fetch(`${WEB_URL}/api/exports/${exportId}`, {
+  const exportUrl = withShare(`${WEB_URL}/api/exports/${exportId}`);
+  const res = await fetch(exportUrl, {
     headers: withBypass(),
   });
   const contentType = res.headers.get('content-type') || '';
@@ -311,8 +385,26 @@ function report() {
     console.log('PHASE 1 STATUS: BLOCKED');
     console.log('');
     console.log('Failing step:', failing.join(', '));
-    if (results.step1 && !results.step1.pass) console.log('Step 1:', results.step1.error, results.step1.body ?? '');
-    if (results.step2 && !results.step2.pass) console.log('Step 2:', results.step2.error, results.step2.excerpt ?? '');
+    if (results.step1 && !results.step1.pass) {
+      console.log(
+        'Step 1:',
+        results.step1.error,
+        'status:',
+        results.step1.status,
+        'snippet:',
+        results.step1.snippet ?? ''
+      );
+    }
+    if (results.step2 && !results.step2.pass) {
+      console.log(
+        'Step 2:',
+        results.step2.error,
+        'status:',
+        results.step2.status,
+        'snippet:',
+        results.step2.snippet ?? ''
+      );
+    }
     if (results.step3 && !results.step3.pass) console.log('Step 3:', results.step3.error ?? results.step3);
     if (results.step4 && !results.step4.pass) console.log('Step 4:', results.step4.error, 'endpoint:', results.step4.endpoint);
     console.log('');
