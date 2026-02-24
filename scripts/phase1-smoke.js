@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { request } = require('undici');
 /**
  * Phase 1 smoke: vertical slice through the web surface.
  * User/Profile → Chart → Compose → Explainer → Export → Download
@@ -111,20 +112,22 @@ async function step1() {
     displayName: 'Phase1 Smoke ' + Date.now(),
     chart: { label: 'Smoke Chart', date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
   };
-  const createUrl = withShare(`${WEB_URL}/api/profile`);
+  const createUrl = `${WEB_URL}/api/profile`;
+  const createFullUrl = withShare(createUrl);
   const createHeaders = buildWebJsonHeaders();
   const createBodyStr = JSON.stringify(createBody);
-  console.log('Step1 POST URL:', createUrl);
+  console.log('Step1 POST URL:', createFullUrl);
   console.log('Step1 headers keys:', Object.keys(createHeaders));
   if (Object.keys(createHeaders).some((k) => k.toLowerCase() === 'content-length')) {
     throw new Error('BUG: content-length header is being set in request headers');
   }
-  const createRes = await fetch(createUrl, {
+  const createRes = await request(createFullUrl, {
     method: 'POST',
     headers: createHeaders,
     body: createBodyStr,
+    maxRedirections: 0,
   });
-  const createText = await createRes.text().catch(() => '');
+  const createText = await createRes.body.text();
   let createData = {};
   try {
     createData = createText ? JSON.parse(createText) : {};
@@ -132,22 +135,33 @@ async function step1() {
     createData = {};
   }
   const createSnippet = createText ? createText.slice(0, 200) : '';
-  if (createRes.status === 401 || createRes.status === 403) {
+  const createStatus = createRes.statusCode;
+  if (createStatus === 301 || createStatus === 302 || createStatus === 307 || createStatus === 308) {
+    results.step1 = {
+      pass: false,
+      error: `POST /api/profile redirect ${createStatus}`,
+      status: createStatus,
+      location: createRes.headers.location || '',
+      snippet: createSnippet,
+    };
+    return;
+  }
+  if (createStatus === 401 || createStatus === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
       pass: false,
-      error: `POST /api/profile ${createRes.status} (web auth gate)`,
-      status: createRes.status,
+      error: `POST /api/profile ${createStatus} (web auth gate)`,
+      status: createStatus,
       body: createData,
       snippet: createSnippet,
     };
     return;
   }
-  if (createRes.status !== 201 || !createData?.user?.id) {
+  if (createStatus !== 201 || !createData?.user?.id) {
     results.step1 = {
       pass: false,
-      error: `POST /api/profile ${createRes.status} or no user.id`,
-      status: createRes.status,
+      error: `POST /api/profile ${createStatus} or no user.id`,
+      status: createStatus,
       body: createData,
       snippet: createSnippet,
     };
@@ -162,11 +176,15 @@ async function step1() {
     return;
   }
 
-  const getUrl = withShare(`${WEB_URL}/api/profile`);
-  const getRes = await fetch(getUrl, {
-    headers: buildWebHeaders({ Cookie: cookie }),
+  const getBaseUrl = `${WEB_URL}/api/profile`;
+  const getFullUrl = withShare(getBaseUrl);
+  const getHeaders = buildWebHeaders({ cookie: cookie });
+  const getRes = await request(getFullUrl, {
+    method: 'GET',
+    headers: getHeaders,
+    maxRedirections: 0,
   });
-  const getText = await getRes.text().catch(() => '');
+  const getText = await getRes.body.text();
   let getData = {};
   try {
     getData = getText ? JSON.parse(getText) : {};
@@ -174,22 +192,33 @@ async function step1() {
     getData = {};
   }
   const getSnippet = getText ? getText.slice(0, 200) : '';
-  if (getRes.status === 401 || getRes.status === 403) {
+  const getStatus = getRes.statusCode;
+  if (getStatus === 301 || getStatus === 302 || getStatus === 307 || getStatus === 308) {
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile redirect ${getStatus}`,
+      status: getStatus,
+      location: getRes.headers.location || '',
+      snippet: getSnippet,
+    };
+    return;
+  }
+  if (getStatus === 401 || getStatus === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
       pass: false,
-      error: `GET /api/profile ${getRes.status} (web auth gate)`,
-      status: getRes.status,
+      error: `GET /api/profile ${getStatus} (web auth gate)`,
+      status: getStatus,
       body: getData,
       snippet: getSnippet,
     };
     return;
   }
-  if (!getRes.ok || getData?.user?.id !== userId) {
+  if (getStatus < 200 || getStatus >= 300 || getData?.user?.id !== userId) {
     results.step1 = {
       pass: false,
-      error: `GET /api/profile ${getRes.status} or user id mismatch`,
-      status: getRes.status,
+      error: `GET /api/profile ${getStatus} or user id mismatch`,
+      status: getStatus,
       body: getData,
       snippet: getSnippet,
     };
@@ -198,11 +227,14 @@ async function step1() {
 
   // Statelessness / persistence simulation: wait briefly and fetch again with same cookie.
   await new Promise((resolve) => setTimeout(resolve, 5000));
-  const getUrl2 = withShare(`${WEB_URL}/api/profile`);
-  const getRes2 = await fetch(getUrl2, {
-    headers: buildWebHeaders({ Cookie: cookie }),
+  const getFullUrl2 = withShare(getBaseUrl);
+  const getHeaders2 = buildWebHeaders({ cookie: cookie });
+  const getRes2 = await request(getFullUrl2, {
+    method: 'GET',
+    headers: getHeaders2,
+    maxRedirections: 0,
   });
-  const getText2 = await getRes2.text().catch(() => '');
+  const getText2 = await getRes2.body.text();
   let getData2 = {};
   try {
     getData2 = getText2 ? JSON.parse(getText2) : {};
@@ -210,22 +242,33 @@ async function step1() {
     getData2 = {};
   }
   const getSnippet2 = getText2 ? getText2.slice(0, 200) : '';
-  if (getRes2.status === 401 || getRes2.status === 403) {
+  const getStatus2 = getRes2.statusCode;
+  if (getStatus2 === 301 || getStatus2 === 302 || getStatus2 === 307 || getStatus2 === 308) {
+    results.step1 = {
+      pass: false,
+      error: `GET /api/profile (second read) redirect ${getStatus2}`,
+      status: getStatus2,
+      location: getRes2.headers.location || '',
+      snippet: getSnippet2,
+    };
+    return;
+  }
+  if (getStatus2 === 401 || getStatus2 === 403) {
     results.meta.webAuthGate = true;
     results.step1 = {
       pass: false,
-      error: `GET /api/profile (second read) ${getRes2.status} (web auth gate)`,
-      status: getRes2.status,
+      error: `GET /api/profile (second read) ${getStatus2} (web auth gate)`,
+      status: getStatus2,
       body: getData2,
       snippet: getSnippet2,
     };
     return;
   }
-  if (!getRes2.ok || getData2?.user?.id !== userId) {
+  if (getStatus2 < 200 || getStatus2 >= 300 || getData2?.user?.id !== userId) {
     results.step1 = {
       pass: false,
-      error: `GET /api/profile (second read) ${getRes2.status} or user id mismatch`,
-      status: getRes2.status,
+      error: `GET /api/profile (second read) ${getStatus2} or user id mismatch`,
+      status: getStatus2,
       body: getData2,
       snippet: getSnippet2,
     };
@@ -254,13 +297,17 @@ async function step2() {
     chartData: { date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
     controls: {},
   };
-  const composeUrl = withShare(`${WEB_URL}/api/compose`);
-  const res = await fetch(composeUrl, {
+  const composeUrl = `${WEB_URL}/api/compose`;
+  const composeFullUrl = withShare(composeUrl);
+  const composeHeaders = buildWebJsonHeaders();
+  const composeBodyStr = JSON.stringify(composeBody);
+  const res = await request(composeFullUrl, {
     method: 'POST',
-    headers: buildWebJsonHeaders(),
-    body: JSON.stringify(composeBody),
+    headers: composeHeaders,
+    body: composeBodyStr,
+    maxRedirections: 0,
   });
-  const text = await res.text().catch(() => '');
+  const text = await res.body.text();
   let data = {};
   try {
     data = text ? JSON.parse(text) : {};
@@ -268,22 +315,33 @@ async function step2() {
     data = {};
   }
   const snippet = text ? text.slice(0, 200) : '';
-  if (res.status === 401 || res.status === 403) {
+  const status = res.statusCode;
+  if (status === 301 || status === 302 || status === 307 || status === 308) {
+    results.step2 = {
+      pass: false,
+      error: `POST /api/compose redirect ${status}`,
+      status,
+      location: res.headers.location || '',
+      snippet,
+    };
+    return;
+  }
+  if (status === 401 || status === 403) {
     results.meta.webAuthGate = true;
     results.step2 = {
       pass: false,
-      error: `POST /api/compose ${res.status} (web auth gate)`,
-      status: res.status,
+      error: `POST /api/compose ${status} (web auth gate)`,
+      status,
       body: data,
       snippet,
     };
     return;
   }
-  if (!res.ok) {
+  if (status < 200 || status >= 300) {
     results.step2 = {
       pass: false,
-      error: `POST /api/compose ${res.status}`,
-      status: res.status,
+      error: `POST /api/compose ${status}`,
+      status,
       body: data,
       snippet,
     };
