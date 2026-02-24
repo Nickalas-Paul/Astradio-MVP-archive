@@ -62,12 +62,22 @@ function withShare(url) {
   }
 }
 
-function withBypass(headers = {}) {
-  const h = { ...headers };
+function buildWebJsonHeaders() {
+  const headers = {
+    'content-type': 'application/json',
+  };
   if (VERCEL_BYPASS_TOKEN) {
-    h['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+    headers['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
   }
-  return h;
+  return headers;
+}
+
+function buildWebHeaders(extra = {}) {
+  const base = {};
+  if (VERCEL_BYPASS_TOKEN) {
+    base['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+  }
+  return { ...base, ...extra };
 }
 
 async function step1() {
@@ -79,7 +89,7 @@ async function step1() {
   const createUrl = withShare(`${WEB_URL}/api/profile`);
   const createRes = await fetch(createUrl, {
     method: 'POST',
-    headers: withBypass({ 'Content-Type': 'application/json' }),
+    headers: buildWebJsonHeaders(),
     body: JSON.stringify(createBody),
   });
   const createText = await createRes.text().catch(() => '');
@@ -122,7 +132,7 @@ async function step1() {
 
   const getUrl = withShare(`${WEB_URL}/api/profile`);
   const getRes = await fetch(getUrl, {
-    headers: withBypass({ Cookie: cookie }),
+    headers: buildWebHeaders({ Cookie: cookie }),
   });
   const getText = await getRes.text().catch(() => '');
   let getData = {};
@@ -158,7 +168,7 @@ async function step1() {
   await new Promise((resolve) => setTimeout(resolve, 5000));
   const getUrl2 = withShare(`${WEB_URL}/api/profile`);
   const getRes2 = await fetch(getUrl2, {
-    headers: withBypass({ Cookie: cookie }),
+    headers: buildWebHeaders({ Cookie: cookie }),
   });
   const getText2 = await getRes2.text().catch(() => '');
   let getData2 = {};
@@ -215,7 +225,7 @@ async function step2() {
   const composeUrl = withShare(`${WEB_URL}/api/compose`);
   const res = await fetch(composeUrl, {
     method: 'POST',
-    headers: withBypass({ 'Content-Type': 'application/json' }),
+    headers: buildWebJsonHeaders(),
     body: JSON.stringify(composeBody),
   });
   const text = await res.text().catch(() => '');
@@ -293,7 +303,7 @@ async function step3() {
   }
   const exportUrl = withShare(`${WEB_URL}/api/exports/${exportId}`);
   const res = await fetch(exportUrl, {
-    headers: withBypass(),
+    headers: buildWebHeaders(),
   });
   const contentType = res.headers.get('content-type') || '';
   const buf = await res.arrayBuffer().catch(() => new ArrayBuffer(0));
