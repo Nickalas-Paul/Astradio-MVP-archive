@@ -1161,13 +1161,15 @@ app.get("/api/chart-snapshot", (req, res) => {
   }
 });
 
-// Health check endpoint
+// Health check endpoint (Render sets RENDER_GIT_COMMIT at runtime)
 app.get("/health", (req, res) => {
-  res.json({ 
-    status: "ok", 
+  const payload = {
+    status: "ok",
     timestamp: new Date().toISOString(),
     version: "2.0.0"
-  });
+  };
+  if (process.env.RENDER_GIT_COMMIT) payload.commit = process.env.RENDER_GIT_COMMIT;
+  res.json(payload);
 });
 
 // ML status (proof: tf_backend, model_sha, ml_used, inference_ms, model_path_hint)
@@ -2157,6 +2159,13 @@ app.get('/admin/metrics', (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'metrics_failed', message: e.message });
   }
+});
+
+// Phase 0 verification: last COMPOSE_PATH guardrail (set by vnext compose after each request)
+app.get('/api/debug/last-compose-path', (req, res) => {
+  const p = global.__lastComposePath;
+  if (!p) return res.status(404).json({ error: 'no_compose_yet', message: 'Trigger at least one POST /api/compose first.' });
+  res.json(p);
 });
 
 function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }

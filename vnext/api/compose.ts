@@ -262,11 +262,16 @@ export class ComposeAPI {
       const store = (process as any).__astradio_export_store as { get?: (k: string) => Promise<Buffer | null>; put?: (k: string, buf: Buffer, meta: IntegrityMeta) => Promise<void> } | undefined;
 
       let audioDebug: any = undefined;
+      type ExportStep = 'provider' | 'render' | 'store';
+      let exportStep: ExportStep = 'provider';
       if (wavExportEnabled) {
+        console.log('[COMPOSE_EXPORT] wavExportEnabled=', wavExportEnabled);
         try {
           const prompt = buildLyriaPrompt(payload, plan);
           const promptHash = hashPrompt(prompt);
+          exportStep = 'provider';
           const provider = getProvider();
+          console.log('[COMPOSE_EXPORT] provider=', provider.name);
           const modelVersion = provider.name === 'lyria' ? 'lyria-002' : 'local-v1';
           const exportKey = computeExportKey(payload.hash, provider.name, modelVersion, promptHash, DEFAULT_DURATION_S);
 
@@ -291,7 +296,9 @@ export class ComposeAPI {
             export_id = exportKey;
             export_meta = integrity ? { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 } : undefined;
             audio_export_available = true;
+            console.log('[COMPOSE_EXPORT] cache_hit exportKey=', exportKey.slice(0, 16) + '...');
           } else {
+            exportStep = 'render';
             const result = await renderWithProvider({
               prompt,
               seed: payload.hash,
@@ -309,10 +316,13 @@ export class ComposeAPI {
               modelVersion: (result.provider_meta.modelVersion as string) ?? modelVersion,
               duration_s: DEFAULT_DURATION_S
             };
+            exportStep = 'store';
             if (store?.put) {
               await store.put(exportKey, result.wavBuffer, integrity);
+              console.log('[COMPOSE_EXPORT] store_put_ok exportKey=', exportKey.slice(0, 16) + '...');
             } else {
               writeExport(exportKey, result.wavBuffer, integrity);
+              console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
             }
             export_meta = { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 };
             audio = {
@@ -326,15 +336,20 @@ export class ComposeAPI {
             audio_export_available = true;
           }
         } catch (audioError) {
+          const err = audioError instanceof Error ? audioError : new Error(String(audioError));
+          const code = (err as Error & { code?: string }).code;
+          console.log('[COMPOSE_EXPORT] error step=', exportStep, 'message=', err.message, code ? 'code=' + code : '');
+          const failureClass = exportStep === 'store' ? 'C' : 'B';
+          audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
           if (!(global as any).__wav_export_unavailable_logged) {
-            const err = audioError instanceof Error ? audioError : new Error(String(audioError));
-            const code = (err as Error & { code?: string }).code;
             console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
             if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
             (global as any).__wav_export_unavailable_logged = true;
           }
         }
       } else {
+        console.log('[COMPOSE_EXPORT] wavExportEnabled=false, ENABLE_WAV_EXPORT=', process.env.ENABLE_WAV_EXPORT);
+        audioDebug = { export_failure: 'A', message: 'wavExportEnabled is false' };
         if (!(global as any).__wav_export_unavailable_logged) {
           console.warn('[COMPOSE] WAV export disabled (set ENABLE_WAV_EXPORT=1 to enable)');
           (global as any).__wav_export_unavailable_logged = true;
@@ -486,6 +501,7 @@ export class ComposeAPI {
           export_id: export_id || null,
         };
         console.log('[COMPOSE_PATH]', JSON.stringify(guardrailLog));
+        (globalThis as any).__lastComposePath = guardrailLog;
       } catch {
         // Guardrail logging must never break compose; ignore logging failures.
       }
