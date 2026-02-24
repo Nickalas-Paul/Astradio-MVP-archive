@@ -80,7 +80,8 @@
     "test:provenance-verification": "npm run vnext:build && node dist/vnext/vnext/scripts/provenance-verification.js",
     "check:single-compose": "node scripts/check-single-compose.js",
     "lint:web:safety": "node scripts/check-no-browser-globals-top-level.js",
-    "worker:export": "node workers/export-worker.js"
+    "worker:export": "node workers/export-worker.js",
+    "seed:phantoms": "npm run build:server && node dist/scripts/seed-phantom-users.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",

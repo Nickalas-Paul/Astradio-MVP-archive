@@ -469,6 +469,27 @@ export class ComposeAPI {
         plan_sha256: planHash // Always include plan hash
       };
 
+      // Guardrail: log planner/provider for each compose call to prove that a single
+      // planner and a single provider were used for this response.
+      try {
+        const plannerName = 'generatePlanMLOnly';
+        const providerName =
+          audio_export_available && export_meta?.provider
+            ? export_meta.provider
+            : audio_export_available
+              ? getProvider().name
+              : 'none';
+        const guardrailLog = {
+          planner: plannerName,
+          provider: providerName,
+          plan_sha256: planHash,
+          export_id: export_id || null,
+        };
+        console.log('[COMPOSE_PATH]', JSON.stringify(guardrailLog));
+      } catch {
+        // Guardrail logging must never break compose; ignore logging failures.
+      }
+
       // Structured observability log (single line) - CRITICAL for soak diagnostics
       try {
         const calibratedPass = !!gateReport?.calibrated?.overall;

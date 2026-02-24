@@ -1925,9 +1925,11 @@ if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
 }
 
-// Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false)
-// This provides backward compatibility for soak tests and legacy clients
-if (!DEPRECATE_LEGACY) {
+// Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false).
+// This provides backward compatibility for soak tests and legacy clients.
+// Guardrail: legacy planner path is additionally gated by LEGACY_PLANNER_ENABLED=1
+// and should remain OFF by default in production and testing.
+if (!DEPRECATE_LEGACY && process.env.LEGACY_PLANNER_ENABLED === '1') {
   app.post("/api/render", async (req, res) => {
     try {
       const { date, time, location, geo } = req.body;
