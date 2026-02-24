@@ -81,7 +81,8 @@
     "check:single-compose": "node scripts/check-single-compose.js",
     "lint:web:safety": "node scripts/check-no-browser-globals-top-level.js",
     "worker:export": "node workers/export-worker.js",
-    "seed:phantoms": "npm run build:server && node dist/scripts/seed-phantom-users.js"
+    "seed:phantoms": "node scripts/seed-phantom-users.js",
+    "phase1:smoke": "node scripts/phase1-smoke.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
