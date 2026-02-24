@@ -13,6 +13,7 @@
 const WEB_URL = (process.env.WEB_URL || (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) || 'http://localhost:3000').replace(/\/+$/, '');
 const ENGINE_URL = (process.env.ENGINE_URL || process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const ALLOW_SAME_HOST_FOR_DEV = process.env.ALLOW_WEB_ENGINE_SAME_HOST_FOR_DEV === '1';
+const VERCEL_BYPASS_TOKEN = process.env.VERCEL_BYPASS_TOKEN || '';
 
 let webHost = 'unknown';
 let engineHost = 'unknown';
@@ -44,6 +45,14 @@ function cookieFromSetCookie(setCookieHeader) {
   return part;
 }
 
+function withBypass(headers = {}) {
+  const h = { ...headers };
+  if (VERCEL_BYPASS_TOKEN) {
+    h['x-vercel-protection-bypass'] = VERCEL_BYPASS_TOKEN;
+  }
+  return h;
+}
+
 async function step1() {
   console.log('\n--- Step 1: Profile persistence ---');
   const createBody = {
@@ -52,7 +61,7 @@ async function step1() {
   };
   const createRes = await fetch(`${WEB_URL}/api/profile`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withBypass({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(createBody),
   });
   const createData = await createRes.json().catch(() => ({}));
@@ -80,7 +89,7 @@ async function step1() {
   }
 
   const getRes = await fetch(`${WEB_URL}/api/profile`, {
-    headers: { Cookie: cookie },
+    headers: withBypass({ Cookie: cookie }),
   });
   const getData = await getRes.json().catch(() => ({}));
   if (getRes.status === 401 || getRes.status === 403) {
@@ -101,7 +110,7 @@ async function step1() {
   // Statelessness / persistence simulation: wait briefly and fetch again with same cookie.
   await new Promise((resolve) => setTimeout(resolve, 5000));
   const getRes2 = await fetch(`${WEB_URL}/api/profile`, {
-    headers: { Cookie: cookie },
+    headers: withBypass({ Cookie: cookie }),
   });
   const getData2 = await getRes2.json().catch(() => ({}));
   if (getRes2.status === 401 || getRes2.status === 403) {
@@ -147,7 +156,7 @@ async function step2() {
   };
   const res = await fetch(`${WEB_URL}/api/compose`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withBypass({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(composeBody),
   });
   const data = await res.json().catch(() => ({}));
@@ -209,7 +218,9 @@ async function step3() {
     console.log('  (skipped: no export_id)');
     return;
   }
-  const res = await fetch(`${WEB_URL}/api/exports/${exportId}`);
+  const res = await fetch(`${WEB_URL}/api/exports/${exportId}`, {
+    headers: withBypass(),
+  });
   const contentType = res.headers.get('content-type') || '';
   const buf = await res.arrayBuffer().catch(() => new ArrayBuffer(0));
   const byteLength = buf.byteLength;
