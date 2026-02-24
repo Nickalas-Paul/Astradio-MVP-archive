@@ -44,6 +44,33 @@ WEB_URL=https://your-app.vercel.app ENGINE_URL=https://your-engine.onrender.com 
 
 ---
 
+## Phase 1 final evidence (LIVE)
+
+**Status:** PASS (2026-02-24)
+
+| Field | Value |
+|-------|--------|
+| **web commit sha** | `9d8580679a4a597895919fdb93fba3b69c4ad71e` (branch `beta-ui-vercel`, includes smoke harness) |
+| **engine commit sha** | `9d8580679a4a597895919fdb93fba3b69c4ad71e` (from `GET /health` on Render) |
+| **web_url** | `https://astradio-mvp-archive-git-beta-ui-vercel-nickalas-pauls-projects.vercel.app` |
+| **engine_url** | `https://astradio-mvp-archive.onrender.com` |
+| **user_id** | `usr_d1c3c95c83e5ffb9` |
+| **primary_chart_id** | `chart_9ec68d4b34753324` |
+| **plan_sha256 (prefix)** | `006afac5f225f693...` |
+| **export_id (prefix)** | `21cc516186264cfa...` |
+| **WAV proof** | status 200, content-type audio/wav, 1323044 bytes |
+
+**Note:** Protected preview validated via **Protection Bypass for Automation** header (`x-vercel-protection-bypass`). No share-token used for this run.
+
+**Script safety (Phase 1 closeout):**
+
+- The smoke script **never prints** the bypass token; it prints only `bypassTokenPresent` (true/false) and `bypassTokenLength` (number).
+- The bypass header is applied **only to WEB requests** (Steps 1–3: POST/GET profile, POST compose, GET exports/:id).
+- Step 4 (POST engine `/api/render`) is **engine-only**; no bypass header is sent.
+- The script fails **closed** (BLOCKED) on 401, 403, or 307 from any WEB call.
+
+---
+
 ## Report (fill after run)
 
 ### If PASS
