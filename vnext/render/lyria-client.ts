@@ -27,14 +27,17 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
   }
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${LYRIA_MODEL}:predict`;
 
+  const instance: Record<string, unknown> = {
+    prompt: input.prompt,
+    seed: input.seed,
+  };
+  if (input.negative_prompt != null && input.negative_prompt !== '') {
+    instance.negative_prompt = input.negative_prompt;
+  } else {
+    instance.negative_prompt = 'vocals';
+  }
   const body = {
-    instances: [
-      {
-        prompt: input.prompt,
-        negative_prompt: input.negative_prompt || 'vocals, spoken word',
-        seed: input.seed,
-      },
-    ],
+    instances: [instance],
     parameters: {},
   };
 

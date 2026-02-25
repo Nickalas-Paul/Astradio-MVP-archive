@@ -17,11 +17,10 @@ export function buildLyriaPrompt(
   const tempo = bpm < 100 ? 'medium tempo' : bpm < 130 ? 'upbeat tempo' : 'fast tempo';
   const densityWord = density < 0.4 ? 'minimal' : density < 0.7 ? 'moderate' : 'dense';
   const mood = element === 'fire' ? 'energetic' : element === 'earth' ? 'grounded' : element === 'air' ? 'light' : 'fluid';
-  // Lyria recitation checks block some prompts. Use wording from Google's documented
-  // example verbatim (known to pass): "A calm acoustic folk song with a gentle guitar
-  // melody and soft strings." Substituting genre only where safe.
+  // Lyria recitation checks block prompts/output that could match copyrighted works.
+  // Use abstract, generative wording: unique descriptions that yield original output.
   if (genre === 'house' || genre === 'electronic') {
-    return 'A calm acoustic folk song with a gentle guitar melody and soft strings. No vocals.';
+    return 'Abstract instrumental electronic music with soft pads, subtle percussion, and atmospheric texture. No vocals, no recognizable melody.';
   }
-  return `A calm ${genre} instrumental with a gentle guitar melody and soft strings. No vocals.`;
+  return `Abstract instrumental ${genre} with soft textures and gentle rhythm. No vocals.`;
 }
