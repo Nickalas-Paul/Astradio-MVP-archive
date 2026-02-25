@@ -3,6 +3,7 @@ import type { ControlSurfacePayload } from '../explainer/contracts';
 /**
  * Build a short US English text prompt for Lyria from control-surface payload and plan.
  * Lyria expects genre, mood, instrumentation, tempo.
+ * Wording avoids recitation-check triggers: explicitly original, generic instrumentation.
  */
 export function buildLyriaPrompt(
   payload: ControlSurfacePayload,
@@ -16,5 +17,7 @@ export function buildLyriaPrompt(
   const tempo = bpm < 100 ? 'medium tempo' : bpm < 130 ? 'upbeat tempo' : 'fast tempo';
   const densityWord = density < 0.4 ? 'minimal' : density < 0.7 ? 'moderate' : 'dense';
   const mood = element === 'fire' ? 'energetic' : element === 'earth' ? 'grounded' : element === 'air' ? 'light' : 'fluid';
-  return `A ${mood} ${genre} instrumental track with ${densityWord} texture and ${tempo}. No vocals.`;
+  // Lyria recitation checks block prompts resembling copyrighted content. Use minimal,
+  // abstract wording that mirrors Google's documented example structure.
+  return `An instrumental ${genre} piece with a gentle melody and soft accompaniment. ${tempo}. No vocals.`;
 }
