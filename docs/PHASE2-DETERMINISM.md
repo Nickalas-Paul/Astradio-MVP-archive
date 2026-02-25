@@ -55,7 +55,22 @@ WEB_URL=https://your-app.vercel.app node scripts/phase2-determinism.js
 WEB_URL=http://localhost:3000 ENGINE_URL=http://localhost:4000 node scripts/phase2-determinism.js
 ```
 
-Optional: `PHASE2_RUNS=10` to run 10 compose cycles instead of 5.
+Optional: `PHASE2_RUNS=10` to run 10 compose cycles instead of 5. For protected Vercel previews, set `VERCEL_BYPASS_TOKEN`; the script sends `x-vercel-protection-bypass` on every WEB request (compose + exports) and logs only present/length, never the token value.
+
+---
+
+## LIVE evidence
+
+| Field | Value |
+|-------|--------|
+| **date** | 2026-02-24 |
+| **web_url** | `https://astradio-mvp-archive-git-beta-ui-vercel-nickalas-pauls-projects.vercel.app` |
+| **engine_url** | `https://astradio-mvp-archive.onrender.com` |
+| **N runs** | 5 |
+| **plan hash** | `006afac5f225f69363ba26de6c8cb9fb05c3e6254d47679000b252ea8e336b6b` |
+| **wav hash summary** | identical across all 5 runs: `c3af5add683dfd4054cbbb376781a82c48c6316f61ffc50aaa43cc0b5c8b24a5` (1323044 bytes each) |
+
+Phase 2 LIVE: **PASS** (plan hashes identical, section titles identical, WAV hashes identical).
 
 ---
 

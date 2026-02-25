@@ -87,7 +87,10 @@ async function downloadWav(exportId) {
 
 async function main() {
   const runs = [];
-  console.log(`Phase 2 — Determinism (N=${N}), WEB_URL=${WEB_URL}\n`);
+  const bypass = process.env.VERCEL_BYPASS_TOKEN || '';
+  const bypassPresent = bypass.trim().length > 0;
+  console.log(`Phase 2 — Determinism (N=${N}), WEB_URL=${WEB_URL}`);
+  console.log(`VERCEL_BYPASS_TOKEN: ${bypassPresent ? 'present' : 'not set'}${bypassPresent ? `, length=${bypass.length}` : ''}\n`);
 
   for (let i = 1; i <= N; i++) {
     const one = await runOneCompose(i);
