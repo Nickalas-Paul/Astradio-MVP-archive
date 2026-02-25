@@ -17,10 +17,9 @@ export function buildLyriaPrompt(
   const tempo = bpm < 100 ? 'medium tempo' : bpm < 130 ? 'upbeat tempo' : 'fast tempo';
   const densityWord = density < 0.4 ? 'minimal' : density < 0.7 ? 'moderate' : 'dense';
   const mood = element === 'fire' ? 'energetic' : element === 'earth' ? 'grounded' : element === 'air' ? 'light' : 'fluid';
-  // Lyria recitation checks block prompts/output that could match copyrighted works.
-  // Use abstract, generative wording: unique descriptions that yield original output.
+  // Use prompts from Lyria's official prompt guide (known to pass safety/recitation).
   if (genre === 'house' || genre === 'electronic') {
-    return 'Abstract instrumental electronic music with soft pads, subtle percussion, and atmospheric texture. No vocals, no recognizable melody.';
+    return 'An energetic electronic dance track with a fast tempo and a driving beat, featuring prominent synthesizers and electronic drums. High-quality production. No vocals.';
   }
-  return `Abstract instrumental ${genre} with soft textures and gentle rhythm. No vocals.`;
+  return `A calm ${genre} instrumental with a gentle melody and soft accompaniment. ${tempo}. No vocals.`;
 }
