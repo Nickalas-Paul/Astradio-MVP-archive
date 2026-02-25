@@ -259,12 +259,18 @@ export class ComposeAPI {
       let export_id: string | undefined;
       let export_meta: { provider: string; modelVersion: string; promptHash: string; payload_hash: string; duration_s: number; sha256: string } | undefined;
 
+      // Export gating signals (always present in response; no secrets)
+      type ExportErrorCode = 'export_disabled' | 'export_not_attempted' | 'storage_unavailable' | 'render_failed' | 'provider_not_configured';
+      let export_attempted = false;
+      let export_error: ExportErrorCode | null = wavExportEnabled ? null : 'export_disabled';
+
       const store = (process as any).__astradio_export_store as { get?: (k: string) => Promise<Buffer | null>; put?: (k: string, buf: Buffer, meta: IntegrityMeta) => Promise<void> } | undefined;
 
       let audioDebug: any = undefined;
       type ExportStep = 'provider' | 'render' | 'store';
       let exportStep: ExportStep = 'provider';
       if (wavExportEnabled) {
+        export_attempted = true;
         console.log('[COMPOSE_EXPORT] wavExportEnabled=', wavExportEnabled);
         try {
           const prompt = buildLyriaPrompt(payload, plan);
@@ -339,6 +345,9 @@ export class ComposeAPI {
           const err = audioError instanceof Error ? audioError : new Error(String(audioError));
           const code = (err as Error & { code?: string }).code;
           console.log('[COMPOSE_EXPORT] error step=', exportStep, 'message=', err.message, code ? 'code=' + code : '');
+          if (exportStep === 'provider') export_error = 'provider_not_configured';
+          else if (exportStep === 'render') export_error = 'render_failed';
+          else export_error = 'storage_unavailable';
           const failureClass = exportStep === 'store' ? 'C' : 'B';
           audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
           if (!(global as any).__wav_export_unavailable_logged) {
@@ -599,14 +608,24 @@ export class ComposeAPI {
           digest: hashes.audio, // Keep for backward compatibility
           latency_ms: audio.latency_ms,
           size_bytes: audio.size_bytes,
-          ...(audio_export_available && (() => {
+          // Export gating (always present; no secrets)
+          export_enabled: wavExportEnabled,
+          export_attempted,
+          export_id: export_id ?? null,
+          export_error,
+          ...((): { provider_used: string | null; provider_mode: string | null } => {
             const requested = (process.env.RENDER_PROVIDER || 'lyria').toLowerCase();
-            const used = export_meta?.provider ?? (requested === 'lyria' || requested === 'local_wav' ? getProvider().name : 'unknown');
-            return {
-              provider_used: used,
-              provider_mode: `requested=${requested}, used=${used}`
-            };
-          })())
+            if (audio_export_available && export_meta) {
+              const used = export_meta.provider;
+              return { provider_used: used, provider_mode: `requested=${requested}, used=${used}` };
+            }
+            if (audio_export_available) {
+              const used = (requested === 'lyria' || requested === 'local_wav') ? getProvider().name : 'unknown';
+              return { provider_used: used, provider_mode: `requested=${requested}, used=${used}` };
+            }
+            if (export_attempted) return { provider_used: null, provider_mode: `requested=${requested}, used=null` };
+            return { provider_used: null, provider_mode: null };
+          })()
         },
         text: {
           blocks: text.blocks,

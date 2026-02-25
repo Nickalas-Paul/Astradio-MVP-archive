@@ -123,15 +123,40 @@ async function main() {
     process.exit(1);
   }
 
-  const providerUsed = data.audio?.provider_used;
-  const providerMode = data.audio?.provider_mode;
-  const exportId = data.export_id ?? null;
+  const exportEnabled = data.audio?.export_enabled;
+  const exportAttempted = data.audio?.export_attempted;
+  const exportError = data.audio?.export_error ?? null;
+  const providerUsed = data.audio?.provider_used ?? null;
+  const providerMode = data.audio?.provider_mode ?? null;
+  const exportId = data.audio?.export_id ?? data.export_id ?? null;
 
   console.log('compose 200');
+  console.log('  audio.export_enabled:', exportEnabled);
+  console.log('  audio.export_attempted:', exportAttempted);
+  console.log('  audio.export_error:', exportError ?? 'null');
   console.log('  audio.provider_used:', providerUsed ?? '(missing)');
   console.log('  audio.provider_mode:', providerMode ?? '(missing)');
-  console.log('  export_id:', exportId ? exportId.slice(0, 20) + '...' : 'null');
+  console.log('  audio.export_id:', exportId ? exportId.slice(0, 20) + '...' : 'null');
 
+  // Classify by gating signals
+  if (exportEnabled === false) {
+    console.log('');
+    console.log('PHASE 3 STATUS: FAIL');
+    console.log('reason: export_disabled (ENABLE_WAV_EXPORT not 1 at runtime)');
+    process.exit(1);
+  }
+  if (exportEnabled === true && exportAttempted === false) {
+    console.log('');
+    console.log('PHASE 3 STATUS: FAIL');
+    console.log('reason: export_not_attempted (bug: export enabled but not attempted)');
+    process.exit(1);
+  }
+  if (exportAttempted === true && exportError != null) {
+    console.log('');
+    console.log('PHASE 3 STATUS: FAIL');
+    console.log('reason:', exportError);
+    process.exit(1);
+  }
   if (providerUsed !== 'lyria') {
     console.log('');
     console.log('PHASE 3 STATUS: FAIL');
@@ -144,30 +169,30 @@ async function main() {
     console.log('reason: audio.provider_mode must be present and indicate lyria, got:', JSON.stringify(providerMode));
     process.exit(1);
   }
+  if (!exportId) {
+    console.log('');
+    console.log('PHASE 3 STATUS: FAIL');
+    console.log('reason: export_id missing — cannot download WAV');
+    process.exit(1);
+  }
 
   let wavHash = null;
   let wavMeta = null;
   let wavBytes = 0;
-  if (exportId) {
-    try {
-      const downloadUrl = withShare(`${WEB_URL}/api/exports/${exportId}`);
-      const getRes = await fetch(downloadUrl, { headers: buildWebHeaders() });
-      if (!getRes.ok) throw new Error(`GET /api/exports/:id ${getRes.status}`);
-      const buf = Buffer.from(await getRes.arrayBuffer());
-      wavBytes = buf.length;
-      wavHash = sha256Buffer(buf);
-      wavMeta = wavHeaderMeta(buf);
-      console.log('  export download: OK,', wavBytes, 'bytes');
-      console.log('  WAV sha256:', wavHash.slice(0, 16) + '...');
-      console.log('  WAV header: sampleRate=', wavMeta.sampleRate, 'channels=', wavMeta.channels, 'duration_s=', wavMeta.duration_s);
-    } catch (e) {
-      console.log('  export download: FAIL', e.message);
-      console.log('PHASE 3 STATUS: FAIL (export download)');
-      process.exit(1);
-    }
-  } else {
-    console.log('  export_id missing — cannot download WAV');
-    console.log('PHASE 3 STATUS: FAIL (no export_id)');
+  try {
+    const downloadUrl = withShare(`${WEB_URL}/api/exports/${exportId}`);
+    const getRes = await fetch(downloadUrl, { headers: buildWebHeaders() });
+    if (!getRes.ok) throw new Error(`GET /api/exports/:id ${getRes.status}`);
+    const buf = Buffer.from(await getRes.arrayBuffer());
+    wavBytes = buf.length;
+    wavHash = sha256Buffer(buf);
+    wavMeta = wavHeaderMeta(buf);
+    console.log('  export download: OK,', wavBytes, 'bytes');
+    console.log('  WAV sha256:', wavHash.slice(0, 16) + '...');
+    console.log('  WAV header: sampleRate=', wavMeta.sampleRate, 'channels=', wavMeta.channels, 'duration_s=', wavMeta.duration_s);
+  } catch (e) {
+    console.log('  export download: FAIL', e.message);
+    console.log('PHASE 3 STATUS: FAIL (export download)');
     process.exit(1);
   }
 
