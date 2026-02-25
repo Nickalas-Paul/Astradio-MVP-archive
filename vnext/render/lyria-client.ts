@@ -50,8 +50,10 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
 
   if (!res.ok) {
     const text = await res.text();
-    let err: Error & { code?: string } = new Error(`Lyria API error: ${res.status} ${text}`);
+    // Sanitized: do not include response body (may contain tokens). Log status only.
+    let err: Error & { code?: string; statusCode?: number } = new Error(`Lyria API error: ${res.status}`);
     err.code = 'LYRIA_API_ERROR';
+    err.statusCode = res.status;
     throw err;
   }
 
