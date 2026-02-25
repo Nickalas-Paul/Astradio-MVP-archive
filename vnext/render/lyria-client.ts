@@ -38,6 +38,20 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     parameters: {},
   };
 
+  // Phase 3 observability: log top-level request keys (no bodies or secrets)
+  try {
+    const instanceKeys = Array.isArray(body.instances) && body.instances[0] ? Object.keys(body.instances[0]) : [];
+    console.log(
+      '[LYRIA_REQUEST_KEYS]',
+      JSON.stringify({
+        body_keys: Object.keys(body),
+        instance_keys: instanceKeys,
+      })
+    );
+  } catch {
+    // best-effort only
+  }
+
   const token = await getAccessToken();
   const res = await fetch(url, {
     method: 'POST',
@@ -50,10 +64,39 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
 
   if (!res.ok) {
     const text = await res.text();
-    // Sanitized: do not include response body (may contain tokens). Log status only.
-    let err: Error & { code?: string; statusCode?: number } = new Error(`Lyria API error: ${res.status}`);
+    const status = res.status;
+
+    // Phase 3 observability: sanitized error body for diagnostics (no tokens, no request bodies)
+    let meta: {
+      status: number;
+      error_message?: string;
+      error_status?: string;
+      error_details?: unknown;
+    } = { status };
+    try {
+      const parsed = JSON.parse(text);
+      const errObj = (parsed as any).error || parsed;
+      if (typeof errObj.message === 'string') {
+        meta.error_message = errObj.message.slice(0, 400);
+      }
+      if (typeof errObj.status === 'string') {
+        meta.error_status = errObj.status;
+      }
+      if (errObj.details !== undefined) {
+        meta.error_details = errObj.details;
+      }
+    } catch {
+      // leave meta as-is; raw text may contain sensitive info so we don't log it
+    }
+    if (status === 400) {
+      console.warn('[LYRIA_400]', JSON.stringify(meta));
+    } else {
+      console.warn('[LYRIA_ERROR]', JSON.stringify(meta));
+    }
+
+    let err: Error & { code?: string; statusCode?: number } = new Error(`Lyria API error: ${status}`);
     err.code = 'LYRIA_API_ERROR';
-    err.statusCode = res.status;
+    err.statusCode = status;
     throw err;
   }
 

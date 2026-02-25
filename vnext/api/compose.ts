@@ -68,10 +68,26 @@ export class ComposeAPI {
       // Generate idempotency key from request + model version
       const requestKey = this.sha256(JSON.stringify(request) + this.runtimeModel);
       
-      // Check cache for idempotent response
+      // Check cache for idempotent response, but never reuse cached exports that failed.
       if (this.compositionCache.has(requestKey)) {
-        console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
-        return this.compositionCache.get(requestKey);
+        const cached = this.compositionCache.get(requestKey);
+        const cachedAudio = cached && cached.audio;
+        if (
+          cachedAudio &&
+          cachedAudio.export_enabled === true &&
+          cachedAudio.export_attempted === true &&
+          cachedAudio.export_error != null
+        ) {
+          console.log(
+            '[COMPOSE] Ignoring cached failed export for key:',
+            requestKey.slice(0, 8),
+            'export_error=',
+            cachedAudio.export_error
+          );
+        } else {
+          console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
+          return cached;
+        }
       }
       
       // Generate control-surface payload based on mode
@@ -684,9 +700,25 @@ export class ComposeAPI {
         await this.storeVizArtifact(hashes.viz, viz);
       }
 
-      // Cache the response for idempotency
-      this.compositionCache.set(requestKey, response);
-      console.log('[COMPOSE] Cached composition for key:', requestKey.slice(0, 8));
+      // Cache the response for idempotency, but do not cache failed exports so fixes can take effect.
+      const audioMeta = (response as any).audio || {};
+      const shouldCache =
+        !audioMeta ||
+        audioMeta.export_enabled !== true ||
+        audioMeta.export_attempted !== true ||
+        audioMeta.export_error == null;
+      if (shouldCache) {
+        this.compositionCache.set(requestKey, response);
+        console.log('[COMPOSE] Cached composition for key:', requestKey.slice(0, 8));
+      } else {
+        console.log(
+          '[COMPOSE] Skipping cache for key:',
+          requestKey.slice(0, 8),
+          'due to failed export (export_error=',
+          audioMeta.export_error,
+          ')'
+        );
+      }
       
       return response;
       
