@@ -113,3 +113,28 @@ Confirm each compose response has `audio.provider_used === "lyria"` (and optiona
 - **Quality:** Use the commands and checklist above to generate and evaluate 10 diverse tracks and record results.
 
 No UI changes or community work in this phase.
+
+---
+
+## LIVE evidence (Phase 3 verification run)
+
+| Field | Value |
+|-------|--------|
+| **date** | 2026-02-25 |
+| **web_url** | `https://astradio-mvp-archive-git-beta-ui-vercel-nickalas-pauls-projects.vercel.app` |
+| **engine_url** | `https://astradio-mvp-archive.onrender.com` |
+| **engine /health** | `{"status":"ok","commit":"3cc68df46c2f85f87cfc13ab91e370dd94860f51"}` |
+| **engine commit** | `3cc68df` (≥ Phase 3 commit) |
+| **harness result** | FAIL: `audio.provider_used` and `audio.provider_mode` missing; `export_id` null |
+| **cause** | Compose export path not producing audio on LIVE — response 200 but no export. |
+
+**Required Render env for Phase 3 PASS:** Ensure the following are set on the Render service (no values here):
+
+- `ENABLE_WAV_EXPORT=1`
+- `RENDER_PROVIDER=lyria`
+- `GOOGLE_CLOUD_PROJECT`
+- `GOOGLE_SERVICE_ACCOUNT_JSON` (or equivalent ADC)
+- `VERTEX_AI_LOCATION` (or rely on default)
+- Any export storage vars required for GET /api/exports/:id (e.g. `GCS_BUCKET` or disk)
+
+Once set, re-run the Phase 3 harness; expect `provider_used === "lyria"`, `export_id` present, WAV download and hash, and `PHASE 3 STATUS: PASS`.
