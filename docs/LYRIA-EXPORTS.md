@@ -12,9 +12,8 @@ Set these on Render (or in `.env`) for Lyria + GCS-backed exports:
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes (on Render) | **Full JSON key** of the service account (single line or minified). On boot the app writes it to a temp file and sets `GOOGLE_APPLICATION_CREDENTIALS` so ADC works. No `gcloud` login. |
 | `GCS_BUCKET` | Yes (for durable exports on Render) | GCS bucket name. WAVs stored at `{GCS_PREFIX}{exportKey}.wav`. |
 | `GCS_PREFIX` | No | Object prefix; default `exports/`. |
-| `RENDER_PROVIDER` | No | `lyria` (default) or `local_wav`. |
+| `RENDER_PROVIDER` | No | `lyria` (default) or `local_wav`. Fail-closed: Lyria requested but unavailable → error, no fallback. |
 | `ENABLE_WAV_EXPORT` | No | Set to `1` to enable WAV in compose and export id in responses. |
-| `ALLOW_RENDER_FALLBACK` | No | Set to `1` to fall back to `local_wav` when Lyria fails. |
 
 **Local dev (no GCS):** Use `RENDER_PROVIDER=local_wav` and omit `GCS_BUCKET`; exports go to disk (ephemeral). For Lyria locally, run `gcloud auth application-default login` and set `GOOGLE_CLOUD_PROJECT` (or use `GOOGLE_SERVICE_ACCOUNT_JSON`).
 

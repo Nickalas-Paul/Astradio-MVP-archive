@@ -598,7 +598,15 @@ export class ComposeAPI {
           sha256: audio.sha256,
           digest: hashes.audio, // Keep for backward compatibility
           latency_ms: audio.latency_ms,
-          size_bytes: audio.size_bytes
+          size_bytes: audio.size_bytes,
+          ...(audio_export_available && (() => {
+            const requested = (process.env.RENDER_PROVIDER || 'lyria').toLowerCase();
+            const used = export_meta?.provider ?? (requested === 'lyria' || requested === 'local_wav' ? getProvider().name : 'unknown');
+            return {
+              provider_used: used,
+              provider_mode: `requested=${requested}, used=${used}`
+            };
+          })())
         },
         text: {
           blocks: text.blocks,

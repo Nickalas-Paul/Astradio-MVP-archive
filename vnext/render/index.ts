@@ -1,7 +1,7 @@
 /**
- * Render provider selection: Lyria (primary) or local_wav (fallback).
+ * Render provider selection: Lyria (primary) or local_wav (explicit only).
  * RENDER_PROVIDER=lyria|local_wav (default lyria in production).
- * If Lyria fails or keys missing, fail closed unless ALLOW_RENDER_FALLBACK=1.
+ * Fail-closed: Lyria requested but credentials missing or Lyria failure → error, no silent fallback.
  */
 
 import type { RenderProvider, RenderInput, RenderResult } from './types';
@@ -9,11 +9,8 @@ import { lyriaProvider } from './lyria-provider';
 import { localWavProvider } from './local-wav-provider';
 
 const RAW_PROVIDER = (process.env.RENDER_PROVIDER || 'lyria').toLowerCase();
-const hasLyriaCreds = !!process.env.GOOGLE_CLOUD_PROJECT;
-const effectiveRaw = RAW_PROVIDER === 'lyria' && !hasLyriaCreds ? 'local_wav' : RAW_PROVIDER;
 const PROVIDER: 'lyria' | 'local_wav' | null =
-  effectiveRaw === 'lyria' || effectiveRaw === 'local_wav' ? effectiveRaw : null;
-const ALLOW_FALLBACK = process.env.ALLOW_RENDER_FALLBACK === '1';
+  RAW_PROVIDER === 'lyria' || RAW_PROVIDER === 'local_wav' ? RAW_PROVIDER : null;
 
 function assertValidProvider(provider: string | null): asserts provider is 'lyria' | 'local_wav' {
   if (provider !== 'lyria' && provider !== 'local_wav') {
@@ -31,23 +28,11 @@ function getProvider(): RenderProvider {
 }
 
 /**
- * Render audio: cache layer should call this. Provider is selected exactly once
- * from RENDER_PROVIDER. On Lyria failure, fall back to local_wav only if
- * ALLOW_RENDER_FALLBACK=1.
+ * Render audio: cache layer should call this. Provider is selected from RENDER_PROVIDER.
+ * No fallback: if Lyria is requested but unavailable (missing creds or API failure), throws.
  */
 export async function renderWithProvider(input: RenderInput): Promise<RenderResult> {
   const provider = getProvider();
-  if (provider.name === 'lyria') {
-    try {
-      return await provider.render(input);
-    } catch (err) {
-      if (!ALLOW_FALLBACK) throw err;
-      if (!input.plan || !input.payload) {
-        throw new Error('Lyria failed and fallback requires plan and payload');
-      }
-      return localWavProvider.render(input);
-    }
-  }
   return provider.render(input);
 }
 
