@@ -104,24 +104,45 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     throw err;
   }
 
-  const data = (await res.json()) as {
-    predictions?: Array<{ audioContent?: string; mimeType?: string }>;
-    model?: string;
-    deployedModelId?: string;
-  };
-  const pred = data.predictions?.[0];
-  if (!pred?.audioContent) {
-    throw new Error('Lyria response missing predictions[0].audioContent');
+  const data = (await res.json()) as Record<string, unknown>;
+  const pred = Array.isArray(data.predictions) ? data.predictions[0] : undefined;
+  const predObj = pred && typeof pred === 'object' ? (pred as Record<string, unknown>) : undefined;
+
+  // Extract base64 audio from whichever field is present (priority order)
+  let base64Audio: string | undefined;
+  if (predObj) {
+    if (typeof predObj.audioContent === 'string') base64Audio = predObj.audioContent;
+    else if (typeof predObj.bytesBase64Encoded === 'string') base64Audio = predObj.bytesBase64Encoded;
+    else if (typeof predObj.audio === 'string') base64Audio = predObj.audio;
   }
-  const wavBuffer = Buffer.from(pred.audioContent, 'base64');
+
+  if (!base64Audio) {
+    // Safe response-shape logging (no payload, no base64, no credentials)
+    const topKeys = Object.keys(data);
+    const predKeys = predObj ? Object.keys(predObj) : [];
+    const errInfo: Record<string, unknown> = {
+      response_top_keys: topKeys,
+      predictions_0_keys: predKeys,
+    };
+    const errField = data.error as Record<string, unknown> | undefined;
+    if (errField && typeof errField === 'object') {
+      errInfo.error_status = errField.status;
+      const msg = typeof errField.message === 'string' ? errField.message : String(errField.message ?? '');
+      errInfo.error_message = msg.slice(0, 300);
+    }
+    console.warn('[LYRIA_RESPONSE_SHAPE]', JSON.stringify(errInfo));
+    throw new Error(`Lyria response missing audio field. prediction keys: [${predKeys.join(', ')}]`);
+  }
+
+  const wavBuffer = Buffer.from(base64Audio, 'base64');
   const crypto = require('crypto') as typeof import('crypto');
   const sha256 = crypto.createHash('sha256').update(wavBuffer).digest('hex');
   return {
     wavBuffer,
     sha256,
     size_bytes: wavBuffer.length,
-    model: data.model || LYRIA_MODEL,
-    requestId: data.deployedModelId,
+    model: (data.model as string) || LYRIA_MODEL,
+    requestId: data.deployedModelId as string | undefined,
   };
 }
 
