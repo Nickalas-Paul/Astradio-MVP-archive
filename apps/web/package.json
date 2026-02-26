@@ -22,8 +22,7 @@
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "three": "^0.160.0",
-    "@react-three/drei": "^9.92.0",
-    "@react-three/fiber": "^8.15.0"
+    "@react-three/fiber": "8.15.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
@@ -31,7 +30,8 @@
     "@types/react-dom": "^18.2.0",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "@types/three": "^0.160.0"
   },
   "engines": {
     "node": ">=20.12.2 <21"
