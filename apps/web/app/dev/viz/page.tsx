@@ -1,9 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { buildVizPayload } from '@/viz/payload';
 import type { VizPayload } from '@/viz/types';
-import { VizScene } from '@/viz/VizScene';
+
+const VizScene = dynamic(() => import('@/viz/VizScene').then((m) => ({ default: m.VizScene })), {
+  ssr: false,
+  loading: () => <div className="h-96 bg-zinc-900 rounded-lg flex items-center justify-center text-zinc-500">Loading viz…</div>,
+});
 
 const FIXED_CHART = {
   date: '1990-01-01',
@@ -88,6 +93,8 @@ export default function DevVizPage() {
         if (cancelled) return;
         setPayload(vizPayload);
         setChecksum(cs);
+        const compose_hash = hashes.plan_sha256 ?? composeData.artifacts?.payload_hash ?? hashes.chartHash ?? null;
+        console.log('[dev/viz]', { checksum: cs, seed, compose_hash });
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : String(e));

@@ -1,6 +1,7 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+/// <reference types="@react-three/fiber" />
+import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { VizPayload } from './types';
@@ -13,19 +14,15 @@ function lonToXY(lon: number, r: number): [number, number] {
 }
 
 function LineFromPoints({ points, color }: { points: [number, number, number][]; color: string }) {
-  const geoRef = useRef<THREE.BufferGeometry>(null);
-  useLayoutEffect(() => {
-    if (geoRef.current) {
-      const vecs = points.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
-      geoRef.current.setFromPoints(vecs);
-    }
-  }, [points]);
-  return (
-    <line>
-      <bufferGeometry ref={geoRef} />
-      <lineBasicMaterial color={color} />
-    </line>
-  );
+  const line = useMemo(() => {
+    const geo = new THREE.BufferGeometry().setFromPoints(
+      points.map((p) => new THREE.Vector3(p[0], p[1], p[2]))
+    );
+    return new THREE.Line(geo, new THREE.LineBasicMaterial({ color }));
+  }, [points, color]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Prim = 'primitive' as any;
+  return <Prim object={line} />;
 }
 
 function WheelRing() {
