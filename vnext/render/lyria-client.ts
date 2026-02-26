@@ -36,6 +36,7 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
   } else {
     instance.negative_prompt = 'vocals';
   }
+  // Lyria outputs 30s per clip. Using seed yields 1 sample (sample_count cannot be used with seed).
   const body = {
     instances: [instance],
     parameters: {},

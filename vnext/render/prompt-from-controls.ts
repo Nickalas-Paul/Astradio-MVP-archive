@@ -1,25 +1,68 @@
 import type { ControlSurfacePayload } from '../explainer/contracts';
+import type { Plan } from '../contracts';
+
+const BASE_SAFE_PROMPT =
+  'Generate a 30 second instrumental track. Focus on original sound design, abstract rhythm, and evolving texture. No vocals, no spoken word, no lyrics. Avoid recognizable melodies or famous motifs. Keep the composition clearly original.';
+
+function tempoBucket(bpm: number): string {
+  if (bpm < 90) return 'slow-tempo';
+  if (bpm < 120) return 'medium-tempo';
+  return 'fast-tempo';
+}
+
+function densityBucket(d: number): string {
+  if (d < 0.4) return 'sparse';
+  if (d < 0.7) return 'moderate-density';
+  return 'dense';
+}
+
+function brightnessBucket(t: number): string {
+  if (t < 0.3) return 'dark';
+  if (t < 0.7) return 'mid-brightness';
+  return 'bright';
+}
+
+function tensionBucket(t: number): string {
+  if (t < 0.33) return 'low-tension';
+  if (t < 0.66) return 'medium-tension';
+  return 'high-tension';
+}
+
+function emphasisBucket(motifRate: number, rhythmTemplateId: number): string {
+  if (motifRate > 0.6) return 'melodic';
+  if (rhythmTemplateId >= 4) return 'rhythmic';
+  return 'balanced';
+}
+
+function genreFamily(g?: string): string {
+  const x = (g || 'house').toLowerCase();
+  if (x === 'classical') return 'orchestral';
+  if (x === 'jazz') return 'jazz';
+  if (x === 'ambient') return 'ambient';
+  return 'electronic';
+}
 
 /**
- * Build a short US English text prompt for Lyria from control-surface payload and plan.
- * Lyria expects genre, mood, instrumentation, tempo.
- * Wording avoids recitation-check triggers: explicitly original, generic instrumentation.
+ * Build Lyria prompt: safe base + up to 6 deterministic tags to avoid recitation blocks.
  */
 export function buildLyriaPrompt(
   payload: ControlSurfacePayload,
-  plan?: { bpm?: number; key?: string }
+  plan?: Plan | { bpm?: number; key?: string }
 ): string {
-  const genre = payload.genre || 'house';
   const tempoNorm = typeof payload.tempo_norm === 'number' ? payload.tempo_norm : 0.5;
   const density = typeof payload.density_level === 'number' ? payload.density_level : 0.5;
-  const element = payload.element_dominance || 'fire';
-  const bpm = plan?.bpm ?? Math.round(90 + tempoNorm * 60);
-  const tempo = bpm < 100 ? 'medium tempo' : bpm < 130 ? 'upbeat tempo' : 'fast tempo';
-  const densityWord = density < 0.4 ? 'minimal' : density < 0.7 ? 'moderate' : 'dense';
-  const mood = element === 'fire' ? 'energetic' : element === 'earth' ? 'grounded' : element === 'air' ? 'light' : 'fluid';
-  // Use prompts from Lyria's official prompt guide (known to pass safety/recitation).
-  if (genre === 'house' || genre === 'electronic') {
-    return 'An energetic electronic dance track with a fast tempo and a driving beat, featuring prominent synthesizers and electronic drums. High-quality production. No vocals.';
-  }
-  return `A calm ${genre} instrumental with a gentle melody and soft accompaniment. ${tempo}. No vocals.`;
+  const tension = typeof payload.aspect_tension === 'number' ? payload.aspect_tension : 0.5;
+  const motifRate = typeof payload.motif_rate === 'number' ? payload.motif_rate : 0.5;
+  const rhythmTemplateId = typeof payload.rhythm_template_id === 'number' ? payload.rhythm_template_id : 0;
+
+  const bpm = plan && typeof (plan as Plan).bpm === 'number' ? (plan as Plan).bpm : Math.round(90 + tempoNorm * 60);
+  const tags: string[] = [
+    tempoBucket(bpm),
+    densityBucket(density),
+    brightnessBucket(tension),
+    tensionBucket(tension),
+    emphasisBucket(motifRate, rhythmTemplateId),
+    genreFamily(payload.genre),
+  ];
+  return `${BASE_SAFE_PROMPT} Tags: ${tags.join(', ')}.`;
 }

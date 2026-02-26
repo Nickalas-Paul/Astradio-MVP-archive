@@ -289,8 +289,10 @@ export class ComposeAPI {
         export_attempted = true;
         console.log('[COMPOSE_EXPORT] wavExportEnabled=', wavExportEnabled);
         try {
+          const planHash = computePlanHash(plan);
           const prompt = buildLyriaPrompt(payload, plan);
           const promptHash = hashPrompt(prompt);
+          const lyriaSeed = planHash + ':phase3';
           exportStep = 'provider';
           const provider = getProvider();
           console.log('[COMPOSE_EXPORT] provider=', provider.name);
@@ -323,7 +325,7 @@ export class ComposeAPI {
             exportStep = 'render';
             const result = await renderWithProvider({
               prompt,
-              seed: payload.hash,
+              seed: lyriaSeed,
               duration_s: DEFAULT_DURATION_S,
               plan,
               payload
