@@ -52,6 +52,8 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
         instance_keys: instanceKeys,
       })
     );
+    // Phase 3.1: duration contract — Lyria returns ~30–33s per clip (fixed by API, no duration param)
+    console.log('[LYRIA_PARAMS]', JSON.stringify({ duration_expected_s: 30, candidates: 1 }));
   } catch {
     // best-effort only
   }
@@ -134,6 +136,7 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     throw new Error(`Lyria response missing audio field. prediction keys: [${predKeys.join(', ')}]`);
   }
 
+  // No post-processing: Lyria output is used as-is (no concatenation, padding, or re-encode)
   const wavBuffer = Buffer.from(base64Audio, 'base64');
   const crypto = require('crypto') as typeof import('crypto');
   const sha256 = crypto.createHash('sha256').update(wavBuffer).digest('hex');

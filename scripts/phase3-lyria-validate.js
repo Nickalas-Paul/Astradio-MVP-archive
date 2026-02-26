@@ -49,32 +49,56 @@ function sha256Buffer(buf) {
 }
 
 /**
- * Parse WAV header (minimal): sample rate, channels, duration if possible.
- * Assumes PCM, 16-bit; data chunk follows fmt.
+ * Parse WAV header: sample rate, channels, bitsPerSample, data chunk, duration.
+ * Uses byteRate from fmt chunk for duration (most reliable).
+ * Standard fmt layout: offset 10=channels, 12=sampleRate, 16=byteRate, 22=bitsPerSample.
  */
 function wavHeaderMeta(buf) {
-  const out = { sampleRate: null, channels: null, duration_s: null, valid: false };
+  const out = {
+    sampleRate: null,
+    channels: null,
+    bitsPerSample: null,
+    byteRate: null,
+    dataChunkSize: null,
+    duration_s: null,
+    valid: false,
+  };
   if (!buf || buf.length < 44) return out;
   if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') return out;
   const fmtOffset = buf.indexOf(Buffer.from('fmt ', 'ascii'));
-  if (fmtOffset < 0 || buf.length < fmtOffset + 16) return out;
+  if (fmtOffset < 0 || buf.length < fmtOffset + 24) return out;
   const numChannels = buf.readUInt16LE(fmtOffset + 10);
   const sampleRate = buf.readUInt32LE(fmtOffset + 12);
+  const byteRate = buf.readUInt32LE(fmtOffset + 16);
   const bitsPerSample = buf.readUInt16LE(fmtOffset + 22) || 16;
-  const dataOffset = buf.indexOf(Buffer.from('data', 'ascii'));
-  if (dataOffset < 0 || buf.length < dataOffset + 8) {
-    out.sampleRate = sampleRate;
-    out.channels = numChannels;
-    out.valid = true;
-    return out;
+
+  // Walk RIFF chunks to find "data" (avoid false match inside LIST/metadata)
+  let pos = 12;
+  let dataSize = null;
+  while (pos + 8 <= buf.length) {
+    const chunkId = buf.toString('ascii', pos, pos + 4);
+    const chunkLen = buf.readUInt32LE(pos + 4);
+    if (chunkId === 'data') {
+      dataSize = chunkLen;
+      break;
+    }
+    pos += 8 + chunkLen;
+    if (chunkLen & 1) pos += 1; // pad to even
   }
-  const dataSize = buf.readUInt32LE(dataOffset + 4);
-  const bytesPerSample = bitsPerSample / 8;
-  const duration_s = dataSize / (sampleRate * numChannels * bytesPerSample);
+
   out.sampleRate = sampleRate;
   out.channels = numChannels;
-  out.duration_s = Math.round(duration_s * 100) / 100;
+  out.bitsPerSample = bitsPerSample;
+  out.byteRate = byteRate;
+  out.dataChunkSize = dataSize;
   out.valid = true;
+
+  if (dataSize != null && byteRate > 0) {
+    out.duration_s = Math.round((dataSize / byteRate) * 100) / 100;
+  } else if (dataSize != null && sampleRate > 0 && numChannels > 0 && bitsPerSample >= 8) {
+    const bytesPerSample = bitsPerSample / 8;
+    out.duration_s = Math.round((dataSize / (sampleRate * numChannels * bytesPerSample)) * 100) / 100;
+  }
   return out;
 }
 
@@ -176,6 +200,10 @@ async function main() {
     process.exit(1);
   }
 
+  // Duration contract: Lyria returns ~30–33s per clip; gate 29–35s
+  const DURATION_MIN = 29;
+  const DURATION_MAX = 35;
+
   let wavHash = null;
   let wavMeta = null;
   let wavBytes = 0;
@@ -189,10 +217,38 @@ async function main() {
     wavMeta = wavHeaderMeta(buf);
     console.log('  export download: OK,', wavBytes, 'bytes');
     console.log('  WAV sha256:', wavHash.slice(0, 16) + '...');
-    console.log('  WAV header: sampleRate=', wavMeta.sampleRate, 'channels=', wavMeta.channels, 'duration_s=', wavMeta.duration_s);
+    console.log(
+      '  WAV parsed: sampleRate=',
+      wavMeta.sampleRate,
+      'channels=',
+      wavMeta.channels,
+      'bitsPerSample=',
+      wavMeta.bitsPerSample,
+      'byteRate=',
+      wavMeta.byteRate,
+      'dataChunkSize=',
+      wavMeta.dataChunkSize,
+      'duration_s=',
+      wavMeta.duration_s
+    );
   } catch (e) {
     console.log('  export download: FAIL', e.message);
     console.log('PHASE 3 STATUS: FAIL (export download)');
+    process.exit(1);
+  }
+
+  if (wavMeta.duration_s == null || wavMeta.duration_s < DURATION_MIN || wavMeta.duration_s > DURATION_MAX) {
+    console.log('');
+    console.log('PHASE 3 STATUS: FAIL');
+    console.log(
+      'reason: WAV duration_s=',
+      wavMeta.duration_s,
+      'outside expected range [',
+      DURATION_MIN,
+      '-',
+      DURATION_MAX,
+      '] (Lyria ~30–33s)'
+    );
     process.exit(1);
   }
 
@@ -231,6 +287,8 @@ async function main() {
   console.log('  WAV bytes:', wavBytes);
   console.log('  WAV sampleRate:', wavMeta?.sampleRate ?? 'n/a');
   console.log('  WAV channels:', wavMeta?.channels ?? 'n/a');
+  console.log('  WAV bitsPerSample:', wavMeta?.bitsPerSample ?? 'n/a');
+  console.log('  WAV dataChunkSize:', wavMeta?.dataChunkSize ?? 'n/a');
   console.log('  WAV duration_s:', wavMeta?.duration_s ?? 'n/a');
   console.log('  Fail-closed: no silent fallback in render/index.ts');
   console.log('=====================================');
