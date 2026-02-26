@@ -33,8 +33,6 @@ import {
   readIntegrity,
   type IntegrityMeta,
 } from '../render/export-cache';
-// import { vizEngine, VizFeatures, AudioMeta } from '../../src/core/viz/engine';
-// import { isFeatureEnabled } from '../../config/flags';
 
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
@@ -383,29 +381,6 @@ export class ComposeAPI {
         }
       }
 
-      // Generate viz payload when VNEXT_VIZ=1 (feature-flagged)
-      let viz: import('../viz/viz-payload').VizPayload | null = null;
-      if (process.env.VNEXT_VIZ === '1') {
-        try {
-          const { buildVizPayload } = await import('../viz/viz-payload');
-          viz = buildVizPayload({
-            plan,
-            payload: {
-              element_dominance: payload.element_dominance,
-              arc_shape: payload.arc_shape,
-              density_level: payload.density_level,
-              tempo_norm: payload.tempo_norm,
-              aspect_tension: payload.aspect_tension,
-            },
-            seed: payload.hash,
-          });
-        } catch (vizErr) {
-          if (process.env.DEBUG_VIZ === '1') {
-            console.warn('[COMPOSE] Viz payload failed:', vizErr instanceof Error ? vizErr.message : vizErr);
-          }
-        }
-      }
-
       const targetLengthSec = DEFAULT_DURATION_S;
       
       const endTime = process.hrtime.bigint();
@@ -500,14 +475,13 @@ export class ComposeAPI {
         meta: explanationMeta
       };
 
-      // Hashes for control, audio, explanation, viz, plan (deterministic)
+      // Hashes for control, audio, explanation, plan (deterministic)
       const controlHash = 'sha256:' + this.sha256(JSON.stringify(payload));
       const planHash = computePlanHash(plan);
       const hashes = {
         control: controlHash,
         audio: audio.sha256, // Use actual audio SHA256 from renderer
         explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
-        viz: viz ? 'sha256:' + this.sha256(JSON.stringify(viz)) : null,
         plan_sha256: planHash // Always include plan hash
       };
 
@@ -651,7 +625,6 @@ export class ComposeAPI {
         },
         // Phase-6 Spec v1.1 surface with shared FeatureEncoder provenance
         explanation,
-        viz: viz ? { ...viz, digest: hashes.viz } : null,
         hashes,
         artifacts: {
           model: '084c92dca9af2f09',
@@ -679,7 +652,6 @@ export class ComposeAPI {
             modelVersions: {
               audio: this.runtimeModel,
               text: 'v1.1',
-              viz: null,
               matching: 'v1.0'
             },
             houseSystem: 'placidus',
@@ -696,11 +668,6 @@ export class ComposeAPI {
         ...(shouldIncludePlan && { plan }),
         ...(audioDebug !== undefined && { audio_debug: audioDebug })
       } as any;
-      
-      // Store viz.json with CDN headers if viz payload exists
-      if (viz && hashes.viz) {
-        await this.storeVizArtifact(hashes.viz, viz);
-      }
 
       // Cache the response for idempotency, but do not cache failed exports so fixes can take effect.
       const audioMeta = (response as any).audio || {};
@@ -858,35 +825,6 @@ export class ComposeAPI {
         bullets: s.bullets
       }))
     };
-  }
-
-  /**
-   * Store viz artifact to S3 with CDN headers
-   */
-  private async storeVizArtifact(hash: string, payload: any): Promise<void> {
-    try {
-      const { uploadFile } = require('../../lib/storage');
-      const key = `viz/${hash}.json`;
-      // Use minified JSON for both digest computation and storage to ensure alignment
-      const jsonString = JSON.stringify(payload);
-      const buffer = Buffer.from(jsonString);
-      
-      await uploadFile(
-        key, 
-        buffer, 
-        'application/json; charset=utf-8', 
-        {
-          'x-amz-meta-digest': hash,
-          'x-amz-meta-viz-version': payload.vizVersion || '1.0'
-        },
-        'public, max-age=31536000, immutable'
-      );
-      
-      console.log(`[COMPOSE] Stored viz artifact: ${key}`);
-    } catch (error) {
-      console.error('[COMPOSE] Failed to store viz artifact:', error);
-      // Don't throw - composition can continue without viz storage
-    }
   }
 
   /**

@@ -137,7 +137,6 @@ export interface ComposeResponse {
     control: string;
     audio: string;
     explanation: string;
-    viz: string | null;
     plan_sha256: string; // Always present
     midi_sha256?: string; // Present when MIDI is included
   } & { [key: string]: string | null | undefined }; // Allow dynamic hash fields

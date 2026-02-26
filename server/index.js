@@ -2206,7 +2206,6 @@ const server = app.listen(PORT, HOST, async () => {
     console.log(`Vector audition system: enabled`);
     // Beta flags (visible in Render/deploy logs)
     const betaFlags = {
-      VNEXT_VIZ: process.env.VNEXT_VIZ === '1' ? 'on (compose returns viz)' : 'off',
       VNEXT_OVERLAY_EXPLAINSPEC: process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1' ? 'on (overlay uses ExplainSpec)' : 'off',
       VNEXT_MATCHES_MOCK: process.env.VNEXT_MATCHES_MOCK === '1' ? 'on (matches mock)' : 'off (real vectors)',
     };
