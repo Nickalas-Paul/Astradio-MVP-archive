@@ -12,6 +12,7 @@ import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import type { RelationshipMode } from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
+import { populateChartVector } from './vector-cache';
 
 const express = require('express') as typeof import('express');
 const RELATIONSHIP_MODES: RelationshipMode[] = ['friends', 'rivals', 'lovers', 'mentor', 'collaborator', 'neutral'];
@@ -137,6 +138,11 @@ export function createCompatRouter(): import('express').Router {
         await storage.setUserPrimaryChart(user.id, defaultChart.id);
         primaryChart = defaultChart;
       }
+      if (primaryChart && process.env.POSTGRES_URL) {
+        populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
+          console.warn('[compat] vector populate after profile create:', err?.message);
+        });
+      }
       return res.status(201).json({
         user: { id: user.id, displayName: user.displayName, handle: user.handle },
         primaryChart: primaryChart ? { id: primaryChart.id, label: primaryChart.label, date: primaryChart.date, time: primaryChart.time, lat: primaryChart.lat, lon: primaryChart.lon, timezone: primaryChart.timezone } : null,
@@ -185,6 +191,12 @@ export function createCompatRouter(): import('express').Router {
         timezone: timezone || undefined,
         snapshotHash: snapshotHash || undefined
       });
+      // Phase 4: populate stored vector when Postgres available (single write path)
+      if (process.env.POSTGRES_URL) {
+        populateChartVector(chart.id, chart.snapshotHash).catch((err) => {
+          console.warn('[compat] vector populate after chart create:', err?.message);
+        });
+      }
       return res.status(201).json(chart);
     } catch (e: any) {
       console.error('[compat] POST /charts', e);
