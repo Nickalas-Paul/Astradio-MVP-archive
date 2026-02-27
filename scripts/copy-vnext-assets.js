@@ -13,6 +13,7 @@ const ROOT = path.resolve(__dirname, '..');
 const ASSETS = [
   // Runtime loads from dist/vnext/vnext/ (server vnextRoot)
   { src: 'vnext/explainer/mapping-tables-v1.json', dst: 'dist/vnext/vnext/explainer/mapping-tables-v1.json' },
+  { src: 'vnext/relational/config/intent-profiles.json', dst: 'dist/vnext/vnext/relational/config/intent-profiles.json' },
 ];
 
 for (const { src, dst } of ASSETS) {

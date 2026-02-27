@@ -1,0 +1,86 @@
+[
+  {
+    "id": "intent_romantic_v1",
+    "slug": "romantic",
+    "label": "Romantic",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.4,
+      "elemental": 0.25,
+      "tension": 0.15,
+      "preference": 0.2
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  },
+  {
+    "id": "intent_friendship_v1",
+    "slug": "friendship",
+    "label": "Friendship",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.35,
+      "elemental": 0.2,
+      "tension": 0.2,
+      "preference": 0.25
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  },
+  {
+    "id": "intent_creative_collaboration_v1",
+    "slug": "creative_collaboration",
+    "label": "Creative Collaboration",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.3,
+      "elemental": 0.25,
+      "tension": 0.25,
+      "preference": 0.2
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  },
+  {
+    "id": "intent_growth_mirror_v1",
+    "slug": "growth_mirror",
+    "label": "Growth Mirror",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.3,
+      "elemental": 0.2,
+      "tension": 0.35,
+      "preference": 0.15
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  },
+  {
+    "id": "intent_oppositional_catalyst_v1",
+    "slug": "oppositional_catalyst",
+    "label": "Oppositional Catalyst",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.25,
+      "elemental": 0.2,
+      "tension": 0.4,
+      "preference": 0.15
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  },
+  {
+    "id": "intent_study_partner_v1",
+    "slug": "study_partner",
+    "label": "Study Partner",
+    "version": "1.0.0",
+    "algorithm_version": "compat_v1",
+    "facet_weights": {
+      "overall": 0.35,
+      "elemental": 0.25,
+      "tension": 0.2,
+      "preference": 0.2
+    },
+    "tie_break_rule": "score_desc_vectorhash_asc_chartid_asc"
+  }
+]
