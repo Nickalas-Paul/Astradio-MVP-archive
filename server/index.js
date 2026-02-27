@@ -23,6 +23,13 @@ if (process.env.GCS_BUCKET) {
   console.log('[EXPORTS] Using local disk (ephemeral on Render)');
 }
 
+// Phase 4 runtime diagnostics: DB status visibility (no feature flags, no fallbacks)
+if (process.env.POSTGRES_URL) {
+  console.log('[DB] Enabled: migrations expected applied');
+} else {
+  console.warn('[DB] Disabled: community + vectors will fail-closed');
+}
+
 // vNext compiled handlers (do NOT import .ts directly) — optional for dev boot
 const { optionalRequire, noopMiddleware, noopRouter } = require('../lib/opt/optional');
 
@@ -2196,10 +2203,21 @@ if (HAS_SPA) {
   });
 }
 
-// Start server
-const server = app.listen(PORT, HOST, async () => {
+// Start server (Phase 4: schema check first when POSTGRES_URL set)
+async function startServer() {
+  if (process.env.POSTGRES_URL) {
+    try {
+      const { verifyPhase4Schema } = require('../lib/phase4-schema-check');
+      await verifyPhase4Schema();
+    } catch (e) {
+      console.error('[PHASE4_SCHEMA]', e.message);
+      process.exit(1);
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const server = app.listen(PORT, HOST, async () => {
   try {
-    console.log(`🚀 Engine listening on http://localhost:${PORT}`);
+    console.log(`🚀 Engine listening on ${HOST}:${PORT} (http://localhost:${PORT})`);
     if (HAS_SPA) console.log(`Serving static from ${PUBLIC_DIR}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`API version: v2 (vector-based)`);
@@ -2210,17 +2228,25 @@ const server = app.listen(PORT, HOST, async () => {
       VNEXT_MATCHES_MOCK: process.env.VNEXT_MATCHES_MOCK === '1' ? 'on (matches mock)' : 'off (real vectors)',
     };
     console.log('[BETA_FLAGS]', JSON.stringify(betaFlags));
+    resolve(server);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 });
+    server.on('error', (err) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} already in use.`);
+      } else {
+        console.error('Server failed to start:', err);
+      }
+      reject(err);
+      process.exit(1);
+    });
+  });
+}
 
-server.on('error', (err) => {
-  if (err && err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} already in use.`);
-    process.exit(1);
-  }
-  console.error('Server failed to start:', err);
+startServer().catch((e) => {
+  console.error('Startup failed:', e);
   process.exit(1);
 });

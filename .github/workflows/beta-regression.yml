@@ -1,0 +1,78 @@
+# Beta regression: golden hashes + route smoke. Fails fast on drift or broken routes.
+# Does not assert audio hash unless VNEXT_ASSERT_AUDIO_HASH=1.
+
+name: Beta Regression
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: beta-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build vNext
+        run: npm run vnext:build
+
+      - name: Golden tests (compose + compat)
+        run: npm run vnext:golden
+        env:
+          # Do not assert audio hash in CI unless explicitly enabled
+          VNEXT_ASSERT_AUDIO_HASH: ${{ env.VNEXT_ASSERT_AUDIO_HASH || '' }}
+
+      - name: Install jq (for smoke script)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Start engine
+        run: |
+          PORT=4000 node server/index.js &
+          echo $! > server.pid
+          sleep 8
+          curl -sf http://localhost:4000/health || (echo "Engine failed to start"; exit 1)
+
+      - name: Beta smoke (routes)
+        run: API_BASE_URL=http://localhost:4000 ./scripts/beta-smoke.sh
+        env:
+          API_BASE_URL: http://localhost:4000
+
+      - name: Phase 4 smoke (compat health, community feed, profile 404, matches fail-closed)
+        run: npm run smoke:phase4
+        env:
+          API_BASE_URL: http://localhost:4000
+
+      - name: Sandbox determinism (optional, same server)
+        run: |
+          API_BASE_URL=http://localhost:4000 node dist/vnext/vnext/scripts/phase4a-sandbox-determinism.js || true
+        continue-on-error: true
+
+      - name: Stop engine
+        if: always()
+        run: |
+          [ -f server.pid ] && kill $(cat server.pid) 2>/dev/null || true
+          pkill -f "node server/index.js" 2>/dev/null || true
+
+      - name: Summary
+        run: |
+          echo "## Beta Regression" >> $GITHUB_STEP_SUMMARY
+          echo "- Golden (compose + compat): ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Beta smoke (health, personality, compose, comparisons, sandbox, compat/health): ✅" >> $GITHUB_STEP_SUMMARY

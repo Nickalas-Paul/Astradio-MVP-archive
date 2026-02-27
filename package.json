@@ -18,6 +18,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "verify:migration": "node scripts/verify-migration-sql.js",
+    "smoke:phase4": "node scripts/phase4-smoke.js",
     "vnext:build": "tsc -p vnext/tsconfig.json && node scripts/copy-vnext-assets.js && node scripts/copy-vnext-models.js",
     "build:server": "tsc -p tsconfig.server.json",
     "typecheck": "tsc --noEmit",
