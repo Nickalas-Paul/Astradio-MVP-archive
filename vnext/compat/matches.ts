@@ -1,20 +1,15 @@
 /**
- * Compatibility matches: real vnext 64-D encoder, deterministic scoring.
- * Used by GET /api/compat/matches. Uses architecture-engine (generateArchitecture).
+ * Compatibility matches: deterministic scoring from stored vectors only.
+ * Used by GET /api/compat/matches. Read-only: no generateArchitecture, no auto-populate.
+ * Fail-closed: missing vector returns explicit error.
  */
 
-import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import { getChartById } from './chart-store';
 import * as storage from './storage';
-import type { Chart } from './types';
 
-function chartToChartInput(chart: Chart): ChartInput {
-  return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
-}
-
-function toVec64(chart: Chart): Promise<Float32Array | number[]> {
-  return generateArchitecture(chartToChartInput(chart), chart.id).then((arch) => arch.features);
-}
+// Path from compiled dist/vnext/vnext/compat/ -> repo root lib
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const vectorStore = require('../../../../lib/vector-store');
 
 /** Deterministic: cosine similarity in 64-D. Same inputs => same score. */
 function cosineSimilarity(a: Float32Array | number[], b: Float32Array | number[]): number {
@@ -99,8 +94,9 @@ function clampScore(x: number): number {
 }
 
 /**
- * Get compatibility matches for a chart. Uses architecture-engine (generateArchitecture); deterministic candidate set.
- * Caller must have called ensureDefaultProfileChart/ensureMatchCandidateCharts at startup.
+ * Get compatibility matches for a chart. Read-only: uses stored vectors only.
+ * Fail-closed: seeker chart must have stored vector; candidates without vector are skipped.
+ * No generateArchitecture, no auto-populate.
  */
 export async function getCompatMatches(
   chartId: string,
@@ -110,15 +106,23 @@ export async function getCompatMatches(
   const chart = await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
 
-  const candidates = (await storage.ensureMatchCandidateCharts()).filter((c) => c.chartId !== chartId);
-  const vecA = await toVec64(chart);
+  const vecARow = await vectorStore.getChartVector(chartId);
+  if (!vecARow) {
+    throw new Error(`Vector not found for chart ${chartId}; run vector population (chart create or explicit populate) first`);
+  }
 
+  const candidates = (await storage.ensureMatchCandidateCharts()).filter((c) => c.chartId !== chartId);
+  const candidateIds = candidates.map((c) => c.chartId);
+  const vecMap = await vectorStore.getChartVectorsByIds(candidateIds);
+
+  const vecA = vecARow.vector64;
   const results: CompatMatchResult[] = [];
+
   for (const cand of candidates) {
-    const c = await getChartById(cand.chartId);
-    if (!c) continue;
-    const vecB = await toVec64(c);
-    const { score, rationale, facets } = scoreCompatibility(vecA, vecB, mode);
+    const vecBRow = vecMap.get(cand.chartId);
+    if (!vecBRow) continue; // skip candidates without stored vector
+
+    const { score, rationale, facets } = scoreCompatibility(vecA, vecBRow.vector64, mode);
     results.push({
       userId: cand.userId,
       chartId: cand.chartId,
@@ -130,7 +134,7 @@ export async function getCompatMatches(
     });
   }
 
-  // Stable sort: by score desc, then by chartId asc so ties are deterministic.
+  // Stable sort: by score desc, then by chartId asc (deterministic tie-break)
   results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.chartId.localeCompare(b.chartId);
