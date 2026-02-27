@@ -44,6 +44,11 @@ export async function getUser(id: string): Promise<(User & { handle?: string }) 
   return adapter.getUser(id);
 }
 
+export async function getUserByHandle(handle: string): Promise<(User & { handle?: string }) | undefined> {
+  if (adapter.getUserByHandle) return adapter.getUserByHandle(handle);
+  return undefined;
+}
+
 export async function createChart(input: any): Promise<Chart> {
   return adapter.createChart(input);
 }

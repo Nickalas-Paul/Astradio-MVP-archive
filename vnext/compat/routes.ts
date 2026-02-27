@@ -170,6 +170,25 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
+  // GET /api/profile/:handle — lookup by handle (handle unique, optional)
+  router.get('/profile/:handle', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const handle = Array.isArray(req.params.handle) ? req.params.handle[0] : req.params.handle;
+      if (!handle || !handle.trim()) return res.status(400).json({ error: 'handle required' });
+      const u = await storage.getUserByHandle(handle.trim());
+      if (!u) return res.status(404).json({ error: 'User not found' });
+      const chartId = await storage.getUserPrimaryChart(u.id) || storage.DEFAULT_PROFILE_CHART_ID;
+      const chart = await getChartById(chartId);
+      return res.status(200).json({
+        user: { id: u.id, displayName: u.displayName, handle: u.handle },
+        primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
+      });
+    } catch (e: any) {
+      console.error('[compat] GET /profile/:handle', e);
+      return res.status(500).json({ error: e?.message || 'Failed to get profile' });
+    }
+  });
+
   // POST /api/charts
   router.post('/charts', async (req: import('express').Request, res: import('express').Response) => {
     try {
