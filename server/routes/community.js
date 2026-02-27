@@ -125,6 +125,21 @@ router.post('/community/post', communityPostLimiter, async (req, res) => {
   }
 });
 
+// POST /api/community/connect-intent — stub: create connection intent (body: fromUserId, toUserId, chartId?)
+router.post('/community/connect-intent', communityPostLimiter, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const { fromUserId, toUserId, chartId } = body;
+    if (!fromUserId || !toUserId) return res.status(400).json({ error: 'fromUserId and toUserId required' });
+    const intent = await store.createConnectionIntent({ fromUserId, toUserId, chartId: chartId || null });
+    if (!intent) return res.status(501).json({ error: 'Connection intent storage unavailable' });
+    return res.status(201).json(intent);
+  } catch (e) {
+    console.error('[community] POST /community/connect-intent', e);
+    return res.status(500).json({ error: e?.message || 'Failed to create connection intent' });
+  }
+});
+
 // POST /api/community/like/:itemId — add like (body: itemType: post|comment|chart, userId?)
 router.post('/community/like/:itemId', communityPostLimiter, async (req, res) => {
   try {
