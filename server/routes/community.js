@@ -62,6 +62,86 @@ async function getDevUserId(req) {
 
 const router = express.Router({ mergeParams: true });
 
+// GET /api/community/feed — posts from groups user has joined. Deterministic: created_at DESC, id ASC tie-break.
+router.get('/community/feed', async (req, res) => {
+  try {
+    const userId = (req.query.userId && String(req.query.userId).trim()) || (await getDevUserId(req));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const userMemberships = await store.getMembershipsByUser(userId);
+    const groupIds = userMemberships.map((m) => m.groupId);
+    const allPosts = [];
+    for (const gid of groupIds) {
+      const posts = await store.listPostsByGroup(gid, { limit: 200 });
+      allPosts.push(...posts);
+    }
+    // Deterministic sort: created_at DESC, then id ASC
+    allPosts.sort((a, b) => {
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      if (tb !== ta) return tb - ta;
+      return (a.id || '').localeCompare(b.id || '');
+    });
+    const slice = allPosts.slice(0, limit);
+    const postsWithMeta = await Promise.all(slice.map(async (p) => {
+      const group = await store.getGroup(p.groupId);
+      const author = await store.getUser(p.userId);
+      const likes = await store.listLikesForItem('post', p.id);
+      return {
+        ...p,
+        group: group ? { id: group.id, slug: group.slug, name: group.name } : null,
+        author: author ? { id: author.id, handle: author.handle, displayName: author.displayName } : null,
+        likeCount: likes.length,
+      };
+    }));
+    return res.json({ posts: postsWithMeta });
+  } catch (e) {
+    console.error('[community] GET /community/feed', e);
+    return res.status(500).json({ error: e?.message || 'Failed to load feed' });
+  }
+});
+
+// POST /api/community/post — create post (body: groupId, userId?, title, body)
+router.post('/community/post', communityPostLimiter, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const { groupId, userId: bodyUserId, title, body: bodyText } = body;
+    if (!groupId) return res.status(400).json({ error: 'groupId required' });
+    let group = await store.getGroup(groupId);
+    if (!group && !groupId.startsWith('grp_')) group = await resolveGroup(groupId);
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    const validated = validatePostBody({ title, body: bodyText });
+    if (validated.error) return res.status(400).json({ error: validated.error });
+    const userId = (bodyUserId && String(bodyUserId).trim()) || (await getDevUserId(req));
+    const post = await store.createPost({
+      groupId: group.id,
+      userId,
+      title: validated.title,
+      body: validated.body,
+    });
+    return res.status(201).json(post);
+  } catch (e) {
+    console.error('[community] POST /community/post', e);
+    return res.status(500).json({ error: e?.message || 'Failed to create post' });
+  }
+});
+
+// POST /api/community/like/:itemId — add like (body: itemType: post|comment|chart, userId?)
+router.post('/community/like/:itemId', communityPostLimiter, async (req, res) => {
+  try {
+    const itemId = req.params.itemId;
+    if (!itemId) return res.status(400).json({ error: 'itemId required' });
+    const body = req.body || {};
+    const itemType = (body.itemType && ['post', 'comment', 'chart'].includes(body.itemType)) ? body.itemType : 'post';
+    const userId = (body.userId && String(body.userId).trim()) || (await getDevUserId(req));
+    const like = await store.createLike({ userId, itemType, itemId });
+    if (!like) return res.status(200).json({ liked: true, already: true });
+    return res.status(201).json({ liked: true, like });
+  } catch (e) {
+    console.error('[community] POST /community/like/:itemId', e);
+    return res.status(500).json({ error: e?.message || 'Failed to like' });
+  }
+});
+
 // --- Content guidance (static banner text; not an endpoint) ---
 router.get('/community/guidance', (req, res) => {
   res.json({
