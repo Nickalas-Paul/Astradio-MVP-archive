@@ -133,15 +133,16 @@ export function createCompatRouter(): import('express').Router {
           lon: Number(chartInput.lon),
         });
         await storage.setUserPrimaryChart(user.id, primaryChart.id);
+        // Vector population only on chart create (this path created a new chart)
+        if (process.env.POSTGRES_URL) {
+          populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
+            console.warn('[compat] vector populate after chart create:', err?.message);
+          });
+        }
       } else {
         const defaultChart = await storage.ensureDefaultProfileChart();
         await storage.setUserPrimaryChart(user.id, defaultChart.id);
         primaryChart = defaultChart;
-      }
-      if (primaryChart && process.env.POSTGRES_URL) {
-        populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
-          console.warn('[compat] vector populate after profile create:', err?.message);
-        });
       }
       return res.status(201).json({
         user: { id: user.id, displayName: user.displayName, handle: user.handle },

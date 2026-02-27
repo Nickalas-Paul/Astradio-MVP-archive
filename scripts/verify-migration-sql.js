@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Static migration verification: SQL syntax sanity, table naming consistency.
- * Run when DB connectivity unavailable. Does not execute migrations.
+ * Static migration verification: syntax sanity, table naming consistency, banned patterns.
+ * Does not require DB. Does not execute migrations. Purely static checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -37,6 +37,10 @@ for (const file of files) {
   }
   if (sql.includes('DROP TABLE') && !sql.includes('IF EXISTS')) {
     console.error(`[verify-migration] ${file}: DROP TABLE without IF EXISTS may be destructive`);
+    ok = false;
+  }
+  if (sql.includes('TRUNCATE ') && !sql.includes('CASCADE')) {
+    console.error(`[verify-migration] ${file}: TRUNCATE without CASCADE may violate FK constraints`);
     ok = false;
   }
 }
