@@ -93,7 +93,8 @@
     "phase5:verify-relational": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-relational-groups.js",
     "phase5:verify-owner-identity": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-owner-identity.js",
     "phase5:verify-non-platform-charts": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-non-platform-charts.js",
-    "phase5:verify-multi-chart": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-multi-chart.js"
+    "phase5:verify-multi-chart": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-multi-chart.js",
+    "phase5:verify-group-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-group-compose.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
