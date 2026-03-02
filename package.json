@@ -88,7 +88,8 @@
     "phase5:guard": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-guard.js",
     "phase5:verify-intent": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-intent-profiles.js",
     "phase5:verify-scoring": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-intent-scoring.js",
-    "phase5:verify-phantoms": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-phantoms.js"
+    "phase5:verify-phantoms": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-phantoms.js",
+    "phase5:verify-constellations": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-constellations.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
