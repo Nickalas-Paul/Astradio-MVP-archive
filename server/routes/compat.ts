@@ -32,39 +32,6 @@ router.post('/profile', async (req, res) => {
     },
     requestId
   });
-
-    // 1) Fetch chart features from engine encoder (read-only)
-    const features64 = await getChartFeatures(chartId);
-    if (!features64) {
-      return res.status(404).json({ error: 'Chart not found or features unavailable' });
-    }
-
-    // 2) Create/update profile
-    const profile: CompatProfile = {
-      userId,
-      chartId,
-      features64,
-      prefs,
-      visibility,
-      updatedAt: new Date().toISOString()
-    };
-
-    // TODO: Persist to database
-    // await saveProfile(profile);
-
-    // 3) Invalidate cache and enqueue background refresh
-    await invalidateCache(chartId);
-    // TODO: Enqueue background job to refresh matches
-
-    return res.status(202).json({ 
-      ok: true, 
-      message: 'Profile created/updated. Matches will be refreshed in background.' 
-    });
-
-  } catch (error) {
-    console.error('Error creating profile:', error);
-    return res.status(500).json({ error: 'Failed to create profile' });
-  }
 });
 
 // Update existing profile (DEPRECATED)
@@ -79,26 +46,6 @@ router.put('/profile', async (req, res) => {
     },
     requestId
   });
-
-    // TODO: Update existing profile in database
-    // const existingProfile = await getProfile(userId, chartId);
-    // if (!existingProfile) {
-    //   return res.status(404).json({ error: 'Profile not found' });
-    // }
-
-    // Update profile with new preferences
-    // const updatedProfile = { ...existingProfile, prefs, visibility, updatedAt: new Date().toISOString() };
-    // await saveProfile(updatedProfile);
-
-    // Invalidate cache
-    await invalidateCache(chartId);
-
-    return res.status(200).json({ ok: true, message: 'Profile updated successfully' });
-
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    return res.status(500).json({ error: 'Failed to update profile' });
-  }
 });
 
 // Get compatibility matches
@@ -168,58 +115,6 @@ router.get('/rationale/:pairId', async (req, res) => {
     },
     requestId
   });
-
-    // Get features for both charts
-    const featuresA = await getChartFeatures(chartIdA);
-    const featuresB = await getChartFeatures(chartIdB);
-
-    if (!featuresA || !featuresB) {
-      return res.status(404).json({ error: 'One or both charts not found' });
-    }
-
-    // TODO: Compute synastry features
-    // const synFeatures = await computeSynastryFeatures(chartIdA, chartIdB);
-
-    // For now, return mock synastry features
-    const synFeatures = [
-      {
-        aspect: 'trine' as const,
-        bodies: ['Venus', 'Mars'] as [string, string],
-        orbDeg: 2.5,
-        strength: 0.8,
-        dignity: 'domicile' as const
-      },
-      {
-        aspect: 'sextile' as const,
-        bodies: ['Sun', 'Moon'] as [string, string],
-        orbDeg: 1.8,
-        strength: 0.9,
-        dignity: null
-      }
-    ];
-
-    // Score the compatibility
-    const result = scoreCompatibility({
-      facet: facet as any,
-      A: { features64: featuresA },
-      B: { features64: featuresB },
-      syn: synFeatures
-    });
-
-    const response: RationaleResponse = {
-      facet: facet as any,
-      score: result.score,
-      rationale: result.rationale,
-      synFeatures,
-      breakdown: result.breakdown!
-    };
-
-    return res.status(200).json(response);
-
-  } catch (error) {
-    console.error('Error fetching rationale:', error);
-    return res.status(500).json({ error: 'Failed to fetch rationale' });
-  }
 });
 
 // Generate matches for a specific chart (DEPRECATED)
@@ -234,30 +129,6 @@ router.post('/generate', async (req, res) => {
     },
     requestId
   });
-
-    const matches = await generateMatches({
-      chartId,
-      facets,
-      limit,
-      forceRefresh
-    });
-
-    // Cache the results
-    for (const facet of facets) {
-      await setCachedMatches(chartId, facet, matches);
-    }
-
-    return res.status(200).json({
-      ok: true,
-      matches,
-      cached: true,
-      message: `Generated ${matches.length} matches for ${facets.join(', ')}`
-    });
-
-  } catch (error) {
-    console.error('Error generating matches:', error);
-    return res.status(500).json({ error: 'Failed to generate matches' });
-  }
 });
 
 // Get profile for a user/chart (DEPRECATED)
@@ -272,27 +143,6 @@ router.get('/profile/:userId/:chartId', async (req, res) => {
     },
     requestId
   });
-
-    // For now, return mock profile
-    const profile: CompatProfile = {
-      userId,
-      chartId,
-      features64: new Array(64).fill(0).map(() => Math.random() * 2 - 1), // Mock features
-      prefs: {
-        energy: 0.7,
-        mood: 0.6,
-        complexity: 0.8
-      },
-      visibility: 'private',
-      updatedAt: new Date().toISOString()
-    };
-
-    return res.status(200).json(profile);
-
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    return res.status(500).json({ error: 'Failed to fetch profile' });
-  }
 });
 
 // Health check endpoint

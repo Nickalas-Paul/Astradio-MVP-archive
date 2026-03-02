@@ -161,3 +161,4 @@ repo-sync-*.bundle
 
 # Docker volumes
 docker-volumes/
+.vercel

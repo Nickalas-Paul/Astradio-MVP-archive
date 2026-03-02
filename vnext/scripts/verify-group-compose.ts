@@ -5,7 +5,6 @@
  */
 
 import { aggregateFeatureVectors } from '../community/group-profile';
-import { hashVector64 } from '../relational/compatibility/score';
 import { vectorToControlPayload } from '../relational/composition/vector-to-controls';
 
 function assertCheck(cond: boolean, msg: string): void {
@@ -48,6 +47,17 @@ function makeSampleVectors(): { chartIds: string[]; vectors: Record<string, numb
   return { chartIds, vectors };
 }
 
+// Local hash for verification only; mirrors hashVector64 behavior (64 dims, 6 decimals).
+function hashVectorForTest(vec: number[]): string {
+  const crypto = require('crypto') as typeof import('crypto');
+  const arr = vec.length >= 64 ? vec : new Array(64).fill(0);
+  const str = Array.from(arr)
+    .slice(0, 64)
+    .map((x) => (Number.isFinite(x) ? (x as number).toFixed(6) : '0'))
+    .join(',');
+  return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
+}
+
 async function runVerify(): Promise<void> {
   console.log('[verify-group-compose] Running group compose verification...');
 
@@ -58,7 +68,7 @@ async function runVerify(): Promise<void> {
   const composite = aggregateFeatureVectors(memberVecs, 'mean_normalized');
   const vectorHashes: Record<string, string> = {};
   for (const id of orderedIds) {
-    vectorHashes[id] = hashVector64(vectors[id]);
+    vectorHashes[id] = hashVectorForTest(vectors[id]);
   }
 
   const sortedHashes = [...Object.values(vectorHashes)].sort();
