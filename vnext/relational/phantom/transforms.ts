@@ -4,8 +4,8 @@
  * Element/tension dims: vnext/relational/constants.ts (authoritative: feature-encode 27-30, 32).
  */
 
-import * as crypto from 'crypto';
 import type { PhantomProfile } from './profiles';
+import { hashVector64 } from '../compatibility/score';
 import {
   FEATURE_ELEMENT_INDICES,
   FEATURE_TENSION_INDEX,
@@ -17,15 +17,6 @@ function ensure64(vec: number[]): number[] {
   const out = [...vec];
   while (out.length < 64) out.push(0);
   return out.slice(0, 64);
-}
-
-/** Deterministic hash of vector. Same as score.ts hashVector64. */
-export function hashVector64(vec: number[]): string {
-  const arr = vec.length >= 64 ? vec.slice(0, 64) : [...vec, ...new Array(64 - vec.length).fill(0)];
-  const str = arr
-    .map((x) => (Number.isFinite(x) ? (x as number).toFixed(6) : '0'))
-    .join(',');
-  return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
 }
 
 export interface PhantomTransformResult {
