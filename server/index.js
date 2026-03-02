@@ -1929,6 +1929,12 @@ if (personalityMod && typeof personalityMod.createPersonalityRouter === "functio
 const communityRoutes = require("./routes/community");
 app.use("/api", communityRoutes.communityRouter);
 
+// Phase 5 — Relational groups (private, owner-scoped)
+const relationalMod = optionalRequire(path.join(vnextRoot, "relational", "routes"));
+if (relationalMod && typeof relationalMod.createRelationalRouter === "function") {
+  app.use("/api", relationalMod.createRelationalRouter());
+}
+
 // Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
