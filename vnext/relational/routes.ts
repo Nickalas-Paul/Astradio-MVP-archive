@@ -14,6 +14,10 @@ const relationalStore = require('../../../../lib/relational-store');
 const vectorStore = require('../../../../lib/vector-store');
 import { populateChartVector } from '../compat/vector-cache';
 import { hashVector64 } from './compatibility/score';
+import {
+  computeMultiChartCompatibility,
+  MissingVectorsError,
+} from './compatibility/multi-chart';
 import { resolveOwnerId } from './owner-resolve';
 import { resolveGroupChartIds } from './groups/member-resolver';
 
@@ -34,6 +38,44 @@ async function requireOwner(req: Request, res: Response): Promise<string | null>
 function createRelationalRouter(): import('express').Router {
   const express = require('express') as typeof import('express');
   const router = express.Router({ mergeParams: true });
+
+  // POST /api/relational/compatibility/multi — multi-chart compatibility for explicit chartIds.
+  router.post('/relational/compatibility/multi', async (req: Request, res: Response) => {
+    const ownerId = await requireOwner(req, res);
+    if (!ownerId) return;
+    const body = req.body || {};
+    const chartIds = Array.isArray(body.chartIds) ? body.chartIds : [];
+    const intentProfileId = typeof body.intentProfileId === 'string' ? body.intentProfileId.trim() : '';
+
+    if (!chartIds.length || !chartIds.every((id: unknown) => typeof id === 'string' && id.trim())) {
+      return res.status(400).json({ error: 'chartIds must be a non-empty array of strings' });
+    }
+    if (!intentProfileId) {
+      return res.status(400).json({ error: 'intentProfileId required' });
+    }
+
+    try {
+      const result = await computeMultiChartCompatibility(
+        chartIds as string[],
+        intentProfileId
+      );
+      return res.status(200).json(result);
+    } catch (e: unknown) {
+      const err = e as Error;
+      if (e instanceof MissingVectorsError) {
+        return res.status(422).json({
+          error: 'missing_vectors',
+          message: err.message,
+          missing_chart_ids: e.missing_chart_ids,
+        });
+      }
+      if (err.message?.includes('intent profile not found')) {
+        return res.status(404).json({ error: err.message });
+      }
+      console.error('[relational] POST /relational/compatibility/multi', err);
+      return res.status(500).json({ error: err?.message || 'Failed to compute multi-chart compatibility' });
+    }
+  });
 
   // POST /api/relational/charts — create non-platform chart (family/friends). Single vector write path via populateChartVector.
   router.post('/relational/charts', async (req: Request, res: Response) => {
