@@ -10,6 +10,10 @@ import type { Request, Response } from 'express';
 // Path from dist/vnext/vnext/relational/ -> repo root lib
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const relationalStore = require('../../../../lib/relational-store');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const vectorStore = require('../../../../lib/vector-store');
+import { populateChartVector } from '../compat/vector-cache';
+import { hashVector64 } from './compatibility/score';
 import { resolveOwnerId } from './owner-resolve';
 import { resolveGroupChartIds } from './groups/member-resolver';
 
@@ -30,6 +34,81 @@ async function requireOwner(req: Request, res: Response): Promise<string | null>
 function createRelationalRouter(): import('express').Router {
   const express = require('express') as typeof import('express');
   const router = express.Router({ mergeParams: true });
+
+  // POST /api/relational/charts — create non-platform chart (family/friends). Single vector write path via populateChartVector.
+  router.post('/relational/charts', async (req: Request, res: Response) => {
+    const ownerId = await requireOwner(req, res);
+    if (!ownerId) return;
+    const body = req.body || {};
+    const { label, date, time, lat, lon, timezone } = body;
+
+    if (!label || typeof label !== 'string' || !label.trim()) {
+      return res.status(400).json({ error: 'label required' });
+    }
+    if (!date || typeof date !== 'string' || !date.trim()) {
+      return res.status(400).json({ error: 'date required' });
+    }
+    if (!time || typeof time !== 'string' || !time.trim()) {
+      return res.status(400).json({ error: 'time required' });
+    }
+    const latNum = typeof lat === 'number' ? lat : parseFloat(lat);
+    const lonNum = typeof lon === 'number' ? lon : parseFloat(lon);
+    if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
+      return res.status(400).json({ error: 'lat required, must be in [-90, 90]' });
+    }
+    if (!Number.isFinite(lonNum) || lonNum < -180 || lonNum > 180) {
+      return res.status(400).json({ error: 'lon required, must be in [-180, 180]' });
+    }
+
+    let chart: { id: string; ownerId: string; label: string; date: string; time: string; lat: number; lon: number; timezone?: string; isNonPlatform: boolean };
+    try {
+      chart = await relationalStore.createNonPlatformChart({
+        ownerId,
+        label: label.trim(),
+        date: String(date).slice(0, 10),
+        time: String(time).slice(0, 5),
+        lat: latNum,
+        lon: lonNum,
+        timezone: (timezone && String(timezone).trim()) || undefined,
+      });
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error('[relational] POST /relational/charts create', err);
+      return res.status(500).json({ error: err?.message || 'Failed to create chart' });
+    }
+
+    try {
+      await populateChartVector(chart.id, undefined);
+    } catch (e: unknown) {
+      try {
+        await relationalStore.deleteChart(chart.id);
+      } catch {
+        // best-effort rollback
+      }
+      const err = e as Error;
+      console.error('[relational] POST /relational/charts vectorize failed, chart rolled back', err);
+      return res.status(500).json({ error: 'Vector population failed; chart not created' });
+    }
+
+    const vecRow = await vectorStore.getChartVector(chart.id);
+    const encoderVersion = vecRow?.encoderVersion ?? 'v1';
+    const vectorHash = vecRow ? hashVector64(vecRow.vector64) : '';
+
+    return res.status(201).json({
+      chart: {
+        id: chart.id,
+        owner_id: chart.ownerId,
+        label: chart.label,
+        date: chart.date,
+        time: chart.time,
+        lat: chart.lat,
+        lon: chart.lon,
+        timezone: chart.timezone ?? null,
+        is_non_platform: chart.isNonPlatform,
+      },
+      vector: { encoder_version: encoderVersion, vector_hash: vectorHash, chart_id: chart.id },
+    });
+  });
 
   // POST /api/relational/groups — create
   router.post('/relational/groups', async (req: Request, res: Response) => {
