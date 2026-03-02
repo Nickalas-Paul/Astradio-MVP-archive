@@ -1,6 +1,8 @@
 /**
  * Phase 5 — Relational groups API routes.
  * Owner auth enforced on every handler. Uses lib/relational-store.
+ * Owner identity: session only in prod; query/body/ensureDevUser only when
+ * NODE_ENV=development AND ALLOW_DEV_USER_FALLBACK=true.
  */
 
 import type { Request, Response } from 'express';
@@ -8,30 +10,14 @@ import type { Request, Response } from 'express';
 // Path from dist/vnext/vnext/relational/ -> repo root lib
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const relationalStore = require('../../../../lib/relational-store');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const communityStore = require('../../../../lib/community-store');
+import { resolveOwnerId } from './owner-resolve';
 import { resolveGroupChartIds } from './groups/member-resolver';
-
-async function getOwnerId(req: Request): Promise<string | undefined> {
-  const q = (req.query.userId as string) || undefined;
-  if (q && typeof q === 'string' && q.trim()) return q.trim();
-  const b = (req.body as Record<string, unknown>)?.userId as string | undefined;
-  if (b && typeof b === 'string' && b.trim()) return b.trim();
-  const u = (req as any).user;
-  if (u && typeof u.id === 'string') return u.id;
-  const ensure = communityStore.ensureDevUser;
-  if (ensure) {
-    const dev = await ensure();
-    return dev?.id;
-  }
-  return undefined;
-}
 
 async function requireOwner(req: Request, res: Response): Promise<string | null> {
   try {
-    const ownerId = await getOwnerId(req);
+    const ownerId = await resolveOwnerId(req);
     if (!ownerId) {
-      res.status(401).json({ error: 'owner_id required (userId query, body, or session)' });
+      res.status(401).json({ error: 'owner_id required (authenticated session)' });
       return null;
     }
     return ownerId;

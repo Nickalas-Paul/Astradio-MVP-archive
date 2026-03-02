@@ -90,7 +90,8 @@
     "phase5:verify-scoring": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-intent-scoring.js",
     "phase5:verify-phantoms": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-phantoms.js",
     "phase5:verify-constellations": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-constellations.js",
-    "phase5:verify-relational": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-relational-groups.js"
+    "phase5:verify-relational": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-relational-groups.js",
+    "phase5:verify-owner-identity": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-owner-identity.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",

@@ -85,6 +85,29 @@ function checkNoMathRandomInRelational(): void {
   console.log('[phase5-guard] No Math.random in vnext/relational/');
 }
 
+function checkOwnerIdentityGate(): void {
+  const rel = 'vnext/relational/owner-resolve.ts';
+  const full = path.join(REPO_ROOT, rel);
+  const content = readFileOrNull(full);
+  if (!content) {
+    console.error(`[phase5-guard] Owner resolve module missing: ${rel}`);
+    process.exit(1);
+  }
+  if (!content.includes('NODE_ENV') || !content.includes("'development'")) {
+    console.error(`[phase5-guard] ${rel} must gate on NODE_ENV === 'development'`);
+    process.exit(1);
+  }
+  if (!content.includes('ALLOW_DEV_USER_FALLBACK')) {
+    console.error(`[phase5-guard] ${rel} must require ALLOW_DEV_USER_FALLBACK for dev override`);
+    process.exit(1);
+  }
+  if (!content.includes('req?.user') && !content.includes('req.user')) {
+    console.error(`[phase5-guard] ${rel} must check req.user first (session)`);
+    process.exit(1);
+  }
+  console.log('[phase5-guard] Owner identity: session-first, dev gate present');
+}
+
 function checkMatchesNoArchitectureEngine(): void {
   const importOrCallPatterns = [
     /import\s+.*['"].*architecture-engine['"]/,
@@ -112,6 +135,7 @@ function main(): void {
   checkProtectedFilesUnchanged();
   checkNoMathRandomInRelational();
   checkMatchesNoArchitectureEngine();
+  checkOwnerIdentityGate();
   console.log('[phase5-guard] All guards passed.');
 }
 
