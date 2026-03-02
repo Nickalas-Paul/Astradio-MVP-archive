@@ -7,6 +7,7 @@
 import { applyPhantomTransform } from '../relational/phantom/transforms';
 import { PHANTOM_PROFILES } from '../relational/phantom/profiles';
 
+// Element dims 27-30, tension 32. See vnext/relational/constants.ts.
 const SAMPLE_BASE: number[] = new Array(64).fill(0);
 SAMPLE_BASE[27] = 0.6; // fire
 SAMPLE_BASE[28] = 0.2; // earth

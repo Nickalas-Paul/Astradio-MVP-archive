@@ -1,15 +1,17 @@
 /**
  * Phase 5 — Deterministic phantom transforms.
  * Pure functions. No ML, no ephemeris, no randomness.
- * Dims 27-30: fire, earth, air, water. Dim 32: tension. Only these are modified.
+ * Element/tension dims: vnext/relational/constants.ts (authoritative: feature-encode 27-30, 32).
  */
 
 import * as crypto from 'crypto';
 import type { PhantomProfile } from './profiles';
+import {
+  FEATURE_ELEMENT_INDICES,
+  FEATURE_TENSION_INDEX,
+} from '../constants';
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const ELEMENT_DIMS = [27, 28, 29, 30] as const;
-const TENSION_DIM = 32;
 
 function ensure64(vec: number[]): number[] {
   const out = [...vec];
@@ -73,20 +75,20 @@ export function applyPhantomTransform(
 /** Elements: normalized(1 - base). Tension: 1 - base[32]. Rest unchanged. */
 function transformIdealComplement(baseVec: number[], profile: PhantomProfile): PhantomTransformResult {
   return applyTransform(baseVec, profile, (out) => {
-    const inverted = ELEMENT_DIMS.map((i) => 1 - (out[i] ?? 0));
+    const inverted = FEATURE_ELEMENT_INDICES.map((i) => 1 - (out[i] ?? 0));
     const sum = inverted.reduce((s, x) => s + x, 0);
     const norm = sum > 0 ? inverted.map((x) => x / sum) : [0.25, 0.25, 0.25, 0.25];
-    ELEMENT_DIMS.forEach((i, j) => {
+    FEATURE_ELEMENT_INDICES.forEach((i, j) => {
       out[i] = norm[j];
     });
-    out[TENSION_DIM] = 1 - (out[TENSION_DIM] ?? 0);
+    out[FEATURE_TENSION_INDEX] = 1 - (out[FEATURE_TENSION_INDEX] ?? 0);
   });
 }
 
 /** Mirror: return base vector unchanged. Interpretation as "shadow self" is semantic. */
 function transformShadowMirror(baseVec: number[], profile: PhantomProfile): PhantomTransformResult {
   return applyTransform(baseVec, profile, () => {
-    /* no modification */
+    /* shadow_mirror: no modification; base vector returned */
   });
 }
 
@@ -97,7 +99,7 @@ function transformElementalAmplifier(
 ): PhantomTransformResult {
   const boost = (profile.transform_params?.boost_factor as number) ?? 1.25;
   return applyTransform(baseVec, profile, (out) => {
-    const vals = ELEMENT_DIMS.map((i) => out[i] ?? 0);
+    const vals = FEATURE_ELEMENT_INDICES.map((i) => out[i] ?? 0);
     let maxIdx = 0;
     for (let j = 1; j < vals.length; j++) {
       if (vals[j] > vals[maxIdx]) maxIdx = j;
@@ -105,7 +107,7 @@ function transformElementalAmplifier(
     vals[maxIdx] = vals[maxIdx] * boost;
     const sum = vals.reduce((s, x) => s + x, 0);
     const norm = sum > 0 ? vals.map((x) => x / sum) : [0.25, 0.25, 0.25, 0.25];
-    ELEMENT_DIMS.forEach((i, j) => {
+    FEATURE_ELEMENT_INDICES.forEach((i, j) => {
       out[i] = norm[j];
     });
   });
@@ -116,13 +118,13 @@ function transformStabilizer(baseVec: number[], profile: PhantomProfile): Phanto
   const tensionFactor = (profile.transform_params?.tension_factor as number) ?? 0.7;
   const alpha = (profile.transform_params?.element_mix_alpha as number) ?? 0.35;
   return applyTransform(baseVec, profile, (out) => {
-    out[TENSION_DIM] = (out[TENSION_DIM] ?? 0) * tensionFactor;
-    const baseEl = ELEMENT_DIMS.map((i) => out[i] ?? 0);
+    out[FEATURE_TENSION_INDEX] = (out[FEATURE_TENSION_INDEX] ?? 0) * tensionFactor;
+    const baseEl = FEATURE_ELEMENT_INDICES.map((i) => out[i] ?? 0);
     const uniform = [0.25, 0.25, 0.25, 0.25];
     const mixed = baseEl.map((b, j) => (1 - alpha) * b + alpha * uniform[j]);
     const sum = mixed.reduce((s, x) => s + x, 0);
     const norm = sum > 0 ? mixed.map((x) => x / sum) : [0.25, 0.25, 0.25, 0.25];
-    ELEMENT_DIMS.forEach((i, j) => {
+    FEATURE_ELEMENT_INDICES.forEach((i, j) => {
       out[i] = norm[j];
     });
   });
@@ -135,8 +137,8 @@ function transformCreativeCatalyst(
 ): PhantomTransformResult {
   const delta = (profile.transform_params?.tension_delta as number) ?? 0.15;
   return applyTransform(baseVec, profile, (out) => {
-    out[TENSION_DIM] = clamp01((out[TENSION_DIM] ?? 0) + delta);
-    const vals = ELEMENT_DIMS.map((i) => out[i] ?? 0);
+    out[FEATURE_TENSION_INDEX] = clamp01((out[FEATURE_TENSION_INDEX] ?? 0) + delta);
+    const vals = FEATURE_ELEMENT_INDICES.map((i) => out[i] ?? 0);
     let maxIdx = 0;
     let minIdx = 0;
     for (let j = 1; j < vals.length; j++) {
@@ -148,7 +150,7 @@ function transformCreativeCatalyst(
     pushed[minIdx] = clamp01(pushed[minIdx] - 0.1);
     const sum = pushed.reduce((s, x) => s + x, 0);
     const norm = sum > 0 ? pushed.map((x) => x / sum) : [0.25, 0.25, 0.25, 0.25];
-    ELEMENT_DIMS.forEach((i, j) => {
+    FEATURE_ELEMENT_INDICES.forEach((i, j) => {
       out[i] = norm[j];
     });
   });

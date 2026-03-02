@@ -13,7 +13,7 @@ import {
 } from '../relational/compatibility/score';
 import { getIntentProfileBySlug } from '../relational/intent-profiles';
 
-// Two fixed 64-D sample vectors (elemental/tension/preference dims vary)
+// Two fixed 64-D sample vectors. Element dims 27-30 (fire,earth,air,water), tension 32. See vnext/relational/constants.ts.
 const SAMPLE_VEC_A: number[] = new Array(64).fill(0);
 SAMPLE_VEC_A[27] = 0.8; // fire
 SAMPLE_VEC_A[28] = 0.1; // earth

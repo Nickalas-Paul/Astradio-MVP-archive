@@ -2,9 +2,14 @@
  * Phase 5 — Intent-weighted 1:1 compatibility scoring.
  * Uses stored vectors only. No generateArchitecture. Deterministic.
  * Facet math matches vnext/compat/matches.ts (duplicated for isolation).
+ * Element dims: vnext/relational/constants.ts (authoritative: feature-encode.ts indices 27-30).
  */
 
 import * as crypto from 'crypto';
+import {
+  FEATURE_ELEMENT_INDICES,
+  FEATURE_TENSION_INDEX,
+} from '../constants';
 import type { IntentProfile } from '../intent-profiles';
 import { getIntentProfileById, getIntentProfileBySlug } from '../intent-profiles';
 
@@ -48,15 +53,19 @@ export function computeFacetBreakdown(
   const n = Math.min(vecA.length, vecB.length, 64);
   const a = vecA;
   const b = vecB;
+  const elStart = FEATURE_ELEMENT_INDICES[0];
+  const elEnd = FEATURE_ELEMENT_INDICES[FEATURE_ELEMENT_INDICES.length - 1] + 1;
   const elemental =
-    n >= 31
+    n >= elEnd
       ? cosineSimilarity(
-          (a as number[]).slice(27, 31),
-          (b as number[]).slice(27, 31)
+          (a as number[]).slice(elStart, elEnd),
+          (b as number[]).slice(elStart, elEnd)
         )
       : 0.5;
   const tension =
-    n >= 34 ? (Math.abs((a[32] ?? 0) - (b[32] ?? 0)) < 0.3 ? 0.8 : 0.5) : 0.5;
+    n > FEATURE_TENSION_INDEX
+      ? (Math.abs((a[FEATURE_TENSION_INDEX] ?? 0) - (b[FEATURE_TENSION_INDEX] ?? 0)) < 0.3 ? 0.8 : 0.5)
+      : 0.5;
   const preference =
     n >= 48
       ? cosineSimilarity((a as number[]).slice(44, 48), (b as number[]).slice(44, 48))
