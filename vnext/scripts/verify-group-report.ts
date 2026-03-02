@@ -68,10 +68,11 @@ async function runVerify(): Promise<void> {
   };
 
   const multi = computeMultiChartFromVectors(chartIds, profile, vectors, encoders);
+  const fixedNow = new Date(0);
 
-  const report1 = buildGroupReport(multi, { title: 'Test Group Report' });
-  const report2 = buildGroupReport(multi, { title: 'Test Group Report' });
-  const report3 = buildGroupReport(multi, { title: 'Test Group Report' });
+  const report1 = buildGroupReport(multi, { title: 'Test Group Report', now: fixedNow });
+  const report2 = buildGroupReport(multi, { title: 'Test Group Report', now: fixedNow });
+  const report3 = buildGroupReport(multi, { title: 'Test Group Report', now: fixedNow });
 
   const s1 = JSON.stringify(report1);
   const s2 = JSON.stringify(report2);

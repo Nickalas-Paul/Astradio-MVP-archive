@@ -43,9 +43,9 @@ const TENSION_HIGH = 0.08;
 
 export function buildGroupReport(
   multi: MultiChartOutput,
-  opts?: { title?: string }
+  opts?: { title?: string; now?: Date }
 ): GroupReport {
-  const now = new Date(0).toISOString();
+  const now = (opts?.now ?? new Date()).toISOString();
   const chart_ids = [...multi.chart_ids].sort((a, b) => a.localeCompare(b, 'en'));
   const { mean_resonance, stability_index, dominant_elemental_pattern, tension_variance } =
     multi.aggregate_metrics;
