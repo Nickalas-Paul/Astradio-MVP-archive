@@ -1,0 +1,45 @@
+[
+  {
+    "id": "scn_identity_crossroads",
+    "primary_domains": ["identity_heat"],
+    "tone_tag": "intense",
+    "scenario_tags": ["identity", "decision_point"],
+    "choice_template_ids": ["choice_face_pressure", "choice_delay"]
+  },
+  {
+    "id": "scn_identity_conflict",
+    "primary_domains": ["identity_heat", "structural_pressure"],
+    "tone_tag": "intense",
+    "scenario_tags": ["identity", "conflict"],
+    "choice_template_ids": ["choice_face_pressure", "choice_compromise"]
+  },
+  {
+    "id": "scn_relational_tension",
+    "primary_domains": ["relational_friction"],
+    "tone_tag": "tense",
+    "scenario_tags": ["relationships", "tension"],
+    "choice_template_ids": ["choice_bridge_gap", "choice_withdraw"]
+  },
+  {
+    "id": "scn_structural_stress",
+    "primary_domains": ["structural_pressure"],
+    "tone_tag": "serious",
+    "scenario_tags": ["structure", "responsibility"],
+    "choice_template_ids": ["choice_restructure", "choice_endure"]
+  },
+  {
+    "id": "scn_fog_confusion",
+    "primary_domains": ["fog_ambiguity"],
+    "tone_tag": "uncertain",
+    "scenario_tags": ["uncertainty", "ambiguity"],
+    "choice_template_ids": ["choice_clarify", "choice_sit_with_fog"]
+  },
+  {
+    "id": "scn_liberation_breakthrough",
+    "primary_domains": ["liberation_shock"],
+    "tone_tag": "disruptive",
+    "scenario_tags": ["change", "liberation"],
+    "choice_template_ids": ["choice_take_risk", "choice_anchor"]
+  }
+]
+

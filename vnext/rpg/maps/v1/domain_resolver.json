@@ -1,21 +1,73 @@
 [
   {
-    "id": "sun_identity_self",
+    "id": "transit_identity_heat",
+    "kind": "transit",
     "body": "sun",
-    "aspect": null,
+    "aspect": "square",
     "house_domain": "self",
-    "domains": ["identity"],
-    "tension_weight": 0,
-    "support_weight": 1
+    "domains": ["identity_heat"],
+    "weight_field": "tension",
+    "multiplier": 1.0
   },
   {
-    "id": "moon_emotion_home",
-    "body": "moon",
-    "aspect": null,
-    "house_domain": "home",
-    "domains": ["emotion"],
-    "tension_weight": 0,
-    "support_weight": 1
+    "id": "transit_structural_pressure",
+    "kind": "transit",
+    "body": "saturn",
+    "aspect": "square",
+    "house_domain": "career",
+    "domains": ["structural_pressure"],
+    "weight_field": "tension",
+    "multiplier": 1.0
+  },
+  {
+    "id": "transit_relational_friction",
+    "kind": "transit",
+    "body": "venus",
+    "aspect": "square",
+    "house_domain": "relationships",
+    "domains": ["relational_friction"],
+    "weight_field": "tension",
+    "multiplier": 1.0
+  },
+  {
+    "id": "transit_fog_ambiguity",
+    "kind": "transit",
+    "body": "neptune",
+    "aspect": "trine",
+    "house_domain": "unconscious",
+    "domains": ["fog_ambiguity"],
+    "weight_field": "support",
+    "multiplier": 1.0
+  },
+  {
+    "id": "transit_liberation_shock",
+    "kind": "transit",
+    "body": "uranus",
+    "aspect": "conjunction",
+    "house_domain": "self",
+    "domains": ["liberation_shock"],
+    "weight_field": "tension",
+    "multiplier": 1.0
+  },
+  {
+    "id": "transit_resource_scarcity",
+    "kind": "transit",
+    "body": "saturn",
+    "aspect": "square",
+    "house_domain": "resources",
+    "domains": ["resource_scarcity"],
+    "weight_field": "tension",
+    "multiplier": 1.0
+  },
+  {
+    "id": "transit_community_cohesion",
+    "kind": "transit",
+    "body": "jupiter",
+    "aspect": "trine",
+    "house_domain": "community",
+    "domains": ["community_cohesion"],
+    "weight_field": "support",
+    "multiplier": 1.0
   }
 ]
 

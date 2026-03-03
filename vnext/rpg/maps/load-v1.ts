@@ -12,6 +12,9 @@ export interface RpgV1Maps {
   houseArena: Record<string, string>;
   domainResolver: any[];
   placementOverrides: any[];
+  turnTemplates: any[];
+  scenarioTemplates: any[];
+  choiceTemplates: any[];
 }
 
 function readJson(relativePath: string): any {
@@ -34,6 +37,9 @@ export function loadRpgV1Maps(): RpgV1Maps {
   const houseArena = readJson('v1/house_arena.json') as Record<string, string>;
   const domainResolver = readJson('v1/domain_resolver.json') as any[];
   const placementOverrides = readJson('v1/placement_overrides.json') as any[];
+  const turnTemplates = readJson('v1/turn_templates.json') as any[];
+  const scenarioTemplates = readJson('v1/scenario_templates.json') as any[];
+  const choiceTemplates = readJson('v1/choice_templates.json') as any[];
 
   if (!Array.isArray(bodyOrder) || bodyOrder.length === 0) {
     throw new Error('[rpg-maps] BODY_ORDER.json must be a non-empty array');
@@ -83,6 +89,18 @@ export function loadRpgV1Maps(): RpgV1Maps {
     throw new Error('[rpg-maps] placement_overrides.json must be an array');
   }
 
+  if (!Array.isArray(turnTemplates) || turnTemplates.length === 0) {
+    throw new Error('[rpg-maps] turn_templates.json must be a non-empty array');
+  }
+
+  if (!Array.isArray(scenarioTemplates) || scenarioTemplates.length === 0) {
+    throw new Error('[rpg-maps] scenario_templates.json must be a non-empty array');
+  }
+
+  if (!Array.isArray(choiceTemplates) || choiceTemplates.length === 0) {
+    throw new Error('[rpg-maps] choice_templates.json must be a non-empty array');
+  }
+
   return {
     bodyOrder: bodyOrder as BodyId[],
     bodyBase,
@@ -90,6 +108,9 @@ export function loadRpgV1Maps(): RpgV1Maps {
     houseArena,
     domainResolver,
     placementOverrides,
+    turnTemplates,
+    scenarioTemplates,
+    choiceTemplates,
   };
 }
 

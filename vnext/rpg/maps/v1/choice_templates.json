@@ -1,0 +1,58 @@
+[
+  {
+    "id": "choice_face_pressure",
+    "tags": ["direct_action", "courage"],
+    "outcome_patch_id": "patch_increase_identity_resolve"
+  },
+  {
+    "id": "choice_delay",
+    "tags": ["avoidance", "pause"],
+    "outcome_patch_id": "patch_defer_decision"
+  },
+  {
+    "id": "choice_compromise",
+    "tags": ["compromise", "middle_path"],
+    "outcome_patch_id": "patch_partial_alignment"
+  },
+  {
+    "id": "choice_bridge_gap",
+    "tags": ["connection", "empathy"],
+    "outcome_patch_id": "patch_strengthen_bond"
+  },
+  {
+    "id": "choice_withdraw",
+    "tags": ["distance", "self_protection"],
+    "outcome_patch_id": "patch_create_space"
+  },
+  {
+    "id": "choice_restructure",
+    "tags": ["restructure", "boundaries"],
+    "outcome_patch_id": "patch_rebuild_structure"
+  },
+  {
+    "id": "choice_endure",
+    "tags": ["endurance", "patience"],
+    "outcome_patch_id": "patch_hold_steady"
+  },
+  {
+    "id": "choice_clarify",
+    "tags": ["clarity", "communication"],
+    "outcome_patch_id": "patch_gain_clarity"
+  },
+  {
+    "id": "choice_sit_with_fog",
+    "tags": ["acceptance", "reflection"],
+    "outcome_patch_id": "patch_tolerate_ambiguity"
+  },
+  {
+    "id": "choice_take_risk",
+    "tags": ["risk", "breakthrough"],
+    "outcome_patch_id": "patch_risk_liberation"
+  },
+  {
+    "id": "choice_anchor",
+    "tags": ["stability", "grounding"],
+    "outcome_patch_id": "patch_anchor_change"
+  }
+]
+

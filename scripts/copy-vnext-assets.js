@@ -20,6 +20,9 @@ const ASSETS = [
   { src: 'vnext/rpg/maps/v1/house_arena.json', dst: 'dist/vnext/vnext/rpg/maps/v1/house_arena.json' },
   { src: 'vnext/rpg/maps/v1/domain_resolver.json', dst: 'dist/vnext/vnext/rpg/maps/v1/domain_resolver.json' },
   { src: 'vnext/rpg/maps/v1/placement_overrides.json', dst: 'dist/vnext/vnext/rpg/maps/v1/placement_overrides.json' },
+  { src: 'vnext/rpg/maps/v1/turn_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/turn_templates.json' },
+  { src: 'vnext/rpg/maps/v1/scenario_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/scenario_templates.json' },
+  { src: 'vnext/rpg/maps/v1/choice_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/choice_templates.json' },
 ];
 
 for (const { src, dst } of ASSETS) {

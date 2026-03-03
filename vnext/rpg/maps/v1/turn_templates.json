@@ -1,0 +1,33 @@
+[
+  {
+    "id": "turn_identity_pressure",
+    "dominant_domain": "identity_heat",
+    "tone_tag": "intense",
+    "scenario_ids": ["scn_identity_crossroads", "scn_identity_conflict"]
+  },
+  {
+    "id": "turn_relational_friction",
+    "dominant_domain": "relational_friction",
+    "tone_tag": "tense",
+    "scenario_ids": ["scn_relational_tension"]
+  },
+  {
+    "id": "turn_structural_pressure",
+    "dominant_domain": "structural_pressure",
+    "tone_tag": "serious",
+    "scenario_ids": ["scn_structural_stress"]
+  },
+  {
+    "id": "turn_fog_ambiguity",
+    "dominant_domain": "fog_ambiguity",
+    "tone_tag": "uncertain",
+    "scenario_ids": ["scn_fog_confusion"]
+  },
+  {
+    "id": "turn_liberation_shock",
+    "dominant_domain": "liberation_shock",
+    "tone_tag": "disruptive",
+    "scenario_ids": ["scn_liberation_breakthrough"]
+  }
+]
+
