@@ -4,7 +4,8 @@
 import type { EphemerisSnapshot } from '../contracts';
 
 // Seed and hash type aliases (opaque string brands)
-export type TransitHash = string & { readonly __brand: 'TransitHash' };
+export type SnapshotHash = string & { readonly __brand: 'SnapshotHash' };
+export type TransitHash = SnapshotHash & { readonly __brand_transit: 'TransitHash' };
 export type StateHash = string & { readonly __brand: 'StateHash' };
 export type TurnSeed = string & { readonly __brand: 'TurnSeed' };
 export type AudioSeed = string & { readonly __brand: 'AudioSeed' };
@@ -55,7 +56,7 @@ export interface RPGBundleMetadata {
   rpg_map_version: RpgMapVersion;
   rpg_algo_version: RpgAlgoVersion;
   audio_algo_version: AudioAlgoVersion;
-  natal_snapshot_hash: TransitHash;
+  natal_snapshot_hash: SnapshotHash;
   bundle_hash: string;
 }
 

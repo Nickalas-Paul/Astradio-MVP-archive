@@ -14,6 +14,12 @@ const ASSETS = [
   // Runtime loads from dist/vnext/vnext/ (server vnextRoot)
   { src: 'vnext/explainer/mapping-tables-v1.json', dst: 'dist/vnext/vnext/explainer/mapping-tables-v1.json' },
   { src: 'vnext/relational/config/intent-profiles.json', dst: 'dist/vnext/vnext/relational/config/intent-profiles.json' },
+  { src: 'vnext/rpg/maps/v1/BODY_ORDER.json', dst: 'dist/vnext/vnext/rpg/maps/v1/BODY_ORDER.json' },
+  { src: 'vnext/rpg/maps/v1/body_base.json', dst: 'dist/vnext/vnext/rpg/maps/v1/body_base.json' },
+  { src: 'vnext/rpg/maps/v1/sign_style.json', dst: 'dist/vnext/vnext/rpg/maps/v1/sign_style.json' },
+  { src: 'vnext/rpg/maps/v1/house_arena.json', dst: 'dist/vnext/vnext/rpg/maps/v1/house_arena.json' },
+  { src: 'vnext/rpg/maps/v1/domain_resolver.json', dst: 'dist/vnext/vnext/rpg/maps/v1/domain_resolver.json' },
+  { src: 'vnext/rpg/maps/v1/placement_overrides.json', dst: 'dist/vnext/vnext/rpg/maps/v1/placement_overrides.json' },
 ];
 
 for (const { src, dst } of ASSETS) {

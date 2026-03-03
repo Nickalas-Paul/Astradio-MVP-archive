@@ -3,11 +3,11 @@
 
 import type { EphemerisSnapshot } from '../../contracts';
 import { canonicalJsonString, sha256Hex } from './json-hash';
-import type { TransitHash } from '../contracts';
+import type { SnapshotHash } from '../contracts';
 
-export function hashSnapshot(snapshot: EphemerisSnapshot): TransitHash {
+export function hashSnapshot(snapshot: EphemerisSnapshot): SnapshotHash {
   const json = canonicalJsonString(snapshot);
   const digest = sha256Hex('snapshot:' + json);
-  return digest as TransitHash;
+  return digest as SnapshotHash;
 }
 
