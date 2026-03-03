@@ -18,7 +18,7 @@ export function translateSignalsToDomains(signals: RPGTransitSignal[]): RPGDomai
 
   for (const sig of signals) {
     const arena = sig.house != null ? houseArena[String(sig.house)] ?? 'unknown' : 'unknown';
-    const contributorId = sig.signal_id || `sig:${sig.body}-${sig.otherBody ?? 'none'}-${sig.aspect ?? 'none'}-${sig.house ?? 0}`;
+    const contributorId = sig.signal_id;
 
     for (const rule of domainResolver) {
       if (!rule || rule.kind !== 'transit') continue;

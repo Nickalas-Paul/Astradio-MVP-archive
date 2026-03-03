@@ -34,7 +34,7 @@ export type BodyId =
 export type AspectType = 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
 
 export interface RPGTransitSignal {
-  signal_id?: string;
+  signal_id: string;
   body: BodyId;
   otherBody?: BodyId;
   aspect?: AspectType;
