@@ -33,6 +33,14 @@ function makeFixtureSnapshot(): EphemerisSnapshot {
     planets: [
       { name: 'Sun', lon: 15 },
       { name: 'Moon', lon: 45 },
+      { name: 'Mercury', lon: 60 },
+      { name: 'Venus', lon: 75 },
+      { name: 'Mars', lon: 90 },
+      { name: 'Jupiter', lon: 105 },
+      { name: 'Saturn', lon: 120 },
+      { name: 'Uranus', lon: 135 },
+      { name: 'Neptune', lon: 150 },
+      { name: 'Pluto', lon: 165 },
     ],
     houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
     aspects: [],
@@ -130,6 +138,14 @@ function runSnapshotChangeSensitivityTests(failedRef: { value: boolean }): void 
     planets: [
       { name: 'Sun', lon: 45 }, // Taurus instead of Aries
       { name: 'Moon', lon: 45 },
+      { name: 'Mercury', lon: 60 },
+      { name: 'Venus', lon: 75 },
+      { name: 'Mars', lon: 90 },
+      { name: 'Jupiter', lon: 105 },
+      { name: 'Saturn', lon: 120 },
+      { name: 'Uranus', lon: 135 },
+      { name: 'Neptune', lon: 150 },
+      { name: 'Pluto', lon: 165 },
     ],
   };
 
@@ -157,6 +173,33 @@ function runSnapshotHashStabilityTests(failedRef: { value: boolean }): void {
   );
 }
 
+function runMissingBodiesFailureTest(failedRef: { value: boolean }): void {
+  const snapshot: EphemerisSnapshot = {
+    ts: '2026-03-03T00:00:00Z',
+    tz: 'UTC',
+    lat: 40.7128,
+    lon: -74.006,
+    houseSystem: 'placidus',
+    planets: [
+      // Deliberately only Sun present; all other required bodies missing
+      { name: 'Sun', lon: 15 },
+    ],
+    houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
+    aspects: [],
+    moonPhase: 0.5,
+    dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },
+  };
+
+  let threw = false;
+  try {
+    buildRpgEffectsBundleFromSnapshot(snapshot);
+  } catch (e) {
+    threw = String(e).includes('Snapshot missing required bodies');
+  }
+
+  assert(threw, 'builder fails closed when required bodies are missing', failedRef);
+}
+
 function main(): void {
   const failed = { value: false };
 
@@ -167,6 +210,7 @@ function main(): void {
   runRecognitionTests(failed);
   runSnapshotChangeSensitivityTests(failed);
   runSnapshotHashStabilityTests(failed);
+  runMissingBodiesFailureTest(failed);
 
   if (failed.value) {
     // eslint-disable-next-line no-console

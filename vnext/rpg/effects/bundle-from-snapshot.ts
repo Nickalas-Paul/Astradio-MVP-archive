@@ -48,6 +48,35 @@ function toBodyId(name: string): BodyId | null {
   return BODY_NAME_TO_ID[key] ?? null;
 }
 
+const REQUIRED_BODIES: BodyId[] = [
+  'sun',
+  'moon',
+  'mercury',
+  'venus',
+  'mars',
+  'jupiter',
+  'saturn',
+  'uranus',
+  'neptune',
+  'pluto',
+];
+
+function validateRequiredBodies(snapshot: EphemerisSnapshot): void {
+  const present = new Set<BodyId>();
+  for (const planet of snapshot.planets || []) {
+    const id = toBodyId(planet.name);
+    if (id) {
+      present.add(id);
+    }
+  }
+  const missing = REQUIRED_BODIES.filter((b) => !present.has(b));
+  if (missing.length > 0) {
+    throw new Error(
+      `[rpg-effects] Snapshot missing required bodies: ${missing.join(', ')}`
+    );
+  }
+}
+
 function buildClassSlugFromSign(sign: string): string {
   return `class_${sign.toLowerCase()}`;
 }
@@ -260,6 +289,8 @@ export function buildRpgEffectsBundleFromSnapshot(snapshot: EphemerisSnapshot): 
   const maps = loadRpgV1Maps();
   const bodyOrder = maps.bodyOrder;
 
+  validateRequiredBodies(snapshot);
+
   const cusps = ensureHouses(snapshot);
   const ascLon = cusps[0];
   const { sign: ascSign } = lonToSign(ascLon);
@@ -290,7 +321,6 @@ export function buildRpgEffectsBundleFromSnapshot(snapshot: EphemerisSnapshot): 
 
   const bundle: RPGEffectsBundle = {
     metadata,
-    snapshot,
     classSlug,
     subclassSlug,
     risingModifierSlug,

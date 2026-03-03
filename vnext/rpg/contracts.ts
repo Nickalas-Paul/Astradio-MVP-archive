@@ -80,7 +80,6 @@ export interface RPGAspectEffect {
 
 export interface RPGEffectsBundle {
   metadata: RPGBundleMetadata;
-  snapshot: EphemerisSnapshot;
   classSlug: string;
   subclassSlug: string;
   risingModifierSlug: string;
