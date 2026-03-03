@@ -90,6 +90,7 @@ export default function SandboxPage() {
   const [exportUnavailableReason, setExportUnavailableReason] = useState<{ summary: string; step?: string; message?: string } | null>(null);
   const [lastComposeProvider, setLastComposeProvider] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -207,6 +208,12 @@ export default function SandboxPage() {
     setExportUnavailableReason(null);
     setLastComposeProvider(null);
     setDownloadError(null);
+    setPlaybackError(null);
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
     const base = getApiBaseUrl();
     // Cancel any in-flight snapshot sync to avoid races.
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -341,7 +348,12 @@ export default function SandboxPage() {
   }, [lastSnapshotUsed, lastCombinedHashUsed, planHash]);
 
   const handleAudioPlay = useCallback(() => {
-    audioRef.current?.play();
+    setPlaybackError(null);
+    const el = audioRef.current;
+    if (!el) return;
+    el.play().catch(() => {
+      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
+    });
   }, []);
   const handleAudioStop = useCallback(() => {
     const el = audioRef.current;
@@ -349,14 +361,17 @@ export default function SandboxPage() {
       el.pause();
       el.currentTime = 0;
     }
+    setPlaybackError(null);
   }, []);
   const handleAudioReplay = useCallback(() => {
+    setPlaybackError(null);
     const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-      el.play();
-    }
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+    el.play().catch(() => {
+      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
+    });
   }, []);
 
   const handleDownloadWav = useCallback(async () => {
@@ -368,6 +383,11 @@ export default function SandboxPage() {
       const res = await fetch(url);
       if (!res.ok) {
         setDownloadError(`Download failed: ${res.status}`);
+        return;
+      }
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (ct && !ct.includes('audio') && !ct.includes('wav')) {
+        setDownloadError('Download failed: response is not audio (wrong content-type).');
         return;
       }
       const blob = await res.blob();
@@ -382,15 +402,14 @@ export default function SandboxPage() {
   }, [exportId]);
 
   const handleExportJson = useCallback(() => {
-    const base = getApiBaseUrl();
     const bundle = {
       birth: draft.birth,
       overrides: normalizeOverrides(draft.overrides),
       controls: SANDBOX_CONTROLS,
-      combinedHashUsed: lastCombinedHashUsed ?? undefined,
-      plan_sha256: planHash ?? undefined,
-      export_id: exportId ?? undefined,
-      provider: lastComposeProvider ?? undefined,
+      combinedHashUsed: lastCombinedHashUsed ?? null,
+      plan_sha256: planHash ?? null,
+      export_id: exportId ?? null,
+      provider: lastComposeProvider ?? null,
       createdAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
@@ -562,6 +581,7 @@ export default function SandboxPage() {
                           controls
                           className="max-w-full w-full"
                         />
+                        {playbackError && <p className="text-xs text-red-400">{playbackError}</p>}
                         {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
                       </div>
                     ) : (
