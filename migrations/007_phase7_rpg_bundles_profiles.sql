@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_rpg_effects_bundles_lookup
 
 CREATE TABLE IF NOT EXISTS rpg_profiles (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES astradio_users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   chart_id TEXT NOT NULL,
   rpg_map_version TEXT NOT NULL,
   natal_snapshot_hash TEXT NOT NULL,

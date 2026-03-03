@@ -17,6 +17,7 @@ import type { EphemerisSnapshot } from '../contracts';
 import { getOrCreateRpgProfileForChart } from '../rpg/store/rpg-store';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
+const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
 
 function log(msg: string): void {
   // eslint-disable-next-line no-console
@@ -25,8 +26,14 @@ function log(msg: string): void {
 
 async function main(): Promise<void> {
   if (!POSTGRES_URL) {
-    log('SKIP: POSTGRES_URL not set');
-    return;
+    if (IS_CI) {
+      // eslint-disable-next-line no-console
+      console.error('FAIL: POSTGRES_URL not set in CI');
+      process.exit(1);
+    } else {
+      log('SKIP: POSTGRES_URL not set');
+      return;
+    }
   }
 
   const pool = new Pool({ connectionString: POSTGRES_URL });
@@ -36,23 +43,8 @@ async function main(): Promise<void> {
   const sql = fs.readFileSync(migrationPath, 'utf8');
   await pool.query(sql);
 
-  const userId = `usr_rpg_test_${crypto.randomBytes(4).toString('hex')}`;
-  const chartId = `chart_rpg_test_${crypto.randomBytes(4).toString('hex')}`;
-
-  // Minimal seed rows for user/chart id references (no FKs on chart_id, but keep realistic ids).
-  await pool.query(
-    `INSERT INTO astradio_users (id, handle, display_name, email, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, NOW(), NOW())
-     ON CONFLICT (id) DO NOTHING`,
-    [userId, userId, 'RPG Test User', null]
-  );
-
-  await pool.query(
-    `INSERT INTO astradio_charts (id, owner_id, label, date, time, lat, lon, timezone, snapshot_hash, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NOW(), NOW())
-     ON CONFLICT (id) DO NOTHING`,
-    [chartId, userId, 'RPG Test Chart', '1990-01-01', '12:00', 40.7128, -74.006, 'UTC']
-  );
+  const userId = `user_test_${crypto.randomBytes(4).toString('hex')}`;
+  const chartId = `chart_test_${crypto.randomBytes(4).toString('hex')}`;
 
   const baseSnapshot: EphemerisSnapshot = {
     ts: '2026-03-03T00:00:00Z',
@@ -138,22 +130,8 @@ async function main(): Promise<void> {
   const bundleHash = profile1.bundle_hash;
 
   // Create another profile pointing to the same snapshot/bundle (different user/chart ids).
-  const otherUserId = `usr_rpg_test_${crypto.randomBytes(4).toString('hex')}`;
-  const otherChartId = `chart_rpg_test_${crypto.randomBytes(4).toString('hex')}`;
-
-  await pool.query(
-    `INSERT INTO astradio_users (id, handle, display_name, email, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, NOW(), NOW())
-     ON CONFLICT (id) DO NOTHING`,
-    [otherUserId, otherUserId, 'RPG Test User 2', null]
-  );
-
-  await pool.query(
-    `INSERT INTO astradio_charts (id, owner_id, label, date, time, lat, lon, timezone, snapshot_hash, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NOW(), NOW())
-     ON CONFLICT (id) DO NOTHING`,
-    [otherChartId, otherUserId, 'RPG Test Chart 2', '1990-01-01', '12:00', 40.7128, -74.006, 'UTC']
-  );
+  const otherUserId = `user_test_${crypto.randomBytes(4).toString('hex')}`;
+  const otherChartId = `chart_test_${crypto.randomBytes(4).toString('hex')}`;
 
   const otherProfile = await getOrCreateRpgProfileForChart({
     userId: otherUserId,
@@ -199,9 +177,15 @@ main().catch((e) => {
     ((e as any).errors && (e as any).errors[0]?.code === 'ECONNREFUSED') ||
     (e as any).message?.includes('ECONNREFUSED');
   if (refused) {
-    // eslint-disable-next-line no-console
-    console.log('SKIP: database not available (connection refused)');
-    process.exit(0);
+    if (IS_CI) {
+      // eslint-disable-next-line no-console
+      console.error('FAIL: database not available (connection refused) in CI');
+      process.exit(1);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('SKIP: database not available (connection refused)');
+      process.exit(0);
+    }
   }
   // eslint-disable-next-line no-console
   console.error(e);

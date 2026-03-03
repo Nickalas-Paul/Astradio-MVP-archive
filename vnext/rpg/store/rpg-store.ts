@@ -82,21 +82,14 @@ export async function getOrCreateRpgProfileForChart(params: {
 
   const profileId = `rpg_prof_${nanoid()}`;
 
-  const result = await query<RpgProfileRow>(
+  await query(
     `INSERT INTO rpg_profiles (
        id, user_id, chart_id, rpg_map_version, natal_snapshot_hash,
        bundle_hash, class_slug, subclass_slug, rising_modifier_slug
      )
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (user_id, chart_id, rpg_map_version, natal_snapshot_hash)
-     DO UPDATE SET
-       bundle_hash = EXCLUDED.bundle_hash,
-       class_slug = EXCLUDED.class_slug,
-       subclass_slug = EXCLUDED.subclass_slug,
-       rising_modifier_slug = EXCLUDED.rising_modifier_slug
-     RETURNING
-       id, user_id, chart_id, rpg_map_version, natal_snapshot_hash,
-       bundle_hash, class_slug, subclass_slug, rising_modifier_slug, created_at`,
+     DO NOTHING`,
     [
       profileId,
       userId,
@@ -110,9 +103,23 @@ export async function getOrCreateRpgProfileForChart(params: {
     ]
   );
 
-  const row = result.rows[0];
+  const select = await query<RpgProfileRow>(
+    `SELECT
+       id, user_id, chart_id, rpg_map_version, natal_snapshot_hash,
+       bundle_hash, class_slug, subclass_slug, rising_modifier_slug, created_at
+     FROM rpg_profiles
+     WHERE user_id = $1 AND chart_id = $2 AND rpg_map_version = $3 AND natal_snapshot_hash = $4`,
+    [
+      userId,
+      chartId,
+      String(metadata.rpg_map_version),
+      String(metadata.natal_snapshot_hash),
+    ]
+  );
+
+  const row = select.rows[0];
   if (!row) {
-    throw new Error('Failed to upsert RPG profile row');
+    throw new Error('Failed to insert or load RPG profile row');
   }
 
   return row;
