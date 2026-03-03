@@ -14,7 +14,7 @@ import { TextExplainerEngine } from '../explainer/text-explainer';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-import { generateArchitecture, fetchChartSnapshot, type ChartInput } from '../core/architecture-engine';
+import { generateArchitecture, generateArchitectureFromSnapshot, fetchChartSnapshot, type ChartInput } from '../core/architecture-engine';
 import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
@@ -91,9 +91,16 @@ export class ComposeAPI {
       // Generate control-surface payload based on mode
       const payload = await this.generateControlPayload(request);
 
-      // Use canonical architecture engine for all transformations
-      const chartInput = this.extractChartInput(request);
-      const architecture = await generateArchitecture(chartInput, payload.hash);
+      // Phase 6 Sandbox: when overriddenSnapshot is provided, use it for architecture (same chart as viz/report)
+      const req = request as any;
+      let architecture: Awaited<ReturnType<typeof generateArchitecture>>;
+      if (req.mode === 'sandbox' && req.overriddenSnapshot != null) {
+        const overriddenSnapshot = this.validateOverriddenSnapshot(req.overriddenSnapshot);
+        architecture = await generateArchitectureFromSnapshot(overriddenSnapshot, payload.hash);
+      } else {
+        const chartInput = this.extractChartInput(request);
+        architecture = await generateArchitecture(chartInput, payload.hash);
+      }
       const { snapshot, features: featureVec, guidance } = architecture;
 
       // Compute provenance hashes
@@ -860,6 +867,74 @@ export class ComposeAPI {
     }
     
     return { date, time, lat, lon };
+  }
+
+  /**
+   * Phase 6 Sandbox: validate overriddenSnapshot shape (EphemerisSnapshot from POST /api/sandbox/snapshot).
+   * Fail closed with explicit error if invalid.
+   */
+  private validateOverriddenSnapshot(raw: unknown): EphemerisSnapshot {
+    if (raw == null || typeof raw !== 'object') {
+      throw new Error('Invalid overriddenSnapshot: must be an object (EphemerisSnapshot from POST /api/sandbox/snapshot)');
+    }
+    const o = raw as Record<string, unknown>;
+    if (typeof o.ts !== 'string' || typeof o.tz !== 'string' || typeof o.houseSystem !== 'string') {
+      throw new Error('Invalid overriddenSnapshot: ts, tz, houseSystem must be strings');
+    }
+    if (typeof o.lat !== 'number' || !Number.isFinite(o.lat) || typeof o.lon !== 'number' || !Number.isFinite(o.lon)) {
+      throw new Error('Invalid overriddenSnapshot: lat, lon must be finite numbers');
+    }
+    if (!Array.isArray(o.planets)) {
+      throw new Error('Invalid overriddenSnapshot: planets must be an array');
+    }
+    for (let i = 0; i < o.planets.length; i++) {
+      const p = o.planets[i] as Record<string, unknown>;
+      if (p == null || typeof p !== 'object' || typeof (p.name as string) !== 'string' || typeof (p.lon as number) !== 'number' || !Number.isFinite(p.lon as number)) {
+        throw new Error(`Invalid overriddenSnapshot: planets[${i}] must have name (string) and lon (finite number)`);
+      }
+    }
+    if (!Array.isArray(o.houses) || o.houses.length < 12) {
+      throw new Error('Invalid overriddenSnapshot: houses must be an array of at least 12 numbers');
+    }
+    for (let i = 0; i < 12; i++) {
+      const h = o.houses[i];
+      if (typeof h !== 'number' || !Number.isFinite(h)) {
+        throw new Error(`Invalid overriddenSnapshot: houses[${i}] must be a finite number`);
+      }
+    }
+    if (!Array.isArray(o.aspects)) {
+      throw new Error('Invalid overriddenSnapshot: aspects must be an array');
+    }
+    if (typeof o.moonPhase !== 'number' || !Number.isFinite(o.moonPhase)) {
+      throw new Error('Invalid overriddenSnapshot: moonPhase must be a finite number');
+    }
+    const de = o.dominantElements;
+    if (de == null || typeof de !== 'object') {
+      throw new Error('Invalid overriddenSnapshot: dominantElements must be an object');
+    }
+    const elem = de as Record<string, unknown>;
+    for (const key of ['fire', 'earth', 'air', 'water']) {
+      if (typeof elem[key] !== 'number' || !Number.isFinite(elem[key] as number)) {
+        throw new Error(`Invalid overriddenSnapshot: dominantElements.${key} must be a finite number`);
+      }
+    }
+    return {
+      ts: o.ts as string,
+      tz: o.tz as string,
+      lat: o.lat as number,
+      lon: o.lon as number,
+      houseSystem: o.houseSystem as string,
+      planets: o.planets as EphemerisSnapshot['planets'],
+      houses: (o.houses as number[]).slice(0, 12) as EphemerisSnapshot['houses'],
+      aspects: o.aspects as EphemerisSnapshot['aspects'],
+      moonPhase: o.moonPhase as number,
+      dominantElements: {
+        fire: elem.fire as number,
+        earth: elem.earth as number,
+        air: elem.air as number,
+        water: elem.water as number,
+      },
+    };
   }
 
   /**
