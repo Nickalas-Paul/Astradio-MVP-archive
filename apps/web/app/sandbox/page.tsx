@@ -82,6 +82,7 @@ export default function SandboxPage() {
   const [lastSnapshotForCompose, setLastSnapshotForCompose] = useState<EphemerisSnapshot | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
   const [planHash, setPlanHash] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
@@ -174,9 +175,16 @@ export default function SandboxPage() {
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 
-  const canGenerate = draft.birth && (draft.overriddenSnapshot || draft.baseSnapshot) && draft.hash?.combinedHash;
+  const canGenerate = Boolean(draft.birth && (draft.overriddenSnapshot || draft.baseSnapshot) && draft.hash?.combinedHash);
+  const generateDisabledReasons: string[] = [];
+  if (!draft.birth) generateDisabledReasons.push('Enter birth data.');
+  if (!draft.baseSnapshot && !draft.overriddenSnapshot) generateDisabledReasons.push('Wait for the chart snapshot to load.');
+  if (!draft.hash?.combinedHash) generateDisabledReasons.push('Wait for the internal hash to compute.');
+  if (state === 'syncing_overrides') generateDisabledReasons.push('Finish syncing overrides.');
+
   const handleGenerate = useCallback(async () => {
     if (!canGenerate || !draft.birth) return;
+    setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
     setExportId(null);
@@ -315,9 +323,6 @@ export default function SandboxPage() {
 
               <div className="card">
                 <h2 className="text-xl font-semibold text-text mb-4">Generate</h2>
-                {!canGenerate && (
-                  <p className="text-sm text-subtext mb-4">Load birth data and wait for the chart to sync. Generate is available once the wheel is ready.</p>
-                )}
                 <button
                   onClick={handleGenerate}
                   disabled={!canGenerate || generateLoading}
@@ -325,6 +330,38 @@ export default function SandboxPage() {
                 >
                   {generateLoading ? 'Generating…' : 'Generate viz, report & audio'}
                 </button>
+                {!canGenerate && (
+                  <div className="mt-3 text-xs text-subtext">
+                    <p className="mb-1">Generate is disabled until:</p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {generateDisabledReasons.map((reason, idx) => (
+                        <li key={idx}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {hasGenerated && (
+                  <div className="mt-4 grid gap-2 text-xs text-subtext sm:grid-cols-3">
+                    <div>
+                      <span className="font-semibold">Viz:</span>{' '}
+                      {generateLoading ? 'Generating…' : generateError?.viz ? 'Failed' : 'OK'}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Report:</span>{' '}
+                      {generateLoading ? 'Generating…' : generateError?.report ? 'Failed' : report ? 'OK' : 'Not run'}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Audio:</span>{' '}
+                      {generateLoading
+                        ? 'Generating…'
+                        : generateError?.audio
+                        ? 'Failed'
+                        : exportId
+                        ? 'Ready'
+                        : 'Export unavailable'}
+                    </div>
+                  </div>
+                )}
                 {generateError && (generateError.viz || generateError.report || generateError.audio) && (
                   <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
                     {generateError.viz && <p>Viz: {generateError.viz}</p>}
@@ -349,10 +386,30 @@ export default function SandboxPage() {
                     {report.explanation && <ExplainerSections explanation={report.explanation} />}
                   </div>
                 )}
-                {exportId && (
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <a href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`} download={`${exportId}-30s.wav`} className="px-4 py-2 bg-white/10 border border-border rounded-lg font-medium hover:bg-white/15">Download WAV (30s)</a>
-                    <audio src={`/api/exports/${exportId}`} controls className="max-w-full" />
+                {hasGenerated && (
+                  <div className="mt-6 space-y-2">
+                    <h3 className="text-sm font-semibold text-text">Audio</h3>
+                    {exportId ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <a
+                          href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+                          download={`${exportId}-30s.wav`}
+                          className="px-4 py-2 bg-white/10 border border-border rounded-lg font-medium hover:bg-white/15"
+                        >
+                          Download WAV (30s)
+                        </a>
+                        <audio src={`/api/exports/${exportId}`} controls className="max-w-full" />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-subtext">
+                        Audio export unavailable.
+                        {planHash && (
+                          <span className="ml-1">
+                            Plan hash: <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
