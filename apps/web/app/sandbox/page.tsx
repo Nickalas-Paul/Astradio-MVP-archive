@@ -87,9 +87,14 @@ export default function SandboxPage() {
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayStatus, setReplayStatus] = useState<'idle' | 'match' | 'mismatch' | 'error'>('idle');
   const [replayError, setReplayError] = useState<string | null>(null);
+  const [exportUnavailableReason, setExportUnavailableReason] = useState<{ summary: string; step?: string; message?: string } | null>(null);
+  const [lastComposeProvider, setLastComposeProvider] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const updateSnapshot = useCallback(async (birth: SandboxBirth, overrides: SandboxOverrides) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -199,6 +204,9 @@ export default function SandboxPage() {
     setReplayError(null);
     setLastSnapshotUsed(null);
     setLastCombinedHashUsed(null);
+    setExportUnavailableReason(null);
+    setLastComposeProvider(null);
+    setDownloadError(null);
     const base = getApiBaseUrl();
     // Cancel any in-flight snapshot sync to avoid races.
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -261,7 +269,21 @@ export default function SandboxPage() {
       if (!composeRes.ok) {
         setGenerateError((e) => ({ ...e, audio: (composeData?.error ?? composeData?.message) || `Compose: ${composeRes.status}` }));
       } else {
-        if (composeData.export_id) setExportId(composeData.export_id);
+        if (composeData.export_id) {
+          setExportId(composeData.export_id);
+          setExportUnavailableReason(null);
+          const provider = composeData.audio?.provider_used ?? composeData.export_meta?.provider ?? null;
+          setLastComposeProvider(provider);
+        } else {
+          const ad = composeData.audio_debug;
+          const exportErr = composeData.audio?.export_error;
+          setExportUnavailableReason({
+            summary: 'Export disabled or failed',
+            step: ad?.step,
+            message: ad?.message ?? (exportErr ? String(exportErr) : undefined),
+          });
+          setLastComposeProvider(null);
+        }
         if (composeData.hashes?.plan_sha256) setPlanHash(composeData.hashes.plan_sha256);
         else setGenerateError((e) => ({ ...e, audio: 'Compose response missing plan_sha256' }));
       }
@@ -317,6 +339,67 @@ export default function SandboxPage() {
       setReplayLoading(false);
     }
   }, [lastSnapshotUsed, lastCombinedHashUsed, planHash]);
+
+  const handleAudioPlay = useCallback(() => {
+    audioRef.current?.play();
+  }, []);
+  const handleAudioStop = useCallback(() => {
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+  }, []);
+  const handleAudioReplay = useCallback(() => {
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+      el.play();
+    }
+  }, []);
+
+  const handleDownloadWav = useCallback(async () => {
+    if (!exportId) return;
+    const base = getApiBaseUrl();
+    const url = `${base || ''}/api/exports/${exportId}`;
+    setDownloadError(null);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        setDownloadError(`Download failed: ${res.status}`);
+        return;
+      }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `astradio-sandbox-${exportId.slice(0, 8)}.wav`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      setDownloadError(e instanceof Error ? e.message : 'Download failed');
+    }
+  }, [exportId]);
+
+  const handleExportJson = useCallback(() => {
+    const base = getApiBaseUrl();
+    const bundle = {
+      birth: draft.birth,
+      overrides: normalizeOverrides(draft.overrides),
+      controls: SANDBOX_CONTROLS,
+      combinedHashUsed: lastCombinedHashUsed ?? undefined,
+      plan_sha256: planHash ?? undefined,
+      export_id: exportId ?? undefined,
+      provider: lastComposeProvider ?? undefined,
+      createdAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `astradio-sandbox-${lastCombinedHashUsed?.slice(0, 8) ?? 'export'}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, [draft.birth, draft.overrides, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
 
   const currentSnapshot = draft.overriddenSnapshot || draft.baseSnapshot;
   const basePositions: Record<string, number> = {};
@@ -457,25 +540,52 @@ export default function SandboxPage() {
                   <div className="mt-6 space-y-2">
                     <h3 className="text-sm font-semibold text-text">Audio</h3>
                     {exportId ? (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <a
-                          href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
-                          download={`${exportId}-30s.wav`}
-                          className="px-4 py-2 bg-white/10 border border-border rounded-lg font-medium hover:bg-white/15"
-                        >
-                          Download WAV (30s)
-                        </a>
-                        <audio src={`/api/exports/${exportId}`} controls className="max-w-full" />
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button type="button" onClick={handleAudioPlay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                            Play
+                          </button>
+                          <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                            Stop
+                          </button>
+                          <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                            Replay
+                          </button>
+                          <button type="button" onClick={handleDownloadWav} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                            Download WAV
+                          </button>
+                        </div>
+                        <audio
+                          key={exportId}
+                          ref={audioRef}
+                          src={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+                          controls
+                          className="max-w-full w-full"
+                        />
+                        {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
                       </div>
                     ) : (
-                      <p className="text-xs text-subtext">
-                        Audio export unavailable.
-                        {planHash && (
-                          <span className="ml-1">
-                            Plan hash: <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
-                          </span>
+                      <div className="space-y-2">
+                        <p className="text-xs text-subtext">
+                          Audio export unavailable.
+                          {exportUnavailableReason && (
+                            <span className="ml-1">{exportUnavailableReason.summary}</span>
+                          )}
+                          {planHash && (
+                            <span className="ml-1">
+                              Plan hash: <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
+                            </span>
+                          )}
+                        </p>
+                        {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
+                          <details className="text-xs text-subtext" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
+                            <summary className="cursor-pointer hover:text-text">Details</summary>
+                            <pre className="mt-1 p-2 bg-bgElev rounded border border-border/60 overflow-auto">
+                              {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message].filter(Boolean).join('\n')}
+                            </pre>
+                          </details>
                         )}
-                      </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -483,13 +593,21 @@ export default function SandboxPage() {
                   <div className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold text-text">Provenance</h3>
-                      <button
-                        onClick={handleReplay}
-                        disabled={replayLoading || !lastSnapshotUsed || !lastCombinedHashUsed || !planHash}
-                        className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
-                      >
-                        {replayLoading ? 'Replaying…' : 'Replay (same seed)'}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={handleExportJson}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text"
+                        >
+                          Export JSON
+                        </button>
+                        <button
+                          onClick={handleReplay}
+                          disabled={replayLoading || !lastSnapshotUsed || !lastCombinedHashUsed || !planHash}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
+                        >
+                          {replayLoading ? 'Replaying…' : 'Replay (same seed)'}
+                        </button>
+                      </div>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-3">
                       <div>
