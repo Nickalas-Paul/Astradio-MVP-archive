@@ -28,6 +28,12 @@
     "dominant_domain": "liberation_shock",
     "tone_tag": "disruptive",
     "scenario_ids": ["scn_liberation_breakthrough"]
+  },
+  {
+    "id": "turn_neutral_weather",
+    "dominant_domain": "neutral",
+    "tone_tag": "neutral",
+    "scenario_ids": ["scn_fog_confusion"]
   }
 ]
 

@@ -10,7 +10,8 @@ export interface RpgV1Maps {
   bodyBase: any;
   signStyle: any;
   houseArena: Record<string, string>;
-  domainResolver: any[];
+  domainResolverNatal: any[];
+  domainResolverTransit: any[];
   placementOverrides: any[];
   turnTemplates: any[];
   scenarioTemplates: any[];
@@ -35,7 +36,8 @@ export function loadRpgV1Maps(): RpgV1Maps {
   const bodyBase = readJson('v1/body_base.json');
   const signStyle = readJson('v1/sign_style.json');
   const houseArena = readJson('v1/house_arena.json') as Record<string, string>;
-  const domainResolver = readJson('v1/domain_resolver.json') as any[];
+  const domainResolverNatal = readJson('v1/domain_resolver_natal.json') as any[];
+  const domainResolverTransit = readJson('v1/domain_resolver_transit.json') as any[];
   const placementOverrides = readJson('v1/placement_overrides.json') as any[];
   const turnTemplates = readJson('v1/turn_templates.json') as any[];
   const scenarioTemplates = readJson('v1/scenario_templates.json') as any[];
@@ -81,8 +83,12 @@ export function loadRpgV1Maps(): RpgV1Maps {
     throw new Error('[rpg-maps] house_arena.json must be an object');
   }
 
-  if (!Array.isArray(domainResolver)) {
-    throw new Error('[rpg-maps] domain_resolver.json must be an array');
+  if (!Array.isArray(domainResolverNatal)) {
+    throw new Error('[rpg-maps] domain_resolver_natal.json must be an array');
+  }
+
+  if (!Array.isArray(domainResolverTransit)) {
+    throw new Error('[rpg-maps] domain_resolver_transit.json must be an array');
   }
 
   if (!Array.isArray(placementOverrides)) {
@@ -106,7 +112,8 @@ export function loadRpgV1Maps(): RpgV1Maps {
     bodyBase,
     signStyle,
     houseArena,
-    domainResolver,
+    domainResolverNatal,
+    domainResolverTransit,
     placementOverrides,
     turnTemplates,
     scenarioTemplates,

@@ -80,9 +80,10 @@ export function detectTransitSignals(snapshot: EphemerisSnapshot): RPGTransitSig
     const bId = toBodyId(asp.b);
     if (!aId || !bId) continue;
 
-    const primary: BodyId =
-      LUMINARIES.includes(aId) ? aId : LUMINARIES.includes(bId) ? bId : aId;
-    const other: BodyId = primary === aId ? bId : aId;
+    const idxA = orderIndex.get(aId) ?? 0;
+    const idxB = orderIndex.get(bId) ?? 0;
+    const primary: BodyId = idxA <= idxB ? aId : bId;
+    const secondary: BodyId = idxA <= idxB ? bId : aId;
 
     const primaryPlanet = snapshot.planets.find(
       (p) => toBodyId(p.name) === primary
@@ -125,9 +126,12 @@ export function detectTransitSignals(snapshot: EphemerisSnapshot): RPGTransitSig
       tags.push('angular');
     }
 
+    const signalId = `sig_${primary}_${secondary}_${type}_${house}`;
+
     signals.push({
+      signal_id: signalId,
       body: primary,
-      otherBody: other,
+      otherBody: secondary,
       aspect: type,
       orb: typeof asp.orb === 'number' ? asp.orb : undefined,
       house,

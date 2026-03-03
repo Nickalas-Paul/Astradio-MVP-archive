@@ -99,9 +99,17 @@ function runDeterminismTests(failedRef: { value: boolean }): void {
   const p1 = buildPrompt(base, state);
   const p2 = buildPrompt(reordered, state);
 
+  const parsed = JSON.parse(p1.json) as { scenario_id: string };
+
   assert(
     p1.json === p2.json,
     'Prompt spec is stable under snapshot key reordering',
+    failedRef
+  );
+
+  assert(
+    parsed.scenario_id === 'scn_identity_crossroads',
+    'Base fixture maps to expected scenario_id scn_identity_crossroads',
     failedRef
   );
 }

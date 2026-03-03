@@ -30,7 +30,10 @@ export function projectNarrativeFromDomains(
   const scenarioTemplates = maps.scenarioTemplates;
   const choiceTemplates = maps.choiceTemplates;
 
-  const primaryDomain = domains[0]?.domain ?? 'identity_heat';
+  let primaryDomain = domains[0]?.domain;
+  if (!primaryDomain) {
+    primaryDomain = 'neutral';
+  }
 
   const eligibleTurns = turnTemplates.filter((t: any) => t.dominant_domain === primaryDomain);
   const turnPool = eligibleTurns.length > 0 ? eligibleTurns : turnTemplates;

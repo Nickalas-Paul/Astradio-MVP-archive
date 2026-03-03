@@ -140,7 +140,7 @@ function buildPlacements(
       domainsSet.add(arena);
     }
 
-    for (const rule of maps.domainResolver) {
+    for (const rule of maps.domainResolverNatal) {
       if (rule && rule.body === body && (!rule.house_domain || rule.house_domain === arena)) {
         if (Array.isArray(rule.domains)) {
           for (const d of rule.domains) {

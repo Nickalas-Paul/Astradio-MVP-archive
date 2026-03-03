@@ -1,0 +1,17 @@
+[
+  {
+    "id": "natal_sun_identity_self",
+    "body": "sun",
+    "house_domain": "self",
+    "domains": ["identity"],
+    "multiplier": 1.0
+  },
+  {
+    "id": "natal_moon_emotion_home",
+    "body": "moon",
+    "house_domain": "home",
+    "domains": ["emotion"],
+    "multiplier": 1.0
+  }
+]
+
