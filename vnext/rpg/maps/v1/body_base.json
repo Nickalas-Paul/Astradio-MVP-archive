@@ -1,0 +1,17 @@
+{
+  "sun": {
+    "primary_role": "core_identity",
+    "base_domains": ["identity"],
+    "modifiers": {
+      "vitality": 1
+    }
+  },
+  "moon": {
+    "primary_role": "emotional_core",
+    "base_domains": ["emotion"],
+    "modifiers": {
+      "receptivity": 1
+    }
+  }
+}
+

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "sun_on_asc",
+    "body": "sun",
+    "condition": {
+      "house": 1
+    },
+    "override_domains": ["identity", "visibility"],
+    "modifier_multipliers": {
+      "vitality": 1.2
+    }
+  }
+]
+

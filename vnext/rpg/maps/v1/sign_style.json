@@ -1,0 +1,21 @@
+{
+  "aries": {
+    "element": "fire",
+    "modality": "cardinal",
+    "style_tags": ["initiating", "decisive"],
+    "domain_bias": {
+      "identity": 0.8,
+      "action": 0.9
+    }
+  },
+  "taurus": {
+    "element": "earth",
+    "modality": "fixed",
+    "style_tags": ["steady", "grounded"],
+    "domain_bias": {
+      "resources": 0.9,
+      "stability": 0.8
+    }
+  }
+}
+

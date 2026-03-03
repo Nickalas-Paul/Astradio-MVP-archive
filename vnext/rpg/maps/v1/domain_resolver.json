@@ -1,0 +1,21 @@
+[
+  {
+    "id": "sun_identity_self",
+    "body": "sun",
+    "aspect": null,
+    "house_domain": "self",
+    "domains": ["identity"],
+    "tension_weight": 0,
+    "support_weight": 1
+  },
+  {
+    "id": "moon_emotion_home",
+    "body": "moon",
+    "aspect": null,
+    "house_domain": "home",
+    "domains": ["emotion"],
+    "tension_weight": 0,
+    "support_weight": 1
+  }
+]
+
