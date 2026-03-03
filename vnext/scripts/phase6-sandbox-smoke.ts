@@ -45,6 +45,31 @@ async function getRaw(path: string): Promise<Response> {
 
 async function main(): Promise<void> {
   log(`[phase6-sandbox-smoke] ENGINE_BASE=${ENGINE_BASE}`);
+  const requireEngine = process.env.PHASE6_SMOKE_REQUIRE_ENGINE === '1';
+
+  // 0) Engine reachability preflight
+  log('[0] GET /health preflight');
+  try {
+    const res = await fetch(`${ENGINE_BASE}/health`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      const msg = `health status=${res.status} body=${text.slice(0, 200)}`;
+      if (requireEngine) {
+        fail(`Engine not healthy at BASE_URL=${ENGINE_BASE}: ${msg}`);
+      } else {
+        log(`SKIP: engine not healthy at ${ENGINE_BASE} (${msg})`);
+        process.exit(0);
+      }
+    }
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    if (requireEngine) {
+      fail(`Engine not reachable at BASE_URL=${ENGINE_BASE}: ${msg}. Start engine or set ENGINE_BASE_URL.`);
+    } else {
+      log(`SKIP: engine not running at ${ENGINE_BASE} (${msg})`);
+      process.exit(0);
+    }
+  }
 
   const birth = {
     date: '1990-01-01',
