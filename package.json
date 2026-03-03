@@ -100,7 +100,8 @@
     "phase5:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-smoke.js",
     "phase6:verify-sandbox-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-sandbox-compose-override.js",
     "phase6:verify-compositions": "node scripts/phase6-verify-compositions.js",
-    "phase6:smoke": "npm run phase6:verify-sandbox-compose && npm run phase6:verify-compositions"
+    "phase6:sandbox-smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6-sandbox-smoke.js",
+    "phase6:smoke": "npm run phase6:verify-sandbox-compose && npm run phase6:verify-compositions && npm run phase6:sandbox-smoke"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
