@@ -111,11 +111,42 @@ function getPlanetAtPoint(
   return null;
 }
 
+/** Which house index (0-11) contains this longitude given cusps. */
+function houseIndexForLongitude(lonDeg: number, cusps: number[]): number {
+  if (cusps.length < 12) return 0;
+  const lon = ((lonDeg % 360) + 360) % 360;
+  for (let i = 0; i < 12; i++) {
+    const start = cusps[i];
+    const end = cusps[(i + 1) % 12];
+    const inRange = end > start ? (lon >= start && lon < end) : (lon >= start || lon < end);
+    if (inRange) return i;
+  }
+  return 0;
+}
+
+/** Clamp longitude to the arc of the given house index (0-11). Cusps in 0-360. */
+function clampToHouse(lonDeg: number, houseIndex: number, cusps: number[]): number {
+  if (cusps.length < 12) return roundDegree(lonDeg);
+  const start = cusps[houseIndex];
+  const end = cusps[(houseIndex + 1) % 12];
+  let lon = ((lonDeg % 360) + 360) % 360;
+  const inRange = end > start
+    ? (lon >= start && lon < end)
+    : (lon >= start || lon < end);
+  if (inRange) return roundDegree(lonDeg);
+  const distToStart = start <= lon ? lon - start : lon + (360 - start);
+  const distToEnd = end >= lon ? end - lon : (360 - lon) + end;
+  const clamped = distToStart <= distToEnd ? start : end;
+  return roundDegree(clamped === 360 ? 0 : clamped);
+}
+
 export interface WheelCanvasBuilderProps {
   snapshot: EphemerisSnapshot | null;
   overrides: SandboxOverrides;
   onOverrideChange: (planet: PlanetKey, lonDeg: number) => void;
   isUpdating?: boolean;
+  /** When true (default), drag is clamped to the house the planet started in */
+  constrainToHouse?: boolean;
 }
 
 export function WheelCanvasBuilder({
@@ -123,9 +154,11 @@ export function WheelCanvasBuilder({
   overrides,
   onOverrideChange,
   isUpdating = false,
+  constrainToHouse = true,
 }: WheelCanvasBuilderProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
+  const [dragStartHouse, setDragStartHouse] = useState<number | null>(null);
   const [wheelSize, setWheelSize] = useState(400);
 
   useEffect(() => {
@@ -169,36 +202,41 @@ export function WheelCanvasBuilder({
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
     const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions);
     if (planet) {
       setDraggingPlanet(planet);
+      if (constrainToHouse && normalized.cusps.length >= 12) {
+        const houseIdx = houseIndexForLongitude(positions[planet] ?? 0, normalized.cusps);
+        setDragStartHouse(houseIdx);
+      } else {
+        setDragStartHouse(null);
+      }
       svgRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
-  }, [cx, cy, R_OUT, positions]);
+  }, [cx, cy, R_OUT, positions, constrainToHouse, normalized?.cusps]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!draggingPlanet || !svgRef.current) return;
-    
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
     const dx = x - cx;
     const dy = y - cy;
     const angle = Math.atan2(dy, dx);
-    const lonDeg = angleToLonDeg(angle);
-    
-    // Already rounded by angleToLonDeg
+    let lonDeg = angleToLonDeg(angle);
+    if (constrainToHouse && dragStartHouse !== null && normalized.cusps.length >= 12) {
+      lonDeg = clampToHouse(lonDeg, dragStartHouse, normalized.cusps);
+    }
     onOverrideChange(draggingPlanet, lonDeg);
-  }, [draggingPlanet, cx, cy, onOverrideChange]);
+  }, [draggingPlanet, cx, cy, onOverrideChange, constrainToHouse, dragStartHouse, normalized?.cusps]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (draggingPlanet && svgRef.current) {
       svgRef.current.releasePointerCapture(e.pointerId);
     }
     setDraggingPlanet(null);
+    setDragStartHouse(null);
   }, [draggingPlanet]);
 
   return (

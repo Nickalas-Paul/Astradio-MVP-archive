@@ -32,9 +32,23 @@ function lonToSignDeg(lonDeg: number): { sign: string; deg: number; min: number 
   };
 }
 
+function houseIndexForLongitude(lonDeg: number, cusps: number[]): number {
+  if (cusps.length < 12) return 0;
+  const lon = ((lonDeg % 360) + 360) % 360;
+  for (let i = 0; i < 12; i++) {
+    const start = cusps[i];
+    const end = cusps[(i + 1) % 12];
+    const inRange = end > start ? (lon >= start && lon < end) : (lon >= start || lon < end);
+    if (inRange) return i;
+  }
+  return 0;
+}
+
 export interface DegreePanelProps {
   overrides: SandboxOverrides;
   basePositions?: Record<string, number>;
+  /** Cusps (12 numbers) for house number display */
+  cusps?: number[];
   onOverrideChange: (planet: PlanetKey, lonDeg: number | null) => void;
   onResetPlanet?: (planet: PlanetKey) => void;
 }
@@ -46,7 +60,7 @@ function roundDegree(lonDeg: number): number {
   return Math.round(lonDeg * 10) / 10;
 }
 
-export function DegreePanel({ overrides, basePositions, onOverrideChange, onResetPlanet }: DegreePanelProps) {
+export function DegreePanel({ overrides, basePositions, cusps, onOverrideChange, onResetPlanet }: DegreePanelProps) {
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-text mb-3">Planet Degrees</h3>
@@ -56,6 +70,7 @@ export function DegreePanel({ overrides, basePositions, onOverrideChange, onRese
         const currentLon = override?.lonDeg ?? baseLon ?? 0;
         const { sign, deg, min } = lonToSignDeg(currentLon);
         const hasOverride = override !== undefined;
+        const houseNum = cusps && cusps.length === 12 ? houseIndexForLongitude(currentLon, cusps) + 1 : null;
 
         return (
           <div key={planet} className="flex items-center gap-3 p-2 bg-bgElev rounded-lg">
@@ -84,6 +99,7 @@ export function DegreePanel({ overrides, basePositions, onOverrideChange, onRese
                 <span className="text-xs text-subtext">°</span>
                 <span className="text-xs text-subtext flex-1">
                   {sign} {deg}° {min}′
+                  {houseNum != null && <span className="ml-1 text-subtext/80"> · House {houseNum}</span>}
                 </span>
               </div>
             </div>
