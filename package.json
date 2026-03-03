@@ -104,6 +104,7 @@
     "phase7:slice3:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-store-test.js",
     "phase7:slice4:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-transit-test.js",
     "phase7:slice5:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-campaign-test.js",
+    "phase7:slice5_5:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-campaign-ui-test.js",
     "phase6:verify-sandbox-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-sandbox-compose-override.js",
     "phase6:verify-compositions": "node scripts/phase6-verify-compositions.js",
     "phase6:sandbox-smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6-sandbox-smoke.js",

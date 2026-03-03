@@ -171,6 +171,41 @@ async function main(): Promise<void> {
     log('✓ submitResponse enforces UNIQUE(turn_id, user_id)');
   }
 
+  // Negative: invalid choiceId should fail.
+  let invalidChoiceError = false;
+  try {
+    await submitResponse({ turnId: turn1.id, userId, choiceId: 'not-a-real-choice' });
+  } catch {
+    invalidChoiceError = true;
+  }
+  if (!invalidChoiceError) {
+    // eslint-disable-next-line no-console
+    console.error('FAIL: submitResponse did not fail for invalid choiceId');
+    process.exitCode = 1;
+  } else {
+    log('✓ submitResponse fails for invalid choiceId');
+  }
+
+  // Negative: submitting different choiceId for same (turn,user) should fail.
+  let conflictingChoiceError = false;
+  if (Array.isArray(prompt.choice_ids) && prompt.choice_ids.length > 1) {
+    const otherChoiceId = prompt.choice_ids.find((c: string) => c !== choiceId) || prompt.choice_ids[0];
+    try {
+      await submitResponse({ turnId: turn1.id, userId, choiceId: otherChoiceId });
+    } catch {
+      conflictingChoiceError = true;
+    }
+  } else {
+    conflictingChoiceError = true;
+  }
+  if (!conflictingChoiceError) {
+    // eslint-disable-next-line no-console
+    console.error('FAIL: submitResponse did not fail for conflicting second choice');
+    process.exitCode = 1;
+  } else {
+    log('✓ submitResponse fails for conflicting second choice');
+  }
+
   const out1 = await finalizeTurnOutcome({ turnId: turn1.id });
   const out2 = await finalizeTurnOutcome({ turnId: turn1.id });
 
@@ -180,6 +215,51 @@ async function main(): Promise<void> {
     process.exitCode = 1;
   } else {
     log('✓ finalizeTurnOutcome is idempotent');
+  }
+
+  // Negative: finalize with 0 responses should fail.
+  const turnNoResp = await getOrCreateDailyTurn({
+    campaignId: campaign1.id,
+    transitSnapshot,
+    stateJson: campaign1.state_json,
+  });
+  let zeroRespError = false;
+  try {
+    await finalizeTurnOutcome({ turnId: turnNoResp.id });
+  } catch {
+    zeroRespError = true;
+  }
+  if (!zeroRespError) {
+    // eslint-disable-next-line no-console
+    console.error('FAIL: finalizeTurnOutcome did not fail when 0 responses exist');
+    process.exitCode = 1;
+  } else {
+    log('✓ finalizeTurnOutcome fails when 0 responses exist');
+  }
+
+  // Negative: finalize with >1 responses should fail (solo mode only).
+  const turnMulti = await getOrCreateDailyTurn({
+    campaignId: campaign1.id,
+    transitSnapshot,
+    stateJson: campaign1.state_json,
+  });
+  const userOther = `user_test_${crypto.randomBytes(4).toString('hex')}`;
+  const choiceForMulti: string = Array.isArray(prompt.choice_ids) ? prompt.choice_ids[0] : '';
+  await submitResponse({ turnId: turnMulti.id, userId, choiceId: choiceForMulti });
+  await submitResponse({ turnId: turnMulti.id, userId: userOther, choiceId: choiceForMulti });
+
+  let multiRespError = false;
+  try {
+    await finalizeTurnOutcome({ turnId: turnMulti.id });
+  } catch {
+    multiRespError = true;
+  }
+  if (!multiRespError) {
+    // eslint-disable-next-line no-console
+    console.error('FAIL: finalizeTurnOutcome did not fail when >1 responses exist');
+    process.exitCode = 1;
+  } else {
+    log('✓ finalizeTurnOutcome fails when >1 responses exist in solo mode');
   }
 
   const campaignAfter = await getCampaignById(campaign1.id);

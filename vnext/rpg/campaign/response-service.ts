@@ -7,12 +7,8 @@ import { applyOutcome, type RpgOutcome } from './state-machine';
 import {
   getDailyTurnById,
   insertResponseIfMissing,
-  listResponsesByTurn,
-  getOutcomeByTurn,
-  insertOutcomeIfMissing,
-  getCampaignById,
-  updateCampaignState,
   type RpgMemberResponseRow,
+  finalizeTurnTransactional,
   type RpgTurnOutcomeRow,
 } from '../store/rpg-store';
 
@@ -37,7 +33,7 @@ export async function submitResponse(params: {
   const responseJson = { choice_id: choiceId };
   const responseHash = hashCanonicalJson(responseJson);
 
-  const row = await insertResponseIfMissing({
+  const existing = await insertResponseIfMissing({
     turnId,
     userId,
     choiceId,
@@ -45,7 +41,13 @@ export async function submitResponse(params: {
     responseHash,
   });
 
-  return row;
+  if (existing.choice_id !== choiceId) {
+    throw new Error(
+      `[rpg-response] Response already submitted for turn; existing choice_id=${existing.choice_id}, requested=${choiceId}`
+    );
+  }
+
+  return existing;
 }
 
 export async function finalizeTurnOutcome(params: {
@@ -53,61 +55,57 @@ export async function finalizeTurnOutcome(params: {
 }): Promise<RpgTurnOutcomeRow> {
   const { turnId } = params;
 
-  const existing = await getOutcomeByTurn(turnId);
-  if (existing) {
-    return existing;
-  }
-
   const turn = await getDailyTurnById(turnId);
   if (!turn) {
     throw new Error(`[rpg-outcome] Turn not found: ${turnId}`);
   }
 
-  const campaign = await getCampaignById(turn.campaign_id);
-  if (!campaign) {
-    throw new Error(`[rpg-outcome] Campaign not found: ${turn.campaign_id}`);
-  }
-
-  const responses = await listResponsesByTurn(turnId);
-  if (!responses || responses.length === 0) {
-    throw new Error('[rpg-outcome] No responses available for turn');
-  }
-
-  const primary = responses[0];
-  const prompt = turn.prompt_spec_json as any;
-  const outcomePatchId: string | undefined =
-    (prompt.outcome_patch_ids_by_choice && prompt.outcome_patch_ids_by_choice[primary.choice_id]) || undefined;
-
-  const outcome: RpgOutcome = {
-    turn_id: turnId,
-    choice_id: primary.choice_id,
-    outcome_patch_id: outcomePatchId || 'generic',
-  };
-
-  const outcomeJson = {
-    turn_id: outcome.turn_id,
-    choice_id: outcome.choice_id,
-    outcome_patch_id: outcome.outcome_patch_id,
-  };
-  const outcomeHash = hashCanonicalJson(outcomeJson);
-
-  const newState = applyOutcome(campaign.state_json as any, outcome);
-  const newStateHash = hashCanonicalJson(newState) as StateHash;
-
-  const row = await insertOutcomeIfMissing({
+  return finalizeTurnTransactional({
     turnId,
-    outcomeJson,
-    outcomeHash,
-    newStateJson: newState,
-    newStateHash,
-  });
+    buildOutcomeAndState: ({ campaign, responses }) => {
+      if (!responses || responses.length === 0) {
+        throw new Error('[rpg-outcome] No responses available for turn (tx)');
+      }
+      if (responses.length > 1) {
+        throw new Error('[rpg-outcome] Multiple responses for turn in solo mode (tx)');
+      }
 
-  await updateCampaignState({
-    campaignId: campaign.id,
-    newStateJson: newState,
-    newStateHash,
-  });
+      const primary = responses[0];
 
-  return row;
+      const prompt = turn.prompt_spec_json as any;
+      const map = prompt?.outcome_patch_ids_by_choice as Record<string, string> | undefined;
+      const outcomePatchId = map ? map[primary.choice_id] : undefined;
+
+      if (!outcomePatchId) {
+        const scenarioId = prompt?.scenario_id ?? 'unknown';
+        throw new Error(
+          `[rpg-outcome] Missing outcome_patch_id for turn=${turnId}, scenario_id=${scenarioId}, choice_id=${primary.choice_id}`
+        );
+      }
+
+      const outcome: RpgOutcome = {
+        turn_id: turnId,
+        choice_id: primary.choice_id,
+        outcome_patch_id: outcomePatchId,
+      };
+
+      const outcomeJson = {
+        turn_id: outcome.turn_id,
+        choice_id: outcome.choice_id,
+        outcome_patch_id: outcome.outcome_patch_id,
+      };
+      const outcomeHash = hashCanonicalJson(outcomeJson);
+
+      const newState = applyOutcome(campaign.state_json as any, outcome);
+      const newStateHash = hashCanonicalJson(newState) as StateHash;
+
+      return {
+        outcomeJson,
+        outcomeHash,
+        newStateJson: newState,
+        newStateHash,
+      };
+    },
+  });
 }
 

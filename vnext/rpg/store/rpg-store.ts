@@ -27,6 +27,26 @@ async function query<T = any>(text: string, params: any[] = []): Promise<{ rows:
   return p.query(text, params);
 }
 
+async function withTransaction<T>(fn: (client: any) => Promise<T>): Promise<T> {
+  const p = getPool();
+  const client = await p.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // ignore rollback errors
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 function nanoid(): string {
   return crypto.randomBytes(8).toString('hex');
 }
@@ -357,6 +377,143 @@ export async function getOutcomeByTurn(turnId: string): Promise<RpgTurnOutcomeRo
     [turnId]
   );
   return res.rows[0] ?? null;
+}
+
+export async function getLatestTurnForCampaign(campaignId: string): Promise<RpgDailyTurnRow | null> {
+  const res = await query<RpgDailyTurnRow>(
+    `SELECT
+       id, campaign_id, turn_seed, transit_snapshot_hash, state_hash,
+       rpg_algo_version, prompt_spec_json, created_at
+     FROM rpg_daily_turns
+     WHERE campaign_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [campaignId]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function getBundleByHash(bundleHash: string): Promise<{ bundle_json: any } | null> {
+  const res = await query<{ bundle_json: any }>(
+    `SELECT bundle_json
+     FROM rpg_effects_bundles
+     WHERE bundle_hash = $1`,
+    [bundleHash]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function finalizeTurnTransactional(params: {
+  turnId: string;
+  buildOutcomeAndState: (args: {
+    campaign: RpgCampaignRow;
+    responses: RpgMemberResponseRow[];
+  }) => {
+    outcomeJson: unknown;
+    outcomeHash: string;
+    newStateJson: unknown;
+    newStateHash: string;
+  };
+}): Promise<RpgTurnOutcomeRow> {
+  const { turnId, buildOutcomeAndState } = params;
+
+  return withTransaction(async (client): Promise<RpgTurnOutcomeRow> => {
+    const existingRes = await client.query(
+      `SELECT
+         id, turn_id, outcome_json, outcome_hash, new_state_json, new_state_hash, created_at
+       FROM rpg_turn_outcomes
+       WHERE turn_id = $1`,
+      [turnId]
+    );
+    if (existingRes.rows[0]) {
+      return existingRes.rows[0];
+    }
+
+    const turnRes = await client.query(
+      `SELECT
+         id, campaign_id, turn_seed, transit_snapshot_hash, state_hash,
+         rpg_algo_version, prompt_spec_json, created_at
+       FROM rpg_daily_turns
+       WHERE id = $1`,
+      [turnId]
+    );
+    const turn = turnRes.rows[0];
+    if (!turn) {
+      throw new Error(`[rpg-outcome] Turn not found (tx): ${turnId}`);
+    }
+
+    const campaignRes = await client.query(
+      `SELECT
+         id, user_id, chart_id, rpg_map_version, rpg_algo_version, audio_algo_version,
+         bundle_hash, state_json, state_hash, state_version, created_at, updated_at
+       FROM rpg_campaigns
+       WHERE id = $1
+       FOR UPDATE`,
+      [turn.campaign_id]
+    );
+    const campaign = campaignRes.rows[0];
+    if (!campaign) {
+      throw new Error(`[rpg-outcome] Campaign not found (tx): ${turn.campaign_id}`);
+    }
+
+    const responsesRes = await client.query(
+      `SELECT
+         id, turn_id, user_id, choice_id, response_json, response_hash, created_at
+       FROM rpg_member_responses
+       WHERE turn_id = $1
+       ORDER BY created_at ASC`,
+      [turnId]
+    );
+    const responses = responsesRes.rows;
+
+    const { outcomeJson, outcomeHash, newStateJson, newStateHash } = buildOutcomeAndState({
+      campaign,
+      responses,
+    });
+
+    const id = `rpg_out_${nanoid()}`;
+
+    await client.query(
+      `INSERT INTO rpg_turn_outcomes (
+         id, turn_id, outcome_json, outcome_hash, new_state_json, new_state_hash
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (turn_id)
+       DO NOTHING`,
+      [
+        id,
+        turnId,
+        canonicalJsonString(outcomeJson),
+        outcomeHash,
+        canonicalJsonString(newStateJson),
+        newStateHash,
+      ]
+    );
+
+    const outRes = await client.query(
+      `SELECT
+         id, turn_id, outcome_json, outcome_hash, new_state_json, new_state_hash, created_at
+       FROM rpg_turn_outcomes
+       WHERE turn_id = $1`,
+      [turnId]
+    );
+    const row = outRes.rows[0];
+    if (!row) {
+      throw new Error('Failed to insert or load RPG turn outcome row (tx)');
+    }
+
+    await client.query(
+      `UPDATE rpg_campaigns
+       SET state_json = $1,
+           state_hash = $2,
+           state_version = state_version + 1,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [canonicalJsonString(newStateJson), newStateHash, campaign.id]
+    );
+
+    return row;
+  });
 }
 
 export async function insertOutcomeIfMissing(params: {
