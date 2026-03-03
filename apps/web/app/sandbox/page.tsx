@@ -79,10 +79,14 @@ export default function SandboxPage() {
   const [constrainToHouse, setConstrainToHouse] = useState(true);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ viz?: string; report?: string; audio?: string } | null>(null);
-  const [lastSnapshotForCompose, setLastSnapshotForCompose] = useState<EphemerisSnapshot | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
   const [planHash, setPlanHash] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [lastSnapshotUsed, setLastSnapshotUsed] = useState<EphemerisSnapshot | null>(null);
+  const [lastCombinedHashUsed, setLastCombinedHashUsed] = useState<string | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayStatus, setReplayStatus] = useState<'idle' | 'match' | 'mismatch' | 'error'>('idle');
+  const [replayError, setReplayError] = useState<string | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
@@ -184,20 +188,29 @@ export default function SandboxPage() {
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate || !draft.birth) return;
+    const birth = draft.birth;
+    const overrides = normalizeOverrides(draft.overrides);
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
     setExportId(null);
     setPlanHash(null);
+    setReplayStatus('idle');
+    setReplayError(null);
+    setLastSnapshotUsed(null);
+    setLastCombinedHashUsed(null);
     const base = getApiBaseUrl();
-    const combinedHash = draft.hash!.combinedHash!;
-    let snapshot: EphemerisSnapshot | null = null;
-
+    // Cancel any in-flight snapshot sync to avoid races.
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    snapshotSequenceRef.current++;
+    let snapshotUsed: EphemerisSnapshot | null = null;
+    let combinedHashUsed: string | null = null;
     try {
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth: draft.birth, overrides: normalizeOverrides(draft.overrides) }),
+        body: JSON.stringify({ birth, overrides }),
       });
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
@@ -205,25 +218,32 @@ export default function SandboxPage() {
         setGenerateLoading(false);
         return;
       }
-      snapshot = snapData.snapshot;
-      setLastSnapshotForCompose(snapshot);
-      const seed = snapData.meta?.combinedHash ?? combinedHash;
+      snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
+      combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
+      if (!snapshotUsed || !combinedHashUsed) {
+        setGenerateError({ viz: 'Snapshot response missing snapshot or combinedHash' });
+        setGenerateLoading(false);
+        return;
+      }
+      setLastSnapshotUsed(snapshotUsed);
+      setLastCombinedHashUsed(combinedHashUsed);
 
       const reportRes = await fetch(`${base}/api/sandbox/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth: draft.birth, overrides: normalizeOverrides(draft.overrides), seed }),
+        body: JSON.stringify({ birth, overrides, seed: combinedHashUsed }),
       });
       const reportData = await reportRes.json().catch(() => ({}));
       if (!reportRes.ok) {
         setGenerateError({ report: (reportData?.error ?? reportData?.message) || `Report: ${reportRes.status}` });
         setReport(null);
-      } else {
-        setReport(reportData);
+        setGenerateLoading(false);
+        return;
       }
+      setReport(reportData);
 
-      if (!snapshot) {
-        setGenerateError((e) => ({ ...e, audio: 'No snapshot available for compose' }));
+      if (!snapshotUsed || !combinedHashUsed) {
+        setGenerateError((e) => ({ ...e, audio: 'No snapshot or seed available for compose' }));
         setGenerateLoading(false);
         return;
       }
@@ -233,8 +253,8 @@ export default function SandboxPage() {
         body: JSON.stringify({
           mode: 'sandbox',
           controls: SANDBOX_CONTROLS,
-          seed: seed,
-          overriddenSnapshot: snapshot,
+          seed: combinedHashUsed,
+          overriddenSnapshot: snapshotUsed,
         }),
       });
       const composeData = await composeRes.json().catch(() => ({}));
@@ -243,6 +263,7 @@ export default function SandboxPage() {
       } else {
         if (composeData.export_id) setExportId(composeData.export_id);
         if (composeData.hashes?.plan_sha256) setPlanHash(composeData.hashes.plan_sha256);
+        else setGenerateError((e) => ({ ...e, audio: 'Compose response missing plan_sha256' }));
       }
     } catch (e) {
       setGenerateError({ audio: e instanceof Error ? e.message : 'Generate failed' });
@@ -250,6 +271,52 @@ export default function SandboxPage() {
       setGenerateLoading(false);
     }
   }, [canGenerate, draft]);
+
+  const handleReplay = useCallback(async () => {
+    if (!lastSnapshotUsed || !lastCombinedHashUsed || !planHash) {
+      setReplayError('Replay unavailable: missing snapshot, seed, or plan hash from last generate.');
+      setReplayStatus('error');
+      return;
+    }
+    const base = getApiBaseUrl();
+    setReplayLoading(true);
+    setReplayError(null);
+    setReplayStatus('idle');
+    try {
+      const composeRes = await fetch(`${base}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'sandbox',
+          controls: SANDBOX_CONTROLS,
+          seed: lastCombinedHashUsed,
+          overriddenSnapshot: lastSnapshotUsed,
+        }),
+      });
+      const composeData = await composeRes.json().catch(() => ({}));
+      if (!composeRes.ok) {
+        setReplayError((composeData?.error ?? composeData?.message) || `Replay compose: ${composeRes.status}`);
+        setReplayStatus('error');
+        return;
+      }
+      const replayPlan = composeData.hashes?.plan_sha256 as string | undefined;
+      if (!replayPlan) {
+        setReplayError('Replay compose response missing plan_sha256');
+        setReplayStatus('error');
+        return;
+      }
+      if (replayPlan !== planHash) {
+        setReplayStatus('mismatch');
+      } else {
+        setReplayStatus('match');
+      }
+    } catch (e) {
+      setReplayError(e instanceof Error ? e.message : 'Replay failed');
+      setReplayStatus('error');
+    } finally {
+      setReplayLoading(false);
+    }
+  }, [lastSnapshotUsed, lastCombinedHashUsed, planHash]);
 
   const currentSnapshot = draft.overriddenSnapshot || draft.baseSnapshot;
   const basePositions: Record<string, number> = {};
@@ -409,6 +476,61 @@ export default function SandboxPage() {
                           </span>
                         )}
                       </p>
+                    )}
+                  </div>
+                )}
+                {hasGenerated && (
+                  <div className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="font-semibold text-text">Provenance</h3>
+                      <button
+                        onClick={handleReplay}
+                        disabled={replayLoading || !lastSnapshotUsed || !lastCombinedHashUsed || !planHash}
+                        className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
+                      >
+                        {replayLoading ? 'Replaying…' : 'Replay (same seed)'}
+                      </button>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <div>
+                        <span className="font-semibold">combinedHash:</span>{' '}
+                        {lastCombinedHashUsed ? (
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
+                            {lastCombinedHashUsed}
+                          </code>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-semibold">plan_sha256:</span>{' '}
+                        {planHash ? (
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
+                            {planHash}
+                          </code>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-semibold">export_id:</span>{' '}
+                        {exportId ? (
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
+                            {exportId}
+                          </code>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                    </div>
+                    {replayStatus === 'mismatch' && (
+                      <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>
+                    )}
+                    {replayStatus === 'match' && (
+                      <p className="text-xs text-emerald-400">Replay matched plan hash.</p>
+                    )}
+                    {replayStatus === 'error' && replayError && (
+                      <p className="text-xs text-red-400">{replayError}</p>
                     )}
                   </div>
                 )}
