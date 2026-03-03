@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
@@ -92,6 +92,10 @@ export default function SandboxPage() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
+  const [savedList, setSavedList] = useState<Array<{ id: string; plan_hash: string; vector_hash: string; created_at: string; export_id?: string | null }>>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
@@ -401,6 +405,120 @@ export default function SandboxPage() {
     }
   }, [exportId]);
 
+  const fetchSavedList = useCallback(async () => {
+    const base = getApiBaseUrl();
+    setListLoading(true);
+    try {
+      const r = await fetch(`${base}/api/sandbox/compositions?limit=50`);
+      const data = await r.json().catch(() => ([]));
+      if (!r.ok) {
+        setSavedList([]);
+        return;
+      }
+      setSavedList(Array.isArray(data) ? data : []);
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  const canSave = Boolean(
+    hasGenerated &&
+    draft.birth &&
+    lastCombinedHashUsed &&
+    planHash &&
+    report != null
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!canSave || !draft.birth) return;
+    const base = getApiBaseUrl();
+    setSaveLoading(true);
+    setSaveError(null);
+    try {
+      const r = await fetch(`${base}/api/sandbox/compositions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sandbox_state: {
+            birth: draft.birth,
+            overrides: normalizeOverrides(draft.overrides),
+            controls: SANDBOX_CONTROLS,
+          },
+          vector_hash: lastCombinedHashUsed,
+          seed: lastCombinedHashUsed,
+          plan_hash: planHash,
+          report: report ?? {},
+          provider: lastComposeProvider ?? null,
+          provider_version: null,
+          export_id: exportId ?? null,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setSaveError((data?.error ?? data?.message) || `Save failed: ${r.status}`);
+        return;
+      }
+      await fetchSavedList();
+    } finally {
+      setSaveLoading(false);
+    }
+  }, [canSave, draft.birth, draft.overrides, lastCombinedHashUsed, planHash, report, lastComposeProvider, exportId, fetchSavedList]);
+
+  const handleLoad = useCallback(async (id: string) => {
+    const base = getApiBaseUrl();
+    try {
+      const r = await fetch(`${base}/api/sandbox/compositions/${id}`);
+      const comp = await r.json().catch(() => null);
+      if (!r.ok || !comp) {
+        setError(comp?.error ?? 'Failed to load composition');
+        return;
+      }
+      const state = comp.sandbox_state || {};
+      const birth = state.birth;
+      const overrides = state.overrides || { planets: {} };
+      if (!birth || !birth.date || !birth.time) {
+        setError('Invalid saved composition: missing birth data');
+        return;
+      }
+      setReport(comp.report ?? null);
+      setPlanHash(comp.plan_hash ?? null);
+      setLastCombinedHashUsed(comp.seed ?? comp.vector_hash ?? null);
+      setExportId(comp.export_id ?? null);
+      setLastSnapshotUsed(null);
+      setHasGenerated(true);
+      setGenerateError(null);
+      setDraft({
+        birth,
+        baseSnapshot: null,
+        overrides,
+        overriddenSnapshot: null,
+      });
+      setState('loading_base');
+      const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ birth, overrides: normalizeOverrides(overrides) }),
+      });
+      const snapData = await snapRes.json().catch(() => ({}));
+      if (!snapRes.ok) {
+        setState('ready_builder');
+        setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
+        return;
+      }
+      setLastSnapshotUsed(snapData.snapshot ?? null);
+      setDraft((prev) => ({
+        ...prev,
+        baseSnapshot: snapData.snapshot,
+        overriddenSnapshot: snapData.snapshot,
+        hash: snapData.meta,
+      }));
+      setState('ready_report');
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Load failed');
+    }
+  }, []);
+
   const handleExportJson = useCallback(() => {
     const bundle = {
       birth: draft.birth,
@@ -419,6 +537,10 @@ export default function SandboxPage() {
     a.click();
     URL.revokeObjectURL(a.href);
   }, [draft.birth, draft.overrides, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
+
+  useEffect(() => {
+    if (state === 'ready_builder' || state === 'ready_report') fetchSavedList();
+  }, [state, fetchSavedList]);
 
   const currentSnapshot = draft.overriddenSnapshot || draft.baseSnapshot;
   const basePositions: Record<string, number> = {};
@@ -492,13 +614,25 @@ export default function SandboxPage() {
 
               <div className="card">
                 <h2 className="text-xl font-semibold text-text mb-4">Generate</h2>
-                <button
-                  onClick={handleGenerate}
-                  disabled={!canGenerate || generateLoading}
-                  className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {generateLoading ? 'Generating…' : 'Generate viz, report & audio'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleGenerate}
+                    disabled={!canGenerate || generateLoading}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generateLoading ? 'Generating…' : 'Generate viz, report & audio'}
+                  </button>
+                  {canSave && (
+                    <button
+                      onClick={handleSave}
+                      disabled={saveLoading}
+                      className="px-4 py-2 bg-bgElev border border-border rounded-lg font-medium hover:bg-bgElev/80 disabled:opacity-50 text-text"
+                    >
+                      {saveLoading ? 'Saving…' : 'Save'}
+                    </button>
+                  )}
+                </div>
+                {saveError && <p className="mt-2 text-xs text-red-400">{saveError}</p>}
                 {!canGenerate && (
                   <div className="mt-3 text-xs text-subtext">
                     <p className="mb-1">Generate is disabled until:</p>
@@ -678,6 +812,39 @@ export default function SandboxPage() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
                 <DegreePanel overrides={draft.overrides} basePositions={basePositions} cusps={cusps.length === 12 ? cusps : undefined} onOverrideChange={handleOverrideChange} onResetPlanet={handleResetPlanet} />
+              </div>
+              <div className="card">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-text">Saved</h3>
+                  <button
+                    type="button"
+                    onClick={fetchSavedList}
+                    disabled={listLoading}
+                    className="px-2 py-1 text-xs rounded border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text"
+                  >
+                    {listLoading ? '…' : 'Refresh'}
+                  </button>
+                </div>
+                {savedList.length === 0 ? (
+                  <p className="text-xs text-subtext">No saved compositions. Generate then Save.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-48 overflow-y-auto">
+                    {savedList.map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-2 text-xs border border-border/60 rounded p-2 bg-bgElev/50">
+                        <span className="truncate text-subtext" title={item.id}>
+                          {item.plan_hash?.slice(0, 8) ?? item.id.slice(0, 8)} — {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleLoad(item.id)}
+                          className="flex-shrink-0 px-2 py-1 rounded border border-border bg-bgElev hover:bg-bgElev/80 text-text"
+                        >
+                          Load
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </motion.div>
           </div>

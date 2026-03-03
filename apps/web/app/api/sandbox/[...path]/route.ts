@@ -1,6 +1,6 @@
 /**
- * Proxy to engine for Phase 4A sandbox routes.
- * Forwards POST to backend /api/sandbox/{path}.
+ * Proxy to engine for Phase 4A/6 sandbox routes.
+ * POST -> /api/sandbox/{path}. GET -> /api/sandbox/compositions (list) or /api/sandbox/compositions/:id.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
@@ -34,9 +34,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
   }
 }
 
-export async function GET() {
-  return NextResponse.json(
-    { error: 'Method not allowed. Use POST /api/sandbox/snapshot or POST /api/sandbox/report.' },
-    { status: 405 }
-  );
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  try {
+    const { path } = await params;
+    const pathStr = path.join('/');
+    if (!pathStr.startsWith('compositions')) {
+      return NextResponse.json(
+        { error: 'Method not allowed. Use GET /api/sandbox/compositions or GET /api/sandbox/compositions/:id.' },
+        { status: 405 }
+      );
+    }
+    const backend = getEngineBaseUrl();
+    const url = new URL(req.url);
+    const query = url.searchParams.toString();
+    const r = await fetch(`${backend}/api/sandbox/${pathStr}${query ? `?${query}` : ''}`);
+    const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
+    if (!r.ok) {
+      return NextResponse.json(
+        { error: (data && typeof data.error === 'string' ? data.error : data) || r.statusText },
+        { status: r.status >= 400 ? r.status : 502 }
+      );
+    }
+    return NextResponse.json(data, { status: r.status });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Sandbox API unavailable';
+    console.error('[api/sandbox] proxy GET error:', message);
+    return NextResponse.json(
+      { error: message },
+      { status: 502 }
+    );
+  }
 }

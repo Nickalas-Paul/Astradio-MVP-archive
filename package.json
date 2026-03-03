@@ -98,7 +98,9 @@
     "phase5:verify-group-report": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-group-report.js",
     "phase5:verify-routes": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-relational-routes.js",
     "phase5:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-smoke.js",
-    "phase6:verify-sandbox-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-sandbox-compose-override.js"
+    "phase6:verify-sandbox-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-sandbox-compose-override.js",
+    "phase6:verify-compositions": "node scripts/phase6-verify-compositions.js",
+    "phase6:smoke": "npm run phase6:verify-sandbox-compose && npm run phase6:verify-compositions"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",

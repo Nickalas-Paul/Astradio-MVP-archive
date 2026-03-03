@@ -1940,7 +1940,69 @@ if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
 }
 
-// Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false).
+// Phase 6 — Sandbox compositions (save/list/reload). Persist only; no generation.
+const db = optionalRequire("../lib/database");
+const hasDb = db && typeof db.query === "function";
+if (hasDb) {
+  const uuid = require("uuid").v4;
+  app.post("/api/sandbox/compositions", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const sandbox_state = body.sandbox_state;
+      const vector_hash = body.vector_hash;
+      const seed = body.seed;
+      const plan_hash = body.plan_hash;
+      const report = body.report != null ? body.report : {};
+      const provider = body.provider ?? null;
+      const provider_version = body.provider_version ?? null;
+      const export_id = body.export_id ?? null;
+      if (!sandbox_state || typeof vector_hash !== "string" || typeof seed !== "string" || typeof plan_hash !== "string") {
+        return res.status(400).json({ error: "sandbox_state, vector_hash, seed, plan_hash required" });
+      }
+      const id = uuid();
+      const now = new Date().toISOString();
+      await db.query(
+        `INSERT INTO astradio_sandbox_compositions (id, sandbox_state, vector_hash, seed, plan_hash, report, provider, provider_version, export_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $10::timestamptz)`,
+        [id, JSON.stringify(sandbox_state), vector_hash, seed, plan_hash, JSON.stringify(report), provider, provider_version, export_id, now]
+      );
+      const row = await db.getRow("SELECT * FROM astradio_sandbox_compositions WHERE id = $1", [id]);
+      return res.status(201).json(row);
+    } catch (e) {
+      console.error("[sandbox/compositions] POST", e);
+      return res.status(500).json({ error: e?.message || "Failed to save composition" });
+    }
+  });
+  app.get("/api/sandbox/compositions", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+      const rows = await db.getRows(
+        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, created_at FROM astradio_sandbox_compositions ORDER BY created_at DESC LIMIT $1",
+        [limit]
+      );
+      return res.json(rows);
+    } catch (e) {
+      console.error("[sandbox/compositions] GET list", e);
+      return res.status(500).json({ error: e?.message || "Failed to list compositions" });
+    }
+  });
+  app.get("/api/sandbox/compositions/:id", async (req, res) => {
+    try {
+      const row = await db.getRow("SELECT * FROM astradio_sandbox_compositions WHERE id = $1", [req.params.id]);
+      if (!row) return res.status(404).json({ error: "Composition not found" });
+      return res.json(row);
+    } catch (e) {
+      console.error("[sandbox/compositions] GET by id", e);
+      return res.status(500).json({ error: e?.message || "Failed to load composition" });
+    }
+  });
+} else {
+  app.post("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot save compositions" }));
+  app.get("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot list compositions" }));
+  app.get("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot load composition" }));
+}
+
+// Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false). (only active when DEPRECATE_LEGACY_ROUTES=false).
 // This provides backward compatibility for soak tests and legacy clients.
 // Guardrail: legacy planner path is additionally gated by LEGACY_PLANNER_ENABLED=1
 // and should remain OFF by default in production and testing.
