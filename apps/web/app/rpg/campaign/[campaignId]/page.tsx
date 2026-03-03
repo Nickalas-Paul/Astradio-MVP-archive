@@ -1,24 +1,20 @@
 import React from 'react';
+import { buildCampaignView } from '../../../../../../vnext/rpg/campaign/view';
 
 type PageProps = {
   params: { campaignId: string };
   searchParams: { userId?: string };
 };
 
-async function fetchCampaignView(campaignId: string, userId: string) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || '';
-  const url = `${base}/api/rpg/campaign/${encodeURIComponent(campaignId)}?userId=${encodeURIComponent(userId)}`;
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error(`Failed to load campaign view: ${res.status}`);
-  }
-  return res.json();
-}
-
 export default async function CampaignPage({ params, searchParams }: PageProps) {
   const campaignId = params.campaignId;
-  const userId = searchParams.userId || 'demo_user';
-  const view = await fetchCampaignView(campaignId, userId);
+  const userId = searchParams.userId;
+
+  if (!userId) {
+    throw new Error('userId query parameter required for RPG campaign view');
+  }
+
+  const view = await buildCampaignView({ campaignId, userId });
 
   const sheet = view.character_sheet;
   const turn = view.current_turn;
