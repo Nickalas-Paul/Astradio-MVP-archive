@@ -56,6 +56,38 @@ async function main(): Promise<void> {
   const userId = `user_test_ui_${tag}`;
   const chartId = `chart_test_ui_${tag}`;
 
+  // Scoped cleanup: remove any rows for this script/tag namespace so reruns
+  // remain idempotent without touching other data.
+  async function cleanupNamespace(): Promise<void> {
+    const campaignsRes = await pool.query(
+      `SELECT id FROM rpg_campaigns WHERE user_id = $1 AND chart_id = $2`,
+      [userId, chartId]
+    );
+    const campaignIds = campaignsRes.rows.map((r: any) => r.id as string);
+    if (campaignIds.length === 0) {
+      await pool.query(`DELETE FROM rpg_profiles WHERE user_id = $1 AND chart_id = $2`, [userId, chartId]);
+      return;
+    }
+
+    const turnsRes = await pool.query(
+      `SELECT id FROM rpg_daily_turns WHERE campaign_id = ANY($1::text[])`,
+      [campaignIds]
+    );
+    const turnIds = turnsRes.rows.map((r: any) => r.id as string);
+
+    if (turnIds.length > 0) {
+      await pool.query(`DELETE FROM rpg_daily_audio_artifacts WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_turn_outcomes WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_member_responses WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_daily_turns WHERE id = ANY($1::text[])`, [turnIds]);
+    }
+
+    await pool.query(`DELETE FROM rpg_campaigns WHERE id = ANY($1::text[])`, [campaignIds]);
+    await pool.query(`DELETE FROM rpg_profiles WHERE user_id = $1 AND chart_id = $2`, [userId, chartId]);
+  }
+
+  await cleanupNamespace();
+
   const natalSnapshot: EphemerisSnapshot = {
     ts: '1990-01-01T12:00:00Z',
     tz: 'UTC',

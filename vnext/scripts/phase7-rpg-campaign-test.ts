@@ -14,7 +14,6 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 import type { EphemerisSnapshot } from '../contracts';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
 import { initialCampaignState } from '../rpg/campaign/state-machine';
@@ -25,6 +24,7 @@ import {
 } from '../rpg/store/rpg-store';
 import { getOrCreateDailyTurn } from '../rpg/campaign/turn-service';
 import { submitResponse, finalizeTurnOutcome } from '../rpg/campaign/response-service';
+import { getTestRunTag, deriveDeterministicDay } from './_test-run-tag';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
@@ -53,8 +53,41 @@ async function main(): Promise<void> {
   await pool.query(fs.readFileSync(mig007, 'utf8'));
   await pool.query(fs.readFileSync(mig008, 'utf8'));
 
-  const userId = `user_test_${crypto.randomBytes(4).toString('hex')}`;
-  const chartId = `chart_test_${crypto.randomBytes(4).toString('hex')}`;
+  const tag = getTestRunTag('phase7-rpg-campaign-test');
+  const userId = `user_test_campaign_${tag}`;
+  const chartId = `chart_test_campaign_${tag}`;
+
+  // Scoped cleanup: remove any rows for this script/tag namespace so reruns
+  // remain idempotent without touching other data.
+  async function cleanupNamespace(): Promise<void> {
+    const campaignsRes = await pool.query(
+      `SELECT id FROM rpg_campaigns WHERE user_id = $1 AND chart_id = $2`,
+      [userId, chartId]
+    );
+    const campaignIds = campaignsRes.rows.map((r: any) => r.id as string);
+    if (campaignIds.length === 0) {
+      await pool.query(`DELETE FROM rpg_profiles WHERE user_id = $1 AND chart_id = $2`, [userId, chartId]);
+      return;
+    }
+
+    const turnsRes = await pool.query(
+      `SELECT id FROM rpg_daily_turns WHERE campaign_id = ANY($1::text[])`,
+      [campaignIds]
+    );
+    const turnIds = turnsRes.rows.map((r: any) => r.id as string);
+
+    if (turnIds.length > 0) {
+      await pool.query(`DELETE FROM rpg_daily_audio_artifacts WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_turn_outcomes WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_member_responses WHERE turn_id = ANY($1::text[])`, [turnIds]);
+      await pool.query(`DELETE FROM rpg_daily_turns WHERE id = ANY($1::text[])`, [turnIds]);
+    }
+
+    await pool.query(`DELETE FROM rpg_campaigns WHERE id = ANY($1::text[])`, [campaignIds]);
+    await pool.query(`DELETE FROM rpg_profiles WHERE user_id = $1 AND chart_id = $2`, [userId, chartId]);
+  }
+
+  await cleanupNamespace();
 
   const natalSnapshot: EphemerisSnapshot = {
     ts: '1990-01-01T12:00:00Z',
@@ -111,8 +144,16 @@ async function main(): Promise<void> {
     log('✓ Campaign creation is idempotent');
   }
 
+  const dayMain = deriveDeterministicDay({
+    tag,
+    salt: 'phase7-rpg-campaign-test:main',
+    minDay: 1,
+    maxDay: 10,
+  });
+  const transitTsMain = `2026-03-${String(dayMain).padStart(2, '0')}T12:00:00Z`;
+
   const transitSnapshotMain: EphemerisSnapshot = {
-    ts: '2026-03-03T12:00:00Z',
+    ts: transitTsMain,
     tz: 'UTC',
     lat: 40.7128,
     lon: -74.006,
@@ -139,14 +180,26 @@ async function main(): Promise<void> {
     dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },
   };
 
+  const dayNoResp = deriveDeterministicDay({
+    tag,
+    salt: 'phase7-rpg-campaign-test:no-resp',
+    minDay: 11,
+    maxDay: 20,
+  });
   const transitSnapshotNoResp: EphemerisSnapshot = {
     ...transitSnapshotMain,
-    ts: '2026-03-04T12:00:00Z',
+    ts: `2026-03-${String(dayNoResp).padStart(2, '0')}T12:00:00Z`,
   };
 
+  const dayMulti = deriveDeterministicDay({
+    tag,
+    salt: 'phase7-rpg-campaign-test:multi',
+    minDay: 21,
+    maxDay: 28,
+  });
   const transitSnapshotMulti: EphemerisSnapshot = {
     ...transitSnapshotMain,
-    ts: '2026-03-05T12:00:00Z',
+    ts: `2026-03-${String(dayMulti).padStart(2, '0')}T12:00:00Z`,
   };
 
   const turn1 = await getOrCreateDailyTurn({
@@ -253,7 +306,7 @@ async function main(): Promise<void> {
     transitSnapshot: transitSnapshotMulti,
     stateJson: campaign1.state_json,
   });
-  const userOther = `user_test_${crypto.randomBytes(4).toString('hex')}`;
+  const userOther = `${userId}_other`;
   const choiceForMulti: string = Array.isArray(prompt.choice_ids) ? prompt.choice_ids[0] : '';
   await submitResponse({ turnId: turnMulti.id, userId, choiceId: choiceForMulti });
   await submitResponse({ turnId: turnMulti.id, userId: userOther, choiceId: choiceForMulti });
