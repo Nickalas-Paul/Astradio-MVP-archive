@@ -13,7 +13,6 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 import type { EphemerisSnapshot } from '../contracts';
 import { initialCampaignState } from '../rpg/campaign/state-machine';
 import {
@@ -24,6 +23,7 @@ import { getOrCreateDailyTurn } from '../rpg/campaign/turn-service';
 import { submitResponse, finalizeTurnOutcome } from '../rpg/campaign/response-service';
 import { buildCampaignView } from '../rpg/campaign/view';
 import { canonicalJsonString } from '../rpg/hash/json-hash';
+import { getTestRunTag, deriveDeterministicDay } from './_test-run-tag';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
@@ -52,8 +52,9 @@ async function main(): Promise<void> {
   await pool.query(fs.readFileSync(mig007, 'utf8'));
   await pool.query(fs.readFileSync(mig008, 'utf8'));
 
-  const userId = `user_test_${crypto.randomBytes(4).toString('hex')}`;
-  const chartId = `chart_test_${crypto.randomBytes(4).toString('hex')}`;
+  const tag = getTestRunTag('phase7-rpg-campaign-ui-test');
+  const userId = `user_test_ui_${tag}`;
+  const chartId = `chart_test_ui_${tag}`;
 
   const natalSnapshot: EphemerisSnapshot = {
     ts: '1990-01-01T12:00:00Z',
@@ -97,11 +98,14 @@ async function main(): Promise<void> {
     initialStateJson: initialState,
   });
 
-  // Derive a deterministic but slice-unique transit timestamp from userId to
-  // avoid turn_seed collisions with other slices when sharing a persistent DB.
-  const userSaltHex = userId.slice(-2);
-  const dayOffset = Number.isNaN(parseInt(userSaltHex, 16)) ? 0 : parseInt(userSaltHex, 16) % 9; // 0-8
-  const day = 23 + dayOffset; // 23-31
+  // Derive a deterministic, slice-tagged transit timestamp to avoid turn_seed
+  // collisions with other slices while remaining reproducible for a given tag.
+  const day = deriveDeterministicDay({
+    tag,
+    salt: 'phase7-rpg-campaign-ui-test',
+    minDay: 1,
+    maxDay: 28,
+  });
   const transitTs = `2026-03-${String(day).padStart(2, '0')}T12:00:00Z`;
 
   const transitSnapshot: EphemerisSnapshot = {

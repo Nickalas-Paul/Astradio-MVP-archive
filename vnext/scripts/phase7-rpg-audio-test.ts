@@ -16,7 +16,6 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 import type { EphemerisSnapshot } from '../contracts';
 import { makeAudioSeedFromTurnSeed } from '../rpg/hash/seeds';
 import type { AudioAlgoVersion, TurnSeed } from '../rpg/contracts';
@@ -26,6 +25,7 @@ import { initialCampaignState } from '../rpg/campaign/state-machine';
 import { getOrCreateDailyTurn } from '../rpg/campaign/turn-service';
 import { ensureDailyAudioArtifactForTurn } from '../rpg/campaign/audio-service';
 import { buildCampaignView } from '../rpg/campaign/view';
+import { getTestRunTag, deriveDeterministicDay } from './_test-run-tag';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
@@ -68,7 +68,7 @@ async function dbTests(): Promise<void> {
 
   const pool = new Pool({ connectionString: POSTGRES_URL });
 
-  // Diagnostics: confirm DB and initial table counts for RPG tables.
+  // Diagnostics: confirm DB and initial RPG table counts (single line each).
   const meta = await pool.query('SELECT current_database() AS db, current_schema() AS schema');
   const m = meta.rows[0];
   log(`[phase7-rpg-audio/db] database=${m.db} schema=${m.schema}`);
@@ -93,8 +93,9 @@ async function dbTests(): Promise<void> {
   await pool.query(fs.readFileSync(mig008, 'utf8'));
   await pool.query(fs.readFileSync(mig009, 'utf8'));
 
-  const userId = `user_test_${crypto.randomBytes(4).toString('hex')}`;
-  const chartId = `chart_test_${crypto.randomBytes(4).toString('hex')}`;
+  const tag = getTestRunTag('phase7-rpg-audio-test');
+  const userId = `user_test_audio_${tag}`;
+  const chartId = `chart_test_audio_${tag}`;
 
   const natalSnapshot: EphemerisSnapshot = {
     ts: '1990-01-01T12:00:00Z',
@@ -134,11 +135,14 @@ async function dbTests(): Promise<void> {
     initialStateJson: initialState,
   });
 
-  // Derive a deterministic but run-unique transit timestamp from userId to avoid
-  // seed collisions across repeated runs against the same persistent DB.
-  const userSaltHex = userId.slice(-2);
-  const dayOffset = Number.isNaN(parseInt(userSaltHex, 16)) ? 0 : parseInt(userSaltHex, 16) % 20; // 0-19
-  const day = 3 + dayOffset; // 3-22
+  // Derive a deterministic, run-tagged transit timestamp to avoid turn_seed
+  // collisions across runs while remaining reproducible for a given tag.
+  const day = deriveDeterministicDay({
+    tag: tag,
+    salt: 'phase7-rpg-audio-test',
+    minDay: 1,
+    maxDay: 28,
+  });
   const transitTs = `2026-03-${String(day).padStart(2, '0')}T12:00:00Z`;
 
   const transitSnapshot: EphemerisSnapshot = {
