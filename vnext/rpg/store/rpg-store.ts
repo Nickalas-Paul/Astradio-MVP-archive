@@ -2,30 +2,39 @@
 // Persistence layer for RPG effects bundles and profiles (Phase 7).
 
 import crypto from 'crypto';
-import type { Pool as PgPool } from 'pg';
 import type { EphemerisSnapshot } from '../../contracts';
 import { canonicalJsonString, hashCanonicalJson } from '../hash/json-hash';
 import { buildRpgEffectsBundleFromSnapshot } from '../effects/bundle-from-snapshot';
 import type { RPGEffectsBundle, RpgAudioProvider, RpgAudioStatus } from '../contracts';
 
+type PgQueryResult<T = any> = { rows: T[] };
+
+type PgPoolLike = {
+  query: (text: string, params?: any[]) => Promise<PgQueryResult>;
+  connect: () => Promise<{
+    query: (text: string, params?: any[]) => Promise<PgQueryResult>;
+    release: () => void;
+  }>;
+  end?: () => Promise<void>;
+};
+
 const POSTGRES_URL = process.env.POSTGRES_URL;
 
-let pool: PgPool | null = null;
+let pool: PgPoolLike | null = null;
 
-function loadPg(): { Pool: new (...args: any[]) => PgPool } {
+function loadPg(): any {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  // Defer loading pg to runtime so Next build does not need
-  // to resolve it when compiling shared vnext modules.
+  // Defer loading pg to runtime so Next build does not need to resolve it.
   return require('pg');
 }
 
-function getPool(): PgPool {
+function getPool(): PgPoolLike {
   if (!POSTGRES_URL) {
     throw new Error('RPG store requires POSTGRES_URL');
   }
   if (!pool) {
     const { Pool } = loadPg();
-    pool = new Pool({ connectionString: POSTGRES_URL });
+    pool = new Pool({ connectionString: POSTGRES_URL }) as PgPoolLike;
   }
   return pool;
 }
