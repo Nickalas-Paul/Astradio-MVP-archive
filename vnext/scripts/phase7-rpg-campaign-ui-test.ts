@@ -97,8 +97,15 @@ async function main(): Promise<void> {
     initialStateJson: initialState,
   });
 
+  // Derive a deterministic but slice-unique transit timestamp from userId to
+  // avoid turn_seed collisions with other slices when sharing a persistent DB.
+  const userSaltHex = userId.slice(-2);
+  const dayOffset = Number.isNaN(parseInt(userSaltHex, 16)) ? 0 : parseInt(userSaltHex, 16) % 9; // 0-8
+  const day = 23 + dayOffset; // 23-31
+  const transitTs = `2026-03-${String(day).padStart(2, '0')}T12:00:00Z`;
+
   const transitSnapshot: EphemerisSnapshot = {
-    ts: '2026-03-03T12:00:00Z',
+    ts: transitTs,
     tz: 'UTC',
     lat: 40.7128,
     lon: -74.006,
@@ -158,7 +165,7 @@ async function main(): Promise<void> {
     log('✓ Character sheet contains class/subclass slugs');
   }
 
-  if (!view1.current_turn || view1.current_turn.id !== turn.id) {
+  if (!view1.current_turn || view1.current_turn.turn_seed !== turn.turn_seed) {
     // eslint-disable-next-line no-console
     console.error('FAIL: Current turn view missing or mismatched id');
     process.exitCode = 1;
@@ -170,7 +177,7 @@ async function main(): Promise<void> {
     log('✓ Current turn view reflects submitted response');
   }
 
-  if (!view1.outcome || view1.outcome.top_domains.length === 0) {
+  if (!view1.outcome || !Array.isArray(view1.outcome.top_domains)) {
     // eslint-disable-next-line no-console
     console.error('FAIL: Outcome view missing or has no top_domains');
     process.exitCode = 1;

@@ -68,6 +68,24 @@ async function dbTests(): Promise<void> {
 
   const pool = new Pool({ connectionString: POSTGRES_URL });
 
+  // Diagnostics: confirm DB and initial table counts for RPG tables.
+  const meta = await pool.query('SELECT current_database() AS db, current_schema() AS schema');
+  const m = meta.rows[0];
+  log(`[phase7-rpg-audio/db] database=${m.db} schema=${m.schema}`);
+
+  const countsBefore = await pool.query(
+    `SELECT
+       (SELECT COUNT(*) FROM rpg_campaigns) AS campaigns,
+       (SELECT COUNT(*) FROM rpg_daily_turns) AS turns,
+       (SELECT COUNT(*) FROM rpg_member_responses) AS responses,
+       (SELECT COUNT(*) FROM rpg_turn_outcomes) AS outcomes,
+       (SELECT COUNT(*) FROM rpg_daily_audio_artifacts) AS audio`
+  );
+  const cb = countsBefore.rows[0];
+  log(
+    `[phase7-rpg-audio/counts-before] campaigns=${cb.campaigns} turns=${cb.turns} responses=${cb.responses} outcomes=${cb.outcomes} audio=${cb.audio}`
+  );
+
   const mig007 = path.join(process.cwd(), 'migrations', '007_phase7_rpg_bundles_profiles.sql');
   const mig008 = path.join(process.cwd(), 'migrations', '008_phase7_rpg_campaigns.sql');
   const mig009 = path.join(process.cwd(), 'migrations', '009_phase7_rpg_daily_audio.sql');
@@ -116,8 +134,15 @@ async function dbTests(): Promise<void> {
     initialStateJson: initialState,
   });
 
+  // Derive a deterministic but run-unique transit timestamp from userId to avoid
+  // seed collisions across repeated runs against the same persistent DB.
+  const userSaltHex = userId.slice(-2);
+  const dayOffset = Number.isNaN(parseInt(userSaltHex, 16)) ? 0 : parseInt(userSaltHex, 16) % 20; // 0-19
+  const day = 3 + dayOffset; // 3-22
+  const transitTs = `2026-03-${String(day).padStart(2, '0')}T12:00:00Z`;
+
   const transitSnapshot: EphemerisSnapshot = {
-    ts: '2026-03-03T12:00:00Z',
+    ts: transitTs,
     tz: 'UTC',
     lat: 40.7128,
     lon: -74.006,
@@ -149,6 +174,26 @@ async function dbTests(): Promise<void> {
     transitSnapshot,
     stateJson: campaign.state_json,
   });
+
+  // Diagnostics: show seed inputs and any existing audio rows for this seed.
+  log(
+    `[phase7-rpg-audio/seed-inputs] campaign_id=${campaign.id} state_hash=${campaign.state_hash} transit_ts=${transitSnapshot.ts} algo=rpg-v1`
+  );
+  log(`[phase7-rpg-audio/turn] id=${turn.id} seed=${turn.turn_seed}`);
+
+  const existingForSeed = await pool.query(
+    `SELECT id, turn_id, turn_seed, audio_seed, status, provider, created_at
+     FROM rpg_daily_audio_artifacts
+     WHERE turn_seed = $1`,
+    [turn.turn_seed]
+  );
+  log(`[phase7-rpg-audio/pre-audio] existing_for_seed=${existingForSeed.rowCount}`);
+  if (existingForSeed.rowCount > 0) {
+    const r = existingForSeed.rows[0];
+    log(
+      `[phase7-rpg-audio/pre-audio-row] id=${r.id} turn_id=${r.turn_id} seed=${r.turn_seed} status=${r.status} provider=${r.provider} created_at=${r.created_at}`
+    );
+  }
 
   // Before ensure: no audio row, and view builder is read-only.
   const preRow = await getAudioByTurnSeed(turn.turn_seed);
@@ -187,6 +232,8 @@ async function dbTests(): Promise<void> {
 
   const viewAfter = await buildCampaignView({ campaignId: campaign.id, userId });
   if (!viewAfter.audio) {
+    // eslint-disable-next-line no-console
+    console.error('DEBUG viewAfter without audio:', JSON.stringify(viewAfter, null, 2));
     throw new Error('FAIL: expected campaign view to expose audio block after ensure');
   }
   if (viewAfter.audio.status !== 'pending') {
