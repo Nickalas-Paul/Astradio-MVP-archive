@@ -48,7 +48,7 @@ const nextConfig = {
     ];
   },
   // Vercel uses its own output; standalone is for self-hosted only.
-  // Optimize bundle splitting
+  // Optimize bundle splitting and externalize server-only deps.
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -57,6 +57,16 @@ const nextConfig = {
         net: false,
         tls: false,
       };
+    } else {
+      const externals = config.externals ?? [];
+      config.externals = Array.isArray(externals) ? externals : [externals];
+
+      config.externals.push(({ request }, callback) => {
+        if (request === 'pg') {
+          return callback(null, 'commonjs pg');
+        }
+        callback();
+      });
     }
     return config;
   },
