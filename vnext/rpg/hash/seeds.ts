@@ -30,3 +30,12 @@ export function makeAudioSeed(
   return digest as AudioSeed;
 }
 
+export function makeAudioSeedFromTurnSeed(
+  turnSeed: TurnSeed,
+  audioAlgoVersion: AudioAlgoVersion
+): AudioSeed {
+  const payload = `audio_turn:${turnSeed}|${audioAlgoVersion}`;
+  const digest = sha256Hex(payload);
+  return digest as AudioSeed;
+}
+

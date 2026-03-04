@@ -6,6 +6,7 @@ import type { RPGCampaignState } from './state-machine';
 import {
   getCampaignById,
   getBundleByHash,
+  getAudioByTurnSeed,
   getLatestTurnForCampaign,
   listResponsesByTurn,
   getOutcomeByTurn,
@@ -55,6 +56,12 @@ export interface RpgCampaignView {
   character_sheet: RpgCharacterSheetView;
   current_turn: RpgTurnView | null;
   outcome: RpgOutcomeView | null;
+  audio: {
+    status: string;
+    provider: string;
+    audio_seed: string;
+    artifact_url: string | null;
+  } | null;
 }
 
 function pickTopDomains(domains: RPGDomainScore[], limit = 3): Array<{ domain: string; score: number }> {
@@ -141,6 +148,7 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
   const latestTurn: RpgDailyTurnRow | null = await getLatestTurnForCampaign(campaign.id);
   let currentTurn: RpgTurnView | null = null;
   let outcomeView: RpgOutcomeView | null = null;
+  let audioView: RpgCampaignView['audio'] = null;
 
   if (latestTurn) {
     const responses = await listResponsesByTurn(latestTurn.id);
@@ -149,6 +157,16 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
       userId,
       responses.map((r) => ({ user_id: r.user_id, choice_id: r.choice_id }))
     );
+
+    const audio = await getAudioByTurnSeed(latestTurn.turn_seed);
+    if (audio) {
+      audioView = {
+        status: audio.status,
+        provider: audio.provider,
+        audio_seed: audio.audio_seed,
+        artifact_url: audio.artifact_url,
+      };
+    }
 
     const outcome = await getOutcomeByTurn(latestTurn.id);
     if (outcome) {
@@ -172,6 +190,7 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
     character_sheet: characterSheet,
     current_turn: currentTurn,
     outcome: outcomeView,
+    audio: audioView,
   };
 }
 

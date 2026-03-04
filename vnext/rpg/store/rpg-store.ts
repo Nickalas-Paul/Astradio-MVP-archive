@@ -110,6 +110,20 @@ export interface RpgTurnOutcomeRow {
   created_at: string;
 }
 
+export interface RpgDailyAudioRow {
+  id: string;
+  turn_id: string;
+  turn_seed: string;
+  audio_algo_version: string;
+  audio_seed: string;
+  provider: string;
+  status: string;
+  artifact_url: string | null;
+  artifact_meta_json: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export async function upsertEffectsBundle(bundle: RPGEffectsBundle): Promise<{ bundleHash: string }> {
   const { metadata } = bundle;
   const bundleHash = metadata.bundle_hash;
@@ -401,6 +415,45 @@ export async function getBundleByHash(bundleHash: string): Promise<{ bundle_json
     [bundleHash]
   );
   return res.rows[0] ?? null;
+}
+
+export async function getAudioByTurnSeed(turnSeed: string): Promise<RpgDailyAudioRow | null> {
+  const res = await query<RpgDailyAudioRow>(
+    `SELECT
+       id, turn_id, turn_seed, audio_algo_version, audio_seed,
+       provider, status, artifact_url, artifact_meta_json, created_at, updated_at
+     FROM rpg_daily_audio_artifacts
+     WHERE turn_seed = $1`,
+    [turnSeed]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function createAudioIfMissing(params: {
+  turnId: string;
+  turnSeed: string;
+  audioAlgoVersion: string;
+  audioSeed: string;
+  provider: string;
+}): Promise<RpgDailyAudioRow> {
+  const { turnId, turnSeed, audioAlgoVersion, audioSeed, provider } = params;
+  const id = `rpg_aud_${nanoid()}`;
+
+  await query(
+    `INSERT INTO rpg_daily_audio_artifacts (
+       id, turn_id, turn_seed, audio_algo_version, audio_seed, provider, status
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+     ON CONFLICT (turn_seed)
+     DO NOTHING`,
+    [id, turnId, turnSeed, audioAlgoVersion, audioSeed, provider]
+  );
+
+  const row = await getAudioByTurnSeed(turnSeed);
+  if (!row) {
+    throw new Error('Failed to insert or load RPG daily audio artifact row');
+  }
+  return row;
 }
 
 export async function finalizeTurnTransactional(params: {

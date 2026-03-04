@@ -19,6 +19,7 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
   const sheet = view.character_sheet;
   const turn = view.current_turn;
   const outcome = view.outcome;
+  const audio = view.audio;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '24px' }}>
@@ -107,6 +108,24 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
             </div>
           ) : (
             <div>No outcome yet.</div>
+          )}
+        </div>
+
+        <div style={{ marginTop: '24px' }}>
+          <h2>Audio</h2>
+          {audio ? (
+            <div>
+              <div>Provider: {audio.provider}</div>
+              <div>Status: {audio.status}</div>
+              <div>Audio seed: {audio.audio_seed}</div>
+              {audio.artifact_url ? (
+                <audio controls src={audio.artifact_url} />
+              ) : (
+                <div>No artifact URL yet.</div>
+              )}
+            </div>
+          ) : (
+            <div>No audio record yet.</div>
           )}
         </div>
       </section>
