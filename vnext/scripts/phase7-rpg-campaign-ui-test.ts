@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     minDay: 1,
     maxDay: 28,
   });
-  const transitTs = `2026-03-${String(day).padStart(2, '0')}T12:00:00Z`;
+  const transitTs = `2036-03-${String(day).padStart(2, '0')}T12:00:00Z`;
 
   const transitSnapshot: EphemerisSnapshot = {
     ts: transitTs,
