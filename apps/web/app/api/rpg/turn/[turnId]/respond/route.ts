@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { submitResponse } from '../../../../../../../../vnext/rpg/campaign/response-service';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest, ctx: { params: { turnId: string } }) {
   try {
     const turnId = ctx.params.turnId;

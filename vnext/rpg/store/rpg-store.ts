@@ -2,7 +2,7 @@
 // Persistence layer for RPG effects bundles and profiles (Phase 7).
 
 import crypto from 'crypto';
-import { Pool } from 'pg';
+import type { Pool as PgPool } from 'pg';
 import type { EphemerisSnapshot } from '../../contracts';
 import { canonicalJsonString, hashCanonicalJson } from '../hash/json-hash';
 import { buildRpgEffectsBundleFromSnapshot } from '../effects/bundle-from-snapshot';
@@ -10,13 +10,21 @@ import type { RPGEffectsBundle, RpgAudioProvider, RpgAudioStatus } from '../cont
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 
-let pool: any | null = null;
+let pool: PgPool | null = null;
 
-function getPool(): any {
+function loadPg(): { Pool: new (...args: any[]) => PgPool } {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // Defer loading pg to runtime so Next build does not need
+  // to resolve it when compiling shared vnext modules.
+  return require('pg');
+}
+
+function getPool(): PgPool {
   if (!POSTGRES_URL) {
     throw new Error('RPG store requires POSTGRES_URL');
   }
   if (!pool) {
+    const { Pool } = loadPg();
     pool = new Pool({ connectionString: POSTGRES_URL });
   }
   return pool;
@@ -24,7 +32,8 @@ function getPool(): any {
 
 async function query<T = any>(text: string, params: any[] = []): Promise<{ rows: T[] }> {
   const p = getPool();
-  return p.query(text, params);
+  // pg's QueryResult is compatible with this shape at runtime.
+  return p.query(text, params) as unknown as { rows: T[] };
 }
 
 async function withTransaction<T>(fn: (client: any) => Promise<T>): Promise<T> {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildCampaignView } from '../../../../../../../vnext/rpg/campaign/view';
 
+export const runtime = 'nodejs';
+
 export async function GET(req: NextRequest, ctx: { params: { campaignId: string } }) {
   try {
     const campaignId = ctx.params.campaignId;

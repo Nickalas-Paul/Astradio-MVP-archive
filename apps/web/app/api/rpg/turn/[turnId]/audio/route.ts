@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDailyTurnById } from '../../../../../../../../vnext/rpg/store/rpg-store';
 import { ensureDailyAudioArtifactForTurn } from '../../../../../../../../vnext/rpg/campaign/audio-service';
 
+export const runtime = 'nodejs';
+
 // GET is idempotent and may create a pending audio row for this turn.
 // It never generates audio; it only records deterministic metadata and status.
 export async function GET(_req: NextRequest, ctx: { params: { turnId: string } }) {

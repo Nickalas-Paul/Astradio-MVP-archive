@@ -3,6 +3,8 @@ import { getCampaignById } from '../../../../../../../../vnext/rpg/store/rpg-sto
 import { getOrCreateDailyTurn } from '../../../../../../../../vnext/rpg/campaign/turn-service';
 import { validateTransitSnapshot } from '../../../../../../../../vnext/rpg/validate-transit-snapshot';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest, ctx: { params: { campaignId: string } }) {
   try {
     const campaignId = ctx.params.campaignId;
