@@ -205,11 +205,7 @@ async function main(): Promise<void> {
   log(`[phase8-lifecycle/profile] id=${profile.id} bundle_hash=${profile.bundle_hash}`);
 
   const bundle = buildRpgEffectsBundleFromSnapshot(natalSnapshot);
-  const baseInitialState = initialCampaignState(bundle);
-  const initialState = {
-    ...baseInitialState,
-    __lifecycle_test_tag: tag,
-  };
+  const initialState = initialCampaignState(bundle);
 
   const campaign = await getOrCreateCampaign({
     userId,
