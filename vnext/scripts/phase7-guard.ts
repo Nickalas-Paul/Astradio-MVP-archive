@@ -87,6 +87,15 @@ function checkRpgIsolation(): void {
     /Date\.now\s*\(/,
   ];
 
+  const forbiddenAudioImportPatterns: RegExp[] = [
+    /from\s+['"][^'"]*lyria[^'"]*['"]/,
+    /import\s+.*['"][^'"]*lyria[^'"]*['"]/,
+    /require\s*\(\s*['"][^'"]*lyria[^'"]*['"]\s*\)/,
+    /from\s+['"][^'"]*@google-cloud[^'"]*['"]/,
+    /import\s+.*['"][^'"]*@google-cloud[^'"]*['"]/,
+    /require\s*\(\s*['"][^'"]*@google-cloud[^'"]*['"]\s*\)/,
+  ];
+
   for (const f of files) {
     const rel = path.relative(REPO_ROOT, f);
     const content = readFileOrNull(f);
@@ -95,6 +104,12 @@ function checkRpgIsolation(): void {
     for (const re of forbiddenImportPatterns) {
       if (re.test(content)) {
         fail(`[phase7-guard] Forbidden engine import in ${rel}: ${re}`);
+      }
+    }
+
+    for (const re of forbiddenAudioImportPatterns) {
+      if (re.test(content)) {
+        fail(`[phase7-guard] Forbidden audio provider import in ${rel}: ${re}`);
       }
     }
 

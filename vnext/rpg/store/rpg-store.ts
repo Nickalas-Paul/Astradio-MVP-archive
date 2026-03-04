@@ -6,7 +6,7 @@ import { Pool } from 'pg';
 import type { EphemerisSnapshot } from '../../contracts';
 import { canonicalJsonString, hashCanonicalJson } from '../hash/json-hash';
 import { buildRpgEffectsBundleFromSnapshot } from '../effects/bundle-from-snapshot';
-import type { RPGEffectsBundle } from '../contracts';
+import type { RPGEffectsBundle, RpgAudioProvider, RpgAudioStatus } from '../contracts';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 
@@ -116,8 +116,8 @@ export interface RpgDailyAudioRow {
   turn_seed: string;
   audio_algo_version: string;
   audio_seed: string;
-  provider: string;
-  status: string;
+  provider: RpgAudioProvider;
+  status: RpgAudioStatus;
   artifact_url: string | null;
   artifact_meta_json: any;
   created_at: string;
@@ -434,7 +434,7 @@ export async function createAudioIfMissing(params: {
   turnSeed: string;
   audioAlgoVersion: string;
   audioSeed: string;
-  provider: string;
+  provider: RpgAudioProvider;
 }): Promise<RpgDailyAudioRow> {
   const { turnId, turnSeed, audioAlgoVersion, audioSeed, provider } = params;
   const id = `rpg_aud_${nanoid()}`;

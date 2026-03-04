@@ -22,3 +22,25 @@ CREATE INDEX IF NOT EXISTS idx_rpg_daily_audio_turn_id
 CREATE INDEX IF NOT EXISTS idx_rpg_daily_audio_status
   ON rpg_daily_audio_artifacts (status);
 
+DO $$
+BEGIN
+  ALTER TABLE rpg_daily_audio_artifacts
+    ADD CONSTRAINT rpg_daily_audio_provider_check
+    CHECK (provider IN ('none', 'lyria', 'local_wav'));
+EXCEPTION
+  WHEN duplicate_object THEN
+    -- Constraint already exists; ignore.
+    NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE rpg_daily_audio_artifacts
+    ADD CONSTRAINT rpg_daily_audio_status_check
+    CHECK (status IN ('pending', 'ready', 'failed'));
+EXCEPTION
+  WHEN duplicate_object THEN
+    -- Constraint already exists; ignore.
+    NULL;
+END $$;
+

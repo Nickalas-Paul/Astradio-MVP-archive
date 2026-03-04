@@ -20,11 +20,12 @@ import crypto from 'crypto';
 import type { EphemerisSnapshot } from '../contracts';
 import { makeAudioSeedFromTurnSeed } from '../rpg/hash/seeds';
 import type { AudioAlgoVersion, TurnSeed } from '../rpg/contracts';
-import { getOrCreateRpgProfileForChart, getOrCreateCampaign } from '../rpg/store/rpg-store';
+import { getOrCreateRpgProfileForChart, getOrCreateCampaign, getAudioByTurnSeed } from '../rpg/store/rpg-store';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
 import { initialCampaignState } from '../rpg/campaign/state-machine';
 import { getOrCreateDailyTurn } from '../rpg/campaign/turn-service';
-import { getOrCreateDailyAudioArtifact } from '../rpg/campaign/audio-service';
+import { ensureDailyAudioArtifactForTurn } from '../rpg/campaign/audio-service';
+import { buildCampaignView } from '../rpg/campaign/view';
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
 const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
@@ -149,8 +150,23 @@ async function dbTests(): Promise<void> {
     stateJson: campaign.state_json,
   });
 
-  const a1 = await getOrCreateDailyAudioArtifact({ turnId: turn.id });
-  const a2 = await getOrCreateDailyAudioArtifact({ turnId: turn.id });
+  // Before ensure: no audio row, and view builder is read-only.
+  const preRow = await getAudioByTurnSeed(turn.turn_seed);
+  if (preRow !== null) {
+    throw new Error('FAIL: expected no audio row before ensureDailyAudioArtifactForTurn');
+  }
+
+  const viewBefore = await buildCampaignView({ campaignId: campaign.id, userId });
+  if (viewBefore.audio != null) {
+    throw new Error('FAIL: buildCampaignView should not create audio rows (audio should be null before ensure)');
+  }
+  const preRowAfterView = await getAudioByTurnSeed(turn.turn_seed);
+  if (preRowAfterView !== null) {
+    throw new Error('FAIL: buildCampaignView appears to have created an audio row');
+  }
+
+  const a1 = await ensureDailyAudioArtifactForTurn({ turnId: turn.id });
+  const a2 = await ensureDailyAudioArtifactForTurn({ turnId: turn.id });
 
   if (a1.id !== a2.id) {
     throw new Error('FAIL: audio artifact not idempotent by turn_seed (id differs)');
@@ -164,7 +180,21 @@ async function dbTests(): Promise<void> {
   if (a1.provider !== 'none') {
     throw new Error(`FAIL: expected provider=none by default, got ${a1.provider}`);
   }
-  log('✓ DB audio artifact idempotent, pending, provider=none');
+  if (a1.artifact_meta_json != null && typeof a1.artifact_meta_json !== 'object') {
+    throw new Error('FAIL: expected artifact_meta_json to be an object or null');
+  }
+  log('✓ DB audio artifact idempotent, pending, provider=none, meta sane');
+
+  const viewAfter = await buildCampaignView({ campaignId: campaign.id, userId });
+  if (!viewAfter.audio) {
+    throw new Error('FAIL: expected campaign view to expose audio block after ensure');
+  }
+  if (viewAfter.audio.status !== 'pending') {
+    throw new Error(`FAIL: expected view.audio.status=pending, got ${viewAfter.audio.status}`);
+  }
+  if (viewAfter.audio.audio_seed !== a1.audio_seed) {
+    throw new Error('FAIL: view.audio.audio_seed does not match stored row');
+  }
 
   await pool.end();
 }

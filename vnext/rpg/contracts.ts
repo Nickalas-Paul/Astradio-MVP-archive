@@ -14,6 +14,9 @@ export type RpgMapVersion = string & { readonly __brand: 'RpgMapVersion' };
 export type RpgAlgoVersion = string & { readonly __brand: 'RpgAlgoVersion' };
 export type AudioAlgoVersion = string & { readonly __brand: 'AudioAlgoVersion' };
 
+export type RpgAudioProvider = 'none' | 'lyria' | 'local_wav';
+export type RpgAudioStatus = 'pending' | 'ready' | 'failed';
+
 export type BodyId =
   | 'sun'
   | 'moon'

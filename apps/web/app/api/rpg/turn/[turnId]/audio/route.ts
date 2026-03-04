@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDailyTurnById } from '../../../../../../../vnext/rpg/store/rpg-store';
-import { getOrCreateDailyAudioArtifact } from '../../../../../../../vnext/rpg/campaign/audio-service';
+import { ensureDailyAudioArtifactForTurn } from '../../../../../../../vnext/rpg/campaign/audio-service';
 
+// GET is idempotent and may create a pending audio row for this turn.
+// It never generates audio; it only records deterministic metadata and status.
 export async function GET(_req: NextRequest, ctx: { params: { turnId: string } }) {
   try {
     const turnId = ctx.params.turnId;
@@ -14,7 +16,7 @@ export async function GET(_req: NextRequest, ctx: { params: { turnId: string } }
       return NextResponse.json({ error: `Turn not found: ${turnId}` }, { status: 404 });
     }
 
-    const row = await getOrCreateDailyAudioArtifact({ turnId });
+    const row = await ensureDailyAudioArtifactForTurn({ turnId });
 
     return NextResponse.json({
       turn_id: row.turn_id,
