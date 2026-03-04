@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { finalizeTurnOutcome } from '../../../../../../../vnext/rpg/campaign/response-service';
-import { getOutcomeByTurn } from '../../../../../../../vnext/rpg/store/rpg-store';
 
 export async function POST(_req: NextRequest, ctx: { params: { turnId: string } }) {
   try {
@@ -9,10 +8,7 @@ export async function POST(_req: NextRequest, ctx: { params: { turnId: string } 
       return NextResponse.json({ error: 'turnId required' }, { status: 400 });
     }
 
-    const outcome = await finalizeTurnOutcome({ turnId });
-    const fresh = await getOutcomeByTurn(turnId);
-
-    const row = fresh || outcome;
+    const row = await finalizeTurnOutcome({ turnId });
     return NextResponse.json({
       id: row.id,
       turn_id: row.turn_id,

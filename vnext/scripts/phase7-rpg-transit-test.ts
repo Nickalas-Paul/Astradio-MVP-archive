@@ -19,6 +19,7 @@ import type { StateHash, RpgAlgoVersion, TurnSeed, TransitHash } from '../rpg/co
 import { detectTransitSignals } from '../rpg/transit/signal-detection';
 import { translateSignalsToDomains } from '../rpg/transit/domain-translation';
 import { projectNarrativeFromDomains } from '../rpg/transit/narrative-projection';
+import { validateTransitSnapshot } from '../rpg/validate-transit-snapshot';
 
 function assert(condition: boolean, message: string, failedRef: { value: boolean }): void {
   if (!condition) {
@@ -137,12 +138,42 @@ function runSensitivityTests(failedRef: { value: boolean }): void {
   );
 }
 
+function runValidationTests(failedRef: { value: boolean }): void {
+  try {
+    validateTransitSnapshot(null);
+    failedRef.value = true;
+    // eslint-disable-next-line no-console
+    console.error('FAIL: validateTransitSnapshot(null) should throw');
+  } catch {
+    assert(true, 'validateTransitSnapshot(null) rejects', failedRef);
+  }
+
+  try {
+    validateTransitSnapshot({});
+    failedRef.value = true;
+    // eslint-disable-next-line no-console
+    console.error('FAIL: validateTransitSnapshot({}) should throw');
+  } catch {
+    assert(true, 'validateTransitSnapshot({}) rejects', failedRef);
+  }
+
+  try {
+    validateTransitSnapshot(makeTransitSnapshot());
+    assert(true, 'validateTransitSnapshot(valid snapshot) accepts', failedRef);
+  } catch (e) {
+    failedRef.value = true;
+    // eslint-disable-next-line no-console
+    console.error('FAIL: validateTransitSnapshot(valid) threw', e);
+  }
+}
+
 function main(): void {
   const failed = { value: false };
 
   // eslint-disable-next-line no-console
   console.log('Running Phase 7 RPG transit engine tests...');
 
+  runValidationTests(failed);
   runDeterminismTests(failed);
   runSensitivityTests(failed);
 

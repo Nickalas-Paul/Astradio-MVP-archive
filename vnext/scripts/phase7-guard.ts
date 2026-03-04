@@ -79,6 +79,14 @@ function checkRpgIsolation(): void {
     /from\s+['"].*feature-encode['"]/,
     /import\s+.*['"].*feature-encode['"]/,
     /require\s*\(\s*['"].*feature-encode['"]\s*\)/,
+    // Path segment relational (avoid matching "relational" in other words)
+    /from\s+['"][^'"]*\/relational(?:\/|['"])/,
+    /import\s+.*['"][^'"]*\/relational(?:\/|['"])/,
+    /require\s*\(\s*['"][^'"]*\/relational(?:\/|['"])/,
+    // Path segment compat (avoid matching "compatible" in comments)
+    /from\s+['"][^'"]*\/compat(?:\/|['"])/,
+    /import\s+.*['"][^'"]*\/compat(?:\/|['"])/,
+    /require\s*\(\s*['"][^'"]*\/compat(?:\/|['"])/,
   ];
 
   const forbiddenSymbolPatterns: RegExp[] = [
@@ -86,6 +94,9 @@ function checkRpgIsolation(): void {
     /Math\.random\s*\(/,
     /Date\.now\s*\(/,
   ];
+
+  // crypto.randomBytes allowed only in rpg-store for DB id generation (nanoid)
+  const RANDOM_BYTES_ALLOWED_FILE = 'rpg-store';
 
   const forbiddenAudioImportPatterns: RegExp[] = [
     /from\s+['"][^'"]*lyria[^'"]*['"]/,
@@ -118,9 +129,17 @@ function checkRpgIsolation(): void {
         fail(`[phase7-guard] Forbidden symbol usage in ${rel}: ${re}`);
       }
     }
+
+    // crypto.randomBytes only in allowlisted file (rpg-store.ts for nanoid)
+    if (/\bcrypto\.randomBytes\s*\(/.test(content) || /\brandomBytes\s*\(/.test(content)) {
+      if (!rel.includes(RANDOM_BYTES_ALLOWED_FILE)) {
+        fail(`[phase7-guard] crypto.randomBytes forbidden in ${rel}; only ${RANDOM_BYTES_ALLOWED_FILE} may use it for DB id generation`);
+      }
+    }
   }
 
   console.log('[phase7-guard] RPG isolation: no forbidden imports or symbols under vnext/rpg/');
+  console.log('[phase7-guard] RPG randomness: crypto.randomBytes only in allowlisted store');
 }
 
 const PROTECTED_TABLE_PATTERNS: RegExp[] = [

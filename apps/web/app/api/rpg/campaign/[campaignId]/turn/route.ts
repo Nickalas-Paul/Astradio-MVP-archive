@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCampaignById } from '../../../../../../../../vnext/rpg/store/rpg-store';
 import { getOrCreateDailyTurn } from '../../../../../../../../vnext/rpg/campaign/turn-service';
+import { validateTransitSnapshot } from '../../../../../../../../vnext/rpg/validate-transit-snapshot';
 
 export async function POST(req: NextRequest, ctx: { params: { campaignId: string } }) {
   try {
@@ -13,6 +14,13 @@ export async function POST(req: NextRequest, ctx: { params: { campaignId: string
     const transitSnapshot = body?.transitSnapshot;
     if (!transitSnapshot) {
       return NextResponse.json({ error: 'transitSnapshot required' }, { status: 400 });
+    }
+
+    try {
+      validateTransitSnapshot(transitSnapshot);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Invalid transitSnapshot';
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
     const campaign = await getCampaignById(campaignId);
