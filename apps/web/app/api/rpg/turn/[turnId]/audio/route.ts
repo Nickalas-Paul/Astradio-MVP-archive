@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDailyTurnById } from '../../../../../../../vnext/rpg/store/rpg-store';
-import { ensureDailyAudioArtifactForTurn } from '../../../../../../../vnext/rpg/campaign/audio-service';
+import { getDailyTurnById } from '../../../../../../../../vnext/rpg/store/rpg-store';
+import { ensureDailyAudioArtifactForTurn } from '../../../../../../../../vnext/rpg/campaign/audio-service';
 
 // GET is idempotent and may create a pending audio row for this turn.
 // It never generates audio; it only records deterministic metadata and status.

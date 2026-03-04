@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { submitResponse } from '../../../../../../../vnext/rpg/campaign/response-service';
+import { submitResponse } from '../../../../../../../../vnext/rpg/campaign/response-service';
 
 export async function POST(req: NextRequest, ctx: { params: { turnId: string } }) {
   try {

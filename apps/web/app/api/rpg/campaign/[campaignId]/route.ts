@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildCampaignView } from '../../../../../../../../vnext/rpg/campaign/view';
+import { buildCampaignView } from '../../../../../../../vnext/rpg/campaign/view';
 
 export async function GET(req: NextRequest, ctx: { params: { campaignId: string } }) {
   try {
