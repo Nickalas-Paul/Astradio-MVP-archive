@@ -95,8 +95,10 @@ function checkRpgIsolation(): void {
     /Date\.now\s*\(/,
   ];
 
-  // crypto.randomBytes allowed only in rpg-store for DB id generation (nanoid)
-  const RANDOM_BYTES_ALLOWED_FILE = 'rpg-store';
+  // crypto.randomBytes allowed only in explicit allowlist (DB id helper nanoid)
+  const RANDOM_BYTES_ALLOWED_FILES: string[] = [
+    'vnext/rpg/store/rpg-store.ts',
+  ];
 
   const forbiddenAudioImportPatterns: RegExp[] = [
     /from\s+['"][^'"]*lyria[^'"]*['"]/,
@@ -109,6 +111,7 @@ function checkRpgIsolation(): void {
 
   for (const f of files) {
     const rel = path.relative(REPO_ROOT, f);
+    const normalizedRel = rel.replace(/\\/g, '/');
     const content = readFileOrNull(f);
     if (content == null) continue;
 
@@ -130,10 +133,15 @@ function checkRpgIsolation(): void {
       }
     }
 
-    // crypto.randomBytes only in allowlisted file (rpg-store.ts for nanoid)
+    // crypto.randomBytes only in allowlisted file(s) (nanoid DB id helper)
     if (/\bcrypto\.randomBytes\s*\(/.test(content) || /\brandomBytes\s*\(/.test(content)) {
-      if (!rel.includes(RANDOM_BYTES_ALLOWED_FILE)) {
-        fail(`[phase7-guard] crypto.randomBytes forbidden in ${rel}; only ${RANDOM_BYTES_ALLOWED_FILE} may use it for DB id generation`);
+      const isAllowedRandomBytesFile = RANDOM_BYTES_ALLOWED_FILES.includes(normalizedRel);
+      if (!isAllowedRandomBytesFile) {
+        fail(
+          `[phase7-guard] crypto.randomBytes forbidden in ${normalizedRel}; only ${RANDOM_BYTES_ALLOWED_FILES.join(
+            ', '
+          )} may use it for DB id generation`
+        );
       }
     }
   }
