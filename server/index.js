@@ -2243,6 +2243,52 @@ app.get('/api/debug/last-compose-path', (req, res) => {
   res.json(p);
 });
 
+// Phase 8 debug helper: latest RPG campaign IDs for env wiring.
+// Disabled by default; only available when PHASE8_DEBUG=1.
+app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
+  if (process.env.PHASE8_DEBUG !== '1') {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  const conn = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!conn) {
+    return res.status(503).json({ error: 'db_unconfigured' });
+  }
+
+  let pool;
+  try {
+    const pg = require('pg');
+    const Pool = pg.Pool;
+    pool = new Pool({ connectionString: conn });
+
+    const result = await pool.query(`
+      SELECT id, user_id, created_at
+      FROM rpg_campaigns
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+
+    const row = result.rows[0];
+    if (!row) {
+      return res.status(200).json({ status: 'NO_CAMPAIGNS_FOUND' });
+    }
+
+    return res.status(200).json({
+      campaignId: row.id,
+      userId: row.user_id,
+      createdAt: row.created_at,
+    });
+  } catch (e) {
+    const msg = e && e.message ? e.message : 'Failed to query campaigns';
+    console.error('[phase8-debug/campaign-ids] error:', msg);
+    return res.status(500).json({ error: 'internal_error' });
+  } finally {
+    if (pool) {
+      pool.end().catch(() => {});
+    }
+  }
+});
+
 function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }
 
 // API error handler: return JSON for /api/* when client accepts JSON (e.g. JSON parse errors from express.json())
