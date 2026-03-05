@@ -79,6 +79,13 @@ function buildMelodyUrls(
 export async function createBrowserPerformanceEngine(
   options: BrowserEngineOptions
 ): Promise<BrowserEngineHandle> {
+  // Phase 8: Lyria-only in production. No sample-based engine, no /audio/samples requests.
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+    throw new Error(
+      '[Phase8] Legacy sample-based engine is disabled in production. Use Lyria artifact playback only.'
+    );
+  }
+
   const { plan, seed, genre = 'house', debug = false } = options;
   const Tone = await import('tone');
   const pack = getGenrePack(genre, seed);

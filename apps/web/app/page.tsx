@@ -43,6 +43,8 @@ export default function HomePage() {
   }
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
   const [engineChosen, setEngineChosen] = useState<'browser' | 'server' | 'legacy' | null>(null);
+  /** Phase 8: Lyria-only in production; when server WAV fails we show this instead of falling back to legacy. */
+  const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
   const [engineStats, setEngineStats] = useState<{
     samplesLoaded: { drums: boolean; bass: boolean; harmony: boolean; melody: boolean };
     voiceMode: { bass: string; harmony: string; melody: string };
@@ -183,6 +185,7 @@ export default function HomePage() {
             setExplanationSections(null);
           }
           // Prefer URL; when backend returns inline WAV (ENABLE_WAV_EXPORT=1), use base64 as blob URL
+          setAudioUnavailableReason(null);
           if (payload?.audio?.url) {
             if (audioBlobUrlRef.current) {
               URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -265,13 +268,15 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [geo.status, geo.lat, geo.lon]);
 
-  // Audio playback: ?engine=browser|server|legacy is a preference (default: browser), not a hard lock.
-  // Resolution: try requested engine first, then fallback in canonical order browser → server WAV → legacy.
+  // Audio playback: Phase 8 = Lyria-only in production (no /audio/samples, no Tone sampler).
+  // In development, ?engine=browser|server|legacy is a preference with fallback order browser → server → legacy.
   useEffect(() => {
     let audioElement: HTMLAudioElement | null = null;
+    const isLyriaOnly = process.env.NODE_ENV === 'production';
 
     function getEnginePreference(): 'browser' | 'server' | 'legacy' {
-      if (typeof window === 'undefined') return 'browser';
+      if (typeof window === 'undefined') return 'server';
+      if (isLyriaOnly) return 'server';
       const p = new URLSearchParams(window.location.search).get('engine');
       if (p === 'server' || p === 'legacy') return p;
       return 'browser';
@@ -316,12 +321,16 @@ export default function HomePage() {
     async function handlePlay() {
       const audioStartTime = performance.now();
       setEngineChosen(null);
+      setAudioUnavailableReason(null);
       const preference = getEnginePreference();
       try {
-        const tryOrder: Array<'browser' | 'server' | 'legacy'> =
-          preference === 'server' ? ['server', 'browser', 'legacy'] :
-          preference === 'legacy' ? ['legacy', 'browser', 'server'] :
-          ['browser', 'server', 'legacy'];
+        const tryOrder: Array<'browser' | 'server' | 'legacy'> = isLyriaOnly
+          ? ['server']
+          : preference === 'server'
+            ? ['server', 'browser', 'legacy']
+            : preference === 'legacy'
+              ? ['legacy', 'browser', 'server']
+              : ['browser', 'server', 'legacy'];
 
         for (const engine of tryOrder) {
           if (engine === 'browser') {
@@ -357,8 +366,14 @@ export default function HomePage() {
             return;
           }
         }
+        if (isLyriaOnly) {
+          setAudioUnavailableReason('Audio unavailable. Playback is Lyria-only; no artifact was returned.');
+        }
       } catch (e) {
         console.warn('[audio] play failed', e);
+        if (isLyriaOnly) {
+          setAudioUnavailableReason('Audio playback failed. Lyria-only mode; no fallback.');
+        }
       }
     }
 
@@ -538,6 +553,11 @@ export default function HomePage() {
 
             {/* Engine status and debug info */}
             <div className="mt-2 space-y-1">
+              {audioUnavailableReason && (
+                <p className="text-xs text-amber-400">
+                  ⚠️ {audioUnavailableReason}
+                </p>
+              )}
               {engineError && (
                 <p className="text-xs text-red-400">
                   ⚠️ {engineError}

@@ -99,6 +99,7 @@
     "phase5:verify-routes": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-relational-routes.js",
     "phase5:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-smoke.js",
     "phase7:guard": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-guard.js",
+    "phase8:audio-guard": "node scripts/phase8-audio-guard.js",
     "phase7:slice1:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-hash-test.js",
     "phase7:slice2:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-bundle-test.js",
     "phase7:slice3:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-store-test.js",
