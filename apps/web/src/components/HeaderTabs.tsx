@@ -27,6 +27,12 @@ export function HeaderTabs() {
         Sandbox
       </Link>
       <Link
+        href="/campaign"
+        className="px-3 py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
+      >
+        Campaign
+      </Link>
+      <Link
         href="/education"
         className="px-3 py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
       >
