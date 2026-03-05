@@ -1,6 +1,8 @@
 import React from 'react';
 import { buildCampaignView } from '../../../../../../vnext/rpg/campaign/view';
 
+export const runtime = 'nodejs';
+
 type PageProps = {
   params: { campaignId: string };
   searchParams: { userId?: string };
@@ -14,7 +16,37 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
     throw new Error('userId query parameter required for RPG campaign view');
   }
 
-  const view = await buildCampaignView({ campaignId, userId });
+  const hasPostgres = Boolean(process.env.POSTGRES_URL);
+  if (!hasPostgres) {
+    return (
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ maxWidth: 480, textAlign: 'center' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>Campaign backend not configured</h1>
+          <p style={{ fontSize: '14px', color: '#aaa' }}>
+            The RPG campaign view requires the POSTGRES_URL environment variable to be set for this deployment.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  let view;
+  try {
+    view = await buildCampaignView({ campaignId, userId });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[rpg/campaign] failed to build campaign view', e);
+    return (
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ maxWidth: 480, textAlign: 'center' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>Campaign view unavailable</h1>
+          <p style={{ fontSize: '14px', color: '#aaa' }}>
+            The RPG campaign backend returned an error for this request. Please verify the backend environment and try again.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   const sheet = view.character_sheet;
   const turn = view.current_turn;

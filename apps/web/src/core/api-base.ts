@@ -11,7 +11,7 @@ export function getApiBaseUrl(): string {
   // On the server (SSR / Next API), always use same-origin.
   if (typeof window === 'undefined') return '';
 
-  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL;
 
   if (process.env.NODE_ENV === 'development') {
     return explicit || 'http://localhost:4000';
