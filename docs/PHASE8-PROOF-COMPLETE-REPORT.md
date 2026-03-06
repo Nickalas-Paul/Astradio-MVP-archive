@@ -69,3 +69,23 @@ user identity (user_id, chart_id)
 - Missing dependencies produce explicit UI messages; audio has five distinct states.
 
 **No single remaining blocker** for Phase 8 proof. Optional hardening: run `npm run phase8:campaign:verify` in CI with POSTGRES_URL to guard against regressions.
+
+---
+
+## Phase 8 Closed Beta — Campaign tab + daily turn fixes (2026-03)
+
+### Root cause: Campaign tab routing to Phase 7 fixture
+
+- **Cause:** `/campaign` used only `RPG_BETA_CAMPAIGN_ID` and `RPG_BETA_USER_ID` env vars. When those were set to Phase 7 fixture IDs (e.g. `user_test_ui_phase7-slice5-001`) in Vercel, the tab redirected there. No Phase 8 resolution path existed.
+- **Fix:** `apps/web/app/campaign/page.tsx` now: (A) honors env vars when set and not Phase 7 fixture; (B) when `PHASE8_DEBUG=1` and `POSTGRES_URL`, calls `getOrCreatePhase8RealUserCampaign()` and redirects to the real Phase 8 user/campaign; (C) never silently falls back to Phase 7 fixture IDs in Preview.
+
+### Root cause: Real-user campaign had no turn
+
+- **Cause:** `create-test-user` created user + campaign but did not call `getOrCreateDailyTurn`. The daily turn is created only when a transit snapshot is submitted (POST `/api/rpg/campaign/.../turn` or via `seed-campaign`). The real-user proof lane (`phase8_real_user`) used `create-test-user`, which had no turn-creation step.
+- **Fix:** Added `vnext/phase8/resolve-real-user-campaign.ts` with `getOrCreatePhase8RealUserCampaign()` that creates user + campaign + one deterministic daily turn (transit snapshot `2036-03-15T12:00:00Z`). Both `create-test-user` API and `/campaign` entrypoint now use this shared flow.
+
+### Final Preview verification path
+
+1. **Campaign tab:** With `PHASE8_DEBUG=1` and `POSTGRES_URL`, click Campaign tab → redirects to `/rpg/campaign/<campaignId>?userId=phase8_real_user` with real character sheet + daily turn.
+2. **Direct URL:** `GET /api/debug/phase8/create-test-user` returns `{ userId, campaignId }`; open `/rpg/campaign/<campaignId>?userId=phase8_real_user`.
+3. **Daily turn stability:** Same campaign + same transit date key → stable turn on refresh (deterministic `turn_seed`).
