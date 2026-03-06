@@ -215,11 +215,20 @@ export function WheelCanvasBuilder({
   const cx = wheelSize / 2;
   const cy = wheelSize / 2;
 
+  /** Convert pointer from element (pixel) space to viewBox space so hit-test and angle use same units. */
+  const pointerToViewBox = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return { x: 0, y: 0 };
+    const rect = svgRef.current.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const scaleX = wheelSize / (rect.width || 1);
+    const scaleY = wheelSize / (rect.height || 1);
+    return { x: px * scaleX, y: py * scaleY };
+  }, [wheelSize]);
+
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = pointerToViewBox(e);
     const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions);
     if (planet) {
       setDraggingPlanet(planet);
@@ -244,13 +253,11 @@ export function WheelCanvasBuilder({
         onOverrideChange(toPlace, lonDeg);
       }
     }
-  }, [cx, cy, R_OUT, R_IN, positions, constrainToHouse, freeBuild, selectedPlanetForPlacement, normalized?.cusps, onOverrideChange]);
+  }, [pointerToViewBox, cx, cy, R_OUT, R_IN, positions, constrainToHouse, freeBuild, selectedPlanetForPlacement, normalized?.cusps, onOverrideChange]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!draggingPlanet || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = pointerToViewBox(e);
     const dx = x - cx;
     const dy = y - cy;
     const angle = Math.atan2(dy, dx);
@@ -260,7 +267,7 @@ export function WheelCanvasBuilder({
       lonDeg = clampToHouse(lonDeg, dragStartHouse, normalized.cusps);
     }
     onOverrideChange(draggingPlanet, lonDeg);
-  }, [draggingPlanet, cx, cy, onOverrideChange, constrainToHouse, freeBuild, dragStartHouse, normalized?.cusps]);
+  }, [draggingPlanet, pointerToViewBox, cx, cy, onOverrideChange, constrainToHouse, freeBuild, dragStartHouse, normalized?.cusps]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (draggingPlanet && svgRef.current) {

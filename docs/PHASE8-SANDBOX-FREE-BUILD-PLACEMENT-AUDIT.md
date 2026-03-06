@@ -89,3 +89,57 @@ Result: **Choose planet (palette) → click wheel (place)** is the primary path;
 
 - Next.js build: passed.
 - No new fixtures; no change to generate gating or birth-backed contracts.
+
+---
+
+## 8. Click-to-Place Failure (Real Browser) — Root Cause and Fix
+
+**Date:** 2026-03-06 (follow-up)
+
+### 8.1 Observed failure
+
+- User selects a planet in the palette, clicks the wheel; **nothing happens** (no placement).
+- UI looked correct (palette, copy, degree panel) but the interaction did not work in real browser testing.
+
+### 8.2 Root cause (exact)
+
+**Pointer coordinates were in element (pixel) space; wheel geometry was in viewBox space.**
+
+- `handlePointerDown` and `handlePointerMove` used `getBoundingClientRect()` and `e.clientX - rect.left`, `e.clientY - rect.top`, giving coordinates in **rendered element pixels** (e.g. 0–350 when the SVG is scaled to 350px).
+- Wheel geometry (`cx`, `cy`, `R_IN`, `R_OUT`) is in **viewBox units** (e.g. `wheelSize` 400 → center 200, R_OUT 196).
+- The ring hit-test was: `dist >= R_IN - 10 && dist <= R_OUT + 20`, with `dist` computed from `(x - cx, y - cy)` using **pixel** (x,y) and **viewBox** (cx, cy). So `dist` was in a mixed/inconsistent scale.
+- When the SVG is smaller than the viewBox (typical with responsive layout), pixel `dist` could fall outside the intended ring range, so the condition failed and **click-to-place never ran**. Even when it might pass, the **angle** used for placement was wrong (again, mixing pixel and viewBox), so placement would be incorrect.
+
+So the **exact** failure point: **ring hit-test and angle calculation used mixed coordinate systems**, so the “click on wheel” branch either did not run or produced wrong longitude.
+
+### 8.3 Fix (placement)
+
+- **Convert pointer to viewBox space** before any hit-test or angle math. Added `pointerToViewBox(e)` that scales by `wheelSize / rect.width` and `wheelSize / rect.height`, so (x, y) are in the same units as (cx, cy) and R_IN, R_OUT.
+- `handlePointerDown` and `handlePointerMove` now use this converted (x, y) for:
+  - `getPlanetAtPoint(x, y, ...)` (drag hit-test),
+  - ring check `dist >= R_IN - 10 && dist <= R_OUT + 20`,
+  - `angle = Math.atan2(dy, dx)` and `angleToLonDeg(angle)` for placement/drag.
+
+Result: **Select planet in palette → click on wheel ring → planet appears at click position.** Drag continues to use the same conversion so move is correct.
+
+### 8.4 Degree panel UX (astrology-native)
+
+- **Stored internally:** Canonical longitude 0–360° (unchanged); `overrides.planets[planet].lonDeg` and API/snapshot stay 0–360.
+- **Displayed and edited by user:** Sign + degree within sign (0–29°) + minutes (0–59′). No raw 0–360° as the main concept.
+- **Conversion:** At the boundary only. `lonToSignDeg(lonDeg)` → sign index, deg, min. `signDegToLon(signIdx, deg, min)` → canonical 0–360°. Inputs: sign dropdown, degree (0–29), minutes (0–59). On change, convert to lonDeg and call `onOverrideChange(planet, roundDegree(lonDeg))`.
+- **Typing precision:** Users now edit in sign + 0–29° + minutes; no typing of global longitude for normal editing.
+
+### 8.5 Files changed (this round)
+
+| File | Change |
+|------|--------|
+| `apps/web/src/components/sandbox/WheelCanvasBuilder.tsx` | `pointerToViewBox(e)` to convert pointer to viewBox space; use it in `handlePointerDown` and `handlePointerMove` for hit-test and angle. |
+| `apps/web/src/components/sandbox/DegreePanel.tsx` | User-facing: sign dropdown + degree (0–29) + minutes (0–59). Internal 0–360; conversion via `lonToSignDeg` / `signDegToLon`. Removed raw 0–360 input. |
+| `docs/PHASE8-SANDBOX-FREE-BUILD-PLACEMENT-AUDIT.md` | §8 added: root cause, fix, degree model, files changed. |
+
+### 8.6 Verification (browser-level)
+
+- Open sandbox → switch to free-build → select Sun in palette → click wheel ring → Sun appears.
+- Select Moon → click wheel → Moon appears.
+- Drag Moon → degree panel updates; display is sign + 0–29° + minutes.
+- Generate remains disabled until birth data is added; no fixture data; override persistence when adding birth preserved.
