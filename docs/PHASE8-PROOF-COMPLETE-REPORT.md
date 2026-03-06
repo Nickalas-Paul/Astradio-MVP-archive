@@ -98,3 +98,16 @@ user identity (user_id, chart_id)
 
 - **Cause:** `redirect()` throws `NEXT_REDIRECT` internally. When called inside a `try` block with a `catch`, the throw was caught and the redirect never executed; the page fell through to "Campaign not configured."
 - **Fix:** Call `redirect()` outside the try/catch. Resolve into a variable; if success, call redirect after the try. Added classified reasons: `missing_phase8_debug`, `missing_postgres_url`, `phase8_resolve_failed`, `no_env_vars`.
+
+### Phase 8 campaign proof milestone (frozen)
+
+- **Current real-user proof IDs:** `userId = phase8_real_user`, `campaignId = rpg_camp_81ceacfa9caab6ab`.
+- **Canonical Preview path:** `/campaign` → `/rpg/campaign/rpg_camp_81ceacfa9caab6ab?userId=phase8_real_user` (when `PHASE8_DEBUG=1` and `POSTGRES_URL` are set).
+- **Proven:** stored user/profile → natal snapshot → bundle → character sheet → campaign → deterministic daily turn; turn is stable on refresh for the same transit date key; audio is explicitly disabled (`RPG_AUDIO_PROVIDER=none`).
+- **Intentionally not yet proven:** choice submission and outcome finalization path for this campaign; any audio rendering or artifact lifecycle.
+
+### Phase 8 follow-on test targets
+
+1. **Campaign choice → outcome:** deterministic solo-path test that submits a choice and finalizes the turn, then verifies the outcome view and state hash update.
+2. **/campaign stability confirmation:** guardrail tests that `/campaign` continues to resolve the real-user proof lane under env changes (Phase 8 vs future phases).
+3. **Remaining Phase 8 Preview surfaces:** apply the same stored-data → view proof pattern to any other Phase 8 endpoints (without expanding Phase 9 scope).
