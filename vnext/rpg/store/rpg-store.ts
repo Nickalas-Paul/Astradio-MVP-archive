@@ -142,6 +142,18 @@ export interface RpgDailyAudioRow {
   updated_at: string;
 }
 
+// Phase 8 — minimal user profile storage for Campaign testing.
+export interface UserProfileRow {
+  user_id: string;
+  chart_id: string;
+  birth_date: string;
+  birth_time: string;
+  birth_location: string;
+  natal_snapshot_hash: string | null;
+  bundle_hash: string | null;
+  created_at: string;
+}
+
 export async function upsertEffectsBundle(bundle: RPGEffectsBundle): Promise<{ bundleHash: string }> {
   const { metadata } = bundle;
   const bundleHash = metadata.bundle_hash;
@@ -450,6 +462,64 @@ export async function getProfileByUserAndBundle(
   );
   return res.rows[0] ?? null;
 }
+
+// Phase 8 helpers: minimal user_profiles table for real user + natal storage.
+
+export async function upsertUserProfileForPhase8(params: {
+  userId: string;
+  chartId: string;
+  birthDate: string;
+  birthTime: string;
+  birthLocation: string;
+  natalSnapshotHash: string;
+  bundleHash: string;
+}): Promise<UserProfileRow> {
+  const { userId, chartId, birthDate, birthTime, birthLocation, natalSnapshotHash, bundleHash } = params;
+
+  await query(
+    `INSERT INTO user_profiles (
+       user_id, chart_id, birth_date, birth_time, birth_location,
+       natal_snapshot_hash, bundle_hash
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (user_id)
+     DO UPDATE SET
+       chart_id = EXCLUDED.chart_id,
+       birth_date = EXCLUDED.birth_date,
+       birth_time = EXCLUDED.birth_time,
+       birth_location = EXCLUDED.birth_location,
+       natal_snapshot_hash = EXCLUDED.natal_snapshot_hash,
+       bundle_hash = EXCLUDED.bundle_hash`,
+    [userId, chartId, birthDate, birthTime, birthLocation, natalSnapshotHash, bundleHash]
+  );
+
+  const res = await query<UserProfileRow>(
+    `SELECT
+       user_id, chart_id, birth_date, birth_time, birth_location,
+       natal_snapshot_hash, bundle_hash, created_at
+     FROM user_profiles
+     WHERE user_id = $1`,
+    [userId]
+  );
+  const row = res.rows[0];
+  if (!row) {
+    throw new Error('Failed to insert or load user_profiles row for Phase 8');
+  }
+  return row;
+}
+
+export async function getUserProfileById(userId: string): Promise<UserProfileRow | null> {
+  const res = await query<UserProfileRow>(
+    `SELECT
+       user_id, chart_id, birth_date, birth_time, birth_location,
+       natal_snapshot_hash, bundle_hash, created_at
+     FROM user_profiles
+     WHERE user_id = $1`,
+    [userId]
+  );
+  return res.rows[0] ?? null;
+}
+
 
 export async function getAudioByTurnSeed(turnSeed: string): Promise<RpgDailyAudioRow | null> {
   const res = await query<RpgDailyAudioRow>(
