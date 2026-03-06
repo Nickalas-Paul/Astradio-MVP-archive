@@ -35,15 +35,33 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
   try {
     view = await buildCampaignView({ campaignId, userId });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     // eslint-disable-next-line no-console
     console.error('[rpg/campaign] failed to build campaign view', e);
+    if (msg.includes('[rpg-ui] Campaign not found')) {
+      // eslint-disable-next-line no-console
+      console.log(`[rpg-campaign] missing_dependency=campaign campaignId=${campaignId}`);
+    } else if (msg.includes('[rpg-ui] Bundle not found')) {
+      // eslint-disable-next-line no-console
+      console.log(`[rpg-campaign] missing_dependency=bundle campaignId=${campaignId}`);
+    }
+    let heading = 'Campaign view unavailable';
+    let detail =
+      'The RPG campaign backend returned an error for this request. Please verify the backend environment and try again.';
+    if (msg.includes('[rpg-ui] Campaign not found')) {
+      heading = 'Campaign not found';
+      detail = 'Check campaign ID and that the campaign exists in the database.';
+    } else if (msg.includes('[rpg-ui] Bundle not found')) {
+      heading = 'Character data not found';
+      detail = 'Character data (bundle) not found for this campaign. The campaign may be misconfigured.';
+    } else if (process.env.NODE_ENV === 'development') {
+      detail = `${detail} ${msg.slice(0, 120)}`;
+    }
     return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div style={{ maxWidth: 480, textAlign: 'center' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>Campaign view unavailable</h1>
-          <p style={{ fontSize: '14px', color: '#aaa' }}>
-            The RPG campaign backend returned an error for this request. Please verify the backend environment and try again.
-          </p>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>{heading}</h1>
+          <p style={{ fontSize: '14px', color: '#aaa' }}>{detail}</p>
         </div>
       </main>
     );
@@ -53,6 +71,7 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
   const turn = view.current_turn;
   const outcome = view.outcome;
   const audio = view.audio;
+  const diag = view._diagnostics;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '24px' }}>
@@ -121,7 +140,12 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
             </div>
           </div>
         ) : (
-          <div>No turn yet.</div>
+          <div>
+            <div>No turn yet.</div>
+            {diag?.no_turn_reason && (
+              <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>{diag.no_turn_reason}</p>
+            )}
+          </div>
         )}
 
         <div style={{ marginTop: '24px' }}>
@@ -140,7 +164,12 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
               </ul>
             </div>
           ) : (
-            <div>No outcome yet.</div>
+            <div>
+              <div>No outcome yet.</div>
+              <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                Outcome appears after you submit a choice and finalize the turn.
+              </p>
+            </div>
           )}
         </div>
 
@@ -151,14 +180,27 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
               <div>Provider: {audio.provider}</div>
               <div>Status: {audio.status}</div>
               <div>Audio seed: {audio.audio_seed}</div>
-              {audio.artifact_url ? (
+              {audio.status === 'failed' ? (
+                <div>Audio generation failed.</div>
+              ) : audio.status === 'pending' ? (
+                <div>Audio is pending.</div>
+              ) : audio.artifact_url ? (
                 <LyriaAudio url={audio.artifact_url} />
               ) : (
                 <div>No artifact URL yet.</div>
               )}
             </div>
           ) : (
-            <div>No audio record yet.</div>
+            <div>
+              <div>No audio record yet.</div>
+              {turn && diag?.no_audio_reason ? (
+                <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>{diag.no_audio_reason}</p>
+              ) : !turn ? (
+                <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                  Create a daily turn first; then request audio for that turn.
+                </p>
+              ) : null}
+            </div>
           )}
         </div>
       </section>

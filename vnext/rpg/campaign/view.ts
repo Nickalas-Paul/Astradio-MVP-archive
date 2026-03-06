@@ -45,6 +45,13 @@ export interface RpgOutcomeView {
   top_domains: Array<{ domain: string; weight: number }>;
 }
 
+/** Optional diagnostics for UI messaging; not part of external API contract. */
+export interface RpgCampaignViewDiagnostics {
+  no_turn_reason?: string;
+  no_audio_reason?: string;
+  audio_status?: string;
+}
+
 export interface RpgCampaignView {
   campaign: {
     id: string;
@@ -62,6 +69,8 @@ export interface RpgCampaignView {
     audio_seed: string;
     artifact_url: string | null;
   } | null;
+  /** Optional; for explicit UI messages when dependencies are missing. */
+  _diagnostics?: RpgCampaignViewDiagnostics;
 }
 
 function pickTopDomains(domains: RPGDomainScore[], limit = 3): Array<{ domain: string; score: number }> {
@@ -149,6 +158,7 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
   let currentTurn: RpgTurnView | null = null;
   let outcomeView: RpgOutcomeView | null = null;
   let audioView: RpgCampaignView['audio'] = null;
+  const diagnostics: RpgCampaignViewDiagnostics = {};
 
   if (latestTurn) {
     const responses = await listResponsesByTurn(latestTurn.id);
@@ -166,6 +176,15 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
         audio_seed: audio.audio_seed,
         artifact_url: audio.artifact_url,
       };
+      if (audio.status === 'failed') {
+        diagnostics.audio_status = 'failed';
+        diagnostics.no_audio_reason = 'Audio generation failed.';
+      } else if (audio.status === 'pending') {
+        diagnostics.audio_status = 'pending';
+      }
+    } else {
+      diagnostics.no_audio_reason =
+        'Request generation via GET /api/rpg/turn/{turnId}/audio, or audio may be disabled (RPG_AUDIO_PROVIDER=none).';
     }
 
     const outcome = await getOutcomeByTurn(latestTurn.id);
@@ -176,6 +195,24 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
         chapter: newState.chapter,
         top_domains: stateTopDomains(newState),
       };
+    }
+  } else {
+    diagnostics.no_turn_reason =
+      'Daily turns are created when a transit snapshot is submitted (POST /api/rpg/campaign/.../turn).';
+  }
+
+  // Structured logging for missing dependencies (grep-friendly, no PII).
+  if (!latestTurn) {
+    // eslint-disable-next-line no-console
+    console.log(`[rpg-campaign] missing_dependency=daily_turn campaignId=${campaignId}`);
+  } else {
+    if (!audioView) {
+      // eslint-disable-next-line no-console
+      console.log(`[rpg-campaign] missing_dependency=audio turnId=${latestTurn.id} campaignId=${campaignId}`);
+    }
+    if (!outcomeView) {
+      // eslint-disable-next-line no-console
+      console.log(`[rpg-campaign] missing_dependency=outcome turnId=${latestTurn.id} campaignId=${campaignId}`);
     }
   }
 
@@ -191,6 +228,7 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
     current_turn: currentTurn,
     outcome: outcomeView,
     audio: audioView,
+    _diagnostics: Object.keys(diagnostics).length > 0 ? diagnostics : undefined,
   };
 }
 
