@@ -93,6 +93,9 @@ export class ComposeAPI {
 
       // Phase 6 Sandbox: when overriddenSnapshot is provided, use it for architecture (same chart as viz/report)
       const req = request as any;
+      if (req.mode === 'sandbox' && req.overriddenSnapshot == null) {
+        throw new Error('Sandbox mode requires overriddenSnapshot from POST /api/sandbox/snapshot');
+      }
       let architecture: Awaited<ReturnType<typeof generateArchitecture>>;
       if (req.mode === 'sandbox' && req.overriddenSnapshot != null) {
         const overriddenSnapshot = this.validateOverriddenSnapshot(req.overriddenSnapshot);

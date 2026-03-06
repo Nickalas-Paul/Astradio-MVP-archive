@@ -79,7 +79,7 @@ export default function SandboxPage() {
   const [report, setReport] = useState<SandboxReport | null>(null);
   const [constrainToHouse, setConstrainToHouse] = useState(true);
   const [generateLoading, setGenerateLoading] = useState(false);
-  const [generateError, setGenerateError] = useState<{ viz?: string; report?: string; audio?: string } | null>(null);
+  const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
   const [planHash, setPlanHash] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -249,14 +249,14 @@ export default function SandboxPage() {
       });
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
-        setGenerateError({ viz: (snapData?.error ?? snapData?.message) || `Snapshot: ${snapRes.status}` });
+        setGenerateError({ chart: (snapData?.error ?? snapData?.message) || `Snapshot: ${snapRes.status}` });
         setGenerateLoading(false);
         return;
       }
       snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
       combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
       if (!snapshotUsed || !combinedHashUsed) {
-        setGenerateError({ viz: 'Snapshot response missing snapshot or combinedHash' });
+        setGenerateError({ chart: 'Snapshot response missing snapshot or combinedHash' });
         setGenerateLoading(false);
         return;
       }
@@ -569,7 +569,7 @@ export default function SandboxPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-text">Sandbox</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Chart lab: enter birth data, then drag planets or type degrees. Generate viz, report, and audio from the same chart state.
+            Chart lab: enter birth data, then drag planets or type degrees. Generate chart, report, and audio from the same chart state.
           </p>
           <p className="text-xs text-subtext/80">Houses are from birth chart geometry in Phase 6.</p>
         </motion.div>
@@ -636,7 +636,7 @@ export default function SandboxPage() {
                     disabled={!canGenerate || generateLoading}
                     className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {generateLoading ? 'Generating…' : 'Generate viz, report & audio'}
+                    {generateLoading ? 'Generating…' : 'Generate chart, report & audio'}
                   </button>
                   {canSave && (
                     <button
@@ -662,8 +662,8 @@ export default function SandboxPage() {
                 {hasGenerated && (
                   <div className="mt-4 grid gap-2 text-xs text-subtext sm:grid-cols-3">
                     <div>
-                      <span className="font-semibold">Viz:</span>{' '}
-                      {generateLoading ? 'Generating…' : generateError?.viz ? 'Failed' : 'OK'}
+                      <span className="font-semibold">Chart:</span>{' '}
+                      {generateLoading ? 'Generating…' : generateError?.chart ? 'Failed' : 'OK'}
                     </div>
                     <div>
                       <span className="font-semibold">Report:</span>{' '}
@@ -681,9 +681,9 @@ export default function SandboxPage() {
                     </div>
                   </div>
                 )}
-                {generateError && (generateError.viz || generateError.report || generateError.audio) && (
+                {generateError && (generateError.chart || generateError.report || generateError.audio) && (
                   <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                    {generateError.viz && <p>Viz: {generateError.viz}</p>}
+                    {generateError.chart && <p>Chart: {generateError.chart}</p>}
                     {generateError.report && <p>Report: {generateError.report}</p>}
                     {generateError.audio && <p>Audio: {generateError.audio}</p>}
                   </div>
