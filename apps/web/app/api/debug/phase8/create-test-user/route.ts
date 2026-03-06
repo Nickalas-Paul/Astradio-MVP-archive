@@ -4,15 +4,15 @@
  */
 
 import { NextResponse } from 'next/server';
-import type { EphemerisSnapshot } from '../../../../../../../../../vnext/contracts';
-import { generateNatalSnapshot } from '../../../../../../../../../vnext/phase8/generate-natal-snapshot';
+import type { EphemerisSnapshot } from '../../../../../../../vnext/contracts';
+import { generateNatalSnapshot } from '../../../../../../../vnext/phase8/generate-natal-snapshot';
 import {
   getOrCreateRpgProfileForChart,
   getOrCreateCampaign,
   upsertUserProfileForPhase8,
-} from '../../../../../../../../../vnext/rpg/store/rpg-store';
-import { initialCampaignState } from '../../../../../../../../../vnext/rpg/campaign/state-machine';
-import { buildRpgEffectsBundleFromSnapshot } from '../../../../../../../../../vnext/rpg/effects/bundle-from-snapshot';
+} from '../../../../../../../vnext/rpg/store/rpg-store';
+import { initialCampaignState } from '../../../../../../../vnext/rpg/campaign/state-machine';
+import { buildRpgEffectsBundleFromSnapshot } from '../../../../../../../vnext/rpg/effects/bundle-from-snapshot';
 
 export const runtime = 'nodejs';
 
