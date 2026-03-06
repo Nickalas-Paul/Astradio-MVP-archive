@@ -89,3 +89,12 @@ user identity (user_id, chart_id)
 1. **Campaign tab:** With `PHASE8_DEBUG=1` and `POSTGRES_URL`, click Campaign tab → redirects to `/rpg/campaign/<campaignId>?userId=phase8_real_user` with real character sheet + daily turn.
 2. **Direct URL:** `GET /api/debug/phase8/create-test-user` returns `{ userId, campaignId }`; open `/rpg/campaign/<campaignId>?userId=phase8_real_user`.
 3. **Daily turn stability:** Same campaign + same transit date key → stable turn on refresh (deterministic `turn_seed`).
+
+### Outcome contract
+
+**"No outcome yet" is correct** until choice finalization. Outcome is created by: (1) user submits a choice via `submitResponse` (POST `/api/rpg/turn/[turnId]/respond`); (2) turn is finalized via `finalizeTurnOutcome` (POST `/api/rpg/turn/[turnId]/finalize`). The Phase 8 proof lane does not auto-finalize a choice; the UI explicitly states: "Outcome appears after you submit a choice and finalize the turn."
+
+### /campaign redirect fix (redirect swallowed by try/catch)
+
+- **Cause:** `redirect()` throws `NEXT_REDIRECT` internally. When called inside a `try` block with a `catch`, the throw was caught and the redirect never executed; the page fell through to "Campaign not configured."
+- **Fix:** Call `redirect()` outside the try/catch. Resolve into a variable; if success, call redirect after the try. Added classified reasons: `missing_phase8_debug`, `missing_postgres_url`, `phase8_resolve_failed`, `no_env_vars`.
