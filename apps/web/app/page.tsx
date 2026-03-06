@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 // use relative imports to avoid alias issues
 import { getApiBaseUrl } from '../src/core/api-base';
+import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
 import HeaderTabs from '../src/components/HeaderTabs';
 import WheelCanvas from '../src/components/WheelCanvas';
 import ExplanationPanel from '../src/components/ExplanationPanel';
@@ -25,8 +26,8 @@ export default function HomePage() {
   const [analysisText, setAnalysisText] = useState<string>('');
   const [explanationSections, setExplanationSections] = useState<Array<{ title: string; text?: string; bullets?: string[] }> | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [composePlan, setComposePlan] = useState<any>(null); // Backend plan for browser engine / Tone fallback
-  const [composeGenre, setComposeGenre] = useState<string>('house'); // payload.controls.genre, default house
+  const [composePlan, setComposePlan] = useState<any>(null);
+  const [composeGenre, setComposeGenre] = useState<string>('house');
   const [specVersion, setSpecVersion] = useState<string | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [composeLatency, setComposeLatency] = useState<number | null>(null);
@@ -42,34 +43,10 @@ export default function HomePage() {
     return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
   }
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
-  const [engineChosen, setEngineChosen] = useState<'browser' | 'server' | 'legacy' | null>(null);
-  /** Phase 8: Lyria-only in production; when server WAV fails we show this instead of falling back to legacy. */
+  /** Lyria-only: explicit message when artifact missing or playback fails. */
   const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
-  const [engineStats, setEngineStats] = useState<{
-    samplesLoaded: { drums: boolean; bass: boolean; harmony: boolean; melody: boolean };
-    voiceMode: { bass: string; harmony: string; melody: string };
-    soundfontLoaded?: { bass: boolean; harmony: boolean; melody: boolean };
-    reverbSends?: { bass: number; harmony: number; melody: number; clap: number };
-    sampleLoadErrors?: string[];
-    sampleUrlsLoaded?: string[];
-  } | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const audioBlobUrlRef = useRef<string | null>(null);
-  const toneSeqRef = useRef<any>(null);
-  const toneModuleRef = useRef<typeof import('tone') | null>(null);
-  const browserEngineRef = useRef<{ stop: () => void; getStats?: () => unknown } | null>(null);
-
-  async function getTone(): Promise<typeof import('tone') | null> {
-    if (typeof window === 'undefined') return null;
-    if (toneModuleRef.current) return toneModuleRef.current;
-    try {
-      const T = await import('tone');
-      toneModuleRef.current = T;
-      return T;
-    } catch {
-      return null;
-    }
-  }
 
   useEffect(() => {
     return () => {
@@ -268,170 +245,26 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [geo.status, geo.lat, geo.lon]);
 
-  // Audio playback: Phase 8 = Lyria-only in production (no /audio/samples, no Tone sampler).
-  // In development, ?engine=browser|server|legacy is a preference with fallback order browser → server → legacy.
+  // Lyria-only playback. Single path: playLyriaAudio(payload.audio) or fail-closed message.
   useEffect(() => {
-    let audioElement: HTMLAudioElement | null = null;
-    const isLyriaOnly = process.env.NODE_ENV === 'production';
-
-    function getEnginePreference(): 'browser' | 'server' | 'legacy' {
-      if (typeof window === 'undefined') return 'server';
-      if (isLyriaOnly) return 'server';
-      const p = new URLSearchParams(window.location.search).get('engine');
-      if (p === 'server' || p === 'legacy') return p;
-      return 'browser';
-    }
-
-    async function tryBrowser(): Promise<boolean> {
-      const hasPlan = composePlan?.events?.length > 0 && composeHash;
-      if (!hasPlan) return false;
-      const urlDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1';
-      const debug = urlDebug || process.env.NODE_ENV === 'development';
-      const { createBrowserPerformanceEngine } = await import('../src/core/audio/browser-performance-engine');
-      const handle = await createBrowserPerformanceEngine({
-        plan: composePlan,
-        seed: composeHash,
-        genre: composeGenre ?? 'house',
-        debug,
-      });
-      browserEngineRef.current = handle;
-      if (debug && handle.getStats) {
-        const s = handle.getStats() as any;
-        setEngineStats({
-          samplesLoaded: s.samplesLoaded ?? { drums: false, bass: false, harmony: false, melody: false },
-          voiceMode: s.voiceMode ?? { bass: 'synth', harmony: 'synth', melody: 'synth' },
-          soundfontLoaded: s.soundfontLoaded,
-          reverbSends: s.reverbSends,
-          ...(s.sampleLoadErrors && { sampleLoadErrors: s.sampleLoadErrors }),
-          ...(s.sampleUrlsLoaded && { sampleUrlsLoaded: s.sampleUrlsLoaded }),
-        });
-      }
-      await handle.start();
-      return true;
-    }
-
-    async function tryServerWav(): Promise<boolean> {
-      if (!audioUrl) return false;
-      return new Promise((resolve) => {
-        audioElement = new Audio(audioUrl);
-        audioElement!.play().then(() => resolve(true)).catch(() => resolve(false));
-      });
-    }
-
     async function handlePlay() {
-      const audioStartTime = performance.now();
-      setEngineChosen(null);
       setAudioUnavailableReason(null);
-      const preference = getEnginePreference();
+      if (!audioUrl) {
+        setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
+        return;
+      }
       try {
-        const tryOrder: Array<'browser' | 'server' | 'legacy'> = isLyriaOnly
-          ? ['server']
-          : preference === 'server'
-            ? ['server', 'browser', 'legacy']
-            : preference === 'legacy'
-              ? ['legacy', 'browser', 'server']
-              : ['browser', 'server', 'legacy'];
-
-        for (const engine of tryOrder) {
-          if (engine === 'browser') {
-            try {
-              const ok = await tryBrowser();
-              if (ok) {
-                setEngineChosen('browser');
-                setAudioStartupTime(performance.now() - audioStartTime);
-                console.log('[audio] Browser Performance Engine started');
-                return;
-              }
-            } catch (e) {
-              console.warn('[audio] Browser engine failed:', e);
-              browserEngineRef.current = null;
-            }
-          } else if (engine === 'server') {
-            const ok = await tryServerWav();
-            if (ok) {
-              setEngineChosen('server');
-              setAudioStartupTime(performance.now() - audioStartTime);
-              console.log('[audio] Server WAV playback');
-              return;
-            }
-            if (audioElement) {
-              audioElement.pause();
-              audioElement = null;
-            }
-          } else {
-            await startPlanFallback();
-            setEngineChosen('legacy');
-            setAudioStartupTime(performance.now() - audioStartTime);
-            console.log('[audio] Legacy Tone fallback');
-            return;
-          }
-        }
-        if (isLyriaOnly) {
-          setAudioUnavailableReason('Audio unavailable. Playback is Lyria-only; no artifact was returned.');
-        }
+        const start = performance.now();
+        await playLyriaAudio({ url: audioUrl });
+        setAudioStartupTime(performance.now() - start);
       } catch (e) {
-        console.warn('[audio] play failed', e);
-        if (isLyriaOnly) {
-          setAudioUnavailableReason('Audio playback failed. Lyria-only mode; no fallback.');
-        }
+        const msg = e instanceof Error ? e.message : 'Playback failed';
+        setAudioUnavailableReason(`Audio unavailable (Lyria-only). ${msg}`);
       }
     }
-
-    async function startPlanFallback() {
-      try {
-        const Tone = await getTone();
-        if (!Tone) {
-          console.warn('[audio] Tone.js unavailable');
-          return;
-        }
-        if (!composePlan?.events?.length) {
-          console.warn('[audio] No backend plan available for playback');
-          return;
-        }
-        if (typeof Tone.start === 'function') await Tone.start();
-        const { planToToneEvents } = await import('../src/core/plan-to-tone-events');
-        const toneEvents = planToToneEvents(composePlan);
-        const synths: Record<string, any> = {};
-        const channels = new Set(toneEvents.map((e: any) => e.channel));
-        for (const ch of channels) {
-          synths[ch] = new Tone.MembraneSynth().toDestination();
-        }
-        for (const ev of toneEvents) {
-          const synth = synths[ev.channel] || synths['melody'];
-          const freq = Tone.Frequency(ev.note).toFrequency();
-          synth.triggerAttackRelease(freq, ev.duration, ev.time, ev.velocity);
-        }
-        Tone.Transport.start();
-        Tone.Transport.scheduleOnce(() => Tone.Transport.stop(), composePlan.durationSec ?? 30);
-        console.log('[audio] Legacy Tone fallback scheduled');
-      } catch (e) {
-        console.warn('[audio] Tone fallback failed', e);
-      }
-    }
-
     function handleStop() {
-      try {
-        if (browserEngineRef.current) {
-          browserEngineRef.current.stop();
-          browserEngineRef.current = null;
-        }
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.currentTime = 0;
-          audioElement = null;
-        }
-        if (toneSeqRef.current) {
-          toneSeqRef.current.stop();
-          toneSeqRef.current.dispose?.();
-          toneSeqRef.current = null;
-        }
-        const Tone = toneModuleRef.current;
-        if (Tone?.Transport) Tone.Transport.stop();
-      } catch (e) {
-        console.warn('[audio] stop failed', e);
-      }
+      stopLyriaPlayback();
     }
-
     window.addEventListener('astradio:play', handlePlay as any);
     window.addEventListener('astradio:stop', handleStop as any);
     return () => {
@@ -439,7 +272,7 @@ export default function HomePage() {
       window.removeEventListener('astradio:stop', handleStop as any);
       handleStop();
     };
-  }, [audioUrl, composePlan, composeHash, composeGenre]);
+  }, [audioUrl]);
 
   const disabled = isLoading || !chartData;
 
@@ -508,17 +341,7 @@ export default function HomePage() {
                 <button
                   className="px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50"
                   disabled={disabled}
-                  onClick={async () => {
-                    try {
-                      const Tone = await getTone();
-                      if (Tone && typeof Tone.start === 'function') {
-                        await Tone.start();
-                        setAudioEnabled(true);
-                      }
-                    } catch (e) {
-                      console.warn('Audio not supported:', e);
-                    }
-                  }}
+                  onClick={() => setAudioEnabled(true)}
                 >
                   Tap to Enable Audio
                 </button>
@@ -564,38 +387,9 @@ export default function HomePage() {
                 </p>
               )}
               {showDebugPanel && (
-                <>
-                  {engineChosen && (
-                    <p className="text-xs text-amber-400/90 font-mono">
-                      Engine: {engineChosen} (preference; fallback: browser → server → legacy)
-                    </p>
-                  )}
-                  {engineStats && (
-                    <>
-                      <p className="text-xs text-amber-400/90 font-mono">
-                        Voices: {engineStats.voiceMode.bass} / {engineStats.voiceMode.harmony} / {engineStats.voiceMode.melody}
-                      </p>
-                      <p className="text-xs text-amber-400/90 font-mono">
-                        Samples: bass {engineStats.samplesLoaded.bass ? 'yes' : 'no'} / harmony {engineStats.samplesLoaded.harmony ? 'yes' : 'no'} / melody {engineStats.samplesLoaded.melody ? 'yes' : 'no'}
-                      </p>
-                      {engineStats.sampleUrlsLoaded && engineStats.sampleUrlsLoaded.length > 0 && (
-                        <p className="text-xs text-amber-400/90 font-mono truncate" title={engineStats.sampleUrlsLoaded.join(', ')}>
-                          Loaded: {engineStats.sampleUrlsLoaded.slice(0, 3).join(', ')}{engineStats.sampleUrlsLoaded.length > 3 ? '…' : ''}
-                        </p>
-                      )}
-                      {engineStats.sampleLoadErrors && engineStats.sampleLoadErrors.length > 0 && (
-                        <p className="text-xs text-red-400 font-mono" title={engineStats.sampleLoadErrors.join(', ')}>
-                          Sample errors: {engineStats.sampleLoadErrors.join('; ')}
-                        </p>
-                      )}
-                      {engineStats.reverbSends && (
-                        <p className="text-xs text-amber-400/90 font-mono">
-                          Reverb: bass {engineStats.reverbSends.bass} · harm {engineStats.reverbSends.harmony} · mel {engineStats.reverbSends.melody} · clap {engineStats.reverbSends.clap}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </>
+                <p className="text-xs text-amber-400/90 font-mono">
+                  Audio: Lyria-only (no legacy engine)
+                </p>
               )}
               {specVersion && (
                 <p className="text-xs text-green-400">

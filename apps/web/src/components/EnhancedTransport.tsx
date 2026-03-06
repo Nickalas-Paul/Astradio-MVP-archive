@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useUIStore } from '../store';
 import { useTransportTimeline } from '../hooks/useTransportTimeline';
 import { playComposition, stopComposition } from '../core/api/engine-adapter';
 import { trackPlay, trackError } from '../core/telemetry';
+import { getPlayableLyriaUrl } from '../core/audio/lyria-playback';
 
 interface EnhancedTransportProps {
   audioUrl: string;
@@ -25,6 +26,15 @@ export function EnhancedTransport({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { addToast } = useUIStore();
 
+  const resolvedLyriaUrl = useMemo(() => {
+    if (!audioUrl) return null;
+    try {
+      return getPlayableLyriaUrl({ url: audioUrl });
+    } catch {
+      return null;
+    }
+  }, [audioUrl]);
+
   // Use timeline hook for UI-side progress tracking
   const { seconds, pct, seek, isSeeking } = useTransportTimeline(
     isPlaying,
@@ -36,33 +46,39 @@ export function EnhancedTransport({
     }
   );
 
-  // Initialize audio element
+  // Initialize audio element (Lyria-only URL)
   useEffect(() => {
+    if (!resolvedLyriaUrl) {
+      if (audioRef.current) {
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+      return;
+    }
     if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
+      audioRef.current = new Audio(resolvedLyriaUrl);
       audioRef.current.preload = 'auto';
       audioRef.current.volume = volume;
-      
+
       audioRef.current.addEventListener('ended', () => {
         setIsPlaying(false);
         if (compositionId) {
-          trackPlay(compositionId, duration * 1000); // Track complete play
+          trackPlay(compositionId, duration * 1000);
         }
       });
-      
+
       audioRef.current.addEventListener('error', (e) => {
         console.error('Audio error:', e);
         trackError('AUDIO_PLAYBACK_ERROR', 'Audio element failed to play');
-        addToast({ type: 'error', title: 'Audio playback error', message: 'Please try again.' });
+        addToast({ type: 'error', title: 'Audio playback error', message: 'Audio unavailable (Lyria-only).' });
         setIsPlaying(false);
       });
-    } else if (audioRef.current.src !== audioUrl) {
-      // Load new audio if URL changed
-      audioRef.current.src = audioUrl;
+    } else if (audioRef.current.src !== resolvedLyriaUrl) {
+      audioRef.current.src = resolvedLyriaUrl;
       audioRef.current.load();
       setIsPlaying(false);
     }
-  }, [audioUrl, volume, compositionId, duration, addToast]);
+  }, [resolvedLyriaUrl, volume, compositionId, duration, addToast]);
 
   const play = useCallback(async () => {
     if (audioRef.current) {

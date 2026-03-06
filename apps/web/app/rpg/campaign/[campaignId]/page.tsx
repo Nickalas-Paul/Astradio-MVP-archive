@@ -1,5 +1,6 @@
 import React from 'react';
 import { buildCampaignView } from '../../../../../../vnext/rpg/campaign/view';
+import { LyriaAudio } from '../../../../../src/components/LyriaAudio';
 
 export const runtime = 'nodejs';
 
@@ -151,7 +152,7 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
               <div>Status: {audio.status}</div>
               <div>Audio seed: {audio.audio_seed}</div>
               {audio.artifact_url ? (
-                <audio controls src={audio.artifact_url} />
+                <LyriaAudio url={audio.artifact_url} />
               ) : (
                 <div>No artifact URL yet.</div>
               )}

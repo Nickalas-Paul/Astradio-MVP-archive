@@ -34,6 +34,12 @@ jobs:
       - name: Build vNext
         run: npm run vnext:build
 
+      - name: Phase 8 Lyria-only audio guard
+        run: npm run phase8:audio-guard
+
+      - name: Phase 8 verify build (no legacy in bundle)
+        run: npm run phase8:verify-build
+
       - name: Golden tests (compose + compat)
         run: npm run vnext:golden
         env:

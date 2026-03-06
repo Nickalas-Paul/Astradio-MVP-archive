@@ -1,26 +1,14 @@
 /**
- * Genre Pack — shared contract for browser playback and future server offline export.
- * Reuses payload.genre and UI genre enums; House pack implemented; structure ready for more genres.
+ * Genre Pack — REMOVED for web playback. Lyria-only.
+ * Type exports kept for compatibility; getGenrePack throws.
  */
 
 import type { GenreId, GenrePack } from './types';
-import { getHousePack } from './house';
 
 export type { GenreId, GenrePack, DrumKit, InstrumentSamples, SynthPatchSpec, SynthPatches, FxProfile, MixProfile } from './types';
 export { rand01, randSigned, hashU32, lerpFromSeed } from './seed';
 
-/** Return genre pack for given genre and seed. Default genre is "house". */
-export function getGenrePack(genre: GenreId | string, seed: string): GenrePack {
-  const g = (typeof genre === 'string' ? genre : 'house').toLowerCase() as GenreId;
-  switch (g) {
-    case 'house':
-      return getHousePack(seed);
-    case 'ambient':
-    case 'classical':
-    case 'jazz':
-    case 'lofi':
-    case 'electronic':
-    default:
-      return getHousePack(seed);
-  }
+/** Legacy genre pack removed. Do not use for playback. Lyria-only. */
+export function getGenrePack(_genre: GenreId | string, _seed: string): GenrePack {
+  throw new Error('[Astradio] Legacy genre pack is removed. Lyria-only.');
 }

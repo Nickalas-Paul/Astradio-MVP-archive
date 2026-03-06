@@ -8,6 +8,7 @@ import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuil
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import type { SandboxDraft, SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport } from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
+import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
 
 const PLANET_ORDER: PlanetKey[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
 
@@ -96,10 +97,25 @@ export default function SandboxPage() {
   const [listLoading, setListLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!exportId) {
+      setSandboxAudioSrc(null);
+      return;
+    }
+    const base = getApiBaseUrl() || '';
+    const url = `${base}/api/exports/${exportId}`;
+    try {
+      setSandboxAudioSrc(getPlayableLyriaUrl({ url }));
+    } catch {
+      setSandboxAudioSrc(null);
+    }
+  }, [exportId]);
 
   const updateSnapshot = useCallback(async (birth: SandboxBirth, overrides: SandboxOverrides) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -711,7 +727,7 @@ export default function SandboxPage() {
                         <audio
                           key={exportId}
                           ref={audioRef}
-                          src={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+                          src={sandboxAudioSrc ?? undefined}
                           controls
                           className="max-w-full w-full"
                         />

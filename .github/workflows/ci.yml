@@ -32,6 +32,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Phase 8 Lyria-only audio guard
+        run: npm run phase8:audio-guard
+
       - name: Build vNext
         run: npm run vnext:build
 

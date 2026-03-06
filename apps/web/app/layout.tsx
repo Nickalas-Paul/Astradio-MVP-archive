@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="aurora" className="starfield">
       <head>
-        {/* Tone/tfjs/wheel: use npm imports (e.g. dynamic import('tone') in page.tsx). No legacy script tags. */}
+        {/* tfjs/wheel: use npm imports in page as needed. No legacy script tags. Lyria-only audio. */}
       </head>
       <body className={`${inter.className} min-h-screen bg-bg text-text-primary antialiased`}>
         {children}

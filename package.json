@@ -100,6 +100,7 @@
     "phase5:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-smoke.js",
     "phase7:guard": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-guard.js",
     "phase8:audio-guard": "node scripts/phase8-audio-guard.js",
+    "phase8:verify-build": "node scripts/phase8-audio-guard.js && cd apps/web && npm run build && node ../../scripts/phase8-verify-build.js",
     "phase7:slice1:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-hash-test.js",
     "phase7:slice2:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-bundle-test.js",
     "phase7:slice3:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase7-rpg-store-test.js",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LyriaAudio } from '../LyriaAudio';
 
 const RELATIONSHIP_MODES = [
   { value: 'friends', label: 'Friends' },
@@ -143,7 +144,7 @@ export function CompareChartsPanel() {
   const short = typeof compatText === 'string' ? compatText : compatText?.short ?? '';
   const long = typeof compatText === 'object' ? compatText?.long ?? '' : '';
   const bullets = typeof compatText === 'object' && Array.isArray(compatText?.bullets) ? compatText.bullets : [];
-  const audioSrc = result?.audio?.base64 ? `data:audio/wav;base64,${result.audio.base64}` : null;
+  const audioBase64 = result?.audio?.base64 ?? null;
 
   return (
     <div className="card space-y-6">
@@ -312,9 +313,9 @@ export function CompareChartsPanel() {
           {result.compositionId && (
             <p className="text-xs text-subtext">Composition: {result.compositionId.slice(0, 16)}…</p>
           )}
-          {audioSrc && (
+          {audioBase64 && (
             <div className="pt-2">
-              <audio controls src={audioSrc} className="w-full max-w-md" />
+              <LyriaAudio base64={audioBase64} className="w-full max-w-md" />
             </div>
           )}
         </div>
