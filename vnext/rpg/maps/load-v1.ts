@@ -1,9 +1,19 @@
 // vnext/rpg/maps/load-v1.ts
 // Helper to load and validate v1 mapping tables for RPGEffectsBundle.
+// Uses static JSON imports so assets are bundled (works in Next.js/Vercel server runtime).
 
-import fs from 'fs';
-import path from 'path';
 import type { BodyId } from '../contracts';
+
+import bodyOrderData from './v1/BODY_ORDER.json';
+import bodyBaseData from './v1/body_base.json';
+import signStyleData from './v1/sign_style.json';
+import houseArenaData from './v1/house_arena.json';
+import domainResolverNatalData from './v1/domain_resolver_natal.json';
+import domainResolverTransitData from './v1/domain_resolver_transit.json';
+import placementOverridesData from './v1/placement_overrides.json';
+import turnTemplatesData from './v1/turn_templates.json';
+import scenarioTemplatesData from './v1/scenario_templates.json';
+import choiceTemplatesData from './v1/choice_templates.json';
 
 export interface RpgV1Maps {
   bodyOrder: BodyId[];
@@ -18,30 +28,17 @@ export interface RpgV1Maps {
   choiceTemplates: any[];
 }
 
-function readJson(relativePath: string): any {
-  const full = path.join(__dirname, relativePath);
-  if (!fs.existsSync(full)) {
-    throw new Error(`[rpg-maps] Missing mapping file: ${relativePath}`);
-  }
-  const raw = fs.readFileSync(full, 'utf8');
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`[rpg-maps] Invalid JSON in ${relativePath}: ${(e as Error).message}`);
-  }
-}
-
 export function loadRpgV1Maps(): RpgV1Maps {
-  const bodyOrder = readJson('v1/BODY_ORDER.json') as string[];
-  const bodyBase = readJson('v1/body_base.json');
-  const signStyle = readJson('v1/sign_style.json');
-  const houseArena = readJson('v1/house_arena.json') as Record<string, string>;
-  const domainResolverNatal = readJson('v1/domain_resolver_natal.json') as any[];
-  const domainResolverTransit = readJson('v1/domain_resolver_transit.json') as any[];
-  const placementOverrides = readJson('v1/placement_overrides.json') as any[];
-  const turnTemplates = readJson('v1/turn_templates.json') as any[];
-  const scenarioTemplates = readJson('v1/scenario_templates.json') as any[];
-  const choiceTemplates = readJson('v1/choice_templates.json') as any[];
+  const bodyOrder = bodyOrderData as string[];
+  const bodyBase = bodyBaseData;
+  const signStyle = signStyleData;
+  const houseArena = houseArenaData as Record<string, string>;
+  const domainResolverNatal = domainResolverNatalData as any[];
+  const domainResolverTransit = domainResolverTransitData as any[];
+  const placementOverrides = placementOverridesData as any[];
+  const turnTemplates = turnTemplatesData as any[];
+  const scenarioTemplates = scenarioTemplatesData as any[];
+  const choiceTemplates = choiceTemplatesData as any[];
 
   if (!Array.isArray(bodyOrder) || bodyOrder.length === 0) {
     throw new Error('[rpg-maps] BODY_ORDER.json must be a non-empty array');
