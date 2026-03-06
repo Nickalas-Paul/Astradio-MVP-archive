@@ -1,6 +1,6 @@
 import React from 'react';
 import { buildCampaignView } from '../../../../../../vnext/rpg/campaign/view';
-import { LyriaAudio } from '../../../../../src/components/LyriaAudio';
+import { LyriaAudio } from '../../../../src/components/LyriaAudio';
 
 export const runtime = 'nodejs';
 
