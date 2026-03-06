@@ -464,6 +464,23 @@ export async function getProfileByUserAndBundle(
 }
 
 // Phase 8 helpers: minimal user_profiles table for real user + natal storage.
+// Idempotent bootstrap so Preview (and any env that has not run db:migrate) can use this table.
+
+const USER_PROFILES_BOOTSTRAP_SQL = `
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id TEXT PRIMARY KEY,
+  chart_id TEXT NOT NULL,
+  birth_date TEXT NOT NULL,
+  birth_time TEXT NOT NULL,
+  birth_location TEXT NOT NULL,
+  natal_snapshot_hash TEXT,
+  bundle_hash TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`;
+
+async function ensureUserProfilesTable(): Promise<void> {
+  await query(USER_PROFILES_BOOTSTRAP_SQL);
+}
 
 export async function upsertUserProfileForPhase8(params: {
   userId: string;
@@ -476,6 +493,7 @@ export async function upsertUserProfileForPhase8(params: {
 }): Promise<UserProfileRow> {
   const { userId, chartId, birthDate, birthTime, birthLocation, natalSnapshotHash, bundleHash } = params;
 
+  await ensureUserProfilesTable();
   await query(
     `INSERT INTO user_profiles (
        user_id, chart_id, birth_date, birth_time, birth_location,
@@ -509,6 +527,7 @@ export async function upsertUserProfileForPhase8(params: {
 }
 
 export async function getUserProfileById(userId: string): Promise<UserProfileRow | null> {
+  await ensureUserProfilesTable();
   const res = await query<UserProfileRow>(
     `SELECT
        user_id, chart_id, birth_date, birth_time, birth_location,
