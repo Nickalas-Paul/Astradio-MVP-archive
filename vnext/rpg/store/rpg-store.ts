@@ -435,6 +435,22 @@ export async function getBundleByHash(bundleHash: string): Promise<{ bundle_json
   return res.rows[0] ?? null;
 }
 
+/** Get profile row that links (user_id, chart_id) to the given bundle_hash. Used for diagnostics. */
+export async function getProfileByUserAndBundle(
+  userId: string,
+  chartId: string,
+  bundleHash: string
+): Promise<RpgProfileRow | null> {
+  const res = await query<RpgProfileRow>(
+    `SELECT id, user_id, chart_id, rpg_map_version, natal_snapshot_hash,
+            bundle_hash, class_slug, subclass_slug, rising_modifier_slug, created_at
+     FROM rpg_profiles
+     WHERE user_id = $1 AND chart_id = $2 AND bundle_hash = $3`,
+    [userId, chartId, bundleHash]
+  );
+  return res.rows[0] ?? null;
+}
+
 export async function getAudioByTurnSeed(turnSeed: string): Promise<RpgDailyAudioRow | null> {
   const res = await query<RpgDailyAudioRow>(
     `SELECT

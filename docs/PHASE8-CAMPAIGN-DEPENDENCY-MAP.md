@@ -1,35 +1,63 @@
-# Phase 8 — Campaign View Dependency Map
+# Phase 8 — Campaign View Dependency Map (Canonical Chain)
 
-**Purpose:** Document tables and code paths used by `buildCampaignView` so stored-data → daily-challenge pipeline is auditable and missing dependencies can be diagnosed.
+**Purpose:** Exact tables, row linkage, and function path from user/profile → natal/snapshot → bundle/character sheet → campaign view → daily turn, so stored-data → daily-challenge is auditable.
 
-## Tables and code paths (buildCampaignView)
+## Canonical dependency chain
 
-| Dependency      | Table                       | Function                                    | Required? | On missing |
-|----------------|-----------------------------|---------------------------------------------|-----------|------------|
-| Campaign       | `rpg_campaigns`             | `getCampaignById(campaignId)`               | Yes       | Throws `[rpg-ui] Campaign not found` |
-| Bundle         | `rpg_effects_bundles`       | `getBundleByHash(campaign.bundle_hash)`     | Yes       | Throws `[rpg-ui] Bundle not found for hash=...` |
-| Character sheet| —                           | Derived from `bundle_json` (no extra fetch) | N/A       | — |
-| Latest turn    | `rpg_daily_turns`           | `getLatestTurnForCampaign(campaign.id)`     | No        | `current_turn` = null |
-| Responses      | `rpg_member_responses`      | `listResponsesByTurn(latestTurn.id)`        | No (when turn exists) | — |
-| Audio          | `rpg_daily_audio_artifacts` | `getAudioByTurnSeed(latestTurn.turn_seed)`  | No        | `audio` = null |
-| Outcome        | `rpg_turn_outcomes`         | `getOutcomeByTurn(latestTurn.id)`           | No        | `outcome` = null |
+```
+user identity (user_id, chart_id)
+  → rpg_profiles (user_id, chart_id, natal_snapshot_hash, bundle_hash)  [required; stored]
+  → natal/snapshot canonical id = natal_snapshot_hash                   [required; stored in profile + bundle]
+  → rpg_effects_bundles (bundle_hash, natal_snapshot_hash, bundle_json)  [required; stored]
+  → character_sheet = buildCharacterSheet(bundle_json)                   [derived at read; from bundle]
+  → rpg_campaigns (id, user_id, chart_id, bundle_hash, state_json)       [required; stored]
+  → rpg_daily_turns (id, campaign_id, turn_seed, transit_snapshot_hash, state_hash, prompt_spec_json)  [optional; stored]
+  → rpg_daily_audio_artifacts (turn_seed, status, provider, ...)         [optional; stored]
+```
 
-## Required inputs and sources
+**Row linkage:**
 
-- **campaignId, userId:** From URL (page: `params.campaignId`, `searchParams.userId`; API: route params + query). In production flow, from env: `RPG_BETA_CAMPAIGN_ID`, `RPG_BETA_USER_ID`.
-- **Campaign row:** DB only (no fixture in view path).
-- **Bundle:** DB only, keyed by `campaign.bundle_hash` (derived from natal snapshot at profile creation).
-- **Daily turn:** DB only; created by **POST** `/api/rpg/campaign/[campaignId]/turn` with `transitSnapshot`. Deterministic via `makeTurnSeed(transitHash, stateHash, RPG_ALGO_VERSION)` in `vnext/rpg/campaign/turn-service.ts`.
+- **Campaign → Bundle:** `rpg_campaigns.bundle_hash` → `rpg_effects_bundles.bundle_hash`. Bundle row also has `natal_snapshot_hash` (in table and in `bundle_json.metadata.natal_snapshot_hash`).
+- **Profile → User/Natal/Bundle:** `rpg_profiles` has `(user_id, chart_id, natal_snapshot_hash, bundle_hash)`. One profile row per (user, chart, natal_snapshot_hash). Profile links identity to canonical natal id and bundle.
+- **Campaign → Profile:** Same `(user_id, chart_id)`; campaign’s `bundle_hash` matches one profile’s `bundle_hash` for that user/chart.
+- **Turn → Campaign:** `rpg_daily_turns.campaign_id` → `rpg_campaigns.id`. Turn is deterministic by `turn_seed = makeTurnSeed(transitHash, stateHash, RPG_ALGO_VERSION)`; `state_hash` from campaign’s `state_json` (natal-derived).
+
+## Tables and functions (buildCampaignView)
+
+| Dependency       | Table                       | Function                                      | Required? | Stored / derived / debug-seeded | Read-only / create-if-missing |
+|-----------------|-----------------------------|-----------------------------------------------|-----------|----------------------------------|--------------------------------|
+| User identity   | (from campaign)             | `campaign.user_id`, `campaign.chart_id`       | Yes       | Stored (rpg_campaigns)           | Read                           |
+| Profile         | `rpg_profiles`              | `getProfileByUserAndBundle(user_id, chart_id, bundle_hash)` | No (for diagnostics) | Stored | Read |
+| Natal snapshot id | (from bundle metadata)   | `bundle_json.metadata.natal_snapshot_hash`     | Yes       | Stored (rpg_effects_bundles)     | Read                           |
+| Bundle          | `rpg_effects_bundles`       | `getBundleByHash(campaign.bundle_hash)`        | Yes       | Stored                           | Read                           |
+| Character sheet | —                           | `buildCharacterSheet(bundle)`                  | N/A       | Derived from bundle at read      | Read                           |
+| Campaign        | `rpg_campaigns`             | `getCampaignById(campaignId)`                  | Yes       | Stored (or debug-seeded)         | Read                           |
+| Latest turn     | `rpg_daily_turns`           | `getLatestTurnForCampaign(campaign.id)`        | No        | Stored (or debug-seeded)         | Read                           |
+| Responses       | `rpg_member_responses`      | `listResponsesByTurn(latestTurn.id)`           | No        | Stored                           | Read                           |
+| Audio           | `rpg_daily_audio_artifacts` | `getAudioByTurnSeed(latestTurn.turn_seed)`      | No        | Stored                           | Read (create-if-missing via GET /api/rpg/turn/:turnId/audio) |
+| Outcome         | `rpg_turn_outcomes`         | `getOutcomeByTurn(latestTurn.id)`              | No        | Stored                           | Read                           |
+
+## Material derivation (proof that stored data drives output)
+
+**Character sheet** (from natal via bundle):
+
+- **Source:** `rpg_effects_bundles.bundle_json` (built at profile creation from natal `EphemerisSnapshot`).
+- **Functions:** `buildRpgEffectsBundleFromSnapshot(natal)` in `vnext/rpg/effects/bundle-from-snapshot.ts` uses: `snapshot.planets` (name, lon) → sign/house; `snapshot.houses` (cusps); `snapshot.aspects`; Sun sign → `classSlug`; Moon sign → `subclassSlug`; Ascendant sign → `risingModifierSlug`; placements and aspects → `domainSummary`, `placements`. So **natal features used:** planets (lon, name), houses, aspects → class_slug, subclass_slug, rising_modifier_slug, top_domains, placements.
+
+**Daily turn** (from natal-derived state + daily transit):
+
+- **Source:** `turn_seed = makeTurnSeed(transitHash, stateHash, RPG_ALGO_VERSION)` in `vnext/rpg/hash/seeds.ts`. `stateHash = hashCanonicalJson(campaign.state_json)`. Campaign `state_json` was set at campaign creation from `initialCampaignState(bundle)` in `vnext/rpg/campaign/state-machine.ts`, which seeds `domain_track` from `bundle.domainSummary` (natal-derived). So **state_hash is materially derived from natal** (bundle → initial state → state_hash).
+- **Transit:** `transitHash = hashSnapshot(transitSnapshot)`; transit snapshot (date/planets/houses/aspects) is the daily input. So **turn_seed = f(transit_hash, state_hash)**; same campaign + same contract day (same transit + same state) → same turn_seed → same turn row (idempotent getOrCreateDailyTurn).
+- **Prompt:** `projectNarrativeFromDomains(seed, domains)` where `domains` come from `translateSignalsToDomains(detectTransitSignals(transitSnapshot))` (transit-only). The **seed** (hence state_hash) affects which template is chosen. So both natal-derived state and transit-derived domains materially affect the daily turn.
 
 ## Fixture vs stored
 
-- **Fixture-like:** Only in tests (e.g. `phase7-rpg-campaign-ui-test.ts`, `phase8-rpg-lifecycle-proof.ts`) where scripts create profile + campaign + turn in DB. The Campaign page itself never uses in-memory fixtures; it always reads from DB.
-- **Stored user data:** Campaign + bundle + (optional) turn/outcome/audio in Postgres. Character sheet = stored bundle (from natal at profile creation). Daily turn = stored row from `getOrCreateDailyTurn` (transit snapshot + campaign state → deterministic prompt).
+- **Stored user data:** `rpg_profiles`, `rpg_effects_bundles`, `rpg_campaigns`, and optionally `rpg_daily_turns`, `rpg_daily_audio_artifacts`, `rpg_turn_outcomes`. Campaign page reads only from DB.
+- **Debug-seeded:** When `PHASE8_DEBUG=1`, GET `/api/debug/phase8/seed-campaign` can create profile + campaign + one turn with fixed (user_id, chart_id) and known natal/transit snapshots; same IDs returned on repeat (idempotent).
 
 ## How to reproduce proof in Preview
 
 1. Set `PHASE8_DEBUG=1` and `POSTGRES_URL` in Vercel (Preview).
-2. Call **GET** `/api/debug/phase8/seed-campaign` once (idempotent: creates test campaign + one daily turn if missing, or returns existing).
-3. Use returned `campaignId` and `userId` to open `/rpg/campaign/{campaignId}?userId={userId}`.
-   - Or set `RPG_BETA_CAMPAIGN_ID` and `RPG_BETA_USER_ID` to those values and open `/campaign`.
+2. Call **GET** `/api/debug/phase8/seed-campaign` once.
+3. Open `/rpg/campaign/{campaignId}?userId={userId}` (or set `RPG_BETA_CAMPAIGN_ID` / `RPG_BETA_USER_ID` and open `/campaign`).
 4. No terminal steps required.

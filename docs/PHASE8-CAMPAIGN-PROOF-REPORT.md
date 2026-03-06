@@ -37,3 +37,16 @@ Campaign page now proves the stored-data → daily-challenge pipeline: dependenc
 ## Verification
 
 - Run **npm run phase8:campaign:verify** with `POSTGRES_URL` set (and `CI=1` to fail if DB is missing).
+
+---
+
+## Follow-up (proof gaps closed)
+
+See [docs/PHASE8-PROOF-COMPLETE-REPORT.md](PHASE8-PROOF-COMPLETE-REPORT.md) for:
+
+- Exact canonical dependency chain (user → profile → natal_snapshot_hash → bundle → campaign → turn).
+- What was still missing before and what is now proven in Preview.
+- Exact Preview URLs and env IDs path.
+- Phase 8 proof-complete status.
+
+**Follow-up changes:** Tightened dependency map with canonical chain and material derivation; strengthened diagnostics (resolved_* ids, day/seed/transit, audio_classification); verification script now asserts canonical profile and natal, view resolves same chain, same-day stable turn identity/payload, and different transit yields different turn; audio UI distinguishes not_enabled, no_record, pending, failed, playable.

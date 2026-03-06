@@ -175,33 +175,91 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
 
         <div style={{ marginTop: '24px' }}>
           <h2>Audio</h2>
-          {audio ? (
-            <div>
-              <div>Provider: {audio.provider}</div>
-              <div>Status: {audio.status}</div>
-              <div>Audio seed: {audio.audio_seed}</div>
-              {audio.status === 'failed' ? (
-                <div>Audio generation failed.</div>
-              ) : audio.status === 'pending' ? (
-                <div>Audio is pending.</div>
-              ) : audio.artifact_url ? (
-                <LyriaAudio url={audio.artifact_url} />
-              ) : (
-                <div>No artifact URL yet.</div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div>No audio record yet.</div>
-              {turn && diag?.no_audio_reason ? (
-                <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>{diag.no_audio_reason}</p>
-              ) : !turn ? (
-                <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
-                  Create a daily turn first; then request audio for that turn.
-                </p>
-              ) : null}
-            </div>
-          )}
+          {(() => {
+            const classification = diag?.audio_classification;
+            if (classification === 'not_enabled') {
+              return (
+                <div>
+                  <div>Audio is not enabled for this phase.</div>
+                  <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                    RPG_AUDIO_PROVIDER is set to &quot;none&quot;. No audio record is created or played.
+                  </p>
+                </div>
+              );
+            }
+            if (classification === 'no_record') {
+              return (
+                <div>
+                  <div>No audio record yet.</div>
+                  {diag?.no_audio_reason && (
+                    <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>{diag.no_audio_reason}</p>
+                  )}
+                </div>
+              );
+            }
+            if (classification === 'pending') {
+              return (
+                <div>
+                  <div>Audio is pending.</div>
+                  <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                    Generation has been requested; artifact not ready yet.
+                  </p>
+                </div>
+              );
+            }
+            if (classification === 'failed') {
+              return (
+                <div>
+                  <div>Audio generation failed.</div>
+                  <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                    The audio artifact could not be produced for this turn.
+                  </p>
+                </div>
+              );
+            }
+            if (classification === 'playable' && audio?.artifact_url) {
+              return (
+                <div>
+                  <div>Provider: {audio.provider}</div>
+                  <div>Status: {audio.status}</div>
+                  <div>Audio seed: {audio.audio_seed}</div>
+                  <LyriaAudio url={audio.artifact_url} />
+                </div>
+              );
+            }
+            if (audio) {
+              return (
+                <div>
+                  <div>Provider: {audio.provider}</div>
+                  <div>Status: {audio.status}</div>
+                  <div>Audio seed: {audio.audio_seed}</div>
+                  {audio.status === 'failed' ? (
+                    <div>Audio generation failed.</div>
+                  ) : audio.status === 'pending' ? (
+                    <div>Audio is pending.</div>
+                  ) : audio.artifact_url ? (
+                    <LyriaAudio url={audio.artifact_url} />
+                  ) : (
+                    <div>No artifact URL yet.</div>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <div>
+                <div>No audio record yet.</div>
+                {turn ? (
+                  diag?.no_audio_reason && (
+                    <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>{diag.no_audio_reason}</p>
+                  )
+                ) : (
+                  <p style={{ fontSize: '13px', color: '#888', marginTop: '8px' }}>
+                    Create a daily turn first; then request audio for that turn.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </section>
     </div>

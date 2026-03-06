@@ -10,6 +10,7 @@ import {
   getLatestTurnForCampaign,
   listResponsesByTurn,
   getOutcomeByTurn,
+  getProfileByUserAndBundle,
   type RpgCampaignRow,
   type RpgDailyTurnRow,
 } from '../store/rpg-store';
@@ -45,11 +46,32 @@ export interface RpgOutcomeView {
   top_domains: Array<{ domain: string; weight: number }>;
 }
 
-/** Optional diagnostics for UI messaging; not part of external API contract. */
+/** Audio classification for UI; distinct from raw status. */
+export type RpgAudioClassification =
+  | 'not_enabled'
+  | 'no_record'
+  | 'pending'
+  | 'failed'
+  | 'playable';
+
+/** Optional diagnostics for UI and proof; not part of external API contract. */
 export interface RpgCampaignViewDiagnostics {
   no_turn_reason?: string;
   no_audio_reason?: string;
   audio_status?: string;
+  /** Resolved canonical ids (for proof and logs). */
+  resolved_user_id?: string;
+  resolved_chart_id?: string;
+  resolved_natal_snapshot_hash?: string;
+  resolved_bundle_hash?: string;
+  resolved_campaign_id?: string;
+  resolved_state_hash?: string;
+  resolved_daily_turn_id?: string;
+  resolved_turn_seed?: string;
+  resolved_transit_snapshot_hash?: string;
+  resolved_audio_provider?: string;
+  /** Explicit classification for UI: not_enabled | no_record | pending | failed | playable. */
+  audio_classification?: RpgAudioClassification;
 }
 
 export interface RpgCampaignView {
@@ -154,13 +176,30 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
 
   const characterSheet = buildCharacterSheet(bundle);
 
+  const diagnostics: RpgCampaignViewDiagnostics = {};
+  diagnostics.resolved_user_id = campaign.user_id;
+  diagnostics.resolved_chart_id = campaign.chart_id;
+  diagnostics.resolved_bundle_hash = campaign.bundle_hash;
+  diagnostics.resolved_campaign_id = campaign.id;
+  diagnostics.resolved_state_hash = campaign.state_hash;
+  const natalSnapshotHash = (bundle as any).metadata?.natal_snapshot_hash;
+  if (typeof natalSnapshotHash === 'string') {
+    diagnostics.resolved_natal_snapshot_hash = natalSnapshotHash;
+  }
+
   const latestTurn: RpgDailyTurnRow | null = await getLatestTurnForCampaign(campaign.id);
   let currentTurn: RpgTurnView | null = null;
   let outcomeView: RpgOutcomeView | null = null;
   let audioView: RpgCampaignView['audio'] = null;
-  const diagnostics: RpgCampaignViewDiagnostics = {};
+
+  const audioProviderEnv = (process.env.RPG_AUDIO_PROVIDER || 'none').toLowerCase();
 
   if (latestTurn) {
+    diagnostics.resolved_daily_turn_id = latestTurn.id;
+    diagnostics.resolved_turn_seed = latestTurn.turn_seed;
+    diagnostics.resolved_transit_snapshot_hash = latestTurn.transit_snapshot_hash;
+    diagnostics.resolved_audio_provider = audioProviderEnv;
+
     const responses = await listResponsesByTurn(latestTurn.id);
     currentTurn = buildTurnView(
       latestTurn,
@@ -179,12 +218,20 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
       if (audio.status === 'failed') {
         diagnostics.audio_status = 'failed';
         diagnostics.no_audio_reason = 'Audio generation failed.';
+        diagnostics.audio_classification = 'failed';
       } else if (audio.status === 'pending') {
         diagnostics.audio_status = 'pending';
+        diagnostics.audio_classification = 'pending';
+      } else if (audio.status === 'ready' && audio.artifact_url) {
+        diagnostics.audio_classification = 'playable';
+      } else {
+        diagnostics.audio_classification = 'pending';
       }
     } else {
       diagnostics.no_audio_reason =
         'Request generation via GET /api/rpg/turn/{turnId}/audio, or audio may be disabled (RPG_AUDIO_PROVIDER=none).';
+      diagnostics.audio_classification =
+        audioProviderEnv === 'none' ? 'not_enabled' : 'no_record';
     }
 
     const outcome = await getOutcomeByTurn(latestTurn.id);
@@ -201,11 +248,19 @@ export async function buildCampaignView(params: { campaignId: string; userId: st
       'Daily turns are created when a transit snapshot is submitted (POST /api/rpg/campaign/.../turn).';
   }
 
-  // Structured logging for missing dependencies (grep-friendly, no PII).
+  // Structured logging: resolved chain and missing dependencies (grep-friendly, no PII).
+  // eslint-disable-next-line no-console
+  console.log(
+    `[rpg-campaign] resolved userId=${diagnostics.resolved_user_id} chartId=${diagnostics.resolved_chart_id} natalSnapshotHash=${diagnostics.resolved_natal_snapshot_hash ?? 'n/a'} bundleHash=${diagnostics.resolved_bundle_hash} campaignId=${diagnostics.resolved_campaign_id} stateHash=${diagnostics.resolved_state_hash}`
+  );
   if (!latestTurn) {
     // eslint-disable-next-line no-console
     console.log(`[rpg-campaign] missing_dependency=daily_turn campaignId=${campaignId}`);
   } else {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[rpg-campaign] resolved dailyTurnId=${diagnostics.resolved_daily_turn_id} turnSeed=${diagnostics.resolved_turn_seed} transitSnapshotHash=${diagnostics.resolved_transit_snapshot_hash} audio_classification=${diagnostics.audio_classification ?? 'n/a'}`
+    );
     if (!audioView) {
       // eslint-disable-next-line no-console
       console.log(`[rpg-campaign] missing_dependency=audio turnId=${latestTurn.id} campaignId=${campaignId}`);
