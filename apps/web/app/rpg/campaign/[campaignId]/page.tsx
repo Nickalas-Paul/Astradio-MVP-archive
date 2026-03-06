@@ -1,6 +1,7 @@
 import React from 'react';
 import { buildCampaignView } from '../../../../../../vnext/rpg/campaign/view';
 import { LyriaAudio } from '../../../../src/components/LyriaAudio';
+import { CampaignTurnClient } from './CampaignTurnClient';
 
 export const runtime = 'nodejs';
 
@@ -122,21 +123,7 @@ export default async function CampaignPage({ params, searchParams }: PageProps) 
             <div>Tone: {turn.tone_tag}</div>
             <div style={{ marginTop: '12px' }}>
               <h3>Choices</h3>
-              <ul>
-                {turn.choice_ids.map((id: string) => {
-                  const tags = turn.choice_tags_by_id[id] || [];
-                  const isSelected = turn.selected_choice_id === id;
-                  return (
-                    <li key={id}>
-                      <button type="button" disabled={turn.has_responded} style={{ marginRight: '8px' }}>
-                        {id}
-                      </button>
-                      <span>{tags.join(', ')}</span>
-                      {isSelected && <span style={{ marginLeft: '8px' }}>✓ selected</span>}
-                    </li>
-                  );
-                })}
-              </ul>
+              <CampaignTurnClient userId={userId} turn={turn} hasOutcome={Boolean(outcome)} />
             </div>
           </div>
         ) : (
