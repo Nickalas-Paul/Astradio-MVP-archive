@@ -149,6 +149,8 @@ export interface WheelCanvasBuilderProps {
   constrainToHouse?: boolean;
   /** Free-build mode: no birth snapshot; wheel from overrides only with equal-house reference */
   freeBuild?: boolean;
+  /** When set, click-on-wheel places this planet (wheel-first placement). Used only in free-build. */
+  selectedPlanetForPlacement?: PlanetKey | null;
 }
 
 export function WheelCanvasBuilder({
@@ -158,6 +160,7 @@ export function WheelCanvasBuilder({
   isUpdating = false,
   constrainToHouse = true,
   freeBuild = false,
+  selectedPlanetForPlacement = null,
 }: WheelCanvasBuilderProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
@@ -230,19 +233,18 @@ export function WheelCanvasBuilder({
       svgRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     } else if (freeBuild) {
-      // Click on wheel (empty area): place next unplaced planet at click position
+      // Click on wheel: place selected planet (or next unplaced) at click position — wheel is authoritative
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist >= R_IN - 10 && dist <= R_OUT + 20) {
         const angle = Math.atan2(dy, dx);
         const lonDeg = angleToLonDeg(angle);
-        const unplaced = PLANET_ORDER.find((p) => positions[p] === undefined);
-        const toPlace = unplaced ?? 'sun';
+        const toPlace = selectedPlanetForPlacement ?? PLANET_ORDER.find((p) => positions[p] === undefined) ?? 'sun';
         onOverrideChange(toPlace, lonDeg);
       }
     }
-  }, [cx, cy, R_OUT, R_IN, positions, constrainToHouse, freeBuild, normalized?.cusps, onOverrideChange]);
+  }, [cx, cy, R_OUT, R_IN, positions, constrainToHouse, freeBuild, selectedPlanetForPlacement, normalized?.cusps, onOverrideChange]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!draggingPlanet || !svgRef.current) return;
@@ -341,8 +343,10 @@ export function WheelCanvasBuilder({
       )}
       {freeBuild && (
         <p className="mt-2 text-xs text-subtext/80 text-center">
-          {Object.keys(positions).length === 0
-            ? 'Click on the wheel to place planets, or type degrees in the panel.'
+          {selectedPlanetForPlacement
+            ? 'Click the wheel to place it. Or drag a planet to move it.'
+            : Object.keys(positions).length === 0
+            ? 'Select a planet above, then click the wheel to place it.'
             : 'Equal house (reference). Add birth data for actual house positions.'}
         </p>
       )}

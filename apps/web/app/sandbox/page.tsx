@@ -6,6 +6,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
+import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
 import type { SandboxDraft, SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport } from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
@@ -71,6 +72,7 @@ function ExplainerSections({ explanation }: { explanation: any }) {
 
 export default function SandboxPage() {
   const [mode, setMode] = useState<SandboxMode>('birth_first');
+  const [selectedPlanetForPlacement, setSelectedPlanetForPlacement] = useState<PlanetKey | null>(null);
   const [state, setState] = useState<SandboxState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<SandboxDraft>({
@@ -184,6 +186,7 @@ export default function SandboxPage() {
   }, [mode, draft.overrides]);
 
   const handleOverrideChange = useCallback((planet: PlanetKey, lonDeg: number | null) => {
+    if (mode === 'free_build') setSelectedPlanetForPlacement(null);
     setDraft((prev) => {
       const newOverrides: SandboxOverrides = { ...prev.overrides, planets: { ...prev.overrides.planets } };
       if (lonDeg === null) delete newOverrides.planets[planet];
@@ -198,7 +201,7 @@ export default function SandboxPage() {
       }
       return { ...prev, overrides: normalized };
     });
-  }, [updateSnapshot]);
+  }, [updateSnapshot, mode]);
 
   const handleResetAllOverrides = useCallback(() => {
     if (!draft.birth || !draft.baseSnapshot) return;
@@ -599,6 +602,7 @@ export default function SandboxPage() {
                 onChange={() => {
                   setMode('free_build');
                   setState('idle');
+                  setSelectedPlanetForPlacement(null);
                   setDraft({ birth: null, baseSnapshot: null, overrides: { planets: {} }, overriddenSnapshot: null });
                   setError(null);
                   setReport(null);
@@ -643,8 +647,15 @@ export default function SandboxPage() {
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
-                <h2 className="text-xl font-semibold text-text mb-4">Wheel</h2>
-                <p className="text-sm text-subtext mb-4">Click on the wheel to place planets, or use the degree panel. Add birth data below to generate report and audio.</p>
+                <h2 className="text-xl font-semibold text-text mb-2">Wheel</h2>
+                <p className="text-sm text-subtext mb-3">Select a planet, then click the wheel to place it. Drag a planet to move it. Degree panel is for precision only.</p>
+                <div className="mb-3">
+                  <PlanetPalette
+                    overrides={draft.overrides}
+                    selectedPlanet={selectedPlanetForPlacement}
+                    onSelectPlanet={setSelectedPlanetForPlacement}
+                  />
+                </div>
                 <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
                   <WheelCanvasBuilder
                     snapshot={null}
@@ -653,6 +664,7 @@ export default function SandboxPage() {
                     isUpdating={false}
                     constrainToHouse={false}
                     freeBuild
+                    selectedPlanetForPlacement={selectedPlanetForPlacement}
                   />
                 </div>
               </div>
