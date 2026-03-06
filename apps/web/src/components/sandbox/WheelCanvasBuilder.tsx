@@ -147,6 +147,8 @@ export interface WheelCanvasBuilderProps {
   isUpdating?: boolean;
   /** When true (default), drag is clamped to the house the planet started in */
   constrainToHouse?: boolean;
+  /** Free-build mode: no birth snapshot; wheel from overrides only with equal-house reference */
+  freeBuild?: boolean;
 }
 
 export function WheelCanvasBuilder({
@@ -155,6 +157,7 @@ export function WheelCanvasBuilder({
   onOverrideChange,
   isUpdating = false,
   constrainToHouse = true,
+  freeBuild = false,
 }: WheelCanvasBuilderProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
@@ -175,7 +178,19 @@ export function WheelCanvasBuilder({
     }
   }, []);
 
-  const normalized = snapshot ? normalizeChartForWheel(snapshot) : null;
+  // Free-build: build display from overrides only; equal-house as reference (labeled)
+  const freeBuildChart: ChartForWheel | null = freeBuild
+    ? (() => {
+        const positions: Record<string, number> = {};
+        for (const [planet, override] of Object.entries(overrides.planets)) {
+          if (override && Number.isFinite(override.lonDeg)) positions[planet] = override.lonDeg;
+        }
+        const cusps = Array.from({ length: 12 }, (_, i) => i * 30);
+        return { positions, cusps };
+      })()
+    : null;
+
+  const normalized = snapshot ? normalizeChartForWheel(snapshot) : freeBuildChart;
   if (!normalized) {
     return (
       <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl flex items-center justify-center">
@@ -184,7 +199,7 @@ export function WheelCanvasBuilder({
     );
   }
 
-  // Merge base positions with overrides
+  // Merge base positions with overrides (for birth-first, overrides override snapshot)
   const positions: Record<string, number> = { ...normalized.positions };
   for (const [planet, override] of Object.entries(overrides.planets)) {
     if (override) {
@@ -205,7 +220,8 @@ export function WheelCanvasBuilder({
     const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions);
     if (planet) {
       setDraggingPlanet(planet);
-      if (constrainToHouse && normalized.cusps.length >= 12) {
+      const useConstrain = freeBuild ? false : constrainToHouse;
+      if (useConstrain && normalized.cusps.length >= 12) {
         const houseIdx = houseIndexForLongitude(positions[planet] ?? 0, normalized.cusps);
         setDragStartHouse(houseIdx);
       } else {
@@ -213,8 +229,20 @@ export function WheelCanvasBuilder({
       }
       svgRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
+    } else if (freeBuild) {
+      // Click on wheel (empty area): place next unplaced planet at click position
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist >= R_IN - 10 && dist <= R_OUT + 20) {
+        const angle = Math.atan2(dy, dx);
+        const lonDeg = angleToLonDeg(angle);
+        const unplaced = PLANET_ORDER.find((p) => positions[p] === undefined);
+        const toPlace = unplaced ?? 'sun';
+        onOverrideChange(toPlace, lonDeg);
+      }
     }
-  }, [cx, cy, R_OUT, positions, constrainToHouse, normalized?.cusps]);
+  }, [cx, cy, R_OUT, R_IN, positions, constrainToHouse, freeBuild, normalized?.cusps, onOverrideChange]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!draggingPlanet || !svgRef.current) return;
@@ -225,11 +253,12 @@ export function WheelCanvasBuilder({
     const dy = y - cy;
     const angle = Math.atan2(dy, dx);
     let lonDeg = angleToLonDeg(angle);
-    if (constrainToHouse && dragStartHouse !== null && normalized.cusps.length >= 12) {
+    const useConstrain = freeBuild ? false : constrainToHouse;
+    if (useConstrain && dragStartHouse !== null && normalized.cusps.length >= 12) {
       lonDeg = clampToHouse(lonDeg, dragStartHouse, normalized.cusps);
     }
     onOverrideChange(draggingPlanet, lonDeg);
-  }, [draggingPlanet, cx, cy, onOverrideChange, constrainToHouse, dragStartHouse, normalized?.cusps]);
+  }, [draggingPlanet, cx, cy, onOverrideChange, constrainToHouse, freeBuild, dragStartHouse, normalized?.cusps]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (draggingPlanet && svgRef.current) {
@@ -309,6 +338,13 @@ export function WheelCanvasBuilder({
         <div className="absolute top-2 right-2 px-2 py-1 bg-bgElev/90 border border-border rounded text-xs text-subtext">
           Updating...
         </div>
+      )}
+      {freeBuild && (
+        <p className="mt-2 text-xs text-subtext/80 text-center">
+          {Object.keys(positions).length === 0
+            ? 'Click on the wheel to place planets, or type degrees in the panel.'
+            : 'Equal house (reference). Add birth data for actual house positions.'}
+        </p>
       )}
     </div>
   );

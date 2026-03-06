@@ -12,6 +12,8 @@ import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
 
 const PLANET_ORDER: PlanetKey[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
 
+type SandboxMode = 'birth_first' | 'free_build';
+
 type SandboxState =
   | 'idle'
   | 'loading_base'
@@ -68,6 +70,7 @@ function ExplainerSections({ explanation }: { explanation: any }) {
 }
 
 export default function SandboxPage() {
+  const [mode, setMode] = useState<SandboxMode>('birth_first');
   const [state, setState] = useState<SandboxState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<SandboxDraft>({
@@ -154,20 +157,22 @@ export default function SandboxPage() {
     setState('loading_base');
     setError(null);
     setGenerateError(null);
+    const overridesToUse = mode === 'free_build' ? normalizeOverrides(draft.overrides) : { planets: {} };
     try {
       const base = getApiBaseUrl();
       const res = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth, overrides: { planets: {} } }),
+        body: JSON.stringify({ birth, overrides: overridesToUse }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data?.error ?? data?.message) || 'Failed to load chart');
+      const overriddenSnapshot = data.snapshot;
       setDraft({
         birth,
         baseSnapshot: data.snapshot,
-        overrides: { planets: {} },
-        overriddenSnapshot: data.snapshot,
+        overrides: overridesToUse,
+        overriddenSnapshot,
         hash: data.meta,
       });
       setState('ready_builder');
@@ -176,7 +181,7 @@ export default function SandboxPage() {
       setError(err instanceof Error ? err.message : 'Failed to load birth data');
       throw err;
     }
-  }, []);
+  }, [mode, draft.overrides]);
 
   const handleOverrideChange = useCallback((planet: PlanetKey, lonDeg: number | null) => {
     setDraft((prev) => {
@@ -207,9 +212,13 @@ export default function SandboxPage() {
 
   const canGenerate = Boolean(draft.birth && (draft.overriddenSnapshot || draft.baseSnapshot) && draft.hash?.combinedHash);
   const generateDisabledReasons: string[] = [];
-  if (!draft.birth) generateDisabledReasons.push('Enter birth data.');
-  if (!draft.baseSnapshot && !draft.overriddenSnapshot) generateDisabledReasons.push('Wait for the chart snapshot to load.');
-  if (!draft.hash?.combinedHash) generateDisabledReasons.push('Wait for the internal hash to compute.');
+  if (!draft.birth) {
+    generateDisabledReasons.push(mode === 'free_build'
+      ? 'Add birth data (date, time, location) to generate report and audio.'
+      : 'Enter birth data.');
+  }
+  if (!draft.baseSnapshot && !draft.overriddenSnapshot && draft.birth) generateDisabledReasons.push('Wait for the chart snapshot to load.');
+  if (!draft.hash?.combinedHash && draft.birth) generateDisabledReasons.push('Wait for the internal hash to compute.');
   if (state === 'syncing_overrides') generateDisabledReasons.push('Finish syncing overrides.');
 
   const handleGenerate = useCallback(async () => {
@@ -569,12 +578,42 @@ export default function SandboxPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-text">Sandbox</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Chart lab: enter birth data, then drag planets or type degrees. Generate chart, report, and audio from the same chart state.
+            Chart lab: build a chart from birth data or place planets directly. Generate chart, report, and audio from the same chart state.
           </p>
-          <p className="text-xs text-subtext/80">Houses are from birth chart geometry in Phase 6.</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="sandbox-mode"
+                checked={mode === 'birth_first'}
+                onChange={() => { setMode('birth_first'); if (state === 'idle' && !draft.birth) setDraft((p) => ({ ...p, overrides: { planets: {} } })); }}
+                className="rounded"
+              />
+              <span className="text-sm text-text">Birth-first</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="sandbox-mode"
+                checked={mode === 'free_build'}
+                onChange={() => {
+                  setMode('free_build');
+                  setState('idle');
+                  setDraft({ birth: null, baseSnapshot: null, overrides: { planets: {} }, overriddenSnapshot: null });
+                  setError(null);
+                  setReport(null);
+                }}
+                className="rounded"
+              />
+              <span className="text-sm text-text">Free-build</span>
+            </label>
+          </div>
+          <p className="text-xs text-subtext/80">
+            {mode === 'birth_first' ? 'Enter birth data first, then edit planets.' : 'Place planets on the wheel, then add birth data to generate.'}
+          </p>
         </motion.div>
 
-        {state === 'idle' && (
+        {state === 'idle' && mode === 'birth_first' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-4">Enter birth data</h2>
             <BirthDataForm onSubmit={handleBirthSubmit} />
@@ -597,6 +636,37 @@ export default function SandboxPage() {
               <p className="text-sm">{error}</p>
               <button onClick={() => { setState('idle'); setError(null); setDraft({ birth: null, baseSnapshot: null, overrides: { planets: {} }, overriddenSnapshot: null }); }} className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm">Reset</button>
             </div>
+          </div>
+        )}
+
+        {state === 'idle' && mode === 'free_build' && (
+          <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <div className="card">
+                <h2 className="text-xl font-semibold text-text mb-4">Wheel</h2>
+                <p className="text-sm text-subtext mb-4">Click on the wheel to place planets, or use the degree panel. Add birth data below to generate report and audio.</p>
+                <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
+                  <WheelCanvasBuilder
+                    snapshot={null}
+                    overrides={draft.overrides}
+                    onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}
+                    isUpdating={false}
+                    constrainToHouse={false}
+                    freeBuild
+                  />
+                </div>
+              </div>
+              <div className="card">
+                <h2 className="text-xl font-semibold text-text mb-4">Add birth data</h2>
+                <p className="text-sm text-subtext mb-4">Birth data is required to generate report and audio. Add it when ready.</p>
+                <BirthDataForm onSubmit={handleBirthSubmit} />
+              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <div className="card">
+                <DegreePanel overrides={draft.overrides} basePositions={{}} cusps={undefined} onOverrideChange={handleOverrideChange} onResetPlanet={handleResetPlanet} />
+              </div>
+            </motion.div>
           </div>
         )}
 
