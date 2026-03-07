@@ -39,7 +39,10 @@ export function CompatibilitySection({ chartId, limit = 10, className = '' }: Co
       <div className={`card ${className}`}>
         <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
         <p className="text-subtext text-sm">
-          Go to Profile to set your primary chart, then come back to see matches.
+          Add your birth chart in Profile first. Matches use your stored natal chart only — no default or placeholder chart.
+        </p>
+        <p className="text-xs text-subtext mt-2">
+          Create a profile with birth data, or build a chart in Sandbox. Then return here to see compatibility-driven results.
         </p>
       </div>
     );

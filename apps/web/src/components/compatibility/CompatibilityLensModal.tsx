@@ -33,9 +33,14 @@ export function CompatibilityLensModal({
     explanation?: { sections?: Array<{ title: string; text: string }> };
   } | null>(null);
 
-  const chartAId = seekerChartId || 'chart_profile_default';
+  const chartAId = seekerChartId;
 
   useEffect(() => {
+    if (!seekerChartId) {
+      setError('Add your birth chart in Profile first. Compatibility uses your stored chart only.');
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -48,7 +53,7 @@ export function CompatibilityLensModal({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chartAId,
+            chartAId: chartAId!,
             chartBId: targetChartId,
             relationshipMode,
             generateComposition: false,
@@ -70,7 +75,7 @@ export function CompatibilityLensModal({
 
     run();
     return () => { cancelled = true; };
-  }, [chartAId, targetChartId, intent]);
+  }, [seekerChartId, chartAId, targetChartId, intent]);
 
   const compatText = data?.compatibilityText;
   const short = typeof compatText === 'string' ? compatText : compatText?.short ?? '';

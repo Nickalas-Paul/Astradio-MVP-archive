@@ -6,11 +6,13 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { IntentForm } from '@/components/compatibility/IntentForm';
 import { useProfile } from '@/core/social/hooks';
+import { hasRealChart } from '@/core/social/constants';
 
 function IntentContent() {
   const searchParams = useSearchParams();
   const { primaryChart } = useProfile();
   const groupId = searchParams?.get('groupId') ?? null;
+  const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   return (
     <AppShell>
@@ -20,8 +22,13 @@ function IntentContent() {
         <p className="text-subtext text-sm">
           Set your intent and preferences. No percentages or ranked lists — you&apos;ll get curated clusters with narrative guidance.
         </p>
+        {!seekerChartId && (
+          <p className="text-amber-600 dark:text-amber-400 text-sm">
+            Add your birth chart in Profile first. Intent search uses your stored natal chart only.
+          </p>
+        )}
         <IntentForm
-          seekerChartId={primaryChart?.id ?? 'chart_profile_default'}
+          seekerChartId={seekerChartId}
           groupId={groupId}
           defaultScope={groupId ? 'this_group' : 'my_groups'}
         />

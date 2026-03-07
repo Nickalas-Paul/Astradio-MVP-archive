@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { CompatibilityLensModal } from '@/components/compatibility/CompatibilityLensModal';
 import { useProfile } from '@/core/social/hooks';
+import { hasRealChart } from '@/core/social/constants';
 
 interface DirectoryUser {
   userId: string;
@@ -20,6 +21,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const [loading, setLoading] = useState(true);
   const [lensOpen, setLensOpen] = useState(false);
   const { primaryChart } = useProfile();
+  const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   useEffect(() => {
     params.then((p) => setHandle(decodeURIComponent(p.handle)));
@@ -115,21 +117,26 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
           </section>
         )}
 
-        <button
-          type="button"
-          onClick={() => setLensOpen(true)}
-          className="px-4 py-2 rounded-lg bg-emerald text-bg font-medium"
-        >
-          Run compatibility lens
-        </button>
-
-        {lensOpen && (
-          <CompatibilityLensModal
-            seekerChartId={primaryChart?.id ?? 'chart_profile_default'}
-            targetChartId={user.chartId}
-            targetDisplayName={user.displayName || user.userId}
-            onClose={() => setLensOpen(false)}
-          />
+        {seekerChartId ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setLensOpen(true)}
+              className="px-4 py-2 rounded-lg bg-emerald text-bg font-medium"
+            >
+              Run compatibility lens
+            </button>
+            {lensOpen && (
+              <CompatibilityLensModal
+                seekerChartId={seekerChartId}
+                targetChartId={user.chartId}
+                targetDisplayName={user.displayName || user.userId}
+                onClose={() => setLensOpen(false)}
+              />
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-subtext">Add your birth chart in Profile to run the compatibility lens.</p>
         )}
       </div>
     </AppShell>

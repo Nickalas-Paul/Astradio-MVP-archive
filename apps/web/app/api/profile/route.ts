@@ -1,36 +1,29 @@
 /**
  * Current user profile. Proxies to engine when ASTRADIO_DEV_USER_ID cookie is set (dev profile flow).
- * Otherwise returns stub so Community/Profile panels render.
+ * When no session: returns { user: null, primaryChart: null } so UI shows create-profile and never a fake chart.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
 export const dynamic = 'force-dynamic';
 
-const STUB_USER = { id: 'usr_stub_v1', displayName: 'You' };
-const STUB_PRIMARY_CHART = {
-  id: 'chart_profile_default',
-  label: 'My Natal',
-  date: '1990-01-15',
-  time: '12:00',
-  lat: 40.7128,
-  lon: -74.006,
-  timezone: undefined as string | undefined,
-};
-
 const DEV_USER_COOKIE = 'astradio_dev_user_id';
+
+function noSessionResponse() {
+  return NextResponse.json({ user: null, primaryChart: null });
+}
 
 export async function GET(req: NextRequest) {
   const userId = req.cookies.get(DEV_USER_COOKIE)?.value;
   if (!userId) {
-    return NextResponse.json({ user: STUB_USER, primaryChart: STUB_PRIMARY_CHART });
+    return noSessionResponse();
   }
   try {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile?userId=${encodeURIComponent(userId)}`);
     if (!r.ok) {
       if (r.status === 404) {
-        const res = NextResponse.json({ user: STUB_USER, primaryChart: STUB_PRIMARY_CHART });
+        const res = noSessionResponse();
         res.cookies.delete(DEV_USER_COOKIE);
         return res;
       }
@@ -40,7 +33,9 @@ export async function GET(req: NextRequest) {
     const data = await r.json();
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ user: STUB_USER, primaryChart: STUB_PRIMARY_CHART });
+    const res = noSessionResponse();
+    res.cookies.delete(DEV_USER_COOKIE);
+    return res;
   }
 }
 

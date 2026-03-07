@@ -13,6 +13,7 @@ import { ProfilePanel } from '../../src/components/community/ProfilePanel';
 import { UserSearchPanel } from '../../src/components/community/UserSearchPanel';
 import LibraryPanel from '../../src/components/library/LibraryPanel';
 import { useProfile } from '../../src/core/social/hooks';
+import { hasRealChart } from '../../src/core/social/constants';
 import AtlasSearch from '../../src/components/atlas/AtlasSearch';
 import { useChartsStore, useCompositionStore } from '../../src/store';
 import { isFeatureEnabled } from '../../src/core/config/flags';
@@ -336,7 +337,7 @@ export default function CommunityClient() {
 
         {activeTab === 'matches' && (
           <div className="max-w-4xl mx-auto">
-            <CompatibilitySection chartId={primaryChart?.id ?? null} limit={10} />
+            <CompatibilitySection chartId={hasRealChart(primaryChart) ? primaryChart.id : null} limit={10} />
           </div>
         )}
 

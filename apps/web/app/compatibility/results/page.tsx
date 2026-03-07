@@ -8,6 +8,7 @@ import { AppShell } from '@/components/AppShell';
 import { ClusterCards } from '@/components/compatibility/ClusterCards';
 import type { Cluster } from '@/components/compatibility/ClusterCards';
 import { useProfile } from '@/core/social/hooks';
+import { hasRealChart } from '@/core/social/constants';
 
 function ResultsContent() {
   const searchParams = useSearchParams();
@@ -17,6 +18,7 @@ function ResultsContent() {
 
   const intent = searchParams?.get('intent') ?? 'friendship';
   const keyword = searchParams?.get('keyword') ?? '';
+  const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' && typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('compat_intent_results') : null;
@@ -41,11 +43,16 @@ function ResultsContent() {
           Intent: {intent}. No global ranked list — these are curated clusters by domain.
         </p>
 
+        {!seekerChartId && (
+          <p className="text-amber-600 dark:text-amber-400 text-sm">
+            Add your birth chart in Profile to view cluster details and compare. Matches use your stored chart only.
+          </p>
+        )}
         {error && <p className="text-red-500 text-sm">{error}</p>}
         {data && (
           <ClusterCards
             clusters={data.clusters}
-            seekerChartId={primaryChart?.id ?? 'chart_profile_default'}
+            seekerChartId={seekerChartId}
             keywordFilter={keyword || undefined}
           />
         )}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { MemberCard } from '@/components/compatibility/MemberCard';
 import { useProfile } from '@/core/social/hooks';
+import { hasRealChart } from '@/core/social/constants';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
 
@@ -19,6 +20,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
   const [joinLoading, setJoinLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { primaryChart } = useProfile();
+  const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   useEffect(() => {
     params.then(p => setSlug(p.slug));
@@ -166,7 +168,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
                     displayName: m.displayName,
                     descriptors: [],
                   }}
-                  seekerChartId={primaryChart?.id ?? 'chart_profile_default'}
+                  seekerChartId={seekerChartId}
                   band=""
                 />
               ))}

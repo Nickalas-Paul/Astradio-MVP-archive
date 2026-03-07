@@ -4,6 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useProfile, useUserSearch, useProfileChart, type ProfileChartSection, type DirectoryUser } from '../../core/social/hooks';
 import { getApiBaseUrl } from '../../core/api-base';
+import { hasRealChart } from '../../core/social/constants';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -56,11 +57,11 @@ export function UserSearchPanel() {
   const { primaryChart } = useProfile();
   const { users, loading, error, refresh } = useUserSearch({ q, limit: 15 });
   const { data: profileChartData, loading: profileLoading, error: profileError } = useProfileChart(selectedChartId);
+  const chartAId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   const handleCompare = async (target: DirectoryUser) => {
-    const chartAId = primaryChart?.id;
     if (!chartAId) {
-      setCompareResult({ chartId: target.chartId, error: 'Set your primary chart in Profile first.' });
+      setCompareResult({ chartId: target.chartId, error: 'Add your birth chart in Profile first. Matches use your stored chart only.' });
       return;
     }
     setCompareResult(null);
