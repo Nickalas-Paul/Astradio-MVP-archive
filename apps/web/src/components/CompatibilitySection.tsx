@@ -30,13 +30,13 @@ export function CompatibilitySection({ chartId, limit = 10, className = '', onSw
     limit,
   });
 
-  // Always render a card so the Matches tab is never blank
+  // If compatibility is turned off (e.g. via URL override), show closed-beta-appropriate message only — no dev flags.
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
     return (
       <div className={`card ${className}`}>
         <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
         <p className="text-subtext text-sm">
-          Compatibility matches are available when the feature is enabled (e.g. add <code className="text-xs bg-bgElev px-1 rounded">?compat=1</code> to the URL in development).
+          Compatibility matching is not available in this session. Create a profile with your natal chart and return later to see when matches are enabled.
         </p>
       </div>
     );

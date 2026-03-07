@@ -337,7 +337,7 @@ export default function CommunityClient() {
             <p className="text-sm text-subtext max-w-xl">
               Compare two charts by birth data. Use location search and date/time for each chart; coordinates are set from your place selection. Relationship mode shapes the compatibility reading.
             </p>
-            <CompareChartsPanel />
+            <CompareChartsPanel onSwitchToGroups={() => setActiveTab('groups')} />
           </div>
         )}
 

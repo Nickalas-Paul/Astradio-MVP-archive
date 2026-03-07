@@ -16,10 +16,11 @@ export interface FeatureFlags {
   ENABLE_VIZ_ENGINE: boolean;
 }
 
+// ENABLE_COMPAT: true for closed beta so Matches tab shows real compatibility behavior.
 const DEFAULT_FLAGS: FeatureFlags = {
   USE_MOCK: false,
   ENABLE_TRENDING: false,
-  ENABLE_COMPAT: false,
+  ENABLE_COMPAT: true,
   ENABLE_SOCIAL: true,
   ENABLE_ATLAS: true,
   ENABLE_ANALYTICS: true,

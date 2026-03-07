@@ -15,6 +15,10 @@ const RELATIONSHIP_MODES = [
 
 type ChartInput = { label: string; date: string; time: string; lat: string; lon: string };
 
+export interface CompareChartsPanelProps {
+  onSwitchToGroups?: () => void;
+}
+
 const defaultChart = (): ChartInput => ({
   label: '',
   date: new Date().toISOString().split('T')[0],
@@ -23,7 +27,7 @@ const defaultChart = (): ChartInput => ({
   lon: '-74.006',
 });
 
-export function CompareChartsPanel() {
+export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps = {}) {
   const [chartA, setChartA] = useState<ChartInput>(defaultChart());
   const [chartB, setChartB] = useState<ChartInput>(defaultChart());
   const [locationA, setLocationA] = useState('');
@@ -155,6 +159,21 @@ export function CompareChartsPanel() {
       <p className="text-sm text-subtext">
         Create or select two natal charts and generate a compatibility summary and shared soundtrack.
       </p>
+
+      <div className="rounded-lg border border-border bg-bgElev/60 p-3 space-y-2">
+        <p className="text-sm text-text">
+          <strong>Group or composite comparison (3+ charts):</strong> To compare more than two charts and get an aggregate compatibility view or shared group soundtrack, create a Group in the <strong>Groups</strong> tab and add member charts there. Astradio uses composite chart math for groups.
+        </p>
+        {onSwitchToGroups && (
+          <button
+            type="button"
+            onClick={onSwitchToGroups}
+            className="text-sm font-medium text-emerald hover:underline focus:outline focus:ring-2 focus:ring-emerald focus:ring-offset-2 rounded"
+          >
+            Go to Groups →
+          </button>
+        )}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-bgElev p-4">

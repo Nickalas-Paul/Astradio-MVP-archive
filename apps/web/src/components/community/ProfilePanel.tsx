@@ -177,6 +177,7 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
                   !Number.isFinite(Number(createChartLat)) ||
                   !Number.isFinite(Number(createChartLon))
                 }
+                aria-busy={creating}
                 onClick={async () => {
                   setCreating(true); setCreateError(null);
                   try {
@@ -206,7 +207,18 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
                     setCreating(false);
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium disabled:opacity-50"
+                className={
+                  creating ||
+                  !createName.trim() ||
+                  !createChartDate ||
+                  !createChartTime ||
+                  createChartLat === '' ||
+                  createChartLon === '' ||
+                  !Number.isFinite(Number(createChartLat)) ||
+                  !Number.isFinite(Number(createChartLon))
+                    ? 'px-4 py-2.5 rounded-lg bg-bgElev text-subtext text-sm font-medium border border-border cursor-not-allowed'
+                    : 'px-4 py-2.5 rounded-lg bg-emerald text-bg text-sm font-medium shadow-md hover:brightness-110 focus:outline focus:ring-2 focus:ring-emerald focus:ring-offset-2 focus:ring-offset-bg transition'
+                }
               >
                 {creating ? 'Creating…' : 'Create profile'}
               </button>
