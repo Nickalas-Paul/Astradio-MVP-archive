@@ -335,7 +335,7 @@ export default function CommunityClient() {
         {activeTab === 'compare' && (
           <div className="max-w-4xl mx-auto space-y-4">
             <p className="text-sm text-subtext max-w-xl">
-              Compare two charts by birth data. Use location search or enter date, time, and coordinates. Relationship mode shapes the compatibility reading.
+              Compare two charts by birth data. Use location search and date/time for each chart; coordinates are set from your place selection. Relationship mode shapes the compatibility reading.
             </p>
             <CompareChartsPanel />
           </div>
@@ -343,7 +343,11 @@ export default function CommunityClient() {
 
         {activeTab === 'matches' && (
           <div className="max-w-4xl mx-auto">
-            <CompatibilitySection chartId={hasRealChart(primaryChart) ? primaryChart.id : null} limit={10} />
+            <CompatibilitySection
+              chartId={hasRealChart(primaryChart) ? primaryChart.id : null}
+              limit={10}
+              onSwitchToProfile={() => setActiveTab('profile')}
+            />
           </div>
         )}
 

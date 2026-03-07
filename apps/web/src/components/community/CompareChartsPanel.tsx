@@ -159,7 +159,7 @@ export function CompareChartsPanel() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-bgElev p-4">
           <h3 className="mb-3 text-sm font-medium text-text">Chart A</h3>
-          <p className="text-xs text-subtext mb-2">Search by place, or enter date/time and coordinates below.</p>
+          <p className="text-xs text-subtext mb-2">Use location search and date/time. Coordinates are set from your place selection.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationA}
@@ -192,24 +192,6 @@ export function CompareChartsPanel() {
               className="input w-24"
             />
           </div>
-          <div className="mt-2 flex gap-2">
-            <input
-              type="number"
-              step="any"
-              placeholder="Lat"
-              value={chartA.lat}
-              onChange={(e) => setChartA((c) => ({ ...c, lat: e.target.value }))}
-              className="input flex-1"
-            />
-            <input
-              type="number"
-              step="any"
-              placeholder="Lon"
-              value={chartA.lon}
-              onChange={(e) => setChartA((c) => ({ ...c, lon: e.target.value }))}
-              className="input flex-1"
-            />
-          </div>
           <button
             type="button"
             onClick={handleCreateChartA}
@@ -231,7 +213,7 @@ export function CompareChartsPanel() {
             />
             Use inline (no save)
           </label>
-          <p className="text-xs text-subtext mb-2 mt-1">Search by place, or enter coordinates below.</p>
+          <p className="text-xs text-subtext mb-2 mt-1">Use location search and date/time. Coordinates are set from your place selection.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationB}
@@ -262,24 +244,6 @@ export function CompareChartsPanel() {
               value={chartB.time}
               onChange={(e) => setChartB((c) => ({ ...c, time: e.target.value }))}
               className="input w-24"
-            />
-          </div>
-          <div className="mt-2 flex gap-2">
-            <input
-              type="number"
-              step="any"
-              placeholder="Lat"
-              value={chartB.lat}
-              onChange={(e) => setChartB((c) => ({ ...c, lat: e.target.value }))}
-              className="input flex-1"
-            />
-            <input
-              type="number"
-              step="any"
-              placeholder="Lon"
-              value={chartB.lon}
-              onChange={(e) => setChartB((c) => ({ ...c, lon: e.target.value }))}
-              className="input flex-1"
             />
           </div>
           {!useInlineB && (

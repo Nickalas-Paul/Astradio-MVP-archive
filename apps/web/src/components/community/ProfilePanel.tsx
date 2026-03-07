@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
+import { LocationFinder } from '../sandbox/LocationFinder';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -72,6 +73,7 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
   const [createChartTime, setCreateChartTime] = useState('12:00');
   const [createChartLat, setCreateChartLat] = useState('');
   const [createChartLon, setCreateChartLon] = useState('');
+  const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -107,9 +109,9 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
         >
           <h2 className="text-xl font-semibold text-text">Create a profile</h2>
           <p className="text-sm text-subtext">
-            Add your display name to get started. Optionally add birth data to link a natal chart for compatibility.
+            Astradio profiles are based on your natal chart. Enter your birth details to create your profile.
           </p>
-          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-3">
+          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
             <input
               placeholder="Display name"
               value={createName}
@@ -122,75 +124,73 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
               onChange={(e) => setCreateHandle(e.target.value)}
               className="input w-full"
             />
-            <details className="text-sm">
-              <summary className="text-subtext cursor-pointer">Add birth chart (optional)</summary>
-              <div className="mt-3 space-y-2">
+            <div className="space-y-3 border-t border-border pt-4">
+              <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
+              <input
+                placeholder="Label (e.g. My Natal)"
+                value={createChartLabel}
+                onChange={(e) => setCreateChartLabel(e.target.value)}
+                className="input w-full"
+              />
+              <div className="grid grid-cols-2 gap-2">
                 <input
-                  placeholder="Label (e.g. My Natal)"
-                  value={createChartLabel}
-                  onChange={(e) => setCreateChartLabel(e.target.value)}
+                  type="date"
+                  value={createChartDate}
+                  onChange={(e) => setCreateChartDate(e.target.value)}
                   className="input w-full"
+                  required
                 />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    placeholder="Date"
-                    value={createChartDate}
-                    onChange={(e) => setCreateChartDate(e.target.value)}
-                    className="input w-full"
-                  />
-                  <input
-                    type="time"
-                    placeholder="Time"
-                    value={createChartTime}
-                    onChange={(e) => setCreateChartTime(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    placeholder="Latitude"
-                    value={createChartLat}
-                    onChange={(e) => setCreateChartLat(e.target.value)}
-                    className="input w-full"
-                  />
-                  <input
-                    placeholder="Longitude"
-                    value={createChartLon}
-                    onChange={(e) => setCreateChartLon(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
+                <input
+                  type="time"
+                  value={createChartTime}
+                  onChange={(e) => setCreateChartTime(e.target.value)}
+                  className="input w-full"
+                  required
+                />
               </div>
-            </details>
+              <LocationFinder
+                value={createChartLocationLabel}
+                onSelect={(r) => {
+                  setCreateChartLocationLabel(r.label);
+                  setCreateChartLat(String(r.lat));
+                  setCreateChartLon(String(r.lon));
+                }}
+                onClear={() => {
+                  setCreateChartLocationLabel('');
+                  setCreateChartLat('');
+                  setCreateChartLon('');
+                }}
+                placeholder="Birth place (city, region, or address)"
+              />
+            </div>
             {createError && <p className="text-red-500 text-xs">{createError}</p>}
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={creating || !createName.trim()}
+                disabled={
+                  creating ||
+                  !createName.trim() ||
+                  !createChartDate ||
+                  !createChartTime ||
+                  createChartLat === '' ||
+                  createChartLon === '' ||
+                  !Number.isFinite(Number(createChartLat)) ||
+                  !Number.isFinite(Number(createChartLon))
+                }
                 onClick={async () => {
                   setCreating(true); setCreateError(null);
                   try {
-                    const body: { displayName: string; handle?: string; chart?: { label: string; date: string; time: string; lat: number; lon: number } } = {
+                    const body = {
                       displayName: createName.trim(),
                       handle: createHandle.trim() || undefined,
-                    };
-                    const hasChart =
-                      createChartDate &&
-                      createChartTime &&
-                      createChartLat !== '' &&
-                      createChartLon !== '' &&
-                      Number.isFinite(Number(createChartLat)) &&
-                      Number.isFinite(Number(createChartLon));
-                    if (hasChart) {
-                      body.chart = {
+                      chart: {
                         label: createChartLabel.trim() || 'My Natal',
                         date: createChartDate,
                         time: createChartTime,
                         lat: Number(createChartLat),
                         lon: Number(createChartLon),
-                      };
-                    }
+                      },
+                    };
                     const r = await fetch('/api/profile', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -199,7 +199,8 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
                     const data = await r.json().catch(() => ({}));
                     if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
                     setCreateName(''); setCreateHandle('');
-                    setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00'); setCreateChartLat(''); setCreateChartLon('');
+                    setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');
+                    setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
                     await refresh();
                   } finally {
                     setCreating(false);

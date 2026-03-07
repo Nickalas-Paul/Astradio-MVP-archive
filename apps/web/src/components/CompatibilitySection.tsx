@@ -13,6 +13,7 @@ interface CompatibilitySectionProps {
   chartId: string | null;
   limit?: number;
   className?: string;
+  onSwitchToProfile?: () => void;
 }
 
 const MODES: { value: CompatMode; label: string }[] = [
@@ -21,7 +22,7 @@ const MODES: { value: CompatMode; label: string }[] = [
   { value: 'rival', label: 'Rival' },
 ];
 
-export function CompatibilitySection({ chartId, limit = 10, className = '' }: CompatibilitySectionProps) {
+export function CompatibilitySection({ chartId, limit = 10, className = '', onSwitchToProfile }: CompatibilitySectionProps) {
   const [mode, setMode] = useState<CompatMode>('friend');
   const { matches, isLoading: loading, error, refresh } = useCompat({
     chartId,
@@ -29,9 +30,16 @@ export function CompatibilitySection({ chartId, limit = 10, className = '' }: Co
     limit,
   });
 
-  // Don't render if feature is disabled
+  // Always render a card so the Matches tab is never blank
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
-    return null;
+    return (
+      <div className={`card ${className}`}>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
+        <p className="text-subtext text-sm">
+          Compatibility matches are available when the feature is enabled (e.g. add <code className="text-xs bg-bgElev px-1 rounded">?compat=1</code> to the URL in development).
+        </p>
+      </div>
+    );
   }
 
   if (!chartId) {
@@ -39,11 +47,20 @@ export function CompatibilitySection({ chartId, limit = 10, className = '' }: Co
       <div className={`card ${className}`}>
         <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
         <p className="text-subtext text-sm">
-          Add your birth chart in Profile first. Matches use your stored natal chart only — no default or placeholder chart.
+          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to see compatibility-driven matches.
         </p>
         <p className="text-xs text-subtext mt-2">
-          Create a profile with birth data, or build a chart in Sandbox. Then return here to see compatibility-driven results.
+          Matches use your stored natal chart only; there is no default or placeholder chart.
         </p>
+        {onSwitchToProfile && (
+          <button
+            type="button"
+            onClick={onSwitchToProfile}
+            className="mt-4 px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium hover:opacity-90"
+          >
+            Go to Profile to create one
+          </button>
+        )}
       </div>
     );
   }

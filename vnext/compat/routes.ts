@@ -154,12 +154,14 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // GET /api/profile/chart?chartId= (optional; default = chart_profile_default). V1: chartId must be in directory allowlist.
+  // GET /api/profile/chart?chartId= (optional; default = chart_profile_default). Allow directory charts or any chart that exists in storage (e.g. user-created on profile creation).
   router.get('/profile/chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const chartId = (req.query.chartId as string) || storage.DEFAULT_PROFILE_CHART_ID;
-      if (!(await isDirectoryChartId(chartId))) {
-        return res.status(403).json({ error: 'Chart not in public directory' });
+      const inDirectory = await isDirectoryChartId(chartId);
+      const chart = await getChartById(chartId);
+      if (!inDirectory && !chart) {
+        return res.status(403).json({ error: 'Chart not found or not accessible' });
       }
       const result = await getProfileChartExplainer(chartId);
       return res.status(200).json(result);
