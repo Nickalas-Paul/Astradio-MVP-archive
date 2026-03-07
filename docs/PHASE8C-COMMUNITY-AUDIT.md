@@ -139,4 +139,4 @@ Applied via `scripts/migrate.js` (all `migrations/*.sql` in order):
 
 - **Files changed:** `docs/PHASE8C-COMMUNITY-AUDIT.md` (new), `apps/web/app/api/user/history/route.ts` (new).
 - **Commit hash:** `33a24a6`
-- **Confirmation:** Commit pushed to `origin/beta-ui-vercel`. Community is Phase 8 verified for current contracts; GET /api/user/history is reachable from same-origin via Next proxy.
+- **Confirmation:** Commit 33a24a6 pushed to `origin/beta-ui-vercel`. Report section 10 updated in 122eab2. Community is Phase 8 verified for current contracts; GET /api/user/history is reachable from same-origin via Next proxy.
