@@ -27,4 +27,4 @@
 
 ## Commit
 
-Step 2 commit hash: *(filled after commit)*
+Step 2 commit hash: `e251b6f`
