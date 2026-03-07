@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LyriaAudio } from '../LyriaAudio';
+import { LocationFinder } from '../sandbox/LocationFinder';
 
 const RELATIONSHIP_MODES = [
   { value: 'friends', label: 'Friends' },
@@ -25,6 +26,8 @@ const defaultChart = (): ChartInput => ({
 export function CompareChartsPanel() {
   const [chartA, setChartA] = useState<ChartInput>(defaultChart());
   const [chartB, setChartB] = useState<ChartInput>(defaultChart());
+  const [locationA, setLocationA] = useState('');
+  const [locationB, setLocationB] = useState('');
   const [chartAId, setChartAId] = useState<string | null>(null);
   const [chartBId, setChartBId] = useState<string | null>(null);
   const [useInlineB, setUseInlineB] = useState(true);
@@ -156,6 +159,18 @@ export function CompareChartsPanel() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-bgElev p-4">
           <h3 className="mb-3 text-sm font-medium text-text">Chart A</h3>
+          <p className="text-xs text-subtext mb-2">Search by place, or enter date/time and coordinates below.</p>
+          <div className="mb-2">
+            <LocationFinder
+              value={locationA}
+              onSelect={(r) => {
+                setLocationA(r.label);
+                setChartA((c) => ({ ...c, lat: String(r.lat), lon: String(r.lon), label: c.label || r.label }));
+              }}
+              onClear={() => setLocationA('')}
+              placeholder="City, region, or address"
+            />
+          </div>
           <input
             type="text"
             placeholder="Label"
@@ -216,12 +231,24 @@ export function CompareChartsPanel() {
             />
             Use inline (no save)
           </label>
+          <p className="text-xs text-subtext mb-2 mt-1">Search by place, or enter coordinates below.</p>
+          <div className="mb-2">
+            <LocationFinder
+              value={locationB}
+              onSelect={(r) => {
+                setLocationB(r.label);
+                setChartB((c) => ({ ...c, lat: String(r.lat), lon: String(r.lon), label: c.label || r.label }));
+              }}
+              onClear={() => setLocationB('')}
+              placeholder="City, region, or address"
+            />
+          </div>
           <input
             type="text"
             placeholder="Label"
             value={chartB.label}
             onChange={(e) => setChartB((c) => ({ ...c, label: e.target.value }))}
-            className="input mb-2 mt-2 w-full"
+            className="input mb-2 w-full"
           />
           <div className="flex gap-2">
             <input

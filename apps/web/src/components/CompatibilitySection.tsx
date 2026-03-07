@@ -154,9 +154,9 @@ export function CompatibilitySection({ chartId, limit = 10, className = '' }: Co
       <div className={`card ${className}`}>
         {header}
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">No compatibility matches found</p>
+          <p className="text-subtext text-sm">No eligible matches for your chart.</p>
           <p className="text-xs text-subtext mt-1">
-            Create a compatibility profile to find matches
+            Make sure you’ve added your birth chart in Profile. Matches are compatibility-driven — no results means no candidates meet the current criteria, or the directory has no eligible charts yet.
           </p>
         </div>
       </div>

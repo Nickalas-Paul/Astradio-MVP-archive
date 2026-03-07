@@ -147,7 +147,10 @@ function GroupsList() {
       {loading ? (
         <p className="text-subtext text-sm">Loading groups…</p>
       ) : groups.length === 0 ? (
-        <p className="text-subtext text-sm">No groups yet. Create one to get started.</p>
+        <div className="rounded-lg border border-border bg-bgElev p-6 text-center">
+          <p className="text-subtext text-sm">No groups yet.</p>
+          <p className="text-xs text-subtext mt-1">Create a group above, or search by tag. Groups are shared spaces for discussion and compatibility by context.</p>
+        </div>
       ) : (
         <ul className="space-y-3">
           {groups.map(g => (
@@ -330,7 +333,10 @@ export default function CommunityClient() {
         )}
 
         {activeTab === 'compare' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <p className="text-sm text-subtext max-w-xl">
+              Compare two charts by birth data. Use location search or enter date, time, and coordinates. Relationship mode shapes the compatibility reading.
+            </p>
             <CompareChartsPanel />
           </div>
         )}
@@ -342,9 +348,14 @@ export default function CommunityClient() {
         )}
 
         {activeTab === 'connections' && (
-          <div className="grid lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-            <CirclesPanel />
-            <SessionsPanel />
+          <div className="max-w-6xl mx-auto space-y-6">
+            <p className="text-sm text-subtext max-w-xl">
+              Connections: circles and sessions. Find people via Matches or join Groups, then add them here. No connections yet means this feature is available but you haven’t added anyone — use Matches to discover compatible people first.
+            </p>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <CirclesPanel />
+              <SessionsPanel />
+            </div>
           </div>
         )}
 
@@ -356,6 +367,9 @@ export default function CommunityClient() {
 
         {activeTab === 'search' && (
           <div className="max-w-4xl mx-auto space-y-6">
+            <p className="text-sm text-subtext max-w-xl">
+              Search by name or handle. Compare uses your stored chart only. Results are compatibility- and visibility-aware — not an open directory.
+            </p>
             <UserSearchPanel />
             <AtlasSearch />
           </div>
