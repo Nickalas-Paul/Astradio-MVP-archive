@@ -46,7 +46,7 @@
 
 ## 4. Commit hashes
 
-*(Filled after commit and push.)*
+- **Phase 8D follow-up:** `52a25a0` — fix(community): Phase 8D - Create Profile button visibility, Matches closed-beta copy, Compare group/composite callout
 
 ---
 
