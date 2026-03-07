@@ -82,17 +82,18 @@ export async function searchDirectoryUsers(params: {
   const limit = Math.min(50, Math.max(1, rawLimit || 10));
   const offset = Math.max(0, parseInt(cursor || '0', 10) || 0);
 
-  const all = await getDirectoryUsers();
   const ql = (q || '').trim().toLowerCase();
 
+  // Privacy: do not return all users when query is empty. Discovery is not an open directory.
   let list: DirectoryUser[];
-  if (!ql) {
-    list = all;
+  if (!ql || ql.length < 2) {
+    list = [];
   } else {
-    const matched = all.filter((u) => matchRank(u, q) < 4);
+    const all = await getDirectoryUsers();
+    const matched = all.filter((u) => matchRank(u, ql) < 4);
     list = matched.sort((a, b) => {
-      const ra = matchRank(a, q);
-      const rb = matchRank(b, q);
+      const ra = matchRank(a, ql);
+      const rb = matchRank(b, ql);
       if (ra !== rb) return ra - rb;
       const d = a.displayName.localeCompare(b.displayName);
       if (d !== 0) return d;

@@ -87,29 +87,38 @@ export function UserSearchPanel() {
     }
   };
 
+  const qTrimmed = (q || '').trim();
+  const canSearch = qTrimmed.length >= 2;
+
   return (
     <div className="card space-y-6">
       <h2 className="text-xl font-semibold text-text">Find people</h2>
-      <p className="text-sm text-subtext">Search by name or user ID. View profile or run a compatibility comparison.</p>
+      <p className="text-sm text-subtext">Search by name or handle (min 2 characters). Results are limited to eligible directory entries — not an open directory. Compare uses your stored chart only.</p>
 
       <div className="flex gap-2">
         <input
           type="search"
-          placeholder="Search by name or ID..."
+          placeholder="Search by name or handle (min 2 chars)..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="input flex-1"
         />
-        <button type="button" onClick={() => refresh()} disabled={loading} className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-50">
+        <button type="button" onClick={() => refresh()} disabled={loading || !canSearch} className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-50">
           Search
         </button>
       </div>
+
+      {qTrimmed.length > 0 && qTrimmed.length < 2 && (
+        <p className="text-subtext text-sm">Enter at least 2 characters to search.</p>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       {loading && <div className="text-subtext text-sm">Loading…</div>}
 
-      {!loading && users.length === 0 && q && <p className="text-subtext text-sm">No users found.</p>}
+      {!loading && users.length === 0 && canSearch && (
+        <p className="text-subtext text-sm">No users found. Results are limited to the directory; try a different query or check that you have a chart linked for comparison.</p>
+      )}
 
       {!loading && users.length > 0 && (
         <ul className="space-y-2">

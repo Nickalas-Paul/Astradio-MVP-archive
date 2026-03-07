@@ -388,11 +388,19 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
   }, [params.q]);
 
   const search = useCallback(async () => {
+    const trimmed = (debouncedQ || '').trim();
+    if (trimmed.length < 2) {
+      setUsers([]);
+      setNextCursor(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const qp = new URLSearchParams();
-      if (debouncedQ) qp.set('q', debouncedQ);
+      qp.set('q', trimmed);
       qp.set('limit', String(limit));
       if (params.cursor) qp.set('cursor', params.cursor);
       const r = await fetch(
