@@ -34,4 +34,4 @@
 
 ## Commit
 
-Step 3 commit hash: *(filled after commit)*
+Step 3 commit hash: `0935a69`
