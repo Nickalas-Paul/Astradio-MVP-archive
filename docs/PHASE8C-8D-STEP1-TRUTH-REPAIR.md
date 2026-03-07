@@ -45,4 +45,4 @@
 
 ## Commit
 
-Step 1 commit hash: *(filled after commit)*
+Step 1 commit hash: `a7899b7`
