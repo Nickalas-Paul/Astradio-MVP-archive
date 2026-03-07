@@ -137,8 +137,6 @@ Applied via `scripts/migrate.js` (all `migrations/*.sql` in order):
 
 ## 10. Commit and Push Confirmation
 
-*(To be filled after commit and push.)*
-
 - **Files changed:** `docs/PHASE8C-COMMUNITY-AUDIT.md` (new), `apps/web/app/api/user/history/route.ts` (new).
-- **Commit hash:** —
-- **Confirmation:** —
+- **Commit hash:** `33a24a6`
+- **Confirmation:** Commit pushed to `origin/beta-ui-vercel`. Community is Phase 8 verified for current contracts; GET /api/user/history is reachable from same-origin via Next proxy.
