@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
-import { useCompositionStore } from '../../store';
+import { useCompositionStore, useUIStore } from '../../store';
 import { getApiBaseUrl } from '../../core/api-base';
 import type { CompositionJob } from '../../types';
 
@@ -98,7 +98,7 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
   return hasPlanets || hasHouses;
 }
 
-/** After profile creation: fetch chart snapshot, run natal compose, add to composition history so it appears in Saved Tracks. */
+/** After profile creation: fetch chart snapshot, run natal compose, add to composition history only when we have playable audio. */
 async function triggerNatalComposition(chartId: string): Promise<void> {
   const base = getApiBaseUrl();
   const chartRes = await fetch(`${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`, { credentials: 'same-origin' });
@@ -118,18 +118,30 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
   });
   if (!composeRes.ok) return;
   const composePayload = await composeRes.json().catch(() => null);
-  const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
-  if (composePayload?.audio?.base64 && typeof composePayload.audio.base64 === 'string') {
+  const base64 = composePayload?.audio?.base64;
+  if (typeof base64 === 'string' && base64.length > 0) {
     try {
-      const bin = atob(composePayload.audio.base64);
+      const bin = atob(base64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'audio/wav' });
       audioUrl = URL.createObjectURL(blob);
     } catch (_) {}
   }
+  // Only add a "ready" job when we have playable audio. No fake success: if compose returned 200 but no artifact, do not add a soundtrack row.
+  if (!audioUrl) {
+    const exportError = composePayload?.audio?.export_error ?? null;
+    const reason = exportError === 'export_disabled'
+      ? 'Audio export is disabled on this server.'
+      : exportError
+        ? 'Audio generation failed.'
+        : 'No audio artifact in response.';
+    useUIStore.getState().addToast({ message: `Soundtrack could not be generated: ${reason}`, type: 'error', duration: 8000 });
+    return;
+  }
+  const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const job: CompositionJob = {
     id: jobId,
     request: { chartA: chartId, genre: 'house', durationSec: 30 },

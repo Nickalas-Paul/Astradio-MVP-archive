@@ -43,6 +43,7 @@ function SavedCompositionsBlock() {
       <ul className="space-y-2">
         {ready.map((job) => {
           const url = job.status.stage === 'ready' ? job.status.url : '';
+          const hasPlayableAudio = typeof url === 'string' && url.length > 0;
           const label = job.request.chartB ? 'Comparison' : (job.id.startsWith('natal_') ? natalTrackLabel(user?.displayName) : job.request.genre);
           return (
             <li
@@ -50,10 +51,10 @@ function SavedCompositionsBlock() {
               className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border bg-bgElev"
             >
               <span className="font-medium text-text truncate">{label}</span>
-              {url ? (
+              {hasPlayableAudio ? (
                 <audio controls src={url} className="h-8 max-w-[200px] flex-shrink-0" preload="metadata" />
               ) : (
-                <span className="text-xs text-subtext">No audio</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400" title="Audio artifact missing or expired (e.g. after refresh). No placeholder.">Audio unavailable</span>
               )}
             </li>
           );
