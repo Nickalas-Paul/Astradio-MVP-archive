@@ -60,3 +60,15 @@ If the engine does not have WAV export enabled, profile creation will still succ
 
 3. **Rehydrated / legacy rows**
    - If a previously saved job has `stage === 'ready'` but the URL is dead (e.g. after refresh), the row should show “Audio unavailable” with the explanatory title, not a fake playable control.
+
+---
+
+## Phase 8G regression follow-up (no silent failures)
+
+**Issue:** After the honesty fix, Saved Tracks showed 0 compositions and no visible failure message when the backend did not return audio.
+
+**Root cause:** Multiple silent failure paths and swallowed errors: early returns (chart fetch fail, invalid snapshot, compose request fail) did not show any toast; `triggerNatalComposition(...).catch(() => {})` swallowed thrown errors; no inline status on the Profile tab.
+
+**Code dependency on ENABLE_WAV_EXPORT:** `vnext/api/compose.ts` line 273: `const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';`. When false, response is 200 with stub `audio.base64 === ''` and `export_error: 'export_disabled'`.
+
+**Follow-up fix:** All failure paths in `triggerNatalComposition` now show a toast and call `onStatus('failed', message)`. Profile shows pending ("Generating your soundtrack…") and failed (inline alert with reason). Replaced `.catch(() => {})` with visible error toast and state. Saved Tracks when empty but user has profile shows a note to check the Profile tab.

@@ -35,11 +35,17 @@ function SavedCompositionsBlock() {
   const { jobHistory } = useCompositionStore();
   const { user } = useProfile();
   const ready = jobHistory.filter((j) => j.status.stage === 'ready');
-  if (ready.length === 0) return null;
+  const hasProfile = !!user;
+  if (ready.length === 0 && !hasProfile) return null;
   return (
     <section className="card space-y-3">
       <h3 className="text-lg font-semibold text-text">Saved Tracks</h3>
       <p className="text-sm text-subtext">Compositions generated from your profile or charts, including your soundtrack.</p>
+      {ready.length === 0 && hasProfile && (
+        <p className="text-sm text-amber-600 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          No saved tracks yet. Your natal soundtrack is generated after profile creation. If you just created a profile, check the <strong>Profile</strong> tab for status or any error message.
+        </p>
+      )}
       <ul className="space-y-2">
         {ready.map((job) => {
           const url = job.status.stage === 'ready' ? job.status.url : '';

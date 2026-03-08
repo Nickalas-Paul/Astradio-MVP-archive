@@ -98,14 +98,35 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
   return hasPlanets || hasHouses;
 }
 
-/** After profile creation: fetch chart snapshot, run natal compose, add to composition history only when we have playable audio. */
-async function triggerNatalComposition(chartId: string): Promise<void> {
+export type NatalSoundtrackStatus = 'idle' | 'pending' | 'success' | 'failed';
+
+function showSoundtrackToast(title: string, message: string): void {
+  useUIStore.getState().addToast({ title, message, type: 'error', duration: 10000 });
+}
+
+/** After profile creation: fetch chart snapshot, run natal compose, add to composition history only when we have playable audio. No silent failures. */
+export async function triggerNatalComposition(
+  chartId: string,
+  onStatus?: (status: NatalSoundtrackStatus, message?: string) => void
+): Promise<void> {
   const base = getApiBaseUrl();
+  onStatus?.('pending');
+
   const chartRes = await fetch(`${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`, { credentials: 'same-origin' });
-  if (!chartRes.ok) return;
+  if (!chartRes.ok) {
+    const msg = `Chart fetch failed (${chartRes.status}).`;
+    showSoundtrackToast('Soundtrack unavailable', msg);
+    onStatus?.('failed', msg);
+    return;
+  }
   const chartData = await chartRes.json().catch(() => null);
   const snapshot = chartData?.snapshot;
-  if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot?.planets) || !Array.isArray(snapshot?.houses)) return;
+  if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot?.planets) || !Array.isArray(snapshot?.houses)) {
+    const msg = 'Chart data missing or invalid (no snapshot with planets/houses).';
+    showSoundtrackToast('Soundtrack unavailable', msg);
+    onStatus?.('failed', msg);
+    return;
+  }
   const composeRes = await fetch(`${base || ''}/api/compose`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -116,7 +137,13 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       overriddenSnapshot: snapshot,
     }),
   });
-  if (!composeRes.ok) return;
+  if (!composeRes.ok) {
+    const body = await composeRes.json().catch(() => ({}));
+    const msg = body?.error ?? `Compose request failed (${composeRes.status}).`;
+    showSoundtrackToast('Soundtrack unavailable', msg);
+    onStatus?.('failed', msg);
+    return;
+  }
   const composePayload = await composeRes.json().catch(() => null);
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
@@ -130,15 +157,15 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       audioUrl = URL.createObjectURL(blob);
     } catch (_) {}
   }
-  // Only add a "ready" job when we have playable audio. No fake success: if compose returned 200 but no artifact, do not add a soundtrack row.
   if (!audioUrl) {
     const exportError = composePayload?.audio?.export_error ?? null;
     const reason = exportError === 'export_disabled'
-      ? 'Audio export is disabled on this server.'
+      ? 'Audio export is disabled on this server (ENABLE_WAV_EXPORT not set).'
       : exportError
         ? 'Audio generation failed.'
         : 'No audio artifact in response.';
-    useUIStore.getState().addToast({ title: 'Soundtrack unavailable', message: `Soundtrack could not be generated: ${reason}`, type: 'error', duration: 8000 });
+    showSoundtrackToast('Soundtrack unavailable', `Soundtrack could not be generated: ${reason}`);
+    onStatus?.('failed', reason);
     return;
   }
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
@@ -160,6 +187,7 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
     updatedAt: new Date().toISOString(),
   };
   addJobToHistory(job);
+  onStatus?.('success');
 }
 
 export interface ProfilePanelProps {
@@ -181,6 +209,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [soundtrackStatus, setSoundtrackStatus] = useState<NatalSoundtrackStatus>('idle');
+  const [soundtrackMessage, setSoundtrackMessage] = useState<string | null>(null);
 
   if (profileLoading) {
     return (
@@ -313,7 +343,17 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
                         await refresh();
                         if (newChartId) {
-                          triggerNatalComposition(newChartId).catch(() => {});
+                          setSoundtrackStatus('pending');
+                          setSoundtrackMessage(null);
+                          triggerNatalComposition(newChartId, (status, message) => {
+                            setSoundtrackStatus(status);
+                            setSoundtrackMessage(message ?? null);
+                          }).catch((err) => {
+                            const msg = err?.message ?? 'Soundtrack generation failed.';
+                            showSoundtrackToast('Soundtrack error', msg);
+                            setSoundtrackStatus('failed');
+                            setSoundtrackMessage(msg);
+                          });
                         }
                       } finally {
                         setCreating(false);
@@ -399,7 +439,20 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               </div>
             )}
             {realChart?.id && !noRealChart && (
-              <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
+              <>
+                <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
+                {soundtrackStatus === 'pending' && (
+                  <div className="mt-4 rounded-lg border border-border bg-bgElev p-3 text-sm text-subtext" role="status" aria-live="polite">
+                    Generating your soundtrack…
+                  </div>
+                )}
+                {soundtrackStatus === 'failed' && soundtrackMessage && (
+                  <div className="mt-4 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400" role="alert">
+                    <p className="font-medium">Soundtrack could not be generated.</p>
+                    <p className="mt-1">{soundtrackMessage}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="min-w-0">
