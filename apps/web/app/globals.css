@@ -43,6 +43,14 @@
            focus:outline-none focus:ring-2 focus:ring-emerald-400
            focus:ring-offset-2 ring-offset-surface;
   }
+
+  /* High-contrast inputs for profile creation and forms (dark-mode readable) */
+  .input {
+    @apply w-full rounded-lg border border-border bg-bgElev px-3 py-2
+           text-text placeholder:text-subtext/90
+           focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30
+           transition-colors;
+  }
 }
 
 /* === Loading States === */

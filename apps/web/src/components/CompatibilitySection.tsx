@@ -30,18 +30,6 @@ export function CompatibilitySection({ chartId, limit = 10, className = '', onSw
     limit,
   });
 
-  // If compatibility is turned off (e.g. via URL override), show closed-beta-appropriate message only — no dev flags.
-  if (!isFeatureEnabled('ENABLE_COMPAT')) {
-    return (
-      <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
-        <p className="text-subtext text-sm">
-          Compatibility matching is not available in this session. Create a profile with your natal chart and return later to see when matches are enabled.
-        </p>
-      </div>
-    );
-  }
-
   if (!chartId) {
     return (
       <div className={`card ${className}`}>
@@ -61,6 +49,18 @@ export function CompatibilitySection({ chartId, limit = 10, className = '', onSw
             Go to Profile to create one
           </button>
         )}
+      </div>
+    );
+  }
+
+  // When compat is off but user has a chart: do not say "create a profile" (they have one). Be truthful.
+  if (!isFeatureEnabled('ENABLE_COMPAT')) {
+    return (
+      <div className={`card ${className}`}>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
+        <p className="text-subtext text-sm">
+          You’re set up with a natal chart. Compatibility matching is not available in this preview yet — it will be enabled in a future update.
+        </p>
       </div>
     );
   }

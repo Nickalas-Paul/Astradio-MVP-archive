@@ -11,7 +11,10 @@ const config: Config = {
       colors: {
         bg: '#0C1320',          // app background
         surface: '#0F172A',     // panel background
-        text: '#E5E7EB',        // default text
+        panel: '#111827',       // elevated panel
+        bgElev: '#1a2332',      // input/raised surfaces
+        text: '#E5E7EB',        // primary text (high contrast)
+        subtext: '#9CA3AF',     // secondary text
         border: 'rgba(255,255,255,0.10)',
         emeraldMuted: 'rgba(16,185,129,0.25)', // used for hovers
       },

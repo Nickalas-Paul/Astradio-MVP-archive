@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
+import { useCompositionStore } from '../../store';
+import { getApiBaseUrl } from '../../core/api-base';
+import type { CompositionJob } from '../../types';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -55,6 +58,58 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
   const hasPlanets = Array.isArray(planets) && planets.length > 0;
   const hasHouses = Array.isArray(houses) && houses.length >= 12;
   return hasPlanets || hasHouses;
+}
+
+/** After profile creation: fetch chart snapshot, run natal compose, add to composition history so it appears in Saved Tracks. */
+async function triggerNatalComposition(chartId: string): Promise<void> {
+  const base = getApiBaseUrl();
+  const chartRes = await fetch(`${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`, { credentials: 'same-origin' });
+  if (!chartRes.ok) return;
+  const chartData = await chartRes.json().catch(() => null);
+  const snapshot = chartData?.snapshot;
+  if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot?.planets) || !Array.isArray(snapshot?.houses)) return;
+  const composeRes = await fetch(`${base || ''}/api/compose`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      mode: 'sandbox',
+      seed: `natal_${chartId}`,
+      overriddenSnapshot: snapshot,
+    }),
+  });
+  if (!composeRes.ok) return;
+  const composePayload = await composeRes.json().catch(() => null);
+  const addJobToHistory = useCompositionStore.getState().addJobToHistory;
+  const jobId = `natal_${chartId}_${Date.now()}`;
+  let audioUrl = '';
+  if (composePayload?.audio?.base64 && typeof composePayload.audio.base64 === 'string') {
+    try {
+      const bin = atob(composePayload.audio.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/wav' });
+      audioUrl = URL.createObjectURL(blob);
+    } catch (_) {}
+  }
+  const job: CompositionJob = {
+    id: jobId,
+    request: { chartA: chartId, genre: 'house', durationSec: 30 },
+    status: {
+      stage: 'ready',
+      id: jobId,
+      url: audioUrl,
+      layers: [
+        { key: 'melody', gain: 0.8 },
+        { key: 'harmony', gain: 0.7 },
+        { key: 'rhythm', gain: 0.75 },
+        { key: 'texture', gain: 0.6 },
+      ],
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  addJobToHistory(job);
 }
 
 export interface ProfilePanelProps {
@@ -165,63 +220,65 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
             </div>
             {createError && <p className="text-red-500 text-xs">{createError}</p>}
             <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={
-                  creating ||
-                  !createName.trim() ||
-                  !createChartDate ||
-                  !createChartTime ||
-                  createChartLat === '' ||
-                  createChartLon === '' ||
-                  !Number.isFinite(Number(createChartLat)) ||
-                  !Number.isFinite(Number(createChartLon))
-                }
-                aria-busy={creating}
-                onClick={async () => {
-                  setCreating(true); setCreateError(null);
-                  try {
-                    const body = {
-                      displayName: createName.trim(),
-                      handle: createHandle.trim() || undefined,
-                      chart: {
-                        label: createChartLabel.trim() || 'My Natal',
-                        date: createChartDate,
-                        time: createChartTime,
-                        lat: Number(createChartLat),
-                        lon: Number(createChartLon),
-                      },
-                    };
-                    const r = await fetch('/api/profile', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(body),
-                    });
-                    const data = await r.json().catch(() => ({}));
-                    if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
-                    setCreateName(''); setCreateHandle('');
-                    setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');
-                    setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
-                    await refresh();
-                  } finally {
-                    setCreating(false);
-                  }
-                }}
-                className={
-                  creating ||
-                  !createName.trim() ||
-                  !createChartDate ||
-                  !createChartTime ||
-                  createChartLat === '' ||
-                  createChartLon === '' ||
-                  !Number.isFinite(Number(createChartLat)) ||
-                  !Number.isFinite(Number(createChartLon))
-                    ? 'px-4 py-2.5 rounded-lg bg-bgElev text-subtext text-sm font-medium border border-border cursor-not-allowed'
-                    : 'px-4 py-2.5 rounded-lg bg-emerald text-bg text-sm font-medium shadow-md hover:brightness-110 focus:outline focus:ring-2 focus:ring-emerald focus:ring-offset-2 focus:ring-offset-bg transition'
-                }
-              >
-                {creating ? 'Creating…' : 'Create profile'}
-              </button>
+              {(() => {
+                const canSubmit = Boolean(
+                  createName.trim() &&
+                  createChartDate &&
+                  createChartTime &&
+                  createChartLat !== '' &&
+                  createChartLon !== '' &&
+                  Number.isFinite(Number(createChartLat)) &&
+                  Number.isFinite(Number(createChartLon))
+                );
+                const disabled = creating || !canSubmit;
+                return (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-busy={creating}
+                    onClick={async () => {
+                      setCreating(true); setCreateError(null);
+                      try {
+                        const body = {
+                          displayName: createName.trim(),
+                          handle: createHandle.trim() || undefined,
+                          chart: {
+                            label: createChartLabel.trim() || 'My Natal',
+                            date: createChartDate,
+                            time: createChartTime,
+                            lat: Number(createChartLat),
+                            lon: Number(createChartLon),
+                          },
+                        };
+                        const r = await fetch('/api/profile', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(body),
+                        });
+                        const data = await r.json().catch(() => ({}));
+                        if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
+                        const newChartId = data?.primaryChart?.id ?? null;
+                        setCreateName(''); setCreateHandle('');
+                        setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');
+                        setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
+                        await refresh();
+                        if (newChartId) {
+                          triggerNatalComposition(newChartId).catch(() => {});
+                        }
+                      } finally {
+                        setCreating(false);
+                      }
+                    }}
+                    className={
+                      disabled
+                        ? 'px-4 py-2.5 rounded-lg bg-bgElev text-subtext text-sm font-medium border border-border cursor-not-allowed min-w-[140px]'
+                        : 'px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-500/40 min-w-[140px] hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-bg transition'
+                    }
+                  >
+                    {creating ? 'Creating…' : 'Create profile'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </motion.div>

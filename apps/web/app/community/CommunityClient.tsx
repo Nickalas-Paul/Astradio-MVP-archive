@@ -27,6 +27,37 @@ const SessionsPanel = dynamic(
   { ssr: false, loading: () => <div className="text-subtext text-sm p-4">Loading…</div> }
 );
 
+function SavedCompositionsBlock() {
+  const { jobHistory } = useCompositionStore();
+  const ready = jobHistory.filter((j) => j.status.stage === 'ready');
+  if (ready.length === 0) return null;
+  return (
+    <section className="card space-y-3">
+      <h3 className="text-lg font-semibold text-text">Saved Tracks</h3>
+      <p className="text-sm text-subtext">Compositions generated from your profile or charts, including your natal baseline.</p>
+      <ul className="space-y-2">
+        {ready.map((job) => {
+          const url = job.status.stage === 'ready' ? job.status.url : '';
+          const label = job.request.chartB ? 'Comparison' : (job.id.startsWith('natal_') ? 'Natal baseline' : job.request.genre);
+          return (
+            <li
+              key={job.id}
+              className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border bg-bgElev"
+            >
+              <span className="font-medium text-text truncate">{label}</span>
+              {url ? (
+                <audio controls src={url} className="h-8 max-w-[200px] flex-shrink-0" preload="metadata" />
+              ) : (
+                <span className="text-xs text-subtext">No audio</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
 
 function GroupsList() {
@@ -364,7 +395,8 @@ export default function CommunityClient() {
         )}
 
         {activeTab === 'saved' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <SavedCompositionsBlock />
             <LibraryPanel />
           </div>
         )}
