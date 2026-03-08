@@ -24,7 +24,7 @@ import { renderExplainSpecToSections } from '../explainer/renderers/deterministi
 import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
 import { buildPlanSummary } from '../explainer/plan-summary';
 import { DEFAULT_DURATION_S } from '../constants';
-import { renderWithProvider, buildLyriaPrompt, getProvider } from '../render';
+import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider } from '../render';
 import {
   computeExportKey,
   hashPrompt,
@@ -296,11 +296,14 @@ export class ComposeAPI {
       if (wavExportEnabled) {
         export_attempted = true;
         console.log('[COMPOSE_EXPORT] wavExportEnabled=', wavExportEnabled);
+        let prompt = '';
+        let promptHash = '';
+        let lyriaSeed = '';
         try {
           const planHash = computePlanHash(plan);
-          const prompt = buildLyriaPrompt(payload, plan);
-          const promptHash = hashPrompt(prompt);
-          const lyriaSeed = planHash + ':phase3';
+          prompt = buildLyriaPrompt(payload, plan);
+          promptHash = hashPrompt(prompt);
+          lyriaSeed = planHash + ':phase3';
           exportStep = 'provider';
           const provider = getProvider();
           console.log('[COMPOSE_EXPORT] provider=', provider.name);
@@ -371,15 +374,72 @@ export class ComposeAPI {
           const err = audioError instanceof Error ? audioError : new Error(String(audioError));
           const code = (err as Error & { code?: string }).code;
           console.log('[COMPOSE_EXPORT] error step=', exportStep, 'message=', err.message, code ? 'code=' + code : '');
-          if (exportStep === 'provider') export_error = 'provider_not_configured';
-          else if (exportStep === 'render') export_error = 'render_failed';
-          else export_error = 'storage_unavailable';
-          const failureClass = exportStep === 'store' ? 'C' : 'B';
-          audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
-          if (!(global as any).__wav_export_unavailable_logged) {
-            console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
-            if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
-            (global as any).__wav_export_unavailable_logged = true;
+          const primaryProvider = getProvider().name;
+          let fallbackSucceeded = false;
+          if (primaryProvider === 'lyria' && (exportStep === 'provider' || exportStep === 'render')) {
+            try {
+              const fallbackResult = await localWavProvider.render({
+                prompt,
+                seed: lyriaSeed,
+                duration_s: DEFAULT_DURATION_S,
+                plan,
+                payload
+              });
+              const fallbackExportKey = computeExportKey(payload.hash, 'local_wav', 'local-v1', promptHash, DEFAULT_DURATION_S);
+              exportStep = 'store';
+              if (store?.put) {
+                const fallbackIntegrity: IntegrityMeta = {
+                  sha256: fallbackResult.sha256,
+                  size_bytes: fallbackResult.size_bytes,
+                  createdAt: new Date().toISOString(),
+                  payload_hash: payload.hash,
+                  promptHash,
+                  provider: 'local_wav',
+                  modelVersion: 'local-v1',
+                  duration_s: DEFAULT_DURATION_S
+                };
+                await store.put(fallbackExportKey, fallbackResult.wavBuffer, fallbackIntegrity);
+              } else {
+                writeExport(fallbackExportKey, fallbackResult.wavBuffer, {
+                  sha256: fallbackResult.sha256,
+                  size_bytes: fallbackResult.size_bytes,
+                  createdAt: new Date().toISOString(),
+                  payload_hash: payload.hash,
+                  promptHash,
+                  provider: 'local_wav',
+                  modelVersion: 'local-v1',
+                  duration_s: DEFAULT_DURATION_S
+                });
+              }
+              const audioStartTime = process.hrtime.bigint();
+              audio = {
+                format: 'wav',
+                base64: fallbackResult.wavBuffer.toString('base64'),
+                sha256: fallbackResult.sha256,
+                latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
+                size_bytes: fallbackResult.size_bytes
+              };
+              export_id = fallbackExportKey;
+              export_meta = { provider: 'local_wav', modelVersion: 'local-v1', promptHash, payload_hash: payload.hash, duration_s: DEFAULT_DURATION_S, sha256: fallbackResult.sha256 };
+              export_error = null;
+              audio_export_available = true;
+              fallbackSucceeded = true;
+              console.log('[COMPOSE_EXPORT] lyria_fallback_ok using local_wav exportKey=', fallbackExportKey.slice(0, 16) + '...');
+            } catch (fallbackErr) {
+              console.log('[COMPOSE_EXPORT] local_wav fallback failed:', fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr));
+            }
+          }
+          if (!fallbackSucceeded) {
+            if (exportStep === 'provider') export_error = 'provider_not_configured';
+            else if (exportStep === 'render') export_error = 'render_failed';
+            else export_error = 'storage_unavailable';
+            const failureClass = exportStep === 'store' ? 'C' : 'B';
+            audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
+            if (!(global as any).__wav_export_unavailable_logged) {
+              console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
+              if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
+              (global as any).__wav_export_unavailable_logged = true;
+            }
           }
         }
       } else {
@@ -698,7 +758,12 @@ export class ComposeAPI {
           ')'
         );
       }
-      
+      console.log('[COMPOSE_RESPONSE]', JSON.stringify({
+        export_id: export_id ?? null,
+        export_error,
+        base64_length: (audio && typeof audio.base64 === 'string') ? audio.base64.length : 0,
+        audio_export_available
+      }));
       return response;
       
     } catch (error: any) {

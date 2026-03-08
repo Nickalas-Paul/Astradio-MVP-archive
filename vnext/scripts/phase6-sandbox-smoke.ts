@@ -141,10 +141,11 @@ async function main(): Promise<void> {
   }
   log(`[3] plan_sha256=${planSha.slice(0, 16)}…`);
 
-  // Optional: export check
+  // Export and playable-audio regression guard (Phase 8G: natal soundtrack must be playable)
   const topExportId: string | undefined = composeRes.json?.export_id;
   const audioExportId: string | undefined = composeRes.json?.audio?.export_id || undefined;
   const exportId = topExportId ?? audioExportId;
+  let hasPlayableArtifact = false;
   if (exportId) {
     log('[3a] GET /api/exports/:id');
     const exportRes = await getRaw(`/api/exports/${exportId}`);
@@ -155,18 +156,24 @@ async function main(): Promise<void> {
     if (!buf || buf.byteLength === 0) {
       fail('export GET returned empty body');
     }
+    hasPlayableArtifact = true;
   } else {
+    const base64 = composeRes.json?.audio?.base64;
+    hasPlayableArtifact = typeof base64 === 'string' && base64.length > 0;
     const audio = composeRes.json?.audio;
     const audioDebug = composeRes.json?.audio_debug;
     const hasUnavailableSignal =
       !!audioDebug?.export_failure ||
       typeof audio?.export_error === 'string' ||
       audio?.export_enabled === false;
-    if (!audio || !hasUnavailableSignal) {
+    if (!hasPlayableArtifact && (!audio || !hasUnavailableSignal)) {
       log('[3a] SKIP export: no export_id and no explicit export-unavailable signal (treating as optional).');
-    } else {
+    } else if (!hasPlayableArtifact) {
       log('[3a] SKIP export: export unavailable per audio_debug/export_error.');
     }
+  }
+  if (!hasPlayableArtifact && process.env.PHASE6_SMOKE_REQUIRE_PLAYABLE_AUDIO === '1') {
+    fail('Regression guard: compose must return playable audio (audio.base64 or export_id). Set ENABLE_WAV_EXPORT=1 and ensure render path works.');
   }
 
   // 4) Determinism: re-run compose with same seed + snapshot
