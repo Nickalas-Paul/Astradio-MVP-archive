@@ -433,6 +433,9 @@ export default function CommunityClient() {
             />
             <section className="card space-y-3">
               <h3 className="text-lg font-semibold text-text">Your connections</h3>
+              <p className="text-sm text-subtext">
+                Right now you can discover compatible profiles in <button type="button" onClick={() => setActiveTab('search')} className="text-emerald hover:underline">Search</button> and compare charts. A saved list of connections is planned for a future update.
+              </p>
               <p className="text-sm text-subtext">People you’ve connected with appear in the panel to the right. Use the compatibility finder above to discover new connections, then add them here.</p>
             </section>
           </div>

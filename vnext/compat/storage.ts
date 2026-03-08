@@ -11,6 +11,15 @@ import * as memoryStore from './memory-store';
 
 export const DEFAULT_PROFILE_CHART_ID = 'chart_profile_default';
 
+/** Directory-eligible user for search (Phase 8G). */
+export interface DirectoryEligibleUser {
+  userId: string;
+  displayName: string;
+  handle?: string;
+  chartId: string;
+  label?: string;
+}
+
 export type StorageAdapter = {
   createUser: (input: { id?: string; displayName: string; email?: string; handle?: string }) => Promise<User & { handle?: string }>;
   getUser: (id: string) => Promise<(User & { handle?: string }) | undefined>;
@@ -24,6 +33,10 @@ export type StorageAdapter = {
   getComparison: (id: string) => Promise<Comparison | undefined>;
   ensureDefaultProfileChart: () => Promise<Chart>;
   ensureMatchCandidateCharts: () => Promise<MatchCandidate[]>;
+  /** Phase 8G: list users eligible for directory search (discoverable + have primary chart). Optional; when absent, directory uses match candidates only. */
+  listDirectoryEligibleUsers?: () => Promise<DirectoryEligibleUser[]>;
+  /** Phase 8G: update discoverability / show_in_feed. Optional. */
+  updateUserDiscoverability?: (userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }) => Promise<void>;
 };
 
 let adapter: StorageAdapter = memoryStore as unknown as StorageAdapter;
@@ -84,4 +97,24 @@ export async function setUserPrimaryChart(userId: string, chartId: string): Prom
 export async function getUserPrimaryChart(userId: string): Promise<string | undefined> {
   if (adapter.getUserPrimaryChart) return adapter.getUserPrimaryChart(userId);
   return undefined;
+}
+
+export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUser[]> {
+  if (adapter.listDirectoryEligibleUsers) return adapter.listDirectoryEligibleUsers();
+  const candidates = await adapter.ensureMatchCandidateCharts();
+  const users: DirectoryEligibleUser[] = [];
+  for (const c of candidates) {
+    const chart = await adapter.getChart(c.chartId);
+    users.push({
+      userId: c.userId,
+      displayName: c.displayName,
+      chartId: c.chartId,
+      label: chart?.label,
+    });
+  }
+  return users;
+}
+
+export async function updateUserDiscoverability(userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }): Promise<void> {
+  if (adapter.updateUserDiscoverability) return adapter.updateUserDiscoverability(userId, opts);
 }

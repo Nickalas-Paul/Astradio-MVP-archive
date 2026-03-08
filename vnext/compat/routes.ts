@@ -103,8 +103,12 @@ export function createCompatRouter(): import('express').Router {
       if (!u) return res.status(404).json({ error: 'User not found' });
       const chartId = await storage.getUserPrimaryChart(userId) || storage.DEFAULT_PROFILE_CHART_ID;
       const chart = await getChartById(chartId);
+      const userPayload: Record<string, unknown> = { id: u.id, displayName: u.displayName, handle: u.handle };
+      const uExt = u as unknown as { discoverable?: boolean; show_in_feed?: boolean };
+      if (uExt.discoverable !== undefined) userPayload.discoverable = uExt.discoverable;
+      if (uExt.show_in_feed !== undefined) userPayload.show_in_feed = uExt.show_in_feed;
       return res.status(200).json({
-        user: { id: u.id, displayName: u.displayName, handle: u.handle },
+        user: userPayload,
         primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
       });
     } catch (e: any) {
@@ -151,6 +155,29 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: any) {
       console.error('[compat] POST /profile', e);
       return res.status(500).json({ error: e?.message || 'Failed to create profile' });
+    }
+  });
+
+  // PATCH /api/profile — update discoverability / feed visibility (Phase 8G). Body: { userId, discoverable?, show_in_feed? }
+  router.patch('/profile', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const body = (req.body || {}) as { userId: string; discoverable?: boolean; show_in_feed?: boolean };
+      const { userId, discoverable, show_in_feed } = body;
+      if (!userId || typeof userId !== 'string' || !userId.trim()) {
+        return res.status(400).json({ error: 'userId required' });
+      }
+      const u = await storage.getUser(userId.trim());
+      if (!u) return res.status(404).json({ error: 'User not found' });
+      await storage.updateUserDiscoverability(userId.trim(), { discoverable, show_in_feed });
+      const updated = await storage.getUser(userId.trim());
+      const userPayload: Record<string, unknown> = { id: updated!.id, displayName: updated!.displayName, handle: (updated as { handle?: string }).handle };
+      const uExt = updated as unknown as { discoverable?: boolean; show_in_feed?: boolean };
+      if (uExt?.discoverable !== undefined) userPayload.discoverable = uExt.discoverable;
+      if (uExt?.show_in_feed !== undefined) userPayload.show_in_feed = uExt.show_in_feed;
+      return res.status(200).json({ user: userPayload });
+    } catch (e: any) {
+      console.error('[compat] PATCH /profile', e);
+      return res.status(500).json({ error: e?.message || 'Failed to update profile' });
     }
   });
 

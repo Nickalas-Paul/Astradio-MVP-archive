@@ -276,6 +276,11 @@ export function useUserActivity(userId?: string) {
 export interface ProfileUser {
   id: string;
   displayName: string;
+  handle?: string;
+  /** Phase 8G: when true, profile appears in community search. Default true. */
+  discoverable?: boolean;
+  /** Phase 8G: when true, may appear in community feed. Default true. */
+  show_in_feed?: boolean;
 }
 export interface ProfilePrimaryChart {
   id: string;
@@ -369,6 +374,7 @@ export function useProfileChart(chartId: string | null) {
 export interface DirectoryUser {
   userId: string;
   displayName: string;
+  handle?: string;
   chartId: string;
   label?: string;
   locationLabel?: string;
@@ -575,7 +581,23 @@ export function useSocialFeed(params: {
       });
       if (!response.ok) throw new Error('Failed to fetch feed');
       const data = await response.json();
-      setItems(data.items || []);
+      // Phase 8G: merge posts and recentJoins into one list (backend returns { posts, recentJoins })
+      const postItems = (data.posts || []).map((p: { id: string; title?: string; body?: string; createdAt?: string; author?: { displayName?: string } }) => ({
+        t: 'post',
+        id: p.id,
+        userName: p.author?.displayName ?? 'Someone',
+        title: p.title ?? '',
+        body: p.body ?? '',
+        at: p.createdAt ?? new Date().toISOString(),
+      }));
+      const joinItems = (data.recentJoins || []).map((j: { userId: string; displayName?: string; createdAt?: string }) => ({
+        t: 'joined',
+        id: j.userId,
+        userName: j.displayName ?? 'Someone',
+        at: j.createdAt ?? new Date().toISOString(),
+      }));
+      const merged = [...postItems, ...joinItems].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+      setItems(merged);
       setNextCursor(data.nextCursor);
       setError(null);
     } catch (err) {

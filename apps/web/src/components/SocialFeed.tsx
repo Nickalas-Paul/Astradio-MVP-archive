@@ -39,6 +39,22 @@ export function SocialFeed({ limit = 10, className = '' }: SocialFeedProps) {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
+      case 'joined':
+        return (
+          <div className="w-8 h-8 bg-emerald/20 border border-emerald rounded-full flex items-center justify-center">
+            <svg className="w-4 h-4 text-emerald" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </div>
+        );
+      case 'post':
+        return (
+          <div className="w-8 h-8 bg-subtext/20 border border-subtext rounded-full flex items-center justify-center">
+            <svg className="w-4 h-4 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+          </div>
+        );
       case 'liked':
         return (
           <div className="w-8 h-8 bg-danger/20 border border-danger rounded-full flex items-center justify-center">
@@ -84,6 +100,19 @@ export function SocialFeed({ limit = 10, className = '' }: SocialFeedProps) {
 
   const getActivityText = (item: any) => {
     switch (item.t) {
+      case 'joined':
+        return (
+          <span>
+            <strong className="text-text">{item.userName}</strong> joined the community
+          </span>
+        );
+      case 'post':
+        return (
+          <span>
+            <strong className="text-text">{item.userName}</strong> posted in a group
+            {item.title ? <span className="text-subtext"> — {item.title}</span> : null}
+          </span>
+        );
       case 'liked':
         return (
           <span>
@@ -166,8 +195,8 @@ export function SocialFeed({ limit = 10, className = '' }: SocialFeedProps) {
         </h3>
         <div className="text-center py-8">
           <p className="text-subtext text-sm">No activity yet</p>
-          <p className="text-xs text-subtext mt-1">
-            Follow some users to see their activity
+          <p className="text-xs text-subtext mt-1 max-w-sm mx-auto">
+            The feed shows posts from groups you join and when new members join the community. Join a group or check back later.
           </p>
         </div>
       </div>

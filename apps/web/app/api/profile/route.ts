@@ -59,3 +59,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Profile create failed' }, { status: 502 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  const userId = req.cookies.get(DEV_USER_COOKIE)?.value;
+  if (!userId) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  }
+  try {
+    const body = await req.json().catch(() => ({}));
+    const base = getEngineBaseUrl();
+    const r = await fetch(`${base}/api/profile`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, userId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return NextResponse.json(data, { status: r.status });
+    return NextResponse.json(data);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Profile update failed' }, { status: 502 });
+  }
+}

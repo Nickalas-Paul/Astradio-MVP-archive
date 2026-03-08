@@ -1,5 +1,5 @@
 /**
- * Community directory search (V1). Seeded users from match candidates; deterministic, no DB.
+ * Community directory search (V1). Phase 8G: match candidates + real discoverable users with primary chart.
  * All methods async (storage is async).
  */
 
@@ -8,6 +8,7 @@ import * as storage from './storage';
 export interface DirectoryUser {
   userId: string;
   displayName: string;
+  handle?: string;
   chartId: string;
   label?: string;
   locationLabel?: string;
@@ -42,17 +43,14 @@ export async function isDirectoryChartId(chartId: string): Promise<boolean> {
 }
 
 async function getDirectoryUsers(): Promise<DirectoryUser[]> {
-  const candidates = await storage.ensureMatchCandidateCharts();
-  const users: DirectoryUser[] = [];
-  for (const c of candidates) {
-    const chart = await storage.getChart(c.chartId);
-    users.push({
-      userId: c.userId,
-      displayName: c.displayName,
-      chartId: c.chartId,
-      label: chart?.label,
-    });
-  }
+  const eligible = await storage.listDirectoryEligibleUsers();
+  const users: DirectoryUser[] = eligible.map((e) => ({
+    userId: e.userId,
+    displayName: e.displayName,
+    handle: e.handle,
+    chartId: e.chartId,
+    label: e.label,
+  }));
   users.sort((a, b) => {
     const d = a.displayName.localeCompare(b.displayName);
     if (d !== 0) return d;
@@ -66,10 +64,13 @@ function matchRank(user: DirectoryUser, q: string): number {
   const ql = q.toLowerCase().trim();
   const dn = (user.displayName || '').toLowerCase();
   const uid = (user.userId || '').toLowerCase();
+  const handle = (user.handle || '').toLowerCase();
   if (dn.startsWith(ql)) return 0;
   if (uid.startsWith(ql)) return 1;
+  if (handle.startsWith(ql)) return 1;
   if (dn.includes(ql)) return 2;
   if (uid.includes(ql)) return 3;
+  if (handle.includes(ql)) return 3;
   return 4;
 }
 

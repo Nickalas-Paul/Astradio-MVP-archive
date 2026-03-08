@@ -118,6 +118,19 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
   });
   if (!composeRes.ok) return;
   const composePayload = await composeRes.json().catch(() => null);
+  if (typeof window !== 'undefined' && window.location.search.includes('natal_debug=1')) {
+    const audio = composePayload?.audio;
+    const summary = {
+      hasBase64: typeof audio?.base64 === 'string' && audio.base64.length > 0,
+      base64Length: typeof audio?.base64 === 'string' ? audio.base64.length : 0,
+      export_id: composePayload?.export_id ?? audio?.export_id ?? null,
+      export_error: audio?.export_error ?? null,
+      export_attempted: audio?.export_attempted ?? null,
+      audio_export_available: audio?.audio_export_available ?? null,
+      httpStatus: composeRes.status,
+    };
+    console.log('[NATAL_COMPOSE_RESPONSE]', JSON.stringify(summary));
+  }
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
@@ -185,6 +198,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [privacySaving, setPrivacySaving] = useState(false);
 
   if (profileLoading) {
     return (
@@ -424,6 +438,64 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             )}
           </div>
         </div>
+
+        {/* Phase 8G: privacy / discoverability — only when backend returns flags */}
+        {(user?.discoverable !== undefined || user?.show_in_feed !== undefined) && (
+          <div className="border-t border-border pt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-text">Community visibility</h3>
+            <p className="text-xs text-subtext">Control how others can find you. Off = hidden from search or feed.</p>
+            <div className="flex flex-wrap gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={user?.discoverable !== false}
+                  disabled={privacySaving}
+                  onChange={async (e) => {
+                    const val = e.target.checked;
+                    setPrivacySaving(true);
+                    try {
+                      const r = await fetch('/api/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ discoverable: val }),
+                        credentials: 'same-origin',
+                      });
+                      if (r.ok) await refresh();
+                    } finally {
+                      setPrivacySaving(false);
+                    }
+                  }}
+                  className="rounded border-border"
+                />
+                <span className="text-sm text-text">Show in community search</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={user?.show_in_feed !== false}
+                  disabled={privacySaving}
+                  onChange={async (e) => {
+                    const val = e.target.checked;
+                    setPrivacySaving(true);
+                    try {
+                      const r = await fetch('/api/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ show_in_feed: val }),
+                        credentials: 'same-origin',
+                      });
+                      if (r.ok) await refresh();
+                    } finally {
+                      setPrivacySaving(false);
+                    }
+                  }}
+                  className="rounded border-border"
+                />
+                <span className="text-sm text-text">Show in community feed</span>
+              </label>
+            </div>
+          </div>
+        )}
 
       </motion.div>
     </div>

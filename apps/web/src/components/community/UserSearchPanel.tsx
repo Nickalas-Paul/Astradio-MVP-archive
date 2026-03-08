@@ -129,7 +129,11 @@ export function UserSearchPanel() {
             >
               <div>
                 <span className="font-medium text-text">{u.displayName}</span>
-                <span className="text-subtext text-sm ml-2">{u.userId}</span>
+                {u.handle ? (
+                  <span className="text-subtext text-sm ml-2">{u.handle}</span>
+                ) : (
+                  <span className="text-subtext text-sm ml-2">{u.userId}</span>
+                )}
                 {u.label && <span className="text-subtext text-xs ml-2">· {u.label}</span>}
               </div>
               <div className="flex gap-2">

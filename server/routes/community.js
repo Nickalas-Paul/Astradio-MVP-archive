@@ -62,7 +62,7 @@ async function getDevUserId(req) {
 
 const router = express.Router({ mergeParams: true });
 
-// GET /api/community/feed — posts from groups user has joined. Deterministic: created_at DESC, id ASC tie-break.
+// GET /api/community/feed — posts from groups user has joined + recent discoverable users (Phase 8G). Deterministic: created_at DESC, id ASC tie-break.
 router.get('/community/feed', async (req, res) => {
   try {
     const userId = (req.query.userId && String(req.query.userId).trim()) || (await getDevUserId(req));
@@ -93,7 +93,11 @@ router.get('/community/feed', async (req, res) => {
         likeCount: likes.length,
       };
     }));
-    return res.json({ posts: postsWithMeta });
+    // Phase 8G: recent users who opted into feed visibility (no synthetic data)
+    const recentJoins = typeof store.listRecentDiscoverableUsers === 'function'
+      ? await store.listRecentDiscoverableUsers(20)
+      : [];
+    return res.json({ posts: postsWithMeta, recentJoins });
   } catch (e) {
     console.error('[community] GET /community/feed', e);
     return res.status(500).json({ error: e?.message || 'Failed to load feed' });
