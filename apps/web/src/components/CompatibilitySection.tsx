@@ -10,10 +10,15 @@ import { trackFeatureUse } from '../core/telemetry';
 type CompatMode = 'friend' | 'lover' | 'rival';
 
 interface CompatibilitySectionProps {
+  /** When false, show create-profile CTA first. When true, chartId may still be null (profile exists but no real chart). */
+  hasProfile: boolean;
   chartId: string | null;
   limit?: number;
   className?: string;
   onSwitchToProfile?: () => void;
+  /** Optional controlled mode (e.g. from Connections intent selector). */
+  mode?: CompatMode;
+  onModeChange?: (mode: CompatMode) => void;
 }
 
 const MODES: { value: CompatMode; label: string }[] = [
@@ -22,23 +27,31 @@ const MODES: { value: CompatMode; label: string }[] = [
   { value: 'rival', label: 'Rival' },
 ];
 
-export function CompatibilitySection({ chartId, limit = 10, className = '', onSwitchToProfile }: CompatibilitySectionProps) {
-  const [mode, setMode] = useState<CompatMode>('friend');
+export function CompatibilitySection({
+  hasProfile,
+  chartId,
+  limit = 10,
+  className = '',
+  onSwitchToProfile,
+  mode: controlledMode,
+  onModeChange,
+}: CompatibilitySectionProps) {
+  const [internalMode, setInternalMode] = useState<CompatMode>('friend');
+  const mode = controlledMode ?? internalMode;
+  const setMode = onModeChange ?? setInternalMode;
   const { matches, isLoading: loading, error, refresh } = useCompat({
     chartId,
     mode,
     limit,
   });
 
-  if (!chartId) {
+  // 1) No user profile → profile creation CTA
+  if (!hasProfile) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
         <p className="text-subtext text-sm">
-          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to see compatibility-driven matches.
-        </p>
-        <p className="text-xs text-subtext mt-2">
-          Matches use your stored natal chart only; there is no default or placeholder chart.
+          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to find compatible connections.
         </p>
         {onSwitchToProfile && (
           <button
@@ -53,13 +66,34 @@ export function CompatibilitySection({ chartId, limit = 10, className = '', onSw
     );
   }
 
-  // When compat is off but user has a chart: do not say "create a profile" (they have one). Be truthful.
+  // 2) Profile exists but no real chart → add natal chart
+  if (!chartId) {
+    return (
+      <div className={`card ${className}`}>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
+        <p className="text-subtext text-sm">
+          Add your natal chart to your profile to see compatibility-driven matches. Go to the Profile tab and add your birth date, time, and birth place.
+        </p>
+        {onSwitchToProfile && (
+          <button
+            type="button"
+            onClick={onSwitchToProfile}
+            className="mt-4 px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium hover:opacity-90"
+          >
+            Add your natal chart
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // 3) Chart exists but compatibility disabled → truthful message
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility Matches</h3>
+        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
         <p className="text-subtext text-sm">
-          You’re set up with a natal chart. Compatibility matching is not available in this preview yet — it will be enabled in a future update.
+          You’re set up with a natal chart. Compatibility matching will be enabled in a future update.
         </p>
       </div>
     );

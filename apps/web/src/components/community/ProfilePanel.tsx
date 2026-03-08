@@ -50,6 +50,38 @@ function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
   );
 }
 
+/** Finds the ready natal baseline job for this chart in composition history. */
+function useNatalBaselineJob(chartId: string | null) {
+  const { jobHistory } = useCompositionStore();
+  if (!chartId) return null;
+  const job = jobHistory.find(
+    (j) =>
+      j.status.stage === 'ready' &&
+      j.request.chartA === chartId &&
+      j.id.startsWith('natal_')
+  );
+  return job ?? null;
+}
+
+function NatalBaselinePlayer({ chartId }: { chartId: string }) {
+  const job = useNatalBaselineJob(chartId);
+  if (!job || job.status.stage !== 'ready') return null;
+  const url = job.status.url;
+  if (!url) return null;
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-bgElev p-3 space-y-2">
+      <p className="text-sm font-medium text-text">Natal Baseline</p>
+      <audio
+        controls
+        src={url}
+        className="w-full h-8"
+        preload="metadata"
+        aria-label="Play natal baseline composition"
+      />
+    </div>
+  );
+}
+
 function snapshotSafeForWheel(snapshot: unknown): boolean {
   if (!snapshot || typeof snapshot !== 'object') return false;
   const o = snapshot as Record<string, unknown>;
@@ -113,10 +145,10 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
 }
 
 export interface ProfilePanelProps {
-  onSwitchToMatches?: () => void;
+  onSwitchToConnections?: () => void;
 }
 
-export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
+export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const { user, primaryChart, loading: profileLoading, error: profileError, refresh } = useProfile();
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
@@ -312,13 +344,13 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
               </p>
             )}
           </div>
-          {onSwitchToMatches && realChart && (
+          {onSwitchToConnections && realChart && (
             <button
               type="button"
-              onClick={onSwitchToMatches}
+              onClick={onSwitchToConnections}
               className="px-5 py-2.5 rounded-full bg-emerald text-bg font-medium text-sm shadow-md hover:opacity-90 transition-opacity"
             >
-              Find Matches
+              Find connections
             </button>
           )}
         </div>
@@ -334,11 +366,14 @@ export function ProfilePanel({ onSwitchToMatches }: ProfilePanelProps) {
             ) : loading ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
             ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
-              <WheelCanvas
-                chartData={chartData.snapshot as any}
-                isLoading={false}
-                className="max-w-full"
-              />
+              <>
+                <WheelCanvas
+                  chartData={chartData.snapshot as any}
+                  isLoading={false}
+                  className="max-w-full"
+                />
+                {realChart?.id && <NatalBaselinePlayer chartId={realChart.id} />}
+              </>
             ) : chartData?.snapshot ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
                 Chart data received; add planets and houses for wheel view.

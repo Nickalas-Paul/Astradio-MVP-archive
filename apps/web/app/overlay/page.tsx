@@ -306,8 +306,9 @@ export default function OverlayPage() {
 
             {/* Compatibility Section */}
             {isFeatureEnabled('ENABLE_COMPAT') && chartA && (
-              <CompatibilitySection 
-                chartId={chartA.id} 
+              <CompatibilitySection
+                hasProfile={true}
+                chartId={chartA.id}
                 limit={3}
               />
             )}

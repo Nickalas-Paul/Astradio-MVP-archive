@@ -209,13 +209,26 @@ function GroupsList() {
   );
 }
 
+type CommunityTabId = 'profile' | 'feed' | 'groups' | 'connections' | 'compare' | 'saved' | 'search';
+
+const CONNECTIONS_INTENTS: { id: string; mode: 'friend' | 'lover' | 'rival'; label: string }[] = [
+  { id: 'friendship', mode: 'friend', label: 'Friendship' },
+  { id: 'dating', mode: 'lover', label: 'Dating' },
+  { id: 'creative', mode: 'friend', label: 'Creative collaboration' },
+  { id: 'study', mode: 'friend', label: 'Study partners' },
+  { id: 'shadow', mode: 'rival', label: 'Shadow work partners' },
+  { id: 'campaign', mode: 'friend', label: 'Campaign party' },
+];
+
 export default function CommunityClient() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'feed' | 'compare' | 'matches' | 'connections' | 'saved' | 'search' | 'groups' | 'circles' | 'sessions'>('profile');
+  const [activeTab, setActiveTab] = useState<CommunityTabId>('profile');
   const [filter, setFilter] = useState<'all' | 'charts' | 'compositions'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [connectionsIntentId, setConnectionsIntentId] = useState<string>('friendship');
+  const connectionsMode = CONNECTIONS_INTENTS.find((i) => i.id === connectionsIntentId)?.mode ?? 'friend';
   const { charts } = useChartsStore();
   const { jobHistory } = useCompositionStore();
-  const { primaryChart } = useProfile();
+  const { user, primaryChart } = useProfile();
 
   const filteredCharts = charts.filter(chart =>
     chart.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -237,23 +250,22 @@ export default function CommunityClient() {
 
   const items = getFilteredItems();
 
-  const tabs = [
+  const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'feed', label: 'Feed', icon: '📱' },
     { id: 'groups', label: 'Groups', icon: '👥' },
-    { id: 'compare', label: 'Compare Charts', icon: '⚖️' },
-    { id: 'matches', label: 'Matches', icon: '💫' },
-    { id: 'connections', label: 'Connections', icon: '👥' },
+    { id: 'connections', label: 'Connections', icon: '🔗' },
+    { id: 'compare', label: 'Compare', icon: '⚖️' },
     { id: 'saved', label: 'Saved Tracks', icon: '💾' },
-    { id: 'search', label: 'Search', icon: '🔍' }
+    { id: 'search', label: 'Search', icon: '🔍' },
   ];
 
   return (
     <AppShell showContextRail contextRailContent={
-      isFeatureEnabled('ENABLE_SOCIAL') && (activeTab === 'circles' || activeTab === 'sessions') ? (
+      isFeatureEnabled('ENABLE_SOCIAL') && activeTab === 'connections' ? (
         <div className="space-y-6">
-          {activeTab === 'circles' && <CirclesPanel />}
-          {activeTab === 'sessions' && <SessionsPanel />}
+          <CirclesPanel />
+          <SessionsPanel />
         </div>
       ) : null
     }>
@@ -353,7 +365,7 @@ export default function CommunityClient() {
         </motion.div>
 
         {activeTab === 'profile' && (
-          <ProfilePanel onSwitchToMatches={() => setActiveTab('matches')} />
+          <ProfilePanel onSwitchToConnections={() => setActiveTab('connections')} />
         )}
 
         {activeTab === 'feed' && (
@@ -372,25 +384,42 @@ export default function CommunityClient() {
           </div>
         )}
 
-        {activeTab === 'matches' && (
-          <div className="max-w-4xl mx-auto">
+        {activeTab === 'connections' && (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <section className="card space-y-3">
+              <h3 className="text-lg font-semibold text-text">What are you looking for?</h3>
+              <div className="flex flex-wrap gap-2">
+                {CONNECTIONS_INTENTS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setConnectionsIntentId(opt.id)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      connectionsIntentId === opt.id
+                        ? 'bg-emerald text-bg'
+                        : 'bg-bgElev text-subtext hover:text-text border border-border'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </section>
             <CompatibilitySection
-              chartId={hasRealChart(primaryChart) ? primaryChart.id : null}
+              hasProfile={user !== null}
+              chartId={hasRealChart(primaryChart) ? primaryChart!.id : null}
               limit={10}
+              mode={connectionsMode}
+              onModeChange={(m) => {
+                const next = CONNECTIONS_INTENTS.find((i) => i.mode === m);
+                if (next) setConnectionsIntentId(next.id);
+              }}
               onSwitchToProfile={() => setActiveTab('profile')}
             />
-          </div>
-        )}
-
-        {activeTab === 'connections' && (
-          <div className="max-w-6xl mx-auto space-y-6">
-            <p className="text-sm text-subtext max-w-xl">
-              Connections: circles and sessions. Find people via Matches or join Groups, then add them here. No connections yet means this feature is available but you haven’t added anyone — use Matches to discover compatible people first.
-            </p>
-            <div className="grid lg:grid-cols-2 gap-6">
-              <CirclesPanel />
-              <SessionsPanel />
-            </div>
+            <section className="card space-y-3">
+              <h3 className="text-lg font-semibold text-text">Your connections</h3>
+              <p className="text-sm text-subtext">People you’ve connected with appear in the panel to the right. Use the compatibility finder above to discover new connections, then add them here.</p>
+            </section>
           </div>
         )}
 
