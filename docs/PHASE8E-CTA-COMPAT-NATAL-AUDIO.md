@@ -62,7 +62,7 @@ So the message now matches the actual state and no longer suggests creating a pr
 
 ## 6. Commit hashes
 
-*(See latest commit on branch after push.)*
+- **Phase 8E:** `73cbea6` — fix(community): Phase 8E - CTA visibility, input contrast, compat message truthfulness, natal audio after profile creation
 
 ---
 
