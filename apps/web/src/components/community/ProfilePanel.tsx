@@ -138,7 +138,7 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       : exportError
         ? 'Audio generation failed.'
         : 'No audio artifact in response.';
-    useUIStore.getState().addToast({ message: `Soundtrack could not be generated: ${reason}`, type: 'error', duration: 8000 });
+    useUIStore.getState().addToast({ title: 'Soundtrack unavailable', message: `Soundtrack could not be generated: ${reason}`, type: 'error', duration: 8000 });
     return;
   }
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
