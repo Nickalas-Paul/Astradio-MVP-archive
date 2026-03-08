@@ -27,18 +27,23 @@ const SessionsPanel = dynamic(
   { ssr: false, loading: () => <div className="text-subtext text-sm p-4">Loading…</div> }
 );
 
+function natalTrackLabel(displayName: string | null | undefined): string {
+  return displayName && displayName.trim() ? `My ${displayName.trim()} Soundtrack` : 'My Soundtrack';
+}
+
 function SavedCompositionsBlock() {
   const { jobHistory } = useCompositionStore();
+  const { user } = useProfile();
   const ready = jobHistory.filter((j) => j.status.stage === 'ready');
   if (ready.length === 0) return null;
   return (
     <section className="card space-y-3">
       <h3 className="text-lg font-semibold text-text">Saved Tracks</h3>
-      <p className="text-sm text-subtext">Compositions generated from your profile or charts, including your natal baseline.</p>
+      <p className="text-sm text-subtext">Compositions generated from your profile or charts, including your soundtrack.</p>
       <ul className="space-y-2">
         {ready.map((job) => {
           const url = job.status.stage === 'ready' ? job.status.url : '';
-          const label = job.request.chartB ? 'Comparison' : (job.id.startsWith('natal_') ? 'Natal baseline' : job.request.genre);
+          const label = job.request.chartB ? 'Comparison' : (job.id.startsWith('natal_') ? natalTrackLabel(user?.displayName) : job.request.genre);
           return (
             <li
               key={job.id}

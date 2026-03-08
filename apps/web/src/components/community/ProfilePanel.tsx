@@ -64,20 +64,25 @@ function useNatalBaselineJob(chartId: string | null) {
   return job ?? null;
 }
 
-function NatalBaselinePlayer({ chartId }: { chartId: string }) {
+function natalTrackLabel(displayName: string | null | undefined): string {
+  return displayName && displayName.trim() ? `My ${displayName.trim()} Soundtrack` : 'My Soundtrack';
+}
+
+function NatalBaselinePlayer({ chartId, displayName }: { chartId: string; displayName?: string | null }) {
   const job = useNatalBaselineJob(chartId);
   if (!job || job.status.stage !== 'ready') return null;
   const url = job.status.stage === 'ready' ? job.status.url : '';
   if (!url || typeof url !== 'string') return null;
+  const label = natalTrackLabel(displayName);
   return (
     <div className="mt-4 rounded-lg border border-border bg-bgElev p-3 space-y-2">
-      <p className="text-sm font-medium text-text">Natal Baseline</p>
+      <p className="text-sm font-medium text-text">{label}</p>
       <audio
         controls
         src={url}
         className="w-full h-8 min-h-[32px]"
         preload="metadata"
-        aria-label="Play natal baseline composition"
+        aria-label={label}
       />
     </div>
   );
@@ -382,7 +387,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               </div>
             )}
             {realChart?.id && !noRealChart && (
-              <NatalBaselinePlayer chartId={realChart.id} />
+              <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
             )}
           </div>
           <div className="min-w-0">
