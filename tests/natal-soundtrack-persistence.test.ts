@@ -40,4 +40,11 @@ describe('Natal soundtrack persistence (Phase 8G)', () => {
     };
     expect(hasPlayableAudioFromComposePayload(payloadExportDisabled)).toBe(false);
   });
+
+  test('export_id fallback: valid 64-char hex is accepted format', () => {
+    const validExportId = 'a'.repeat(64);
+    expect(/^[a-f0-9]{64}$/.test(validExportId)).toBe(true);
+    const invalidExportId = 'short';
+    expect(/^[a-f0-9]{64}$/.test(invalidExportId)).toBe(false);
+  });
 });

@@ -121,14 +121,30 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
-  if (composePayload?.audio?.base64 && typeof composePayload.audio.base64 === 'string') {
+  const base64 = composePayload?.audio?.base64;
+  if (typeof base64 === 'string' && base64.length > 0) {
     try {
-      const bin = atob(composePayload.audio.base64);
+      const bin = atob(base64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'audio/wav' });
       audioUrl = URL.createObjectURL(blob);
     } catch (_) {}
+  }
+  if (!audioUrl) {
+    const exportId = composePayload?.export_id ?? composePayload?.audio?.export_id ?? null;
+    if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
+      try {
+        const exportRes = await fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' });
+        if (exportRes.ok) {
+          const ab = await exportRes.arrayBuffer();
+          if (ab.byteLength > 0) {
+            const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
+            audioUrl = URL.createObjectURL(blob);
+          }
+        }
+      } catch (_) {}
+    }
   }
   const job: CompositionJob = {
     id: jobId,
