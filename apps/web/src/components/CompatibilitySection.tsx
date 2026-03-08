@@ -45,6 +45,8 @@ export function CompatibilitySection({
     limit,
   });
 
+  const modeLabel = MODES.find((m) => m.value === mode)?.label ?? mode;
+
   // 1) No user profile → profile creation CTA
   if (!hasProfile) {
     return (
@@ -53,6 +55,9 @@ export function CompatibilitySection({
         <p className="text-subtext text-sm">
           Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to find compatible connections.
         </p>
+        {controlledMode != null && (
+          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+        )}
         {onSwitchToProfile && (
           <button
             type="button"
@@ -74,6 +79,9 @@ export function CompatibilitySection({
         <p className="text-subtext text-sm">
           Add your natal chart to your profile to see compatibility-driven matches. Go to the Profile tab and add your birth date, time, and birth place.
         </p>
+        {controlledMode != null && (
+          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+        )}
         {onSwitchToProfile && (
           <button
             type="button"
@@ -95,6 +103,9 @@ export function CompatibilitySection({
         <p className="text-subtext text-sm">
           You’re set up with a natal chart. Compatibility matching will be enabled in a future update.
         </p>
+        {controlledMode != null && (
+          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+        )}
       </div>
     );
   }

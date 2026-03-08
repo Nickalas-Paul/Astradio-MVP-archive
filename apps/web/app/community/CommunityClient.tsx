@@ -396,7 +396,7 @@ export default function CommunityClient() {
                     onClick={() => setConnectionsIntentId(opt.id)}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       connectionsIntentId === opt.id
-                        ? 'bg-emerald text-bg'
+                        ? 'bg-emerald-500 text-white ring-2 ring-emerald-500/50'
                         : 'bg-bgElev text-subtext hover:text-text border border-border'
                     }`}
                   >
@@ -404,6 +404,9 @@ export default function CommunityClient() {
                   </button>
                 ))}
               </div>
+              <p className="text-sm text-subtext">
+                Selected: <span className="font-medium text-text">{CONNECTIONS_INTENTS.find((i) => i.id === connectionsIntentId)?.label ?? 'Friendship'}</span>
+              </p>
             </section>
             <CompatibilitySection
               hasProfile={user !== null}

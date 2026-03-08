@@ -50,31 +50,32 @@ function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
   );
 }
 
-/** Finds the ready natal baseline job for this chart in composition history. */
+/** Finds the ready natal baseline job for this chart in composition history.
+ * Matches by request.chartA first; fallback matches by job id pattern natal_<chartId>_<timestamp>
+ * so we find the job even after persist/rehydrate if request shape differs. */
 function useNatalBaselineJob(chartId: string | null) {
   const { jobHistory } = useCompositionStore();
   if (!chartId) return null;
-  const job = jobHistory.find(
-    (j) =>
-      j.status.stage === 'ready' &&
-      j.request.chartA === chartId &&
-      j.id.startsWith('natal_')
-  );
+  const job = jobHistory.find((j) => {
+    if (j.status.stage !== 'ready' || !j.id.startsWith('natal_')) return false;
+    if (j.request.chartA === chartId) return true;
+    return j.id.startsWith(`natal_${chartId}_`);
+  });
   return job ?? null;
 }
 
 function NatalBaselinePlayer({ chartId }: { chartId: string }) {
   const job = useNatalBaselineJob(chartId);
   if (!job || job.status.stage !== 'ready') return null;
-  const url = job.status.url;
-  if (!url) return null;
+  const url = job.status.stage === 'ready' ? job.status.url : '';
+  if (!url || typeof url !== 'string') return null;
   return (
     <div className="mt-4 rounded-lg border border-border bg-bgElev p-3 space-y-2">
       <p className="text-sm font-medium text-text">Natal Baseline</p>
       <audio
         controls
         src={url}
-        className="w-full h-8"
+        className="w-full h-8 min-h-[32px]"
         preload="metadata"
         aria-label="Play natal baseline composition"
       />
@@ -366,14 +367,11 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             ) : loading ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
             ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
-              <>
-                <WheelCanvas
-                  chartData={chartData.snapshot as any}
-                  isLoading={false}
-                  className="max-w-full"
-                />
-                {realChart?.id && <NatalBaselinePlayer chartId={realChart.id} />}
-              </>
+              <WheelCanvas
+                chartData={chartData.snapshot as any}
+                isLoading={false}
+                className="max-w-full"
+              />
             ) : chartData?.snapshot ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
                 Chart data received; add planets and houses for wheel view.
@@ -382,6 +380,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
                 {error || 'No chart data'}
               </div>
+            )}
+            {realChart?.id && !noRealChart && (
+              <NatalBaselinePlayer chartId={realChart.id} />
             )}
           </div>
           <div className="min-w-0">
