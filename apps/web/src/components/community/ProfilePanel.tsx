@@ -411,33 +411,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                 }}
                 placeholder="Birth place (city, region, or address)"
               />
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-text mb-1">Latitude (optional)</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="e.g. 40.7128"
-                    value={createChartLat}
-                    onChange={(e) => setCreateChartLat(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text mb-1">Longitude (optional)</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="e.g. -74.0060"
-                    value={createChartLon}
-                    onChange={(e) => setCreateChartLon(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-subtext">
-                If location search is unavailable, you can paste your birth coordinates here and continue. Coordinates are required for an accurate natal chart.
-              </p>
             </div>
             {createError && <p className="text-red-500 text-xs">{createError}</p>}
             <div className="flex gap-2">
