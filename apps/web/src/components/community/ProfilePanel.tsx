@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
-import { useCompositionStore } from '../../store';
+import { useCompositionStore, type LastNatalComposeResult } from '../../store';
 import { getApiBaseUrl } from '../../core/api-base';
 import type { CompositionJob } from '../../types';
 
@@ -88,6 +88,29 @@ function NatalBaselinePlayer({ chartId, displayName }: { chartId: string; displa
   );
 }
 
+/** Phase 8G: diagnostic block when soundtrack is unavailable — shows provider, reason, payload status. */
+function SoundtrackStatusBlock({ chartId }: { chartId: string }) {
+  const lastNatalComposeResult = useCompositionStore((s) => s.lastNatalComposeResult);
+  const job = useNatalBaselineJob(chartId);
+  if (job?.status?.stage === 'ready' && job.status.url) return null;
+  if (!lastNatalComposeResult || lastNatalComposeResult.chartId !== chartId || lastNatalComposeResult.status !== 'failed') return null;
+  const r: LastNatalComposeResult = lastNatalComposeResult;
+  const provider = r.provider_used ?? 'none';
+  const reason = r.export_error?.trim() || (r.provider_used ? 'render_failed' : 'provider_not_configured');
+  return (
+    <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1.5 text-left">
+      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Soundtrack unavailable</p>
+      <dl className="text-xs text-subtext grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+        <dt>Status:</dt><dd>failed</dd>
+        <dt>Provider:</dt><dd>{provider}</dd>
+        <dt>Reason:</dt><dd className="break-all">{reason}</dd>
+        <dt>Payload:</dt><dd>{r.has_audio_payload ? 'present' : 'missing'}</dd>
+        {r.export_attempted && <><dt>Export attempted:</dt><dd>yes</dd></>}
+      </dl>
+    </div>
+  );
+}
+
 function snapshotSafeForWheel(snapshot: unknown): boolean {
   if (!snapshot || typeof snapshot !== 'object') return false;
   const o = snapshot as Record<string, unknown>;
@@ -96,6 +119,21 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
   const hasPlanets = Array.isArray(planets) && planets.length > 0;
   const hasHouses = Array.isArray(houses) && houses.length >= 12;
   return hasPlanets || hasHouses;
+}
+
+function setNatalComposeResult(
+  chartId: string,
+  status: 'ok' | 'failed',
+  opts: { provider_used: string | null; export_error: string | null; export_attempted: boolean; has_audio_payload: boolean }
+): void {
+  useCompositionStore.getState().setLastNatalComposeResult({
+    chartId,
+    status,
+    provider_used: opts.provider_used,
+    export_error: opts.export_error,
+    export_attempted: opts.export_attempted,
+    has_audio_payload: opts.has_audio_payload,
+  });
 }
 
 /** After profile creation: fetch chart snapshot, run natal compose, add to composition history so it appears in Saved Tracks. */
@@ -116,7 +154,16 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       overriddenSnapshot: snapshot,
     }),
   });
-  if (!composeRes.ok) return;
+  if (!composeRes.ok) {
+    const errBody = await composeRes.json().catch(() => ({}));
+    setNatalComposeResult(chartId, 'failed', {
+      provider_used: null,
+      export_error: errBody?.error || `compose_request_failed (${composeRes.status})`,
+      export_attempted: false,
+      has_audio_payload: false,
+    });
+    return;
+  }
   const composePayload = await composeRes.json().catch(() => null);
   if (typeof window !== 'undefined' && window.location.search.includes('natal_debug=1')) {
     const audio = composePayload?.audio;
@@ -133,14 +180,38 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
   }
   const providerUsed = composePayload?.audio?.provider_used ?? null;
   const exportError = composePayload?.audio?.export_error ?? null;
+  const exportAttempted = !!composePayload?.audio?.export_attempted;
+  const base64 = composePayload?.audio?.base64;
+  const hasBase64 = typeof base64 === 'string' && base64.length > 0;
+  const exportId = composePayload?.export_id ?? composePayload?.audio?.export_id ?? null;
+  const hasExportId = typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId);
+  const has_audio_payload = hasBase64 || hasExportId;
+
+  if (!composePayload || typeof composePayload !== 'object') {
+    setNatalComposeResult(chartId, 'failed', {
+      provider_used: null,
+      export_error: 'invalid_response',
+      export_attempted: false,
+      has_audio_payload: false,
+    });
+    return;
+  }
+
   const isLyriaSuccess = providerUsed === 'lyria' && (exportError == null || exportError === '');
-  if (!isLyriaSuccess) return;
+  if (!isLyriaSuccess) {
+    setNatalComposeResult(chartId, 'failed', {
+      provider_used: providerUsed ?? null,
+      export_error: exportError ?? (providerUsed ? null : 'provider_not_configured'),
+      export_attempted: exportAttempted,
+      has_audio_payload,
+    });
+    return;
+  }
 
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
-  const base64 = composePayload?.audio?.base64;
-  if (typeof base64 === 'string' && base64.length > 0) {
+  if (hasBase64) {
     try {
       const bin = atob(base64);
       const bytes = new Uint8Array(bin.length);
@@ -149,22 +220,27 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       audioUrl = URL.createObjectURL(blob);
     } catch (_) {}
   }
-  if (!audioUrl) {
-    const exportId = composePayload?.export_id ?? composePayload?.audio?.export_id ?? null;
-    if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
-      try {
-        const exportRes = await fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' });
-        if (exportRes.ok) {
-          const ab = await exportRes.arrayBuffer();
-          if (ab.byteLength > 0) {
-            const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
-            audioUrl = URL.createObjectURL(blob);
-          }
+  if (!audioUrl && hasExportId) {
+    try {
+      const exportRes = await fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' });
+      if (exportRes.ok) {
+        const ab = await exportRes.arrayBuffer();
+        if (ab.byteLength > 0) {
+          const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
+          audioUrl = URL.createObjectURL(blob);
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
-  if (!audioUrl) return;
+  if (!audioUrl) {
+    setNatalComposeResult(chartId, 'failed', {
+      provider_used: providerUsed,
+      export_error: exportError || 'missing_audio_payload',
+      export_attempted: exportAttempted,
+      has_audio_payload,
+    });
+    return;
+  }
 
   const job: CompositionJob = {
     id: jobId,
@@ -184,6 +260,12 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
     updatedAt: new Date().toISOString(),
   };
   addJobToHistory(job);
+  setNatalComposeResult(chartId, 'ok', {
+    provider_used: providerUsed,
+    export_error: null,
+    export_attempted: exportAttempted,
+    has_audio_payload: true,
+  });
 }
 
 export interface ProfilePanelProps {
@@ -424,7 +506,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               </div>
             )}
             {realChart?.id && !noRealChart && (
-              <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
+              <>
+                <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
+                <SoundtrackStatusBlock chartId={realChart.id} />
+              </>
             )}
           </div>
           <div className="min-w-0">

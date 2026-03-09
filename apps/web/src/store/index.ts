@@ -52,16 +52,28 @@ export const usePlayerStore = create<PlayerStore>()(
   )
 );
 
+// Phase 8G: last natal compose result for profile soundtrack status (diagnostic, not persisted)
+export type LastNatalComposeResult = {
+  chartId: string;
+  status: 'ok' | 'failed';
+  provider_used: string | null;
+  export_error: string | null;
+  export_attempted: boolean;
+  has_audio_payload: boolean;
+};
+
 // === Composition Store ===
 interface CompositionStore {
   currentJob?: CompositionJob;
   jobHistory: CompositionJob[];
-  
+  lastNatalComposeResult: LastNatalComposeResult | null;
+
   // Actions
   setCurrentJob: (job?: CompositionJob) => void;
   updateJobStatus: (jobId: string, status: CompositionJob['status']) => void;
   addJobToHistory: (job: CompositionJob) => void;
   clearHistory: () => void;
+  setLastNatalComposeResult: (r: LastNatalComposeResult | null) => void;
 }
 
 export const useCompositionStore = create<CompositionStore>()(
@@ -70,8 +82,10 @@ export const useCompositionStore = create<CompositionStore>()(
       (set, get) => ({
         currentJob: undefined,
         jobHistory: [],
+        lastNatalComposeResult: null,
 
         setCurrentJob: (job) => set({ currentJob: job }),
+        setLastNatalComposeResult: (r) => set({ lastNatalComposeResult: r }),
         
         updateJobStatus: (jobId, status) => {
           const { currentJob, jobHistory } = get();

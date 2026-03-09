@@ -31,7 +31,8 @@
 
 ## 4. Commit hashes
 
-- **Phase 8C stabilization:** `990a59b` — fix(community): Phase 8C stabilization - chart 403, required birth data, LocationFinder, Matches empty state
+- **Phase 8C stabilization:** `990a59b` — fix(community): Phase 8C stabilization - chart 403, required birth data, LocationFinder, Matches empty state  
+- **Doc update:** `5de462c` — docs: add Phase 8C commit hash to stabilization report
 
 ---
 
