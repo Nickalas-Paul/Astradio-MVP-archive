@@ -1,6 +1,7 @@
 /**
- * Render provider selection: Lyria (primary) or local_wav (explicit only).
- * RENDER_PROVIDER=lyria|local_wav (default lyria in production).
+ * Render provider selection: Lyria (primary) or local_wav (explicit dev only).
+ * Production/preview: Lyria-only. No local_wav in production.
+ * RENDER_PROVIDER=lyria|local_wav (local_wav only when NOT production/preview and explicitly set).
  * Fail-closed: Lyria requested but credentials missing or Lyria failure → error, no silent fallback.
  */
 
@@ -9,6 +10,16 @@ import { lyriaProvider } from './lyria-provider';
 import { localWavProvider } from './local-wav-provider';
 
 const RAW_PROVIDER = (process.env.RENDER_PROVIDER || 'lyria').toLowerCase();
+
+/** Production/preview: Lyria-only. No fallback provider. */
+function isProductionOrPreview(): boolean {
+  return (
+    process.env.NODE_ENV === 'production' ||
+    process.env.VERCEL_ENV === 'production' ||
+    process.env.VERCEL_ENV === 'preview'
+  );
+}
+
 const PROVIDER: 'lyria' | 'local_wav' | null =
   RAW_PROVIDER === 'lyria' || RAW_PROVIDER === 'local_wav' ? RAW_PROVIDER : null;
 
@@ -23,6 +34,7 @@ function assertValidProvider(provider: string | null): asserts provider is 'lyri
 
 function getProvider(): RenderProvider {
   assertValidProvider(PROVIDER);
+  if (isProductionOrPreview()) return lyriaProvider;
   if (PROVIDER === 'local_wav') return localWavProvider;
   return lyriaProvider;
 }
@@ -39,4 +51,4 @@ export async function renderWithProvider(input: RenderInput): Promise<RenderResu
 export { buildLyriaPrompt } from './prompt-from-controls';
 export type { RenderProvider, RenderInput, RenderResult } from './types';
 export { lyriaProvider, localWavProvider };
-export { getProvider };
+export { getProvider, isProductionOrPreview };

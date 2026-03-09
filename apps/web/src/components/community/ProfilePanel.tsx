@@ -131,6 +131,11 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
     };
     console.log('[NATAL_COMPOSE_RESPONSE]', JSON.stringify(summary));
   }
+  const providerUsed = composePayload?.audio?.provider_used ?? null;
+  const exportError = composePayload?.audio?.export_error ?? null;
+  const isLyriaSuccess = providerUsed === 'lyria' && (exportError == null || exportError === '');
+  if (!isLyriaSuccess) return;
+
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
@@ -159,6 +164,8 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       } catch (_) {}
     }
   }
+  if (!audioUrl) return;
+
   const job: CompositionJob = {
     id: jobId,
     request: { chartA: chartId, genre: 'house', durationSec: 30 },

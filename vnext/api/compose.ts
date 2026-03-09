@@ -24,7 +24,7 @@ import { renderExplainSpecToSections } from '../explainer/renderers/deterministi
 import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
 import { buildPlanSummary } from '../explainer/plan-summary';
 import { DEFAULT_DURATION_S } from '../constants';
-import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider } from '../render';
+import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider, isProductionOrPreview } from '../render';
 import {
   computeExportKey,
   hashPrompt,
@@ -269,7 +269,7 @@ export class ComposeAPI {
         textMetricsMs = 0; // ExplainSpec generation is fast (no ML)
       }
       
-      // Generate audio: cache-first, then RenderProvider (Lyria primary, local_wav fallback)
+      // Generate audio: cache-first, then RenderProvider. Production/preview: Lyria-only; no local_wav fallback.
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
       const stubAudio = {
         format: 'wav' as const,
@@ -375,8 +375,13 @@ export class ComposeAPI {
           const code = (err as Error & { code?: string }).code;
           console.log('[COMPOSE_EXPORT] error step=', exportStep, 'message=', err.message, code ? 'code=' + code : '');
           const primaryProvider = getProvider().name;
+          const allowFallback =
+            !isProductionOrPreview() &&
+            process.env.ALLOW_LYRIA_FALLBACK === '1' &&
+            primaryProvider === 'lyria' &&
+            (exportStep === 'provider' || exportStep === 'render');
           let fallbackSucceeded = false;
-          if (primaryProvider === 'lyria' && (exportStep === 'provider' || exportStep === 'render')) {
+          if (allowFallback) {
             try {
               const fallbackResult = await localWavProvider.render({
                 prompt,
@@ -424,7 +429,7 @@ export class ComposeAPI {
               export_error = null;
               audio_export_available = true;
               fallbackSucceeded = true;
-              console.log('[COMPOSE_EXPORT] lyria_fallback_ok using local_wav exportKey=', fallbackExportKey.slice(0, 16) + '...');
+              console.log('[COMPOSE_EXPORT] dev-only fallback local_wav exportKey=', fallbackExportKey.slice(0, 16) + '...');
             } catch (fallbackErr) {
               console.log('[COMPOSE_EXPORT] local_wav fallback failed:', fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr));
             }

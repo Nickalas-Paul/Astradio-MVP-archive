@@ -161,15 +161,24 @@ export default function HomePage() {
             setAnalysisText('');
             setExplanationSections(null);
           }
-          // Prefer URL; when backend returns inline WAV (ENABLE_WAV_EXPORT=1), use base64 as blob URL
+          // Lyria-only: only treat as playable when provider_used is lyria and no export_error
           setAudioUnavailableReason(null);
-          if (payload?.audio?.url) {
+          const audioMeta = payload?.audio;
+          const isLyriaSuccess =
+            audioMeta?.provider_used === 'lyria' &&
+            (audioMeta?.export_error == null || audioMeta?.export_error === '');
+          if (payload?.audio?.url && isLyriaSuccess) {
             if (audioBlobUrlRef.current) {
               URL.revokeObjectURL(audioBlobUrlRef.current);
               audioBlobUrlRef.current = null;
             }
             setAudioUrl(payload.audio.url);
-          } else if (payload?.audio?.base64 && typeof payload.audio.base64 === 'string' && payload.audio.base64.length > 0) {
+          } else if (
+            isLyriaSuccess &&
+            payload?.audio?.base64 &&
+            typeof payload.audio.base64 === 'string' &&
+            payload.audio.base64.length > 0
+          ) {
             try {
               if (audioBlobUrlRef.current) {
                 URL.revokeObjectURL(audioBlobUrlRef.current);
@@ -191,6 +200,9 @@ export default function HomePage() {
               audioBlobUrlRef.current = null;
             }
             setAudioUrl(null);
+            if (audioMeta?.export_error && audioMeta?.export_attempted) {
+              setAudioUnavailableReason(`Audio unavailable (Lyria-only). Export failed: ${audioMeta.export_error}.`);
+            }
           }
 
           // Store backend plan and genre (for browser performance engine / Tone fallback)

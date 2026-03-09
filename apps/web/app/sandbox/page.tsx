@@ -308,16 +308,18 @@ export default function SandboxPage() {
       if (!composeRes.ok) {
         setGenerateError((e) => ({ ...e, audio: (composeData?.error ?? composeData?.message) || `Compose: ${composeRes.status}` }));
       } else {
-        if (composeData.export_id) {
+        const providerUsed = composeData.audio?.provider_used ?? composeData.export_meta?.provider ?? null;
+        const exportErr = composeData.audio?.export_error ?? null;
+        const isLyriaSuccess = providerUsed === 'lyria' && (exportErr == null || exportErr === '') && composeData.export_id;
+        if (isLyriaSuccess) {
           setExportId(composeData.export_id);
           setExportUnavailableReason(null);
-          const provider = composeData.audio?.provider_used ?? composeData.export_meta?.provider ?? null;
-          setLastComposeProvider(provider);
+          setLastComposeProvider(providerUsed);
         } else {
+          setExportId(null);
           const ad = composeData.audio_debug;
-          const exportErr = composeData.audio?.export_error;
           setExportUnavailableReason({
-            summary: 'Export disabled or failed',
+            summary: exportErr ? 'Lyria export failed' : 'Export disabled or failed',
             step: ad?.step,
             message: ad?.message ?? (exportErr ? String(exportErr) : undefined),
           });
