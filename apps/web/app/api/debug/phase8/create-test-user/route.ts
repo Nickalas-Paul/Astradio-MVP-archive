@@ -7,6 +7,8 @@ import { NextResponse } from 'next/server';
 import { getOrCreatePhase8RealUserCampaign } from '../../../../../../../vnext/phase8/resolve-real-user-campaign';
 
 export const runtime = 'nodejs';
+// Phase 8 debug-only; force dynamic so Vercel/Next never tries to statically generate this route at build time.
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   if (process.env.PHASE8_DEBUG !== '1') {

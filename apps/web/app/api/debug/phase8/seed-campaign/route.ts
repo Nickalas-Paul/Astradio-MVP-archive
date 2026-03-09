@@ -14,6 +14,8 @@ import { buildRpgEffectsBundleFromSnapshot } from '../../../../../../../vnext/rp
 import { getOrCreateDailyTurn } from '../../../../../../../vnext/rpg/campaign/turn-service';
 
 export const runtime = 'nodejs';
+// Phase 8 debug-only; force dynamic so Vercel/Next never tries to statically generate this route at build time.
+export const dynamic = 'force-dynamic';
 
 const PHASE8_PREVIEW_USER_ID = 'phase8_preview';
 const PHASE8_PREVIEW_CHART_ID = 'phase8_preview';
