@@ -260,10 +260,15 @@ export default function CommunityClient() {
         fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' })
           .then((res) => (res.ok ? res.arrayBuffer() : null))
           .then((ab) => {
-            if (ab && ab.byteLength > 0) {
+            if (ab && ab.byteLength > 0 && job.status.stage === 'ready') {
               const blob = new Blob([ab], { type: 'audio/wav' });
               const url = URL.createObjectURL(blob);
-              useCompositionStore.getState().updateJobStatus(job.id, { ...job.status, url });
+              useCompositionStore.getState().updateJobStatus(job.id, {
+                stage: 'ready',
+                id: job.status.id,
+                url,
+                layers: job.status.layers,
+              });
             }
           })
           .catch(() => {});
