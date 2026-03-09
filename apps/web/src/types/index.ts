@@ -50,6 +50,8 @@ export type CompositionJob = {
   status: CompositionStatus;
   createdAt: string;
   updatedAt: string;
+  /** Phase 8G: durable reference to re-fetch audio after refresh (blob URLs do not survive). */
+  exportId?: string;
 };
 
 export type AppState = {

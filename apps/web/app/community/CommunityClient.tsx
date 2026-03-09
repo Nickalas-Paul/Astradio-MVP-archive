@@ -17,6 +17,7 @@ import { hasRealChart } from '../../src/core/social/constants';
 import AtlasSearch from '../../src/components/atlas/AtlasSearch';
 import { useChartsStore, useCompositionStore } from '../../src/store';
 import { isFeatureEnabled } from '../../src/core/config/flags';
+import { getApiBaseUrl } from '../../src/core/api-base';
 
 const CirclesPanel = dynamic(
   () => import('../../src/components/social/CirclesPanel').then((m) => m.default),
@@ -241,6 +242,35 @@ export default function CommunityClient() {
   const { charts } = useChartsStore();
   const { jobHistory } = useCompositionStore();
   const { user, primaryChart } = useProfile();
+
+  // Phase 8G: after refresh, persisted blob URLs are stripped to ''; re-fetch from exportId so Profile + Saved Tracks stay playable
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const state = useCompositionStore.getState();
+      const jobs = state.jobHistory.filter(
+        (j) =>
+          j.status.stage === 'ready' &&
+          (j as { exportId?: string }).exportId &&
+          (!(j.status.url && j.status.url.length > 0))
+      );
+      const base = getApiBaseUrl();
+      jobs.forEach((job) => {
+        const exportId = (job as { exportId?: string }).exportId;
+        if (!exportId) return;
+        fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' })
+          .then((res) => (res.ok ? res.arrayBuffer() : null))
+          .then((ab) => {
+            if (ab && ab.byteLength > 0) {
+              const blob = new Blob([ab], { type: 'audio/wav' });
+              const url = URL.createObjectURL(blob);
+              useCompositionStore.getState().updateJobStatus(job.id, { ...job.status, url });
+            }
+          })
+          .catch(() => {});
+      });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [jobHistory.length]);
 
   const filteredCharts = charts.filter(chart =>
     chart.label.toLowerCase().includes(searchQuery.toLowerCase())

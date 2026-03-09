@@ -295,6 +295,7 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    exportId: typeof exportId === 'string' ? exportId : undefined,
   };
   addJobToHistory(job);
   setNatalComposeResult(chartId, 'ok', {

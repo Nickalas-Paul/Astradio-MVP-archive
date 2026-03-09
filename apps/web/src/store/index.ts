@@ -109,8 +109,14 @@ export const useCompositionStore = create<CompositionStore>()(
       }),
       {
         name: 'astradio-composition',
+        // Phase 8G: blob URLs do not survive refresh; persist empty url so we re-fetch from exportId on load
         partialize: (state) => ({
-          jobHistory: state.jobHistory.slice(0, 10), // Only persist last 10 jobs
+          jobHistory: state.jobHistory.slice(0, 10).map((job) => {
+            if (job.status.stage === 'ready' && typeof job.status.url === 'string' && job.status.url.startsWith('blob:')) {
+              return { ...job, status: { ...job.status, url: '' } };
+            }
+            return job;
+          }),
         }),
       }
     ),
