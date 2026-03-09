@@ -234,17 +234,8 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
     return;
   }
 
-  const isLyriaSuccess = providerUsed === 'lyria' && (exportError == null || exportError === '');
-  if (!isLyriaSuccess) {
-    setNatalComposeResult(chartId, 'failed', {
-      provider_used: providerUsed ?? null,
-      export_error: exportError ?? (providerUsed ? null : 'provider_not_configured'),
-      export_attempted: exportAttempted,
-      has_audio_payload,
-    });
-    return;
-  }
-
+  // Promote based on usable audio, not provider/export flags. Backend may return 200 with audio
+  // but provider_used !== 'lyria' or export_error set (e.g. export_disabled); we still show the track.
   const addJobToHistory = useCompositionStore.getState().addJobToHistory;
   const jobId = `natal_${chartId}_${Date.now()}`;
   let audioUrl = '';
@@ -269,10 +260,11 @@ async function triggerNatalComposition(chartId: string): Promise<void> {
       }
     } catch (_) {}
   }
+
   if (!audioUrl) {
     setNatalComposeResult(chartId, 'failed', {
-      provider_used: providerUsed,
-      export_error: exportError || 'missing_audio_payload',
+      provider_used: providerUsed ?? null,
+      export_error: exportError ?? (providerUsed ? null : 'provider_not_configured'),
       export_attempted: exportAttempted,
       has_audio_payload,
     });
