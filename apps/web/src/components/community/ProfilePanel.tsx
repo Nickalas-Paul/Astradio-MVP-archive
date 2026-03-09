@@ -139,11 +139,48 @@ function setNatalComposeResult(
 /** After profile creation: fetch chart snapshot, run natal compose, add to composition history so it appears in Saved Tracks. */
 async function triggerNatalComposition(chartId: string): Promise<void> {
   const base = getApiBaseUrl();
-  const chartRes = await fetch(`${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`, { credentials: 'same-origin' });
-  if (!chartRes.ok) return;
-  const chartData = await chartRes.json().catch(() => null);
-  const snapshot = chartData?.snapshot;
-  if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot?.planets) || !Array.isArray(snapshot?.houses)) return;
+
+  // Step 1: fetch profile chart snapshot. In very fresh sessions the chart may not be immediately readable;
+  // classify failures explicitly so the profile can show a truthful status instead of silently skipping compose.
+  let snapshot: any = null;
+  let lastChartError: string | null = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const chartRes = await fetch(
+        `${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`,
+        { credentials: 'same-origin' }
+      );
+      if (!chartRes.ok) {
+        const body = await chartRes.json().catch(() => ({}));
+        lastChartError = body?.error || `chart_request_failed (${chartRes.status})`;
+      } else {
+        const chartData = await chartRes.json().catch(() => null);
+        const maybeSnapshot = chartData?.snapshot;
+        if (maybeSnapshot && typeof maybeSnapshot === 'object' && Array.isArray(maybeSnapshot.planets) && Array.isArray(maybeSnapshot.houses)) {
+          snapshot = maybeSnapshot;
+          lastChartError = null;
+          break;
+        }
+        lastChartError = 'chart_snapshot_unavailable';
+      }
+    } catch (e) {
+      lastChartError = e instanceof Error ? e.message : 'chart_request_failed';
+    }
+    if (attempt === 1) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+
+  if (!snapshot) {
+    setNatalComposeResult(chartId, 'failed', {
+      provider_used: null,
+      export_error: lastChartError || 'chart_snapshot_unavailable',
+      export_attempted: false,
+      has_audio_payload: false,
+    });
+    return;
+  }
+
   const composeRes = await fetch(`${base || ''}/api/compose`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
