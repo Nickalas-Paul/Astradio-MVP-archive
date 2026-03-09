@@ -351,14 +351,6 @@ export class ComposeAPI {
               modelVersion: (result.provider_meta.modelVersion as string) ?? modelVersion,
               duration_s: DEFAULT_DURATION_S
             };
-            exportStep = 'store';
-            if (store?.put) {
-              await store.put(exportKey, result.wavBuffer, integrity);
-              console.log('[COMPOSE_EXPORT] store_put_ok exportKey=', exportKey.slice(0, 16) + '...');
-            } else {
-              writeExport(exportKey, result.wavBuffer, integrity);
-              console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
-            }
             export_meta = { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 };
             audio = {
               format: 'wav',
@@ -369,6 +361,18 @@ export class ComposeAPI {
             };
             export_id = exportKey;
             audio_export_available = true;
+            exportStep = 'store';
+            try {
+              if (store?.put) {
+                await store.put(exportKey, result.wavBuffer, integrity);
+                console.log('[COMPOSE_EXPORT] store_put_ok exportKey=', exportKey.slice(0, 16) + '...');
+              } else {
+                writeExport(exportKey, result.wavBuffer, integrity);
+                console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
+              }
+            } catch (storeErr) {
+              console.warn('[COMPOSE_EXPORT] store/write failed (returning inline audio):', storeErr instanceof Error ? storeErr.message : String(storeErr));
+            }
           }
         } catch (audioError) {
           const err = audioError instanceof Error ? audioError : new Error(String(audioError));
