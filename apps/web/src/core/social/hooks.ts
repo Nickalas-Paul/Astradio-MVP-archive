@@ -411,7 +411,7 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
       if (params.cursor) qp.set('cursor', params.cursor);
       const r = await fetch(
         `${getApiBaseUrl() || ''}/api/community/search?${qp.toString()}`,
-        { credentials: 'same-origin' }
+        { credentials: 'same-origin', cache: 'no-store' }
       );
       if (!r.ok) throw new Error('Search failed');
       const data = await r.json();

@@ -75,19 +75,30 @@ async function getDirectoryUsers(): Promise<DirectoryUser[]> {
   return users;
 }
 
-function matchRank(user: DirectoryUser, q: string): number {
-  const qNorm = normalizeText(q);
-  if (!qNorm) return 4;
-  const dnNorm = normalizeText(user.displayName || '');
-  const uidNorm = normalizeText(user.userId || '');
-  const handleNorm = normalizeText(user.handle || '');
+function matchRank(user: DirectoryUser, qNormalized: string, rawQuery?: string): number {
+  const qNorm = (qNormalized || '').trim();
+  if (qNorm.length >= 2) {
+    const dnNorm = normalizeText(user.displayName || '');
+    const uidNorm = normalizeText(user.userId || '');
+    const handleNorm = normalizeText(user.handle || '');
 
-  if (dnNorm.startsWith(qNorm)) return 0;
-  if (uidNorm.startsWith(qNorm)) return 1;
-  if (handleNorm.startsWith(qNorm)) return 1;
-  if (dnNorm.includes(qNorm)) return 2;
-  if (uidNorm.includes(qNorm)) return 3;
-  if (handleNorm.includes(qNorm)) return 3;
+    if (dnNorm.startsWith(qNorm)) return 0;
+    if (uidNorm.startsWith(qNorm)) return 1;
+    if (handleNorm.startsWith(qNorm)) return 1;
+    if (dnNorm.includes(qNorm)) return 2;
+    if (uidNorm.includes(qNorm)) return 3;
+    if (handleNorm.includes(qNorm)) return 3;
+  }
+
+  const rq = (rawQuery && rawQuery.length >= 2) ? rawQuery.trim().toLowerCase() : '';
+  if (rq) {
+    const dn = (user.displayName || '').toLowerCase();
+    const uid = (user.userId || '').toLowerCase();
+    const handle = (user.handle || '').toLowerCase();
+    if (dn.includes(rq)) return 2;
+    if (uid.includes(rq)) return 3;
+    if (handle.includes(rq)) return 3;
+  }
   return 4;
 }
 
@@ -103,17 +114,18 @@ export async function searchDirectoryUsers(params: {
   const offset = Math.max(0, parseInt(cursor || '0', 10) || 0);
 
   const qNorm = normalizeText(q || '');
+  const rawQ = (q || '').trim().length >= 2 ? (q || '').trim() : '';
 
   // Privacy: do not return all users when query is empty. Discovery is not an open directory.
   let list: DirectoryUser[];
-  if (!qNorm || qNorm.length < 2) {
+  if ((!qNorm || qNorm.length < 2) && !rawQ) {
     list = [];
   } else {
     const all = await getDirectoryUsers();
-    const matched = all.filter((u) => matchRank(u, qNorm) < 4);
+    const matched = all.filter((u) => matchRank(u, qNorm, rawQ) < 4);
     list = matched.sort((a, b) => {
-      const ra = matchRank(a, qNorm);
-      const rb = matchRank(b, qNorm);
+      const ra = matchRank(a, qNorm, rawQ);
+      const rb = matchRank(b, qNorm, rawQ);
       if (ra !== rb) return ra - rb;
       const d = a.displayName.localeCompare(b.displayName);
       if (d !== 0) return d;
@@ -140,7 +152,7 @@ export async function searchDirectoryUsers(params: {
         handle: u.handle,
         chartId: u.chartId,
         label: u.label,
-        rank: matchRank(u, qNorm),
+        rank: matchRank(u, qNorm, rawQ),
       })),
     });
   }

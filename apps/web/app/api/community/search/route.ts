@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const qs = searchParams.toString();
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/community/search${qs ? `?${qs}` : ''}`);
+    const r = await fetch(`${backend}/api/community/search${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       return NextResponse.json(data, { status: r.status });

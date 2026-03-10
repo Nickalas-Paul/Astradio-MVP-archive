@@ -107,10 +107,11 @@ export function createCompatRouter(): import('express').Router {
   // GET /api/community/search?q=&limit=&cursor= (directory search; seeded users only)
   router.get('/community/search', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const q = (req.query.q as string) || '';
+      const qRaw = req.query.q;
+      const q = typeof qRaw === 'string' ? qRaw : (Array.isArray(qRaw) && qRaw.length > 0 ? String(qRaw[0]) : '');
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
       const cursor = (req.query.cursor as string) || undefined;
-      const result = await searchDirectoryUsers({ q, limit, cursor });
+      const result = await searchDirectoryUsers({ q: q.trim(), limit, cursor });
       return res.status(200).json(result);
     } catch (e: any) {
       console.error('[compat] GET /community/search', e);

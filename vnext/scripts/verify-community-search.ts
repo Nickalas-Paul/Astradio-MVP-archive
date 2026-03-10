@@ -81,6 +81,29 @@ async function main() {
     failed++;
   }
 
+  // 3) Query matrix: prefix, refined, full-string (no string-specific logic; consistency only)
+  const queryMatrix = ['Al', 'Alp', 'Alpha', 'Be', 'Bet', 'Beta', 'Ga', 'Gam', 'Gamma'];
+  for (const q of queryMatrix) {
+    try {
+      const r = await fetch(`${base}/api/community/search?q=${encodeURIComponent(q)}&limit=10`, { cache: 'no-store' });
+      if (r.status !== 200) {
+        console.error('FAIL: search?q=' + q + ' returned', r.status);
+        failed++;
+      } else {
+        const d = await r.json();
+        const users = Array.isArray(d.users) ? d.users : [];
+        if (d.q !== q) {
+          console.error('FAIL: search?q=' + q + ' response q mismatch', d.q);
+          failed++;
+        }
+        console.log('OK: q=' + q + ' -> 200, users=' + users.length);
+      }
+    } catch (e) {
+      console.error('FAIL: search?q=' + q, e);
+      failed++;
+    }
+  }
+
   if (failed > 0) {
     process.exit(1);
   }
