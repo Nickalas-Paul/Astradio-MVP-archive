@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-const DEV_USER_COOKIE = 'astradio_dev_user_id';
-
-// Proxy to backend /api/exports (Render). No queue/hash lib in web app.
-// When a dev profile cookie is present, forward it as x-beta-user so the
-// engine's beta gate (requireBeta) can allow the request during testing.
+// Proxy to backend /api/exports (Render). Phase 8H: forward x-beta-user from session identity.
 export async function POST(request: NextRequest) {
   const backend = getEngineBaseUrl();
   try {
     const body = await request.json();
-    const betaUser = request.cookies.get(DEV_USER_COOKIE)?.value || '';
+    const betaUser = getSessionUserId(request.cookies) ?? '';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (betaUser) {
       headers['x-beta-user'] = betaUser;

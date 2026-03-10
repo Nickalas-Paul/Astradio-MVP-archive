@@ -1,14 +1,12 @@
 /**
  * Proxy to engine GET /api/user/history (export dir list).
- * Phase 8C: same-origin frontend can call this without 404.
- * Forwards x-beta-user from dev cookie when present (same pattern as /api/exports).
+ * Phase 8H: forwards x-beta-user from session identity (signed cookie or legacy fallback).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
-
-const DEV_USER_COOKIE = 'astradio_dev_user_id';
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +14,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const query = url.searchParams.toString();
     const headers: Record<string, string> = {};
-    const betaUser = req.cookies.get(DEV_USER_COOKIE)?.value || '';
+    const betaUser = getSessionUserId(req.cookies) ?? '';
     if (betaUser) {
       headers['x-beta-user'] = betaUser;
     }
