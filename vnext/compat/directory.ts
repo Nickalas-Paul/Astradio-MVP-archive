@@ -25,6 +25,22 @@ export interface SearchDirectoryResult {
 
 const DIRECTORY_VERSION = 'v1';
 
+function normalizeText(s: string): string {
+  if (!s) return '';
+  try {
+    // Normalize accents, strip diacritics, collapse whitespace/punctuation.
+    return s
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9@]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } catch {
+    return String(s).toLowerCase().trim();
+  }
+}
+
 let allowedChartIdsCache: Set<string> | null = null;
 
 async function getAllowedChartIds(): Promise<Set<string>> {
@@ -60,17 +76,18 @@ async function getDirectoryUsers(): Promise<DirectoryUser[]> {
 }
 
 function matchRank(user: DirectoryUser, q: string): number {
-  if (!q || !q.trim()) return 4;
-  const ql = q.toLowerCase().trim();
-  const dn = (user.displayName || '').toLowerCase();
-  const uid = (user.userId || '').toLowerCase();
-  const handle = (user.handle || '').toLowerCase();
-  if (dn.startsWith(ql)) return 0;
-  if (uid.startsWith(ql)) return 1;
-  if (handle.startsWith(ql)) return 1;
-  if (dn.includes(ql)) return 2;
-  if (uid.includes(ql)) return 3;
-  if (handle.includes(ql)) return 3;
+  const qNorm = normalizeText(q);
+  if (!qNorm) return 4;
+  const dnNorm = normalizeText(user.displayName || '');
+  const uidNorm = normalizeText(user.userId || '');
+  const handleNorm = normalizeText(user.handle || '');
+
+  if (dnNorm.startsWith(qNorm)) return 0;
+  if (uidNorm.startsWith(qNorm)) return 1;
+  if (handleNorm.startsWith(qNorm)) return 1;
+  if (dnNorm.includes(qNorm)) return 2;
+  if (uidNorm.includes(qNorm)) return 3;
+  if (handleNorm.includes(qNorm)) return 3;
   return 4;
 }
 
