@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getOrCreatePhase8RealUserCampaign } from '../../../../vnext/phase8/resolve-real-user-campaign';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const CAMPAIGN_ID = process.env.RPG_BETA_CAMPAIGN_ID;
 const USER_ID = process.env.RPG_BETA_USER_ID;
