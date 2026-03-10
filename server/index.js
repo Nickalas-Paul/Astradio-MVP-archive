@@ -1893,13 +1893,8 @@ app.get('/api/exports/:id', async (req, res) => {
   try {
     const id = (req.params.id || '').trim();
     if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).json({ error: 'invalid_id', message: 'Export id must be 64 hex characters' });
-    if (process.env.POSTGRES_URL) {
-      const pgStore = optionalRequire(path.join(__dirname, '..', 'lib', 'pg-store'));
-      if (pgStore && pgStore.getExportJob) {
-        const job = await pgStore.getExportJob(id);
-        if (!job) return res.status(404).json({ error: 'not_found', message: 'Export not found' });
-      }
-    }
+    // Stream from export store first. Compose writes WAV here; DB job (createExportJob) is only created
+    // by POST /api/exports, so requiring getExportJob would 404 for compose-origin exports after refresh.
     const streamed = await exportStore.stream(id, res);
     if (!streamed) return res.status(404).json({ error: 'not_found', message: 'Export not found' });
   } catch (e) {
