@@ -102,18 +102,18 @@ export async function searchDirectoryUsers(params: {
   const limit = Math.min(50, Math.max(1, rawLimit || 10));
   const offset = Math.max(0, parseInt(cursor || '0', 10) || 0);
 
-  const ql = (q || '').trim().toLowerCase();
+  const qNorm = normalizeText(q || '');
 
   // Privacy: do not return all users when query is empty. Discovery is not an open directory.
   let list: DirectoryUser[];
-  if (!ql || ql.length < 2) {
+  if (!qNorm || qNorm.length < 2) {
     list = [];
   } else {
     const all = await getDirectoryUsers();
-    const matched = all.filter((u) => matchRank(u, ql) < 4);
+    const matched = all.filter((u) => matchRank(u, qNorm) < 4);
     list = matched.sort((a, b) => {
-      const ra = matchRank(a, ql);
-      const rb = matchRank(b, ql);
+      const ra = matchRank(a, qNorm);
+      const rb = matchRank(b, qNorm);
       if (ra !== rb) return ra - rb;
       const d = a.displayName.localeCompare(b.displayName);
       if (d !== 0) return d;
@@ -128,7 +128,7 @@ export async function searchDirectoryUsers(params: {
     // eslint-disable-next-line no-console
     console.log('[compat][directory][search]', {
       q: q || '',
-      qNormalized: ql,
+      qNormalized: qNorm,
       limit,
       totalCandidates: list.length,
       returned: slice.length,
@@ -140,7 +140,7 @@ export async function searchDirectoryUsers(params: {
         handle: u.handle,
         chartId: u.chartId,
         label: u.label,
-        rank: matchRank(u, ql),
+        rank: matchRank(u, qNorm),
       })),
     });
   }
