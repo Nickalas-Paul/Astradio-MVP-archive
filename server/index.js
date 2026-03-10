@@ -1909,6 +1909,18 @@ if (compatMod && typeof compatMod.createCompatRouter === "function") {
   const pgStore = process.env.POSTGRES_URL ? optionalRequire(path.join(__dirname, "..", "lib", "pg-store")) : null;
   const memoryStore = optionalRequire(path.join(vnextRoot, "compat", "memory-store"));
   const store = pgStore || memoryStore;
+  const storageName = pgStore ? "pg-store" : (memoryStore ? "memory-store" : "none");
+  if (store && typeof store === "object") {
+    try {
+      store.__compatName = storageName;
+    } catch {}
+  }
+  console.log("[compat][boot]", {
+    adapter: storageName,
+    hasPostgres: !!process.env.POSTGRES_URL,
+    pgLoaded: !!pgStore,
+    memoryLoaded: !!memoryStore,
+  });
   if (compatStorage && typeof compatStorage.setStorage === "function" && store) {
     compatStorage.setStorage(store);
   }

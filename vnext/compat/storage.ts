@@ -100,19 +100,50 @@ export async function getUserPrimaryChart(userId: string): Promise<string | unde
 }
 
 export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUser[]> {
-  if (adapter.listDirectoryEligibleUsers) return adapter.listDirectoryEligibleUsers();
-  const candidates = await adapter.ensureMatchCandidateCharts();
-  const users: DirectoryEligibleUser[] = [];
-  for (const c of candidates) {
-    const chart = await adapter.getChart(c.chartId);
-    users.push({
-      userId: c.userId,
-      displayName: c.displayName,
-      chartId: c.chartId,
-      label: chart?.label,
+  const debug = process.env.COMMUNITY_SEARCH_DEBUG === '1';
+  const adapterAny = adapter as any;
+  const adapterName: string = adapterAny?.__compatName || 'unknown';
+  const hasCustom = typeof adapter.listDirectoryEligibleUsers === 'function';
+  const started = Date.now();
+
+  let eligible: DirectoryEligibleUser[];
+  if (hasCustom) {
+    eligible = await adapter.listDirectoryEligibleUsers!();
+  } else {
+    const candidates = await adapter.ensureMatchCandidateCharts();
+    const users: DirectoryEligibleUser[] = [];
+    for (const c of candidates) {
+      const chart = await adapter.getChart(c.chartId);
+      users.push({
+        userId: c.userId,
+        displayName: c.displayName,
+        chartId: c.chartId,
+        label: chart?.label,
+      });
+    }
+    eligible = users;
+  }
+
+  if (debug) {
+    // Log adapter + high-level eligibility stats; sample first few entries only.
+    const sample = eligible.slice(0, 5).map((u) => ({
+      userId: u.userId,
+      displayName: u.displayName,
+      handle: u.handle,
+      chartId: u.chartId,
+      label: u.label,
+    }));
+    // eslint-disable-next-line no-console
+    console.log('[compat][directory][eligible]', {
+      adapter: adapterName,
+      hasCustom,
+      count: eligible.length,
+      sample,
+      durationMs: Date.now() - started,
     });
   }
-  return users;
+
+  return eligible;
 }
 
 export async function updateUserDiscoverability(userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }): Promise<void> {

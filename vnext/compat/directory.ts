@@ -79,6 +79,8 @@ export async function searchDirectoryUsers(params: {
   limit: number;
   cursor?: string;
 }): Promise<SearchDirectoryResult> {
+  const debug = process.env.COMMUNITY_SEARCH_DEBUG === '1';
+  const started = Date.now();
   const { q, limit: rawLimit, cursor } = params;
   const limit = Math.min(50, Math.max(1, rawLimit || 10));
   const offset = Math.max(0, parseInt(cursor || '0', 10) || 0);
@@ -104,6 +106,25 @@ export async function searchDirectoryUsers(params: {
 
   const slice = list.slice(offset, offset + limit);
   const nextCursor = offset + slice.length < list.length ? String(offset + limit) : null;
+
+  if (debug) {
+    // eslint-disable-next-line no-console
+    console.log('[compat][directory][search]', {
+      q: q || '',
+      limit,
+      totalCandidates: list.length,
+      returned: slice.length,
+      offset,
+      durationMs: Date.now() - started,
+      sample: slice.slice(0, 5).map((u) => ({
+        userId: u.userId,
+        displayName: u.displayName,
+        handle: u.handle,
+        chartId: u.chartId,
+        label: u.label,
+      })),
+    });
+  }
 
   return {
     q: q || '',
