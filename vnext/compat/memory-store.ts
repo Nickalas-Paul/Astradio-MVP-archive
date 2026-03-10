@@ -30,6 +30,15 @@ export interface MatchCandidate {
   displayName: string;
 }
 
+// Directory user for community search (Phase 8G, in-memory variant).
+export interface DirectoryEligibleUser {
+  userId: string;
+  displayName: string;
+  handle?: string;
+  chartId: string;
+  label?: string;
+}
+
 // Community in-memory (minimal for compat router; community routes use lib/community-store which we'll swap to pg-store)
 const groups = new Map<string, any>();
 const memberships = new Map<string, any>();
@@ -154,6 +163,31 @@ export async function ensureMatchCandidateCharts(): Promise<MatchCandidate[]> {
     out.push({ chartId: spec.id, userId: spec.userId, displayName: spec.displayName });
   }
   return out;
+}
+
+// Phase 8G: users eligible for directory search in in-memory mode.
+// - Includes all real users that have a primary chart.
+// - Seeded demo users are already present in `users`/`userPrimaryChart` via ensureMatchCandidateCharts.
+export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUser[]> {
+  const list: DirectoryEligibleUser[] = [];
+  for (const u of users.values()) {
+    const chartId = userPrimaryChart.get(u.id);
+    if (!chartId) continue;
+    const chart = charts.get(chartId);
+    list.push({
+      userId: u.id,
+      displayName: u.displayName || 'User',
+      handle: u.handle,
+      chartId,
+      label: chart?.label,
+    });
+  }
+  list.sort((a, b) => {
+    const d = a.displayName.localeCompare(b.displayName);
+    if (d !== 0) return d;
+    return a.userId.localeCompare(b.userId);
+  });
+  return list;
 }
 
 // Community (in-memory fallback)
