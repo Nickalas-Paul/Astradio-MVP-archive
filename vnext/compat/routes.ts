@@ -28,6 +28,32 @@ function isCompatMode(s: string): s is CompatMatchMode {
 
 const COMPAT_RESPONSE_VERSION = 'v1';
 
+async function linkUserPrimaryChartWithRetry(userId: string, chartId: string): Promise<void> {
+  const maxAttempts = 2;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log('[compat][profile][setPrimaryChart]', { userId, chartId, attempt, success: false });
+      await storage.setUserPrimaryChart(userId, chartId);
+      const linkedChartId = await storage.getUserPrimaryChart(userId);
+      const success = linkedChartId === chartId;
+      console.log('[compat][profile][setPrimaryChart]', { userId, chartId, attempt, success, linkedChartId });
+      if (success) return;
+      lastError = new Error(`Primary chart linkage mismatch: expected=${chartId} actual=${linkedChartId}`);
+    } catch (e: any) {
+      lastError = e;
+      console.error('[compat][profile][setPrimaryChart]', {
+        userId,
+        chartId,
+        attempt,
+        success: false,
+        error: e?.message || String(e),
+      });
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Failed to set primary chart after retry');
+}
+
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
 
@@ -126,6 +152,11 @@ export function createCompatRouter(): import('express').Router {
         return res.status(400).json({ error: 'displayName required' });
       }
       const user = await storage.createUser({ displayName: displayName.trim(), handle: handle?.trim() || undefined, email: email?.trim() || undefined });
+      console.log('[compat][profile][createUser]', {
+        userId: user.id,
+        handle: (user as any)?.handle,
+        success: true,
+      });
       let primaryChart: import('./types').Chart | null = null;
       if (chartInput && chartInput.label && chartInput.date && chartInput.time && Number.isFinite(chartInput.lat) && Number.isFinite(chartInput.lon)) {
         primaryChart = await storage.createChart({
@@ -136,7 +167,13 @@ export function createCompatRouter(): import('express').Router {
           lat: Number(chartInput.lat),
           lon: Number(chartInput.lon),
         });
-        await storage.setUserPrimaryChart(user.id, primaryChart.id);
+        console.log('[compat][profile][createChart]', {
+          userId: user.id,
+          chartId: primaryChart.id,
+          path: 'inline',
+          success: true,
+        });
+        await linkUserPrimaryChartWithRetry(user.id, primaryChart.id);
         // Vector population only on chart create (this path created a new chart)
         if (process.env.POSTGRES_URL) {
           populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
@@ -145,7 +182,13 @@ export function createCompatRouter(): import('express').Router {
         }
       } else {
         const defaultChart = await storage.ensureDefaultProfileChart();
-        await storage.setUserPrimaryChart(user.id, defaultChart.id);
+        console.log('[compat][profile][createChart]', {
+          userId: user.id,
+          chartId: defaultChart.id,
+          path: 'default',
+          success: true,
+        });
+        await linkUserPrimaryChartWithRetry(user.id, defaultChart.id);
         primaryChart = defaultChart;
       }
       return res.status(201).json({
