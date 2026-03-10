@@ -111,17 +111,19 @@ export async function searchDirectoryUsers(params: {
     // eslint-disable-next-line no-console
     console.log('[compat][directory][search]', {
       q: q || '',
+      qNormalized: ql,
       limit,
       totalCandidates: list.length,
       returned: slice.length,
       offset,
       durationMs: Date.now() - started,
-      sample: slice.slice(0, 5).map((u) => ({
+      sample: slice.slice(0, 8).map((u) => ({
         userId: u.userId,
         displayName: u.displayName,
         handle: u.handle,
         chartId: u.chartId,
         label: u.label,
+        rank: matchRank(u, ql),
       })),
     });
   }
