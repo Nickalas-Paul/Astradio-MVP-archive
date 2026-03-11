@@ -3,7 +3,10 @@
  * Matches backend SandboxDraft contract.
  */
 
-export type PlanetKey = 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto';
+/** Phase 8H: canonical body set (core 10 + Chiron, Ceres, Pallas, Juno, Vesta). */
+export type PlanetKey =
+  | 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto'
+  | 'chiron' | 'ceres' | 'pallas' | 'juno' | 'vesta';
 
 export type SandboxBirth = {
   date: string; // YYYY-MM-DD
@@ -30,7 +33,17 @@ export type EphemerisSnapshot = {
   houseSystem: string;
   planets: Array<{ name: string; lon: number; lat?: number; speed?: number }>;
   houses: [number, number, number, number, number, number, number, number, number, number, number, number];
-  aspects: Array<{ a: string; b: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition'; orb: number }>;
+  aspects: Array<{
+    a: string;
+    b: string;
+    type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+    orb: number;
+    exactAngle?: number;
+    dynamics?: string;
+    strength?: number;
+    exactness?: number;
+    priorityBase?: number;
+  }>;
   moonPhase: number;
   dominantElements: { fire: number; earth: number; air: number; water: number };
 };

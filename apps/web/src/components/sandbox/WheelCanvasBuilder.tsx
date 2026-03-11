@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { EphemerisSnapshot, SandboxOverrides, PlanetKey } from '../../types/sandbox';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
+import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 
 const PLANET_GLYPH: Record<string, string> = {
   sun: '\u2609',
@@ -15,9 +16,14 @@ const PLANET_GLYPH: Record<string, string> = {
   uranus: '\u2645',
   neptune: '\u2646',
   pluto: '\u2647',
+  chiron: '\u26B7',
+  ceres: '\u26B3',
+  pallas: '\u26B4',
+  juno: '\u26B5',
+  vesta: '\u26B6',
 };
 
-const PLANET_ORDER: PlanetKey[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
+const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
 
 const WHEEL_COLORS = {
   outerRingStroke: '#4a5a7a',

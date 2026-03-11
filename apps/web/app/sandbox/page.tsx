@@ -10,8 +10,9 @@ import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
 import type { SandboxDraft, SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport } from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
+import { BODY_DISPLAY_ORDER } from '../../../../vnext/canonical-bodies';
 
-const PLANET_ORDER: PlanetKey[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
+const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
 
 type SandboxMode = 'birth_first' | 'free_build';
 
@@ -682,6 +683,24 @@ export default function SandboxPage() {
               </div>
             </motion.div>
           </div>
+        )}
+
+        {/* Phase 8H verification (dev): body count, aspect metadata */}
+        {(state === 'ready_builder' || state === 'syncing_overrides' || state === 'ready_report') && currentSnapshot && (
+          <details className="card mt-4">
+            <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Phase 8H verification</summary>
+            <div className="mt-3 text-xs font-mono text-subtext space-y-1">
+              <p><strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})</p>
+              <p><strong>Aspects:</strong> {currentSnapshot.aspects?.length ?? 0}</p>
+              {currentSnapshot.aspects?.length ? (
+                <p><strong>Sample aspect:</strong> {currentSnapshot.aspects[0].a}–{currentSnapshot.aspects[0].b} {currentSnapshot.aspects[0].type} orb={currentSnapshot.aspects[0].orb}
+                  {' '}{(currentSnapshot.aspects[0] as { dynamics?: string; strength?: number; exactness?: number; priorityBase?: number }).dynamics != null && (
+                    <>dynamics={(currentSnapshot.aspects[0] as { dynamics?: string }).dynamics} strength={(currentSnapshot.aspects[0] as { strength?: number }).strength} exactness={(currentSnapshot.aspects[0] as { exactness?: number }).exactness} priorityBase={(currentSnapshot.aspects[0] as { priorityBase?: number }).priorityBase}</>
+                  )}
+                </p>
+              ) : null}
+            </div>
+          </details>
         )}
 
         {(state === 'ready_builder' || state === 'syncing_overrides' || state === 'ready_report') && draft.birth && (

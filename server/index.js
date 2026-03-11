@@ -461,9 +461,11 @@ function calcPositions(jd, includeExtras = true){
         continue;
       }
       
-      // Use the correct property name for longitude
-      let lon = result.longitude || result.xx?.[0];
-      if (lon === undefined) {
+      // Swiss Ephemeris: longitude in xx[0] or .longitude (wrapper-dependent)
+      let lon = (result.xx && Array.isArray(result.xx) && result.xx[0] != null)
+        ? result.xx[0]
+        : result.longitude;
+      if (lon === undefined || lon === null) {
         console.warn(`No longitude found for ${name}`);
         continue;
       }
@@ -477,7 +479,7 @@ function calcPositions(jd, includeExtras = true){
     }
   }
   
-  // Extras
+  // Extras (Chiron, Ceres, Pallas, Juno, Vesta, nodes, Lilith)
   if (includeExtras) {
     for (const [name, id] of Object.entries(EXTRAS)) {
       try {
@@ -488,9 +490,10 @@ function calcPositions(jd, includeExtras = true){
           continue;
         }
         
-        // Use the correct property name for longitude
-        let lon = result.longitude || result.xx?.[0];
-        if (lon === undefined) {
+        let lon = (result.xx && Array.isArray(result.xx) && result.xx[0] != null)
+          ? result.xx[0]
+          : result.longitude;
+        if (lon === undefined || lon === null) {
           console.warn(`No longitude found for ${name}`);
           continue;
         }
@@ -550,47 +553,54 @@ function calcPlacidusCusps(jd, lat, lon) {
   }
 }
 
-// Calculate aspects between planets
+// Phase 8H: body order for deterministic priorityBase (same as canonical-bodies)
+const BODY_ORDER_INDEX = { sun:0,moon:1,mercury:2,venus:3,mars:4,jupiter:5,saturn:6,uranus:7,neptune:8,pluto:9,chiron:10,ceres:11,pallas:12,juno:13,vesta:14 };
+function bodyOrderIdx(name) { return BODY_ORDER_INDEX[name] != null ? BODY_ORDER_INDEX[name] : 999; }
+
+// Calculate aspects between all bodies (Phase 8H: deterministic orbs + dynamics/strength/exactness/priorityBase)
 function calcAspects(positions) {
   const aspects = [];
   const aspectTypes = {
-    conjunction: { angle: 0, orb: 8 },
-    opposition: { angle: 180, orb: 7 },
-    trine: { angle: 120, orb: 6 },
-    square: { angle: 90, orb: 6 },
-    sextile: { angle: 60, orb: 5 }
+    conjunction: { angle: 0, orb: 8, dynamics: 'amplifying' },
+    sextile: { angle: 60, orb: 4, dynamics: 'supportive' },
+    square: { angle: 90, orb: 6, dynamics: 'tense' },
+    trine: { angle: 120, orb: 6, dynamics: 'flowing' },
+    opposition: { angle: 180, orb: 8, dynamics: 'polarizing' }
   };
-  
   const planetNames = Object.keys(positions);
-  
   for (let i = 0; i < planetNames.length; i++) {
     for (let j = i + 1; j < planetNames.length; j++) {
       const p1 = planetNames[i];
       const p2 = planetNames[j];
       const lon1 = positions[p1];
       const lon2 = positions[p2];
-      
-      // Calculate angular separation
       let separation = Math.abs(lon1 - lon2);
       if (separation > 180) separation = 360 - separation;
-      
-      // Check for aspects
       for (const [type, config] of Object.entries(aspectTypes)) {
         const orb = Math.abs(separation - config.angle);
         if (orb <= config.orb) {
+          const exactness = 1 - orb / config.orb;
+          const strength = Math.max(0, Math.min(1, exactness));
+          const imp = 1 - (bodyOrderIdx(p1) + bodyOrderIdx(p2)) / (2 * 20);
+          const priorityBase = Math.max(0, Math.min(1, exactness * 0.7 + imp * 0.3));
           aspects.push({
-            p1,
-            p2,
+            a: p1,
+            b: p2,
+            bodyA: p1,
+            bodyB: p2,
             type,
-            angle: config.angle,
-            orb,
-            separation
+            orb: Math.round(orb * 100) / 100,
+            exactAngle: Math.round(separation * 100) / 100,
+            dynamics: config.dynamics,
+            strength: Math.round(strength * 100) / 100,
+            exactness: Math.round(exactness * 100) / 100,
+            priorityBase: Math.round(priorityBase * 100) / 100
           });
         }
       }
     }
   }
-  
+  aspects.sort((x, y) => (y.priorityBase || 0) - (x.priorityBase || 0));
   return aspects;
 }
 
@@ -1109,8 +1119,8 @@ app.get("/chart", (req, res) => {
   }
 });
 
-// EphemerisSnapshot-shaped JSON for ML feature encoding (sky mode)
-const PLANET_ORDER = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto'];
+// EphemerisSnapshot-shaped JSON for ML feature encoding (sky mode). Phase 8H: canonical body set.
+const PLANET_ORDER = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto','chiron','ceres','pallas','juno','vesta'];
 function moonPhaseNorm(jd) {
   try {
     const sunResult = swe.swe_calc_ut(jd, swe.SE_SUN, swe.SEFLG_SWIEPH);
@@ -1152,7 +1162,7 @@ app.get("/api/chart-snapshot", (req, res) => {
       houseSystem: "placidus",
       planets,
       houses,
-      aspects: aspects.map((a) => ({ a: a.p1, b: a.p2, type: a.type, orb: a.orb })),
+      aspects: aspects.map((a) => ({ a: a.a, b: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase })),
       moonPhase,
       dominantElements: {
         fire: dominantElements.fire ?? 0.25,

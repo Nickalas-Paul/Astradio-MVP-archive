@@ -1,6 +1,19 @@
 // vnext/contracts.ts
 // Core data contracts for ML-primary astrological audio composer
 
+/** Aspect type with Phase 8H metadata (dynamics, strength, exactness, priorityBase). */
+export type SnapshotAspect = {
+  a: string;
+  b: string;
+  type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+  orb: number;
+  exactAngle?: number;
+  dynamics?: 'amplifying' | 'supportive' | 'tense' | 'flowing' | 'polarizing';
+  strength?: number;
+  exactness?: number;
+  priorityBase?: number;
+};
+
 export type EphemerisSnapshot = {
   ts: string; 
   tz: string; 
@@ -9,7 +22,7 @@ export type EphemerisSnapshot = {
   houseSystem: string;
   planets: Array<{ name: string; lon: number; lat?: number; speed?: number }>;
   houses: [number, number, number, number, number, number, number, number, number, number, number, number];
-  aspects: Array<{ a: string; b: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition'; orb: number }>;
+  aspects: SnapshotAspect[];
   moonPhase: number;
   dominantElements: { fire: number; earth: number; air: number; water: number };
 };
@@ -67,8 +80,10 @@ export type AuditionResult = {
   };
 };
 
-// Phase 4A: Sandbox Draft contract
-export type PlanetKey = 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto';
+// Phase 4A/8H: Sandbox Draft contract — canonical body set (core 10 + Chiron, Ceres, Pallas, Juno, Vesta)
+export type PlanetKey =
+  | 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto'
+  | 'chiron' | 'ceres' | 'pallas' | 'juno' | 'vesta';
 
 export type SandboxBirth = {
   date: string; // YYYY-MM-DD

@@ -1,59 +1,15 @@
 /**
- * Phase 4A — Sandbox snapshot with overrides.
+ * Phase 4A / 8H — Sandbox snapshot with overrides.
  * Produces a REAL EphemerisSnapshot from birth data + planet overrides.
- * Recalculates aspects and dominantElements deterministically.
+ * Recalculates aspects (Phase 8H aspect engine) and dominantElements deterministically.
  */
 
 import type { EphemerisSnapshot, SandboxBirth, SandboxOverrides, PlanetKey } from '../contracts';
+import { BODY_DISPLAY_ORDER } from '../canonical-bodies';
+import { computeAspects, toSnapshotAspects } from '../aspect-engine';
 
-const PLANET_ORDER: PlanetKey[] = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
-
-/**
- * Calculate aspects between planets from positions object.
- * Same logic as server/index.js calcAspects.
- */
-function calcAspects(positions: Record<string, number>): Array<{ p1: string; p2: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition'; angle: number; orb: number; separation: number }> {
-  const aspects: Array<{ p1: string; p2: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition'; angle: number; orb: number; separation: number }> = [];
-  const aspectTypes = {
-    conjunction: { angle: 0, orb: 8 },
-    opposition: { angle: 180, orb: 7 },
-    trine: { angle: 120, orb: 6 },
-    square: { angle: 90, orb: 6 },
-    sextile: { angle: 60, orb: 5 }
-  };
-  
-  const planetNames = Object.keys(positions);
-  
-  for (let i = 0; i < planetNames.length; i++) {
-    for (let j = i + 1; j < planetNames.length; j++) {
-      const p1 = planetNames[i];
-      const p2 = planetNames[j];
-      const lon1 = positions[p1];
-      const lon2 = positions[p2];
-      
-      // Calculate angular separation
-      let separation = Math.abs(lon1 - lon2);
-      if (separation > 180) separation = 360 - separation;
-      
-      // Check for aspects
-      for (const [type, config] of Object.entries(aspectTypes)) {
-        const orb = Math.abs(separation - config.angle);
-        if (orb <= config.orb) {
-          aspects.push({
-            p1,
-            p2,
-            type: type as 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition',
-            angle: config.angle,
-            orb,
-            separation
-          });
-        }
-      }
-    }
-  }
-  
-  return aspects;
-}
+/** Canonical body order for snapshot derivation. */
+const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
 
 /**
  * Calculate dominant elements from positions.
@@ -143,13 +99,8 @@ export function generateSnapshotWithOverrides(
     positions[planet.name] = planet.lon;
   }
   
-  // Recalculate aspects using overridden positions
-  const aspects = calcAspects(positions).map(a => ({
-    a: a.p1,
-    b: a.p2,
-    type: a.type,
-    orb: a.orb
-  }));
+  // Recalculate aspects using Phase 8H aspect engine (dynamics, strength, exactness, priorityBase)
+  const aspects = toSnapshotAspects(computeAspects(positions));
   
   // Recalculate dominant elements
   const dominantElements = calcDominantElements(positions);
