@@ -266,6 +266,7 @@ export function createCampaignRouter(): import('express').Router {
           transitSnapshot,
         });
 
+        // userTier currently accepted from request body for testing. Production behavior should derive user tier from authenticated user context.
         const userTier = body.userTier === 'paid' ? 'paid' : 'free';
         const audio = resolveCampaignAudioMode({
           userTier,

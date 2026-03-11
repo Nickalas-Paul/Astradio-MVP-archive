@@ -19,6 +19,7 @@ export interface CampaignAudioMode {
 export interface ResolveCampaignAudioParams {
   userTier: UserTier;
   challengeScene: ChallengeScene | null;
+  /** Reserved for potential future audio context derivation (e.g. campaign-scoped keys). Currently challengeScene.id is sufficient for deterministic resolution. */
   campaignId: string;
 }
 
@@ -28,7 +29,7 @@ export interface ResolveCampaignAudioParams {
  * Paid users: challenge mode, audioContextId = challengeScene.id (stable scene identity).
  */
 export function resolveCampaignAudioMode(params: ResolveCampaignAudioParams): CampaignAudioMode {
-  const { userTier, challengeScene, campaignId } = params;
+  const { userTier, challengeScene } = params;
 
   if (userTier === 'free') {
     return { mode: 'daily' };
