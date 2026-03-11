@@ -10,13 +10,16 @@ export interface CampaignEntrySelection {
   selectedMemberUserIds?: string[];
 }
 
-export interface NormalizedCampaignEntry {
+/** Stable contract for the entry payload returned by POST /campaign/entry. Used by downstream pipeline. */
+export interface CampaignEntryContext {
   userId: string;
-  mode: CampaignMode;
-  formationMode: GroupFormationMode | null;
-  /** For solo mode this is [userId]; for chosen this is the unique, sorted set; for routed it is [userId] only. */
+  mode: 'solo' | 'group';
+  formationMode: 'chosen' | 'routed' | null;
+  /** Unique member ids in deterministic lexicographic order (for party hashing and challenge seeding). */
   seedMemberUserIds: string[];
 }
+
+export interface NormalizedCampaignEntry extends CampaignEntryContext {}
 
 export function normalizeCampaignEntrySelection(
   sel: CampaignEntrySelection
@@ -64,6 +67,7 @@ export function normalizeCampaignEntrySelection(
   if (!membersRaw.includes(userId)) {
     membersRaw.push(userId);
   }
+  // Lexicographic sort for deterministic ordering (party hashing, scoring, challenge seeding).
   const seedMemberUserIds = Array.from(new Set(membersRaw)).sort();
 
   return {

@@ -13,7 +13,7 @@ import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 import {
   normalizeCampaignEntrySelection,
   type CampaignEntrySelection,
-  type NormalizedCampaignEntry,
+  type CampaignEntryContext,
 } from '../rpg/campaign-entry';
 
 type Express = typeof import('express');
@@ -54,21 +54,42 @@ export function createCampaignRouter(): import('express').Router {
   const express = loadExpress();
   const router = express.Router({ mergeParams: true });
 
+  /**
+   * Campaign Entry Surface
+   *
+   * Purpose:
+   * Normalize player entry into Campaign before any gameplay logic runs.
+   *
+   * Responsibilities:
+   * • validate entry selection
+   * • normalize party membership
+   * • establish deterministic seedMemberUserIds (lexicographic order)
+   *
+   * Non-responsibilities:
+   * • character generation
+   * • challenge generation
+   * • audio policy
+   * • party scoring
+   *
+   * Pipeline compatibility (no transformation required):
+   * • Solo: entry.userId is the campaign owner; use with getOrCreateCampaign(userId, chartId, ...).
+   * • /campaign/character is chart-scoped (no campaignId); client uses same userId.
+   * • /campaign/daily-challenge and /campaign/resolve-choice take campaignId from that campaign.
+   * • seedMemberUserIds[0] for solo equals entry.userId; for group it is the deterministic member set.
+   */
   router.post(
     '/campaign/entry',
     async (req: import('express').Request, res: import('express').Response) => {
       try {
         const body: CampaignEntryRequestBody = (req.body || {}) as any;
-        const normalized: NormalizedCampaignEntry = normalizeCampaignEntrySelection({
+        const entry: CampaignEntryContext = normalizeCampaignEntrySelection({
           userId: body.userId,
           mode: body.mode,
           formationMode: body.formationMode,
           selectedMemberUserIds: body.selectedMemberUserIds,
         });
 
-        return res.status(200).json({
-          entry: normalized,
-        });
+        return res.status(200).json({ entry });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to normalize campaign entry selection';
         // eslint-disable-next-line no-console
