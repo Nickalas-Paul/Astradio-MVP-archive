@@ -61,6 +61,14 @@ interface ResolveChoiceRequestBody {
   choiceId: string;
 }
 
+/**
+ * Campaign API — Close-out flow (Pass 6).
+ * Entry: normalizes only, does not create campaigns.
+ * Resolve: only campaign creation path; same (userId, chartId, version) → same campaignId.
+ * Character: chart-scoped only, no campaign load.
+ * Daily-challenge: requires existing campaignId; deterministic scene + audio after challenge.
+ * Resolve-choice: requires existing campaignId; updates state only, no implicit creation.
+ */
 export function createCampaignRouter(): import('express').Router {
   const express = loadExpress();
   const router = express.Router({ mergeParams: true });
@@ -99,6 +107,8 @@ export function createCampaignRouter(): import('express').Router {
           formationMode: body.formationMode,
           selectedMemberUserIds: body.selectedMemberUserIds,
         });
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN_ENTRY] mode=%s formationMode=%s seedCount=%d', entry.mode, entry.formationMode ?? '-', entry.seedMemberUserIds.length);
 
         return res.status(200).json({ entry });
       } catch (e: unknown) {
@@ -155,6 +165,8 @@ export function createCampaignRouter(): import('express').Router {
           audioAlgoVersion: 'audio-v1',
           initialStateJson: initialState,
         });
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN_RESOLVE] campaignId=%s userId=%s chartId=%s', campaign.id, campaign.user_id, campaign.chart_id);
 
         return res.status(200).json({
           campaign: rowToCampaignStateContainer(campaign),
@@ -193,6 +205,8 @@ export function createCampaignRouter(): import('express').Router {
           semanticProfile,
           effectsBundle: bundle,
         });
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN_CHARACTER] chart-scoped (no campaignId)');
 
         return res.status(200).json({
           character,
@@ -273,6 +287,10 @@ export function createCampaignRouter(): import('express').Router {
           challengeScene: scene,
           campaignId,
         });
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN_CHALLENGE] campaignId=%s sceneId=%s', campaignId, scene?.id ?? 'null');
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN_AUDIO] mode=%s hasContextId=%s', audio.mode, audio.audioContextId != null ? 'yes' : 'no');
 
         return res.status(200).json({
           scene,
@@ -314,6 +332,8 @@ export function createCampaignRouter(): import('express').Router {
         if (!campaign) {
           return res.status(404).json({ error: `Campaign not found: ${campaignId}` });
         }
+        // eslint-disable-next-line no-console
+        console.log('[CAMPAIGN] resolve-choice campaignId=%s', campaignId);
 
         const castScene = scene as ChallengeScene;
         const choice = (castScene.choices || []).find((c: any) => c.id === choiceId);
