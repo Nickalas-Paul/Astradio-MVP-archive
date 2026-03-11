@@ -1,0 +1,36 @@
+{
+  "tone_name": "daily_personality_v1",
+  "sentence_length_range": { "min": 8, "max": 28 },
+  "rhetorical_style": "reflective_personality_psychology",
+  "allowed_devices": [
+    "concrete_behavior_description",
+    "pattern_description",
+    "gentle_hedging",
+    "light_metaphor"
+  ],
+  "forbidden_phrases": [
+    "you are ",
+    "you are.",
+    "you always ",
+    "you will ",
+    "this means you will",
+    "the universe wants",
+    "cosmic vibes",
+    "cosmic energy",
+    "fated to",
+    "doomed to",
+    "never work out",
+    "always a problem"
+  ],
+  "pronoun_policy": "second_person_reflective",
+  "metaphor_intensity": "low",
+  "section_structure": [
+    { "id": "sky_summary", "title": "Sky Summary" },
+    { "id": "personal_emphasis", "title": "Personal Emphasis" },
+    { "id": "likely_expressions", "title": "Likely Expressions" },
+    { "id": "watch_fors", "title": "Watch-Fors" },
+    { "id": "integration_prompt", "title": "Integration Prompt" },
+    { "id": "music_translation", "title": "Music Translation" }
+  ]
+}
+

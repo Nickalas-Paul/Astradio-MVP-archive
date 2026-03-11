@@ -33,6 +33,10 @@ import {
   readIntegrity,
   type IntegrityMeta,
 } from '../render/export-cache';
+import { buildTextAnalysis } from '../text/analysis/buildTextAnalysis';
+import { renderDaily } from '../text/renderers/daily';
+import type { ChartTextInput } from '../text/contracts';
+import { buildRelationalChartContext } from '../report-context';
 
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
@@ -178,6 +182,38 @@ export class ComposeAPI {
       
       // Render ExplainSpec to sections
       const rendered = renderExplainSpecToSections(spec);
+
+      // Optional vNext text engine (Phase 1, daily only, behind VNEXT_TEXT_ENGINE)
+      const useTextEngineVnext = process.env.VNEXT_TEXT_ENGINE === 'v1';
+      let textVnextDaily: any = undefined;
+      if (useTextEngineVnext && request.mode === 'sky') {
+        try {
+          const snapshot = architecture.snapshot;
+          const chartInput: ChartTextInput = {
+            snapshot,
+            relationalContext: buildRelationalChartContext(snapshot),
+            surface: 'daily',
+            algoVersion: 'vnext-text-1',
+            toneVersion: 'daily.personality.v1',
+            hasHouses: Array.isArray(snapshot.houses) && snapshot.houses.length >= 12,
+            hasAspects: Array.isArray(snapshot.aspects) && snapshot.aspects.length > 0,
+            hasNatalContext: false,
+            missing: [
+              { kind: 'no_natal_context' }
+            ]
+          };
+          const analysis = buildTextAnalysis('daily', chartInput);
+          const daily = renderDaily(analysis);
+          textVnextDaily = {
+            surface: daily.surface,
+            hasNatalContext: daily.hasNatalContext,
+            confidence: daily.confidence,
+            sections: daily.sections
+          };
+        } catch {
+          // Fail closed: never disturb existing behavior if vNext text path errors.
+        }
+      }
       
       // Legacy text explainer (fallback for overlay mode and backward compatibility)
       const astro = astroSummaryFromSnapshot(architecture.snapshot, architecture.features, payload.modality);
@@ -523,6 +559,7 @@ export class ComposeAPI {
         hasFactorMap: boolean;
         factorCount: number;
         debug?: { aspectsCount: number; dominantPlanetsLength: number; housesPresent: boolean };
+        text_vnext_daily?: any;
       } = {
         engine: isSpecEngine ? 'spec' : 'legacy',
         engineVersion: 'tge-1.0',
@@ -535,6 +572,9 @@ export class ComposeAPI {
           dominantPlanetsLength: spec?.single?.signatures?.dominantPlanets?.length ?? 0,
           housesPresent: !!((snapshot as any)?.houses?.length >= 10)
         };
+      }
+      if (textVnextDaily) {
+        explanationMeta.text_vnext_daily = textVnextDaily;
       }
 
       if (debugExplain && sections) {
