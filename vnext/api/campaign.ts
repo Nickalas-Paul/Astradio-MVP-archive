@@ -16,6 +16,7 @@ import {
   type CampaignEntryContext,
 } from '../rpg/campaign-entry';
 import { rowToCampaignStateContainer } from '../rpg/campaign-state';
+import { resolveCampaignAudioMode } from '../rpg/campaign-audio-policy';
 
 type Express = typeof import('express');
 
@@ -37,6 +38,8 @@ interface DailyChallengeRequestBody {
   campaignId: string;
   natalSnapshot: EphemerisSnapshot;
   transitSnapshot: EphemerisSnapshot;
+  /** Pass 4 — optional; default 'free'. Drives audio resolution (daily vs challenge soundtrack). */
+  userTier?: 'free' | 'paid';
 }
 
 interface CampaignEntryRequestBody extends CampaignEntrySelection {}
@@ -263,9 +266,20 @@ export function createCampaignRouter(): import('express').Router {
           transitSnapshot,
         });
 
+        const userTier = body.userTier === 'paid' ? 'paid' : 'free';
+        const audio = resolveCampaignAudioMode({
+          userTier,
+          challengeScene: scene,
+          campaignId,
+        });
+
         return res.status(200).json({
           scene,
           characterId: character.id,
+          audio: {
+            mode: audio.mode,
+            ...(audio.audioContextId != null && { audioContextId: audio.audioContextId }),
+          },
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to build daily challenge';
