@@ -245,6 +245,14 @@ export async function getOrCreateCampaign(params: {
   initialStateJson: unknown;
 }): Promise<RpgCampaignRow> {
   const { userId, chartId, bundleHash, rpgMapVersion, rpgAlgoVersion, audioAlgoVersion, initialStateJson } = params;
+
+  if (!userId || typeof userId !== 'string' || !userId.trim()) {
+    throw new Error('userId required');
+  }
+  if (!chartId || typeof chartId !== 'string' || !chartId.trim()) {
+    throw new Error('chartId required');
+  }
+
   const campaignId = `rpg_camp_${nanoid()}`;
   const stateHash = hashCanonicalJson(initialStateJson);
 

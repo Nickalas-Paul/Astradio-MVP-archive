@@ -15,6 +15,7 @@ import {
   type CampaignEntrySelection,
   type CampaignEntryContext,
 } from '../rpg/campaign-entry';
+import { rowToCampaignStateContainer } from '../rpg/campaign-state';
 
 type Express = typeof import('express');
 
@@ -39,6 +40,13 @@ interface DailyChallengeRequestBody {
 }
 
 interface CampaignEntryRequestBody extends CampaignEntrySelection {}
+
+/** Pass 2 — Resolve campaign by owner key; returns deterministic campaign container. */
+interface CampaignResolveRequestBody {
+  userId: string;
+  chartId: string;
+  natalSnapshot: EphemerisSnapshot;
+}
 
 import type { ChallengeScene } from '../rpg/types';
 
@@ -95,6 +103,61 @@ export function createCampaignRouter(): import('express').Router {
         // eslint-disable-next-line no-console
         console.error('[campaign] POST /campaign/entry error:', msg);
         return res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  /**
+   * Campaign Resolve (Pass 2)
+   * Deterministic get-or-create campaign by (userId, chartId). Returns campaign container.
+   * Fails with 400 if userId, chartId, or natalSnapshot missing. Prevents duplicate campaigns.
+   */
+  router.post(
+    '/campaign/resolve',
+    async (req: import('express').Request, res: import('express').Response) => {
+      try {
+        const body: CampaignResolveRequestBody = (req.body || {}) as any;
+        const userId = body.userId;
+        const chartId = body.chartId;
+        const natalSnapshot = body.natalSnapshot;
+
+        if (!userId || typeof userId !== 'string' || !userId.trim()) {
+          return res.status(400).json({ error: 'userId required' });
+        }
+        if (!chartId || typeof chartId !== 'string' || !chartId.trim()) {
+          return res.status(400).json({ error: 'chartId required' });
+        }
+        if (!natalSnapshot || typeof natalSnapshot !== 'object') {
+          return res.status(400).json({ error: 'natalSnapshot required' });
+        }
+
+        const profile = await getOrCreateRpgProfileForChart({
+          userId,
+          chartId,
+          snapshot: natalSnapshot,
+        });
+        const bundle = buildRpgEffectsBundleFromSnapshot(natalSnapshot);
+        const initialState = initialCampaignState(bundle);
+
+        const campaign = await getOrCreateCampaign({
+          userId,
+          chartId,
+          bundleHash: profile.bundle_hash,
+          rpgMapVersion: profile.rpg_map_version,
+          rpgAlgoVersion: 'rpg-v1',
+          audioAlgoVersion: 'audio-v1',
+          initialStateJson: initialState,
+        });
+
+        return res.status(200).json({
+          campaign: rowToCampaignStateContainer(campaign),
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Failed to resolve campaign';
+        // eslint-disable-next-line no-console
+        console.error('[campaign] POST /campaign/resolve error:', msg);
+        const isValidation = msg === 'userId required' || msg === 'chartId required';
+        return res.status(isValidation ? 400 : 500).json({ error: msg });
       }
     }
   );
