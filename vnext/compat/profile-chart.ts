@@ -18,6 +18,8 @@ export interface ProfileChartResult {
   chart: Chart;
   snapshot: import('../contracts').EphemerisSnapshot;
   explainer: { spec: string; sections: Array<{ id: string; title: string; text: string; bullets?: string[] }> };
+  /** Phase 8H: enriched relational chart context for reporting/relational consumers. */
+  relationalContext: import('../report-context').RelationalChartContext;
   meta: { encoderVersion: string; explainerVersion: string; generatedAt: string };
 }
 
@@ -46,6 +48,7 @@ export async function getProfileChartExplainer(chartId: string): Promise<Profile
       spec: explainer.spec,
       sections: explainer.sections
     },
+    relationalContext: architecture.relationalContext,
     meta: {
       encoderVersion: 'v1',
       explainerVersion: explainer.spec,

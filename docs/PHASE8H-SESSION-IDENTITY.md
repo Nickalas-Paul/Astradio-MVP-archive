@@ -106,6 +106,34 @@ The Session Identity Layer provides **deterministic, persistent identity** for A
 
 ---
 
+## 8. Verification results (preview deployment)
+
+**Environment:** Vercel Preview. **Mode:** Legacy fallback (no `ASTRADIO_SESSION_SECRET` configured).
+
+| Test | Result |
+|------|--------|
+| Baseline anonymous | `GET /api/profile` → `{ user: null, primaryChart: null }`; no Astradio cookies. ✔ |
+| Profile creation | `POST /api/profile` → 201; cookie issued: `astradio_dev_user_id` (legacy path). ✔ |
+| Identity persistence | Refresh → `GET /api/profile` returns same user + primary chart; cookie retained. ✔ |
+| Cross-context isolation | Incognito / second profile → `GET /api/profile` → null; no identity leakage. ✔ |
+
+**Architecture validated:** cookie → userId → profile → primaryChart; no regressions in profile loading, chart ownership, or API routing.
+
+**Observation:** Preview issued `astradio_dev_user_id` only; `astradio_session` was not set because `ASTRADIO_SESSION_SECRET` is unset. This matches the implemented fallback.
+
+### Enabling the signed session path
+
+1. **Vercel:** Project → Settings → Environment Variables. Add:
+   - **Name:** `ASTRADIO_SESSION_SECRET`
+   - **Value:** Random string **≥ 32 characters** (e.g. generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
+   - Apply to Preview (and Production if desired).
+2. **Redeploy** the preview.
+3. **Re-run tests:** Anonymous → create profile → inspect response: `Set-Cookie` should include **`astradio_session`** (HttpOnly). Refresh → same user. Confirm `astradio_dev_user_id` is not set for new sessions.
+
+Scope remains identity-only: no auth systems, login flows, OAuth, or extra persistence. Identity chain stays: browser session cookie → resolved userId → existing pg-store data.
+
+---
+
 ## Summary
 
 - **Session identity** is implemented in the Next.js app via a signed HTTP-only cookie.

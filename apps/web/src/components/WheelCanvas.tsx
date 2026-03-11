@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { WheelCanvasProps } from '../types';
 import { normalizeChartForWheel, type ChartForWheel } from '../core/chart-adapter';
+import { BODY_DISPLAY_ORDER } from '../../../../vnext/canonical-bodies';
 
 /** Visibility sanity: palette must read clearly on dark navy (bg ~#0C1320). Glyphs and house numbers need explicit light fill. */
 const WHEEL_COLORS = {
@@ -15,6 +16,7 @@ const WHEEL_COLORS = {
   markerFill: '#e8ecf1',
 } as const;
 
+/** Canonical glyph set for all 15 supported bodies. */
 const PLANET_GLYPH: Record<string, string> = {
   sun: '\u2609',
   moon: '\u263D',
@@ -26,7 +28,14 @@ const PLANET_GLYPH: Record<string, string> = {
   uranus: '\u2645',
   neptune: '\u2646',
   pluto: '\u2647',
+  chiron: '\u26B7',
+  ceres: '\u26B3',
+  pallas: '\u26B4',
+  juno: '\u26B5',
+  vesta: '\u26B6',
 };
+
+const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
 function pol(r: number, eclDeg: number) {
   const a = ((-eclDeg + 180) * Math.PI) / 180;
@@ -83,7 +92,12 @@ function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
             </g>
           );
         })}
-        {Object.entries(chart.positions).map(([name, deg]) => {
+        {/* Render planets in canonical body order first, then any extras deterministically. */}
+        {[
+          ...BODY_ORDER.filter((name) => Object.prototype.hasOwnProperty.call(chart.positions, name)),
+          ...Object.keys(chart.positions).filter((name) => !BODY_ORDER.includes(name)),
+        ].map((name) => {
+          const deg = chart.positions[name];
           if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;
           const p = pol(R_OUT - 10, deg);
           return (
@@ -95,7 +109,7 @@ function WheelSvg({ chart, size }: { chart: ChartForWheel; size: number }) {
               fill={WHEEL_COLORS.planetGlyphFill}
               fontSize={14}
             >
-              {PLANET_GLYPH[name] || '•'}
+              {PLANET_GLYPH[name.toLowerCase()] || '•'}
             </text>
           );
         })}
