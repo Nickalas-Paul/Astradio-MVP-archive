@@ -136,21 +136,46 @@ export function runPhase8TextTests(): void {
     }
   }
 
-  // 3) Non-daily renderers stay fail-closed
+  // 3) Non-daily structural renderers stay fail-closed (except characterSheet)
   {
     const compat = renderCompat(makeMinimalAnalysis('compat', false));
     const group = renderGroup(makeMinimalAnalysis('group', false));
     const sandbox = renderSandboxDiff(makeMinimalAnalysis('sandboxDiff', false));
     const campaign = renderCampaignTurn(makeMinimalAnalysis('campaignTurn', false));
-    const character = renderCharacterSheet(makeMinimalAnalysis('characterSheet', false));
 
-    for (const result of [compat, group, sandbox, campaign, character]) {
+    for (const result of [compat, group, sandbox, campaign]) {
       if (result.status !== 'unimplemented') {
         throw new Error(`Non-daily renderer ${result.surface} is not fail-closed (status=${result.status})`);
       }
       if (result.sections.length !== 0) {
         throw new Error(`Non-daily renderer ${result.surface} emitted sections despite being unimplemented`);
       }
+    }
+  }
+
+  // 3b) Character sheet renderer: deterministic and node-driven
+  {
+    const analysis = makeCharacterSheetAnalysis();
+    const a = renderCharacterSheet(analysis);
+    const b = renderCharacterSheet(analysis);
+
+    if (JSON.stringify(a) !== JSON.stringify(b)) {
+      throw new Error('Determinism test failed: characterSheet render outputs differ for identical input');
+    }
+
+    if (a.status !== 'ok') {
+      throw new Error(`characterSheet renderer did not return ok status (status=${a.status})`);
+    }
+
+    const sections = a.sections ?? [];
+    const ids = new Set(sections.map((s) => s.id));
+    if (!ids.has('core_identity') || !ids.has('dynamic_edges') || !ids.has('growth_vectors')) {
+      throw new Error('characterSheet renderer did not emit expected section structure');
+    }
+
+    const textBlob = sections.map((s) => s.text ?? '').join(' ');
+    if (!/Theme One/i.test(textBlob) || !/Main Tension/i.test(textBlob) || !/Key Opportunity/i.test(textBlob)) {
+      throw new Error('characterSheet renderer did not clearly consume provided themes/tensions/opportunities');
     }
   }
 
@@ -249,6 +274,60 @@ function makeSynthesisSnapshot(): EphemerisSnapshot {
     ],
     moonPhase: 0.5,
     dominantElements: { fire: 0.4, earth: 0.2, air: 0.2, water: 0.2 }
+  };
+}
+
+function makeCharacterSheetAnalysis(): TextAnalysisIntermediate {
+  return {
+    surface: 'characterSheet',
+    algoVersion: 'vnext-text-1',
+    toneVersion: 'characterSheet.personality.v1',
+    hasNatalContext: true,
+    astro_facts: {
+      placements: [],
+      houses: [],
+      aspects: [],
+      bodyRegistry: {
+        all: [],
+        majors: [],
+        minors: []
+      }
+    },
+    themes: [
+      {
+        id: 'theme:1',
+        label: 'Theme One',
+        weight: 0.9,
+        citations: { factIds: ['f1'] }
+      },
+      {
+        id: 'theme:2',
+        label: 'Theme Two',
+        weight: 0.8,
+        citations: { factIds: ['f2'] }
+      }
+    ],
+    tensions: [
+      {
+        id: 'tension:1',
+        label: 'Main Tension',
+        weight: 0.85,
+        polarity: 'tension',
+        citations: { factIds: ['f3'] }
+      }
+    ],
+    opportunities: [
+      {
+        id: 'opportunity:1',
+        label: 'Key Opportunity',
+        weight: 0.8,
+        citations: { factIds: ['f4'] }
+      }
+    ],
+    confidence: {
+      score: 1,
+      missing: []
+    }
   };
 }
 

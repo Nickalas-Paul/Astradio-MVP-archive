@@ -1,4 +1,9 @@
-import type { TextAnalysisIntermediate } from '../contracts';
+import type {
+  TextAnalysisIntermediate,
+  AnalysisTheme,
+  AnalysisTension,
+  AnalysisOpportunity
+} from '../contracts';
 
 export type RendererStatus = 'ok' | 'unimplemented' | 'insufficient_data';
 
@@ -51,12 +56,105 @@ export function renderCampaignTurn(_analysis: TextAnalysisIntermediate): Structu
   };
 }
 
-export function renderCharacterSheet(_analysis: TextAnalysisIntermediate): StructuredRenderResult {
+export function renderCharacterSheet(analysis: TextAnalysisIntermediate): StructuredRenderResult {
+  if (analysis.surface !== 'characterSheet') {
+    return {
+      surface: 'characterSheet',
+      status: 'insufficient_data',
+      reason: `renderCharacterSheet called with surface=${analysis.surface}`,
+      sections: []
+    };
+  }
+
+  const themes = stableSortByNodeWeight(analysis.themes);
+  const tensions = stableSortByNodeWeight(analysis.tensions);
+  const opportunities = stableSortByNodeWeight(analysis.opportunities);
+
+  const coreIdentity = buildCoreIdentitySection(themes);
+  const dynamicEdges = buildDynamicEdgesSection(tensions);
+  const growthVectors = buildGrowthVectorsSection(opportunities);
+
+  const sections = [coreIdentity, dynamicEdges, growthVectors].filter(
+    (s): s is StructuredSection => Boolean(s)
+  );
+
+  if (sections.length === 0) {
+    return {
+      surface: 'characterSheet',
+      status: 'insufficient_data',
+      reason: 'characterSheet renderer had no themes, tensions, or opportunities to work with',
+      sections: []
+    };
+  }
+
   return {
     surface: 'characterSheet',
-    status: 'unimplemented',
-    reason: 'vnext text characterSheet renderer not implemented in this phase',
-    sections: []
+    status: 'ok',
+    sections
+  };
+}
+
+type AnyNode = {
+  id: string;
+  weight: number;
+  citations: { factIds: string[] };
+};
+
+function stableSortByNodeWeight<T extends AnyNode>(items: T[]): T[] {
+  return items.slice().sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    const ac = a.citations.factIds.length;
+    const bc = b.citations.factIds.length;
+    if (bc !== ac) return bc - ac;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function buildCoreIdentitySection(themes: AnalysisTheme[]): StructuredSection | undefined {
+  if (themes.length === 0) return undefined;
+
+  const top = themes.slice(0, 3);
+  const labels = top.map((t) => t.label);
+
+  return {
+    id: 'core_identity',
+    title: 'Core Identity Pattern',
+    text: `This chart often emphasizes patterns such as ${labels.join(', ')}.`
+  };
+}
+
+function buildDynamicEdgesSection(tensions: AnalysisTension[]): StructuredSection | undefined {
+  if (tensions.length === 0) return undefined;
+
+  const hard = tensions.filter((t) => t.polarity === 'tension');
+  const mixed = tensions.filter((t) => t.polarity === 'mixed');
+  const support = tensions.filter((t) => t.polarity === 'support');
+
+  const ordered = [...hard, ...mixed, ...support];
+  const top = ordered.slice(0, 3);
+  if (top.length === 0) return undefined;
+
+  const labels = top.map((t) => t.label);
+
+  return {
+    id: 'dynamic_edges',
+    title: 'Dynamic Edges',
+    text: `Inner dynamics and friction often cluster around patterns like ${labels.join(', ')}.`
+  };
+}
+
+function buildGrowthVectorsSection(
+  opportunities: AnalysisOpportunity[]
+): StructuredSection | undefined {
+  if (opportunities.length === 0) return undefined;
+
+  const top = opportunities.slice(0, 3);
+  const labels = top.map((o) => o.label);
+
+  return {
+    id: 'growth_vectors',
+    title: 'Growth Vectors',
+    text: `Growth and experimentation can move through opportunities such as ${labels.join(', ')}.`
   };
 }
 
