@@ -5,6 +5,7 @@ export interface PartyMemberRef {
 
 export interface PartyProfile {
   id: string;
+  formationMode: 'chosen' | 'routed';
   members: PartyMemberRef[];
   /** Aggregated elemental profile across members. */
   elementBlend: {
@@ -30,5 +31,7 @@ export interface PartyRoutingScore {
   domainWeights: Record<string, number>;
   /** Deterministic scalar used to order parties for a given domain or challenge type. */
   routingScalar: number;
+  /** Aggregate score used for matching; higher is preferred. */
+  total: number;
 }
 

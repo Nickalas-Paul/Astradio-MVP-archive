@@ -1,76 +1,72 @@
 import type { PartyMemberRef, PartyProfile } from './party-types';
+import type { CharacterProfile } from './types';
 
 export interface BuildPartyProfileParams {
   id: string;
-  members: PartyMemberRef[];
-  /** Per-member element weights (normalized per chart). */
-  memberElements: Array<{
-    userId: string;
-    chartId: string;
-    fire: number;
-    earth: number;
-    air: number;
-    water: number;
-  }>;
-  /** Per-member modality weights (normalized per chart). */
-  memberModalities: Array<{
-    userId: string;
-    chartId: string;
-    cardinal: number;
-    fixed: number;
-    mutable: number;
-  }>;
-  /** Per-member tension/support indices derived from canonical engines. */
-  memberTensionSupport: Array<{
-    userId: string;
-    chartId: string;
-    tensionIndex: number;
-    supportIndex: number;
-  }>;
+  formationMode: 'chosen' | 'routed';
+  memberUserIds: string[];
+  memberProfiles: Record<string, CharacterProfile>;
 }
 
 export function buildPartyProfile(params: BuildPartyProfileParams): PartyProfile {
-  const { id, members, memberElements, memberModalities, memberTensionSupport } = params;
+  const { id, formationMode, memberUserIds, memberProfiles } = params;
 
-  const elementBlend = { fire: 0, earth: 0, air: 0, water: 0 };
-  const modalityBlend = { cardinal: 0, fixed: 0, mutable: 0 };
-  let tensionSum = 0;
-  let supportSum = 0;
+  const members: PartyMemberRef[] = memberUserIds.map((userId) => ({
+    userId,
+    chartId: memberProfiles[userId]?.id ?? userId,
+  }));
+
   const n = Math.max(1, members.length);
 
-  for (const m of memberElements) {
-    elementBlend.fire += m.fire;
-    elementBlend.earth += m.earth;
-    elementBlend.air += m.air;
-    elementBlend.water += m.water;
-  }
+  let fire = 0;
+  let earth = 0;
+  let air = 0;
+  let water = 0;
+  let cardinal = 0;
+  let fixed = 0;
+  let mutable = 0;
+  let tensionSum = 0;
+  let supportSum = 0;
 
-  for (const m of memberModalities) {
-    modalityBlend.cardinal += m.cardinal;
-    modalityBlend.fixed += m.fixed;
-    modalityBlend.mutable += m.mutable;
-  }
+  for (const userId of memberUserIds) {
+    const profile = memberProfiles[userId];
+    if (!profile) continue;
 
-  for (const m of memberTensionSupport) {
-    tensionSum += m.tensionIndex;
-    supportSum += m.supportIndex;
+    const el = profile.primaryElement;
+    if (el === 'fire') fire += 1;
+    else if (el === 'earth') earth += 1;
+    else if (el === 'air') air += 1;
+    else if (el === 'water') water += 1;
+
+    const mod = profile.angularEmphasis;
+    if (mod.first || mod.tenth) cardinal += 1;
+    if (mod.fourth) fixed += 1;
+    if (mod.seventh) mutable += 1;
+
+    tensionSum += profile.temperament.shadowCapacity;
+    supportSum +=
+      (profile.temperament.bond +
+        profile.temperament.attunement +
+        profile.temperament.discipline) /
+      3;
   }
 
   const normalize = (v: number) => (n > 0 ? v / n : 0);
 
   return {
     id,
+    formationMode,
     members,
     elementBlend: {
-      fire: normalize(elementBlend.fire),
-      earth: normalize(elementBlend.earth),
-      air: normalize(elementBlend.air),
-      water: normalize(elementBlend.water),
+      fire: normalize(fire),
+      earth: normalize(earth),
+      air: normalize(air),
+      water: normalize(water),
     },
     modalityBlend: {
-      cardinal: normalize(modalityBlend.cardinal),
-      fixed: normalize(modalityBlend.fixed),
-      mutable: normalize(modalityBlend.mutable),
+      cardinal: normalize(cardinal),
+      fixed: normalize(fixed),
+      mutable: normalize(mutable),
     },
     tensionIndex: normalize(tensionSum),
     supportIndex: normalize(supportSum),

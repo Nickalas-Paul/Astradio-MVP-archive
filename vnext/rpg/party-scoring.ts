@@ -35,10 +35,16 @@ export function buildPartyRoutingScore(params: BuildPartyRoutingScoreParams): Pa
     routingScalar += (dom.length % 7) * w;
   }
 
+  let total = 0;
+  for (const w of Object.values(domainWeights)) {
+    total += w;
+  }
+
   return {
     partyId: party.id,
     domainWeights,
     routingScalar,
+    total,
   };
 }
 
