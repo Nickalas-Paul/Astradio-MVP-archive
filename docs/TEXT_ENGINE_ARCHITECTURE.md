@@ -72,30 +72,32 @@ The interface function signature is:
 
 ```ts
 generateTextSurface({
-  surface: 'daily' | 'character',
-  analysis: TextAnalysisIntermediate
+  surface: 'daily' | 'structural',
+  snapshot,
+  relationalContext?,
+  toneVersion?
 });
 ```
 
 - **Surface routing**
   - `'daily'` routes to the daily narrative renderer.
-  - `'character'` routes to the character sheet (structural) renderer, which expects `analysis.surface === 'characterSheet'`.
+  - `'structural'` routes to the structural character-sheet renderer (internally mapped to the `characterSheet` analysis surface).
 - **Contract**
-  - Callers are responsible for supplying a `TextAnalysisIntermediate` produced by `buildTextAnalysis` (or future compatible pipelines).
-  - The interface enforces that the analysis surface matches the requested public surface and fails fast otherwise.
+  - Callers pass an `EphemerisSnapshot` (and optional relational chart context); the engine is responsible for constructing `ChartTextInput` and `TextAnalysisIntermediate` internally via `buildTextAnalysis`.
+  - The interface enforces that the analysis surface used for synthesis matches the requested public surface and fails fast otherwise.
   - Output types are stable structured results (e.g., daily sections or structured character-sheet sections) suitable for downstream systems (apps, APIs, or other engines).
 
-Consumers must call this interface instead of importing individual renderers, so that routing remains centralized and the engine boundary stays explicit.
+Consumers must call this interface instead of importing individual renderers or constructing `TextAnalysisIntermediate` directly, so that routing remains centralized and the engine boundary stays explicit.
 
 ---
 
 ### Engine freeze policy
 
 - **Frozen components**
-  - `ChartTextInput`, `TextAnalysisIntermediate`, and all analysis node types.
-  - Synthesis logic inside `buildTextAnalysis` and its helpers.
-  - Renderer contracts and their status semantics.
-  - The public interface: `generateTextSurface({ surface, analysis })`.
+- `ChartTextInput`, `TextAnalysisIntermediate`, and all analysis node types.
+- Synthesis logic inside `buildTextAnalysis` and its helpers.
+- Renderer contracts and their status semantics.
+- The public interface: `generateTextSurface({ surface, snapshot, relationalContext?, toneVersion? })`.
 - **Allowed future work**
   - New features and products must integrate by calling the public interface and consuming its structured outputs.
   - New presentation surfaces should register through the interface and registry layer, not by changing core synthesis.
@@ -105,5 +107,5 @@ Consumers must call this interface instead of importing individual renderers, so
   - Adding new node kinds without a deliberate versioned contract.
   - Having downstream systems bypass `generateTextSurface` to call renderers or synthesis internals directly.
 
-From this point forward, the vNext text engine should be treated as a shared service with a stable API. All new systems must consume `TextAnalysisIntermediate` via `generateTextSurface` rather than modifying the engine itself.
+From this point forward, the vNext text engine should be treated as a shared service with a stable API. All new systems must call `generateTextSurface` with snapshots rather than modifying or bypassing the engine internals.
 

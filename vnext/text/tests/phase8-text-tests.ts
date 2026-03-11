@@ -12,11 +12,7 @@ import {
   renderCharacterSheet
 } from '../renderers/structural';
 import { validateTone } from '../tone-validation';
-import {
-  generateTextSurface,
-  type GenerateTextSurfaceResult,
-  type PublicTextSurface
-} from '../index';
+import { generateTextSurface } from '../index';
 
 function loadDailyToneSpec(): ToneSpec {
   const file = path.resolve(process.cwd(), 'vnext/text/tones/daily.personality.v1.json');
@@ -125,11 +121,11 @@ export function runPhase8TextTests(): void {
     }
   }
 
-  // 1b) Public interface: loads correctly, routes daily surface, and is deterministic
+  // 1b) Public interface: loads correctly, routes daily surface from snapshot, and is deterministic
   {
-    const analysis = makeMinimalAnalysis('daily', false);
-    const a = generateTextSurface({ surface: 'daily', analysis });
-    const b = generateTextSurface({ surface: 'daily', analysis });
+    const snapshot = makeSynthesisSnapshot();
+    const a = generateTextSurface({ surface: 'daily', snapshot });
+    const b = generateTextSurface({ surface: 'daily', snapshot });
     if (JSON.stringify(a) !== JSON.stringify(b)) {
       throw new Error('Determinism test failed: interface daily render outputs differ for identical input');
     }
@@ -197,18 +193,18 @@ export function runPhase8TextTests(): void {
     }
   }
 
-  // 3c) Public interface: routes character surface to characterSheet renderer and preserves determinism
+  // 3c) Public interface: routes structural surface to characterSheet renderer and preserves determinism
   {
-    const analysis = makeCharacterSheetAnalysis();
-    const a = generateTextSurface({ surface: 'character', analysis });
-    const b = generateTextSurface({ surface: 'character', analysis });
+    const snapshot = makeSynthesisSnapshot();
+    const a = generateTextSurface({ surface: 'structural', snapshot });
+    const b = generateTextSurface({ surface: 'structural', snapshot });
 
     if (JSON.stringify(a) !== JSON.stringify(b)) {
-      throw new Error('Determinism test failed: interface character render outputs differ for identical input');
+      throw new Error('Determinism test failed: interface structural render outputs differ for identical input');
     }
 
     if (a.surface !== 'characterSheet') {
-      throw new Error(`Interface character render returned unexpected surface=${(a as any).surface}`);
+      throw new Error(`Interface structural render returned unexpected surface=${(a as any).surface}`);
     }
   }
 
