@@ -1,3 +1,7 @@
+// vnext/rpg/challenge-generator.ts
+// Pass 3 — Deterministic challenge generation. No randomness; all ordering explicit.
+// Same (state, transit, character, pressures) → same ChallengeScene every time.
+
 import type { EphemerisSnapshot } from '../contracts';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 import type { CampaignIdentityTone } from './semantic-adapter';
@@ -10,6 +14,7 @@ import type {
   TransitPressure,
 } from './types';
 
+/** Deterministic: sort by intensity DESC, then type ASC, then domain ASC. Tie-breaks ensure stable primary. */
 function pickPrimaryPressure(pressures: TransitPressure[]): TransitPressure | null {
   if (!pressures.length) return null;
   const sorted = [...pressures].sort((a, b) => {
@@ -20,6 +25,7 @@ function pickPrimaryPressure(pressures: TransitPressure[]): TransitPressure | nu
   return sorted[0];
 }
 
+/** Deterministic: exclude primary, sort by intensity DESC, take first 3. */
 function supportPressures(pressures: TransitPressure[], primary: TransitPressure): TransitPressure[] {
   return pressures
     .filter((p) => p.id !== primary.id)
@@ -162,6 +168,11 @@ function baseChoices(patternBias: 'reflective' | 'decisive' | 'mixed'): ChoiceOp
   return [common[0], common[1], common[2], forward, delay];
 }
 
+/**
+ * Inputs for deterministic challenge generation. No randomness is used.
+ * All arrays (pressures, state.flags) are assumed to be in deterministic order
+ * (pressures from buildTransitPressureMap; state from campaign state machine).
+ */
 export interface BuildChallengeParams {
   character: CharacterProfile;
   pressures: TransitPressure[];
@@ -171,8 +182,13 @@ export interface BuildChallengeParams {
   transitSnapshot: EphemerisSnapshot;
 }
 
+/**
+ * Builds a single ChallengeScene from deterministic inputs.
+ * Idempotent: same params → same scene (id, theme, setting, obstacle, choices).
+ * Scene id includes transit ts + chapter + primary pressure signature for uniqueness.
+ */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
-  const { character, pressures, state, semanticProfile } = params;
+  const { character, pressures, state, semanticProfile, transitSnapshot } = params;
   if (!pressures.length) return null;
 
   const tone = deriveCampaignIdentityTone(semanticProfile);
@@ -186,12 +202,14 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
 
   const choices = baseChoices(tone.actionBias);
 
+  const transitKey = transitSnapshot?.ts ?? '';
   const id = [
     'scene',
+    transitKey,
+    String(state.chapter ?? 1),
     primary.type,
     primary.lifeArea,
     character.primaryElement,
-    String(state.chapter ?? 1),
   ].join(':');
 
   return {

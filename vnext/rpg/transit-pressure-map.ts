@@ -99,6 +99,7 @@ export function buildTransitPressureMap(
 
   const maxScore = domains[0].score || 1;
 
+  // Deterministic order: domains from translateSignalsToDomains are sorted (score DESC, domain ASC).
   const pressures: TransitPressure[] = domains.slice(0, 8).map((d, idx) => {
     const intensity = clamp01(d.score / maxScore);
     const tensionRatio = clamp01(d.normalizedScore);
