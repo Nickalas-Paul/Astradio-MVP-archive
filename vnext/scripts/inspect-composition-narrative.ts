@@ -4,6 +4,7 @@ import type { ControlSurfacePayload } from "../explainer/contracts";
 import { guidanceFromFeatures } from "../astro/guidance";
 import { buildCompositionNarrativePlan } from "../audio/composition-narrative";
 import { buildLyriaPrompt } from "../render";
+import { buildChartSemanticProfile } from "../interpretation/chart-semantic-profile";
 
 type ScenarioId =
   | "fire_dominant"
@@ -179,6 +180,12 @@ function makeScenarios(): Scenario[] {
   for (const s of scenarios) {
     const featureVec = encode(s.snapshot);
     const guidance = guidanceFromFeatures(featureVec, s.snapshot, s.payload.hash);
+    const semanticProfile = buildChartSemanticProfile({
+      snapshot: s.snapshot,
+      featureVec,
+      guidance,
+      relationalContext: {} as any,
+    });
     const architectureLike = {
       snapshot: s.snapshot,
       features: featureVec,
@@ -186,9 +193,16 @@ function makeScenarios(): Scenario[] {
       astroProfile: { snapshot: s.snapshot } as any,
       guidance,
       relationalContext: {} as any,
+      semanticProfile,
       seed: s.payload.hash,
     };
-    const narrative = buildCompositionNarrativePlan(architectureLike, featureVec, s.payload, s.plan);
+    const narrative = buildCompositionNarrativePlan(
+      architectureLike,
+      featureVec,
+      s.payload,
+      s.plan,
+      semanticProfile
+    );
     const prompt = buildLyriaPrompt(s.payload, s.plan, narrative);
     // eslint-disable-next-line no-console
     console.log(

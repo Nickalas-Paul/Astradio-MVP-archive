@@ -2,6 +2,8 @@ import type { EphemerisSnapshot, FeatureVec, Plan } from "../contracts";
 import type { ControlSurfacePayload } from "../explainer/contracts";
 import type { ArchitectureOutput } from "../core/architecture-engine";
 import { astroSummaryFromSnapshot } from "../explainer/astro-summary-from-snapshot";
+import type { ChartSemanticProfile, CrossSurfaceToneHints } from "../interpretation/chart-semantic-profile";
+import { deriveCrossSurfaceToneHints } from "../interpretation/chart-semantic-profile";
 
 export type PrimaryElement = "fire" | "earth" | "air" | "water";
 
@@ -92,6 +94,10 @@ export interface CompositionNarrativePlan {
   luminaryDominance?: LuminaryDominance;
   planetarySignatures?: PlanetarySignatureFlags;
   aspectSignatures?: AspectSignatureFlags;
+  /** Phase 5: shared semantic profile snapshot used to derive this narrative. */
+  semanticProfile: ChartSemanticProfile;
+  /** Phase 5: lightweight cross-surface tone hints applied to this narrative. */
+  toneHints: CrossSurfaceToneHints;
 }
 
 function clamp01(x: number): number {
@@ -385,18 +391,25 @@ export function buildCompositionNarrativePlan(
   architecture: ArchitectureOutput,
   featureVec: FeatureVec,
   payload: ControlSurfacePayload,
-  plan: Plan
+  plan: Plan,
+  semanticProfile: ChartSemanticProfile
 ): CompositionNarrativePlan {
   const snapshot: EphemerisSnapshot = architecture.snapshot;
   const g = architecture.guidance;
 
-  const elementBlend = g.elementBlend;
-  const primaryElement = dominantElementFromBlend(elementBlend);
-  const secondaryElement = secondaryElementFromBlend(elementBlend, primaryElement);
+  // Phase 5: primary semantic signals are sourced from shared ChartSemanticProfile.
+  const primaryElement = semanticProfile.primaryElement as PrimaryElement;
+  const secondaryElement = semanticProfile.secondaryElement as PrimaryElement | undefined;
 
-  const modalityBalance = modalityBalanceFromLabel(payload.modality);
+  // Allow payload modality to gently bias the shared modality balance without breaking cross-surface alignment.
+  const modalityFromPayload = modalityBalanceFromLabel(payload.modality);
+  const modalityBalance = {
+    cardinal: clamp01(0.7 * semanticProfile.modalityBalance.cardinal + 0.3 * modalityFromPayload.cardinal),
+    fixed: clamp01(0.7 * semanticProfile.modalityBalance.fixed + 0.3 * modalityFromPayload.fixed),
+    mutable: clamp01(0.7 * semanticProfile.modalityBalance.mutable + 0.3 * modalityFromPayload.mutable),
+  };
 
-  const tensionIndex = clamp01(featureVec[32] ?? 0);
+  const tensionIndex = semanticProfile.tensionIndex;
   const clusterDensity = clamp01(featureVec[33] ?? 0);
 
   const shimmer = clamp01(g.motionProfile.shimmer);
@@ -405,9 +418,7 @@ export function buildCompositionNarrativePlan(
   );
 
   const gravity = clamp01(g.motionProfile.gravity);
-  const resolutionIndex = clamp01(
-    0.6 * gravity + 0.4 * (1 - tensionIndex * 0.7)
-  );
+  const resolutionIndex = semanticProfile.resolutionIndex;
 
   const arcShape = arcShapeFromGuidance({
     arcBias: g.arcBias,
@@ -427,7 +438,7 @@ export function buildCompositionNarrativePlan(
   const plutoDepth =
     architecture.personality?.subsystems?.outers?.plutoDepth ?? 0;
 
-  const tonalPolarity = tonalPolarityFromBrightness(brightnessIndex);
+  const tonalPolarity = semanticProfile.tonalPolarity as TonalPolarity;
 
   const endingStyle = endingStyleFromChart({
     primaryElement,
@@ -464,6 +475,9 @@ export function buildCompositionNarrativePlan(
   );
   const aspectSignatures = aspectSignaturesFromSnapshot(snapshot);
 
+  // Phase 5: cross-surface tone hints derived once from semantic profile.
+  const toneHints = deriveCrossSurfaceToneHints(semanticProfile);
+
   void plan; // plan is present for future extensions; unused but part of deterministic signature.
 
   return {
@@ -485,6 +499,8 @@ export function buildCompositionNarrativePlan(
     luminaryDominance,
     ...(planetarySignatures && { planetarySignatures }),
     ...(aspectSignatures && { aspectSignatures }),
+    semanticProfile,
+    toneHints,
   };
 }
 

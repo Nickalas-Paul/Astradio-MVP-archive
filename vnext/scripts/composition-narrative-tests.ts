@@ -4,6 +4,7 @@ import type { ControlSurfacePayload } from "../explainer/contracts";
 import { guidanceFromFeatures } from "../astro/guidance";
 import { buildCompositionNarrativePlan } from "../audio/composition-narrative";
 import { buildLyriaPrompt } from "../render";
+import { buildChartSemanticProfile } from "../interpretation/chart-semantic-profile";
 
 function makeSnapshot(
   dominant: { fire: number; earth: number; air: number; water: number },
@@ -95,13 +96,20 @@ function narrativeFor(
     astroProfile: { snapshot } as any,
     guidance,
     relationalContext: {} as any,
+    semanticProfile: buildChartSemanticProfile({
+      snapshot,
+      featureVec,
+      guidance,
+      relationalContext: {} as any,
+    }),
     seed: payload.hash,
   };
   const narrative = buildCompositionNarrativePlan(
     architectureLike,
     featureVec,
     payload,
-    plan
+    plan,
+    architectureLike.semanticProfile
   );
   const prompt = buildLyriaPrompt(payload, plan, narrative);
   return { narrative, prompt };

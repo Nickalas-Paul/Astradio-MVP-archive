@@ -12,6 +12,7 @@ import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildAstroProfile, type AstroProfile } from '../astro/profile-from-snapshot';
 import { buildRelationalChartContext, type RelationalChartContext } from '../report-context';
+import { buildChartSemanticProfile, type ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 
 export interface ChartInput {
   date: string;
@@ -34,6 +35,8 @@ export interface ArchitectureOutput {
   };
   /** Relational chart context: bodies, aspects, top-ranked aspects for reporting. */
   relationalContext: RelationalChartContext;
+  /** Phase 5: shared semantic profile for cross-surface alignment. */
+  semanticProfile: ChartSemanticProfile;
   seed: string;
 }
 
@@ -95,6 +98,14 @@ export async function generateArchitecture(
   // Step 7: Build relational context for reporting (bodies, aspects, top-ranked)
   const relationalContext = buildRelationalChartContext(snapshot);
 
+  // Phase 5: shared semantic profile derived once per snapshot.
+  const semanticProfile = buildChartSemanticProfile({
+    snapshot,
+    featureVec: features,
+    guidance,
+    relationalContext,
+  });
+
   return {
     snapshot,
     features,
@@ -102,6 +113,7 @@ export async function generateArchitecture(
     astroProfile,
     guidance,
     relationalContext,
+    semanticProfile,
     seed: finalSeed
   };
 }
@@ -132,6 +144,14 @@ export async function generateArchitectureFromSnapshot(
   // Step 6: Build relational context for reporting
   const relationalContext = buildRelationalChartContext(snapshot);
 
+  // Phase 5: shared semantic profile derived once per snapshot.
+  const semanticProfile = buildChartSemanticProfile({
+    snapshot,
+    featureVec: features,
+    guidance,
+    relationalContext,
+  });
+
   return {
     snapshot,
     features,
@@ -139,6 +159,7 @@ export async function generateArchitectureFromSnapshot(
     astroProfile,
     guidance,
     relationalContext,
+    semanticProfile,
     seed: finalSeed
   };
 }

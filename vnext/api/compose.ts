@@ -38,6 +38,7 @@ import { renderDaily } from '../text/renderers/daily';
 import type { ChartTextInput } from '../text/contracts';
 import { buildRelationalChartContext } from '../report-context';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
+import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
@@ -109,7 +110,7 @@ export class ComposeAPI {
         const chartInput = this.extractChartInput(request);
         architecture = await generateArchitecture(chartInput, payload.hash);
       }
-      const { snapshot, features: featureVec, guidance } = architecture;
+      const { snapshot, features: featureVec, guidance, semanticProfile } = architecture;
 
       // Compute provenance hashes
       const snapshot_sha256 = this.hashSnapshot(snapshot);
@@ -203,7 +204,7 @@ export class ComposeAPI {
               { kind: 'no_natal_context' }
             ]
           };
-          const analysis = buildTextAnalysis('daily', chartInput);
+          const analysis = buildTextAnalysis('daily', chartInput, semanticProfile as ChartSemanticProfile);
           const daily = renderDaily(analysis);
           textVnextDaily = {
             surface: daily.surface,
@@ -338,7 +339,13 @@ export class ComposeAPI {
         let lyriaSeed = '';
         try {
           const planHash = computePlanHash(plan);
-          const narrativePlan = buildCompositionNarrativePlan(architecture, featureVec, payload, plan);
+          const narrativePlan = buildCompositionNarrativePlan(
+            architecture,
+            featureVec,
+            payload,
+            plan,
+            architecture.semanticProfile as ChartSemanticProfile
+          );
           prompt = buildLyriaPrompt(payload, plan, narrativePlan);
           promptHash = hashPrompt(prompt);
           lyriaSeed = planHash + ':phase3';
