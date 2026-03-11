@@ -41,8 +41,6 @@ export default function OverlayPage() {
             label: 'Today',
             createdAt: now.toISOString(),
           };
-          ;(window as any).__lastSeed = todayData.seed;
-          ;(window as any).__lastControlHash = todayData.controlHash;
           
           setChartA(todayChart);
           addChart(todayChart);
