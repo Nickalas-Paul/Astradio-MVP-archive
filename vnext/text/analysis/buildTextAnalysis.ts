@@ -166,7 +166,7 @@ function synthesizeThemes(astro: AstroFacts): AnalysisTheme[] {
 
   const topBodies = entries.slice(0, 3);
 
-  const result: AnalysisTheme[] = [];
+  const byId = new Map<string, AnalysisTheme>();
   const placementsById = astro.placements;
   const aspectsById = astro.aspects;
 
@@ -200,12 +200,24 @@ function synthesizeThemes(astro: AstroFacts): AnalysisTheme[] {
 
     const weight = Math.min(1, Math.max(0, normalizedScore + angularBoost + houseBoost));
 
-    result.push({
-      id: `theme:body:${bodyKey}`,
-      label: `${displayName.toLowerCase()} emphasis`,
-      weight,
-      citations: { factIds }
-    });
+    const id = `theme:body:${bodyKey}`;
+    const existing = byId.get(id);
+    if (existing) {
+      const mergedFacts = new Set([...existing.citations.factIds, ...factIds]);
+      const mergedWeight = Math.max(existing.weight, weight);
+      byId.set(id, {
+        ...existing,
+        weight: mergedWeight,
+        citations: { factIds: Array.from(mergedFacts) }
+      });
+    } else {
+      byId.set(id, {
+        id,
+        label: `${displayName.toLowerCase()} emphasis`,
+        weight,
+        citations: { factIds }
+      });
+    }
   }
 
   if (topHouse && topHouse.weight >= 3) {
@@ -213,16 +225,35 @@ function synthesizeThemes(astro: AstroFacts): AnalysisTheme[] {
     const factIds = housePlacements.map((p) => p.id);
     if (factIds.length > 0) {
       const base = Math.min(1, 0.4 + topHouse.weight * 0.05);
-      result.push({
-        id: `theme:house:${topHouse.house}`,
-        label: `house ${topHouse.house} focus`,
-        weight: base,
-        citations: { factIds }
-      });
+      const id = `theme:house:${topHouse.house}`;
+      const existing = byId.get(id);
+      if (existing) {
+        const mergedFacts = new Set([...existing.citations.factIds, ...factIds]);
+        const mergedWeight = Math.max(existing.weight, base);
+        byId.set(id, {
+          ...existing,
+          weight: mergedWeight,
+          citations: { factIds: Array.from(mergedFacts) }
+        });
+      } else {
+        byId.set(id, {
+          id,
+          label: `house ${topHouse.house} focus`,
+          weight: base,
+          citations: { factIds }
+        });
+      }
     }
   }
 
-  result.sort((a, b) => b.weight - a.weight);
+  const result = Array.from(byId.values());
+  result.sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    const ac = a.citations.factIds.length;
+    const bc = b.citations.factIds.length;
+    if (bc !== ac) return bc - ac;
+    return a.id.localeCompare(b.id);
+  });
   return result;
 }
 
@@ -232,7 +263,7 @@ function synthesizeTensions(astro: AstroFacts): AnalysisTension[] {
   const majors = new Set(astro.bodyRegistry.majors.map((b) => b.key.toLowerCase()));
   const minors = new Set(astro.bodyRegistry.minors.map((b) => b.key.toLowerCase()));
 
-  const result: AnalysisTension[] = [];
+  const byId = new Map<string, AnalysisTension>();
 
   for (const asp of astro.aspects) {
     const { bodyA, bodyB, type, dynamics } = asp.aspect as any;
@@ -278,16 +309,36 @@ function synthesizeTensions(astro: AstroFacts): AnalysisTension[] {
 
     const factIds = [asp.id];
 
-    result.push({
-      id,
-      label: `${labelBase} ${labelSuffix}`,
-      weight,
-      polarity,
-      citations: { factIds }
-    });
+    // Soft aspects appear here with polarity "support"; opportunities are
+    // used to represent integration pathways rather than raw aspect dynamics.
+    const existing = byId.get(id);
+    if (existing) {
+      const mergedFacts = new Set([...existing.citations.factIds, ...factIds]);
+      const mergedWeight = Math.max(existing.weight, weight);
+      byId.set(id, {
+        ...existing,
+        weight: mergedWeight,
+        citations: { factIds: Array.from(mergedFacts) }
+      });
+    } else {
+      byId.set(id, {
+        id,
+        label: `${labelBase} ${labelSuffix}`,
+        weight,
+        polarity,
+        citations: { factIds }
+      });
+    }
   }
 
-  result.sort((a, b) => b.weight - a.weight);
+  const result = Array.from(byId.values());
+  result.sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    const ac = a.citations.factIds.length;
+    const bc = b.citations.factIds.length;
+    if (bc !== ac) return bc - ac;
+    return a.id.localeCompare(b.id);
+  });
   return result.slice(0, 8);
 }
 
@@ -313,7 +364,7 @@ function synthesizeOpportunities(astro: AstroFacts, themes: AnalysisTheme[], ten
     }
   }
 
-  const result: AnalysisOpportunity[] = [];
+  const byId = new Map<string, AnalysisOpportunity>();
 
   for (const asp of astro.aspects) {
     const { bodyA, bodyB, type, dynamics } = asp.aspect as any;
@@ -349,12 +400,23 @@ function synthesizeOpportunities(astro: AstroFacts, themes: AnalysisTheme[], ten
     const label = `${bodyA} ${type} ${bodyB} opportunity`;
     const factIds = [asp.id];
 
-    result.push({
-      id,
-      label,
-      weight,
-      citations: { factIds }
-    });
+    const existing = byId.get(id);
+    if (existing) {
+      const mergedFacts = new Set([...existing.citations.factIds, ...factIds]);
+      const mergedWeight = Math.max(existing.weight, weight);
+      byId.set(id, {
+        ...existing,
+        weight: mergedWeight,
+        citations: { factIds: Array.from(mergedFacts) }
+      });
+    } else {
+      byId.set(id, {
+        id,
+        label,
+        weight,
+        citations: { factIds }
+      });
+    }
   }
 
   for (const theme of themes.slice(0, 3)) {
@@ -387,15 +449,34 @@ function synthesizeOpportunities(astro: AstroFacts, themes: AnalysisTheme[], ten
 
     const factIds = softAspects.map((a) => a.id);
 
-    result.push({
-      id: `opportunity:integration:${theme.id}`,
-      label: `${theme.label} integration`,
-      weight,
-      citations: { factIds }
-    });
+    const id = `opportunity:integration:${theme.id}`;
+    const existing = byId.get(id);
+    if (existing) {
+      const mergedFacts = new Set([...existing.citations.factIds, ...factIds]);
+      const mergedWeight = Math.max(existing.weight, weight);
+      byId.set(id, {
+        ...existing,
+        weight: mergedWeight,
+        citations: { factIds: Array.from(mergedFacts) }
+      });
+    } else {
+      byId.set(id, {
+        id,
+        label: `${theme.label} integration`,
+        weight,
+        citations: { factIds }
+      });
+    }
   }
 
-  result.sort((a, b) => b.weight - a.weight);
+  const result = Array.from(byId.values());
+  result.sort((a, b) => {
+    if (b.weight !== a.weight) return b.weight - a.weight;
+    const ac = a.citations.factIds.length;
+    const bc = b.citations.factIds.length;
+    if (bc !== ac) return bc - ac;
+    return a.id.localeCompare(b.id);
+  });
   return result.slice(0, 8);
 }
 

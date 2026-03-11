@@ -112,6 +112,11 @@ export interface AnalysisTension {
   id: string;
   label: string;
   weight: number;
+  /**
+   * Polarity is exposed so renderers can choose which dynamics to foreground
+   * (e.g. emphasize hard vs soft patterns). Core interpretation synthesis
+   * does not require this field; it is a renderer-selection hint only.
+   */
   polarity: 'support' | 'mixed' | 'tension';
   citations: AnalysisNodeCitation;
 }

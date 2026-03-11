@@ -324,6 +324,27 @@ function runSynthesisTests(): void {
     }
   }
 
+  // 7.3b Stable ordering for equal-weight nodes: any ties must resolve the same way across runs
+  {
+    const input = makeSynthesisInput();
+    const a = buildTextAnalysis('daily', input);
+    const b = buildTextAnalysis('daily', makeSynthesisInput());
+
+    const pickTop = (arr: { id: string; weight: number; citations: { factIds: string[] } }[]) => {
+      if (arr.length === 0) return null;
+      return arr
+        .filter((n) => n.weight === arr[0].weight)
+        .map((n) => n.id)
+        .join('|');
+    };
+
+    const topThemesA = pickTop(a.themes);
+    const topThemesB = pickTop(b.themes);
+    if (topThemesA !== topThemesB) {
+      throw new Error('Synthesis test: top theme tie-break ordering changed across runs');
+    }
+  }
+
   // 7.4 Major vs minor precedence: major-major structure must outrank minor-minor
   {
     const input = makeSynthesisInput();
@@ -362,6 +383,39 @@ function runSynthesisTests(): void {
     assertUniqueIds(analysis.themes.map((t) => t.id), 'theme');
     assertUniqueIds(analysis.tensions.map((t) => t.id), 'tension');
     assertUniqueIds(analysis.opportunities.map((o) => o.id), 'opportunity');
+  }
+
+  // 7.6 Theme body dominance: minor-body themes should not outrank major-body themes
+  {
+    const input = makeSynthesisInput();
+    const analysis = buildTextAnalysis('daily', input);
+
+    const majorBodies = new Set(['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']);
+    const parseBodyFromId = (id: string): string | null => {
+      const parts = id.split(':');
+      if (parts.length < 3) return null;
+      return parts[2];
+    };
+
+    const majorThemes = analysis.themes.filter((t) => {
+      const bodyKey = parseBodyFromId(t.id);
+      return bodyKey != null && majorBodies.has(bodyKey);
+    });
+    const minorThemes = analysis.themes.filter((t) => {
+      const bodyKey = parseBodyFromId(t.id);
+      return bodyKey != null && !majorBodies.has(bodyKey);
+    });
+
+    if (majorThemes.length > 0 && minorThemes.length > 0) {
+      const topMajor = majorThemes[0];
+      for (const minor of minorThemes) {
+        if (!(topMajor.weight >= minor.weight)) {
+          throw new Error(
+            `Synthesis test: minor-body theme ${minor.id} outranks major-body theme ${topMajor.id} (weights ${minor.weight} > ${topMajor.weight})`
+          );
+        }
+      }
+    }
   }
 }
 
