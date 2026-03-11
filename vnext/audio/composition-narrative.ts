@@ -1,6 +1,7 @@
 import type { EphemerisSnapshot, FeatureVec, Plan } from "../contracts";
 import type { ControlSurfacePayload } from "../explainer/contracts";
 import type { ArchitectureOutput } from "../core/architecture-engine";
+import { astroSummaryFromSnapshot } from "../explainer/astro-summary-from-snapshot";
 
 export type PrimaryElement = "fire" | "earth" | "air" | "water";
 
@@ -27,6 +28,39 @@ export type DensityProfile = "sparse_to_full" | "full_to_sparse" | "stable";
 
 export type TonalPolarity = "bright" | "balanced" | "dark";
 
+export type LuminaryDominance = "sun" | "moon" | "balanced";
+
+export interface StelliumSignature {
+  hasCluster: boolean;
+  /** 0-1 heuristic strength derived from existing cluster density feature. */
+  strength: number;
+  /** Element tint for the cluster, when clear. */
+  element?: PrimaryElement;
+}
+
+export interface AngularDominance {
+  first: boolean;
+  fourth: boolean;
+  seventh: boolean;
+  tenth: boolean;
+}
+
+export interface PlanetarySignatureFlags {
+  sun: boolean;
+  moon: boolean;
+  mars: boolean;
+  venus: boolean;
+  jupiter: boolean;
+  saturn: boolean;
+  pluto: boolean;
+}
+
+export interface AspectSignatureFlags {
+  trineHeavy: boolean;
+  squareHeavy: boolean;
+  oppositionHeavy: boolean;
+}
+
 export interface CompositionNarrativePlan {
   primaryElement: PrimaryElement;
   secondaryElement?: PrimaryElement;
@@ -51,10 +85,21 @@ export interface CompositionNarrativePlan {
   densityProfile: DensityProfile;
 
   tonalPolarity: TonalPolarity;
+
+  /** Phase 4: chart-identity amplification hooks (deterministic, derived from snapshot/guidance). */
+  stellium?: StelliumSignature;
+  angularDominance?: AngularDominance;
+  luminaryDominance?: LuminaryDominance;
+  planetarySignatures?: PlanetarySignatureFlags;
+  aspectSignatures?: AspectSignatureFlags;
 }
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
+}
+
+function normalizedDeg(d: number): number {
+  return ((d % 360) + 360) % 360;
 }
 
 function dominantElementFromBlend(blend: {
@@ -212,6 +257,126 @@ function rhythmicDriveFromMotion(params: {
   return clamp01(0.6 * base + 0.4 * tensionBoost);
 }
 
+function stelliumFromSnapshot(
+  snapshot: EphemerisSnapshot,
+  clusterDensity: number,
+  primaryElement: PrimaryElement
+): StelliumSignature | undefined {
+  const strength = clamp01(clusterDensity);
+  if (strength < 0.5) return undefined;
+  const elementBlend = snapshot.dominantElements;
+  let bestElement: PrimaryElement | undefined = primaryElement;
+  if (elementBlend) {
+    const entries: Array<[PrimaryElement, number]> = [
+      ["fire", elementBlend.fire ?? 0],
+      ["earth", elementBlend.earth ?? 0],
+      ["air", elementBlend.air ?? 0],
+      ["water", elementBlend.water ?? 0],
+    ];
+    entries.sort((a, b) => b[1] - a[1]);
+    if (entries[0] && entries[0][1] >= 0.4) {
+      bestElement = entries[0][0];
+    }
+  }
+  return {
+    hasCluster: true,
+    strength,
+    element: bestElement,
+  };
+}
+
+function planetsNearCusp(
+  snapshot: EphemerisSnapshot,
+  cuspDeg: number,
+  orbDeg: number
+): number {
+  const c = normalizedDeg(cuspDeg);
+  const planets = snapshot.planets ?? [];
+  let count = 0;
+  for (const p of planets) {
+    const lon = normalizedDeg(p.lon);
+    let delta = Math.abs(lon - c);
+    if (delta > 180) delta = 360 - delta;
+    if (delta <= orbDeg) count++;
+  }
+  return count;
+}
+
+function angularDominanceFromSnapshot(snapshot: EphemerisSnapshot): AngularDominance | undefined {
+  const houses = snapshot.houses;
+  if (!houses || houses.length < 10) return undefined;
+  const totalPlanets = (snapshot.planets ?? []).length || 1;
+  const orb = 15;
+  const firstCount = planetsNearCusp(snapshot, houses[0], orb);
+  const fourthCount = planetsNearCusp(snapshot, houses[3], orb);
+  const seventhCount = planetsNearCusp(snapshot, houses[6], orb);
+  const tenthCount = planetsNearCusp(snapshot, houses[9], orb);
+  const frac = (n: number) => n / totalPlanets;
+  const first = firstCount >= 2 && frac(firstCount) >= 0.2;
+  const fourth = fourthCount >= 2 && frac(fourthCount) >= 0.2;
+  const seventh = seventhCount >= 2 && frac(seventhCount) >= 0.2;
+  const tenth = tenthCount >= 2 && frac(tenthCount) >= 0.2;
+  if (!first && !fourth && !seventh && !tenth) return undefined;
+  return { first, fourth, seventh, tenth };
+}
+
+function luminaryDominanceFromSummary(
+  dominantPlanets: string[]
+): LuminaryDominance {
+  const top = dominantPlanets.slice(0, 3).map((p) => p.toLowerCase());
+  const hasSun = top.includes("sun");
+  const hasMoon = top.includes("moon");
+  if (hasSun && !hasMoon) return "sun";
+  if (hasMoon && !hasSun) return "moon";
+  return "balanced";
+}
+
+function planetarySignaturesFromSummary(
+  dominantPlanets: string[]
+): PlanetarySignatureFlags | undefined {
+  if (!dominantPlanets || dominantPlanets.length === 0) return undefined;
+  const names = new Set(dominantPlanets.map((p) => p.toLowerCase()));
+  return {
+    sun: names.has("sun"),
+    moon: names.has("moon"),
+    mars: names.has("mars"),
+    venus: names.has("venus"),
+    jupiter: names.has("jupiter"),
+    saturn: names.has("saturn"),
+    pluto: names.has("pluto"),
+  };
+}
+
+function aspectSignaturesFromSnapshot(snapshot: EphemerisSnapshot): AspectSignatureFlags | undefined {
+  const aspects = snapshot.aspects ?? [];
+  if (!aspects.length) return undefined;
+  let trines = 0;
+  let squares = 0;
+  let opps = 0;
+  for (const a of aspects) {
+    if (a.type === "trine") trines++;
+    else if (a.type === "square") squares++;
+    else if (a.type === "opposition") opps++;
+  }
+  const totalMajor = trines + squares + opps;
+  if (!totalMajor) return undefined;
+  const trineHeavy = trines >= 2 && trines / totalMajor >= 0.4;
+  const squareHeavy = squares >= 2 && squares / totalMajor >= 0.4;
+  const oppositionHeavy = opps >= 2 && opps / totalMajor >= 0.4;
+  if (!trineHeavy && !squareHeavy && !oppositionHeavy) {
+    return {
+      trineHeavy: false,
+      squareHeavy: false,
+      oppositionHeavy: false,
+    };
+  }
+  return {
+    trineHeavy,
+    squareHeavy,
+    oppositionHeavy,
+  };
+}
+
 /**
  * Deterministic narrative plan for a 30-second composition.
  * Pure function: same architecture + payload + plan ⇒ same plan.
@@ -287,6 +452,18 @@ export function buildCompositionNarrativePlan(
     ),
   });
 
+  // Phase 4: chart identity amplification, derived from existing snapshot/features only.
+  const astroSummary = astroSummaryFromSnapshot(snapshot, featureVec, payload.modality);
+  const stellium = stelliumFromSnapshot(snapshot, clusterDensity, primaryElement);
+  const angularDominance = angularDominanceFromSnapshot(snapshot);
+  const luminaryDominance = luminaryDominanceFromSummary(
+    astroSummary.dominant_planets ?? []
+  );
+  const planetarySignatures = planetarySignaturesFromSummary(
+    astroSummary.dominant_planets ?? []
+  );
+  const aspectSignatures = aspectSignaturesFromSnapshot(snapshot);
+
   void plan; // plan is present for future extensions; unused but part of deterministic signature.
 
   return {
@@ -303,6 +480,11 @@ export function buildCompositionNarrativePlan(
     rhythmicDrive,
     densityProfile,
     tonalPolarity,
+    ...(stellium && { stellium }),
+    ...(angularDominance && { angularDominance }),
+    luminaryDominance,
+    ...(planetarySignatures && { planetarySignatures }),
+    ...(aspectSignatures && { aspectSignatures }),
   };
 }
 

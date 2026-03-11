@@ -391,6 +391,144 @@ function deriveRegisterAndInstrumentation(
   return { sentence, tags };
 }
 
+function deriveChartIdentityBehavior(
+  narrative: CompositionNarrativePlan
+): { sentence: string; tags: string[] } {
+  const parts: string[] = [];
+  const tags: string[] = [];
+
+  const stellium = narrative.stellium;
+  if (stellium?.hasCluster) {
+    const el = stellium.element ?? narrative.primaryElement;
+    if (el === 'fire') {
+      parts.push(
+        'Because the chart carries a clustered, fire-leaning signature, treat the main motif as a strong fingerprint: repeat it clearly and let variations become more animated through the development and peak, with extra rhythmic intensity rather than drift.'
+      );
+      tags.push('stellium-fire-motif-strong', 'stellium-fire-rhythm-intense');
+    } else if (el === 'earth') {
+      parts.push(
+        'A clustered earth signature should show up as layered harmonic weight: build thicker chord stacks and low-end reinforcement in the middle of the piece, then release that weight deliberately near the end.'
+      );
+      tags.push('stellium-earth-harmony-heavy', 'stellium-earth-bass-strong');
+    } else if (el === 'air') {
+      parts.push(
+        'An air-oriented cluster calls for quicker, more agile melodic motion with interlocking figures, especially between 6–18 seconds, so the identity feels intricate rather than static.'
+      );
+      tags.push('stellium-air-melody-agile', 'stellium-air-interlocking-lines');
+    } else {
+      parts.push(
+        'A water-oriented cluster should be expressed as overlapping sustained harmonies and swells, with voices weaving in and out so the texture feels fluid and continuous.'
+      );
+      tags.push('stellium-water-sustained', 'stellium-water-overlapping-pads');
+    }
+  }
+
+  const angular = narrative.angularDominance;
+  if (angular) {
+    if (angular.first) {
+      parts.push(
+        'If there is a first-house emphasis, let the opening bars state a clear rhythmic and melodic identity, as if the track is confidently announcing itself in the first few seconds.'
+      );
+      tags.push('angle-1st-strong-intro', 'angle-1st-rhythm-assertive');
+    }
+    if (angular.fourth) {
+      parts.push(
+        'A fourth-house emphasis should be reflected as deeper bass anchors and thicker harmonic beds that feel like “home base” whenever they return.'
+      );
+      tags.push('angle-4th-deep-bass', 'angle-4th-harmonic-bed');
+    }
+    if (angular.seventh) {
+      parts.push(
+        'Seventh-house emphasis is best expressed as call-and-response: let two melodic or textural voices trade phrases, especially through the middle section.'
+      );
+      tags.push('angle-7th-call-response', 'angle-7th-dual-voices');
+    }
+    if (angular.tenth) {
+      parts.push(
+        'With tenth-house strength, shape a particularly clear arrival near the 18–26 second peak and a decisive cadence into the final seconds, as if the track is stepping into focus.'
+      );
+      tags.push('angle-10th-strong-peak', 'angle-10th-clear-cadence');
+    }
+  }
+
+  const lum = narrative.luminaryDominance;
+  if (lum === 'sun') {
+    parts.push(
+      'When the Sun is dominant, keep one bright, central melodic voice in focus and allow cadences to feel confident and direct, as if everything orbits that line.'
+    );
+    tags.push('luminary-sun-dominant', 'melody-central-solar');
+  } else if (lum === 'moon') {
+    parts.push(
+      'When the Moon dominates, favor more fluid phrasing, gentle dynamic swells, and softer harmonic transitions, so the track feels like a continuous emotional tide.'
+    );
+    tags.push('luminary-moon-dominant', 'dynamics-fluid-lunar');
+  } else {
+    tags.push('luminary-balanced');
+  }
+
+  const planets = narrative.planetarySignatures;
+  if (planets) {
+    if (planets.mars) {
+      parts.push(
+        'Mars strength should come through as sharper rhythmic attacks, more active percussion figures, and quicker motif articulations—especially around the peak.'
+      );
+      tags.push('planet-mars-strong', 'attack-sharp', 'percussion-active');
+    }
+    if (planets.venus) {
+      parts.push(
+        'Venus strength suggests smoother melodic contours, legato connections between notes, and harmonies that tilt toward consonance and richness rather than raw crunch.'
+      );
+      tags.push('planet-venus-strong', 'melody-smooth', 'harmony-lush');
+    }
+    if (planets.jupiter) {
+      parts.push(
+        'Jupiter prominence favors slightly wider melodic intervals and more expansive harmonic spacing, so the track feels open and generous rather than cramped.'
+      );
+      tags.push('planet-jupiter-strong', 'melody-wide-intervals', 'harmony-wide-spaced');
+    }
+    if (planets.saturn) {
+      parts.push(
+        'Saturn strength should appear as restrained pacing: simpler, well-defined motifs that repeat with intention, and a groove that feels stable rather than restless.'
+      );
+      tags.push('planet-saturn-strong', 'pacing-restrained', 'motif-simple-repeated');
+    }
+    if (planets.pluto) {
+      parts.push(
+        'Pluto emphasis points to deeper tonal gravity and more dramatic tension arcs—allow darker modal inflections and slightly longer builds into and out of the peak without becoming cinematic.'
+      );
+      tags.push('planet-pluto-strong', 'gravity-deep', 'tension-arc-dramatic');
+    }
+  }
+
+  const aspects = narrative.aspectSignatures;
+  if (aspects) {
+    if (aspects.trineHeavy) {
+      parts.push(
+        'If the chart leans heavily on trines, let harmonic motion feel especially smooth and flowing, with voice-leading that glides rather than jumps.'
+      );
+      tags.push('aspects-trine-heavy', 'harmony-smooth-flowing');
+    }
+    if (aspects.squareHeavy) {
+      parts.push(
+        'When many squares are present, allow for a bit more harmonic grit—moments of tension, accented dissonances, or rhythmic friction that resolve deliberately.'
+      );
+      tags.push('aspects-square-heavy', 'harmony-gritty', 'tension-accented');
+    }
+    if (aspects.oppositionHeavy) {
+      parts.push(
+        'Opposition clusters can be expressed as musical dialogue: alternate gestures between registers or instrument groups so ideas seem to answer each other.'
+      );
+      tags.push('aspects-opposition-heavy', 'gesture-alternation', 'register-dialogue');
+    }
+  }
+
+  const sentence = parts.length
+    ? `Chart identity: ${parts.join(' ')}`
+    : '';
+
+  return { sentence, tags };
+}
+
 function tempoBucket(bpm: number): string {
   if (bpm < 90) return 'slow-tempo';
   if (bpm < 120) return 'medium-tempo';
@@ -490,6 +628,7 @@ export function buildLyriaPrompt(
   const harmonic = deriveHarmonicBehavior(narrative, payload, plan);
   const rhythmicDetail = deriveRhythmicCharacter(narrative, payload);
   const registerAndInstr = deriveRegisterAndInstrumentation(narrative, payload);
+  const chartIdentity = deriveChartIdentityBehavior(narrative);
 
   const tags: string[] = [
     ...baseTags,
@@ -497,9 +636,10 @@ export function buildLyriaPrompt(
     tonalTag,
     densityProfileTag,
     rhythmicDriveTag,
-     ...harmonic.tags,
-     ...rhythmicDetail.tags,
-     ...registerAndInstr.tags,
+    ...harmonic.tags,
+    ...rhythmicDetail.tags,
+    ...registerAndInstr.tags,
+    ...chartIdentity.tags,
     ...elementTags,
     ...modalityTags,
     ...arcTags,
@@ -584,6 +724,7 @@ export function buildLyriaPrompt(
     harmonic.sentence,
     rhythmicDetail.sentence,
     registerAndInstr.sentence,
+    chartIdentity.sentence,
     structureSentence,
   ].join(' ');
 
