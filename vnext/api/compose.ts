@@ -37,6 +37,7 @@ import { buildTextAnalysis } from '../text/analysis/buildTextAnalysis';
 import { renderDaily } from '../text/renderers/daily';
 import type { ChartTextInput } from '../text/contracts';
 import { buildRelationalChartContext } from '../report-context';
+import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
@@ -337,7 +338,8 @@ export class ComposeAPI {
         let lyriaSeed = '';
         try {
           const planHash = computePlanHash(plan);
-          prompt = buildLyriaPrompt(payload, plan);
+          const narrativePlan = buildCompositionNarrativePlan(architecture, featureVec, payload, plan);
+          prompt = buildLyriaPrompt(payload, plan, narrativePlan);
           promptHash = hashPrompt(prompt);
           lyriaSeed = planHash + ':phase3';
           exportStep = 'provider';
