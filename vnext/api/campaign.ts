@@ -209,6 +209,13 @@ export function createCampaignRouter(): import('express').Router {
     }
   );
 
+  /**
+   * Daily challenge (Pass 3 idempotence).
+   * Thin wrapper: reads campaign state, builds character/pressures from body, calls buildChallengeScene, returns { scene, characterId }.
+   * No DB writes, no timestamps or non-deterministic metadata in the response.
+   * Same campaignId + same (natalSnapshot, transitSnapshot) body + same campaign state → same challenge payload.
+   * transitSnapshot.ts is client-provided; client must send a stable snapshot for the intended challenge window to get idempotent results.
+   */
   router.post(
     '/campaign/daily-challenge',
     async (req: import('express').Request, res: import('express').Response) => {

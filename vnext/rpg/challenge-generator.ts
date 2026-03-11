@@ -1,6 +1,10 @@
 // vnext/rpg/challenge-generator.ts
 // Pass 3 — Deterministic challenge generation. No randomness; all ordering explicit.
 // Same (state, transit, character, pressures) → same ChallengeScene every time.
+//
+// Versioning: Determinism is bound to the checked-in generator implementation and the
+// campaign versioned state path (rpg_map_version, rpg_algo_version). There is no
+// separately passed generator version parameter; behavior is fixed by code path.
 
 import type { EphemerisSnapshot } from '../contracts';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
@@ -186,6 +190,12 @@ export interface BuildChallengeParams {
  * Builds a single ChallengeScene from deterministic inputs.
  * Idempotent: same params → same scene (id, theme, setting, obstacle, choices).
  * Scene id includes transit ts + chapter + primary pressure signature for uniqueness.
+ *
+ * Zero-pressure rule: Returns null when there are no campaign-relevant pressures;
+ * no fallback scene is synthesized. Callers must handle null (e.g. skip or retry with different transit).
+ *
+ * transitSnapshot.ts: Used as-provided in the scene id. Stability is the caller's responsibility:
+ * same (state, transit snapshot, character) must be passed for idempotent scene identity.
  */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
   const { character, pressures, state, semanticProfile, transitSnapshot } = params;
