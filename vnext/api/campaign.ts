@@ -33,6 +33,8 @@ interface DailyChallengeRequestBody {
   transitSnapshot: EphemerisSnapshot;
 }
 
+import type { ChallengeScene } from '../rpg/types';
+
 interface ResolveChoiceRequestBody {
   campaignId: string;
   natalSnapshot: EphemerisSnapshot;
@@ -173,7 +175,7 @@ export function createCampaignRouter(): import('express').Router {
         }
 
         const castScene = scene as ChallengeScene;
-        const choice = (castScene.choices || []).find((c) => c.id === choiceId);
+        const choice = (castScene.choices || []).find((c: any) => c.id === choiceId);
         if (!choice) {
           return res.status(400).json({ error: `choiceId not found in scene.choices` });
         }

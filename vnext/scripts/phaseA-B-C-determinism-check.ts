@@ -3,6 +3,7 @@ import { buildChartSemanticProfile } from '../interpretation/chart-semantic-prof
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
+import { buildChallengeOutcome } from '../rpg/reflection-mapper';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 
 function log(title: string, value: unknown) {
@@ -140,6 +141,25 @@ async function main() {
 
   if (JSON.stringify(scene1) !== JSON.stringify(scene2)) {
     throw new Error('[PhaseC] ChallengeScene unstable for identical inputs');
+  }
+
+  if (scene1 && scene1.choices && scene1.choices.length > 0) {
+    const choice = scene1.choices[0];
+    const outcome1 = buildChallengeOutcome({
+      scene: scene1,
+      choice,
+      natalSnapshot: natalA,
+      transitSnapshot: transit,
+    });
+    const outcome2 = buildChallengeOutcome({
+      scene: scene1,
+      choice,
+      natalSnapshot: natalA,
+      transitSnapshot: transit,
+    });
+    if (JSON.stringify(outcome1) !== JSON.stringify(outcome2)) {
+      throw new Error('[PhaseD] ChallengeOutcome unstable for identical scene + choice');
+    }
   }
 
   log('[OK] Phase A/B/C determinism check passed', {
