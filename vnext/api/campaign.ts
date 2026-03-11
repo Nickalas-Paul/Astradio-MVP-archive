@@ -111,6 +111,10 @@ export function createCampaignRouter(): import('express').Router {
    * Campaign Resolve (Pass 2)
    * Deterministic get-or-create campaign by (userId, chartId). Returns campaign container.
    * Fails with 400 if userId, chartId, or natalSnapshot missing. Prevents duplicate campaigns.
+   *
+   * Single creation rule: Only POST /campaign/resolve may create campaigns. All other campaign
+   * endpoints require an existing campaignId: /campaign/character is chart-scoped (no campaign);
+   * /campaign/daily-challenge and /campaign/resolve-choice use getCampaignById(campaignId) only.
    */
   router.post(
     '/campaign/resolve',

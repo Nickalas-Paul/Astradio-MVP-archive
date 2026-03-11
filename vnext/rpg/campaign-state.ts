@@ -1,6 +1,11 @@
 // vnext/rpg/campaign-state.ts
 // Pass 2 — Canonical campaign container and deterministic retrieval contract.
 // No gameplay logic; stabilizes ownership and duplicate-prevention semantics.
+//
+// Relationship to CampaignEntryContext (campaign-entry.ts):
+//   CampaignEntryContext — describes how a user entered Campaign (mode, formationMode, seedMemberUserIds).
+//   CampaignStateContainer — identifies the persistent campaign instance for that user/chart (campaignId, ownership, timestamps).
+// Pipeline: entry (POST /campaign/entry) → resolve (POST /campaign/resolve) yields container → character/challenge use campaignId.
 
 import type { RpgCampaignRow } from './store/rpg-store';
 

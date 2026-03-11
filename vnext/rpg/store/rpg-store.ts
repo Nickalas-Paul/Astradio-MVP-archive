@@ -277,6 +277,7 @@ export async function getOrCreateCampaign(params: {
     ]
   );
 
+  // Full key (user_id, chart_id, rpg_map_version, rpg_algo_version) — deterministic retrieval; never returns a campaign from a different engine version.
   const select = await query<RpgCampaignRow>(
     `SELECT
        id, user_id, chart_id, rpg_map_version, rpg_algo_version, audio_algo_version,
