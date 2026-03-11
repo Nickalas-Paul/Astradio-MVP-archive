@@ -10,6 +10,11 @@ import { getOrCreateRpgProfileForChart, getOrCreateCampaign, getCampaignById, up
 import { initialCampaignState } from '../rpg/campaign/state-machine';
 import type { CampaignState } from '../rpg/types';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
+import {
+  normalizeCampaignEntrySelection,
+  type CampaignEntrySelection,
+  type NormalizedCampaignEntry,
+} from '../rpg/campaign-entry';
 
 type Express = typeof import('express');
 
@@ -33,6 +38,8 @@ interface DailyChallengeRequestBody {
   transitSnapshot: EphemerisSnapshot;
 }
 
+interface CampaignEntryRequestBody extends CampaignEntrySelection {}
+
 import type { ChallengeScene } from '../rpg/types';
 
 interface ResolveChoiceRequestBody {
@@ -46,6 +53,30 @@ interface ResolveChoiceRequestBody {
 export function createCampaignRouter(): import('express').Router {
   const express = loadExpress();
   const router = express.Router({ mergeParams: true });
+
+  router.post(
+    '/campaign/entry',
+    async (req: import('express').Request, res: import('express').Response) => {
+      try {
+        const body: CampaignEntryRequestBody = (req.body || {}) as any;
+        const normalized: NormalizedCampaignEntry = normalizeCampaignEntrySelection({
+          userId: body.userId,
+          mode: body.mode,
+          formationMode: body.formationMode,
+          selectedMemberUserIds: body.selectedMemberUserIds,
+        });
+
+        return res.status(200).json({
+          entry: normalized,
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Failed to normalize campaign entry selection';
+        // eslint-disable-next-line no-console
+        console.error('[campaign] POST /campaign/entry error:', msg);
+        return res.status(400).json({ error: msg });
+      }
+    }
+  );
 
   router.post(
     '/campaign/character',
