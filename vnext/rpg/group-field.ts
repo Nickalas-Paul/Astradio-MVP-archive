@@ -49,6 +49,7 @@ export interface BuildGroupFieldParams {
   memberProfiles: Record<string, CharacterProfile>;
 }
 
+/** Same party (same members in same order) → same GroupFieldProfile. Party.members order should be deterministic. */
 export function buildGroupFieldProfile(params: BuildGroupFieldParams): GroupFieldProfile {
   const { party, memberProfiles } = params;
 

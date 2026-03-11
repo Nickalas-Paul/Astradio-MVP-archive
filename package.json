@@ -111,6 +111,7 @@
     "campaign:entry:test": "npm run vnext:build && node dist/vnext/vnext/scripts/campaign-entry-determinism.js",
     "campaign:challenge:test": "npm run vnext:build && node dist/vnext/vnext/scripts/challenge-generation-determinism.js",
     "campaign:audio:test": "npm run vnext:build && node dist/vnext/vnext/scripts/campaign-audio-determinism.js",
+    "campaign:party:test": "npm run vnext:build && node dist/vnext/vnext/scripts/party-group-stress-determinism.js",
     "phase6:verify-sandbox-compose": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-sandbox-compose-override.js",
     "phase6:verify-compositions": "node scripts/phase6-verify-compositions.js",
     "phase6:sandbox-smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6-sandbox-smoke.js",

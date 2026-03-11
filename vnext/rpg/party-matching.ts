@@ -56,6 +56,7 @@ export function matchRoutedParty(pool: CandidatePool): PartyMatchResult | null {
     });
     const score = routing.total;
 
+    // Tie-break: score DESC, then partyId ASC (lexicographic) for deterministic result when scores are equal.
     if (!best || score > best.score || (score === best.score && partyId < best.party.id)) {
       best = { party: profile, score };
     }

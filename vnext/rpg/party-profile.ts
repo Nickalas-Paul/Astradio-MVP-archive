@@ -8,6 +8,7 @@ export interface BuildPartyProfileParams {
   memberProfiles: Record<string, CharacterProfile>;
 }
 
+/** memberUserIds should be in deterministic order (e.g. lexicographic) for stable aggregates and roleDistribution key order. */
 export function buildPartyProfile(params: BuildPartyProfileParams): PartyProfile {
   const { id, formationMode, memberUserIds, memberProfiles } = params;
 

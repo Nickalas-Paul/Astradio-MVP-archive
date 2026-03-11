@@ -7,7 +7,8 @@ export interface BuildPartyRoutingScoreParams {
 }
 
 export function buildPartyRoutingScore(params: BuildPartyRoutingScoreParams): PartyRoutingScore {
-  const { party, domains } = params;
+  const { party } = params;
+  const domains = [...params.domains].sort();
 
   const domainWeights: Record<string, number> = {};
   for (const domain of domains) {
