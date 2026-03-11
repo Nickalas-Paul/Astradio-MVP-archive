@@ -12,6 +12,11 @@ import {
   renderCharacterSheet
 } from '../renderers/structural';
 import { validateTone } from '../tone-validation';
+import {
+  generateTextSurface,
+  type GenerateTextSurfaceResult,
+  type PublicTextSurface
+} from '../index';
 
 function loadDailyToneSpec(): ToneSpec {
   const file = path.resolve(process.cwd(), 'vnext/text/tones/daily.personality.v1.json');
@@ -120,6 +125,19 @@ export function runPhase8TextTests(): void {
     }
   }
 
+  // 1b) Public interface: loads correctly, routes daily surface, and is deterministic
+  {
+    const analysis = makeMinimalAnalysis('daily', false);
+    const a = generateTextSurface({ surface: 'daily', analysis });
+    const b = generateTextSurface({ surface: 'daily', analysis });
+    if (JSON.stringify(a) !== JSON.stringify(b)) {
+      throw new Error('Determinism test failed: interface daily render outputs differ for identical input');
+    }
+    if (a.surface !== 'daily') {
+      throw new Error(`Interface daily render returned unexpected surface=${(a as any).surface}`);
+    }
+  }
+
   // 2) Sky-only vs natal-personalized behavior
   {
     const sky = renderDaily(makeMinimalAnalysis('daily', false), tone);
@@ -176,6 +194,21 @@ export function runPhase8TextTests(): void {
     const textBlob = sections.map((s) => s.text ?? '').join(' ');
     if (!/Theme One/i.test(textBlob) || !/Main Tension/i.test(textBlob) || !/Key Opportunity/i.test(textBlob)) {
       throw new Error('characterSheet renderer did not clearly consume provided themes/tensions/opportunities');
+    }
+  }
+
+  // 3c) Public interface: routes character surface to characterSheet renderer and preserves determinism
+  {
+    const analysis = makeCharacterSheetAnalysis();
+    const a = generateTextSurface({ surface: 'character', analysis });
+    const b = generateTextSurface({ surface: 'character', analysis });
+
+    if (JSON.stringify(a) !== JSON.stringify(b)) {
+      throw new Error('Determinism test failed: interface character render outputs differ for identical input');
+    }
+
+    if (a.surface !== 'characterSheet') {
+      throw new Error(`Interface character render returned unexpected surface=${(a as any).surface}`);
     }
   }
 
