@@ -449,6 +449,7 @@ function toJulianDayUT(dateStr, timeStr, lat, lon){
 // Calculate positions for planets and extras
 function calcPositions(jd, includeExtras = true){
   const positions = {};
+  const speeds = {};
   const flags = swe.SEFLG_SWIEPH | swe.SEFLG_SPEED;
   
   // Main planets
@@ -474,6 +475,12 @@ function calcPositions(jd, includeExtras = true){
       if (lon >= 360) lon -= 360;
       
       positions[name] = lon;
+      // longitudinal speed (deg/day) if available
+      if (result.xx && Array.isArray(result.xx) && result.xx[3] != null) {
+        speeds[name] = result.xx[3];
+      } else if (typeof result.speed === 'number') {
+        speeds[name] = result.speed;
+      }
     } catch (e) {
       console.error(`Error calculating ${name}:`, e.message);
     }
@@ -518,6 +525,11 @@ function calcPositions(jd, includeExtras = true){
         if (lon >= 360) lon -= 360;
         
         positions[name] = lon;
+        if (result.xx && Array.isArray(result.xx) && result.xx[3] != null) {
+          speeds[name] = result.xx[3];
+        } else if (typeof result.speed === 'number') {
+          speeds[name] = result.speed;
+        }
       } catch (e) {
         console.error(`Error calculating ${name}:`, e.message);
       }
@@ -529,7 +541,7 @@ function calcPositions(jd, includeExtras = true){
     }
   }
   
-  return positions;
+  return { positions, speeds };
 }
 
 // Calculate Placidus house cusps
@@ -557,8 +569,8 @@ function calcPlacidusCusps(jd, lat, lon) {
 const BODY_ORDER_INDEX = { sun:0,moon:1,mercury:2,venus:3,mars:4,jupiter:5,saturn:6,uranus:7,neptune:8,pluto:9,chiron:10,ceres:11,pallas:12,juno:13,vesta:14 };
 function bodyOrderIdx(name) { return BODY_ORDER_INDEX[name] != null ? BODY_ORDER_INDEX[name] : 999; }
 
-// Calculate aspects between all bodies (Phase 8H: deterministic orbs + dynamics/strength/exactness/priorityBase)
-function calcAspects(positions) {
+// Calculate aspects between all bodies (Phase 8H: deterministic orbs + dynamics/strength/exactness/priorityBase [+ optional motion]))
+function calcAspects(positions, speeds) {
   const aspects = [];
   const aspectTypes = {
     conjunction: { angle: 0, orb: 8, dynamics: 'amplifying' },
@@ -568,6 +580,7 @@ function calcAspects(positions) {
     opposition: { angle: 180, orb: 8, dynamics: 'polarizing' }
   };
   const planetNames = Object.keys(positions);
+  const speedMap = speeds || {};
   for (let i = 0; i < planetNames.length; i++) {
     for (let j = i + 1; j < planetNames.length; j++) {
       const p1 = planetNames[i];
@@ -583,6 +596,19 @@ function calcAspects(positions) {
           const strength = Math.max(0, Math.min(1, exactness));
           const imp = 1 - (bodyOrderIdx(p1) + bodyOrderIdx(p2)) / (2 * 20);
           const priorityBase = Math.max(0, Math.min(1, exactness * 0.7 + imp * 0.3));
+          // Optional motion: applying vs separating (small forward step using speeds if available)
+          let motion = undefined;
+          const v1 = typeof speedMap[p1] === 'number' ? speedMap[p1] : null;
+          const v2 = typeof speedMap[p2] === 'number' ? speedMap[p2] : null;
+          if (v1 !== null && v2 !== null && Number.isFinite(v1) && Number.isFinite(v2)) {
+            const dt = 0.01; // days
+            const f1 = ((lon1 + v1 * dt) % 360 + 360) % 360;
+            const f2 = ((lon2 + v2 * dt) % 360 + 360) % 360;
+            let sepFuture = Math.abs(f1 - f2);
+            if (sepFuture > 180) sepFuture = 360 - sepFuture;
+            if (sepFuture < separation) motion = 'applying';
+            else if (sepFuture > separation) motion = 'separating';
+          }
           aspects.push({
             a: p1,
             b: p2,
@@ -594,7 +620,8 @@ function calcAspects(positions) {
             dynamics: config.dynamics,
             strength: Math.round(strength * 100) / 100,
             exactness: Math.round(exactness * 100) / 100,
-            priorityBase: Math.round(priorityBase * 100) / 100
+            priorityBase: Math.round(priorityBase * 100) / 100,
+            motion
           });
         }
       }
@@ -1070,7 +1097,7 @@ app.get("/positions", (req, res) => {
     const jd = Number.isFinite(lat) && Number.isFinite(lon) 
       ? toJulianDayUT(date, time, lat, lon)
       : toJulianDayUT(date, time);
-    const positions = calcPositions(jd, includeExtras);
+    const { positions } = calcPositions(jd, includeExtras);
 
     // Equal-house cusps (no location needed for positions endpoint)
     const cusps = Array.from({length:12}, (_,i) => i*30);
@@ -1102,7 +1129,7 @@ app.get("/chart", (req, res) => {
     if (hit && (now - hit.t) < TTL_POS_MS) return res.json(hit.payload);
 
     const jd = toJulianDayUT(date, time, lat, lon);
-    const positions = calcPositions(jd, includeExtras);
+    const { positions } = calcPositions(jd, includeExtras);
     const cusps = calcPlacidusCusps(jd, lat, lon);
 
     const payload = {
@@ -1144,9 +1171,9 @@ app.get("/api/chart-snapshot", (req, res) => {
       return res.status(400).json({ error: "Valid lat/lon required" });
     }
     const jd = toJulianDayUT(date, time, lat, lon);
-    const positions = calcPositions(jd, true);
+    const { positions, speeds } = calcPositions(jd, true);
     const cusps = calcPlacidusCusps(jd, lat, lon);
-    const aspects = calcAspects(positions);
+    const aspects = calcAspects(positions, speeds);
     const dominantElements = calcDominantElements(positions);
     const moonPhase = moonPhaseNorm(jd);
     const planets = PLANET_ORDER.filter((n) => positions[n] != null).map((name) => ({
@@ -1162,7 +1189,7 @@ app.get("/api/chart-snapshot", (req, res) => {
       houseSystem: "placidus",
       planets,
       houses,
-      aspects: aspects.map((a) => ({ bodyA: a.a, bodyB: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase })),
+      aspects: aspects.map((a) => ({ bodyA: a.a, bodyB: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase, motion: a.motion })),
       moonPhase,
       dominantElements: {
         fire: dominantElements.fire ?? 0.25,

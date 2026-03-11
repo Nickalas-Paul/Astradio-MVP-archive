@@ -96,6 +96,7 @@ export type SnapshotAspectItem = {
   strength?: number;
   exactness?: number;
   priorityBase?: number;
+  motion?: 'applying' | 'separating';
 };
 
 /**

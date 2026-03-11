@@ -43,6 +43,7 @@ export type EphemerisSnapshot = {
     strength?: number;
     exactness?: number;
     priorityBase?: number;
+    motion?: 'applying' | 'separating';
   }>;
   moonPhase: number;
   dominantElements: { fire: number; earth: number; air: number; water: number };
