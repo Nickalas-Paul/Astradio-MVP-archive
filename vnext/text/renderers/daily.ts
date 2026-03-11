@@ -1,6 +1,7 @@
 import type { TextAnalysisIntermediate, ToneSpec, AnalysisTension, AnalysisTheme, AnalysisOpportunity } from '../contracts';
 import * as fs from 'fs';
 import * as path from 'path';
+import { stableSortByNodeWeight } from './shared';
 
 export interface DailySection {
   id:
@@ -32,9 +33,9 @@ export function renderDaily(
   const spec = toneSpec ?? loadDailyToneSpec();
   const hasNatal = analysis.hasNatalContext === true;
 
-  const themes = stableSortByWeight(analysis.themes);
-  const tensions = stableSortByWeight(analysis.tensions);
-  const opportunities = stableSortByWeight(analysis.opportunities);
+  const themes = stableSortByNodeWeight(analysis.themes);
+  const tensions = stableSortByNodeWeight(analysis.tensions);
+  const opportunities = stableSortByNodeWeight(analysis.opportunities);
 
   const sections: DailySection[] = [];
 
@@ -87,10 +88,6 @@ function loadDailyToneSpec(): ToneSpec {
   const file = path.resolve(here, '../tones/daily.personality.v1.json');
   const raw = fs.readFileSync(file, 'utf8');
   return JSON.parse(raw) as ToneSpec;
-}
-
-function stableSortByWeight<T extends { weight: number }>(items: T[]): T[] {
-  return items.slice().sort((a, b) => b.weight - a.weight);
 }
 
 function buildSkySummary(

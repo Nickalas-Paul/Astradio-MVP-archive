@@ -1,9 +1,5 @@
-import type {
-  TextAnalysisIntermediate,
-  AnalysisTheme,
-  AnalysisTension,
-  AnalysisOpportunity
-} from '../contracts';
+import type { TextAnalysisIntermediate, AnalysisTheme, AnalysisTension, AnalysisOpportunity } from '../contracts';
+import { stableSortByNodeWeight } from './shared';
 
 export type RendererStatus = 'ok' | 'unimplemented' | 'insufficient_data';
 
@@ -92,22 +88,6 @@ export function renderCharacterSheet(analysis: TextAnalysisIntermediate): Struct
     status: 'ok',
     sections
   };
-}
-
-type AnyNode = {
-  id: string;
-  weight: number;
-  citations: { factIds: string[] };
-};
-
-function stableSortByNodeWeight<T extends AnyNode>(items: T[]): T[] {
-  return items.slice().sort((a, b) => {
-    if (b.weight !== a.weight) return b.weight - a.weight;
-    const ac = a.citations.factIds.length;
-    const bc = b.citations.factIds.length;
-    if (bc !== ac) return bc - ac;
-    return a.id.localeCompare(b.id);
-  });
 }
 
 function buildCoreIdentitySection(themes: AnalysisTheme[]): StructuredSection | undefined {
