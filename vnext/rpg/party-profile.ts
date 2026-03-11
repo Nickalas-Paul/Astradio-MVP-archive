@@ -27,6 +27,8 @@ export function buildPartyProfile(params: BuildPartyProfileParams): PartyProfile
   let mutable = 0;
   let tensionSum = 0;
   let supportSum = 0;
+  const roleCounts: Record<string, number> = {};
+  const domainAgg: Record<string, { sum: number; count: number }> = {};
 
   for (const userId of memberUserIds) {
     const profile = memberProfiles[userId];
@@ -49,9 +51,50 @@ export function buildPartyProfile(params: BuildPartyProfileParams): PartyProfile
         profile.temperament.attunement +
         profile.temperament.discipline) /
       3;
+
+    const t = profile.temperament;
+    const elKey = profile.primaryElement;
+    let role = 'integrator';
+    if (t.will >= t.courage && elKey === 'fire') role = 'initiator';
+    else if (t.discipline >= t.will && elKey === 'earth') role = 'anchor';
+    else if (t.insight >= t.bond && elKey === 'air') role = 'strategist';
+    else role = 'integrator';
+    roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+
+    for (const d of profile.signatureDomains) {
+      const entry = domainAgg[d.domain] ?? { sum: 0, count: 0 };
+      entry.sum += d.weight;
+      entry.count += 1;
+      domainAgg[d.domain] = entry;
+    }
   }
 
   const normalize = (v: number) => (n > 0 ? v / n : 0);
+
+  const roleDistribution: Record<string, number> = {};
+  let maxRoleCount = 0;
+  for (const [role, count] of Object.entries(roleCounts)) {
+    roleDistribution[role] = count / n;
+    if (count > maxRoleCount) maxRoleCount = count;
+  }
+  const roleRedundancyIndex = n > 0 ? maxRoleCount / n : 0;
+
+  const avgDomains: Record<string, number> = {};
+  for (const [dom, { sum, count }] of Object.entries(domainAgg)) {
+    if (count > 0) avgDomains[dom] = sum / count;
+  }
+  const sortedDomains = Object.entries(avgDomains)
+    .map(([domain, score]) => ({ domain, score }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.domain.localeCompare(b.domain);
+    });
+  const sharedStrengthDomains = sortedDomains
+    .filter((d) => d.score >= 0.6)
+    .map((d) => d.domain);
+  const sharedWeakDomains = sortedDomains
+    .filter((d) => d.score <= 0.2)
+    .map((d) => d.domain);
 
   return {
     id,
@@ -70,6 +113,10 @@ export function buildPartyProfile(params: BuildPartyProfileParams): PartyProfile
     },
     tensionIndex: normalize(tensionSum),
     supportIndex: normalize(supportSum),
+    roleDistribution,
+    sharedStrengthDomains,
+    sharedWeakDomains,
+    roleRedundancyIndex,
   };
 }
 

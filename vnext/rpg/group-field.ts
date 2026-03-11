@@ -19,6 +19,9 @@ export interface GroupFieldProfile {
 
   likelyCollectiveChallengeTypes: string[];
   groupThemeBias: string[];
+  collectivePressureDomains: string[];
+  collectiveSupportDomains: string[];
+  collectiveShadowDomains: string[];
 }
 
 function topKeys(
@@ -117,6 +120,12 @@ export function buildGroupFieldProfile(params: BuildGroupFieldParams): GroupFiel
   }
   const groupThemeBias = Array.from(themeBiasSet).sort();
 
+  const collectivePressureDomains = sortedDomains
+    .filter((d) => d.score >= 0.4 && d.score < 0.8)
+    .map((d) => d.domain);
+  const collectiveSupportDomains = sharedStrengths;
+  const collectiveShadowDomains = sharedBlindSpots;
+
   return {
     partyId: party.id,
     dominantElements,
@@ -130,6 +139,9 @@ export function buildGroupFieldProfile(params: BuildGroupFieldParams): GroupFiel
     cohesionScore,
     likelyCollectiveChallengeTypes,
     groupThemeBias,
+    collectivePressureDomains,
+    collectiveSupportDomains,
+    collectiveShadowDomains,
   };
 }
 

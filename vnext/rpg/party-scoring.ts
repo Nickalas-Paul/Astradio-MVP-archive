@@ -30,6 +30,31 @@ export function buildPartyRoutingScore(params: BuildPartyRoutingScoreParams): Pa
     domainWeights[domain] = weight;
   }
 
+  const roleCoverageScore =
+    Object.keys(party.roleDistribution).length > 0
+      ? Math.min(1, Object.keys(party.roleDistribution).length / 4)
+      : 0;
+
+  const elementalBalanceScore =
+    1 -
+    (Math.abs(party.elementBlend.fire - party.elementBlend.air) +
+      Math.abs(party.elementBlend.earth - party.elementBlend.water)) /
+      4;
+
+  const modalityBalanceScore =
+    1 -
+    (Math.abs(party.modalityBlend.cardinal - party.modalityBlend.fixed) +
+      Math.abs(party.modalityBlend.fixed - party.modalityBlend.mutable)) /
+      4;
+
+  const supportComplementScore = party.supportIndex;
+
+  const frictionScore = party.tensionIndex;
+
+  const redundancyPenalty = party.roleRedundancyIndex;
+
+  const shadowRiskPenalty = party.tensionIndex * 0.5;
+
   let routingScalar = 0;
   for (const [dom, w] of Object.entries(domainWeights)) {
     routingScalar += (dom.length % 7) * w;
@@ -39,9 +64,24 @@ export function buildPartyRoutingScore(params: BuildPartyRoutingScoreParams): Pa
   for (const w of Object.values(domainWeights)) {
     total += w;
   }
+  total +=
+    roleCoverageScore * 0.3 +
+    elementalBalanceScore * 0.2 +
+    modalityBalanceScore * 0.1 +
+    supportComplementScore * 0.2 +
+    frictionScore * 0.1 -
+    redundancyPenalty * 0.15 -
+    shadowRiskPenalty * 0.15;
 
   return {
     partyId: party.id,
+    roleCoverageScore,
+    elementalBalanceScore,
+    modalityBalanceScore,
+    supportComplementScore,
+    frictionScore,
+    redundancyPenalty,
+    shadowRiskPenalty,
     domainWeights,
     routingScalar,
     total,

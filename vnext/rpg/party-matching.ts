@@ -28,9 +28,15 @@ export function matchRoutedParty(pool: CandidatePool): PartyMatchResult | null {
     throw new Error('initiatingUserId with CharacterProfile required');
   }
 
-  const uniqueCandidates = Array.from(
+  const uniqueCandidatesAll = Array.from(
     new Set(candidateUserIds.filter((id) => id !== initiatingUserId && memberProfiles[id]))
   ).sort();
+
+  const MAX_CANDIDATES_EXACT = 10;
+  const uniqueCandidates =
+    uniqueCandidatesAll.length <= MAX_CANDIDATES_EXACT
+      ? uniqueCandidatesAll
+      : uniqueCandidatesAll.slice(0, MAX_CANDIDATES_EXACT);
 
   const size = Math.max(1, Math.min(targetSize, 1 + uniqueCandidates.length));
 

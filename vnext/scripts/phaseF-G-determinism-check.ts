@@ -78,6 +78,9 @@ async function main() {
   if (JSON.stringify(routing1) !== JSON.stringify(routing2)) {
     throw new Error('[PhaseF] PartyRoutingScore unstable for identical input');
   }
+  if (!('roleCoverageScore' in routing1) || !('elementalBalanceScore' in routing1)) {
+    throw new Error('[PhaseF] PartyRoutingScore missing component fields');
+  }
 
   const match1 = matchRoutedParty({
     initiatingUserId: 'u1',
@@ -105,6 +108,9 @@ async function main() {
   if (JSON.stringify(field1) !== JSON.stringify(field2)) {
     throw new Error('[PhaseG] GroupFieldProfile unstable for identical party');
   }
+  if (!('collectivePressureDomains' in field1) || !('collectiveSupportDomains' in field1)) {
+    throw new Error('[PhaseG] GroupFieldProfile missing collective domain fields');
+  }
 
   // eslint-disable-next-line no-console
   console.log('[OK] PhaseE/F/G group determinism check passed', {
@@ -113,6 +119,8 @@ async function main() {
     partyId: party1.id,
     routingTotal: routing1.total,
     groupThemes: field1.groupThemeBias,
+    roleDistribution: party1.roleDistribution,
+    collectivePressureDomains: field1.collectivePressureDomains,
   });
 }
 
