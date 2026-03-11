@@ -10,6 +10,7 @@ import HeaderTabs from '../src/components/HeaderTabs';
 import WheelCanvas from '../src/components/WheelCanvas';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { DateInput, TimeInput, LocationInput } from '../src/components/Inputs';
+import { normalizeChartForWheel } from '../src/core/chart-adapter';
 
 type ChartData = any;
 
@@ -135,22 +136,8 @@ export default function HomePage() {
           setSpecVersion(responseSpec || null);
           // Backend returns "controls"; accept both controlSurface (legacy) and controls
           const surface = payload?.controlSurface ?? payload?.controls ?? null;
-          setChartData(surface);
           setComposeHash(payload?.controls?.hash ?? payload?.hash ?? '');
           setExportId(payload?.export_id ?? null);
-          // If compose response has no positions/cusps, fetch chart from /api/chart for wheel
-          const hasChart = surface?.positions && Object.keys(surface.positions).length > 0 && Array.isArray(surface?.cusps) && surface.cusps.length === 12;
-          if (!cancelled && !hasChart && dateStr && timeStr) {
-            const lat = geo.status === 'ok' ? geo.lat! : -34.6037;
-            const lon = geo.status === 'ok' ? geo.lon! : -58.3816;
-            try {
-              const chartRes = await fetch(`/api/chart?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeStr)}&lat=${lat}&lon=${lon}`);
-              if (chartRes.ok) {
-                const chartJson = await chartRes.json();
-                if (chartJson?.positions && Array.isArray(chartJson?.cusps)) setChartData(chartJson);
-              }
-            } catch (_) {}
-          }
           if (payload?.explanation?.text) {
             setAnalysisText(payload.explanation.text);
             setExplanationSections(null);
@@ -212,6 +199,33 @@ export default function HomePage() {
             setComposePlan(null);
           }
           setComposeGenre(payload?.controls?.genre ?? 'house');
+
+          // Wheel geometry: prefer canonical EphemerisSnapshot via /api/chart-snapshot.
+          // Fallback to control-surface chart data only if snapshot request fails.
+          let wheelSource: any = null;
+          if (dateStr && timeStr) {
+            const lat = geo.status === 'ok' ? geo.lat! : -34.6037;
+            const lon = geo.status === 'ok' ? geo.lon! : -58.3816;
+            try {
+              const snapRes = await fetch(
+                `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeStr)}&lat=${lat}&lon=${lon}`
+              );
+              if (snapRes.ok) {
+                const snapshot = await snapRes.json().catch(() => null);
+                const normalized = snapshot ? normalizeChartForWheel(snapshot) : null;
+                if (normalized) {
+                  wheelSource = normalized;
+                }
+              }
+            } catch (_) {
+              // ignore, fall back to control-surface chart below
+            }
+          }
+
+          if (!wheelSource) {
+            wheelSource = surface;
+          }
+          setChartData(wheelSource);
 
           // Location display is handled by locationLabel + reverse-geocode effect; compose always uses geo lat/lon
         }

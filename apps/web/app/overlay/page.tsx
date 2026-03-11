@@ -10,16 +10,17 @@ import { ComparisonSwitcher } from '../../src/components/ComparisonSwitcher';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import { useChartsStore } from '../../src/store';
 import { isFeatureEnabled } from '../../src/core/config/flags';
-import type { ChartData, ChartSummary } from '../../src/types';
+import type { ChartSummary } from '../../src/types';
 
 export default function OverlayPage() {
   const [selectedGenre, setSelectedGenre] = useState('ambient');
   const [chartA, setChartA] = useState<ChartSummary | null>(null);
   const [chartB, setChartB] = useState<ChartSummary | null>(null);
-  const [combinedChartData, setCombinedChartData] = useState<ChartData | null>(null);
+  const [combinedChartData, setCombinedChartData] = useState<any | null>(null);
   const [overlayExportId, setOverlayExportId] = useState<string | null>(null);
   const [overlayLoading, setOverlayLoading] = useState(false);
   const { charts, addChart } = useChartsStore();
+  const [chartSnapshots, setChartSnapshots] = useState<Record<string, any>>({});
 
   // Load default charts on mount
   useEffect(() => {
@@ -30,44 +31,43 @@ export default function OverlayPage() {
         const date = now.toISOString().slice(0, 10);
         const time = now.toTimeString().slice(0, 5);
         
-        const base = getApiBaseUrl();
-        const chartPath = base ? `${base}/chart` : '/api/chart';
-        const todayResponse = await fetch(`${chartPath}?date=${date}&time=${time}&lat=-34.6037&lon=-58.3816`);
-        
+        const todayResponse = await fetch(
+          `/api/chart-snapshot?date=${date}&time=${time}&lat=-34.6037&lon=-58.3816`
+        );
         if (todayResponse.ok) {
-          const todayData = await todayResponse.json();
+          const todaySnapshot = await todayResponse.json();
           const todayChart: ChartSummary = {
             id: 'today',
             label: 'Today',
             createdAt: now.toISOString(),
-            positions: todayData.positions,
-            houses: todayData.cusps,
           };
           ;(window as any).__lastSeed = todayData.seed;
           ;(window as any).__lastControlHash = todayData.controlHash;
           
           setChartA(todayChart);
           addChart(todayChart);
+          setChartSnapshots((prev) => ({ ...prev, [todayChart.id]: todaySnapshot }));
+          setCombinedChartData(todaySnapshot);
         }
 
         // Load "Natal" chart (using a sample birth date)
         const natalDate = '1990-06-15';
         const natalTime = '14:30';
         
-        const natalResponse = await fetch(`${chartPath}?date=${natalDate}&time=${natalTime}&lat=-34.6037&lon=-58.3816`);
-        
+        const natalResponse = await fetch(
+          `/api/chart-snapshot?date=${natalDate}&time=${natalTime}&lat=-34.6037&lon=-58.3816`
+        );
         if (natalResponse.ok) {
-          const natalData = await natalResponse.json();
+          const natalSnapshot = await natalResponse.json();
           const natalChart: ChartSummary = {
             id: 'natal',
             label: 'My Natal',
             createdAt: new Date('1990-06-15T14:30:00Z').toISOString(),
-            positions: natalData.positions,
-            houses: natalData.cusps,
           };
           
           setChartB(natalChart);
           addChart(natalChart);
+          setChartSnapshots((prev) => ({ ...prev, [natalChart.id]: natalSnapshot }));
         }
       } catch (error) {
         console.error('Failed to load charts:', error);
@@ -77,31 +77,13 @@ export default function OverlayPage() {
     loadDefaultCharts();
   }, [addChart]);
 
-  // Combine chart data for overlay display
-  useEffect(() => {
-    if (chartA && chartB) {
-      // Create combined chart data showing both charts
-      setCombinedChartData({
-        positions: {
-          ...chartA.positions,
-          // Add prefix to distinguish between charts
-          ...Object.fromEntries(
-            Object.entries(chartB.positions ?? {}).map(([key, value]) => [`${key}_natal`, value])
-          ),
-        },
-        cusps: chartA.houses || [],
-        aspects: [],
-        moonPhase: 0,
-        dominantElements: { fire: 0, earth: 0, air: 0, water: 0 },
-      });
-    }
-  }, [chartA, chartB]);
-
   const handleChartChange = (chartId: string, position: 'A' | 'B') => {
     const chart = charts.find(c => c.id === chartId);
     if (chart) {
       if (position === 'A') {
         setChartA(chart);
+        const snap = chartSnapshots[chart.id];
+        if (snap) setCombinedChartData(snap);
       } else {
         setChartB(chart);
       }
