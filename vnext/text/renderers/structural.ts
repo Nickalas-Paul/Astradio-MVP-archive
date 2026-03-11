@@ -99,7 +99,9 @@ function buildCoreIdentitySection(themes: AnalysisTheme[]): StructuredSection | 
   return {
     id: 'core_identity',
     title: 'Core Identity Pattern',
-    text: `This chart often emphasizes patterns such as ${labels.join(', ')}.`
+    text: `This chart often centers its core storyline around patterns such as ${labels.join(
+      ', '
+    )}, which describe how identity tends to organize itself over time.`
   };
 }
 
@@ -119,7 +121,9 @@ function buildDynamicEdgesSection(tensions: AnalysisTension[]): StructuredSectio
   return {
     id: 'dynamic_edges',
     title: 'Dynamic Edges',
-    text: `Inner dynamics and friction often cluster around patterns like ${labels.join(', ')}.`
+    text: `Inner dynamics and friction often cluster around patterns like ${labels.join(
+      ', '
+    )}, marking the edges where habit, desire, and circumstance meet.`
   };
 }
 
@@ -134,7 +138,9 @@ function buildGrowthVectorsSection(
   return {
     id: 'growth_vectors',
     title: 'Growth Vectors',
-    text: `Growth and experimentation can move through opportunities such as ${labels.join(', ')}.`
+    text: `Growth and experimentation can move through opportunities such as ${labels.join(
+      ', '
+    )}, offering concrete directions where effort and curiosity are especially well used.`
   };
 }
 

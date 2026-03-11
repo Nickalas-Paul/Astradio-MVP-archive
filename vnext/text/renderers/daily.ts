@@ -136,7 +136,8 @@ function buildPersonalEmphasis(
   spec: ToneSpec
 ): string {
   if (!hasNatal) {
-    const generic = 'Without natal context, this section stays general: the sky pattern is available to everyone rather than describing one specific biography.';
+    const generic =
+      'Without natal context, this section stays general: the sky pattern describes a shared atmosphere rather than one specific biography.';
     return generic;
   }
 
@@ -144,7 +145,7 @@ function buildPersonalEmphasis(
   if (themes.length > 0) {
     const top = themes[0];
     parts.push(
-      `In a personal reading of this chart, this dynamic often describes where attention and effort cluster: ${top.label}.`
+      `In a personal reading of this chart, this dynamic often marks where attention, effort, and self-story tend to cluster: ${top.label}.`
     );
   } else {
     parts.push(
@@ -167,12 +168,12 @@ function buildLikelyExpressions(
   const source = themes.length ? themes[0] : opportunities[0];
   if (source) {
     const lead = hasNatal
-      ? `In practice, this may feel like a recurring pattern in day-to-day choices: ${source.label}.`
-      : `In practice, many people experience a pattern like this in day-to-day choices: ${source.label}.`;
+      ? `In day-to-day life, this may feel like a familiar rhythm in the kinds of choices you keep returning to: ${source.label}.`
+      : `In day-to-day life, many people notice a similar rhythm in the kinds of choices that keep returning: ${source.label}.`;
     parts.push(lead);
   } else {
     parts.push(
-      'In practice, this may feel like certain topics keep returning to the foreground for a short stretch, then receding as the sky shifts.'
+      'In day-to-day life, this may feel like certain topics briefly move to the foreground, then recede again as the sky shifts.'
     );
   }
 
@@ -190,10 +191,12 @@ function buildWatchFors(
 
   if (source) {
     const lead = hasNatal
-      ? `This pattern can show up as a place where reactions run hotter or feel more compressed: ${source.label}.`
-      : `For many people, this pattern can show up as a place where reactions run hotter or feel more compressed: ${source.label}.`;
+      ? `This pattern can surface as a place where reactions run hotter or feel more compressed than the situation strictly requires: ${source.label}.`
+      : `For many people, this pattern surfaces as a place where reactions run hotter or feel more compressed than the situation strictly requires: ${source.label}.`;
     parts.push(lead);
-    parts.push('It is something to notice and work with rather than something that decides outcomes on its own.');
+    parts.push(
+      'It is something to notice, name, and work with over time rather than something that decides outcomes on its own.'
+    );
   } else {
     parts.push(
       'If anything feels unusually sharp or crowded today, it is worth noticing how long it lasts and where it concentrates, rather than assuming it will define the whole story.'
@@ -213,13 +216,13 @@ function buildIntegrationPrompt(
   const focus = themes[0] ?? tensions[0];
   if (focus) {
     const lead = hasNatal
-      ? `A useful reflection is to notice one concrete situation today where this pattern shows up and how you respond to it: ${focus.label}.`
-      : `A useful reflection is to notice one concrete situation today where this pattern shows up around you and how you respond to it: ${focus.label}.`;
+      ? `One concrete way to work with this pattern is to notice a single situation today where it shows up and to track how you respond: ${focus.label}.`
+      : `One concrete way to work with this pattern is to notice a single situation today where it shows up around you and to track how you respond: ${focus.label}.`;
     return lead;
   }
 
   const generic =
-    'A useful reflection is to track one moment today where the sky pattern feels loudest, and to note what choices are actually available in that moment.';
+    'A useful reflection is to track one moment today where the sky pattern feels loudest, and to quietly name what choices are actually available in that moment.';
   return generic;
 }
 
