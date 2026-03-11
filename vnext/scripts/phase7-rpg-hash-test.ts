@@ -88,7 +88,7 @@ function makeSampleSnapshot(): EphemerisSnapshot {
     ],
     houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
     aspects: [
-      { a: 'Sun', b: 'Moon', type: 'trine', orb: 2 },
+      { bodyA: 'sun', bodyB: 'moon', type: 'trine', orb: 2 },
     ],
     moonPhase: 0.5,
     dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },

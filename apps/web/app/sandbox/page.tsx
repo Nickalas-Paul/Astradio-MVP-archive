@@ -84,6 +84,7 @@ export default function SandboxPage() {
   });
   const [report, setReport] = useState<SandboxReport | null>(null);
   const [constrainToHouse, setConstrainToHouse] = useState(true);
+  const [showAspectLines, setShowAspectLines] = useState(true);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
@@ -668,6 +669,7 @@ export default function SandboxPage() {
                     constrainToHouse={false}
                     freeBuild
                     selectedPlanetForPlacement={selectedPlanetForPlacement}
+                    showAspectLines={false}
                   />
                 </div>
               </div>
@@ -693,7 +695,7 @@ export default function SandboxPage() {
               <p><strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})</p>
               <p><strong>Aspects:</strong> {currentSnapshot.aspects?.length ?? 0}</p>
               {currentSnapshot.aspects?.length ? (
-                <p><strong>Sample aspect:</strong> {currentSnapshot.aspects[0].a}–{currentSnapshot.aspects[0].b} {currentSnapshot.aspects[0].type} orb={currentSnapshot.aspects[0].orb}
+                <p><strong>Sample aspect:</strong> {(currentSnapshot.aspects[0].bodyA ?? (currentSnapshot.aspects[0] as { a?: string }).a)}–{(currentSnapshot.aspects[0].bodyB ?? (currentSnapshot.aspects[0] as { b?: string }).b)} {currentSnapshot.aspects[0].type} orb={currentSnapshot.aspects[0].orb}
                   {' '}{(currentSnapshot.aspects[0] as { dynamics?: string; strength?: number; exactness?: number; priorityBase?: number }).dynamics != null && (
                     <>dynamics={(currentSnapshot.aspects[0] as { dynamics?: string }).dynamics} strength={(currentSnapshot.aspects[0] as { strength?: number }).strength} exactness={(currentSnapshot.aspects[0] as { exactness?: number }).exactness} priorityBase={(currentSnapshot.aspects[0] as { priorityBase?: number }).priorityBase}</>
                   )}
@@ -712,10 +714,16 @@ export default function SandboxPage() {
                     <h2 className="text-xl font-semibold text-text">Wheel</h2>
                     <p className="text-sm text-subtext mt-1">Drag planets or use degree inputs. Houses are from birth chart geometry in Phase 6.</p>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-subtext">
-                    <input type="checkbox" checked={constrainToHouse} onChange={(e) => setConstrainToHouse(e.target.checked)} className="rounded" />
-                    Constrain to house
-                  </label>
+                  <div className="flex items-center gap-4 text-sm text-subtext">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={constrainToHouse} onChange={(e) => setConstrainToHouse(e.target.checked)} className="rounded" />
+                      Constrain to house
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={showAspectLines} onChange={(e) => setShowAspectLines(e.target.checked)} className="rounded" />
+                      Aspect lines
+                    </label>
+                  </div>
                   {Object.keys(draft.overrides.planets).length > 0 && (
                     <button onClick={handleResetAllOverrides} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">Reset All</button>
                   )}
@@ -727,6 +735,7 @@ export default function SandboxPage() {
                     onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}
                     isUpdating={state === 'syncing_overrides'}
                     constrainToHouse={constrainToHouse}
+                    showAspectLines={showAspectLines}
                   />
                 </div>
               </div>

@@ -1,10 +1,10 @@
 // vnext/contracts.ts
 // Core data contracts for ML-primary astrological audio composer
 
-/** Aspect type with Phase 8H metadata (dynamics, strength, exactness, priorityBase). */
+/** Aspect type with Phase 8H metadata. Canonical body pair: bodyA, bodyB. */
 export type SnapshotAspect = {
-  a: string;
-  b: string;
+  bodyA: string;
+  bodyB: string;
   type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
   orb: number;
   exactAngle?: number;
@@ -13,6 +13,17 @@ export type SnapshotAspect = {
   exactness?: number;
   priorityBase?: number;
 };
+
+/**
+ * Read canonical body pair from an aspect.
+ * Supports legacy payloads that still have a/b (e.g. cached or external API); internal contract is bodyA/bodyB only.
+ */
+export function aspectBodies(asp: { bodyA?: string; bodyB?: string; a?: string; b?: string }): { bodyA: string; bodyB: string } {
+  return {
+    bodyA: asp.bodyA ?? asp.a ?? '',
+    bodyB: asp.bodyB ?? asp.b ?? '',
+  };
+}
 
 export type EphemerisSnapshot = {
   ts: string; 

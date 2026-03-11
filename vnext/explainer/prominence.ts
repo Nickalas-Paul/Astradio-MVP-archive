@@ -120,8 +120,8 @@ export function selectProminentFactors(
   for (const asp of aspects) {
     const typeKey = ASPECT_TYPE_MAP[asp.type];
     if (!typeKey) continue;
-    const a = cap(asp.a);
-    const b = cap(asp.b);
+    const a = cap(asp.bodyA ?? (asp as { a?: string }).a ?? '');
+    const b = cap(asp.bodyB ?? (asp as { b?: string }).b ?? '');
     let weight = ASPECT_BASE_WEIGHT[typeKey] ?? 2;
     const reasons: string[] = [`${asp.type}`];
     if (LUMINARIES.has(a) || LUMINARIES.has(b)) {

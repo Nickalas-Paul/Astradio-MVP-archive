@@ -197,9 +197,9 @@ async function dbTests(): Promise<void> {
     ],
     houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
     aspects: [
-      { a: 'Sun', b: 'Saturn', type: 'square', orb: 2 },
-      { a: 'Moon', b: 'Uranus', type: 'conjunction', orb: 1.5 },
-      { a: 'Venus', b: 'Neptune', type: 'trine', orb: 3 },
+      { bodyA: 'sun', bodyB: 'saturn', type: 'square', orb: 2 },
+      { bodyA: 'moon', bodyB: 'uranus', type: 'conjunction', orb: 1.5 },
+      { bodyA: 'venus', bodyB: 'neptune', type: 'trine', orb: 3 },
     ],
     moonPhase: 0.7,
     dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },

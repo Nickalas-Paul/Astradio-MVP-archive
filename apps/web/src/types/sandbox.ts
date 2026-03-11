@@ -34,8 +34,8 @@ export type EphemerisSnapshot = {
   planets: Array<{ name: string; lon: number; lat?: number; speed?: number }>;
   houses: [number, number, number, number, number, number, number, number, number, number, number, number];
   aspects: Array<{
-    a: string;
-    b: string;
+    bodyA: string;
+    bodyB: string;
     type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
     orb: number;
     exactAngle?: number;

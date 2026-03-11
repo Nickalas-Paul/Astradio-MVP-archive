@@ -24,7 +24,7 @@ function makeSnapshot(): EphemerisSnapshot {
     ],
     houses: [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 0],
     aspects: [
-      { a: 'sun', b: 'mercury', type: 'conjunction', orb: 3 }
+      { bodyA: 'sun', bodyB: 'mercury', type: 'conjunction', orb: 3 }
     ],
     moonPhase: 0.5,
     dominantElements: { fire: 0.4, earth: 0.2, air: 0.3, water: 0.1 }

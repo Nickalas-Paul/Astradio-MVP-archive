@@ -35,6 +35,15 @@ const WHEEL_COLORS = {
   markerFill: '#e8ecf1',
 } as const;
 
+/** Deterministic aspect line colors by type (conventional mapping). */
+const ASPECT_LINE_COLOR: Record<string, string> = {
+  conjunction: '#b8a070',
+  sextile: '#6b9bb8',
+  square: '#c66b6b',
+  trine: '#4a9b7a',
+  opposition: '#9470b8',
+};
+
 function pol(r: number, eclDeg: number) {
   const a = ((-eclDeg + 180) * Math.PI) / 180;
   return { x: r * Math.cos(a), y: r * Math.sin(a) };
@@ -146,6 +155,8 @@ function clampToHouse(lonDeg: number, houseIndex: number, cusps: number[]): numb
   return roundDegree(clamped === 360 ? 0 : clamped);
 }
 
+type SnapshotAspectLike = { bodyA?: string; bodyB?: string; a?: string; b?: string; type: string; orb?: number };
+
 export interface WheelCanvasBuilderProps {
   snapshot: EphemerisSnapshot | null;
   overrides: SandboxOverrides;
@@ -157,6 +168,8 @@ export interface WheelCanvasBuilderProps {
   freeBuild?: boolean;
   /** When set, click-on-wheel places this planet (wheel-first placement). Used only in free-build. */
   selectedPlanetForPlacement?: PlanetKey | null;
+  /** When true (default), aspect lines are drawn. Set false to hide. */
+  showAspectLines?: boolean;
 }
 
 export function WheelCanvasBuilder({
@@ -167,6 +180,7 @@ export function WheelCanvasBuilder({
   constrainToHouse = true,
   freeBuild = false,
   selectedPlanetForPlacement = null,
+  showAspectLines = true,
 }: WheelCanvasBuilderProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
@@ -326,6 +340,32 @@ export function WheelCanvasBuilder({
             );
           })}
           
+          {/* Aspect lines (from snapshot state; same geometry as planets) */}
+          {showAspectLines && snapshot?.aspects?.length
+            ? snapshot.aspects.map((asp: SnapshotAspectLike, idx: number) => {
+                const bodyA = asp.bodyA ?? asp.a ?? '';
+                const bodyB = asp.bodyB ?? asp.b ?? '';
+                const lonA = positions[bodyA];
+                const lonB = positions[bodyB];
+                if (lonA == null || lonB == null || !Number.isFinite(lonA) || !Number.isFinite(lonB)) return null;
+                const p1 = pol(R_OUT - 10, lonA);
+                const p2 = pol(R_OUT - 10, lonB);
+                const color = ASPECT_LINE_COLOR[asp.type] ?? '#6a7a8a';
+                return (
+                  <line
+                    key={`aspect-${idx}-${bodyA}-${bodyB}-${asp.type}`}
+                    x1={p1.x}
+                    y1={p1.y}
+                    x2={p2.x}
+                    y2={p2.y}
+                    stroke={color}
+                    strokeWidth={1}
+                    strokeOpacity={0.7}
+                  />
+                );
+              })
+            : null}
+
           {/* Planets */}
           {Object.entries(positions).map(([name, deg]) => {
             if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;

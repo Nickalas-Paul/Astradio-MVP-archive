@@ -76,8 +76,8 @@ export function detectTransitSignals(snapshot: EphemerisSnapshot): RPGTransitSig
     const type = asp.type as AspectType;
     if (!ASPECT_ORDER.includes(type)) continue;
 
-    const aId = toBodyId(asp.a);
-    const bId = toBodyId(asp.b);
+    const aId = toBodyId(asp.bodyA ?? (asp as { a?: string }).a ?? '');
+    const bId = toBodyId(asp.bodyB ?? (asp as { b?: string }).b ?? '');
     if (!aId || !bId) continue;
 
     const idxA = orderIndex.get(aId) ?? 0;

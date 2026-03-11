@@ -344,10 +344,10 @@ function generateSnapshot(candidate: any): EphemerisSnapshot {
     houses[8] || 240, houses[9] || 270, houses[10] || 300, houses[11] || 330
   ];
   
-  // Ensure aspects have correct types
+  // Ensure aspects have correct types (canonical bodyA/bodyB)
   const typedAspects = aspects.map(aspect => ({
-    a: aspect.a,
-    b: aspect.b,
+    bodyA: aspect.a,
+    bodyB: aspect.b,
     type: aspect.type as 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition',
     orb: aspect.orb
   }));

@@ -8,7 +8,7 @@ import type { VizPayload, VizPayloadChart, VizPayloadPlan } from './types';
 export interface EphemerisSnapshotLike {
   houses: number[];
   planets: Array<{ name: string; lon: number }>;
-  aspects: Array<{ a: string; b: string; type: string; orb: number }>;
+  aspects: Array<{ bodyA?: string; bodyB?: string; a?: string; b?: string; type: string; orb?: number }>;
 }
 
 export interface PlanLike {
@@ -34,11 +34,11 @@ function buildChart(snapshot: EphemerisSnapshotLike): VizPayloadChart {
   for (const p of snapshot.planets ?? []) {
     planetLongitudes[p.name] = p.lon;
   }
-  const aspects = (snapshot.aspects ?? []).map((a) => ({
-    p1: a.a,
-    p2: a.b,
+  const aspects = (snapshot.aspects ?? []).map((a: { bodyA?: string; bodyB?: string; a?: string; b?: string; type: string; orb?: number }) => ({
+    p1: a.bodyA ?? a.a ?? '',
+    p2: a.bodyB ?? a.b ?? '',
     type: a.type,
-    orb: a.orb,
+    orb: a.orb ?? 0,
   }));
   const asc = houses[0];
   const mc = houses[9];

@@ -34,9 +34,13 @@ function dominantPlanetsFromSnapshot(snapshot: EphemerisSnapshot): string[] {
   for (const p of planets) {
     aspectCount[p.name] = 0;
   }
+  const bodyKey = (x: { bodyA?: string; bodyB?: string; a?: string; b?: string }) => (x.bodyA ?? x.a ?? '').toLowerCase();
+  const bodyKeyB = (x: { bodyA?: string; bodyB?: string; a?: string; b?: string }) => (x.bodyB ?? x.b ?? '').toLowerCase();
   for (const asp of snapshot.aspects ?? []) {
-    if (asp.a && aspectCount[asp.a] !== undefined) aspectCount[asp.a]++;
-    if (asp.b && asp.b !== asp.a && aspectCount[asp.b] !== undefined) aspectCount[asp.b]++;
+    const a = bodyKey(asp);
+    const b = bodyKeyB(asp);
+    if (a && aspectCount[a] !== undefined) aspectCount[a]++;
+    if (b && b !== a && aspectCount[b] !== undefined) aspectCount[b]++;
   }
 
   const scored = planets.map((p) => {

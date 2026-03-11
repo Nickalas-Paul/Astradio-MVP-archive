@@ -29,8 +29,8 @@ function hashSnapshot(snapshot: EphemerisSnapshot): string {
     })),
     houses: snapshot.houses,
     aspects: snapshot.aspects.slice().sort((a, b) => {
-      const cmp = a.a.localeCompare(b.a);
-      return cmp !== 0 ? cmp : a.b.localeCompare(b.b);
+      const cmp = (a.bodyA ?? (a as { a?: string }).a ?? '').localeCompare(b.bodyA ?? (b as { a?: string }).a ?? '');
+      return cmp !== 0 ? cmp : (a.bodyB ?? (a as { b?: string }).b ?? '').localeCompare(b.bodyB ?? (b as { b?: string }).b ?? '');
     }),
     moonPhase: snapshot.moonPhase,
     dominantElements: snapshot.dominantElements

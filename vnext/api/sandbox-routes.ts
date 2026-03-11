@@ -113,12 +113,13 @@ export function createSandboxRouter(): import('express').Router {
         .update(birthHash + overridesHash, 'utf8')
         .digest('hex');
 
-      // Return compose-free report (no music, no gates)
+      // Return compose-free report (no music, no gates). relationalContext for reporting intake.
       return res.status(200).json({
         features: Array.from(architecture.features),
         personality: architecture.personality,
         guidance: architecture.guidance,
         explanation: architecture.astroProfile,
+        relationalContext: architecture.relationalContext,
         seed: architecture.seed,
         meta: {
           combinedHash

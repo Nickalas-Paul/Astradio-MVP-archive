@@ -85,10 +85,10 @@ export function computeAspects(positions: Record<string, number>): AspectResult[
   return results.sort((a, b) => b.priorityBase - a.priorityBase);
 }
 
-/** Snapshot aspect shape with Phase 8H metadata. */
+/** Snapshot aspect shape with Phase 8H metadata. Canonical: bodyA, bodyB. */
 export type SnapshotAspectItem = {
-  a: string;
-  b: string;
+  bodyA: string;
+  bodyB: string;
   type: AspectTypeKey;
   orb: number;
   exactAngle?: number;
@@ -99,12 +99,12 @@ export type SnapshotAspectItem = {
 };
 
 /**
- * Convert AspectResult[] to EphemerisSnapshot aspect shape (a, b, type, orb + optional metadata).
+ * Convert AspectResult[] to EphemerisSnapshot aspect shape (bodyA, bodyB, type, orb + metadata).
  */
 export function toSnapshotAspects(aspects: AspectResult[]): SnapshotAspectItem[] {
   return aspects.map((x) => ({
-    a: x.bodyA,
-    b: x.bodyB,
+    bodyA: x.bodyA,
+    bodyB: x.bodyB,
     type: x.type,
     orb: x.orb,
     exactAngle: x.exactAngle,

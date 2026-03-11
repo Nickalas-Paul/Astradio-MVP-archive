@@ -1162,7 +1162,7 @@ app.get("/api/chart-snapshot", (req, res) => {
       houseSystem: "placidus",
       planets,
       houses,
-      aspects: aspects.map((a) => ({ a: a.a, b: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase })),
+      aspects: aspects.map((a) => ({ bodyA: a.a, bodyB: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase })),
       moonPhase,
       dominantElements: {
         fire: dominantElements.fire ?? 0.25,

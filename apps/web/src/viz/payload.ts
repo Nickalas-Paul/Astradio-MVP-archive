@@ -35,8 +35,8 @@ function buildChart(snapshot: EphemerisSnapshotLike): VizPayloadChart {
     planetLongitudes[p.name] = p.lon;
   }
   const aspects = (snapshot.aspects ?? []).map((a) => ({
-    p1: a.a,
-    p2: a.b,
+    p1: a.bodyA ?? (a as { a?: string }).a ?? '',
+    p2: a.bodyB ?? (a as { b?: string }).b ?? '',
     type: a.type,
     orb: a.orb,
   }));

@@ -1353,8 +1353,8 @@ export class ComposeAPI {
       })),
       houses: snapshot.houses,
       aspects: snapshot.aspects.slice().sort((a, b) => {
-        const cmp = a.a.localeCompare(b.a);
-        return cmp !== 0 ? cmp : a.b.localeCompare(b.b);
+        const cmp = a.bodyA.localeCompare(b.bodyA);
+        return cmp !== 0 ? cmp : a.bodyB.localeCompare(b.bodyB);
       }),
       moonPhase: snapshot.moonPhase,
       dominantElements: snapshot.dominantElements

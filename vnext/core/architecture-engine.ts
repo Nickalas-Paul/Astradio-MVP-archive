@@ -11,6 +11,7 @@ import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildAstroProfile, type AstroProfile } from '../astro/profile-from-snapshot';
+import { buildRelationalChartContext, type RelationalChartContext } from '../report-context';
 
 export interface ChartInput {
   date: string;
@@ -31,6 +32,8 @@ export interface ArchitectureOutput {
     narrativeArc: import('../astro/guidance').NarrativeArc;
     personality: import('../astro/personality-profile').PersonalityProfileV1;
   };
+  /** Relational chart context: bodies, aspects, top-ranked aspects for reporting. */
+  relationalContext: RelationalChartContext;
   seed: string;
 }
 
@@ -89,12 +92,16 @@ export async function generateArchitecture(
   // Step 6: Build astro profile (existing function, no changes)
   const astroProfile = buildAstroProfile(snapshot);
 
+  // Step 7: Build relational context for reporting (bodies, aspects, top-ranked)
+  const relationalContext = buildRelationalChartContext(snapshot);
+
   return {
     snapshot,
     features,
     personality,
     astroProfile,
     guidance,
+    relationalContext,
     seed: finalSeed
   };
 }
@@ -122,12 +129,16 @@ export async function generateArchitectureFromSnapshot(
   // Step 5: Build astro profile
   const astroProfile = buildAstroProfile(snapshot);
 
+  // Step 6: Build relational context for reporting
+  const relationalContext = buildRelationalChartContext(snapshot);
+
   return {
     snapshot,
     features,
     personality,
     astroProfile,
     guidance,
+    relationalContext,
     seed: finalSeed
   };
 }

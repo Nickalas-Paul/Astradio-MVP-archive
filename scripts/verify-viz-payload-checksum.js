@@ -21,7 +21,7 @@ function buildVizPayloadSync(snapshot, plan, compose_meta) {
   const houses = snapshot.houses ?? [];
   const planetLongitudes = {};
   for (const p of snapshot.planets ?? []) planetLongitudes[p.name] = p.lon;
-  const aspects = (snapshot.aspects ?? []).map((a) => ({ p1: a.a, p2: a.b, type: a.type, orb: a.orb }));
+  const aspects = (snapshot.aspects ?? []).map((a) => ({ p1: a.bodyA ?? a.a, p2: a.bodyB ?? a.b, type: a.type, orb: a.orb }));
   const chart = { houses, angles: { asc: houses[0], mc: houses[9] }, planetLongitudes, aspects };
 
   const bpm = plan.bpm ?? 90;

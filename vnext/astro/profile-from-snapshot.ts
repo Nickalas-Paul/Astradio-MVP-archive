@@ -160,16 +160,18 @@ export function buildAstroProfile(snapshot: EphemerisSnapshot): AstroProfile {
   for (const p of planets) lonByPlanet[p.name.toLowerCase()] = p.lon;
 
   const aspects = (snapshot.aspects ?? []).map((asp) => {
+    const bodyA = asp.bodyA ?? (asp as { a?: string }).a ?? '';
+    const bodyB = asp.bodyB ?? (asp as { b?: string }).b ?? '';
     const orb = typeof asp.orb === 'number' ? asp.orb : 0;
-    const lonA = lonByPlanet[asp.a] ?? 0;
-    const lonB = lonByPlanet[asp.b] ?? 0;
+    const lonA = lonByPlanet[bodyA] ?? 0;
+    const lonB = lonByPlanet[bodyB] ?? 0;
     let exactDeg: number | undefined;
-    if (lonByPlanet[asp.a] != null && lonByPlanet[asp.b] != null) {
+    if (lonByPlanet[bodyA] != null && lonByPlanet[bodyB] != null) {
       exactDeg = angularDist(lonA, lonB);
     }
     return {
-      a: cap(asp.a) as PlanetName,
-      b: cap(asp.b) as PlanetName,
+      a: cap(bodyA) as PlanetName,
+      b: cap(bodyB) as PlanetName,
       type: asp.type as AspectType,
       orb,
       exactDeg,

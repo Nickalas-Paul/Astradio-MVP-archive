@@ -166,7 +166,7 @@ async function main(): Promise<void> {
         { name: 'Venus', sign: 'Cancer', house: 4, nearAngle: null }
       ] as any,
       prominentAspects: [
-        { a: 'Moon', b: 'Saturn', type: 'square', orb: 2.1, tightness: 'med' }
+        { bodyA: 'moon', bodyB: 'saturn', type: 'square', orb: 2.1, tightness: 'med' }
       ] as any
     }
   };
