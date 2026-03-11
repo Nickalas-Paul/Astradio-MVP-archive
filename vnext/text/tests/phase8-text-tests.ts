@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { TextAnalysisIntermediate, ToneSpec } from '../contracts';
+import type { TextAnalysisIntermediate, ToneSpec, ChartTextInput } from '../contracts';
+import type { EphemerisSnapshot } from '../../contracts';
+import { buildTextAnalysis } from '../analysis/buildTextAnalysis';
 import { renderDaily } from '../renderers/daily';
 import {
   renderCompat,
@@ -186,6 +188,8 @@ export function runPhase8TextTests(): void {
       throw new Error('Tone validator found fatalistic/fluff/therapy violations in rich daily output');
     }
   }
+
+  runSynthesisTests();
 }
 
 // Allow running directly when compiled as a script.
@@ -194,4 +198,171 @@ if (require.main === module) {
   // eslint-disable-next-line no-console
   console.log('[phase8-text-tests] OK');
 }
+
+function makeSynthesisSnapshot(): EphemerisSnapshot {
+  return {
+    ts: '2026-03-11T12:00:00Z',
+    tz: 'UTC',
+    lat: 0,
+    lon: 0,
+    houseSystem: 'placidus',
+    planets: [
+      { name: 'sun', lon: 10 },
+      { name: 'moon', lon: 40 },
+      { name: 'mars', lon: 100 },
+      { name: 'jupiter', lon: 190 },
+      { name: 'ceres', lon: 250 },
+      { name: 'pallas', lon: 310 }
+    ],
+    houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
+    aspects: [
+      {
+        bodyA: 'sun',
+        bodyB: 'mars',
+        type: 'square',
+        orb: 2,
+        exactAngle: 90,
+        strength: 0.95,
+        exactness: 0.95,
+        priorityBase: 1
+      },
+      {
+        bodyA: 'sun',
+        bodyB: 'jupiter',
+        type: 'trine',
+        orb: 1.5,
+        exactAngle: 120,
+        strength: 0.9,
+        exactness: 0.9,
+        priorityBase: 0.9
+      },
+      {
+        bodyA: 'ceres',
+        bodyB: 'pallas',
+        type: 'trine',
+        orb: 1,
+        exactAngle: 120,
+        strength: 0.95,
+        exactness: 0.95,
+        priorityBase: 1
+      }
+    ],
+    moonPhase: 0.5,
+    dominantElements: { fire: 0.4, earth: 0.2, air: 0.2, water: 0.2 }
+  };
+}
+
+function makeSynthesisInput(): ChartTextInput {
+  const snapshot = makeSynthesisSnapshot();
+  return {
+    snapshot,
+    surface: 'daily',
+    algoVersion: 'vnext-text-1',
+    toneVersion: 'daily.personality.v1',
+    hasHouses: true,
+    hasAspects: true,
+    hasNatalContext: true,
+    missing: []
+  };
+}
+
+function runSynthesisTests(): void {
+  // 7.1 Node generation for clear structures
+  {
+    const input = makeSynthesisInput();
+    const analysis = buildTextAnalysis('daily', input);
+
+    if (analysis.themes.length === 0) {
+      throw new Error('Synthesis test: expected at least one theme node for structured chart');
+    }
+    if (analysis.tensions.length === 0) {
+      throw new Error('Synthesis test: expected at least one tension node for structured chart');
+    }
+    if (analysis.opportunities.length === 0) {
+      throw new Error('Synthesis test: expected at least one opportunity node for structured chart');
+    }
+  }
+
+  // 7.2 Citation validity: every citation must match a placement or aspect fact id
+  {
+    const input = makeSynthesisInput();
+    const analysis = buildTextAnalysis('daily', input);
+    const placementIds = new Set(analysis.astro_facts.placements.map((p) => p.id));
+    const aspectIds = new Set(analysis.astro_facts.aspects.map((a) => a.id));
+
+    const checkNode = (node: { id: string; citations: { factIds: string[] } }) => {
+      for (const factId of node.citations.factIds) {
+        if (!placementIds.has(factId) && !aspectIds.has(factId)) {
+          throw new Error(`Synthesis test: node ${node.id} cites unknown factId=${factId}`);
+        }
+      }
+    };
+
+    for (const node of analysis.themes) checkNode(node);
+    for (const node of analysis.tensions) checkNode(node);
+    for (const node of analysis.opportunities) checkNode(node);
+  }
+
+  // 7.3 Deterministic output and ranking stability: repeat run must match exactly
+  {
+    const input = makeSynthesisInput();
+    const a = buildTextAnalysis('daily', input);
+    const b = buildTextAnalysis('daily', makeSynthesisInput());
+
+    const serialize = (x: TextAnalysisIntermediate) =>
+      JSON.stringify({
+        themes: x.themes,
+        tensions: x.tensions,
+        opportunities: x.opportunities
+      });
+
+    const sa = serialize(a);
+    const sb = serialize(b);
+
+    if (sa !== sb) {
+      throw new Error('Synthesis test: repeated analysis produced different node sets or ordering');
+    }
+  }
+
+  // 7.4 Major vs minor precedence: major-major structure must outrank minor-minor
+  {
+    const input = makeSynthesisInput();
+    const analysis = buildTextAnalysis('daily', input);
+
+    const majorTension = analysis.tensions.find((t) => /sun square mars/i.test(t.label));
+    if (!majorTension) {
+      throw new Error('Synthesis test: expected Sun square Mars tension node');
+    }
+
+    const minorOnlyTensions = analysis.tensions.filter((t) => /Ceres/.test(t.label) && /Pallas/.test(t.label));
+    for (const node of minorOnlyTensions) {
+      if (!(majorTension.weight >= node.weight)) {
+        throw new Error(
+          `Synthesis test: minor-only tension node ${node.id} outranks major-major Sun-Mars tension (weights ${node.weight} > ${majorTension.weight})`
+        );
+      }
+    }
+  }
+
+  // 7.5 Duplicate prevention: ids should be unique per node kind
+  {
+    const input = makeSynthesisInput();
+    const analysis = buildTextAnalysis('daily', input);
+
+    const assertUniqueIds = (ids: string[], kind: string) => {
+      const seen = new Set<string>();
+      for (const id of ids) {
+        if (seen.has(id)) {
+          throw new Error(`Synthesis test: duplicate ${kind} node id=${id}`);
+        }
+        seen.add(id);
+      }
+    };
+
+    assertUniqueIds(analysis.themes.map((t) => t.id), 'theme');
+    assertUniqueIds(analysis.tensions.map((t) => t.id), 'tension');
+    assertUniqueIds(analysis.opportunities.map((o) => o.id), 'opportunity');
+  }
+}
+
 
