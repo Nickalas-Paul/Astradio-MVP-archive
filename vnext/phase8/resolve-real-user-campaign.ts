@@ -12,6 +12,14 @@ import {
 import { initialCampaignState } from '../rpg/campaign/state-machine';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
 import { getOrCreateDailyTurn } from '../rpg/campaign/turn-service';
+import {
+  createUser as compatCreateUser,
+  getUser as compatGetUser,
+  createChart as compatCreateChart,
+  getChart as compatGetChart,
+  setUserPrimaryChart as compatSetUserPrimaryChart,
+  getUserPrimaryChart as compatGetUserPrimaryChart,
+} from '../compat/storage';
 
 export const PHASE8_REAL_USER_ID = 'phase8_real_user';
 export const PHASE8_REAL_CHART_ID = 'phase8_real_chart';
@@ -51,6 +59,68 @@ function getPhase8RealUserTransitSnapshot(): EphemerisSnapshot {
     moonPhase: 0.7,
     dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },
   };
+}
+
+async function ensureCompatProfileForPhase8RealUser(params: {
+  natalSnapshot: EphemerisSnapshot;
+  natalSnapshotHash: string;
+}) {
+  // Compat storage is only meaningful when Postgres is configured; in in-memory mode
+  // the Phase 8 verifier uses explicit user linkage instead.
+  if (!process.env.POSTGRES_URL) return;
+
+  const displayName = 'Phase 8 Real User';
+  const chartLabel = 'Phase 8 Real Chart';
+
+  // 1) Ensure compat user row exists (idempotent).
+  const existingUser = await compatGetUser(PHASE8_REAL_USER_ID).catch(() => undefined);
+  if (!existingUser) {
+    try {
+      await compatCreateUser({
+        id: PHASE8_REAL_USER_ID,
+        displayName,
+      });
+    } catch {
+      // Ignore duplicate or transient errors here; a concurrent creator may have won the race.
+    }
+  }
+
+  // 2) Ensure compat chart row exists with the pinned chart id.
+  let chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => undefined);
+  if (!chart) {
+    const ts = params.natalSnapshot.ts;
+    const date = typeof ts === 'string' ? ts.slice(0, 10) : BIRTH_DATE;
+    const time = typeof ts === 'string' ? ts.slice(11, 16) : BIRTH_TIME;
+
+    try {
+      chart = await compatCreateChart({
+        id: PHASE8_REAL_CHART_ID,
+        ownerId: PHASE8_REAL_USER_ID,
+        label: chartLabel,
+        date,
+        time,
+        lat: BIRTH_LAT,
+        lon: BIRTH_LON,
+        timezone: params.natalSnapshot.tz ?? 'America/New_York',
+        snapshotHash: params.natalSnapshotHash,
+      });
+    } catch {
+      // If chart already exists or creation races, fall through and rely on whatever is stored.
+      chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => undefined);
+    }
+  }
+
+  // 3) Ensure compat primary-chart linkage for this user.
+  const currentPrimary = await compatGetUserPrimaryChart(PHASE8_REAL_USER_ID).catch(
+    () => undefined
+  );
+  if (!currentPrimary) {
+    try {
+      await compatSetUserPrimaryChart(PHASE8_REAL_USER_ID, PHASE8_REAL_CHART_ID);
+    } catch {
+      // If this fails, profile GET will still fall back to default behavior; verifier will surface it.
+    }
+  }
 }
 
 export async function getOrCreatePhase8RealUserCampaign(): Promise<{
@@ -100,6 +170,11 @@ export async function getOrCreatePhase8RealUserCampaign(): Promise<{
     campaignId: campaign.id,
     transitSnapshot,
     stateJson: campaign.state_json,
+  });
+
+  await ensureCompatProfileForPhase8RealUser({
+    natalSnapshot,
+    natalSnapshotHash: profile.natal_snapshot_hash,
   });
 
   return {
