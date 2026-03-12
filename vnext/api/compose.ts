@@ -293,17 +293,38 @@ export class ComposeAPI {
         const musicalSection = rendered.sections.find(s => s.id === 'musical');
         const musicalText = musicalSection?.text || '';
         const musicalBullets = musicalSection?.bullets || [];
-        
-        text = {
-          short: signaturesText,
-          long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
-          bullets: musicalBullets,
-          template_id: 'explainspec-v1',
-          signatures: signaturesText,
-          significance: significanceText,
-          musicalParagraph: musicalText,
-          musicalBullets: musicalBullets
-        };
+
+        // Fail-closed guard: never return silently empty text fields.
+        // If ExplainSpec produced no content at all, surface an explicit fallback template.
+        const hasAnyContent =
+          !!signaturesText.trim() ||
+          !!significanceText.trim() ||
+          !!musicalText.trim();
+
+        if (!hasAnyContent) {
+          const fallbackMessage = 'Explanation unavailable for this composition (ExplainSpec returned empty content).';
+          text = {
+            short: fallbackMessage,
+            long: fallbackMessage,
+            bullets: [],
+            template_id: 'explainspec-empty-v1',
+            signatures: '',
+            significance: '',
+            musicalParagraph: '',
+            musicalBullets: []
+          };
+        } else {
+          text = {
+            short: signaturesText,
+            long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
+            bullets: musicalBullets,
+            template_id: 'explainspec-v1',
+            signatures: signaturesText,
+            significance: significanceText,
+            musicalParagraph: musicalText,
+            musicalBullets: musicalBullets
+          };
+        }
         textMetricsMs = 0; // ExplainSpec generation is fast (no ML)
       }
       
@@ -709,6 +730,8 @@ export class ComposeAPI {
         }
       }
 
+      const explainText = text as any;
+
       const response = {
         duration_s: DEFAULT_DURATION_S,
         ...(export_id != null && { export_id }),
@@ -748,8 +771,17 @@ export class ComposeAPI {
           })()
         },
         text: {
-          blocks: text.blocks,
-          digest: hashes.explanation
+          short: explainText.short,
+          long: explainText.long,
+          bullets: Array.isArray(explainText.bullets) ? explainText.bullets : [],
+          template_id: explainText.template_id,
+          signatures: explainText.signatures,
+          significance: explainText.significance,
+          musicalParagraph: explainText.musicalParagraph,
+          musicalBullets: Array.isArray(explainText.musicalBullets) ? explainText.musicalBullets : [],
+          digest: hashes.explanation,
+          // Preserve any structured blocks if present, without replacing the canonical fields.
+          ...(explainText.blocks ? { blocks: explainText.blocks } : {})
         },
         // Phase-6 Spec v1.1 surface with shared FeatureEncoder provenance
         explanation,

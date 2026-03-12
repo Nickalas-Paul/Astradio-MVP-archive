@@ -19,7 +19,18 @@ function noSessionResponse() {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = getSessionUserId(req.cookies);
+  const sessionUserId = getSessionUserId(req.cookies);
+  const qsUserId = req.nextUrl.searchParams.get('userId')?.trim() || null;
+
+  let userId = sessionUserId;
+
+  // Phase 8H / dev-only fallback: when there is no session but a userId query
+  // is provided and PHASE8_DEBUG is enabled, allow explicit identity override
+  // for verification scripts. This path never sets or clears cookies.
+  if (!userId && qsUserId && process.env.PHASE8_DEBUG === '1') {
+    userId = qsUserId;
+  }
+
   if (!userId) {
     return noSessionResponse();
   }

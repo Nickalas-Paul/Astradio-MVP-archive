@@ -60,6 +60,38 @@ function renderSingleSpec(spec: ExplainSpec): { sections: ExplanationSection[] }
     if (musicLines.length) musicalText += sentinel + paraSep + musicLines.join(paraSep);
   }
 
+  // Safeguard: ensure signatures section is never silently empty when we have usable SignatureFacts.
+  // If the narrative builder produced no text, fall back to a minimal, deterministic summary
+  // derived from element blend and buckets (tension/clustering).
+  if (!signaturesText.trim()) {
+    const blend = signatures.elementBlend;
+    const parts: string[] = [];
+    const entries = [
+      { key: 'fire', value: blend.fire },
+      { key: 'earth', value: blend.earth },
+      { key: 'air', value: blend.air },
+      { key: 'water', value: blend.water },
+    ];
+    entries.sort((a, b) => b.value - a.value);
+    const primary = entries[0];
+    if (primary && primary.value > 0) {
+      parts.push(`Elementally, the chart leans ${primary.key} in its overall field.`);
+    }
+    const tension = signatures.tensionBucket;
+    const clustering = signatures.clusteringBucket;
+    const tensionPhrase =
+      tension === 'high' ? 'pronounced tension signals' :
+      tension === 'med' ? 'a moderate level of tension' :
+      'a relatively low-tension profile';
+    const clusterPhrase =
+      clustering === 'high' ? 'a tightly clustered pattern of placements' :
+      clustering === 'med' ? 'a mixed pattern of clustering and spread' :
+      'a more spread-out distribution of placements';
+    parts.push(`Structurally, ${tensionPhrase} combine with ${clusterPhrase}.`);
+
+    signaturesText = parts.join(' ');
+  }
+
   const deduped = dedupeSections(signaturesText, significanceText, musicalText, musicalBullets);
 
   return {
