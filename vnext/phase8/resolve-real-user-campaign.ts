@@ -65,28 +65,71 @@ async function ensureCompatProfileForPhase8RealUser(params: {
   natalSnapshot: EphemerisSnapshot;
   natalSnapshotHash: string;
 }) {
+  // Debug: entry + env gate (no secrets).
+  // eslint-disable-next-line no-console
+  console.log('[phase8][compat-linkage] enter ensureCompatProfileForPhase8RealUser', {
+    hasPostgresUrl: !!process.env.POSTGRES_URL,
+  });
+
   // Compat storage is only meaningful when Postgres is configured; in in-memory mode
   // the Phase 8 verifier uses explicit user linkage instead.
-  if (!process.env.POSTGRES_URL) return;
+  if (!process.env.POSTGRES_URL) {
+    // eslint-disable-next-line no-console
+    console.log('[phase8][compat-linkage] skip: POSTGRES_URL missing');
+    return;
+  }
 
   const displayName = 'Phase 8 Real User';
   const chartLabel = 'Phase 8 Real Chart';
 
   // 1) Ensure compat user row exists (idempotent).
-  const existingUser = await compatGetUser(PHASE8_REAL_USER_ID).catch(() => undefined);
+  const existingUser = await compatGetUser(PHASE8_REAL_USER_ID).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.log('[phase8][compat-linkage] getUser error', {
+      userId: PHASE8_REAL_USER_ID,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  });
+  // eslint-disable-next-line no-console
+  console.log('[phase8][compat-linkage] getUser result', {
+    userId: PHASE8_REAL_USER_ID,
+    exists: !!existingUser,
+  });
   if (!existingUser) {
     try {
       await compatCreateUser({
         id: PHASE8_REAL_USER_ID,
         displayName,
       });
-    } catch {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] createUser success', {
+        userId: PHASE8_REAL_USER_ID,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] createUser error', {
+        userId: PHASE8_REAL_USER_ID,
+        error: err instanceof Error ? err.message : String(err),
+      });
       // Ignore duplicate or transient errors here; a concurrent creator may have won the race.
     }
   }
 
   // 2) Ensure compat chart row exists with the pinned chart id.
-  let chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => undefined);
+  let chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.log('[phase8][compat-linkage] getChart error', {
+      chartId: PHASE8_REAL_CHART_ID,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  });
+  // eslint-disable-next-line no-console
+  console.log('[phase8][compat-linkage] getChart result', {
+    chartId: PHASE8_REAL_CHART_ID,
+    exists: !!chart,
+  });
   if (!chart) {
     const ts = params.natalSnapshot.ts;
     const date = typeof ts === 'string' ? ts.slice(0, 10) : BIRTH_DATE;
@@ -104,23 +147,75 @@ async function ensureCompatProfileForPhase8RealUser(params: {
         timezone: params.natalSnapshot.tz ?? 'America/New_York',
         snapshotHash: params.natalSnapshotHash,
       });
-    } catch {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] createChart success', {
+        chartId: PHASE8_REAL_CHART_ID,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] createChart error', {
+        chartId: PHASE8_REAL_CHART_ID,
+        error: err instanceof Error ? err.message : String(err),
+      });
       // If chart already exists or creation races, fall through and rely on whatever is stored.
-      chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => undefined);
+      chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch((e2) => {
+        // eslint-disable-next-line no-console
+        console.log('[phase8][compat-linkage] getChart-after-create error', {
+          chartId: PHASE8_REAL_CHART_ID,
+          error: e2 instanceof Error ? e2.message : String(e2),
+        });
+        return undefined;
+      });
     }
   }
 
   // 3) Ensure compat primary-chart linkage for this user.
-  const currentPrimary = await compatGetUserPrimaryChart(PHASE8_REAL_USER_ID).catch(
-    () => undefined
-  );
+  const currentPrimary = await compatGetUserPrimaryChart(
+    PHASE8_REAL_USER_ID
+  ).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.log('[phase8][compat-linkage] getUserPrimaryChart error', {
+      userId: PHASE8_REAL_USER_ID,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  });
+  // eslint-disable-next-line no-console
+  console.log('[phase8][compat-linkage] getUserPrimaryChart result', {
+    userId: PHASE8_REAL_USER_ID,
+    chartId: currentPrimary ?? null,
+  });
   if (!currentPrimary) {
     try {
       await compatSetUserPrimaryChart(PHASE8_REAL_USER_ID, PHASE8_REAL_CHART_ID);
-    } catch {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] setUserPrimaryChart success', {
+        userId: PHASE8_REAL_USER_ID,
+        chartId: PHASE8_REAL_CHART_ID,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.log('[phase8][compat-linkage] setUserPrimaryChart error', {
+        userId: PHASE8_REAL_USER_ID,
+        chartId: PHASE8_REAL_CHART_ID,
+        error: err instanceof Error ? err.message : String(err),
+      });
       // If this fails, profile GET will still fall back to default behavior; verifier will surface it.
     }
   }
+
+  // Final readback to confirm linkage state.
+  const finalUser = await compatGetUser(PHASE8_REAL_USER_ID).catch(() => undefined);
+  const finalChart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => undefined);
+  const finalPrimary = await compatGetUserPrimaryChart(PHASE8_REAL_USER_ID).catch(
+    () => undefined
+  );
+  // eslint-disable-next-line no-console
+  console.log('[phase8][compat-linkage] final-state', {
+    userExists: !!finalUser,
+    chartExists: !!finalChart,
+    primaryChartId: finalPrimary ?? null,
+  });
 }
 
 export async function getOrCreatePhase8RealUserCampaign(): Promise<{
