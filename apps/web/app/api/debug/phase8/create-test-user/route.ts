@@ -1,10 +1,10 @@
 /**
- * Phase 8 debug-only: create a real test user profile + natal snapshot via Swiss, bundle, campaign, and one daily turn.
+ * Phase 8 debug-only: proxy bootstrap to engine.
  * Enabled only when PHASE8_DEBUG=1. No writes unless enabled (fail-closed).
  */
 
 import { NextResponse } from 'next/server';
-import { getOrCreatePhase8RealUserCampaign } from '../../../../../../../vnext/phase8/resolve-real-user-campaign';
+import { getEngineBaseUrl } from '@/lib/engine-base';
 
 export const runtime = 'nodejs';
 // Phase 8 debug-only; force dynamic so Vercel/Next never tries to statically generate this route at build time.
@@ -25,29 +25,20 @@ export async function GET() {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  if (!process.env.POSTGRES_URL) {
-    // eslint-disable-next-line no-console
-    console.log('[api/debug/phase8/create-test-user] skip', {
-      reason: 'POSTGRES_URL missing',
-    });
-    return NextResponse.json({ error: 'db_unconfigured' }, { status: 503 });
-  }
-
   try {
+    const base = getEngineBaseUrl();
+    const target = `${base}/api/debug/phase8/create-test-user`;
     // eslint-disable-next-line no-console
-    console.log('[api/debug/phase8/create-test-user] invoking backend helper', {
-      target: 'internal:getOrCreatePhase8RealUserCampaign',
+    console.log('[api/debug/phase8/create-test-user] proxy -> engine', {
+      target,
     });
-    const { userId, campaignId } = await getOrCreatePhase8RealUserCampaign();
+    const r = await fetch(target);
+    const body = await r.json().catch(() => ({}));
     // eslint-disable-next-line no-console
-    console.log('[api/debug/phase8/create-test-user] backend success', {
-      userId,
-      campaignId,
+    console.log('[api/debug/phase8/create-test-user] engine response', {
+      status: r.status,
     });
-    return NextResponse.json({
-      userId,
-      campaignId,
-    });
+    return NextResponse.json(body, { status: r.status });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to create Phase 8 test user';
     // eslint-disable-next-line no-console

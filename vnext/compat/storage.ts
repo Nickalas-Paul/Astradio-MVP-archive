@@ -39,72 +39,9 @@ export type StorageAdapter = {
   updateUserDiscoverability?: (userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }) => Promise<void>;
 };
 
-function createDefaultAdapter(): StorageAdapter {
-  // When Postgres is configured, prefer durable pg-store adapter.
-  if (process.env.POSTGRES_URL) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const path = require('path');
-      // Resolve pg-store from known project layouts:
-      // - Engine / ts-node:   cwd = project root → ./lib/pg-store
-      // - Vercel Next app:    cwd = apps/web    → ../lib/pg-store
-      const candidates = [
-        path.join(process.cwd(), 'lib', 'pg-store'),
-        path.join(process.cwd(), '..', 'lib', 'pg-store'),
-      ];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let pgStore: any = null;
-      for (const candidate of candidates) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          pgStore = require(candidate);
-          break;
-        } catch {
-          // try next candidate
-        }
-      }
-      if (!pgStore) {
-        throw new Error('pg-store module not found in expected locations');
-      }
-      const adapter: StorageAdapter = {
-        createUser: pgStore.createUser,
-        getUser: pgStore.getUser,
-        getUserByHandle: pgStore.getUserByHandle,
-        setUserPrimaryChart: pgStore.setUserPrimaryChart,
-        getUserPrimaryChart: pgStore.getUserPrimaryChart,
-        createChart: pgStore.createChart,
-        getChart: pgStore.getChart,
-        listChartsByOwner: pgStore.listChartsByOwner,
-        createComparison: pgStore.createComparison,
-        getComparison: pgStore.getComparison,
-        ensureDefaultProfileChart: pgStore.ensureDefaultProfileChart,
-        ensureMatchCandidateCharts: pgStore.ensureMatchCandidateCharts,
-        listDirectoryEligibleUsers: pgStore.listDirectoryEligibleUsers,
-        updateUserDiscoverability: pgStore.updateUserDiscoverability,
-      };
-      (adapter as any).__compatName = 'pg-store';
-      // eslint-disable-next-line no-console
-      console.log('[compat][storage] initialized Postgres adapter', {
-        hasPostgresUrl: true,
-      });
-      return adapter;
-    } catch (e) {
-      // Fail-closed when Postgres is expected but adapter cannot be initialized.
-      // eslint-disable-next-line no-console
-      console.error('[compat][storage] FAILED to initialize Postgres adapter', {
-        hasPostgresUrl: true,
-        error: e instanceof Error ? e.message : String(e),
-      });
-      throw e;
-    }
-  }
-
-  const adapter = memoryStore as unknown as StorageAdapter;
-  (adapter as any).__compatName = (adapter as any).__compatName || 'memory';
-  return adapter;
-}
-
-let adapter: StorageAdapter = createDefaultAdapter();
+// Default to in-memory adapter in all runtimes (including Next).
+// Render engine overrides this via setStorage(pgStore) at boot.
+let adapter: StorageAdapter = memoryStore as unknown as StorageAdapter;
 
 export function setStorage(store: StorageAdapter): void {
   adapter = store;

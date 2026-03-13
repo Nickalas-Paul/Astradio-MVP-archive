@@ -2333,6 +2333,34 @@ app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
   }
 });
 
+// Phase 8 debug-only: bootstrap real user + campaign + compat profile on engine (Render-only).
+app.get('/api/debug/phase8/create-test-user', async (req, res) => {
+  if (process.env.PHASE8_DEBUG !== '1') {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  if (!process.env.POSTGRES_URL) {
+    return res.status(503).json({ error: 'db_unconfigured' });
+  }
+
+  const phase8Mod = optionalRequire(path.join(vnextRoot, 'phase8', 'resolve-real-user-campaign'));
+  if (!phase8Mod || typeof phase8Mod.getOrCreatePhase8RealUserCampaign !== 'function') {
+    return res.status(501).json({ error: 'bootstrap_unavailable' });
+  }
+
+  try {
+    const { getOrCreatePhase8RealUserCampaign } = phase8Mod;
+    const { userId, campaignId } = await getOrCreatePhase8RealUserCampaign();
+    return res.status(200).json({ userId, campaignId });
+  } catch (e) {
+    const msg = e && e.message ? e.message : 'Failed to create Phase 8 test user';
+    console.error('[api/debug/phase8/create-test-user] error', msg);
+    if (typeof msg === 'string' && /relation\s+"user_profiles"\s+does not exist/i.test(msg)) {
+      return res.status(503).json({ error: 'schema_missing:user_profiles' });
+    }
+    return res.status(500).json({ error: msg });
+  }
+});
+
 function safeReadJSON(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch (_) { return null; } }
 
 // API error handler: return JSON for /api/* when client accepts JSON (e.g. JSON parse errors from express.json())
