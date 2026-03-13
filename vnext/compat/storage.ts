@@ -44,7 +44,11 @@ function createDefaultAdapter(): StorageAdapter {
   if (process.env.POSTGRES_URL) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pgStore = require('../../lib/pg-store') as any;
+      const path = require('path');
+      // Resolve pg-store from project root so compiled dist layout on Render
+      // and ts-node/Next runtimes both share the same module.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pgStore = require(path.join(process.cwd(), 'lib', 'pg-store')) as any;
       const adapter: StorageAdapter = {
         createUser: pgStore.createUser,
         getUser: pgStore.getUser,
