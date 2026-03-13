@@ -83,11 +83,11 @@ async function ensureCompatProfileForPhase8RealUser(params: {
   const chartLabel = 'Phase 8 Real Chart';
 
   // 1) Ensure compat user row exists (idempotent).
-  const existingUser = await compatGetUser(PHASE8_REAL_USER_ID).catch((err) => {
+  const existingUser = await compatGetUser(PHASE8_REAL_USER_ID).catch(() => {
     // eslint-disable-next-line no-console
     console.log('[phase8][compat-linkage] getUser error', {
       userId: PHASE8_REAL_USER_ID,
-      error: err instanceof Error ? err.message : String(err),
+      success: false,
     });
     return undefined;
   });
@@ -105,23 +105,24 @@ async function ensureCompatProfileForPhase8RealUser(params: {
       // eslint-disable-next-line no-console
       console.log('[phase8][compat-linkage] createUser success', {
         userId: PHASE8_REAL_USER_ID,
+        success: true,
       });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.log('[phase8][compat-linkage] createUser error', {
         userId: PHASE8_REAL_USER_ID,
-        error: err instanceof Error ? err.message : String(err),
+        success: false,
       });
       // Ignore duplicate or transient errors here; a concurrent creator may have won the race.
     }
   }
 
   // 2) Ensure compat chart row exists with the pinned chart id.
-  let chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch((err) => {
+  let chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => {
     // eslint-disable-next-line no-console
     console.log('[phase8][compat-linkage] getChart error', {
       chartId: PHASE8_REAL_CHART_ID,
-      error: err instanceof Error ? err.message : String(err),
+      success: false,
     });
     return undefined;
   });
@@ -150,19 +151,20 @@ async function ensureCompatProfileForPhase8RealUser(params: {
       // eslint-disable-next-line no-console
       console.log('[phase8][compat-linkage] createChart success', {
         chartId: PHASE8_REAL_CHART_ID,
+        success: true,
       });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.log('[phase8][compat-linkage] createChart error', {
         chartId: PHASE8_REAL_CHART_ID,
-        error: err instanceof Error ? err.message : String(err),
+        success: false,
       });
       // If chart already exists or creation races, fall through and rely on whatever is stored.
-      chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch((e2) => {
+      chart = await compatGetChart(PHASE8_REAL_CHART_ID).catch(() => {
         // eslint-disable-next-line no-console
         console.log('[phase8][compat-linkage] getChart-after-create error', {
           chartId: PHASE8_REAL_CHART_ID,
-          error: e2 instanceof Error ? e2.message : String(e2),
+          success: false,
         });
         return undefined;
       });
@@ -172,11 +174,11 @@ async function ensureCompatProfileForPhase8RealUser(params: {
   // 3) Ensure compat primary-chart linkage for this user.
   const currentPrimary = await compatGetUserPrimaryChart(
     PHASE8_REAL_USER_ID
-  ).catch((err) => {
+  ).catch(() => {
     // eslint-disable-next-line no-console
     console.log('[phase8][compat-linkage] getUserPrimaryChart error', {
       userId: PHASE8_REAL_USER_ID,
-      error: err instanceof Error ? err.message : String(err),
+      success: false,
     });
     return undefined;
   });
@@ -192,13 +194,14 @@ async function ensureCompatProfileForPhase8RealUser(params: {
       console.log('[phase8][compat-linkage] setUserPrimaryChart success', {
         userId: PHASE8_REAL_USER_ID,
         chartId: PHASE8_REAL_CHART_ID,
+        success: true,
       });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.log('[phase8][compat-linkage] setUserPrimaryChart error', {
         userId: PHASE8_REAL_USER_ID,
         chartId: PHASE8_REAL_CHART_ID,
-        error: err instanceof Error ? err.message : String(err),
+        success: false,
       });
       // If this fails, profile GET will still fall back to default behavior; verifier will surface it.
     }
