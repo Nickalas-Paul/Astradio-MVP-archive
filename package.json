@@ -120,7 +120,8 @@
     "phase8:campaign:ids": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-print-campaign-ids.js",
     "phase8:campaign:verify": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-campaign-proof-verify.js",
     "phase8:text:smoke": "npm run vnext:build && node dist/vnext/vnext/text/tests/phase8-text-tests.js",
-    "phase8:identity:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-identity-verification.js"
+    "phase8:identity:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-identity-verification.js",
+    "phase8:stage8:verify": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-stage8-campaign-system-entry-verification.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
