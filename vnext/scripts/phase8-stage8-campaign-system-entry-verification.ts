@@ -424,8 +424,13 @@ async function main(): Promise<void> {
   if (API_BASE_URL && campaignId) {
     const base = API_BASE_URL.replace(/\/$/, '');
     const url = `${base}/api/rpg/campaign/${encodeURIComponent(campaignId)}?userId=${encodeURIComponent(userId)}`;
+    const headers: Record<string, string> = {};
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (bypass && typeof bypass === 'string' && bypass.trim()) {
+      headers['x-vercel-protection-bypass'] = bypass.trim();
+    }
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers });
       if (!res.ok) {
         record(
           'http-campaign-view',

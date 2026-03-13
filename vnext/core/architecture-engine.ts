@@ -50,7 +50,12 @@ export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSn
   const { date, time, lat, lon } = input;
   const timeStr = time.length === 5 ? time : time.slice(0, 5);
   const q = new URLSearchParams({ date, time: timeStr, lat: String(lat), lon: String(lon) });
-  const r = await fetch(`${base}/api/chart-snapshot?${q}`);
+  const headers: Record<string, string> = {};
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypass && typeof bypass === 'string' && bypass.trim()) {
+    headers['x-vercel-protection-bypass'] = bypass.trim();
+  }
+  const r = await fetch(`${base}/api/chart-snapshot?${q}`, { headers });
   if (!r.ok) {
     throw new Error(`chart-snapshot failed: ${r.status} ${r.statusText}`);
   }
