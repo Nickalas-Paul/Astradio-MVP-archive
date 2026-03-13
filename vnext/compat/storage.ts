@@ -9,6 +9,8 @@ import type { MatchCandidate } from './storage-adapter-types';
 export type { MatchCandidate } from './storage-adapter-types';
 import * as memoryStore from './memory-store';
 
+type PgStoreModule = typeof import('../../lib/pg-store');
+
 export const DEFAULT_PROFILE_CHART_ID = 'chart_profile_default';
 
 /** Directory-eligible user for search (Phase 8G). */
@@ -39,7 +41,51 @@ export type StorageAdapter = {
   updateUserDiscoverability?: (userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }) => Promise<void>;
 };
 
-let adapter: StorageAdapter = memoryStore as unknown as StorageAdapter;
+function createDefaultAdapter(): StorageAdapter {
+  // When Postgres is configured, prefer durable pg-store adapter.
+  if (process.env.POSTGRES_URL) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pgStore = require('../../lib/pg-store') as PgStoreModule;
+      const adapter: StorageAdapter = {
+        createUser: pgStore.createUser,
+        getUser: pgStore.getUser,
+        getUserByHandle: pgStore.getUserByHandle,
+        setUserPrimaryChart: pgStore.setUserPrimaryChart,
+        getUserPrimaryChart: pgStore.getUserPrimaryChart,
+        createChart: pgStore.createChart,
+        getChart: pgStore.getChart,
+        listChartsByOwner: pgStore.listChartsByOwner,
+        createComparison: pgStore.createComparison,
+        getComparison: pgStore.getComparison,
+        ensureDefaultProfileChart: pgStore.ensureDefaultProfileChart,
+        ensureMatchCandidateCharts: pgStore.ensureMatchCandidateCharts,
+        listDirectoryEligibleUsers: pgStore.listDirectoryEligibleUsers,
+        updateUserDiscoverability: pgStore.updateUserDiscoverability,
+      };
+      (adapter as any).__compatName = 'pg-store';
+      // eslint-disable-next-line no-console
+      console.log('[compat][storage] initialized Postgres adapter', {
+        hasPostgresUrl: true,
+      });
+      return adapter;
+    } catch (e) {
+      // Fail-closed when Postgres is expected but adapter cannot be initialized.
+      // eslint-disable-next-line no-console
+      console.error('[compat][storage] FAILED to initialize Postgres adapter', {
+        hasPostgresUrl: true,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
+  }
+
+  const adapter = memoryStore as unknown as StorageAdapter;
+  (adapter as any).__compatName = (adapter as any).__compatName || 'memory';
+  return adapter;
+}
+
+let adapter: StorageAdapter = createDefaultAdapter();
 
 export function setStorage(store: StorageAdapter): void {
   adapter = store;
