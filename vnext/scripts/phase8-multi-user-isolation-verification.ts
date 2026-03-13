@@ -9,6 +9,8 @@
  *   API_BASE_URL="https://preview-or-local" npx ts-node --project ../../tsconfig.json vnext/scripts/phase8-multi-user-isolation-verification.ts
  */
 
+import type { Phase8BootstrapResponse } from '../phase8/debug-bootstrap-contract';
+
 const PHASE8_REAL_USER_ID = 'phase8_real_user';
 const PHASE8_REAL_CHART_ID = 'phase8_real_chart';
 const PHASE8_ISO_USER_ID = 'phase8_iso_user';
@@ -38,11 +40,6 @@ interface HistoryItem {
   userId?: string;
   chartId?: string;
   [key: string]: unknown;
-}
-interface DebugPhase8Response {
-  userId: string;
-  campaignId: string;
-  chartId?: string;
 }
 
 async function httpRequest(
@@ -97,11 +94,11 @@ async function main(): Promise<void> {
     const r = await httpRequest('/api/debug/phase8/create-test-user');
     const details = [`HTTP ${r.status}`];
     if (r.status >= 200 && r.status < 300 && r.json) {
-      const d = r.json as DebugPhase8Response;
+      const d = r.json as Phase8BootstrapResponse;
       realUserId = d.userId;
-      realCampaignId = d.campaignId ?? null;
-      realChartId = d.chartId ?? null;
-      details.push(`userId=${d.userId} campaignId=${d.campaignId ?? '?'} chartId=${d.chartId ?? '?'}`);
+      realCampaignId = d.campaignId;
+      realChartId = d.chartId;
+      details.push(`userId=${d.userId} campaignId=${d.campaignId} chartId=${d.chartId}`);
       record(results, 'bootstrap-real-user', d.userId === PHASE8_REAL_USER_ID, details);
     } else {
       record(results, 'bootstrap-real-user', false, [...details, r.text]);
@@ -112,11 +109,11 @@ async function main(): Promise<void> {
     const r = await httpRequest('/api/debug/phase8/create-iso-user');
     const details = [`HTTP ${r.status}`];
     if (r.status >= 200 && r.status < 300 && r.json) {
-      const d = r.json as DebugPhase8Response;
+      const d = r.json as Phase8BootstrapResponse;
       isoUserId = d.userId;
-      isoCampaignId = d.campaignId ?? null;
-      isoChartId = d.chartId ?? null;
-      details.push(`userId=${d.userId} campaignId=${d.campaignId ?? '?'} chartId=${d.chartId ?? '?'}`);
+      isoCampaignId = d.campaignId;
+      isoChartId = d.chartId;
+      details.push(`userId=${d.userId} campaignId=${d.campaignId} chartId=${d.chartId}`);
       record(results, 'bootstrap-iso-user', d.userId === PHASE8_ISO_USER_ID, details);
     } else {
       record(results, 'bootstrap-iso-user', false, [...details, r.text]);

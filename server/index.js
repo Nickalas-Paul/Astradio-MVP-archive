@@ -2348,9 +2348,9 @@ app.get('/api/debug/phase8/create-test-user', async (req, res) => {
   }
 
   try {
-    const { getOrCreatePhase8RealUserCampaign, PHASE8_REAL_CHART_ID } = phase8Mod;
-    const { userId, campaignId } = await getOrCreatePhase8RealUserCampaign();
-    return res.status(200).json({ userId, campaignId, chartId: PHASE8_REAL_CHART_ID });
+    const { getOrCreatePhase8RealUserCampaign } = phase8Mod;
+    const result = await getOrCreatePhase8RealUserCampaign();
+    return res.status(200).json(result);
   } catch (e) {
     const msg = e && e.message ? e.message : 'Failed to create Phase 8 test user';
     console.error('[api/debug/phase8/create-test-user] error', msg);
@@ -2369,13 +2369,13 @@ app.get('/api/debug/phase8/create-iso-user', async (req, res) => {
   if (!process.env.POSTGRES_URL) {
     return res.status(503).json({ error: 'db_unconfigured' });
   }
-  const phase8Mod = optionalRequire(path.join(vnextRoot, 'phase8', 'resolve-real-user-campaign'));
-  if (!phase8Mod || typeof phase8Mod.getOrCreatePhase8IsoUserCampaign !== 'function') {
+  const isoFixtureMod = optionalRequire(path.join(vnextRoot, 'phase8', 'fixtures', 'iso-user-campaign'));
+  if (!isoFixtureMod || typeof isoFixtureMod.getOrCreatePhase8IsoUserCampaign !== 'function') {
     return res.status(501).json({ error: 'bootstrap_unavailable' });
   }
   try {
-    const { userId, campaignId, chartId } = await phase8Mod.getOrCreatePhase8IsoUserCampaign();
-    return res.status(200).json({ userId, campaignId, chartId });
+    const result = await isoFixtureMod.getOrCreatePhase8IsoUserCampaign();
+    return res.status(200).json(result);
   } catch (e) {
     const msg = e && e.message ? e.message : 'Failed to create Phase 8 isolation user';
     console.error('[api/debug/phase8/create-iso-user] error', msg);
