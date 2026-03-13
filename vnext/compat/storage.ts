@@ -45,10 +45,27 @@ function createDefaultAdapter(): StorageAdapter {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const path = require('path');
-      // Resolve pg-store from project root so compiled dist layout on Render
-      // and ts-node/Next runtimes both share the same module.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pgStore = require(path.join(process.cwd(), 'lib', 'pg-store')) as any;
+      // Resolve pg-store from known project layouts:
+      // - Engine / ts-node:   cwd = project root → ./lib/pg-store
+      // - Vercel Next app:    cwd = apps/web    → ../lib/pg-store
+      const candidates = [
+        path.join(process.cwd(), 'lib', 'pg-store'),
+        path.join(process.cwd(), '..', 'lib', 'pg-store'),
+      ];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let pgStore: any = null;
+      for (const candidate of candidates) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          pgStore = require(candidate);
+          break;
+        } catch {
+          // try next candidate
+        }
+      }
+      if (!pgStore) {
+        throw new Error('pg-store module not found in expected locations');
+      }
       const adapter: StorageAdapter = {
         createUser: pgStore.createUser,
         getUser: pgStore.getUser,
