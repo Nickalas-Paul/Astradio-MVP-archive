@@ -5,6 +5,10 @@
 
 import type { User, Chart, Comparison } from './types';
 
+// Name used by compat storage for observability (e.g. logs).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(exports as any).__compatName = 'memory';
+
 const nanoid = () =>
   require('crypto').randomBytes(8).toString('hex');
 const now = () => new Date().toISOString();

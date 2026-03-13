@@ -126,6 +126,14 @@ export function createCompatRouter(): import('express').Router {
       if (!userId) {
         return res.status(400).json({ error: 'userId query required (dev: use cookie or query)' });
       }
+      const storageAny = storage as any;
+      const adapterName: string = storageAny?.getStorage?.().__compatName || 'unknown';
+      // eslint-disable-next-line no-console
+      console.log('[compat] GET /profile', {
+        userId,
+        adapter: adapterName,
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+      });
       const u = await storage.getUser(userId);
       if (!u) return res.status(404).json({ error: 'User not found' });
       const chartId = await storage.getUserPrimaryChart(userId) || storage.DEFAULT_PROFILE_CHART_ID;
