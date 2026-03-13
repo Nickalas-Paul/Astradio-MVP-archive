@@ -329,7 +329,7 @@ async function main(): Promise<void> {
     const details: string[] = [];
     let ok = true;
 
-    const path = `/api/rpg/campaign/${encodeURIComponent(pinnedCampaignId)}`;
+    const path = withPinnedUser(`/api/rpg/campaign/${encodeURIComponent(pinnedCampaignId)}`);
     const r = await httpRequest(path, {
       method: 'GET',
       cookie: phase8SessionCookie,
