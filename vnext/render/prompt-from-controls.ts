@@ -26,6 +26,19 @@ const LYRIA_MAX_PROMPT_CHARS = 1800;
 /** Fixed ending instruction appended in narrative path; space for this is reserved before reduction. */
 const ENDING_GUARD = ' End with a clear resolved landing; no abrupt cutoff.';
 
+/**
+ * Phase timing aligned with planner (Encounter 4 bars, Recognition 8, Integration 4; 16 bars, 30s).
+ * 30/16 = 1.875 s/bar → opening 0-7.5s, development 7.5-22.5s, resolution 22.5-30s. Rounded for prompt.
+ */
+const PHASE_OPENING_END_S = 8;
+const PHASE_DEVELOPMENT_END_S = 22;
+const PHASE_RESOLUTION_END_S = 30;
+
+/** Compact three-phase structure for Lyria derived from planner Encounter/Recognition/Integration. */
+function buildPlannerPhaseStructureSentence(): string {
+  return `Structure over 30s: opening 0–${PHASE_OPENING_END_S}s introduce motif and space, development ${PHASE_OPENING_END_S}–${PHASE_DEVELOPMENT_END_S}s build motion and tension, resolution ${PHASE_DEVELOPMENT_END_S}–${PHASE_RESOLUTION_END_S}s land clearly with no abrupt cutoff.`;
+}
+
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
@@ -758,9 +771,11 @@ export function buildLyriaPrompt(
 
   // Reserve space for ending guard so the final prompt never exceeds LYRIA_MAX_PROMPT_CHARS.
   const maxCharsForBody = LYRIA_MAX_PROMPT_CHARS - ENDING_GUARD.length;
+  const phaseStructureSentence = buildPlannerPhaseStructureSentence();
   const { prompt, meta } = buildDistilledPrompt(
     {
       orderedTags,
+      phaseStructureSentence,
       moodSentence,
       energySentence,
       rhythmSentence,
@@ -779,6 +794,7 @@ export function buildLyriaPrompt(
     segmentsDropped: meta.segmentsDropped,
     hardTrimApplied: meta.hardTrimApplied,
     endingGuardApplied: true,
+    phaseStructureIncluded: true,
   });
 
   return finalPrompt;
@@ -786,6 +802,8 @@ export function buildLyriaPrompt(
 
 interface DistilledPromptInput {
   orderedTags: string[];
+  /** Planner-derived three-phase structure (high priority; placed after base so it survives reduction). */
+  phaseStructureSentence?: string;
   moodSentence: string;
   energySentence: string;
   rhythmSentence: string;
@@ -806,14 +824,18 @@ function buildDistilledPrompt(
 ): { prompt: string; meta: DistilledPromptMeta } {
   const base = BASE_SAFE_PROMPT;
 
-  const segments: string[] = [
-    base,
+  // Order: base first (never dropped), then phase structure (high priority), then mood/energy/rhythm/texture/structure (dropped last-to-first), then astro (dropped first).
+  const segments: string[] = [base];
+  if (input.phaseStructureSentence) {
+    segments.push(input.phaseStructureSentence);
+  }
+  segments.push(
     input.moodSentence,
     input.energySentence,
     input.rhythmSentence,
     input.textureSentence,
-    input.structureSentence,
-  ];
+    input.structureSentence
+  );
   if (input.astroSentence) {
     segments.push(input.astroSentence);
   }
@@ -891,6 +913,8 @@ interface PromptLengthMeta {
   hardTrimApplied?: boolean;
   /** True when narrative path appended the protected ending guard. */
   endingGuardApplied?: boolean;
+  /** True when prompt includes planner-derived three-phase structure. */
+  phaseStructureIncluded?: boolean;
 }
 
 function enforcePromptLength(prompt: string, meta: PromptLengthMeta): string {
@@ -914,6 +938,7 @@ function enforcePromptLength(prompt: string, meta: PromptLengthMeta): string {
         segmentsDropped: meta.segmentsDropped ?? 0,
         hardTrimApplied,
         endingGuardApplied: meta.endingGuardApplied ?? false,
+        phaseStructureIncluded: meta.phaseStructureIncluded ?? false,
       })
     );
   } catch {
