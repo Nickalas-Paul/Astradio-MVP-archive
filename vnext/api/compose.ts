@@ -40,6 +40,42 @@ import { buildRelationalChartContext } from '../report-context';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 
+/** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
+type DailySection = { id: string; title: string; text: string };
+
+/** Map daily v1 sections to response section shape. Reusable for Profile/Community. */
+function mapDailySectionsToResponseSections(
+  dailySections: DailySection[]
+): Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> {
+  return dailySections.map((s) => ({ sectionId: s.id, title: s.title, text: s.text, bullets: undefined }));
+}
+
+/** Derive legacy text fields from daily sections for response.text compatibility. Reusable for Profile/Community. */
+function legacyTextFromDailySections(dailySections: DailySection[]): {
+  short: string;
+  long: string;
+  bullets: string[];
+  template_id: string;
+  signatures: string;
+  significance: string;
+  musicalParagraph: string;
+  musicalBullets: string[];
+} {
+  const first = dailySections[0]?.text ?? '';
+  const allLong = dailySections.map((s) => s.text).filter(Boolean).join('\n\n');
+  const musicSection = dailySections.find((s) => s.id === 'music_translation');
+  return {
+    short: first,
+    long: allLong,
+    bullets: [],
+    template_id: 'daily-v1',
+    signatures: first,
+    significance: dailySections.length > 1 ? (dailySections[1].text ?? first) : first,
+    musicalParagraph: musicSection?.text ?? '',
+    musicalBullets: [],
+  };
+}
+
 export class ComposeAPI {
   private textExplainer: TextExplainerEngine;
   // private featureEncoder: FeatureEncoder;
@@ -287,46 +323,48 @@ export class ComposeAPI {
           textMetricsMs = overlayResult.metrics?.total_ms;
         }
       } else {
-        // Single mode: use new ExplainSpec engine
-        // Build legacy text format for backward compatibility
-        const signaturesText = rendered.sections.find(s => s.id === 'signatures')?.text || '';
-        const significanceText = rendered.sections.find(s => s.id === 'significance')?.text || '';
-        const musicalSection = rendered.sections.find(s => s.id === 'musical');
-        const musicalText = musicalSection?.text || '';
-        const musicalBullets = musicalSection?.bullets || [];
-
-        // Fail-closed guard: never return silently empty text fields.
-        // If ExplainSpec produced no content at all, surface an explicit fallback template.
-        const hasAnyContent =
-          !!signaturesText.trim() ||
-          !!significanceText.trim() ||
-          !!musicalText.trim();
-
-        if (!hasAnyContent) {
-          const fallbackMessage = 'Explanation unavailable for this composition (ExplainSpec returned empty content).';
-          text = {
-            short: fallbackMessage,
-            long: fallbackMessage,
-            bullets: [],
-            template_id: 'explainspec-empty-v1',
-            signatures: '',
-            significance: '',
-            musicalParagraph: '',
-            musicalBullets: []
-          };
+        // Single mode: use daily v1 when enabled and available; otherwise ExplainSpec
+        if (textVnextDaily?.sections?.length > 0) {
+          text = legacyTextFromDailySections(textVnextDaily.sections as DailySection[]);
         } else {
-          text = {
-            short: signaturesText,
-            long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
-            bullets: musicalBullets,
-            template_id: 'explainspec-v1',
-            signatures: signaturesText,
-            significance: significanceText,
-            musicalParagraph: musicalText,
-            musicalBullets: musicalBullets
-          };
+          // ExplainSpec path: build legacy text format for backward compatibility
+          const signaturesText = rendered.sections.find(s => s.id === 'signatures')?.text || '';
+          const significanceText = rendered.sections.find(s => s.id === 'significance')?.text || '';
+          const musicalSection = rendered.sections.find(s => s.id === 'musical');
+          const musicalText = musicalSection?.text || '';
+          const musicalBullets = musicalSection?.bullets || [];
+
+          const hasAnyContent =
+            !!signaturesText.trim() ||
+            !!significanceText.trim() ||
+            !!musicalText.trim();
+
+          if (!hasAnyContent) {
+            const fallbackMessage = 'Explanation unavailable for this composition (ExplainSpec returned empty content).';
+            text = {
+              short: fallbackMessage,
+              long: fallbackMessage,
+              bullets: [],
+              template_id: 'explainspec-empty-v1',
+              signatures: '',
+              significance: '',
+              musicalParagraph: '',
+              musicalBullets: []
+            };
+          } else {
+            text = {
+              short: signaturesText,
+              long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
+              bullets: musicalBullets,
+              template_id: 'explainspec-v1',
+              signatures: signaturesText,
+              significance: significanceText,
+              musicalParagraph: musicalText,
+              musicalBullets: musicalBullets
+            };
+          }
         }
-        textMetricsMs = 0; // ExplainSpec generation is fast (no ML)
+        textMetricsMs = 0; // ExplainSpec/daily generation is fast (no ML)
       }
       
       // Generate audio: cache-first, then RenderProvider. Production/preview: Lyria-only; no local_wav fallback.
@@ -570,29 +608,35 @@ export class ComposeAPI {
             })();
         }
       } else {
-        // Single mode: use ExplainSpec-rendered sections
-        sections = rendered.sections.map(s => ({
-          sectionId: s.id,
-          title: s.title,
-          text: s.text,
-          bullets: s.bullets
-        }));
+        // Single mode: use daily v1 sections when enabled and available; otherwise ExplainSpec
+        const useDailySections = request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) > 0;
+        if (useDailySections) {
+          sections = mapDailySectionsToResponseSections(textVnextDaily.sections as DailySection[]);
+        } else {
+          sections = rendered.sections.map(s => ({
+            sectionId: s.id,
+            title: s.title,
+            text: s.text,
+            bullets: s.bullets
+          }));
+        }
       }
 
       const isSpecEngine = !(request.mode === 'overlay' && request.overlayParams) || process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
+      const usedDailyV1 = request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) > 0;
       const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
       const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
 
       const explanationMeta: {
-        engine: 'legacy' | 'spec';
+        engine: 'legacy' | 'spec' | 'daily-v1';
         engineVersion: string;
         hasFactorMap: boolean;
         factorCount: number;
         debug?: { aspectsCount: number; dominantPlanetsLength: number; housesPresent: boolean };
         text_vnext_daily?: any;
       } = {
-        engine: isSpecEngine ? 'spec' : 'legacy',
+        engine: usedDailyV1 ? 'daily-v1' : isSpecEngine ? 'spec' : 'legacy',
         engineVersion: 'tge-1.0',
         hasFactorMap,
         factorCount

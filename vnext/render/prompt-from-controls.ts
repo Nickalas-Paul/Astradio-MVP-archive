@@ -23,6 +23,9 @@ const BASE_SAFE_PROMPT =
   'Generate a 30 second instrumental track. Focus on original sound design, evolving rhythm, and clear musical development. No vocals, no spoken word, no lyrics. Avoid recognizable melodies or famous motifs so the composition remains clearly original.';
 const LYRIA_MAX_PROMPT_CHARS = 1800;
 
+/** Fixed ending instruction appended in narrative path; space for this is reserved before reduction. */
+const ENDING_GUARD = ' End with a clear resolved landing; no abrupt cutoff.';
+
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
@@ -753,22 +756,29 @@ export function buildLyriaPrompt(
     ...chartIdentity.tags,
   ].filter(Boolean);
 
-  const { prompt, meta } = buildDistilledPrompt({
-    orderedTags,
-    moodSentence,
-    energySentence,
-    rhythmSentence,
-    textureSentence,
-    structureSentence,
-    astroSentence,
-  });
+  // Reserve space for ending guard so the final prompt never exceeds LYRIA_MAX_PROMPT_CHARS.
+  const maxCharsForBody = LYRIA_MAX_PROMPT_CHARS - ENDING_GUARD.length;
+  const { prompt, meta } = buildDistilledPrompt(
+    {
+      orderedTags,
+      moodSentence,
+      energySentence,
+      rhythmSentence,
+      textureSentence,
+      structureSentence,
+      astroSentence,
+    },
+    maxCharsForBody
+  );
 
-  const finalPrompt = enforcePromptLength(prompt, {
+  const promptWithGuard = prompt + ENDING_GUARD;
+  const finalPrompt = enforcePromptLength(promptWithGuard, {
     distilled: true,
     source: 'narrative',
     tagCount: meta.tagsUsed,
     segmentsDropped: meta.segmentsDropped,
     hardTrimApplied: meta.hardTrimApplied,
+    endingGuardApplied: true,
   });
 
   return finalPrompt;
@@ -790,7 +800,10 @@ interface DistilledPromptMeta {
   hardTrimApplied: boolean;
 }
 
-function buildDistilledPrompt(input: DistilledPromptInput): { prompt: string; meta: DistilledPromptMeta } {
+function buildDistilledPrompt(
+  input: DistilledPromptInput,
+  maxChars: number = LYRIA_MAX_PROMPT_CHARS
+): { prompt: string; meta: DistilledPromptMeta } {
   const base = BASE_SAFE_PROMPT;
 
   const segments: string[] = [
@@ -821,13 +834,13 @@ function buildDistilledPrompt(input: DistilledPromptInput): { prompt: string; me
   let segmentsDropped = 0;
 
   let { text } = buildWithCap(tagCap, workingSegments);
-  if (text.length > LYRIA_MAX_PROMPT_CHARS) {
+  if (text.length > maxChars) {
     const tagCaps = [18, 12, 8, 6, 4];
     let found = false;
     for (const cap of tagCaps) {
       if (cap <= 0) continue;
       const attempt = buildWithCap(Math.min(cap, tagCap), workingSegments);
-      if (attempt.text.length <= LYRIA_MAX_PROMPT_CHARS) {
+      if (attempt.text.length <= maxChars) {
         text = attempt.text;
         tagCap = Math.min(cap, tagCap);
         tagsUsed = attempt.tagsUsed;
@@ -847,7 +860,7 @@ function buildDistilledPrompt(input: DistilledPromptInput): { prompt: string; me
     tagsUsed = attempt.tagsUsed;
   }
 
-  while (text.length > LYRIA_MAX_PROMPT_CHARS && workingSegments.length > 1) {
+  while (text.length > maxChars && workingSegments.length > 1) {
     workingSegments.pop();
     segmentsDropped++;
     const attempt = buildWithCap(tagCap, workingSegments);
@@ -855,8 +868,8 @@ function buildDistilledPrompt(input: DistilledPromptInput): { prompt: string; me
     tagsUsed = attempt.tagsUsed;
   }
 
-  if (text.length > LYRIA_MAX_PROMPT_CHARS) {
-    text = text.slice(0, LYRIA_MAX_PROMPT_CHARS);
+  if (text.length > maxChars) {
+    text = text.slice(0, maxChars);
     hardTrimApplied = true;
   }
 
@@ -876,6 +889,8 @@ interface PromptLengthMeta {
   tagCount: number;
   segmentsDropped?: number;
   hardTrimApplied?: boolean;
+  /** True when narrative path appended the protected ending guard. */
+  endingGuardApplied?: boolean;
 }
 
 function enforcePromptLength(prompt: string, meta: PromptLengthMeta): string {
@@ -898,6 +913,7 @@ function enforcePromptLength(prompt: string, meta: PromptLengthMeta): string {
         tagCount: meta.tagCount,
         segmentsDropped: meta.segmentsDropped ?? 0,
         hardTrimApplied,
+        endingGuardApplied: meta.endingGuardApplied ?? false,
       })
     );
   } catch {
