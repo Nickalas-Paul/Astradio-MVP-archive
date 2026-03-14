@@ -6,12 +6,11 @@ import React from 'react';
 export function HeaderTabs() {
   return (
     <nav className="flex items-center gap-3 text-sm">
-      {/* Auth placeholder – swap with your real auth widget if present */}
       <Link
-        href="/login"
+        href="/profile"
         className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
       >
-        Sign In
+        Profile
       </Link>
 
       <Link
