@@ -38,6 +38,7 @@ import { renderDaily } from '../text/renderers/daily';
 import type { ChartTextInput } from '../text/contracts';
 import { buildRelationalChartContext } from '../report-context';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
+import { applyEndingPolish } from '../audio/ending-polish';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 
 /** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
@@ -446,9 +447,36 @@ export class ComposeAPI {
               plan,
               payload
             });
+            let wavToStore = result.wavBuffer;
+            let sha256ToUse = result.sha256;
+            let sizeBytesToUse = result.size_bytes;
+            const providerName = (result.provider_meta.provider as string) || '';
+            if (providerName === 'lyria') {
+              const polishResult = applyEndingPolish(wavToStore, {
+                tailWindowSeconds: 2.5,
+                endingStyle: narrativePlan.endingStyle,
+              });
+              if (polishResult.applied) {
+                wavToStore = polishResult.buffer;
+                sha256ToUse = require('crypto').createHash('sha256').update(wavToStore).digest('hex');
+                sizeBytesToUse = wavToStore.length;
+                try {
+                  console.log(
+                    '[ENDING_POLISH]',
+                    JSON.stringify({
+                      applied: true,
+                      tailWindowSeconds: polishResult.tailWindowSeconds,
+                      endingStyleUsed: polishResult.endingStyleUsed ?? null,
+                    })
+                  );
+                } catch {
+                  // logging must not break export
+                }
+              }
+            }
             const integrity: IntegrityMeta = {
-              sha256: result.sha256,
-              size_bytes: result.size_bytes,
+              sha256: sha256ToUse,
+              size_bytes: sizeBytesToUse,
               createdAt: new Date().toISOString(),
               payload_hash: payload.hash,
               promptHash,
@@ -459,20 +487,20 @@ export class ComposeAPI {
             export_meta = { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 };
             audio = {
               format: 'wav',
-              base64: result.wavBuffer.toString('base64'),
-              sha256: result.sha256,
+              base64: wavToStore.toString('base64'),
+              sha256: sha256ToUse,
               latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
-              size_bytes: result.size_bytes
+              size_bytes: sizeBytesToUse
             };
             export_id = exportKey;
             audio_export_available = true;
             exportStep = 'store';
             try {
               if (store?.put) {
-                await store.put(exportKey, result.wavBuffer, integrity);
+                await store.put(exportKey, wavToStore, integrity);
                 console.log('[COMPOSE_EXPORT] store_put_ok exportKey=', exportKey.slice(0, 16) + '...');
               } else {
-                writeExport(exportKey, result.wavBuffer, integrity);
+                writeExport(exportKey, wavToStore, integrity);
                 console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
               }
             } catch (storeErr) {
