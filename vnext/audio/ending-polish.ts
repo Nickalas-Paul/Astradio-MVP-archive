@@ -90,6 +90,21 @@ export function applyEndingPolish(
     };
   }
 
+  // Runtime diagnostics: buffer vs header (no behavior change)
+  const bufferLength = wavBuffer.length;
+  const actualPcmBytes = bufferLength - dataOffset;
+  const headerExceedsActual = dataChunkSize > actualPcmBytes;
+  console.log('[ENDING_POLISH]', JSON.stringify({
+    dataOffset,
+    dataChunkSize,
+    bufferLength,
+    actualPcmBytes,
+    bytesPerFrame,
+    totalFrames,
+    headerExceedsActual,
+    ...(headerExceedsActual ? { _mismatch: 'buffer shorter than header' } : {})
+  }));
+
   const fadeStartFrame = totalFrames - tailFrames;
   const out = Buffer.alloc(wavBuffer.length);
   wavBuffer.copy(out, 0, 0, dataOffset);

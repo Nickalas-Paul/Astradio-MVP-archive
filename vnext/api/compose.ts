@@ -226,30 +226,61 @@ export class ComposeAPI {
       // Optional vNext text engine (Phase 1, daily only, behind VNEXT_TEXT_ENGINE)
       const useTextEngineVnext = process.env.VNEXT_TEXT_ENGINE === 'v1';
       let textVnextDaily: any = undefined;
+      let textEngineFailureStage: string | undefined;
+      let textEngineFailureName: string | undefined;
+      let textEngineFailureMessage: string | undefined;
       if (useTextEngineVnext && request.mode === 'sky') {
+        console.log('[COMPOSE_TEXT] daily-v1 branch entered', JSON.stringify({ VNEXT_TEXT_ENGINE: process.env.VNEXT_TEXT_ENGINE ?? '(unset)', request_mode: request.mode }));
         try {
           const snapshot = architecture.snapshot;
-          const chartInput: ChartTextInput = {
-            snapshot,
-            relationalContext: buildRelationalChartContext(snapshot),
-            surface: 'daily',
-            algoVersion: 'vnext-text-1',
-            toneVersion: 'daily.personality.v1',
-            hasHouses: Array.isArray(snapshot.houses) && snapshot.houses.length >= 12,
-            hasAspects: Array.isArray(snapshot.aspects) && snapshot.aspects.length > 0,
-            hasNatalContext: false,
-            missing: [
-              { kind: 'no_natal_context' }
-            ]
-          };
-          const analysis = buildTextAnalysis('daily', chartInput, semanticProfile as ChartSemanticProfile);
-          const daily = renderDaily(analysis);
-          textVnextDaily = {
-            surface: daily.surface,
-            hasNatalContext: daily.hasNatalContext,
-            confidence: daily.confidence,
-            sections: daily.sections
-          };
+          let chartInput: ChartTextInput;
+          try {
+            chartInput = {
+              snapshot,
+              relationalContext: buildRelationalChartContext(snapshot),
+              surface: 'daily',
+              algoVersion: 'vnext-text-1',
+              toneVersion: 'daily.personality.v1',
+              hasHouses: Array.isArray(snapshot.houses) && snapshot.houses.length >= 12,
+              hasAspects: Array.isArray(snapshot.aspects) && snapshot.aspects.length > 0,
+              hasNatalContext: false,
+              missing: [
+                { kind: 'no_natal_context' }
+              ]
+            };
+          } catch (e: any) {
+            textEngineFailureStage = 'buildRelationalChartContext';
+            textEngineFailureName = e?.name ?? 'Error';
+            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
+            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
+            throw e;
+          }
+          let analysis: any;
+          try {
+            analysis = buildTextAnalysis('daily', chartInput, semanticProfile as ChartSemanticProfile);
+          } catch (e: any) {
+            textEngineFailureStage = 'buildTextAnalysis';
+            textEngineFailureName = e?.name ?? 'Error';
+            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
+            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
+            throw e;
+          }
+          try {
+            const daily = renderDaily(analysis);
+            textVnextDaily = {
+              surface: daily.surface,
+              hasNatalContext: daily.hasNatalContext,
+              confidence: daily.confidence,
+              sections: daily.sections
+            };
+            console.log('[COMPOSE_TEXT] daily-v1 success', JSON.stringify({ sectionCount: daily.sections?.length ?? 0 }));
+          } catch (e: any) {
+            textEngineFailureStage = 'renderDaily';
+            textEngineFailureName = e?.name ?? 'Error';
+            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
+            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
+            throw e;
+          }
         } catch {
           // Fail closed: never disturb existing behavior if vNext text path errors.
         }
@@ -663,6 +694,11 @@ export class ComposeAPI {
         factorCount: number;
         debug?: { aspectsCount: number; dominantPlanetsLength: number; housesPresent: boolean };
         text_vnext_daily?: any;
+        text_engine_attempted?: string;
+        text_engine_fallback?: boolean;
+        text_engine_failure_stage?: string;
+        text_engine_failure_name?: string;
+        text_engine_failure_message?: string;
       } = {
         engine: usedDailyV1 ? 'daily-v1' : isSpecEngine ? 'spec' : 'legacy',
         engineVersion: 'tge-1.0',
@@ -678,6 +714,13 @@ export class ComposeAPI {
       }
       if (textVnextDaily) {
         explanationMeta.text_vnext_daily = textVnextDaily;
+      }
+      if (useTextEngineVnext && request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) === 0) {
+        explanationMeta.text_engine_attempted = 'daily-v1';
+        explanationMeta.text_engine_fallback = true;
+        if (textEngineFailureStage !== undefined) explanationMeta.text_engine_failure_stage = textEngineFailureStage;
+        if (textEngineFailureName !== undefined) explanationMeta.text_engine_failure_name = textEngineFailureName;
+        if (textEngineFailureMessage !== undefined) explanationMeta.text_engine_failure_message = textEngineFailureMessage;
       }
 
       if (debugExplain && sections) {
