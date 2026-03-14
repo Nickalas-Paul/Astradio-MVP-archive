@@ -300,3 +300,62 @@ Do **not** add: new features, UI polish, refactors for elegance, or Phase 9 work
 - **Test order:** Contracts and shared math → architecture and ExplainSpec → compose → campaign/RPG → surfaces.  
 - **Test user:** One persistent real user (Phase 8 real user) for cross-surface and continuity; optional fixture users for compatibility and community.  
 - **Next steps:** Minimal automated checks for encode + relationalContext, ExplainSpec build + render, and normalizeChartForWheel; document and pin test user; optional read-only campaign/bundle consistency script.
+
+---
+
+## H. Stage 6 — Cross-Surface Consistency Verification (Final Result)
+
+- **Stage:** Phase 8 — Stage 6 (Cross-Surface Consistency Verification)  
+- **Result:** **PASS**  
+- **Execution commit:** `21fdb8061132f1635bc6c645a9b3fd306888af1e` (`beta-ui-vercel`)  
+- **Deployed API base:**  
+  `https://astradio-mvp-archive-git-beta-ui-vercel-nickalas-pauls-projects.vercel.app`  
+- **Bypass header:** `x-vercel-protection-bypass` = `VERCEL_AUTOMATION_BYPASS_SECRET` (automation-only; not user-facing)
+
+### H.1 Surfaces and Endpoints Exercised
+
+- Profile: `GET /api/profile?userId=phase8_real_user`  
+- Profile chart: `GET /api/profile/chart?chartId=phase8_real_chart`  
+- Campaign view:  
+  - `GET /api/rpg/campaign/rpg_camp_81ceacfa9caab6ab?userId=phase8_real_user`  
+  - Verified shape:  
+    - `campaign.user_id = phase8_real_user`  
+    - `campaign.chart_id = phase8_real_chart`  
+    - `_diagnostics.resolved_user_id = phase8_real_user`  
+    - `_diagnostics.resolved_chart_id = phase8_real_chart`  
+- Sandbox snapshot: `POST /api/sandbox/snapshot` (birth/overrides derived from profile-chart birth)  
+- Sandbox report: `POST /api/sandbox/report` (same birth/overrides)  
+- Overlay compose: `POST /api/compose` (mode `overlay`, `overlayParams` derived from profile-chart birth + current datetime)  
+- History: `GET /api/user/history?userId=phase8_real_user`
+
+### H.2 Invariant Outcomes (I1–I7)
+
+- **I1 — Same-session userId continuity:** **PASS**  
+  - `phase8_real_user` resolved via `/api/debug/phase8/create-test-user`, preserved across `/api/profile`, sandbox, overlay, and history routes.
+
+- **I2 — primaryChart.id continuity:** **PASS**  
+  - `/api/profile` and `/api/profile/chart` agree on `primaryChart.id = phase8_real_chart` and remain stable across the Stage 6 sequence.
+
+- **I3 — Campaign chart provenance alignment:** **PASS**  
+  - `/api/rpg/campaign/[campaignId]` invoked as  
+    `GET /api/rpg/campaign/rpg_camp_81ceacfa9caab6ab?userId=phase8_real_user`.  
+  - View confirmed `campaign.user_id = phase8_real_user` and `campaign.chart_id = phase8_real_chart`, with diagnostics mirroring those ids.
+
+- **I4 — Sandbox identity continuity:** **PASS**  
+  - Sandbox birth strictly derived from profile-chart birth (`1990-01-01`, `12:00`, `40.7128`, `-74.006`);  
+  - `/api/sandbox/snapshot` + `/api/sandbox/report` succeed;  
+  - `/api/profile?userId=phase8_real_user` after sandbox still reports `user.id = phase8_real_user`, `primaryChart.id = phase8_real_chart`.
+
+- **I5 — Overlay identity continuity:** **PASS**  
+  - Overlay natal/source chart built from profile-chart birth; comparison chart from explicit current datetime and same lat/lon;  
+  - `POST /api/compose` (mode `overlay`) succeeds;  
+  - `/api/profile?userId=phase8_real_user` after overlay remains `phase8_real_user` / `phase8_real_chart`.
+
+- **I6 — Compose identity continuity:** **PASS**  
+  - `POST /api/compose` uses only the explicitly supplied overlay `overlayParams` as chart identity;  
+  - No evidence of implicit chart substitution;  
+  - No mutation of `primaryChart.id` in `/api/profile` after compose.
+
+- **I7 — History identity continuity (fixture-scoped):** **PASS**  
+  - For `GET /api/user/history?userId=phase8_real_user`, history items remained scoped to the Phase 8 real user and canonical chart for this fixture.  
+  - This is recorded as a **fixture-level Stage 6 assertion**, not a generalized invariant for future multi-chart users.

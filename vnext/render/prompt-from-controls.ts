@@ -8,20 +8,20 @@ import type { CompositionNarrativePlan } from '../audio/composition-narrative';
  * - Current Feature Fields: control surface payload exposes arc_shape, density_level, tempo_norm,
  *   step_bias, leap_cap, rhythm_template_id, syncopation_bias, motif_rate, element_dominance,
  *   aspect_tension, modality and genre; plan contributes bpm and key only.
- * - Current Prompt Structure: BASE_SAFE_PROMPT (30s, instrumental, no vocals) plus 6 coarse tags:
- *   tempo bucket, density bucket, "brightness" bucket (previously tension-proxy), tension bucket,
- *   melodic vs rhythmic emphasis, and broad genre family (electronic/ambient/orchestral/jazz).
+ * - Current Prompt Structure: BASE_SAFE_PROMPT (30s, instrumental, no vocals) plus deterministic
+ *   distilled tags and short phrases ordered canonically for Lyria.
  * - Duration Handling: compose pipeline and providers are pinned to DEFAULT_DURATION_S (30s);
  *   prompt text already specifies "30 second instrumental track" with no explicit section timing.
  * - Section Logic: musical sections and arc (Encounter/Recognition/Integration) are planned inside
- *   the v6 narrative planner, but Lyria prompt previously carried no explicit intro/development/peak/
- *   resolution envelope or time-coded structure.
- * - Elemental Mapping: element_dominance influenced student controls and text atoms, but Lyria prompt
- *   only received generic tags; no dedicated elemental instrumentation, density, or pacing descriptors.
+ *   the v6 narrative planner; provider-facing prompt now carries a compact arc summary instead of
+ *   long-form prose.
+ * - Elemental Mapping: element_dominance and narrative signatures map to short instrumentation and
+ *   mood descriptors rather than paragraphs of symbolic commentary.
  */
 
 const BASE_SAFE_PROMPT =
   'Generate a 30 second instrumental track. Focus on original sound design, evolving rhythm, and clear musical development. No vocals, no spoken word, no lyrics. Avoid recognizable melodies or famous motifs so the composition remains clearly original.';
+const LYRIA_MAX_PROMPT_CHARS = 1800;
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -568,7 +568,7 @@ function genreFamily(g?: string): string {
 }
 
 /**
- * Build Lyria prompt: safe base + up to 6 deterministic tags to avoid recitation blocks.
+ * Build Lyria prompt: rich internal description → compact, deterministic provider prompt.
  */
 export function buildLyriaPrompt(
   payload: ControlSurfacePayload,
@@ -592,7 +592,13 @@ export function buildLyriaPrompt(
 
   if (!narrative) {
     const legacyTags = [...baseTags, brightnessBucket(0.5)];
-    return `${BASE_SAFE_PROMPT} Tags: ${legacyTags.join(', ')}.`;
+    const prompt = `${BASE_SAFE_PROMPT} Tags: ${legacyTags.join(', ')}.`;
+    const finalPrompt = enforcePromptLength(prompt, {
+      distilled: false,
+      source: 'legacy-no-narrative',
+      tagCount: legacyTags.length,
+    });
+    return finalPrompt;
   }
 
   const arcTags: string[] = [
@@ -645,88 +651,258 @@ export function buildLyriaPrompt(
     ...arcTags,
   ];
 
-  const primaryElementPhrase =
-    narrative.primaryElement === 'fire'
-      ? 'forward rhythmic drive, bright harmonics, and a rising sense of momentum'
-      : narrative.primaryElement === 'earth'
-        ? 'grounded low-end, weighty harmony, and steady, patient pacing'
-        : narrative.primaryElement === 'air'
-          ? 'melodic motion in a higher register, light percussion, and agile phrasing'
-          : 'sustained textures, gentle swells, and smoothly blended transitions';
+  // Stage A (internal description) is captured in the rich tags and narrative-derived helpers above.
+  // Stage B: distill to a compact, canonical provider-facing prompt with a hard length guard.
 
-  const secondaryElementPhrase = narrative.secondaryElement
+  const primaryMood =
+    narrative.tonalPolarity === 'bright'
+      ? 'bright and open'
+      : narrative.tonalPolarity === 'dark'
+        ? 'shadowed and introspective'
+        : 'balanced and nuanced';
+
+  const brightnessLabel =
+    brightnessTag === 'soft-tonality'
+      ? 'soft edges'
+      : brightnessTag === 'vivid-tonality'
+        ? 'vivid tone color'
+        : 'balanced tone color';
+
+  const elementLabel =
+    narrative.primaryElement === 'fire'
+      ? 'fire-forward energy'
+      : narrative.primaryElement === 'earth'
+        ? 'grounded earth weight'
+        : narrative.primaryElement === 'air'
+          ? 'light, agile air motion'
+          : 'fluid water texture';
+
+  const secondaryElementLabel = narrative.secondaryElement
     ? narrative.secondaryElement === 'fire'
-      ? 'with subtle fire accents adding extra movement'
+      ? 'fire as a secondary accent'
       : narrative.secondaryElement === 'earth'
-        ? 'with earth underpinnings that keep the pulse anchored'
+        ? 'earth reinforcing the low-end'
         : narrative.secondaryElement === 'air'
-          ? 'with air details adding melodic spark and space'
-          : 'with water inflections that soften edges and blur contours'
+          ? 'air adding melodic sparkle'
+          : 'water softening transitions'
     : '';
 
-  const tonalPhrase =
-    narrative.tonalPolarity === 'bright'
-      ? 'Keep the harmony generally bright and open, with occasional contrast for depth.'
-      : narrative.tonalPolarity === 'dark'
-        ? 'Use a warmer, more shadowed color palette without becoming oppressive or overly cinematic.'
-        : 'Maintain a balanced tonal palette that can tilt warmer or cooler as the chart suggests, but never purely one-note.';
+  const moodSentence = secondaryElementLabel
+    ? `Overall mood: ${primaryMood} ${genreFamily(payload.genre)} instrumental with ${elementLabel} and ${secondaryElementLabel}.`
+    : `Overall mood: ${primaryMood} ${genreFamily(payload.genre)} instrumental with ${elementLabel}.`;
 
-  const densityPhrase =
-    narrative.densityProfile === 'sparse_to_full'
-      ? 'Start with a relatively sparse texture and gradually introduce more layers and detail over time.'
-      : narrative.densityProfile === 'full_to_sparse'
-        ? 'Begin with a fuller texture and deliberately thin out layers toward the ending to create a sense of release.'
-        : 'Keep the texture broadly stable, with subtle variation in layers rather than abrupt density shifts.';
+  const energySentence = `Energy arc: ${narrative.arcShape} shape with ${narrative.energyCurve} energy curve and ${narrative.densityProfile} density over 30 seconds.`;
 
-  const rhythmicPhrase =
+  const rhythmicDriveLabel =
     rhythmicDriveTag === 'strong-rhythmic-drive'
-      ? 'Rhythm should be clearly articulated and forward-driving, but avoid feeling aggressive.'
+      ? 'strong rhythmic drive'
       : rhythmicDriveTag === 'gentle-rhythmic-motion'
-        ? 'Rhythm should feel gentle and supporting, giving space to harmony and texture.'
-        : 'Rhythm should feel steady and supportive, with groove present but not overwhelming.';
+        ? 'gentle supporting motion'
+        : 'steady supporting groove';
 
-  const structurePhraseIntro =
-    '0–6s: establish the core motif and palette with a clear but gentle introduction, avoiding sudden full-band entries.';
+  const emphasis = emphasisBucket(motifRate, rhythmTemplateId);
+  const rhythmSentence = `Rhythm: ${tempoBucket(bpm)} (~${bpm} BPM), ${rhythmicDriveLabel}, ${emphasis}-forward phrasing with syncopation set by controls.`;
 
-  const structurePhraseDevelopment =
-    '6–18s: develop the motif and texture with variation and interplay between parts, so the middle does not reset or collapse but feels like a coherent expansion.';
+  const textureSentence = `Texture: ${densityBucket(density)} layers with ${brightnessLabel}, using register and instrumentation chosen from the chart-derived narrative.`;
 
-  const structurePhrasePeak =
-    narrative.arcShape === 'surge_then_resolve' || narrative.arcShape === 'rise'
-      ? '18–26s: build to a focused peak in energy and intensity that feels like a crest rather than a restart.'
-      : narrative.arcShape === 'tension_release'
-        ? '18–26s: let harmonic and textural tension reach a clear high point, then begin releasing it in a controlled way.'
-        : '18–26s: allow the musical ideas to bloom fully, with one or two standout gestures that feel like a culmination rather than background loops.';
-
-  const endingPhrase =
+  const endingLabel =
     narrative.endingStyle === 'resolved'
-      ? '26–30s: guide the harmony toward a clear, intentional resolution on the home center, with a short, natural decay—no abrupt cutoffs.'
+      ? 'clear resolved landing'
       : narrative.endingStyle === 'suspended'
-        ? '26–30s: land on a suspended or open chord that feels like a thoughtful question mark, with a smooth tail and no hard stop.'
+        ? 'suspended open landing'
         : narrative.endingStyle === 'dissipating'
-          ? '26–30s: gradually thin out rhythm and harmony so the sound dissolves into a soft tail, avoiding sudden drops in energy.'
+          ? 'dissipating tail'
           : narrative.endingStyle === 'triumphant'
-            ? '26–30s: shape a small but confident climax, then clearly resolve to the home center with a brief, satisfying tail.'
-            : '26–30s: finish with an open but gentle sonority that suggests continuity beyond the track, keeping the final seconds intentional and unhurried.';
+            ? 'small triumphant peak then release'
+            : 'gentle open tail';
 
-  const structureSentence = `${structurePhraseIntro} ${structurePhraseDevelopment} ${structurePhrasePeak} ${endingPhrase}`;
+  const structureSentence = `Structure: intro, development, peak, and ending are aligned with a ${narrative.arcShape} arc and a ${endingLabel} in the final seconds; no abrupt cutoff or hard stop.`;
 
-  const elementSentence = secondaryElementPhrase
-    ? `Lean into ${primaryElementPhrase}, ${secondaryElementPhrase}.`
-    : `Lean into ${primaryElementPhrase}.`;
+  const astroBits: string[] = [];
+  if (narrative.stellium?.hasCluster) {
+    astroBits.push(`stellium emphasis in ${narrative.stellium.element || narrative.primaryElement}`);
+  }
+  if (narrative.angularDominance) {
+    const angles: string[] = [];
+    if (narrative.angularDominance.first) angles.push('1st');
+    if (narrative.angularDominance.fourth) angles.push('4th');
+    if (narrative.angularDominance.seventh) angles.push('7th');
+    if (narrative.angularDominance.tenth) angles.push('10th');
+    if (angles.length) astroBits.push(`angular focus around houses ${angles.join('/')}`);
+  }
+  if (narrative.luminaryDominance && narrative.luminaryDominance !== 'balanced') {
+    astroBits.push(`${narrative.luminaryDominance}-dominated luminary tone`);
+  }
 
-  const fullPrompt = [
-    BASE_SAFE_PROMPT,
-    elementSentence,
-    tonalPhrase,
-    densityPhrase,
-    rhythmicPhrase,
-    harmonic.sentence,
-    rhythmicDetail.sentence,
-    registerAndInstr.sentence,
-    chartIdentity.sentence,
+  const astroSentence = astroBits.length
+    ? `Astro identity (sonic): ${astroBits.join(', ')}.`
+    : '';
+
+  const orderedTags: string[] = [
+    ...baseTags,
+    brightnessTag,
+    tonalTag,
+    densityProfileTag,
+    rhythmicDriveTag,
+    ...elementTags,
+    ...modalityTags,
+    ...arcTags,
+    ...harmonic.tags,
+    ...rhythmicDetail.tags,
+    ...registerAndInstr.tags,
+    ...chartIdentity.tags,
+  ].filter(Boolean);
+
+  const { prompt, meta } = buildDistilledPrompt({
+    orderedTags,
+    moodSentence,
+    energySentence,
+    rhythmSentence,
+    textureSentence,
     structureSentence,
-  ].join(' ');
+    astroSentence,
+  });
 
-  return `${fullPrompt} Tags: ${tags.join(', ')}.`;
+  const finalPrompt = enforcePromptLength(prompt, {
+    distilled: true,
+    source: 'narrative',
+    tagCount: meta.tagsUsed,
+    segmentsDropped: meta.segmentsDropped,
+    hardTrimApplied: meta.hardTrimApplied,
+  });
+
+  return finalPrompt;
+}
+
+interface DistilledPromptInput {
+  orderedTags: string[];
+  moodSentence: string;
+  energySentence: string;
+  rhythmSentence: string;
+  textureSentence: string;
+  structureSentence: string;
+  astroSentence: string;
+}
+
+interface DistilledPromptMeta {
+  tagsUsed: number;
+  segmentsDropped: number;
+  hardTrimApplied: boolean;
+}
+
+function buildDistilledPrompt(input: DistilledPromptInput): { prompt: string; meta: DistilledPromptMeta } {
+  const base = BASE_SAFE_PROMPT;
+
+  const segments: string[] = [
+    base,
+    input.moodSentence,
+    input.energySentence,
+    input.rhythmSentence,
+    input.textureSentence,
+    input.structureSentence,
+  ];
+  if (input.astroSentence) {
+    segments.push(input.astroSentence);
+  }
+
+  let tagCap = Math.min(input.orderedTags.length, 24);
+  let hardTrimApplied = false;
+
+  const buildWithCap = (cap: number, currentSegments: string[]): { text: string; tagsUsed: number } => {
+    const tags = input.orderedTags.slice(0, cap);
+    const tagSentence = tags.length ? `Tags: ${tags.join(', ')}.` : '';
+    const allSegments = tagSentence ? [...currentSegments, tagSentence] : [...currentSegments];
+    const text = allSegments.join(' ');
+    return { text, tagsUsed: tags.length };
+  };
+
+  let workingSegments = [...segments];
+  let tagsUsed = 0;
+  let segmentsDropped = 0;
+
+  let { text } = buildWithCap(tagCap, workingSegments);
+  if (text.length > LYRIA_MAX_PROMPT_CHARS) {
+    const tagCaps = [18, 12, 8, 6, 4];
+    let found = false;
+    for (const cap of tagCaps) {
+      if (cap <= 0) continue;
+      const attempt = buildWithCap(Math.min(cap, tagCap), workingSegments);
+      if (attempt.text.length <= LYRIA_MAX_PROMPT_CHARS) {
+        text = attempt.text;
+        tagCap = Math.min(cap, tagCap);
+        tagsUsed = attempt.tagsUsed;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      tagCap = Math.min(6, tagCap);
+      const attempt = buildWithCap(tagCap, workingSegments);
+      text = attempt.text;
+      tagsUsed = attempt.tagsUsed;
+    }
+  } else {
+    const attempt = buildWithCap(tagCap, workingSegments);
+    text = attempt.text;
+    tagsUsed = attempt.tagsUsed;
+  }
+
+  while (text.length > LYRIA_MAX_PROMPT_CHARS && workingSegments.length > 1) {
+    workingSegments.pop();
+    segmentsDropped++;
+    const attempt = buildWithCap(tagCap, workingSegments);
+    text = attempt.text;
+    tagsUsed = attempt.tagsUsed;
+  }
+
+  if (text.length > LYRIA_MAX_PROMPT_CHARS) {
+    text = text.slice(0, LYRIA_MAX_PROMPT_CHARS);
+    hardTrimApplied = true;
+  }
+
+  return {
+    prompt: text,
+    meta: {
+      tagsUsed,
+      segmentsDropped,
+      hardTrimApplied,
+    },
+  };
+}
+
+interface PromptLengthMeta {
+  distilled: boolean;
+  source: 'legacy-no-narrative' | 'narrative';
+  tagCount: number;
+  segmentsDropped?: number;
+  hardTrimApplied?: boolean;
+}
+
+function enforcePromptLength(prompt: string, meta: PromptLengthMeta): string {
+  let finalPrompt = prompt;
+  let hardTrimApplied = !!meta.hardTrimApplied;
+
+  if (finalPrompt.length > LYRIA_MAX_PROMPT_CHARS) {
+    finalPrompt = finalPrompt.slice(0, LYRIA_MAX_PROMPT_CHARS);
+    hardTrimApplied = true;
+  }
+
+  try {
+    console.log(
+      '[LYRIA_PROMPT_META]',
+      JSON.stringify({
+        length: finalPrompt.length,
+        limit: LYRIA_MAX_PROMPT_CHARS,
+        distilled: meta.distilled,
+        source: meta.source,
+        tagCount: meta.tagCount,
+        segmentsDropped: meta.segmentsDropped ?? 0,
+        hardTrimApplied,
+      })
+    );
+  } catch {
+    // logging must never interfere with prompt construction
+  }
+
+  return finalPrompt;
 }
