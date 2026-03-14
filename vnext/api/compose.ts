@@ -97,10 +97,11 @@ export class ComposeAPI {
       // Generate control-surface payload based on mode
       const payload = await this.generateControlPayload(request);
 
-      // Phase 6 Sandbox: when overriddenSnapshot is provided, use it for architecture (same chart as viz/report)
+      // Phase 6 Sandbox: when overriddenSnapshot is provided, use it for architecture (same chart as viz/report).
+      // When only chartData is provided (e.g. Stage 9 / simple sandbox), use chart input path to fetch snapshot.
       const req = request as any;
-      if (req.mode === 'sandbox' && req.overriddenSnapshot == null) {
-        throw new Error('Sandbox mode requires overriddenSnapshot from POST /api/sandbox/snapshot');
+      if (req.mode === 'sandbox' && req.overriddenSnapshot == null && !req.chartData) {
+        throw new Error('Sandbox mode requires overriddenSnapshot from POST /api/sandbox/snapshot or chartData');
       }
       let architecture: Awaited<ReturnType<typeof generateArchitecture>>;
       if (req.mode === 'sandbox' && req.overriddenSnapshot != null) {
