@@ -16,6 +16,7 @@ import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import AtlasSearch from '../../src/components/atlas/AtlasSearch';
 import { useChartsStore, useCompositionStore } from '../../src/store';
+import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
 import { isFeatureEnabled } from '../../src/core/config/flags';
 import { getApiBaseUrl } from '../../src/core/api-base';
 
@@ -243,39 +244,7 @@ export default function CommunityClient() {
   const { jobHistory } = useCompositionStore();
   const { user, primaryChart } = useProfile();
 
-  // Phase 8G: after refresh, persisted blob URLs are stripped to ''; re-fetch from exportId so Profile + Saved Tracks stay playable
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const state = useCompositionStore.getState();
-      const jobs = state.jobHistory.filter(
-        (j) =>
-          j.status.stage === 'ready' &&
-          (j as { exportId?: string }).exportId &&
-          (!(j.status.url && j.status.url.length > 0))
-      );
-      const base = getApiBaseUrl();
-      jobs.forEach((job) => {
-        const exportId = (job as { exportId?: string }).exportId;
-        if (!exportId) return;
-        fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' })
-          .then((res) => (res.ok ? res.arrayBuffer() : null))
-          .then((ab) => {
-            if (ab && ab.byteLength > 0 && job.status.stage === 'ready') {
-              const blob = new Blob([ab], { type: 'audio/wav' });
-              const url = URL.createObjectURL(blob);
-              useCompositionStore.getState().updateJobStatus(job.id, {
-                stage: 'ready',
-                id: job.status.id,
-                url,
-                layers: job.status.layers,
-              });
-            }
-          })
-          .catch(() => {});
-      });
-    }, 150);
-    return () => clearTimeout(t);
-  }, [jobHistory.length]);
+  useHydrateCompositionUrls();
 
   const filteredCharts = charts.filter(chart =>
     chart.label.toLowerCase().includes(searchQuery.toLowerCase())

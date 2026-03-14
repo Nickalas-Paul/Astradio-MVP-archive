@@ -8,6 +8,7 @@ import { useProfile, useProfileChart, type ProfileChartSection } from '../../cor
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { useCompositionStore, type LastNatalComposeResult } from '../../store';
+import { useHydrateCompositionUrls } from '../../hooks/useHydrateCompositionUrls';
 import { getApiBaseUrl } from '../../core/api-base';
 import type { CompositionJob } from '../../types';
 
@@ -88,25 +89,36 @@ function NatalBaselinePlayer({ chartId, displayName }: { chartId: string; displa
   );
 }
 
-/** Phase 8G: diagnostic block when soundtrack is unavailable — shows provider, reason, payload status. */
-function SoundtrackStatusBlock({ chartId }: { chartId: string }) {
+/** User-facing message for soundtrack failure (maps technical export_error to readable text). */
+function userFacingSoundtrackMessage(exportError: string | null): string {
+  if (!exportError?.trim()) return 'Your soundtrack could not be generated. You can try again later.';
+  const e = exportError.toLowerCase();
+  if (e.includes('render_failed') || e.includes('recitation') || e.includes('blocked')) return 'Your soundtrack couldn\'t be generated for this chart. You can try again later.';
+  if (e.includes('provider_not_configured') || e.includes('provider')) return 'Audio generation is not configured right now.';
+  if (e.includes('chart') || e.includes('snapshot')) return 'Chart data was unavailable. Try again or check your birth details.';
+  return 'Your soundtrack could not be generated. You can try again later.';
+}
+
+/** Phase 8G: when soundtrack is unavailable — user-facing message and optional retry. */
+function SoundtrackStatusBlock({ chartId, onRetry }: { chartId: string; onRetry?: () => void }) {
   const lastNatalComposeResult = useCompositionStore((s) => s.lastNatalComposeResult);
   const job = useNatalBaselineJob(chartId);
   if (job?.status?.stage === 'ready' && job.status.url) return null;
   if (!lastNatalComposeResult || lastNatalComposeResult.chartId !== chartId || lastNatalComposeResult.status !== 'failed') return null;
   const r: LastNatalComposeResult = lastNatalComposeResult;
-  const provider = r.provider_used ?? 'none';
-  const reason = r.export_error?.trim() || (r.provider_used ? 'render_failed' : 'provider_not_configured');
+  const message = userFacingSoundtrackMessage(r.export_error);
   return (
-    <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1.5 text-left">
-      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Soundtrack unavailable</p>
-      <dl className="text-xs text-subtext grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
-        <dt>Status:</dt><dd>failed</dd>
-        <dt>Provider:</dt><dd>{provider}</dd>
-        <dt>Reason:</dt><dd className="break-all">{reason}</dd>
-        <dt>Payload:</dt><dd>{r.has_audio_payload ? 'present' : 'missing'}</dd>
-        {r.export_attempted && <><dt>Export attempted:</dt><dd>yes</dd></>}
-      </dl>
+    <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2 text-left">
+      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-medium hover:bg-amber-500/30 transition"
+        >
+          Retry soundtrack
+        </button>
+      )}
     </div>
   );
 }
@@ -318,6 +330,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
+  const [natalComposeInProgress, setNatalComposeInProgress] = useState(false);
+
+  useHydrateCompositionUrls();
 
   if (profileLoading) {
     return (
@@ -450,7 +465,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
                         await refresh();
                         if (newChartId) {
-                          triggerNatalComposition(newChartId).catch(() => {});
+                          setNatalComposeInProgress(true);
+                          triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
                         }
                       } finally {
                         setCreating(false);
@@ -537,8 +553,20 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             )}
             {realChart?.id && !noRealChart && (
               <>
+                {natalComposeInProgress && (
+                  <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Generating your soundtrack…</p>
+                    <p className="text-xs text-subtext mt-1">This may take a moment.</p>
+                  </div>
+                )}
                 <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
-                <SoundtrackStatusBlock chartId={realChart.id} />
+                <SoundtrackStatusBlock
+                  chartId={realChart.id}
+                  onRetry={() => {
+                    setNatalComposeInProgress(true);
+                    triggerNatalComposition(realChart.id).finally(() => setNatalComposeInProgress(false));
+                  }}
+                />
               </>
             )}
           </div>
