@@ -20,7 +20,7 @@ import type { CompositionNarrativePlan } from '../audio/composition-narrative';
  */
 
 const BASE_SAFE_PROMPT =
-  'Generate a 30 second instrumental track. Focus on original sound design, evolving rhythm, and clear musical development. No vocals, no spoken word, no lyrics. Avoid recognizable melodies or famous motifs so the composition remains clearly original.';
+  'Generate a 30 second instrumental track. Focus on original sound design, evolving rhythm, and clear musical development. No vocals, no spoken word, no lyrics. Avoid recognizable melodies or famous motifs so the composition remains clearly original. Do not imitate, continue, or recreate any existing song, recording, or melody; compose entirely new material.';
 const LYRIA_MAX_PROMPT_CHARS = 1800;
 
 /** Fixed ending instruction appended in narrative path; space for this is reserved before reduction. */
@@ -36,7 +36,7 @@ const PHASE_RESOLUTION_END_S = 30;
 
 /** Compact three-phase structure for Lyria derived from planner Encounter/Recognition/Integration. */
 function buildPlannerPhaseStructureSentence(): string {
-  return `Structure over 30s: opening 0–${PHASE_OPENING_END_S}s introduce motif and space, development ${PHASE_OPENING_END_S}–${PHASE_DEVELOPMENT_END_S}s build motion and tension, resolution ${PHASE_DEVELOPMENT_END_S}–${PHASE_RESOLUTION_END_S}s land clearly with no abrupt cutoff.`;
+  return `Structure over 30s: opening 0–${PHASE_OPENING_END_S}s introduce motif and space, development ${PHASE_OPENING_END_S}–${PHASE_DEVELOPMENT_END_S}s build motion and tension, resolution ${PHASE_DEVELOPMENT_END_S}–${PHASE_RESOLUTION_END_S}s reach a clear harmonic cadence and final landing, not a mid-phrase cutoff.`;
 }
 
 function clamp01(x: number): number {

@@ -35,6 +35,7 @@ import {
 } from '../render/export-cache';
 import { buildTextAnalysis } from '../text/analysis/buildTextAnalysis';
 import { renderDaily } from '../text/renderers/daily';
+import { loadDailyToneSpec } from '../text';
 import type { ChartTextInput } from '../text/contracts';
 import { buildRelationalChartContext } from '../report-context';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
@@ -265,8 +266,18 @@ export class ComposeAPI {
             console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
             throw e;
           }
+          let toneSpec;
           try {
-            const daily = renderDaily(analysis);
+            toneSpec = loadDailyToneSpec();
+          } catch (e: any) {
+            textEngineFailureStage = 'loadDailyToneSpec';
+            textEngineFailureName = e?.name ?? 'Error';
+            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
+            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
+            throw e;
+          }
+          try {
+            const daily = renderDaily(analysis, toneSpec);
             textVnextDaily = {
               surface: daily.surface,
               hasNatalContext: daily.hasNatalContext,

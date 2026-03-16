@@ -65,6 +65,16 @@ export function applyEndingPolish(
   const dataChunkSize = wavBuffer.readUInt32LE(40);
   const dataOffset = 44;
 
+  const bufferLength = wavBuffer.length;
+  if (dataOffset >= bufferLength) {
+    return {
+      buffer: wavBuffer,
+      applied: false,
+      tailWindowSeconds,
+      endingStyleUsed: endingStyle,
+    };
+  }
+
   if (bitsPerSample !== 16 || numChannels < 1 || sampleRate < 8000) {
     return {
       buffer: wavBuffer,
@@ -75,7 +85,43 @@ export function applyEndingPolish(
   }
 
   const bytesPerFrame = 2 * numChannels;
-  const totalFrames = Math.floor(dataChunkSize / bytesPerFrame);
+  const actualPcmBytes = bufferLength - dataOffset;
+  const framesFromHeader = bytesPerFrame > 0 ? Math.floor(dataChunkSize / bytesPerFrame) : 0;
+  const framesFromBuffer = bytesPerFrame > 0 ? Math.floor(actualPcmBytes / bytesPerFrame) : 0;
+  let totalFrames = Math.min(framesFromHeader, framesFromBuffer);
+  if (bytesPerFrame <= 0 || totalFrames <= 0 || !Number.isFinite(totalFrames)) {
+    return {
+      buffer: wavBuffer,
+      applied: false,
+      tailWindowSeconds,
+      endingStyleUsed: endingStyle,
+    };
+  }
+
+  const headerExceedsActual = dataChunkSize > actualPcmBytes;
+  if (headerExceedsActual) {
+    try {
+      console.log('[ENDING_POLISH]', JSON.stringify({
+        dataOffset,
+        dataChunkSize,
+        bufferLength,
+        actualPcmBytes,
+        bytesPerFrame,
+        totalFrames,
+        headerExceedsActual,
+        _mismatch: 'buffer shorter than header',
+      }));
+    } catch {
+      // logging must not affect behavior
+    }
+    return {
+      buffer: wavBuffer,
+      applied: false,
+      tailWindowSeconds,
+      endingStyleUsed: endingStyle,
+    };
+  }
+
   const tailFrames = Math.min(
     Math.floor(tailWindowSeconds * sampleRate),
     totalFrames
@@ -90,34 +136,33 @@ export function applyEndingPolish(
     };
   }
 
-  // Runtime diagnostics: buffer vs header (no behavior change)
-  const bufferLength = wavBuffer.length;
-  const actualPcmBytes = bufferLength - dataOffset;
-  const headerExceedsActual = dataChunkSize > actualPcmBytes;
-  console.log('[ENDING_POLISH]', JSON.stringify({
-    dataOffset,
-    dataChunkSize,
-    bufferLength,
-    actualPcmBytes,
-    bytesPerFrame,
-    totalFrames,
-    headerExceedsActual,
-    ...(headerExceedsActual ? { _mismatch: 'buffer shorter than header' } : {})
-  }));
-
   const fadeStartFrame = totalFrames - tailFrames;
   const out = Buffer.alloc(wavBuffer.length);
   wavBuffer.copy(out, 0, 0, dataOffset);
 
-  for (let f = 0; f < totalFrames; f++) {
-    const gain = f < fadeStartFrame ? 1 : envelopeGain((f - fadeStartFrame) / tailFrames, endingStyle);
-    for (let c = 0; c < numChannels; c++) {
-      const offset = dataOffset + (f * numChannels + c) * 2;
-      const sample = wavBuffer.readInt16LE(offset);
-      const scaled = Math.round(sample * gain);
-      const clamped = Math.max(-32768, Math.min(32767, scaled));
-      out.writeInt16LE(clamped, offset);
+  try {
+    for (let f = 0; f < totalFrames; f++) {
+      const gain = f < fadeStartFrame ? 1 : envelopeGain((f - fadeStartFrame) / tailFrames, endingStyle);
+      for (let c = 0; c < numChannels; c++) {
+        const offset = dataOffset + (f * numChannels + c) * 2;
+        const sample = wavBuffer.readInt16LE(offset);
+        const scaled = Math.round(sample * gain);
+        const clamped = Math.max(-32768, Math.min(32767, scaled));
+        out.writeInt16LE(clamped, offset);
+      }
     }
+  } catch (e) {
+    try {
+      console.log('[ENDING_POLISH_ERROR]', JSON.stringify({ message: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200) }));
+    } catch {
+      // logging must not affect behavior
+    }
+    return {
+      buffer: wavBuffer,
+      applied: false,
+      tailWindowSeconds,
+      endingStyleUsed: endingStyle,
+    };
   }
 
   return {

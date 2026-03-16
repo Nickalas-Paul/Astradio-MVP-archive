@@ -73,7 +73,7 @@ export function generateTextSurface(input: GenerateTextSurfaceInput): GenerateTe
   return renderer(analysis);
 }
 
-function loadDailyToneSpec(): ToneSpec {
+export function loadDailyToneSpec(): ToneSpec {
   const file = path.resolve(process.cwd(), 'vnext/text/tones/daily.personality.v1.json');
   const raw = fs.readFileSync(file, 'utf8');
   return JSON.parse(raw) as ToneSpec;
