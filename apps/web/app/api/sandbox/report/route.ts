@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import type { CanonicalLocation } from '@/types/location';
+import type { CanonicalLocation } from '../../../../src/types/location';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
 const CanonicalLocationSchema = z.object({
