@@ -152,13 +152,31 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon } }
+  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon [, timezone] } }
   router.post('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const body = (req.body || {}) as { displayName: string; handle?: string; email?: string; chart?: { label: string; date: string; time: string; lat: number; lon: number } };
+      const body = (req.body || {}) as { displayName: string; handle?: string; email?: string; chart?: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string } };
       const { displayName, handle, email, chart: chartInput } = body;
       if (!displayName || typeof displayName !== 'string' || !displayName.trim()) {
         return res.status(400).json({ error: 'displayName required' });
+      }
+      if (chartInput != null && typeof chartInput === 'object') {
+        const { label, date, time, lat, lon } = chartInput;
+        if (!label || typeof label !== 'string' || !label.trim()) {
+          return res.status(400).json({ error: 'chart.label required when chart is provided' });
+        }
+        if (!date || typeof date !== 'string' || !date.trim()) {
+          return res.status(400).json({ error: 'chart.date required when chart is provided' });
+        }
+        if (!time || typeof time !== 'string' || !time.trim()) {
+          return res.status(400).json({ error: 'chart.time required when chart is provided' });
+        }
+        if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+          return res.status(400).json({ error: 'chart.lat required and must be a number between -90 and 90' });
+        }
+        if (typeof lon !== 'number' || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+          return res.status(400).json({ error: 'chart.lon required and must be a number between -180 and 180' });
+        }
       }
       const user = await storage.createUser({ displayName: displayName.trim(), handle: handle?.trim() || undefined, email: email?.trim() || undefined });
       console.log('[compat][profile][createUser]', {
@@ -167,14 +185,16 @@ export function createCompatRouter(): import('express').Router {
         success: true,
       });
       let primaryChart: import('./types').Chart | null = null;
-      if (chartInput && chartInput.label && chartInput.date && chartInput.time && Number.isFinite(chartInput.lat) && Number.isFinite(chartInput.lon)) {
+      if (chartInput != null && typeof chartInput === 'object') {
+        const { label, date, time, lat, lon, timezone: tz } = chartInput;
         primaryChart = await storage.createChart({
           ownerId: user.id,
-          label: chartInput.label,
-          date: String(chartInput.date).slice(0, 10),
-          time: String(chartInput.time).slice(0, 5),
-          lat: Number(chartInput.lat),
-          lon: Number(chartInput.lon),
+          label: label.trim(),
+          date: String(date).slice(0, 10),
+          time: String(time).slice(0, 5),
+          lat: Number(lat),
+          lon: Number(lon),
+          ...(typeof tz === 'string' && tz.trim() && { timezone: tz.trim() }),
         });
         console.log('[compat][profile][createChart]', {
           userId: user.id,
@@ -183,7 +203,6 @@ export function createCompatRouter(): import('express').Router {
           success: true,
         });
         await linkUserPrimaryChartWithRetry(user.id, primaryChart.id);
-        // Vector population only on chart create (this path created a new chart)
         if (process.env.POSTGRES_URL) {
           populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
             console.warn('[compat] vector populate after chart create:', err?.message);

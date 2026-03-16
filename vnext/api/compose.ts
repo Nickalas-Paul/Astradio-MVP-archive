@@ -313,14 +313,25 @@ export class ComposeAPI {
       if (request.mode === 'overlay' && request.overlayParams) {
         const useOverlayExplainSpec = process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
         if (useOverlayExplainSpec) {
-          const natalDt = request.overlayParams.natalDatetime || '';
+          const natalLat = request.overlayParams.natalLatitude;
+          const natalLon = request.overlayParams.natalLongitude;
+          const natalDt = request.overlayParams.natalDatetime;
+          if (typeof natalLat !== 'number' || !Number.isFinite(natalLat) || typeof natalLon !== 'number' || !Number.isFinite(natalLon)) {
+            throw new Error('Overlay mode requires natalLatitude and natalLongitude; no default coordinates.');
+          }
+          if (typeof natalDt !== 'string' || !natalDt.trim() || !natalDt.includes('T')) {
+            throw new Error('Overlay mode requires natalDatetime (ISO string with time).');
+          }
           const [natalDate, natalTimePart] = natalDt.split('T');
-          const natalTime = natalTimePart ? natalTimePart.slice(0, 5) : '12:00';
+          const natalTime = natalTimePart ? natalTimePart.slice(0, 5) : '';
+          if (!natalDate || !natalTime) {
+            throw new Error('Overlay mode requires natalDatetime with date and time (YYYY-MM-DDTHH:mm).');
+          }
           const natalInput: ChartInput = {
-            date: natalDate || '1990-01-01',
+            date: natalDate,
             time: natalTime,
-            lat: request.overlayParams.natalLatitude ?? 40.7128,
-            lon: request.overlayParams.natalLongitude ?? -74.006,
+            lat: natalLat,
+            lon: natalLon,
           };
           const natalSnapshot = await fetchChartSnapshot(natalInput);
           const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
