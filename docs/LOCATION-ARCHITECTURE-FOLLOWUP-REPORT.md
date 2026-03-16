@@ -68,10 +68,10 @@
 
 ## G. Commit hash
 
-(To be filled after commit.)
+`dfd25d9bef38e0094d3852cfe37cf10d623f10dc`
 
 ---
 
 ## H. Push confirmation
 
-(To be filled after push.)
+Pushed to `beta-ui-vercel`: `89c4be7..dfd25d9 beta-ui-vercel -> beta-ui-vercel`.
