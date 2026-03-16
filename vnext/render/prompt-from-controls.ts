@@ -34,9 +34,9 @@ const PHASE_OPENING_END_S = 8;
 const PHASE_DEVELOPMENT_END_S = 22;
 const PHASE_RESOLUTION_END_S = 30;
 
-/** Compact three-phase structure for Lyria derived from planner Encounter/Recognition/Integration. */
+/** Compact three-phase structure for Lyria derived from planner Encounter/Recognition/Integration. Reserved for future use; not included in provider prompt body. */
 function buildPlannerPhaseStructureSentence(): string {
-  return `Structure over 30s: opening 0–${PHASE_OPENING_END_S}s introduce motif and space, development ${PHASE_OPENING_END_S}–${PHASE_DEVELOPMENT_END_S}s build motion and tension, resolution ${PHASE_DEVELOPMENT_END_S}–${PHASE_RESOLUTION_END_S}s reach a clear harmonic cadence and final landing, not a mid-phrase cutoff.`;
+  return `Structure over 30s: opening 0–${PHASE_OPENING_END_S}s introduce motif and space, development ${PHASE_OPENING_END_S}–${PHASE_DEVELOPMENT_END_S}s build motion and tension, resolution ${PHASE_DEVELOPMENT_END_S}–${PHASE_RESOLUTION_END_S}s reach a clear harmonic cadence and final landing.`;
 }
 
 function clamp01(x: number): number {
@@ -200,7 +200,7 @@ function deriveHarmonicBehavior(
     chordDensityTag = 'chord-density-medium';
   }
 
-  const sentence = `Harmonic behavior: ${modal.label} Within that frame, ${tensionLabel}, and ${cadenceLabel}. ${chordDensityLabel} Also, make sure there is no abrupt cutoff or hard stop at the end; let the final harmony feel like an intentional landing rather than a sudden drop.`;
+  const sentence = `Harmonic behavior: ${modal.label} Within that frame, ${tensionLabel}, and ${cadenceLabel}. ${chordDensityLabel}`;
 
   return {
     sentence,
@@ -656,16 +656,14 @@ export function buildLyriaPrompt(
     ...baseTags,
     brightnessTag,
     tonalTag,
-    densityProfileTag,
-    rhythmicDriveTag,
-    ...harmonic.tags,
-    ...rhythmicDetail.tags,
-    ...registerAndInstr.tags,
-    ...chartIdentity.tags,
     ...elementTags,
-    ...modalityTags,
     ...arcTags,
-  ];
+    // Select a small, high-value subset of behavior/register tags for diversity.
+    harmonic.tags[0],
+    harmonic.tags[1],
+    rhythmicDetail.tags[0],
+    registerAndInstr.tags[0],
+  ].filter(Boolean);
 
   // Stage A (internal description) is captured in the rich tags and narrative-derived helpers above.
   // Stage B: distill to a compact, canonical provider-facing prompt with a hard length guard.
@@ -732,7 +730,7 @@ export function buildLyriaPrompt(
             ? 'small triumphant peak then release'
             : 'gentle open tail';
 
-  const structureSentence = `Structure: intro, development, peak, and ending are aligned with a ${narrative.arcShape} arc and a ${endingLabel} in the final seconds; no abrupt cutoff or hard stop.`;
+  const structureSentence = `Structure: intro, development, peak, and ending are aligned with a ${narrative.arcShape} arc and a ${endingLabel} in the final seconds.`;
 
   const astroBits: string[] = [];
   if (narrative.stellium?.hasCluster) {
@@ -750,32 +748,32 @@ export function buildLyriaPrompt(
     astroBits.push(`${narrative.luminaryDominance}-dominated luminary tone`);
   }
 
-  const astroSentence = astroBits.length
-    ? `Astro identity (sonic): ${astroBits.join(', ')}.`
-    : '';
+  const astroSentence = '';
 
   const orderedTags: string[] = [
-    ...baseTags,
+    // Core control-surface dimensions
+    tempoBucket(bpm),
+    densityBucket(density),
+    tensionBucket(tension),
+    emphasisBucket(motifRate, rhythmTemplateId),
+    genreFamily(payload.genre),
+    // One brightness / tonal slot
     brightnessTag,
     tonalTag,
-    densityProfileTag,
-    rhythmicDriveTag,
+    // Primary / secondary element
     ...elementTags,
-    ...modalityTags,
-    ...arcTags,
-    ...harmonic.tags,
-    ...rhythmicDetail.tags,
-    ...registerAndInstr.tags,
-    ...chartIdentity.tags,
+    // One coarse harmonic cue
+    harmonic.tags[0],
+    // One coarse rhythmic/register cue
+    rhythmicDriveTag,
+    registerAndInstr.tags[0],
   ].filter(Boolean);
 
   // Reserve space for ending guard so the final prompt never exceeds LYRIA_MAX_PROMPT_CHARS.
   const maxCharsForBody = LYRIA_MAX_PROMPT_CHARS - ENDING_GUARD.length;
-  const phaseStructureSentence = buildPlannerPhaseStructureSentence();
   const { prompt, meta } = buildDistilledPrompt(
     {
       orderedTags,
-      phaseStructureSentence,
       moodSentence,
       energySentence,
       rhythmSentence,
@@ -794,7 +792,7 @@ export function buildLyriaPrompt(
     segmentsDropped: meta.segmentsDropped,
     hardTrimApplied: meta.hardTrimApplied,
     endingGuardApplied: true,
-    phaseStructureIncluded: true,
+    phaseStructureIncluded: false,
   });
 
   return finalPrompt;
@@ -824,11 +822,8 @@ function buildDistilledPrompt(
 ): { prompt: string; meta: DistilledPromptMeta } {
   const base = BASE_SAFE_PROMPT;
 
-  // Order: base first (never dropped), then phase structure (high priority), then mood/energy/rhythm/texture/structure (dropped last-to-first), then astro (dropped first).
+  // Order: base first (never dropped), then mood/energy/rhythm/texture/structure (dropped last-to-first), then astro (dropped first).
   const segments: string[] = [base];
-  if (input.phaseStructureSentence) {
-    segments.push(input.phaseStructureSentence);
-  }
   segments.push(
     input.moodSentence,
     input.energySentence,
@@ -840,7 +835,7 @@ function buildDistilledPrompt(
     segments.push(input.astroSentence);
   }
 
-  let tagCap = Math.min(input.orderedTags.length, 24);
+  let tagCap = Math.min(input.orderedTags.length, 10);
   let hardTrimApplied = false;
 
   const buildWithCap = (cap: number, currentSegments: string[]): { text: string; tagsUsed: number } => {
@@ -857,7 +852,7 @@ function buildDistilledPrompt(
 
   let { text } = buildWithCap(tagCap, workingSegments);
   if (text.length > maxChars) {
-    const tagCaps = [18, 12, 8, 6, 4];
+    const tagCaps = [8, 6, 4];
     let found = false;
     for (const cap of tagCaps) {
       if (cap <= 0) continue;
