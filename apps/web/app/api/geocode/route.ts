@@ -31,7 +31,14 @@ export async function GET(req: Request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    const items = Array.isArray(data) ? data : [];
+    const normalized = items.map((item: any) => ({
+      label: String(item.label ?? item.display_name ?? ''),
+      lat: Number(item.lat),
+      lon: Number(item.lon),
+      timezone: typeof item.timezone === 'string' && item.timezone.length > 0 ? item.timezone : 'UTC',
+    }));
+    return NextResponse.json(normalized);
   } catch (error: any) {
     console.error('[Geocode] Error:', error.message);
     
@@ -74,7 +81,14 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    const items = Array.isArray(data) ? data : [];
+    const normalized = items.map((item: any) => ({
+      label: String(item.label ?? item.display_name ?? ''),
+      lat: Number(item.lat),
+      lon: Number(item.lon),
+      timezone: typeof item.timezone === 'string' && item.timezone.length > 0 ? item.timezone : 'UTC',
+    }));
+    return NextResponse.json(normalized);
   } catch (error: any) {
     console.error('[Geocode] Error:', error.message);
     

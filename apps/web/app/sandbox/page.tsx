@@ -248,7 +248,7 @@ export default function SandboxPage() {
       el.pause();
       el.currentTime = 0;
     }
-    const base = getApiBaseUrl();
+      const base = getApiBaseUrl();
     // Cancel any in-flight snapshot sync to avoid races.
     if (abortControllerRef.current) abortControllerRef.current.abort();
     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);

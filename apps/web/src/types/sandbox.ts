@@ -1,7 +1,9 @@
 /**
  * Phase 4B — Sandbox frontend types.
- * Matches backend SandboxDraft contract.
+ * Frontend contract; Next API adapts to backend SandboxDraft contract.
  */
+
+import type { CanonicalLocation } from './location';
 
 /** Phase 8H: canonical body set (core 10 + Chiron, Ceres, Pallas, Juno, Vesta). */
 export type PlanetKey =
@@ -11,9 +13,7 @@ export type PlanetKey =
 export type SandboxBirth = {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
-  lat: number;
-  lon: number;
-  tz?: string;
+  location: CanonicalLocation;
   houseSystem?: string;
 };
 

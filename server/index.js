@@ -1053,7 +1053,25 @@ app.get("/geocode", async (req, res) => {
     }});
     if (!r.ok) return res.status(503).json({ error: `Nominatim ${r.status} (rate limited). Try again soon.` });
     const json = await r.json();
-    const items = json.map(x => ({ label: x.display_name, lat: parseFloat(x.lat), lon: parseFloat(x.lon) }));
+    const tzlookup = require('tzlookup');
+    const items = json.map((x) => {
+      const lat = parseFloat(x.lat);
+      const lon = parseFloat(x.lon);
+      let timezone = 'UTC';
+      try {
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          timezone = tzlookup(lat, lon);
+        }
+      } catch {
+        timezone = 'UTC';
+      }
+      return {
+        label: x.display_name,
+        lat,
+        lon,
+        timezone,
+      };
+    });
     geoCache.set(key, { t: Date.now(), items });
     res.json(items);
   } catch (e) {

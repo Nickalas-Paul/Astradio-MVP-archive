@@ -60,6 +60,37 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
+    const chart = body?.chart;
+    if (chart && chart.location) {
+      const loc = chart.location as any;
+      if (loc.source !== 'geofinder') {
+        return NextResponse.json(
+          { error: 'Invalid location source for profile chart. Expected source=geofinder.' },
+          { status: 400 },
+        );
+      }
+      if (
+        typeof loc.lat !== 'number' ||
+        typeof loc.lon !== 'number' ||
+        typeof loc.timezone !== 'string' ||
+        !Number.isFinite(loc.lat) ||
+        !Number.isFinite(loc.lon) ||
+        !loc.timezone
+      ) {
+        return NextResponse.json(
+          { error: 'Invalid canonical location for profile chart' },
+          { status: 400 },
+        );
+      }
+      body.chart = {
+        label: chart.label,
+        date: chart.date,
+        time: chart.time,
+        lat: loc.lat,
+        lon: loc.lon,
+        timezone: loc.timezone,
+      };
+    }
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile`, {
       method: 'POST',

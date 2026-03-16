@@ -9,15 +9,11 @@ import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playb
 import HeaderTabs from '../src/components/HeaderTabs';
 import WheelCanvas from '../src/components/WheelCanvas';
 import ExplanationPanel from '../src/components/ExplanationPanel';
-import { DateInput, TimeInput, LocationInput } from '../src/components/Inputs';
+import { DateInput, TimeInput } from '../src/components/Inputs';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
+import type { CanonicalLocation, GeoPermissionStatus } from '../src/types/location';
 
 type ChartData = any;
-
-type GeoState =
-  | { status: 'idle'; lat: null; lon: null }
-  | { status: 'ok'; lat: number; lon: number }
-  | { status: 'denied' | 'error'; lat: null; lon: null };
 
 export default function HomePage() {
   const [chartData, setChartData] = useState<ChartData | null>(null);
@@ -36,9 +32,8 @@ export default function HomePage() {
 
   const [dateStr, setDateStr] = useState<string>('');
   const [timeStr, setTimeStr] = useState<string>('');
-  const [locationStr, setLocationStr] = useState<string>('');
-  const [locationLabel, setLocationLabel] = useState<string>('');
-  const [geo, setGeo] = useState<GeoState>({ status: 'idle', lat: null, lon: null });
+  const [location, setLocation] = useState<CanonicalLocation | null>(null);
+  const [geoPermission, setGeoPermission] = useState<GeoPermissionStatus>('unknown');
 
   function formatCoords(lat: number, lon: number) {
     return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
@@ -66,7 +61,7 @@ export default function HomePage() {
     setShowDebugPanel(dev || fromUrl);
   }, []);
 
-  // 1) defaults: today / now / geolocation
+  // 1) defaults: today / now / browser geolocation (single source of truth for home)
   useEffect(() => {
     const now = new Date();
     setDateStr((prev) => prev || now.toISOString().slice(0, 10));
@@ -78,34 +73,48 @@ export default function HomePage() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          setGeo({ status: 'ok', lat: latitude, lon: longitude });
-          setLocationStr((prev) => prev || 'Current Location');
-          setLocationLabel((prev) => prev || 'Current Location');
+          setGeoPermission('granted');
+          const resolvedAt = new Date().toISOString();
+          const browserTz =
+            typeof Intl !== 'undefined' &&
+            typeof Intl.DateTimeFormat === 'function' &&
+            Intl.DateTimeFormat().resolvedOptions().timeZone
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone
+              : 'UTC';
+          const baseLocation: CanonicalLocation = {
+            source: 'browser_geo',
+            label: formatCoords(latitude, longitude),
+            lat: latitude,
+            lon: longitude,
+            timezone: browserTz,
+            resolvedAt,
+          };
+          setLocation(baseLocation);
         },
         () => {
-          setGeo({ status: 'denied', lat: null, lon: null });
-          const fallback = 'Buenos Aires, Argentina';
-          setLocationStr((prev) => prev || fallback);
-          setLocationLabel((prev) => prev || fallback);
+          setGeoPermission('denied');
+          setLocation(null);
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
       );
     } else {
-      setGeo({ status: 'error', lat: null, lon: null });
-      const fallback = 'Buenos Aires, Argentina';
-      setLocationStr((prev) => prev || fallback);
-      setLocationLabel((prev) => prev || fallback);
+      setGeoPermission('unavailable');
+      setLocation(null);
     }
   }, []);
 
-  // 2) compose: send coords when available
+  // 2) compose: send coords when canonical location is available
   useEffect(() => {
     let cancelled = false;
     async function bootstrap() {
+      if (!location) return;
       setIsLoading(true);
       try {
-        const body: any = { date: dateStr, time: timeStr, location: locationStr };
-        if (geo.status === 'ok') body.geo = { lat: geo.lat, lon: geo.lon };
+        const body: any = {
+          date: dateStr,
+          time: timeStr,
+          location,
+        };
 
         const startTime = performance.now();
         const base = getApiBaseUrl();
@@ -203,12 +212,14 @@ export default function HomePage() {
           // Wheel geometry: prefer canonical EphemerisSnapshot via /api/chart-snapshot.
           // Fallback to control-surface chart data only if snapshot request fails.
           let wheelSource: any = null;
-          if (dateStr && timeStr) {
-            const lat = geo.status === 'ok' ? geo.lat! : -34.6037;
-            const lon = geo.status === 'ok' ? geo.lon! : -58.3816;
+          if (dateStr && timeStr && location) {
+            const lat = location.lat;
+            const lon = location.lon;
             try {
               const snapRes = await fetch(
-                `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeStr)}&lat=${lat}&lon=${lon}`
+                `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(
+                  timeStr
+                )}&lat=${lat}&lon=${lon}`
               );
               if (snapRes.ok) {
                 const snapshot = await snapRes.json().catch(() => null);
@@ -236,19 +247,19 @@ export default function HomePage() {
       }
     }
 
-    if (dateStr && timeStr && locationStr) bootstrap();
+    if (dateStr && timeStr && location) bootstrap();
     return () => {
       cancelled = true;
     };
-  }, [dateStr, timeStr, locationStr, geo]);
+  }, [dateStr, timeStr, location]);
 
-  // 2b) reverse-geocode label when geo coords are available (display only; compose uses lat/lon)
+  // 2b) reverse-geocode label when geo coords are available (display only; compose uses canonical location)
   useEffect(() => {
     let cancelled = false;
     async function resolveLabel() {
-      if (geo.status !== 'ok' || geo.lat == null || geo.lon == null) return;
-      const lat = geo.lat;
-      const lon = geo.lon;
+      if (!location) return;
+      const lat = location.lat;
+      const lon = location.lon;
       try {
         const base = getApiBaseUrl();
         const r = await fetch(`${base || ''}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
@@ -257,19 +268,33 @@ export default function HomePage() {
         const label = j?.label ?? formatCoords(lat, lon);
         const parts = [j?.city, j?.region, j?.country].filter(Boolean);
         const displayLabel = parts.length > 0 ? parts.join(', ') : label;
-        setLocationLabel(displayLabel);
-        setLocationStr(displayLabel);
+        setLocation((prev) =>
+          prev
+            ? {
+                ...prev,
+                label: displayLabel,
+              }
+            : prev
+        );
       } catch {
         if (!cancelled) {
           const fallback = formatCoords(lat, lon);
-          setLocationLabel(fallback);
-          setLocationStr(fallback);
+          setLocation((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  label: fallback,
+                }
+              : prev
+          );
         }
       }
     }
     resolveLabel();
-    return () => { cancelled = true; };
-  }, [geo.status, geo.lat, geo.lon]);
+    return () => {
+      cancelled = true;
+    };
+  }, [location]);
 
   // Lyria-only playback. Single path: playLyriaAudio(payload.audio) or fail-closed message.
   useEffect(() => {
@@ -300,7 +325,7 @@ export default function HomePage() {
     };
   }, [audioUrl]);
 
-  const disabled = isLoading || !chartData;
+  const disabled = isLoading || !chartData || !location;
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -351,14 +376,12 @@ export default function HomePage() {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
               <DateInput value={dateStr} onChange={setDateStr} disabled={isLoading} />
               <TimeInput value={timeStr} onChange={setTimeStr} disabled={isLoading} />
-              <LocationInput
-                value={locationLabel || locationStr}
-                onChange={(value) => {
-                  setLocationStr(value);
-                  setLocationLabel(value);
-                }}
-                disabled={isLoading}
-              />
+              <div className="flex flex-col text-xs text-subtext">
+                <span className="mb-1 font-medium text-text">Location</span>
+                <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                  {location ? location.label : geoPermission === 'denied' ? 'Geolocation denied' : 'Locating...'}
+                </span>
+              </div>
             </div>
 
             {/* Transport with audio gesture gating */}
@@ -433,8 +456,12 @@ export default function HomePage() {
                 </p>
               )}
               <p className="text-xs text-zinc-500">
-                Geolocation: {geo.status}
-                {geo.status === 'ok' ? ` (${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)})` : ''}
+                Geolocation:{' '}
+                {geoPermission === 'granted'
+                  ? location
+                    ? `granted (${location.lat.toFixed(4)}, ${location.lon.toFixed(4)})`
+                    : 'granted (no location yet)'
+                  : geoPermission}
               </p>
             </div>
           </section>

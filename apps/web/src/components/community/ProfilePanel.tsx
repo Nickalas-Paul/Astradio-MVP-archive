@@ -326,6 +326,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [createChartTime, setCreateChartTime] = useState('12:00');
   const [createChartLat, setCreateChartLat] = useState('');
   const [createChartLon, setCreateChartLon] = useState('');
+  const [createChartTz, setCreateChartTz] = useState('');
   const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -411,11 +412,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   setCreateChartLocationLabel(r.label);
                   setCreateChartLat(String(r.lat));
                   setCreateChartLon(String(r.lon));
+                  setCreateChartTz(r.timezone || 'UTC');
                 }}
                 onClear={() => {
                   setCreateChartLocationLabel('');
                   setCreateChartLat('');
                   setCreateChartLon('');
+                  setCreateChartTz('');
                 }}
                 placeholder="Birth place (city, region, or address)"
               />
@@ -429,6 +432,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   createChartTime &&
                   createChartLat !== '' &&
                   createChartLon !== '' &&
+                  createChartTz !== '' &&
                   Number.isFinite(Number(createChartLat)) &&
                   Number.isFinite(Number(createChartLon))
                 );
@@ -448,8 +452,14 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                             label: createChartLabel.trim() || 'My Natal',
                             date: createChartDate,
                             time: createChartTime,
-                            lat: Number(createChartLat),
-                            lon: Number(createChartLon),
+                            location: {
+                              source: 'geofinder',
+                              label: createChartLocationLabel,
+                              lat: Number(createChartLat),
+                              lon: Number(createChartLon),
+                              timezone: createChartTz || 'UTC',
+                              resolvedAt: new Date().toISOString(),
+                            },
                           },
                         };
                         const r = await fetch('/api/profile', {
@@ -462,7 +472,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         const newChartId = data?.primaryChart?.id ?? null;
                         setCreateName(''); setCreateHandle('');
                         setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');
-                        setCreateChartLat(''); setCreateChartLon(''); setCreateChartLocationLabel('');
+                        setCreateChartLat(''); setCreateChartLon(''); setCreateChartTz(''); setCreateChartLocationLabel('');
                         await refresh();
                         if (newChartId) {
                           setNatalComposeInProgress(true);

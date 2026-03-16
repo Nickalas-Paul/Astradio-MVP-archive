@@ -1125,33 +1125,65 @@ export class ComposeAPI {
    */
   private extractChartInput(request: ComposeRequest): ChartInput {
     const req = request as any;
-    let date: string;
-    let time: string;
-    let lat: number;
-    let lon: number;
-    
     if (req.mode === 'sky' && req.skyParams) {
-      const dt = req.skyParams.datetime || '';
+      const dt = req.skyParams.datetime;
+      const lat = req.skyParams.latitude;
+      const lon = req.skyParams.longitude;
+      if (
+        typeof dt !== 'string' ||
+        !dt.includes('T') ||
+        typeof lat !== 'number' ||
+        typeof lon !== 'number' ||
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon)
+      ) {
+        throw new Error('Invalid skyParams: latitude, longitude, and ISO datetime are required');
+      }
       const [d, t] = dt.split('T');
-      date = d || new Date().toISOString().slice(0, 10);
-      time = t ? t.slice(0, 5) : '12:00';
-      lat = req.skyParams.latitude ?? 40.7128;
-      lon = req.skyParams.longitude ?? -74.006;
-    } else if (req.mode === 'overlay' && req.overlayParams) {
-      const dt = req.overlayParams.currentDatetime || '';
-      const [d, t] = dt.split('T');
-      date = d || new Date().toISOString().slice(0, 10);
-      time = t ? t.slice(0, 5) : '12:00';
-      lat = req.overlayParams.currentLatitude ?? 40.7128;
-      lon = req.overlayParams.currentLongitude ?? -74.006;
-    } else {
-      date = req.chartData?.date || new Date().toISOString().slice(0, 10);
-      time = req.chartData?.time || '12:00';
-      lat = req.chartData?.lat ?? 40.7128;
-      lon = req.chartData?.lon ?? -74.006;
+      const timePart = t ? t.slice(0, 5) : '';
+      if (!d || !timePart) {
+        throw new Error('Invalid skyParams.datetime; expected YYYY-MM-DDTHH:mm:ssZ');
+      }
+      return { date: d, time: timePart, lat, lon };
     }
-    
-    return { date, time, lat, lon };
+
+    if (req.mode === 'overlay' && req.overlayParams) {
+      const dt = req.overlayParams.currentDatetime;
+      const lat = req.overlayParams.currentLatitude;
+      const lon = req.overlayParams.currentLongitude;
+      if (
+        typeof dt !== 'string' ||
+        !dt.includes('T') ||
+        typeof lat !== 'number' ||
+        typeof lon !== 'number' ||
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon)
+      ) {
+        throw new Error('Invalid overlayParams: currentLatitude, currentLongitude, and currentDatetime are required');
+      }
+      const [d, t] = dt.split('T');
+      const timePart = t ? t.slice(0, 5) : '';
+      if (!d || !timePart) {
+        throw new Error('Invalid overlayParams.currentDatetime; expected YYYY-MM-DDTHH:mm:ssZ');
+      }
+      return { date: d, time: timePart, lat, lon };
+    }
+
+    if (req.chartData && typeof req.chartData.date === 'string' && typeof req.chartData.time === 'string') {
+      const lat = req.chartData.lat;
+      const lon = req.chartData.lon;
+      if (typeof lat !== 'number' || typeof lon !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+        throw new Error('Invalid chartData: lat and lon must be provided as finite numbers');
+      }
+      return {
+        date: String(req.chartData.date).slice(0, 10),
+        time: String(req.chartData.time).slice(0, 5),
+        lat,
+        lon,
+      };
+    }
+
+    throw new Error('Invalid compose request: chart input (date, time, lat, lon) is required for this mode');
   }
 
   /**

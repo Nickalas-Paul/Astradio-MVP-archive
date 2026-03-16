@@ -1,18 +1,24 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { CanonicalLocation } from '@/types/location';
 
-// Input validation schema
-const ComposeSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  location: z.string().min(1).max(200).optional(),
-  geo: z.object({
-    lat: z.number().min(-90).max(90),
-    lon: z.number().min(-180).max(180),
-  }).optional().nullable(),
+// Canonical client-side compose payload for sky mode (home page)
+const CanonicalLocationSchema = z.object({
+  source: z.enum(['browser_geo', 'geofinder']),
+  label: z.string().min(1).max(300),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  timezone: z.string().min(1).max(100),
+  resolvedAt: z.string().min(1).max(100),
 });
 
-type ComposeBody = z.infer<typeof ComposeSchema>;
+const SkyClientComposeSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
+  location: CanonicalLocationSchema,
+});
+
+type SkyClientComposeBody = z.infer<typeof SkyClientComposeSchema>;
 
 export async function POST(req: Request) {
   try {
@@ -24,28 +30,28 @@ export async function POST(req: Request) {
     if (isEngineShape) {
       bodyToSend = JSON.stringify(rawBody);
     } else {
-      const validationResult = ComposeSchema.safeParse(rawBody);
+      const validationResult = SkyClientComposeSchema.safeParse(rawBody);
       if (!validationResult.success) {
         return NextResponse.json(
           {
             error: 'Invalid input',
             details: validationResult.error.issues.map((issue) => ({
               field: issue.path.map(String).join('.'),
-              message: issue.message
-            }))
+              message: issue.message,
+            })),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
-      const data = validationResult.data;
-      const date = data.date || new Date().toISOString().split('T')[0];
-      const time = data.time || '12:00';
-      const latitude = data.geo?.lat ?? 40.7128;
-      const longitude = data.geo?.lon ?? -74.0060;
+      const data: SkyClientComposeBody = validationResult.data;
+      const { date, time, location } = data;
       const datetime = `${date}T${time}:00Z`;
+      const latitude = location.lat;
+      const longitude = location.lon;
       bodyToSend = JSON.stringify({
         mode: 'sky' as const,
         skyParams: { latitude, longitude, datetime },
+        locationMeta: location as CanonicalLocation,
       });
     }
 
