@@ -43,6 +43,8 @@ export default function HomePage() {
   const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const audioBlobUrlRef = useRef<string | null>(null);
+  const composeRequestKeyRef = useRef<string | null>(null);
+  const composeInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -103,11 +105,23 @@ export default function HomePage() {
     }
   }, []);
 
-  // 2) compose: send coords when canonical location is available
+  // 2) compose: gated on stable primitives only; single-flight per date/time/coords
   useEffect(() => {
+    const lat = location?.lat;
+    const lon = location?.lon;
+    if (!dateStr || !timeStr || lat == null || lon == null || !location) {
+      return;
+    }
+    const stableKey = `${dateStr}|${timeStr}|${lat}|${lon}`;
+    if (composeInFlightRef.current && composeRequestKeyRef.current === stableKey) {
+      return;
+    }
+
     let cancelled = false;
+    composeRequestKeyRef.current = stableKey;
+    composeInFlightRef.current = true;
+
     async function bootstrap() {
-      if (!location) return;
       setIsLoading(true);
       try {
         const body: any = {
@@ -244,22 +258,25 @@ export default function HomePage() {
         console.error('[compose] failed', e);
       } finally {
         if (!cancelled) setIsLoading(false);
+        composeInFlightRef.current = false;
       }
     }
 
-    if (dateStr && timeStr && location) bootstrap();
+    bootstrap();
     return () => {
       cancelled = true;
+      composeInFlightRef.current = false;
     };
-  }, [dateStr, timeStr, location]);
+  }, [dateStr, timeStr, location?.lat, location?.lon]);
 
-  // 2b) reverse-geocode label when geo coords are available (display only; compose uses canonical location)
+  // 2b) reverse-geocode label when coords available (display only); idempotent: no setLocation if label unchanged
   useEffect(() => {
+    if (location?.lat == null || location?.lon == null) return;
+    const lat = location.lat;
+    const lon = location.lon;
+
     let cancelled = false;
     async function resolveLabel() {
-      if (!location) return;
-      const lat = location.lat;
-      const lon = location.lon;
       try {
         const base = getApiBaseUrl();
         const r = await fetch(`${base || ''}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
@@ -268,25 +285,17 @@ export default function HomePage() {
         const label = j?.label ?? formatCoords(lat, lon);
         const parts = [j?.city, j?.region, j?.country].filter(Boolean);
         const displayLabel = parts.length > 0 ? parts.join(', ') : label;
-        setLocation((prev) =>
-          prev
-            ? {
-                ...prev,
-                label: displayLabel,
-              }
-            : prev
-        );
+        setLocation((prev) => {
+          if (!prev || prev.label === displayLabel) return prev;
+          return { ...prev, label: displayLabel };
+        });
       } catch {
         if (!cancelled) {
           const fallback = formatCoords(lat, lon);
-          setLocation((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  label: fallback,
-                }
-              : prev
-          );
+          setLocation((prev) => {
+            if (!prev || prev.label === fallback) return prev;
+            return { ...prev, label: fallback };
+          });
         }
       }
     }
@@ -294,7 +303,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [location]);
+  }, [location?.lat, location?.lon]);
 
   // Lyria-only playback. Single path: playLyriaAudio(payload.audio) or fail-closed message.
   useEffect(() => {
