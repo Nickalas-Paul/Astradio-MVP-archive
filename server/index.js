@@ -1997,6 +1997,10 @@ if (relationalMod && typeof relationalMod.createRelationalRouter === "function")
   app.use("/api", relationalMod.createRelationalRouter());
 }
 
+// Phase 8 Stage 4 — Relational graph + constrained group composite surface
+const { createStage4Router } = require("./routes/stage4");
+app.use("/api", createStage4Router());
+
 // Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
