@@ -210,14 +210,27 @@ export function createCompatRouter(): import('express').Router {
         }
       } else {
         const defaultChart = await storage.ensureDefaultProfileChart();
+        primaryChart = await storage.createChart({
+          ownerId: user.id,
+          label: defaultChart.label,
+          date: defaultChart.date,
+          time: defaultChart.time,
+          lat: defaultChart.lat,
+          lon: defaultChart.lon,
+          timezone: defaultChart.timezone,
+        });
         console.log('[compat][profile][createChart]', {
           userId: user.id,
-          chartId: defaultChart.id,
-          path: 'default',
+          chartId: primaryChart.id,
+          path: 'default-clone',
           success: true,
         });
-        await linkUserPrimaryChartWithRetry(user.id, defaultChart.id);
-        primaryChart = defaultChart;
+        await linkUserPrimaryChartWithRetry(user.id, primaryChart.id);
+        if (process.env.POSTGRES_URL) {
+          populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
+            console.warn('[compat] vector populate after chart create:', err?.message);
+          });
+        }
       }
       return res.status(201).json({
         user: { id: user.id, displayName: user.displayName, handle: user.handle },
@@ -336,7 +349,22 @@ export function createCompatRouter(): import('express').Router {
   router.post('/comparisons', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
-      const { chartAId, chartBId, chartBInline, relationshipMode, generateComposition, fusion, createdBy } = body;
+      const { chartAId, chartBId, chartBInline, relationshipMode, generateComposition, fusion, createdBy, mode } = body as {
+        chartAId?: string;
+        chartBId?: string;
+        chartBInline?: unknown;
+        relationshipMode?: string;
+        generateComposition?: boolean;
+        fusion?: { wA: unknown; wB: unknown };
+        createdBy?: string;
+        mode?: string;
+      };
+      if (typeof mode === 'string' && mode === 'compatibility') {
+        return res.status(400).json({
+          error: 'mode=\"compatibility\" is not supported on /api/comparisons. Use chartAId/chartBId only.',
+          code: 'UNSUPPORTED_COMPARISONS_MODE_COMPATIBILITY'
+        });
+      }
       if (!chartAId) {
         return res.status(400).json({ error: 'chartAId required' });
       }
@@ -360,8 +388,17 @@ export function createCompatRouter(): import('express').Router {
         fusion: fusion && Number.isFinite(fusion.wA) && Number.isFinite(fusion.wB) ? { wA: fusion.wA, wB: fusion.wB } : undefined,
         createdBy: createdBy || undefined
       });
+      const comparison = result.comparison;
+      const seekerChartId = comparison.seekerChartId || comparison.chartAId;
+      const targetChartId = comparison.targetChartId || comparison.chartBId;
       const response: Record<string, unknown> = {
-        ...result.comparison,
+        ...comparison,
+        seekerChartId,
+        targetChartId,
+        roles: {
+          seekerChartId,
+          targetChartId
+        },
         planHash: result.planHash,
         compositionId: result.compositionId
       };
@@ -384,7 +421,17 @@ export function createCompatRouter(): import('express').Router {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const comparison = await storage.getComparison(id);
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
-    return res.json(comparison);
+    const seekerChartId = comparison.seekerChartId || comparison.chartAId;
+    const targetChartId = comparison.targetChartId || comparison.chartBId;
+    return res.json({
+      ...comparison,
+      seekerChartId,
+      targetChartId,
+      roles: {
+        seekerChartId,
+        targetChartId
+      }
+    });
   });
 
   // POST /api/community/groups/profile — GroupProfile aggregate (no music/gates)
