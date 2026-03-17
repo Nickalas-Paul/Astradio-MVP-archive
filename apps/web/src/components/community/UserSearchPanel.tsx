@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useProfile, useUserSearch, useProfileChart, type ProfileChartSection, type DirectoryUser } from '../../core/social/hooks';
 import { getApiBaseUrl } from '../../core/api-base';
 import { hasRealChart } from '../../core/social/constants';
+import { RELATIONSHIP_MODES } from '../../core/compat/relationshipModes';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -73,7 +74,7 @@ export function UserSearchPanel() {
         body: JSON.stringify({
           chartAId,
           chartBId: target.chartId,
-          relationshipMode: 'friends',
+          relationshipMode: RELATIONSHIP_MODES[0],
         }),
       });
       const data = await r.json().catch(() => ({}));

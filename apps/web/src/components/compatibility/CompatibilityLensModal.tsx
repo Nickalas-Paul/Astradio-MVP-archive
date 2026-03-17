@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { RELATIONSHIP_MODES, type RelationshipMode } from '../../core/compat/relationshipModes';
 
-const INTENT_TO_RELATIONSHIP: Record<string, string> = {
+const INTENT_TO_RELATIONSHIP: Record<string, RelationshipMode> = {
   friendship: 'friends',
   dating: 'lovers',
   collaboration: 'friends',
@@ -48,7 +49,7 @@ export function CompatibilityLensModal({
 
     const run = async () => {
       try {
-        const relationshipMode = INTENT_TO_RELATIONSHIP[intent] || 'friends';
+        const relationshipMode = INTENT_TO_RELATIONSHIP[intent] || RELATIONSHIP_MODES[0];
         const r = await fetch('/api/comparisons', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -65,6 +66,15 @@ export function CompatibilityLensModal({
           throw new Error(d?.error || `Comparison failed ${r.status}`);
         }
         const json = await r.json();
+        // Prefer explicit role fields when present; fall back to request inputs.
+        const seekerChartIdResp = (json as any).seekerChartId ?? chartAId;
+        const targetChartIdResp = (json as any).targetChartId ?? targetChartId;
+        if (seekerChartIdResp !== chartAId || targetChartIdResp !== targetChartId) {
+          console.warn('[CompatibilityLensModal] comparison roles mismatch; using response roles', {
+            requested: { chartAId, chartBId: targetChartId },
+            response: { seekerChartId: seekerChartIdResp, targetChartId: targetChartIdResp },
+          });
+        }
         setData(json);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Comparison failed');

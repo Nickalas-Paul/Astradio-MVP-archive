@@ -3,13 +3,16 @@
  * Additive only; no changes to core pipeline.
  */
 
-export type RelationshipMode =
-  | 'friends'
-  | 'rivals'
-  | 'lovers'
-  | 'mentor'
-  | 'collaborator'
-  | 'neutral';
+export const RELATIONSHIP_MODES = [
+  'friends',
+  'rivals',
+  'lovers',
+  'mentor',
+  'collaborator',
+  'neutral',
+] as const;
+
+export type RelationshipMode = typeof RELATIONSHIP_MODES[number];
 
 export interface User {
   id: string;
@@ -52,6 +55,13 @@ export interface Comparison {
   id: string;
   chartAId: string;
   chartBId: string;
+  /**
+   * Explicit role semantics for Stage 2 dual-profile flows.
+   * seekerChartId/targetChartId are the canonical fields for UI and API consumers.
+   * For legacy records without these fields, API routes must normalize them from chartAId/chartBId.
+   */
+  seekerChartId?: string;
+  targetChartId?: string;
   relationshipMode: RelationshipMode;
   fusionMethod: typeof FUSION_METHOD_BLEND_V1;
   fusionParams: FusionParams;

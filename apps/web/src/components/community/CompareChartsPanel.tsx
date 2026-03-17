@@ -3,15 +3,7 @@
 import { useState } from 'react';
 import { LyriaAudio } from '../LyriaAudio';
 import { LocationFinder } from '../sandbox/LocationFinder';
-
-const RELATIONSHIP_MODES = [
-  { value: 'friends', label: 'Friends' },
-  { value: 'lovers', label: 'Lovers' },
-  { value: 'mentor', label: 'Mentor' },
-  { value: 'collaborator', label: 'Collaborator' },
-  { value: 'rivals', label: 'Rivals' },
-  { value: 'neutral', label: 'Neutral' },
-] as const;
+import { RELATIONSHIP_MODE_OPTIONS, type RelationshipMode } from '../../core/compat/relationshipModes';
 
 type ChartInput = { label: string; date: string; time: string; lat: string; lon: string };
 
@@ -35,7 +27,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
   const [chartAId, setChartAId] = useState<string | null>(null);
   const [chartBId, setChartBId] = useState<string | null>(null);
   const [useInlineB, setUseInlineB] = useState(true);
-  const [relationshipMode, setRelationshipMode] = useState<string>('friends');
+  const [relationshipMode, setRelationshipMode] = useState<RelationshipMode>('friends');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
@@ -283,10 +275,10 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
         <span className="text-sm text-subtext">Relationship:</span>
         <select
           value={relationshipMode}
-          onChange={(e) => setRelationshipMode(e.target.value)}
+          onChange={(e) => setRelationshipMode(e.target.value as RelationshipMode)}
           className="input w-40"
         >
-          {RELATIONSHIP_MODES.map((m) => (
+          {RELATIONSHIP_MODE_OPTIONS.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
             </option>

@@ -338,14 +338,13 @@ async function laneB_orderedPairDeterminism(
 ): Promise<{ createdByUser: Record<string, string> }> {
   console.log('\n--- Lane B: Ordered-Pair Comparison Determinism ---');
 
-  const pairs: Array<{ label: string; seekerIdx: number; targetIdx: number }> = [
+  const basePairs: Array<{ label: string; seekerIdx: number; targetIdx: number }> = [
     { label: 'C1->C2', seekerIdx: 0, targetIdx: 1 },
     { label: 'C2->C1', seekerIdx: 1, targetIdx: 0 },
     { label: 'C1->C3', seekerIdx: 0, targetIdx: 2 },
     { label: 'C3->C1', seekerIdx: 2, targetIdx: 0 },
-    { label: 'C2->C3', seekerIdx: 1, targetIdx: 2 },
-    { label: 'C3->C2', seekerIdx: 2, targetIdx: 1 },
   ];
+  const relationshipModes = ['friends', 'rivals'] as const;
 
   const createdByUser: Record<string, string> = {};
 
@@ -356,185 +355,205 @@ async function laneB_orderedPairDeterminism(
     compatibilityText: unknown;
     seekerChartId: string;
     targetChartId: string;
+    relationshipMode: string | undefined;
     roles: unknown;
   }
 
   const pairRuns: Record<string, { run1: PairRun; run2: PairRun } | null> = {};
 
-  for (const pair of pairs) {
-    const seekerChartId = chartIds[pair.seekerIdx];
-    const targetChartId = chartIds[pair.targetIdx];
-    const seekerCookie = cookies[pair.seekerIdx];
+  for (const relationshipMode of relationshipModes) {
+    for (const pair of basePairs) {
+      const pairKey = `${pair.label}:${relationshipMode}`;
+      const seekerChartId = chartIds[pair.seekerIdx];
+      const targetChartId = chartIds[pair.targetIdx];
+      const seekerCookie = cookies[pair.seekerIdx];
 
-    const payload = {
-      seekerChartId,
-      targetChartId,
-      relationshipMode: 'friends',
-      roles: {
-        seeker: `stage3_user_${pair.seekerIdx + 1}`,
-        target: `stage3_user_${pair.targetIdx + 1}`,
-      },
-    };
-
-    const runDetails: string[] = [];
-    let ok = true;
-
-    const doPost = async (): Promise<PairRun | null> => {
-      const { status, json, text, url } = await httpRequest('/api/comparisons', {
-        method: 'POST',
-        body: payload,
-        cookie: seekerCookie,
-      });
-      runDetails.push(`POST ${pair.label}: url=${url} status=${status}`);
-      if (status !== 201 || !json) {
-        runDetails.push(`body=${text}`);
-        return null;
-      }
-      const comparison = (json.comparison ?? json) as ComparisonRecord;
-      const planHash = json.planHash ?? comparison.planHash;
-      const mergedFeatureHash =
-        json.mergedFeatureHash ?? comparison.mergedFeatureHash;
-      const compatibilityText =
-        json.compatibilityText ?? comparison.compatibilityText;
-      const seeker = comparison.seekerChartId;
-      const target = comparison.targetChartId;
-      const roles = comparison.roles ?? json.roles;
-
-      if (!comparison.id) {
-        runDetails.push('comparison.id missing in response');
-      } else {
-        createdByUser[comparison.id] = `U${pair.seekerIdx + 1}`;
-      }
-
-      return {
-        comparisonId: comparison.id,
-        planHash,
-        mergedFeatureHash,
-        compatibilityText,
-        seekerChartId: seeker,
-        targetChartId: target,
-        roles,
-      };
-    };
-
-    const run1 = await doPost();
-    const run2 = await doPost();
-
-    if (!run1 || !run2) {
-      ok = false;
-      record(results, `laneB-${pair.label}-create`, ok, runDetails);
-      pairRuns[pair.label] = null;
-      continue;
-    }
-
-    // Determinism for identical ordered pair
-    if (run1.planHash !== run2.planHash) {
-      ok = false;
-      runDetails.push(
-        `planHash differs: ${run1.planHash ?? 'null'} vs ${run2.planHash ?? 'null'}`,
-      );
-    }
-    if (run1.mergedFeatureHash !== run2.mergedFeatureHash) {
-      ok = false;
-      runDetails.push(
-        `mergedFeatureHash differs: ${run1.mergedFeatureHash ?? 'null'} vs ${
-          run2.mergedFeatureHash ?? 'null'
-        }`,
-      );
-    }
-    if (JSON.stringify(run1.compatibilityText) !== JSON.stringify(run2.compatibilityText)) {
-      ok = false;
-      runDetails.push('compatibilityText differs between runs');
-    }
-    if (run1.seekerChartId !== seekerChartId || run1.targetChartId !== targetChartId) {
-      ok = false;
-      runDetails.push(
-        `run1 seeker/target mismatch: got seeker=${run1.seekerChartId}, target=${run1.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
-      );
-    }
-    if (run2.seekerChartId !== seekerChartId || run2.targetChartId !== targetChartId) {
-      ok = false;
-      runDetails.push(
-        `run2 seeker/target mismatch: got seeker=${run2.seekerChartId}, target=${run2.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
-      );
-    }
-
-    record(results, `laneB-${pair.label}-determinism`, ok, runDetails);
-
-    pairRuns[pair.label] = { run1, run2 };
-
-    // Retrieval checks for each comparison id
-    const retrievalDetails: string[] = [];
-    let retrievalOk = true;
-    for (const run of [run1, run2]) {
-      const { status, json, text, url } = await httpRequest(
-        `/api/comparisons/${encodeURIComponent(run.comparisonId)}`,
-        {
-          method: 'GET',
-          cookie: seekerCookie,
+      const payload = {
+        seekerChartId,
+        targetChartId,
+        relationshipMode,
+        roles: {
+          seeker: `stage3_user_${pair.seekerIdx + 1}`,
+          target: `stage3_user_${pair.targetIdx + 1}`,
         },
-      );
-      retrievalDetails.push(
-        `GET ${pair.label} id=${run.comparisonId}: url=${url} status=${status}`,
-      );
-      if (status !== 200 || !json) {
-        retrievalOk = false;
-        retrievalDetails.push(`body=${text}`);
+      };
+
+      const runDetails: string[] = [];
+      let ok = true;
+
+      const doPost = async (): Promise<PairRun | null> => {
+        const { status, json, text, url } = await httpRequest('/api/comparisons', {
+          method: 'POST',
+          body: payload,
+          cookie: seekerCookie,
+        });
+        runDetails.push(`POST ${pairKey}: url=${url} status=${status}`);
+        if (status !== 201 || !json) {
+          runDetails.push(`body=${text}`);
+          return null;
+        }
+        const comparison = (json.comparison ?? json) as ComparisonRecord;
+        const planHash = json.planHash ?? comparison.planHash;
+        const mergedFeatureHash =
+          json.mergedFeatureHash ?? comparison.mergedFeatureHash;
+        const compatibilityText =
+          json.compatibilityText ?? comparison.compatibilityText;
+        const seeker = comparison.seekerChartId;
+        const target = comparison.targetChartId;
+        const mode = (comparison as any).relationshipMode ?? json.relationshipMode;
+        const roles = comparison.roles ?? json.roles;
+
+        if (!comparison.id) {
+          runDetails.push('comparison.id missing in response');
+        } else {
+          createdByUser[comparison.id] = `U${pair.seekerIdx + 1}`;
+        }
+
+        return {
+          comparisonId: comparison.id,
+          planHash,
+          mergedFeatureHash,
+          compatibilityText,
+          seekerChartId: seeker,
+          targetChartId: target,
+          relationshipMode: mode,
+          roles,
+        };
+      };
+
+      const run1 = await doPost();
+      const run2 = await doPost();
+
+      if (!run1 || !run2) {
+        ok = false;
+        record(results, `laneB-${pairKey}-create`, ok, runDetails);
+        pairRuns[pairKey] = null;
         continue;
       }
-      const c = (json.comparison ?? json) as ComparisonRecord;
-      if (c.seekerChartId !== seekerChartId || c.targetChartId !== targetChartId) {
-        retrievalOk = false;
-        retrievalDetails.push(
-          `retrieved seeker/target mismatch: got seeker=${c.seekerChartId}, target=${c.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
+
+      // Determinism for identical ordered pair + mode
+      if (run1.planHash !== run2.planHash) {
+        ok = false;
+        runDetails.push(
+          `planHash differs: ${run1.planHash ?? 'null'} vs ${run2.planHash ?? 'null'}`,
         );
       }
-      if (
-        (c.planHash ?? json.planHash) !== run.planHash ||
-        (c.mergedFeatureHash ?? json.mergedFeatureHash) !== run.mergedFeatureHash
-      ) {
-        retrievalOk = false;
-        retrievalDetails.push('retrieved hashes do not match creation run');
+      if (run1.mergedFeatureHash !== run2.mergedFeatureHash) {
+        ok = false;
+        runDetails.push(
+          `mergedFeatureHash differs: ${run1.mergedFeatureHash ?? 'null'} vs ${
+            run2.mergedFeatureHash ?? 'null'
+          }`,
+        );
       }
+      if (JSON.stringify(run1.compatibilityText) !== JSON.stringify(run2.compatibilityText)) {
+        ok = false;
+        runDetails.push('compatibilityText differs between runs');
+      }
+      if (run1.seekerChartId !== seekerChartId || run1.targetChartId !== targetChartId) {
+        ok = false;
+        runDetails.push(
+          `run1 seeker/target mismatch: got seeker=${run1.seekerChartId}, target=${run1.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
+        );
+      }
+      if (run2.seekerChartId !== seekerChartId || run2.targetChartId !== targetChartId) {
+        ok = false;
+        runDetails.push(
+          `run2 seeker/target mismatch: got seeker=${run2.seekerChartId}, target=${run2.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
+        );
+      }
+      if (run1.relationshipMode !== relationshipMode || run2.relationshipMode !== relationshipMode) {
+        ok = false;
+        runDetails.push(
+          `relationshipMode mismatch on create: run1=${run1.relationshipMode ?? 'null'} run2=${run2.relationshipMode ?? 'null'} expected=${relationshipMode}`,
+        );
+      }
+
+      record(results, `laneB-${pairKey}-determinism`, ok, runDetails);
+
+      pairRuns[pairKey] = { run1, run2 };
+
+      // Retrieval checks for each comparison id
+      const retrievalDetails: string[] = [];
+      let retrievalOk = true;
+      for (const run of [run1, run2]) {
+        const { status, json, text, url } = await httpRequest(
+          `/api/comparisons/${encodeURIComponent(run.comparisonId)}`,
+          {
+            method: 'GET',
+            cookie: seekerCookie,
+          },
+        );
+        retrievalDetails.push(
+          `GET ${pairKey} id=${run.comparisonId}: url=${url} status=${status}`,
+        );
+        if (status !== 200 || !json) {
+          retrievalOk = false;
+          retrievalDetails.push(`body=${text}`);
+          continue;
+        }
+        const c = (json.comparison ?? json) as ComparisonRecord;
+        const mode = (c as any).relationshipMode ?? json.relationshipMode;
+        if (c.seekerChartId !== seekerChartId || c.targetChartId !== targetChartId) {
+          retrievalOk = false;
+          retrievalDetails.push(
+            `retrieved seeker/target mismatch: got seeker=${c.seekerChartId}, target=${c.targetChartId}, expected seeker=${seekerChartId}, target=${targetChartId}`,
+          );
+        }
+        if (mode !== relationshipMode) {
+          retrievalOk = false;
+          retrievalDetails.push(
+            `retrieved relationshipMode mismatch: got=${mode ?? 'null'} expected=${relationshipMode}`,
+          );
+        }
+        if (
+          (c.planHash ?? json.planHash) !== run.planHash ||
+          (c.mergedFeatureHash ?? json.mergedFeatureHash) !== run.mergedFeatureHash
+        ) {
+          retrievalOk = false;
+          retrievalDetails.push('retrieved hashes do not match creation run');
+        }
+      }
+      record(results, `laneB-${pairKey}-retrieval`, retrievalOk, retrievalDetails);
     }
-    record(results, `laneB-${pair.label}-retrieval`, retrievalOk, retrievalDetails);
   }
 
-  // Directional semantics: (A->B) vs (B->A) may differ but must be stable per direction.
-  const directionalPairs: Array<[string, string]> = [
+  // Directional semantics per mode: (A->B) vs (B->A) may differ but must be stable per direction.
+  const directionalPairBases: Array<[string, string]> = [
     ['C1->C2', 'C2->C1'],
     ['C1->C3', 'C3->C1'],
-    ['C2->C3', 'C3->C2'],
   ];
 
-  for (const [forwardLabel, reverseLabel] of directionalPairs) {
-    const runsForward = pairRuns[forwardLabel];
-    const runsReverse = pairRuns[reverseLabel];
-    const details: string[] = [];
-    let ok = true;
-    if (!runsForward || !runsReverse) {
-      ok = false;
-      details.push('Missing runs for directional pair');
-    } else {
-      const pf = runsForward.run1.planHash;
-      const pr = runsReverse.run1.planHash;
-      const hf = runsForward.run1.mergedFeatureHash;
-      const hr = runsReverse.run1.mergedFeatureHash;
-      details.push(
-        `${forwardLabel} planHash=${pf ?? 'null'} mergedFeatureHash=${hf ?? 'null'}`,
+  for (const relationshipMode of relationshipModes) {
+    for (const [forwardLabel, reverseLabel] of directionalPairBases) {
+      const forwardKey = `${forwardLabel}:${relationshipMode}`;
+      const reverseKey = `${reverseLabel}:${relationshipMode}`;
+      const runsForward = pairRuns[forwardKey];
+      const runsReverse = pairRuns[reverseKey];
+      const details: string[] = [];
+      let ok = true;
+      if (!runsForward || !runsReverse) {
+        ok = false;
+        details.push('Missing runs for directional pair');
+      } else {
+        const pf = runsForward.run1.planHash;
+        const pr = runsReverse.run1.planHash;
+        const hf = runsForward.run1.mergedFeatureHash;
+        const hr = runsReverse.run1.mergedFeatureHash;
+        details.push(
+          `${forwardKey} planHash=${pf ?? 'null'} mergedFeatureHash=${hf ?? 'null'}`,
+        );
+        details.push(
+          `${reverseKey} planHash=${pr ?? 'null'} mergedFeatureHash=${hr ?? 'null'}`,
+        );
+      }
+      record(
+        results,
+        `laneB-directional-${forwardLabel}-vs-${reverseLabel}:${relationshipMode}`,
+        ok,
+        details,
       );
-      details.push(
-        `${reverseLabel} planHash=${pr ?? 'null'} mergedFeatureHash=${hr ?? 'null'}`,
-      );
-      // They may be equal or differ; no additional constraints beyond stability per direction,
-      // which is already enforced by per-pair determinism checks.
     }
-    record(
-      results,
-      `laneB-directional-${forwardLabel}-vs-${reverseLabel}`,
-      ok,
-      details,
-    );
   }
 
   return { createdByUser };

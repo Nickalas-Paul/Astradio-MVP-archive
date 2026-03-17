@@ -9,14 +9,13 @@ import { createComparison } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { getCompatMatches, type CompatMatchMode } from './matches';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
-import type { RelationshipMode } from './types';
+import { RELATIONSHIP_MODES, type RelationshipMode } from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
 import type { ChartBInline, Comparison } from './types';
 
 const express = require('express') as typeof import('express');
-const RELATIONSHIP_MODES: RelationshipMode[] = ['friends', 'rivals', 'lovers', 'mentor', 'collaborator', 'neutral'];
 const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
 
 type ComparisonWithRoles = Comparison & {
@@ -457,6 +456,7 @@ export function createCompatRouter(): import('express').Router {
         ...comparison,
         seekerChartId: seekerChartIdOut,
         targetChartId: targetChartIdOut,
+        relationshipMode: comparison.relationshipMode,
         roles: responseRoles,
         planHash: result.planHash,
         compositionId: result.compositionId
@@ -496,6 +496,7 @@ export function createCompatRouter(): import('express').Router {
           ...comparison,
           seekerChartId,
           targetChartId,
+          relationshipMode: comparison.relationshipMode,
           roles: rolesOut,
         };
       });
@@ -517,6 +518,7 @@ export function createCompatRouter(): import('express').Router {
       ...comparison,
       seekerChartId,
       targetChartId,
+      relationshipMode: comparison.relationshipMode,
       roles: {
         seekerChartId,
         targetChartId
