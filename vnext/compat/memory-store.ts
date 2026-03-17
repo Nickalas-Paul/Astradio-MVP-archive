@@ -122,9 +122,6 @@ export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt
   const id = `cmp_${nanoid()}`;
   const comparison: Comparison = {
     ...input,
-    // Normalize role fields for Stage 2: seeker/target are canonical aliases of chartA/B.
-    seekerChartId: input.seekerChartId || input.chartAId,
-    targetChartId: input.targetChartId || input.chartBId,
     id,
     createdAt: now(),
   };
