@@ -183,9 +183,15 @@ async function step1() {
   const setCookieRaw = createRes.headers['set-cookie'];
   const setCookie = Array.isArray(setCookieRaw) ? setCookieRaw[0] : (setCookieRaw || '');
   const cookie = cookieFromSetCookie(setCookie);
-  const sessionCookie = cookie && cookie.includes('astradio_dev_user_id') ? cookie : (cookie && cookie.includes('ASTRADIO_SESSION') ? cookie : null);
+  const hasLegacy = cookie && cookie.includes('astradio_dev_user_id');
+  const hasSession = cookie && cookie.includes('astradio_session');
+  const sessionCookie = hasSession || hasLegacy ? cookie : null;
   if (!sessionCookie) {
-    results.step1 = { pass: false, error: 'astradio_dev_user_id or ASTRADIO_SESSION cookie not set', cookie: setCookie || '(none)' };
+    results.step1 = {
+      pass: false,
+      error: 'astradio_session or astradio_dev_user_id cookie not set',
+      cookie: setCookie || '(none)',
+    };
     return;
   }
   const cookieForLater = sessionCookie;
