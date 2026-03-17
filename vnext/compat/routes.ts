@@ -13,10 +13,16 @@ import type { RelationshipMode } from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
+import type { ChartBInline, Comparison } from './types';
 
 const express = require('express') as typeof import('express');
 const RELATIONSHIP_MODES: RelationshipMode[] = ['friends', 'rivals', 'lovers', 'mentor', 'collaborator', 'neutral'];
 const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
+
+type ComparisonWithRoles = Comparison & {
+  seekerChartId?: string;
+  targetChartId?: string;
+};
 
 function isRelationshipMode(s: string): s is RelationshipMode {
   return RELATIONSHIP_MODES.includes(s as RelationshipMode);
@@ -24,6 +30,30 @@ function isRelationshipMode(s: string): s is RelationshipMode {
 
 function isCompatMode(s: string): s is CompatMatchMode {
   return COMPAT_MODES.includes(s as CompatMatchMode);
+}
+
+function isChartBInline(value: unknown): value is ChartBInline {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ChartBInline>;
+  return (
+    typeof candidate.date === 'string' &&
+    typeof candidate.time === 'string' &&
+    typeof candidate.lat === 'number' &&
+    typeof candidate.lon === 'number' &&
+    Number.isFinite(candidate.lat) &&
+    Number.isFinite(candidate.lon)
+  );
+}
+
+function isFusionParams(value: unknown): value is { wA: number; wB: number } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { wA?: unknown; wB?: unknown };
+  return (
+    typeof candidate.wA === 'number' &&
+    typeof candidate.wB === 'number' &&
+    Number.isFinite(candidate.wA) &&
+    Number.isFinite(candidate.wB)
+  );
 }
 
 const COMPAT_RESPONSE_VERSION = 'v1';
@@ -365,10 +395,12 @@ export function createCompatRouter(): import('express').Router {
           code: 'UNSUPPORTED_COMPARISONS_MODE_COMPATIBILITY'
         });
       }
+      const chartBInlineInput = isChartBInline(chartBInline) ? chartBInline : undefined;
+      const fusionInput = isFusionParams(fusion) ? fusion : undefined;
       if (!chartAId) {
         return res.status(400).json({ error: 'chartAId required' });
       }
-      if (!chartBId && !chartBInline) {
+      if (!chartBId && !chartBInlineInput) {
         return res.status(400).json({
           error: 'Either chartBId or chartBInline (date, time, lat, lon) required'
         });
@@ -382,13 +414,13 @@ export function createCompatRouter(): import('express').Router {
       const result = await createComparison({
         chartAId,
         chartBId: chartBId || undefined,
-        chartBInline: chartBInline || undefined,
+        chartBInline: chartBInlineInput,
         relationshipMode,
         generateComposition: generateComposition !== false,
-        fusion: fusion && Number.isFinite(fusion.wA) && Number.isFinite(fusion.wB) ? { wA: fusion.wA, wB: fusion.wB } : undefined,
+        fusion: fusionInput,
         createdBy: createdBy || undefined
       });
-      const comparison = result.comparison;
+      const comparison = result.comparison as ComparisonWithRoles;
       const seekerChartId = comparison.seekerChartId || comparison.chartAId;
       const targetChartId = comparison.targetChartId || comparison.chartBId;
       const response: Record<string, unknown> = {
@@ -419,7 +451,7 @@ export function createCompatRouter(): import('express').Router {
   // GET /api/comparisons/:id
   router.get('/comparisons/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const comparison = await storage.getComparison(id);
+    const comparison = (await storage.getComparison(id)) as ComparisonWithRoles | undefined;
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
     const seekerChartId = comparison.seekerChartId || comparison.chartAId;
     const targetChartId = comparison.targetChartId || comparison.chartBId;
