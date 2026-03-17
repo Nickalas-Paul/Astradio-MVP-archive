@@ -379,7 +379,19 @@ export function createCompatRouter(): import('express').Router {
   router.post('/comparisons', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
-      const { chartAId, chartBId, chartBInline, relationshipMode, generateComposition, fusion, createdBy, mode } = body as {
+      const {
+        chartAId,
+        chartBId,
+        chartBInline,
+        relationshipMode,
+        generateComposition,
+        fusion,
+        createdBy,
+        mode,
+        seekerChartId,
+        targetChartId,
+        roles,
+      } = body as {
         chartAId?: string;
         chartBId?: string;
         chartBInline?: unknown;
@@ -388,21 +400,28 @@ export function createCompatRouter(): import('express').Router {
         fusion?: { wA: unknown; wB: unknown };
         createdBy?: string;
         mode?: string;
+        seekerChartId?: string;
+        targetChartId?: string;
+        roles?: Record<string, unknown>;
       };
       if (typeof mode === 'string' && mode === 'compatibility') {
         return res.status(400).json({
-          error: 'mode=\"compatibility\" is not supported on /api/comparisons. Use chartAId/chartBId only.',
+          error: 'mode=\"compatibility\" is not supported on /api/comparisons. Use seekerChartId/targetChartId or chartAId/chartBId only.',
           code: 'UNSUPPORTED_COMPARISONS_MODE_COMPATIBILITY'
         });
       }
       const chartBInlineInput = isChartBInline(chartBInline) ? chartBInline : undefined;
       const fusionInput = isFusionParams(fusion) ? fusion : undefined;
-      if (!chartAId) {
-        return res.status(400).json({ error: 'chartAId required' });
+
+      const effectiveChartAId = chartAId || seekerChartId;
+      const effectiveChartBId = chartBId || targetChartId;
+
+      if (!effectiveChartAId) {
+        return res.status(400).json({ error: 'seekerChartId or chartAId required' });
       }
-      if (!chartBId && !chartBInlineInput) {
+      if (!effectiveChartBId && !chartBInlineInput) {
         return res.status(400).json({
-          error: 'Either chartBId or chartBInline (date, time, lat, lon) required'
+          error: 'targetChartId or chartBId or chartBInline (date, time, lat, lon) required'
         });
       }
       if (!relationshipMode || !isRelationshipMode(relationshipMode)) {
@@ -411,26 +430,34 @@ export function createCompatRouter(): import('express').Router {
           allowed: RELATIONSHIP_MODES
         });
       }
+
       const result = await createComparison({
-        chartAId,
-        chartBId: chartBId || undefined,
+        chartAId: effectiveChartAId,
+        chartBId: effectiveChartBId || undefined,
         chartBInline: chartBInlineInput,
         relationshipMode,
         generateComposition: generateComposition !== false,
         fusion: fusionInput,
-        createdBy: createdBy || undefined
-      });
-      const comparison = result.comparison as ComparisonWithRoles;
-      const seekerChartId = comparison.seekerChartId || comparison.chartAId;
-      const targetChartId = comparison.targetChartId || comparison.chartBId;
+        createdBy: createdBy || undefined,
+        // Preserve explicit seeker/target ids on the record when provided.
+        seekerChartId: seekerChartId || undefined,
+        targetChartId: targetChartId || undefined,
+      } as any);
+
+      const comparison = result.comparison as ComparisonWithRoles & { roles?: any };
+      const seekerChartIdOut = comparison.seekerChartId || comparison.chartAId;
+      const targetChartIdOut = comparison.targetChartId || comparison.chartBId;
+      const responseRoles = {
+        ...(roles && typeof roles === 'object' ? roles : {}),
+        seekerChartId: seekerChartIdOut,
+        targetChartId: targetChartIdOut,
+      };
+
       const response: Record<string, unknown> = {
         ...comparison,
-        seekerChartId,
-        targetChartId,
-        roles: {
-          seekerChartId,
-          targetChartId
-        },
+        seekerChartId: seekerChartIdOut,
+        targetChartId: targetChartIdOut,
+        roles: responseRoles,
         planHash: result.planHash,
         compositionId: result.compositionId
       };
@@ -445,6 +472,37 @@ export function createCompatRouter(): import('express').Router {
       console.error('[compat] POST /comparisons', e);
       const code = e?.message?.includes('not found') ? 404 : 500;
       return res.status(code).json({ error: e?.message || 'Failed to create comparison' });
+    }
+  });
+
+  // GET /api/comparisons?userId=... — list comparisons scoped by createdBy
+  router.get('/comparisons', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const userId = (req.query.userId as string) || undefined;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId query required for listing comparisons' });
+      }
+      const items = await storage.listComparisonsByUser(userId);
+      const normalized = items.map((cmp) => {
+        const comparison = cmp as ComparisonWithRoles & { roles?: any };
+        const seekerChartId = comparison.seekerChartId || comparison.chartAId;
+        const targetChartId = comparison.targetChartId || comparison.chartBId;
+        const rolesOut = {
+          ...(comparison.roles && typeof comparison.roles === 'object' ? comparison.roles : {}),
+          seekerChartId,
+          targetChartId,
+        };
+        return {
+          ...comparison,
+          seekerChartId,
+          targetChartId,
+          roles: rolesOut,
+        };
+      });
+      return res.status(200).json({ items: normalized });
+    } catch (e: any) {
+      console.error('[compat] GET /comparisons', e);
+      return res.status(500).json({ error: e?.message || 'Failed to list comparisons' });
     }
   });
 

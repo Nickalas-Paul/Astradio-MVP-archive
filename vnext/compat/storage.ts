@@ -31,6 +31,8 @@ export type StorageAdapter = {
   listChartsByOwner: (ownerId: string) => Promise<Chart[]>;
   createComparison: (input: Omit<Comparison, 'id' | 'createdAt'>) => Promise<Comparison>;
   getComparison: (id: string) => Promise<Comparison | undefined>;
+  /** Optional: list comparisons owned by a given user (scoped by createdBy or equivalent). */
+  listComparisonsByUser?: (userId: string) => Promise<Comparison[]>;
   ensureDefaultProfileChart: () => Promise<Chart>;
   ensureMatchCandidateCharts: () => Promise<MatchCandidate[]>;
   /** Phase 8G: list users eligible for directory search (discoverable + have primary chart). Optional; when absent, directory uses match candidates only. */
@@ -82,6 +84,15 @@ export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt
 
 export async function getComparison(id: string): Promise<Comparison | undefined> {
   return adapter.getComparison(id);
+}
+
+export async function listComparisonsByUser(userId: string): Promise<Comparison[]> {
+  if (adapter.listComparisonsByUser) {
+    return adapter.listComparisonsByUser(userId);
+  }
+  // When the underlying adapter does not support listing, return an empty list
+  // rather than leaking unscoped data.
+  return [];
 }
 
 export async function ensureDefaultProfileChart(): Promise<Chart> {

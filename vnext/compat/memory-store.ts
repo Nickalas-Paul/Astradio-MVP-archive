@@ -120,13 +120,24 @@ export async function listChartsByOwner(ownerId: string): Promise<Chart[]> {
 
 export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt'>): Promise<Comparison> {
   const id = `cmp_${nanoid()}`;
-  const comparison: Comparison = { ...input, id, createdAt: now() };
+  const comparison: Comparison = {
+    ...input,
+    // Normalize role fields for Stage 2: seeker/target are canonical aliases of chartA/B.
+    seekerChartId: input.seekerChartId || input.chartAId,
+    targetChartId: input.targetChartId || input.chartBId,
+    id,
+    createdAt: now(),
+  };
   comparisons.set(id, comparison);
   return comparison;
 }
 
 export async function getComparison(id: string): Promise<Comparison | undefined> {
   return comparisons.get(id);
+}
+
+export async function listComparisonsByUser(userId: string): Promise<Comparison[]> {
+  return Array.from(comparisons.values()).filter((c) => (c as any).createdBy === userId);
 }
 
 export async function ensureDefaultProfileChart(): Promise<Chart> {
