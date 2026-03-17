@@ -369,6 +369,7 @@ async function laneB_orderedPairDeterminism(
     const payload = {
       seekerChartId,
       targetChartId,
+      relationshipMode: 'friends',
       roles: {
         seeker: `stage3_user_${pair.seekerIdx + 1}`,
         target: `stage3_user_${pair.targetIdx + 1}`,
