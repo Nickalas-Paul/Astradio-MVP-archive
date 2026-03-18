@@ -1,9 +1,25 @@
 #!/usr/bin/env node
 /**
  * Phase 8 Stage 5 — Live verification (Render engine + optional Vercel bypass reachability).
- * Env: ENGINE_URL (default Render), VERCEL_PREVIEW_URL, VERCEL_PROTECTION_BYPASS (secret; do not commit).
+ *
+ * Env:
+ *   ENGINE_URL — engine base (default: Render prod)
+ *   VERCEL_PREVIEW_URL, VERCEL_PROTECTION_BYPASS — Vercel deployment protection bypass (do not commit secrets)
+ *   POSTGRES_URL + STAGE5_RUN_MIGRATE=1 — run `scripts/migrate.js` first (Render external DB: append ?sslmode=require)
  */
 require('dotenv').config();
+
+const path = require('path');
+const { spawnSync } = require('child_process');
+if (process.env.STAGE5_RUN_MIGRATE === '1' && process.env.POSTGRES_URL) {
+  const root = path.join(__dirname, '..');
+  const st = spawnSync(process.execPath, [path.join(__dirname, 'migrate.js')], {
+    cwd: root,
+    env: process.env,
+    stdio: 'inherit',
+  });
+  if (st.status !== 0) process.exit(st.status || 1);
+}
 
 const ENGINE = (process.env.ENGINE_URL || 'https://astradio-mvp-archive.onrender.com').replace(/\/$/, '');
 const VERCEL = (process.env.VERCEL_PREVIEW_URL || '').replace(/\/$/, '');
