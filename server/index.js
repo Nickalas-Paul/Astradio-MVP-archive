@@ -2001,6 +2001,10 @@ if (relationalMod && typeof relationalMod.createRelationalRouter === "function")
 const { createStage4Router } = require("./routes/stage4");
 app.use("/api", createStage4Router());
 
+// Phase 8 Stage 5 — Tri-mode campaign (solo, group, auto); canonical /api/campaigns/*
+const { createStage5Router } = require("./routes/stage5");
+app.use("/api", createStage5Router());
+
 // Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());

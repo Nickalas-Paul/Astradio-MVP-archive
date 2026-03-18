@@ -294,7 +294,44 @@ export async function getOrCreateCampaign(params: {
   return row;
 }
 
+/** Stage 5 campaign row shape (for lookup). */
+interface Stage5CampaignRow {
+  campaign_id: string;
+  owner_user_id: string;
+  participant_chart_ids: string[];
+  bundle_hash: string | null;
+  state_json: unknown;
+  state_hash: string;
+  state_version: number;
+  version_set_json: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
 export async function getCampaignById(id: string): Promise<RpgCampaignRow | null> {
+  const stage5Res = await query<Stage5CampaignRow>(
+    `SELECT campaign_id, owner_user_id, participant_chart_ids, bundle_hash, state_json, state_hash, state_version, version_set_json, created_at, updated_at
+     FROM stage5_campaigns WHERE campaign_id = $1`,
+    [id]
+  );
+  const s5 = stage5Res.rows[0];
+  if (s5) {
+    const versionSet = (s5.version_set_json as { rpg_map_version?: string; rpg_algo_version?: string; audio_algo_version?: string }) || {};
+    return {
+      id: s5.campaign_id,
+      user_id: s5.owner_user_id,
+      chart_id: Array.isArray(s5.participant_chart_ids) && s5.participant_chart_ids.length > 0 ? s5.participant_chart_ids[0] : '',
+      rpg_map_version: versionSet.rpg_map_version ?? 'v1',
+      rpg_algo_version: versionSet.rpg_algo_version ?? 'rpg-v1',
+      audio_algo_version: versionSet.audio_algo_version ?? 'audio-v1',
+      bundle_hash: s5.bundle_hash ?? '',
+      state_json: s5.state_json,
+      state_hash: s5.state_hash,
+      state_version: s5.state_version,
+      created_at: s5.created_at,
+      updated_at: s5.updated_at,
+    };
+  }
   const res = await query<RpgCampaignRow>(
     `SELECT
        id, user_id, chart_id, rpg_map_version, rpg_algo_version, audio_algo_version,
@@ -627,16 +664,43 @@ export async function finalizeTurnTransactional(params: {
       throw new Error(`[rpg-outcome] Turn not found (tx): ${turnId}`);
     }
 
-    const campaignRes = await client.query(
-      `SELECT
-         id, user_id, chart_id, rpg_map_version, rpg_algo_version, audio_algo_version,
-         bundle_hash, state_json, state_hash, state_version, created_at, updated_at
-       FROM rpg_campaigns
-       WHERE id = $1
-       FOR UPDATE`,
+    const stage5CampRes = await client.query(
+      `SELECT campaign_id, owner_user_id, participant_chart_ids, bundle_hash, state_json, state_hash, state_version, version_set_json, created_at, updated_at
+       FROM stage5_campaigns WHERE campaign_id = $1 FOR UPDATE`,
       [turn.campaign_id]
     );
-    const campaign = campaignRes.rows[0];
+    let campaign: RpgCampaignRow;
+    let isStage5 = false;
+    const s5 = stage5CampRes.rows[0];
+    if (s5) {
+      isStage5 = true;
+      const vs = (s5.version_set_json as { rpg_map_version?: string; rpg_algo_version?: string; audio_algo_version?: string }) || {};
+      campaign = {
+        id: s5.campaign_id,
+        user_id: s5.owner_user_id,
+        chart_id: Array.isArray(s5.participant_chart_ids) && s5.participant_chart_ids.length > 0 ? s5.participant_chart_ids[0] : '',
+        rpg_map_version: vs.rpg_map_version ?? 'v1',
+        rpg_algo_version: vs.rpg_algo_version ?? 'rpg-v1',
+        audio_algo_version: vs.audio_algo_version ?? 'audio-v1',
+        bundle_hash: s5.bundle_hash ?? '',
+        state_json: s5.state_json,
+        state_hash: s5.state_hash,
+        state_version: s5.state_version,
+        created_at: s5.created_at,
+        updated_at: s5.updated_at,
+      };
+    } else {
+      const campaignRes = await client.query(
+        `SELECT
+           id, user_id, chart_id, rpg_map_version, rpg_algo_version, audio_algo_version,
+           bundle_hash, state_json, state_hash, state_version, created_at, updated_at
+         FROM rpg_campaigns
+         WHERE id = $1
+         FOR UPDATE`,
+        [turn.campaign_id]
+      );
+      campaign = campaignRes.rows[0];
+    }
     if (!campaign) {
       throw new Error(`[rpg-outcome] Campaign not found (tx): ${turn.campaign_id}`);
     }
@@ -687,15 +751,24 @@ export async function finalizeTurnTransactional(params: {
       throw new Error('Failed to insert or load RPG turn outcome row (tx)');
     }
 
-    await client.query(
-      `UPDATE rpg_campaigns
-       SET state_json = $1,
-           state_hash = $2,
-           state_version = state_version + 1,
-           updated_at = NOW()
-       WHERE id = $3`,
-      [canonicalJsonString(newStateJson), newStateHash, campaign.id]
-    );
+    if (isStage5) {
+      await client.query(
+        `UPDATE stage5_campaigns
+         SET state_json = $1::jsonb, state_hash = $2, state_version = state_version + 1, updated_at = NOW()
+         WHERE campaign_id = $3`,
+        [canonicalJsonString(newStateJson), newStateHash, campaign.id]
+      );
+    } else {
+      await client.query(
+        `UPDATE rpg_campaigns
+         SET state_json = $1,
+             state_hash = $2,
+             state_version = state_version + 1,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [canonicalJsonString(newStateJson), newStateHash, campaign.id]
+      );
+    }
 
     return row;
   });
@@ -741,6 +814,15 @@ export async function updateCampaignState(params: {
   newStateHash: string;
 }): Promise<void> {
   const { campaignId, newStateJson, newStateHash } = params;
+  const stateStr = canonicalJsonString(newStateJson);
+  const stage5Res = await query<{ campaign_id: string }>(
+    `UPDATE stage5_campaigns
+     SET state_json = $1::jsonb, state_hash = $2, state_version = state_version + 1, updated_at = NOW()
+     WHERE campaign_id = $3
+     RETURNING campaign_id`,
+    [stateStr, newStateHash, campaignId]
+  );
+  if (stage5Res.rows.length > 0) return;
   await query(
     `UPDATE rpg_campaigns
      SET state_json = $1,
@@ -748,7 +830,7 @@ export async function updateCampaignState(params: {
          state_version = state_version + 1,
          updated_at = NOW()
      WHERE id = $3`,
-    [canonicalJsonString(newStateJson), newStateHash, campaignId]
+    [stateStr, newStateHash, campaignId]
   );
 }
 
