@@ -2010,13 +2010,18 @@ if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
 }
 
-// Phase 6 — Sandbox compositions (save/list/reload). Persist only; no generation.
+// Phase 6 — Sandbox compositions (save/list/reload). Stage 6: owner isolation.
 const db = optionalRequire("../lib/database");
 const hasDb = db && typeof db.query === "function";
+function sandboxCallerUserId(req) {
+  return (req.headers["x-caller-user-id"] || req.query.userId || "").toString().trim();
+}
 if (hasDb) {
   const uuid = require("uuid").v4;
   app.post("/api/sandbox/compositions", async (req, res) => {
     try {
+      const ownerUserId = sandboxCallerUserId(req);
+      if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
       const body = req.body || {};
       const sandbox_state = body.sandbox_state;
       const vector_hash = body.vector_hash;
@@ -2032,9 +2037,9 @@ if (hasDb) {
       const id = uuid();
       const now = new Date().toISOString();
       await db.query(
-        `INSERT INTO astradio_sandbox_compositions (id, sandbox_state, vector_hash, seed, plan_hash, report, provider, provider_version, export_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $10::timestamptz)`,
-        [id, JSON.stringify(sandbox_state), vector_hash, seed, plan_hash, JSON.stringify(report), provider, provider_version, export_id, now]
+        `INSERT INTO astradio_sandbox_compositions (id, owner_user_id, sandbox_state, vector_hash, seed, plan_hash, report, provider, provider_version, export_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::timestamptz, $11::timestamptz)`,
+        [id, ownerUserId, JSON.stringify(sandbox_state), vector_hash, seed, plan_hash, JSON.stringify(report), provider, provider_version, export_id, now]
       );
       const row = await db.getRow("SELECT * FROM astradio_sandbox_compositions WHERE id = $1", [id]);
       return res.status(201).json(row);
@@ -2045,10 +2050,12 @@ if (hasDb) {
   });
   app.get("/api/sandbox/compositions", async (req, res) => {
     try {
+      const ownerUserId = sandboxCallerUserId(req);
+      if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
       const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
       const rows = await db.getRows(
-        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, created_at FROM astradio_sandbox_compositions ORDER BY created_at DESC LIMIT $1",
-        [limit]
+        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, created_at FROM astradio_sandbox_compositions WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT $2",
+        [ownerUserId, limit]
       );
       return res.json(rows);
     } catch (e) {
@@ -2058,8 +2065,10 @@ if (hasDb) {
   });
   app.get("/api/sandbox/compositions/:id", async (req, res) => {
     try {
+      const ownerUserId = sandboxCallerUserId(req);
       const row = await db.getRow("SELECT * FROM astradio_sandbox_compositions WHERE id = $1", [req.params.id]);
       if (!row) return res.status(404).json({ error: "Composition not found" });
+      if (row.owner_user_id == null || row.owner_user_id !== ownerUserId) return res.status(404).json({ error: "Composition not found" });
       return res.json(row);
     } catch (e) {
       console.error("[sandbox/compositions] GET by id", e);

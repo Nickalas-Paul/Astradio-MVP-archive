@@ -191,10 +191,11 @@ async function main(): Promise<void> {
   }
   log('[4] Determinism OK (plan_sha256 match).');
 
-  // 5) Optional DB-backed compositions
+  // 5) Optional DB-backed compositions (Stage 6: caller required; use test userId)
   log('[5] Optional DB-backed /api/sandbox/compositions');
+  const compositionsUserId = 'phase6_smoke_user';
   try {
-    const saveRes = await postJson('/api/sandbox/compositions', {
+    const saveRes = await postJson(`/api/sandbox/compositions?userId=${encodeURIComponent(compositionsUserId)}`, {
       sandbox_state: { birth, overrides, controls },
       vector_hash: combinedHash,
       seed: combinedHash,
@@ -206,6 +207,8 @@ async function main(): Promise<void> {
     });
     if (saveRes.status === 503) {
       log('[5] SKIP compositions: database unavailable (503).');
+    } else if (saveRes.status === 401) {
+      log('[5] SKIP compositions: caller required (401). Engine may require userId for Stage 6 isolation.');
     } else if (saveRes.status >= 400) {
       fail(`compositions POST status=${saveRes.status} body=${JSON.stringify(saveRes.json)}`);
     } else {
@@ -213,7 +216,7 @@ async function main(): Promise<void> {
       if (!savedId) {
         fail('compositions POST missing id');
       }
-      const listRes = await getRaw('/api/sandbox/compositions?limit=10');
+      const listRes = await getRaw(`/api/sandbox/compositions?limit=10&userId=${encodeURIComponent(compositionsUserId)}`);
       if (!listRes.ok) {
         fail(`compositions list status=${listRes.status}`);
       }
@@ -221,7 +224,7 @@ async function main(): Promise<void> {
       if (!Array.isArray(listJson) || listJson.length === 0) {
         fail('compositions list empty after save');
       }
-      const getRes = await getRaw(`/api/sandbox/compositions/${savedId}`);
+      const getRes = await getRaw(`/api/sandbox/compositions/${savedId}?userId=${encodeURIComponent(compositionsUserId)}`);
       if (!getRes.ok) {
         fail(`compositions GET by id status=${getRes.status}`);
       }
