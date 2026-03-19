@@ -41,6 +41,11 @@ import { buildRelationalChartContext } from '../report-context';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import { applyEndingPolish } from '../audio/ending-polish';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import type { CanonicalCompositionInput } from './canonical-compose-input';
+import { buildHomeCanonicalInput } from '../adapters/home-compose-adapter';
+import { buildProfileNatalCanonicalInput } from '../adapters/profile-natal-compose-adapter';
+import { buildSandboxCanonicalInput } from '../adapters/sandbox-compose-adapter';
+import { buildOverlayCanonicalInput } from '../adapters/overlay-compose-adapter';
 
 /** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
 type DailySection = { id: string; title: string; text: string };
@@ -132,23 +137,14 @@ export class ComposeAPI {
         }
       }
       
-      // Generate control-surface payload based on mode
-      const payload = await this.generateControlPayload(request);
+      const canonicalInput = await this.buildCanonicalInputFromRequest(request);
+      const payload = canonicalInput.payload;
+      const requestSeed = canonicalInput.seed || payload.hash;
+      const enableDailyV1Text = canonicalInput.enableDailyV1Text === true;
+      const hasOverlayContext = !!canonicalInput.overlayNatalSnapshot;
 
-      // Phase 6 Sandbox: when overriddenSnapshot is provided, use it for architecture (same chart as viz/report).
-      // When only chartData is provided (e.g. Stage 9 / simple sandbox), use chart input path to fetch snapshot.
-      const req = request as any;
-      if (req.mode === 'sandbox' && req.overriddenSnapshot == null && !req.chartData) {
-        throw new Error('Sandbox mode requires overriddenSnapshot from POST /api/sandbox/snapshot or chartData');
-      }
       let architecture: Awaited<ReturnType<typeof generateArchitecture>>;
-      if (req.mode === 'sandbox' && req.overriddenSnapshot != null) {
-        const overriddenSnapshot = this.validateOverriddenSnapshot(req.overriddenSnapshot);
-        architecture = await generateArchitectureFromSnapshot(overriddenSnapshot, payload.hash);
-      } else {
-        const chartInput = this.extractChartInput(request);
-        architecture = await generateArchitecture(chartInput, payload.hash);
-      }
+      architecture = await generateArchitectureFromSnapshot(canonicalInput.snapshot, requestSeed);
       const { snapshot, features: featureVec, guidance, semanticProfile } = architecture;
 
       // Compute provenance hashes
@@ -230,7 +226,7 @@ export class ComposeAPI {
       let textEngineFailureStage: string | undefined;
       let textEngineFailureName: string | undefined;
       let textEngineFailureMessage: string | undefined;
-      if (useTextEngineVnext && request.mode === 'sky') {
+      if (useTextEngineVnext && enableDailyV1Text) {
         console.log('[COMPOSE_TEXT] daily-v1 branch entered', JSON.stringify({ VNEXT_TEXT_ENGINE: process.env.VNEXT_TEXT_ENGINE ?? '(unset)', request_mode: request.mode }));
         try {
           const snapshot = architecture.snapshot;
@@ -310,30 +306,13 @@ export class ComposeAPI {
 
       let text: any;
       let textMetricsMs: number | undefined;
-      if (request.mode === 'overlay' && request.overlayParams) {
+      if (hasOverlayContext && request.overlayParams) {
         const useOverlayExplainSpec = process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
         if (useOverlayExplainSpec) {
-          const natalLat = request.overlayParams.natalLatitude;
-          const natalLon = request.overlayParams.natalLongitude;
-          const natalDt = request.overlayParams.natalDatetime;
-          if (typeof natalLat !== 'number' || !Number.isFinite(natalLat) || typeof natalLon !== 'number' || !Number.isFinite(natalLon)) {
-            throw new Error('Overlay mode requires natalLatitude and natalLongitude; no default coordinates.');
+          const natalSnapshot = canonicalInput.overlayNatalSnapshot;
+          if (!natalSnapshot) {
+            throw new Error('Overlay mode requires natal snapshot context.');
           }
-          if (typeof natalDt !== 'string' || !natalDt.trim() || !natalDt.includes('T')) {
-            throw new Error('Overlay mode requires natalDatetime (ISO string with time).');
-          }
-          const [natalDate, natalTimePart] = natalDt.split('T');
-          const natalTime = natalTimePart ? natalTimePart.slice(0, 5) : '';
-          if (!natalDate || !natalTime) {
-            throw new Error('Overlay mode requires natalDatetime with date and time (YYYY-MM-DDTHH:mm).');
-          }
-          const natalInput: ChartInput = {
-            date: natalDate,
-            time: natalTime,
-            lat: natalLat,
-            lon: natalLon,
-          };
-          const natalSnapshot = await fetchChartSnapshot(natalInput);
           const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
           const overlaySpec = buildExplainSpecOverlay({
             seed: payload.hash,
@@ -436,7 +415,7 @@ export class ComposeAPI {
       let export_meta: { provider: string; modelVersion: string; promptHash: string; payload_hash: string; duration_s: number; sha256: string } | undefined;
 
       // Export gating signals (always present in response; no secrets)
-      type ExportErrorCode = 'export_disabled' | 'export_not_attempted' | 'storage_unavailable' | 'render_failed' | 'provider_not_configured';
+      type ExportErrorCode = 'export_disabled' | 'export_not_attempted' | 'storage_unavailable' | 'render_failed' | 'provider_not_configured' | 'invalid_duration';
       let export_attempted = false;
       let export_error: ExportErrorCode | null = wavExportEnabled ? null : 'export_disabled';
 
@@ -526,6 +505,18 @@ export class ComposeAPI {
                   // logging must not break export
                 }
               }
+            }
+            const durationCheck = this.validateRenderedWavDuration(wavToStore, DEFAULT_DURATION_S);
+            if (!durationCheck.valid) {
+              export_error = 'invalid_duration';
+              audio_export_available = false;
+              audioDebug = {
+                export_failure: 'B',
+                step: 'render',
+                message: `Rendered WAV duration out of bounds: ${durationCheck.durationSec.toFixed(3)}s`,
+                code: 'INVALID_WAV_DURATION',
+              };
+              throw new Error(`Invalid WAV duration (${durationCheck.durationSec.toFixed(3)}s)`);
             }
             const integrity: IntegrityMeta = {
               sha256: sha256ToUse,
@@ -625,9 +616,11 @@ export class ComposeAPI {
             }
           }
           if (!fallbackSucceeded) {
-            if (exportStep === 'provider') export_error = 'provider_not_configured';
-            else if (exportStep === 'render') export_error = 'render_failed';
-            else export_error = 'storage_unavailable';
+            if (export_error == null) {
+              if (exportStep === 'provider') export_error = 'provider_not_configured';
+              else if (exportStep === 'render') export_error = 'render_failed';
+              else export_error = 'storage_unavailable';
+            }
             const failureClass = exportStep === 'store' ? 'C' : 'B';
             audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
             if (!(global as any).__wav_export_unavailable_logged) {
@@ -655,7 +648,7 @@ export class ComposeAPI {
       const t = text as any;
       let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }>;
       
-      if (request.mode === 'overlay' && request.overlayParams) {
+      if (hasOverlayContext && request.overlayParams) {
         if (process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1' && (text as any)?.template_id === 'explainspec-overlay-v1') {
           sections = [
             { sectionId: 'signatures', title: 'Natal Signatures', text: t.signatures ?? '' },
@@ -690,7 +683,7 @@ export class ComposeAPI {
         }
       } else {
         // Single mode: use daily v1 sections when enabled and available; otherwise ExplainSpec
-        const useDailySections = request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) > 0;
+        const useDailySections = enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) > 0;
         if (useDailySections) {
           sections = mapDailySectionsToResponseSections(textVnextDaily.sections as DailySection[]);
         } else {
@@ -703,8 +696,8 @@ export class ComposeAPI {
         }
       }
 
-      const isSpecEngine = !(request.mode === 'overlay' && request.overlayParams) || process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
-      const usedDailyV1 = request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) > 0;
+      const isSpecEngine = !hasOverlayContext || process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
+      const usedDailyV1 = enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) > 0;
       const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
       const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
@@ -737,7 +730,7 @@ export class ComposeAPI {
       if (textVnextDaily) {
         explanationMeta.text_vnext_daily = textVnextDaily;
       }
-      if (useTextEngineVnext && request.mode === 'sky' && (textVnextDaily?.sections?.length ?? 0) === 0) {
+      if (useTextEngineVnext && enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) === 0) {
         explanationMeta.text_engine_attempted = 'daily-v1';
         explanationMeta.text_engine_fallback = true;
         if (textEngineFailureStage !== undefined) explanationMeta.text_engine_failure_stage = textEngineFailureStage;
@@ -871,6 +864,7 @@ export class ComposeAPI {
       const explainText = text as any;
 
       const response = {
+        compose_kind: 'snapshot_canonical',
         duration_s: DEFAULT_DURATION_S,
         ...(export_id != null && { export_id }),
         ...(export_meta != null && { export_meta }),
@@ -1081,6 +1075,7 @@ export class ComposeAPI {
       plan_sha256: planHash
     };
     return {
+      compose_kind: 'group_aggregate_legacy' as const,
       plan,
       planHash,
       gateReport,
@@ -1128,6 +1123,67 @@ export class ComposeAPI {
         bullets: s.bullets
       }))
     };
+  }
+
+  private async buildCanonicalInputFromRequest(request: ComposeRequest): Promise<CanonicalCompositionInput> {
+    const req = request as any;
+    if (req.mode === 'sky') {
+      const chartInput = this.extractChartInput(request);
+      const snapshot = await fetchChartSnapshot(chartInput);
+      const payload = await this.generateSkyPayload(request.skyParams!);
+      return buildHomeCanonicalInput({
+        snapshot,
+        payload,
+        seed: req.seed || payload.hash,
+        enableDailyV1Text: true,
+      });
+    }
+
+    if (req.mode === 'overlay') {
+      if (!request.overlayParams) {
+        throw new Error('Overlay mode requires overlayParams.');
+      }
+      const snapshot = await fetchChartSnapshot(this.extractChartInput(request));
+      const payload = await this.generateOverlayPayload(request.overlayParams);
+      const natalDt = request.overlayParams.natalDatetime;
+      const [natalDate, natalTimePart] = String(natalDt).split('T');
+      const natalInput: ChartInput = {
+        date: natalDate,
+        time: (natalTimePart || '').slice(0, 5),
+        lat: request.overlayParams.natalLatitude,
+        lon: request.overlayParams.natalLongitude,
+      };
+      const natalSnapshot = await fetchChartSnapshot(natalInput);
+      return buildOverlayCanonicalInput({
+        snapshot,
+        natalSnapshot,
+        payload,
+        seed: req.seed || payload.hash,
+      });
+    }
+
+    if (req.mode === 'sandbox') {
+      const payload = await this.generateSandboxPayload(request.controls || {});
+      if (req.overriddenSnapshot != null) {
+        const snapshot = this.validateOverriddenSnapshot(req.overriddenSnapshot);
+        return buildSandboxCanonicalInput({
+          snapshot,
+          payload,
+          seed: req.seed || payload.hash,
+        });
+      }
+      if (!req.chartData) {
+        throw new Error('Sandbox mode requires overriddenSnapshot from POST /api/sandbox/snapshot or chartData');
+      }
+      const snapshot = await fetchChartSnapshot(this.extractChartInput(request));
+      return buildProfileNatalCanonicalInput({
+        snapshot,
+        payload,
+        seed: req.seed || payload.hash,
+      });
+    }
+
+    throw new Error(`Unsupported compose mode: ${String(req.mode)}`);
   }
 
   /**
@@ -1195,6 +1251,32 @@ export class ComposeAPI {
     }
 
     throw new Error('Invalid compose request: chart input (date, time, lat, lon) is required for this mode');
+  }
+
+  private validateRenderedWavDuration(
+    wavBuffer: Buffer,
+    expectedDurationSec: number
+  ): { valid: boolean; durationSec: number } {
+    if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 44) {
+      return { valid: false, durationSec: 0 };
+    }
+    const riff = wavBuffer.toString('ascii', 0, 4);
+    const wave = wavBuffer.toString('ascii', 8, 12);
+    if (riff !== 'RIFF' || wave !== 'WAVE') {
+      return { valid: false, durationSec: 0 };
+    }
+    const channels = wavBuffer.readUInt16LE(22);
+    const sampleRate = wavBuffer.readUInt32LE(24);
+    const bitsPerSample = wavBuffer.readUInt16LE(34);
+    const dataSize = wavBuffer.readUInt32LE(40);
+    const bytesPerSample = (bitsPerSample / 8) * channels;
+    if (!Number.isFinite(bytesPerSample) || bytesPerSample <= 0 || sampleRate <= 0) {
+      return { valid: false, durationSec: 0 };
+    }
+    const durationSec = dataSize / (sampleRate * bytesPerSample);
+    const toleranceSec = 1.0;
+    const valid = Number.isFinite(durationSec) && Math.abs(durationSec - expectedDurationSec) <= toleranceSec;
+    return { valid, durationSec };
   }
 
   /**
@@ -1278,10 +1360,6 @@ export class ComposeAPI {
       
       case 'sandbox':
         return this.generateSandboxPayload(request.controls!);
-      
-      case 'compatibility':
-        return this.generateCompatibilityPayload(request as any);
-      
       default:
         throw new Error(`Unsupported mode: ${(request as any).mode}`);
     }
@@ -1345,36 +1423,6 @@ export class ComposeAPI {
     mergedPayload.hash = this.generateHash(mergedPayload);
     
     return mergedPayload;
-  }
-
-  /**
-   * Generate payload for compatibility mode (two-chart composition)
-   */
-  private async generateCompatibilityPayload(request: any): Promise<ControlSurfacePayload> {
-    // Generate combined payload from two charts
-    const chart1Payload = await this.generateDefaultPayload();
-    const chart2Payload = await this.generateDefaultPayload();
-    
-    // Blend the two charts based on compatibility score
-    const compatibilityScore = request.compatibilityScore || 0.5;
-    const blendedPayload = {
-      arc_shape: (chart1Payload.arc_shape + chart2Payload.arc_shape) / 2,
-      density_level: (chart1Payload.density_level + chart2Payload.density_level) / 2,
-      tempo_norm: (chart1Payload.tempo_norm + chart2Payload.tempo_norm) / 2,
-      step_bias: (chart1Payload.step_bias + chart2Payload.step_bias) / 2,
-      leap_cap: Math.round((chart1Payload.leap_cap + chart2Payload.leap_cap) / 2),
-      rhythm_template_id: Math.round((chart1Payload.rhythm_template_id + chart2Payload.rhythm_template_id) / 2),
-      syncopation_bias: (chart1Payload.syncopation_bias + chart2Payload.syncopation_bias) / 2,
-      motif_rate: (chart1Payload.motif_rate + chart2Payload.motif_rate) / 2,
-      element_dominance: compatibilityScore > 0.7 ? chart1Payload.element_dominance : 'air',
-      aspect_tension: compatibilityScore,
-      modality: 'mutable',
-      genre: 'house' // Default genre
-    };
-    
-    (blendedPayload as any).hash = this.generateHash(blendedPayload);
-    
-    return blendedPayload as ControlSurfacePayload;
   }
 
   /**

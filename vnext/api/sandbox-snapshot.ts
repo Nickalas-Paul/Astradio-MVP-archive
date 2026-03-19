@@ -83,6 +83,18 @@ export function generateSnapshotWithOverrides(
   overrides: SandboxOverrides
 ): EphemerisSnapshot {
   validateSandboxOverrides(overrides);
+  const hasPlanetOverrides = Object.keys(overrides.planets || {}).length > 0;
+  // Canonical no-op: if no overrides are present, preserve the chart-snapshot payload
+  // exactly to avoid semantic drift between snapshot sources.
+  if (!hasPlanetOverrides) {
+    return {
+      ...baseSnapshot,
+      planets: baseSnapshot.planets.map((p) => ({ ...p })),
+      houses: [...baseSnapshot.houses] as EphemerisSnapshot['houses'],
+      aspects: baseSnapshot.aspects.map((a) => ({ ...a })),
+      dominantElements: { ...baseSnapshot.dominantElements },
+    };
+  }
 
   const overriddenPlanets = baseSnapshot.planets.map(p => ({ ...p }));
   const positions: Record<string, number> = {};
