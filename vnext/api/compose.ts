@@ -1005,6 +1005,7 @@ export class ComposeAPI {
     featureVec: FeatureVec,
     payload: ControlSurfacePayload
   ): Promise<{
+    compose_kind: 'group_aggregate_legacy';
     plan: Plan;
     planHash: string;
     gateReport: GateReport;
