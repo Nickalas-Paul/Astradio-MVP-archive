@@ -144,7 +144,9 @@ export class ComposeAPI {
       const hasOverlayContext = !!canonicalInput.overlayNatalSnapshot;
 
       let architecture: Awaited<ReturnType<typeof generateArchitecture>>;
-      architecture = await generateArchitectureFromSnapshot(canonicalInput.snapshot, requestSeed);
+      architecture = await this.runSharedComposePipeline(() =>
+        generateArchitectureFromSnapshot(canonicalInput.snapshot, requestSeed)
+      );
       const { snapshot, features: featureVec, guidance, semanticProfile } = architecture;
 
       // Compute provenance hashes
@@ -1184,6 +1186,10 @@ export class ComposeAPI {
     }
 
     throw new Error(`Unsupported compose mode: ${String(req.mode)}`);
+  }
+
+  private async runSharedComposePipeline<T>(runner: () => Promise<T>): Promise<T> {
+    return runner();
   }
 
   /**
