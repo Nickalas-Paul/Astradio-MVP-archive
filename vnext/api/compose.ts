@@ -525,6 +525,7 @@ export class ComposeAPI {
                 duration_contract_max_s: durationCheck.contractMaxS,
                 target_duration_s: durationCheck.targetDurationS,
                 ...(durationCheck.details ?? {}),
+                ...(durationCheck.wavParse != null ? { wav_parse: durationCheck.wavParse } : {}),
               };
               throw new Error(`Invalid WAV duration (${durationCheck.durationSec.toFixed(3)}s)`);
             }
@@ -1285,8 +1286,8 @@ export class ComposeAPI {
   }
 
   /**
-   * Walk RIFF/WAVE chunks (do not assume `data` at a fixed offset). Derive PCM duration from fmt + data.
-   * Lyria commonly returns ~30–33s clips (see lyria-client); contract window rejects true anomalies (e.g. ~60s).
+   * Walk RIFF/WAVE chunks (no fixed `data` offset). Uses RIFF size field to bound the container and
+   * classify truncation vs malformed scope. Bounded diagnostics only (no audio payload).
    */
   private parseWavPcmDataChunkMetrics(wavBuffer: Buffer): {
     ok: boolean;
@@ -1296,13 +1297,73 @@ export class ComposeAPI {
     dataSize?: number;
     byteRate?: number;
     audioFormat?: number;
+    diagnostics?: Record<string, unknown>;
   } {
+    const MAX_CHUNKS = 4096;
+    const MAX_CHUNK_BODY_BYTES = 256 * 1024 * 1024;
+    const MAX_CHUNK_SAMPLES = 5;
+
+    const buildDiag = (
+      base: {
+        buffer_length: number;
+        riff_size_field: number;
+        riff_expected_end: number;
+        buffer_shorter_than_riff_declared: boolean;
+        walk_end_exclusive: number;
+        chunk_samples: Array<{ id: string; size: number; offset: number }>;
+        failure_offset: number;
+        found_fmt: boolean;
+        found_data: boolean;
+        parse_reason: string;
+      },
+      extra?: Record<string, unknown>
+    ): Record<string, unknown> => ({ ...base, ...(extra || {}) });
+
     if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 12) {
-      return { ok: false, durationSec: 0, reason: 'buffer_too_short' };
+      return {
+        ok: false,
+        durationSec: 0,
+        reason: 'buffer_too_short',
+        diagnostics: buildDiag({
+          buffer_length: wavBuffer?.length ?? 0,
+          riff_size_field: 0,
+          riff_expected_end: 0,
+          buffer_shorter_than_riff_declared: false,
+          walk_end_exclusive: 0,
+          chunk_samples: [],
+          failure_offset: 0,
+          found_fmt: false,
+          found_data: false,
+          parse_reason: 'buffer_too_short',
+        }),
+      };
     }
     if (wavBuffer.toString('ascii', 0, 4) !== 'RIFF' || wavBuffer.toString('ascii', 8, 12) !== 'WAVE') {
-      return { ok: false, durationSec: 0, reason: 'not_riff_wave' };
+      return {
+        ok: false,
+        durationSec: 0,
+        reason: 'not_riff_wave',
+        diagnostics: buildDiag({
+          buffer_length: wavBuffer.length,
+          riff_size_field: 0,
+          riff_expected_end: 0,
+          buffer_shorter_than_riff_declared: false,
+          walk_end_exclusive: 0,
+          chunk_samples: [],
+          failure_offset: 0,
+          found_fmt: false,
+          found_data: false,
+          parse_reason: 'not_riff_wave',
+        }),
+      };
     }
+
+    const riffSizeField = wavBuffer.readUInt32LE(4);
+    const riffExpectedEnd = 8 + riffSizeField;
+    const bufferShorterThanRiff = wavBuffer.length < riffExpectedEnd;
+    const walkEndExclusive = Math.min(wavBuffer.length, riffExpectedEnd);
+
+    const chunkSamples: Array<{ id: string; size: number; offset: number }> = [];
     let sampleRate = 0;
     let byteRate = 0;
     let blockAlign = 0;
@@ -1311,17 +1372,79 @@ export class ComposeAPI {
     let dataSize = 0;
     let foundData = false;
     let i = 12;
-    while (i + 8 <= wavBuffer.length) {
-      const chunkId = wavBuffer.toString('ascii', i, i + 4);
+    let chunkIndex = 0;
+
+    const fail = (
+      reason: string,
+      failureOffset: number,
+      extra?: Record<string, unknown>
+    ): {
+      ok: false;
+      durationSec: number;
+      reason: string;
+      diagnostics: Record<string, unknown>;
+    } => ({
+      ok: false,
+      durationSec: 0,
+      reason,
+      diagnostics: buildDiag(
+        {
+          buffer_length: wavBuffer.length,
+          riff_size_field: riffSizeField,
+          riff_expected_end: riffExpectedEnd,
+          buffer_shorter_than_riff_declared: bufferShorterThanRiff,
+          walk_end_exclusive: walkEndExclusive,
+          chunk_samples: chunkSamples.slice(0, MAX_CHUNK_SAMPLES),
+          failure_offset: failureOffset,
+          found_fmt: haveFmt,
+          found_data: foundData,
+          parse_reason: reason,
+        },
+        { chunk_index: chunkIndex, ...(extra || {}) }
+      ),
+    });
+
+    while (i < walkEndExclusive && chunkIndex < MAX_CHUNKS) {
+      if (i + 8 > wavBuffer.length) {
+        return fail(
+          bufferShorterThanRiff ? 'truncated_at_chunk_header' : 'unexpected_eof_at_chunk_header',
+          i
+        );
+      }
+      if (i + 8 > walkEndExclusive) {
+        return fail('chunk_header_past_riff_scope', i);
+      }
+
+      const chunkId = wavBuffer.toString('ascii', i, i + 4).replace(/[^\x20-\x7e]/g, '?');
       const chunkSize = wavBuffer.readUInt32LE(i + 4);
+      if (chunkSamples.length < MAX_CHUNK_SAMPLES) {
+        chunkSamples.push({ id: chunkId, size: chunkSize, offset: i });
+      }
+
+      if (chunkSize > MAX_CHUNK_BODY_BYTES) {
+        return fail('chunk_size_implausible', i, { chunk_id: chunkId });
+      }
+
       const bodyStart = i + 8;
       const bodyEnd = bodyStart + chunkSize;
-      if (bodyEnd > wavBuffer.length || chunkSize < 0) {
-        return { ok: false, durationSec: 0, reason: 'chunk_overflow' };
+
+      if (bodyEnd > wavBuffer.length) {
+        return fail(
+          bufferShorterThanRiff ? 'truncated_mid_chunk' : 'chunk_body_past_buffer_end',
+          i,
+          { chunk_id: chunkId, declared_body_end: bodyEnd }
+        );
       }
+      if (!bufferShorterThanRiff && bodyEnd > riffExpectedEnd) {
+        return fail('chunk_extends_past_riff_container', i, {
+          chunk_id: chunkId,
+          declared_body_end: bodyEnd,
+        });
+      }
+
       if (chunkId === 'fmt ') {
         if (chunkSize < 16) {
-          return { ok: false, durationSec: 0, reason: 'fmt_too_small' };
+          return fail('fmt_too_small', i);
         }
         audioFormat = wavBuffer.readUInt16LE(bodyStart);
         sampleRate = wavBuffer.readUInt32LE(bodyStart + 4);
@@ -1332,17 +1455,45 @@ export class ComposeAPI {
         dataSize = chunkSize;
         foundData = true;
       }
+
       i = bodyEnd + (chunkSize % 2);
+      chunkIndex++;
     }
+
+    if (chunkIndex >= MAX_CHUNKS) {
+      return fail('too_many_chunks', i);
+    }
+
     if (!haveFmt) {
-      return { ok: false, durationSec: 0, reason: 'missing_fmt' };
+      return fail(bufferShorterThanRiff ? 'truncated_missing_fmt' : 'missing_fmt', i);
     }
     if (audioFormat !== 1) {
-      return { ok: false, durationSec: 0, reason: 'not_pcm', audioFormat };
+      return {
+        ok: false,
+        durationSec: 0,
+        reason: 'not_pcm',
+        audioFormat,
+        diagnostics: buildDiag(
+          {
+            buffer_length: wavBuffer.length,
+            riff_size_field: riffSizeField,
+            riff_expected_end: riffExpectedEnd,
+            buffer_shorter_than_riff_declared: bufferShorterThanRiff,
+            walk_end_exclusive: walkEndExclusive,
+            chunk_samples: chunkSamples.slice(0, MAX_CHUNK_SAMPLES),
+            failure_offset: i,
+            found_fmt: true,
+            found_data: foundData,
+            parse_reason: 'not_pcm',
+          },
+          { audio_format: audioFormat }
+        ),
+      };
     }
     if (!foundData || dataSize <= 0) {
-      return { ok: false, durationSec: 0, reason: 'missing_data' };
+      return fail(bufferShorterThanRiff ? 'truncated_missing_data' : 'missing_data', i);
     }
+
     const effectiveByteRate =
       byteRate > 0 && Number.isFinite(byteRate)
         ? byteRate
@@ -1350,11 +1501,57 @@ export class ComposeAPI {
           ? sampleRate * blockAlign
           : 0;
     if (!effectiveByteRate || !Number.isFinite(effectiveByteRate)) {
-      return { ok: false, durationSec: 0, reason: 'invalid_byte_rate', sampleRate, dataSize, byteRate, audioFormat };
+      return {
+        ok: false,
+        durationSec: 0,
+        reason: 'invalid_byte_rate',
+        sampleRate,
+        dataSize,
+        byteRate,
+        audioFormat,
+        diagnostics: buildDiag(
+          {
+            buffer_length: wavBuffer.length,
+            riff_size_field: riffSizeField,
+            riff_expected_end: riffExpectedEnd,
+            buffer_shorter_than_riff_declared: bufferShorterThanRiff,
+            walk_end_exclusive: walkEndExclusive,
+            chunk_samples: chunkSamples.slice(0, MAX_CHUNK_SAMPLES),
+            failure_offset: i,
+            found_fmt: true,
+            found_data: true,
+            parse_reason: 'invalid_byte_rate',
+          },
+          { sample_rate: sampleRate, data_size: dataSize }
+        ),
+      };
     }
     const durationSec = dataSize / effectiveByteRate;
     if (!Number.isFinite(durationSec) || durationSec <= 0) {
-      return { ok: false, durationSec: 0, reason: 'invalid_duration_compute', sampleRate, dataSize, byteRate: effectiveByteRate };
+      return {
+        ok: false,
+        durationSec: 0,
+        reason: 'invalid_duration_compute',
+        sampleRate,
+        dataSize,
+        byteRate: effectiveByteRate,
+        audioFormat,
+        diagnostics: buildDiag(
+          {
+            buffer_length: wavBuffer.length,
+            riff_size_field: riffSizeField,
+            riff_expected_end: riffExpectedEnd,
+            buffer_shorter_than_riff_declared: bufferShorterThanRiff,
+            walk_end_exclusive: walkEndExclusive,
+            chunk_samples: chunkSamples.slice(0, MAX_CHUNK_SAMPLES),
+            failure_offset: i,
+            found_fmt: true,
+            found_data: true,
+            parse_reason: 'invalid_duration_compute',
+          },
+          { sample_rate: sampleRate, data_size: dataSize, byte_rate: effectiveByteRate }
+        ),
+      };
     }
     return {
       ok: true,
@@ -1377,6 +1574,7 @@ export class ComposeAPI {
     contractMinS: number;
     contractMaxS: number;
     targetDurationS: number;
+    wavParse?: Record<string, unknown>;
   } {
     const LYRIA_EXPORT_DURATION_MIN_S = 27;
     const LYRIA_EXPORT_DURATION_MAX_S = 40;
@@ -1396,6 +1594,7 @@ export class ComposeAPI {
         contractMinS: LYRIA_EXPORT_DURATION_MIN_S,
         contractMaxS: LYRIA_EXPORT_DURATION_MAX_S,
         targetDurationS: expectedDurationSec,
+        wavParse: parsed.diagnostics,
       };
     }
     const d = parsed.durationSec;
