@@ -60,8 +60,9 @@ const moment = require("moment-timezone");
 const tzlookup = require("tzlookup");
 
 // Import new platform modules (optional)
-const database = optionalRequire("../lib/database", "database") || { close: async () => {} };
-const redis = optionalRequire("../lib/redis", "redis") || { close: async () => {}, connect: async () => {} };
+// Paths must be absolute: optionalRequire resolves relative paths from lib/opt/optional.js, not this file.
+const database = optionalRequire(path.join(__dirname, "..", "lib", "database"), "database") || { close: async () => {} };
+const redis = optionalRequire(path.join(__dirname, "..", "lib", "redis"), "redis") || { close: async () => {}, connect: async () => {} };
 
 // Import routes (optional)
 const authRoutes = optionalRequire(path.join(__dirname, "..", "dist", "routes", "auth"), "authRoutes");
@@ -2011,8 +2012,21 @@ if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
 }
 
 // Phase 6 — Sandbox compositions (save/list/reload). Stage 6: owner isolation.
-const db = optionalRequire("../lib/database");
+// Use absolute path — see optionalRequire note above (relative "../lib/database" resolves to lib/lib/database and fails silently).
+const db = optionalRequire(path.join(__dirname, "..", "lib", "database"));
 const hasDb = db && typeof db.query === "function";
+try {
+  console.log(
+    "[sandbox-compositions:init]",
+    JSON.stringify({
+      postgresUrlPresent: Boolean(process.env.POSTGRES_URL && String(process.env.POSTGRES_URL).trim()),
+      dbModuleLoaded: Boolean(db),
+      hasDb,
+    })
+  );
+} catch (_) {
+  /* startup log must not throw */
+}
 function sandboxCallerUserId(req) {
   return (req.headers["x-caller-user-id"] || req.query.userId || "").toString().trim();
 }
