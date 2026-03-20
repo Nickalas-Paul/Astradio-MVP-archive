@@ -515,8 +515,16 @@ export class ComposeAPI {
               audioDebug = {
                 export_failure: 'B',
                 step: 'render',
-                message: `Rendered WAV duration out of bounds: ${durationCheck.durationSec.toFixed(3)}s`,
                 code: 'INVALID_WAV_DURATION',
+                reason: durationCheck.reason ?? 'unknown',
+                message: durationCheck.reason
+                  ? `Rendered WAV rejected (${durationCheck.reason}): ${durationCheck.durationSec.toFixed(3)}s`
+                  : `Rendered WAV duration out of contract: ${durationCheck.durationSec.toFixed(3)}s`,
+                measured_duration_s: durationCheck.durationSec,
+                duration_contract_min_s: durationCheck.contractMinS,
+                duration_contract_max_s: durationCheck.contractMaxS,
+                target_duration_s: durationCheck.targetDurationS,
+                ...(durationCheck.details ?? {}),
               };
               throw new Error(`Invalid WAV duration (${durationCheck.durationSec.toFixed(3)}s)`);
             }
@@ -624,7 +632,23 @@ export class ComposeAPI {
               else export_error = 'storage_unavailable';
             }
             const failureClass = exportStep === 'store' ? 'C' : 'B';
-            audioDebug = { export_failure: failureClass, step: exportStep, message: err.message, ...(code && { code }) };
+            const catchDebug: Record<string, unknown> = {
+              export_failure: failureClass,
+              step: exportStep,
+              message: err.message,
+              ...(code ? { code } : {}),
+            };
+            // Preserve duration-gate diagnostics (do not overwrite measured_duration_s / reason)
+            if (
+              export_error === 'invalid_duration' &&
+              audioDebug &&
+              typeof audioDebug === 'object' &&
+              (audioDebug as { code?: string }).code === 'INVALID_WAV_DURATION'
+            ) {
+              Object.assign(audioDebug as object, catchDebug);
+            } else {
+              audioDebug = catchDebug;
+            }
             if (!(global as any).__wav_export_unavailable_logged) {
               console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
               if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
@@ -1260,30 +1284,135 @@ export class ComposeAPI {
     throw new Error('Invalid compose request: chart input (date, time, lat, lon) is required for this mode');
   }
 
+  /**
+   * Walk RIFF/WAVE chunks (do not assume `data` at a fixed offset). Derive PCM duration from fmt + data.
+   * Lyria commonly returns ~30–33s clips (see lyria-client); contract window rejects true anomalies (e.g. ~60s).
+   */
+  private parseWavPcmDataChunkMetrics(wavBuffer: Buffer): {
+    ok: boolean;
+    durationSec: number;
+    reason?: string;
+    sampleRate?: number;
+    dataSize?: number;
+    byteRate?: number;
+    audioFormat?: number;
+  } {
+    if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 12) {
+      return { ok: false, durationSec: 0, reason: 'buffer_too_short' };
+    }
+    if (wavBuffer.toString('ascii', 0, 4) !== 'RIFF' || wavBuffer.toString('ascii', 8, 12) !== 'WAVE') {
+      return { ok: false, durationSec: 0, reason: 'not_riff_wave' };
+    }
+    let sampleRate = 0;
+    let byteRate = 0;
+    let blockAlign = 0;
+    let audioFormat = 0;
+    let haveFmt = false;
+    let dataSize = 0;
+    let foundData = false;
+    let i = 12;
+    while (i + 8 <= wavBuffer.length) {
+      const chunkId = wavBuffer.toString('ascii', i, i + 4);
+      const chunkSize = wavBuffer.readUInt32LE(i + 4);
+      const bodyStart = i + 8;
+      const bodyEnd = bodyStart + chunkSize;
+      if (bodyEnd > wavBuffer.length || chunkSize < 0) {
+        return { ok: false, durationSec: 0, reason: 'chunk_overflow' };
+      }
+      if (chunkId === 'fmt ') {
+        if (chunkSize < 16) {
+          return { ok: false, durationSec: 0, reason: 'fmt_too_small' };
+        }
+        audioFormat = wavBuffer.readUInt16LE(bodyStart);
+        sampleRate = wavBuffer.readUInt32LE(bodyStart + 4);
+        byteRate = wavBuffer.readUInt32LE(bodyStart + 8);
+        blockAlign = wavBuffer.readUInt16LE(bodyStart + 12);
+        haveFmt = true;
+      } else if (chunkId === 'data') {
+        dataSize = chunkSize;
+        foundData = true;
+      }
+      i = bodyEnd + (chunkSize % 2);
+    }
+    if (!haveFmt) {
+      return { ok: false, durationSec: 0, reason: 'missing_fmt' };
+    }
+    if (audioFormat !== 1) {
+      return { ok: false, durationSec: 0, reason: 'not_pcm', audioFormat };
+    }
+    if (!foundData || dataSize <= 0) {
+      return { ok: false, durationSec: 0, reason: 'missing_data' };
+    }
+    const effectiveByteRate =
+      byteRate > 0 && Number.isFinite(byteRate)
+        ? byteRate
+        : sampleRate > 0 && blockAlign > 0
+          ? sampleRate * blockAlign
+          : 0;
+    if (!effectiveByteRate || !Number.isFinite(effectiveByteRate)) {
+      return { ok: false, durationSec: 0, reason: 'invalid_byte_rate', sampleRate, dataSize, byteRate, audioFormat };
+    }
+    const durationSec = dataSize / effectiveByteRate;
+    if (!Number.isFinite(durationSec) || durationSec <= 0) {
+      return { ok: false, durationSec: 0, reason: 'invalid_duration_compute', sampleRate, dataSize, byteRate: effectiveByteRate };
+    }
+    return {
+      ok: true,
+      durationSec,
+      sampleRate,
+      dataSize,
+      byteRate: effectiveByteRate,
+      audioFormat,
+    };
+  }
+
   private validateRenderedWavDuration(
     wavBuffer: Buffer,
     expectedDurationSec: number
-  ): { valid: boolean; durationSec: number } {
-    if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 44) {
-      return { valid: false, durationSec: 0 };
+  ): {
+    valid: boolean;
+    durationSec: number;
+    reason?: string;
+    details?: Record<string, number>;
+    contractMinS: number;
+    contractMaxS: number;
+    targetDurationS: number;
+  } {
+    const LYRIA_EXPORT_DURATION_MIN_S = 27;
+    const LYRIA_EXPORT_DURATION_MAX_S = 40;
+
+    const parsed = this.parseWavPcmDataChunkMetrics(wavBuffer);
+    if (!parsed.ok) {
+      return {
+        valid: false,
+        durationSec: parsed.durationSec,
+        reason: parsed.reason,
+        details: {
+          ...(parsed.sampleRate != null ? { sample_rate: parsed.sampleRate } : {}),
+          ...(parsed.dataSize != null ? { data_size: parsed.dataSize } : {}),
+          ...(parsed.byteRate != null ? { byte_rate: parsed.byteRate } : {}),
+          ...(parsed.audioFormat != null ? { audio_format: parsed.audioFormat } : {}),
+        },
+        contractMinS: LYRIA_EXPORT_DURATION_MIN_S,
+        contractMaxS: LYRIA_EXPORT_DURATION_MAX_S,
+        targetDurationS: expectedDurationSec,
+      };
     }
-    const riff = wavBuffer.toString('ascii', 0, 4);
-    const wave = wavBuffer.toString('ascii', 8, 12);
-    if (riff !== 'RIFF' || wave !== 'WAVE') {
-      return { valid: false, durationSec: 0 };
-    }
-    const channels = wavBuffer.readUInt16LE(22);
-    const sampleRate = wavBuffer.readUInt32LE(24);
-    const bitsPerSample = wavBuffer.readUInt16LE(34);
-    const dataSize = wavBuffer.readUInt32LE(40);
-    const bytesPerSample = (bitsPerSample / 8) * channels;
-    if (!Number.isFinite(bytesPerSample) || bytesPerSample <= 0 || sampleRate <= 0) {
-      return { valid: false, durationSec: 0 };
-    }
-    const durationSec = dataSize / (sampleRate * bytesPerSample);
-    const toleranceSec = 1.0;
-    const valid = Number.isFinite(durationSec) && Math.abs(durationSec - expectedDurationSec) <= toleranceSec;
-    return { valid, durationSec };
+    const d = parsed.durationSec;
+    const valid = d >= LYRIA_EXPORT_DURATION_MIN_S && d <= LYRIA_EXPORT_DURATION_MAX_S;
+    return {
+      valid,
+      durationSec: d,
+      reason: valid ? undefined : 'duration_out_of_contract',
+      details: {
+        sample_rate: parsed.sampleRate!,
+        data_size: parsed.dataSize!,
+        byte_rate: parsed.byteRate!,
+      },
+      contractMinS: LYRIA_EXPORT_DURATION_MIN_S,
+      contractMaxS: LYRIA_EXPORT_DURATION_MAX_S,
+      targetDurationS: expectedDurationSec,
+    };
   }
 
   /**
