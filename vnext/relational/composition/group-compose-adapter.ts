@@ -1,13 +1,15 @@
 /**
  * Phase 5 — Group composition adapter.
- * Uses stored vectors only; aggregates via aggregateFeatureVectors; calls composeAPI.composeFromFeatures.
- * Deterministic: member vectors ordered by chart_id ASC; seed derived from group/chartIds + vector hashes.
+ * Mandatory natal snapshot refetch per member chart (deterministic chart_id order) +
+ * vector aggregation from stored vectors + unified aggregate compose runner.
  */
 
 import * as crypto from 'crypto';
 import { aggregateFeatureVectors } from '../../community/group-profile';
 import { hashVector64 } from '../compatibility/score';
 import { MissingVectorsError } from '../compatibility/multi-chart';
+import { fetchChartSnapshot, type ChartInput } from '../../core/architecture-engine';
+import { getChartById } from '../../compat/chart-store';
 
 // Path from compiled dist/vnext/vnext/relational/composition/ -> repo root lib (5 levels up)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -16,9 +18,7 @@ const vectorStore = require('../../../../../lib/vector-store');
 import { vectorToControlPayload } from './vector-to-controls';
 import { composeAPI } from '../../api/compose';
 
-const ALGORITHM_VERSION = 'group_compose_v1';
-
-const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+export const GROUP_COMPOSE_ALGORITHM_VERSION = 'group_compose_v2';
 
 export interface GroupComposeProvenance {
   chart_ids: string[];
@@ -29,12 +29,12 @@ export interface GroupComposeProvenance {
 
 export interface GroupComposeResult {
   provenance: GroupComposeProvenance;
-  // Plan / audio hashes as returned by composeFromFeatures
   planHash: string;
-  // compositionId mirrors planHash for now
   compositionId: string;
   audioBase64?: string;
   text?: unknown;
+  /** Set when generateComposition=false — no runner, no Stage-4 artifact semantics */
+  compose_skipped?: boolean;
 }
 
 function buildSeedForCharts(
@@ -44,22 +44,26 @@ function buildSeedForCharts(
 ): string {
   const groupPart = groupId ? groupId : 'chartIds';
   const sortedChartIds = [...chartIds].sort((a, b) => a.localeCompare(b, 'en'));
-  const sortedHashes = sortedChartIds
-    .map((id) => vectorHashes[id] || '')
-    .sort();
-  const payload = `${ALGORITHM_VERSION}|${groupPart}|${sortedChartIds.join(
-    ','
-  )}|${sortedHashes.join(',')}`;
+  const sortedHashes = sortedChartIds.map((id) => vectorHashes[id] || '').sort();
+  const payload = `${GROUP_COMPOSE_ALGORITHM_VERSION}|${groupPart}|${sortedChartIds.join(',')}|${sortedHashes.join(',')}`;
   return crypto.createHash('sha256').update(payload, 'utf8').digest('hex');
+}
+
+function chartToInput(chart: { date: string; time: string; lat: number; lon: number; timezone?: string }): ChartInput {
+  return {
+    date: chart.date,
+    time: chart.time,
+    lat: chart.lat,
+    lon: chart.lon,
+    timezone: chart.timezone,
+  };
 }
 
 export async function composeGroupFromChartIds(
   chartIdsInput: string[],
-  opts?: { groupId?: string }
+  opts?: { groupId?: string; generateComposition?: boolean }
 ): Promise<GroupComposeResult> {
-  const chart_ids = Array.from(new Set(chartIdsInput)).sort((a, b) =>
-    a.localeCompare(b, 'en')
-  );
+  const chart_ids = Array.from(new Set(chartIdsInput)).sort((a, b) => a.localeCompare(b, 'en'));
   if (chart_ids.length === 0) {
     throw new Error('chartIds required for group compose');
   }
@@ -88,21 +92,49 @@ export async function composeGroupFromChartIds(
     throw new MissingVectorsError(missing);
   }
 
+  const snapshotsOrdered: import('../../contracts').EphemerisSnapshot[] = [];
+  for (const id of chart_ids) {
+    const chart = await getChartById(id);
+    if (!chart) {
+      throw new Error(`Chart not found for group compose: ${id}`);
+    }
+    const snap = await fetchChartSnapshot(chartToInput(chart));
+    snapshotsOrdered.push(snap);
+  }
+
   const composite = aggregateFeatureVectors(memberVectors, 'mean_normalized');
   const seed = buildSeedForCharts(chart_ids, vectorHashes, opts?.groupId);
   const payload = vectorToControlPayload(composite, seed);
 
-  const result = await composeAPI.composeFromFeatures(
-    composite as import('../../contracts').FeatureVec,
-    payload
-  );
+  if (opts?.generateComposition === false) {
+    return {
+      provenance: {
+        chart_ids,
+        vector_hashes: vectorHashes,
+        seed,
+        algorithm_version: GROUP_COMPOSE_ALGORITHM_VERSION,
+      },
+      planHash: '',
+      compositionId: '',
+      compose_skipped: true,
+    };
+  }
+
+  const anchorSnapshot = snapshotsOrdered[0];
+  const result = await composeAPI.runAggregateComposition({
+    kind: 'group',
+    anchorSnapshot,
+    snapshotsOrdered,
+    composite: composite as import('../../contracts').FeatureVec,
+    payload,
+  });
 
   return {
     provenance: {
       chart_ids,
       vector_hashes: vectorHashes,
       seed,
-      algorithm_version: ALGORITHM_VERSION,
+      algorithm_version: GROUP_COMPOSE_ALGORITHM_VERSION,
     },
     planHash: result.planHash,
     compositionId: result.planHash,
@@ -110,4 +142,3 @@ export async function composeGroupFromChartIds(
     text: result.text,
   };
 }
-

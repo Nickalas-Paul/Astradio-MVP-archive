@@ -14,38 +14,69 @@ import { TextExplainerEngine } from '../explainer/text-explainer';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
-import { generateArchitecture, generateArchitectureFromSnapshot, fetchChartSnapshot, type ChartInput } from '../core/architecture-engine';
+import {
+  generateArchitecture,
+  generateArchitectureFromSnapshot,
+  fetchChartSnapshot,
+  type ChartInput,
+  type ArchitectureOutput,
+} from '../core/architecture-engine';
 import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
-import { buildExplainSpecSingle, buildExplainSpecOverlay } from '../explainer/text-generation-engine';
+import { buildExplainSpecSingle, buildExplainSpecOverlay, buildExplainSpecComparison } from '../explainer/text-generation-engine';
 import { renderExplainSpecToSections } from '../explainer/renderers/deterministic';
 import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
 import { buildPlanSummary } from '../explainer/plan-summary';
 import { DEFAULT_DURATION_S } from '../constants';
-import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider, isProductionOrPreview } from '../render';
-import {
-  computeExportKey,
-  hashPrompt,
-  getCachedWav,
-  writeExport,
-  readIntegrity,
-  type IntegrityMeta,
-} from '../render/export-cache';
+import { getProvider } from '../render';
 import { buildTextAnalysis } from '../text/analysis/buildTextAnalysis';
 import { renderDaily } from '../text/renderers/daily';
 import { loadDailyToneSpec } from '../text';
 import type { ChartTextInput } from '../text/contracts';
 import { buildRelationalChartContext } from '../report-context';
-import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
-import { applyEndingPolish } from '../audio/ending-polish';
 import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 import type { CanonicalCompositionInput } from './canonical-compose-input';
 import { buildHomeCanonicalInput } from '../adapters/home-compose-adapter';
 import { buildProfileNatalCanonicalInput } from '../adapters/profile-natal-compose-adapter';
 import { buildSandboxCanonicalInput } from '../adapters/sandbox-compose-adapter';
 import { buildOverlayCanonicalInput } from '../adapters/overlay-compose-adapter';
+import { buildComparisonPlanChartContext, buildGroupPlanChartContext } from './plan-chart-context-reduction';
+import { buildArchitectureForAggregate } from './aggregate-architecture';
+import { runLyriaAlignedExportBlock, type ExportErrorCode } from './run-lyria-export-block';
+
+/** Phase B — aggregate surfaces (comparison + group) share one downstream runner. */
+export type AggregateCompositionInput =
+  | {
+      kind: 'comparison';
+      chartIdLow: string;
+      chartIdHigh: string;
+      snapLow: EphemerisSnapshot;
+      snapHigh: EphemerisSnapshot;
+      vecLow: FeatureVec;
+      vecHigh: FeatureVec;
+      merged: FeatureVec;
+      payload: ControlSurfacePayload;
+    }
+  | {
+      kind: 'group';
+      anchorSnapshot: EphemerisSnapshot;
+      snapshotsOrdered: EphemerisSnapshot[];
+      composite: FeatureVec;
+      payload: ControlSurfacePayload;
+    };
+
+export type AggregateComposeResult = {
+  compose_kind: 'comparison_aggregate' | 'group_aggregate';
+  plan: Plan;
+  planHash: string;
+  gateReport: GateReport;
+  text: any;
+  explanation: { spec: string; sections: Array<{ title: string; text: string }> };
+  audio: { format: 'wav'; base64: string; sha256: string; latency_ms: number; size_bytes: number };
+  hashes: { control: string; audio: string; explanation: string; plan_sha256: string };
+};
 
 /** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
 type DailySection = { id: string; title: string; text: string };
@@ -402,282 +433,19 @@ export class ComposeAPI {
         textMetricsMs = 0; // ExplainSpec/daily generation is fast (no ML)
       }
       
-      // Generate audio: cache-first, then RenderProvider. Production/preview: Lyria-only; no local_wav fallback.
+      // Generate audio: shared Lyria/provider path (snapshot + aggregate policy-identical)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
-      const stubAudio = {
-        format: 'wav' as const,
-        base64: '',
-        sha256: '',
-        latency_ms: 0,
-        size_bytes: 0
-      };
-      let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
-      let audio_export_available = false;
-      let export_id: string | undefined;
-      let export_meta: { provider: string; modelVersion: string; promptHash: string; payload_hash: string; duration_s: number; sha256: string } | undefined;
-
-      // Export gating signals (always present in response; no secrets)
-      type ExportErrorCode =
-        | 'export_disabled'
-        | 'export_not_attempted'
-        | 'storage_unavailable'
-        | 'render_failed'
-        | 'provider_not_configured'
-        | 'invalid_duration'
-        | 'incomplete_wav_payload';
-      let export_attempted = false;
-      let export_error: ExportErrorCode | null = wavExportEnabled ? null : 'export_disabled';
-
-      const store = (process as any).__astradio_export_store as { get?: (k: string) => Promise<Buffer | null>; put?: (k: string, buf: Buffer, meta: IntegrityMeta) => Promise<void> } | undefined;
-
-      let audioDebug: any = undefined;
-      type ExportStep = 'provider' | 'render' | 'store';
-      let exportStep: ExportStep = 'provider';
-      if (wavExportEnabled) {
-        export_attempted = true;
-        console.log('[COMPOSE_EXPORT] wavExportEnabled=', wavExportEnabled);
-        let prompt = '';
-        let promptHash = '';
-        let lyriaSeed = '';
-        try {
-          const planHash = computePlanHash(plan);
-          const narrativePlan = buildCompositionNarrativePlan(
-            architecture,
-            featureVec,
-            payload,
-            plan,
-            architecture.semanticProfile as ChartSemanticProfile
-          );
-          prompt = buildLyriaPrompt(payload, plan, narrativePlan);
-          promptHash = hashPrompt(prompt);
-          lyriaSeed = planHash + ':phase3';
-          exportStep = 'provider';
-          const provider = getProvider();
-          console.log('[COMPOSE_EXPORT] provider=', provider.name);
-          const modelVersion = provider.name === 'lyria' ? 'lyria-002' : 'local-v1';
-          const exportKey = computeExportKey(payload.hash, provider.name, modelVersion, promptHash, DEFAULT_DURATION_S);
-
-          let cached: Buffer | null = null;
-          if (store?.get) {
-            cached = await store.get(exportKey);
-          }
-          if (!cached && (!store || !store.get)) {
-            cached = getCachedWav(exportKey);
-          }
-          const audioStartTime = process.hrtime.bigint();
-          if (cached && cached.length > 0) {
-            const integrity = readIntegrity(exportKey);
-            const sha256 = integrity?.sha256 ?? require('crypto').createHash('sha256').update(cached).digest('hex');
-            audio = {
-              format: 'wav',
-              base64: cached.toString('base64'),
-              sha256,
-              latency_ms: 0,
-              size_bytes: cached.length
-            };
-            export_id = exportKey;
-            export_meta = integrity ? { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 } : undefined;
-            audio_export_available = true;
-            console.log('[COMPOSE_EXPORT] cache_hit exportKey=', exportKey.slice(0, 16) + '...');
-          } else {
-            exportStep = 'render';
-            const result = await renderWithProvider({
-              prompt,
-              seed: lyriaSeed,
-              duration_s: DEFAULT_DURATION_S,
-              plan,
-              payload
-            });
-            let wavToStore = result.wavBuffer;
-            let sha256ToUse = result.sha256;
-            let sizeBytesToUse = result.size_bytes;
-            const providerName = (result.provider_meta.provider as string) || '';
-            if (providerName === 'lyria') {
-              const polishResult = applyEndingPolish(wavToStore, {
-                tailWindowSeconds: 2.5,
-                endingStyle: narrativePlan.endingStyle,
-              });
-              if (polishResult.applied) {
-                wavToStore = polishResult.buffer;
-                sha256ToUse = require('crypto').createHash('sha256').update(wavToStore).digest('hex');
-                sizeBytesToUse = wavToStore.length;
-                try {
-                  console.log(
-                    '[ENDING_POLISH]',
-                    JSON.stringify({
-                      applied: true,
-                      tailWindowSeconds: polishResult.tailWindowSeconds,
-                      endingStyleUsed: polishResult.endingStyleUsed ?? null,
-                    })
-                  );
-                } catch {
-                  // logging must not break export
-                }
-              }
-            }
-            const durationCheck = this.validateRenderedWavDuration(wavToStore, DEFAULT_DURATION_S);
-            if (!durationCheck.valid) {
-              export_error = 'invalid_duration';
-              audio_export_available = false;
-              audioDebug = {
-                export_failure: 'B',
-                step: 'render',
-                code: 'INVALID_WAV_DURATION',
-                reason: durationCheck.reason ?? 'unknown',
-                message: durationCheck.reason
-                  ? `Rendered WAV rejected (${durationCheck.reason}): ${durationCheck.durationSec.toFixed(3)}s`
-                  : `Rendered WAV duration out of contract: ${durationCheck.durationSec.toFixed(3)}s`,
-                measured_duration_s: durationCheck.durationSec,
-                duration_contract_min_s: durationCheck.contractMinS,
-                duration_contract_max_s: durationCheck.contractMaxS,
-                target_duration_s: durationCheck.targetDurationS,
-                ...(durationCheck.details ?? {}),
-                ...(durationCheck.wavParse != null ? { wav_parse: durationCheck.wavParse } : {}),
-              };
-              throw new Error(`Invalid WAV duration (${durationCheck.durationSec.toFixed(3)}s)`);
-            }
-            const integrity: IntegrityMeta = {
-              sha256: sha256ToUse,
-              size_bytes: sizeBytesToUse,
-              createdAt: new Date().toISOString(),
-              payload_hash: payload.hash,
-              promptHash,
-              provider: result.provider_meta.provider as string,
-              modelVersion: (result.provider_meta.modelVersion as string) ?? modelVersion,
-              duration_s: DEFAULT_DURATION_S
-            };
-            export_meta = { provider: integrity.provider, modelVersion: integrity.modelVersion, promptHash: integrity.promptHash, payload_hash: integrity.payload_hash, duration_s: integrity.duration_s, sha256: integrity.sha256 };
-            audio = {
-              format: 'wav',
-              base64: wavToStore.toString('base64'),
-              sha256: sha256ToUse,
-              latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
-              size_bytes: sizeBytesToUse
-            };
-            export_id = exportKey;
-            audio_export_available = true;
-            exportStep = 'store';
-            try {
-              if (store?.put) {
-                await store.put(exportKey, wavToStore, integrity);
-                console.log('[COMPOSE_EXPORT] store_put_ok exportKey=', exportKey.slice(0, 16) + '...');
-              } else {
-                writeExport(exportKey, wavToStore, integrity);
-                console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
-              }
-            } catch (storeErr) {
-              console.warn('[COMPOSE_EXPORT] store/write failed (returning inline audio):', storeErr instanceof Error ? storeErr.message : String(storeErr));
-            }
-          }
-        } catch (audioError) {
-          const err = audioError instanceof Error ? audioError : new Error(String(audioError));
-          const code = (err as Error & { code?: string }).code;
-          console.log('[COMPOSE_EXPORT] error step=', exportStep, 'message=', err.message, code ? 'code=' + code : '');
-          const primaryProvider = getProvider().name;
-          const allowFallback =
-            !isProductionOrPreview() &&
-            process.env.ALLOW_LYRIA_FALLBACK === '1' &&
-            primaryProvider === 'lyria' &&
-            (exportStep === 'provider' || exportStep === 'render');
-          let fallbackSucceeded = false;
-          if (allowFallback) {
-            try {
-              const fallbackResult = await localWavProvider.render({
-                prompt,
-                seed: lyriaSeed,
-                duration_s: DEFAULT_DURATION_S,
-                plan,
-                payload
-              });
-              const fallbackExportKey = computeExportKey(payload.hash, 'local_wav', 'local-v1', promptHash, DEFAULT_DURATION_S);
-              exportStep = 'store';
-              if (store?.put) {
-                const fallbackIntegrity: IntegrityMeta = {
-                  sha256: fallbackResult.sha256,
-                  size_bytes: fallbackResult.size_bytes,
-                  createdAt: new Date().toISOString(),
-                  payload_hash: payload.hash,
-                  promptHash,
-                  provider: 'local_wav',
-                  modelVersion: 'local-v1',
-                  duration_s: DEFAULT_DURATION_S
-                };
-                await store.put(fallbackExportKey, fallbackResult.wavBuffer, fallbackIntegrity);
-              } else {
-                writeExport(fallbackExportKey, fallbackResult.wavBuffer, {
-                  sha256: fallbackResult.sha256,
-                  size_bytes: fallbackResult.size_bytes,
-                  createdAt: new Date().toISOString(),
-                  payload_hash: payload.hash,
-                  promptHash,
-                  provider: 'local_wav',
-                  modelVersion: 'local-v1',
-                  duration_s: DEFAULT_DURATION_S
-                });
-              }
-              const audioStartTime = process.hrtime.bigint();
-              audio = {
-                format: 'wav',
-                base64: fallbackResult.wavBuffer.toString('base64'),
-                sha256: fallbackResult.sha256,
-                latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
-                size_bytes: fallbackResult.size_bytes
-              };
-              export_id = fallbackExportKey;
-              export_meta = { provider: 'local_wav', modelVersion: 'local-v1', promptHash, payload_hash: payload.hash, duration_s: DEFAULT_DURATION_S, sha256: fallbackResult.sha256 };
-              export_error = null;
-              audio_export_available = true;
-              fallbackSucceeded = true;
-              console.log('[COMPOSE_EXPORT] dev-only fallback local_wav exportKey=', fallbackExportKey.slice(0, 16) + '...');
-            } catch (fallbackErr) {
-              console.log('[COMPOSE_EXPORT] local_wav fallback failed:', fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr));
-            }
-          }
-          if (!fallbackSucceeded) {
-            if (code === 'INCOMPLETE_WAV_PAYLOAD') {
-              export_error = 'incomplete_wav_payload';
-            } else if (export_error == null) {
-              if (exportStep === 'provider') export_error = 'provider_not_configured';
-              else if (exportStep === 'render') export_error = 'render_failed';
-              else export_error = 'storage_unavailable';
-            }
-            const failureClass = exportStep === 'store' ? 'C' : 'B';
-            const errReason = (err as Error & { reason?: string }).reason;
-            const catchDebug: Record<string, unknown> = {
-              export_failure: failureClass,
-              step: exportStep,
-              message: err.message,
-              ...(code ? { code } : {}),
-              ...(code === 'INCOMPLETE_WAV_PAYLOAD'
-                ? { reason: typeof errReason === 'string' && errReason ? errReason : 'provider_payload_truncated' }
-                : {}),
-            };
-            // Preserve duration-gate diagnostics (do not overwrite measured_duration_s / reason)
-            if (
-              export_error === 'invalid_duration' &&
-              audioDebug &&
-              typeof audioDebug === 'object' &&
-              (audioDebug as { code?: string }).code === 'INVALID_WAV_DURATION'
-            ) {
-              Object.assign(audioDebug as object, catchDebug);
-            } else {
-              audioDebug = catchDebug;
-            }
-            if (!(global as any).__wav_export_unavailable_logged) {
-              console.warn('[COMPOSE] Render unavailable:', err.message, code ? `code=${code}` : '');
-              if (process.env.DEBUG_WAV === '1' && err.stack) console.warn('[COMPOSE] Render stack:', err.stack);
-              (global as any).__wav_export_unavailable_logged = true;
-            }
-          }
-        }
-      } else {
-        console.log('[COMPOSE_EXPORT] wavExportEnabled=false, ENABLE_WAV_EXPORT=', process.env.ENABLE_WAV_EXPORT);
-        audioDebug = { export_failure: 'A', message: 'wavExportEnabled is false' };
-        if (!(global as any).__wav_export_unavailable_logged) {
-          console.warn('[COMPOSE] WAV export disabled (set ENABLE_WAV_EXPORT=1 to enable)');
-          (global as any).__wav_export_unavailable_logged = true;
-        }
-      }
+      const wavBundle = await runLyriaAlignedExportBlock(
+        (buf, sec) => this.validateRenderedWavDuration(buf, sec),
+        { plan, architecture, featureVec, payload }
+      );
+      const audio = wavBundle.audio;
+      let audio_export_available = wavBundle.audio_export_available;
+      let export_id = wavBundle.export_id;
+      let export_meta = wavBundle.export_meta;
+      const export_attempted = wavBundle.export_attempted;
+      let export_error: ExportErrorCode | null = wavBundle.export_error;
+      let audioDebug: any = wavBundle.audioDebug;
 
       const targetLengthSec = DEFAULT_DURATION_S;
       
@@ -1035,95 +803,133 @@ export class ComposeAPI {
   }
 
   /**
-   * Compose from a pre-computed feature vector and payload (for compatibility / comparison flow).
-   * Same pipeline as compose(): plan → gates → explainer → optional WAV. Does not touch cache.
-   * Used by POST /api/comparisons only; /api/compose is unchanged.
+   * Phase B — unified aggregate composition (comparison + group composite).
+   * Plan context reductions + ExplainSpec + same Lyria/export path as snapshot compose.
    */
-  async composeFromFeatures(
-    featureVec: FeatureVec,
-    payload: ControlSurfacePayload
-  ): Promise<{
-    compose_kind: 'group_aggregate_legacy';
-    plan: Plan;
-    planHash: string;
-    gateReport: GateReport;
-    text: any;
-    explanation: { spec: string; sections: Array<{ title: string; text: string }> };
-    audio: { format: 'wav'; base64: string; sha256: string; latency_ms: number; size_bytes: number };
-    hashes: { control: string; audio: string; explanation: string; plan_sha256: string };
-  }> {
-    const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
+  async runAggregateComposition(input: AggregateCompositionInput): Promise<AggregateComposeResult> {
+    const payload = input.payload;
+    let planChartContext: Record<string, unknown>;
+    let architecture: ArchitectureOutput;
+    let featureVec: FeatureVec;
+
+    if (input.kind === 'comparison') {
+      planChartContext = buildComparisonPlanChartContext(payload, input.snapLow, input.snapHigh);
+      featureVec = input.merged;
+      architecture = buildArchitectureForAggregate(input.snapLow, featureVec, payload.hash);
+    } else {
+      planChartContext = buildGroupPlanChartContext(payload, input.snapshotsOrdered);
+      featureVec = input.composite;
+      architecture = buildArchitectureForAggregate(input.anchorSnapshot, featureVec, payload.hash);
+    }
+
+    const { plan, diag } = await generatePlanMLOnly(featureVec, planChartContext);
     if (!diag?.ml_used) {
       const err = new Error('ML inference unavailable; cannot serve plan or audio') as Error & { code?: string };
       err.code = 'ML_INFERENCE_UNAVAILABLE';
       throw err;
     }
     const gateReport = await this.runAuditionGates(plan, payload.hash);
-    const context: any = {
-      mode: 'sandbox',
-      session_id: this.generateSessionId(),
-      request_id: this.generateRequestId(),
-      chartHash: payload.hash, // composeFromFeatures doesn't have snapshot, use payload hash
-      featuresVersion: 'v1.0'
-    };
-    const base = (this.textExplainer as any).generateExplanation(payload, gateReport, context);
-    const text = base.text;
+    const planSummary = buildPlanSummary(plan);
 
-    const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
-    const stubAudio = {
-      format: 'wav' as const,
-      base64: '',
-      sha256: '',
-      latency_ms: 0,
-      size_bytes: 0
-    };
-    let audio: typeof stubAudio & { base64: string; sha256: string; latency_ms: number; size_bytes: number } = { ...stubAudio };
-    if (wavExportEnabled) {
-      try {
-        const mod = await import('../audio/wav-renderer');
-        const audioStartTime = process.hrtime.bigint();
-        const audioResult = mod.renderWav60s(plan, payload, payload.hash, {
-          sampleRate: 22050,
-          channels: 1,
-          bitDepth: 16
-        });
-        const audioEndTime = process.hrtime.bigint();
-        audio = {
-          format: 'wav',
-          base64: audioResult.buffer.toString('base64'),
-          sha256: audioResult.sha256,
-          latency_ms: Number((audioEndTime - audioStartTime) / BigInt(1_000_000)),
-          size_bytes: audioResult.size_bytes
-        };
-      } catch (_) {
-        // leave stub
-      }
+    let rendered: ReturnType<typeof renderExplainSpecToSections>;
+    if (input.kind === 'comparison') {
+      const aAstro = astroSummaryFromSnapshot(input.snapLow, input.vecLow);
+      const bAstro = astroSummaryFromSnapshot(input.snapHigh, input.vecHigh);
+      const clamp01n = (x: number) => Math.max(0, Math.min(1, x));
+      const elementBlendDiff = {
+        fire: Math.abs(clamp01n(input.vecLow[27] ?? 0) - clamp01n(input.vecHigh[27] ?? 0)),
+        earth: Math.abs(clamp01n(input.vecLow[28] ?? 0) - clamp01n(input.vecHigh[28] ?? 0)),
+        air: Math.abs(clamp01n(input.vecLow[29] ?? 0) - clamp01n(input.vecHigh[29] ?? 0)),
+        water: Math.abs(clamp01n(input.vecLow[30] ?? 0) - clamp01n(input.vecHigh[30] ?? 0)),
+      };
+      const tensionDiff = Math.abs((input.vecLow[32] ?? 0.5) - (input.vecHigh[32] ?? 0.5));
+      const clusteringDiff = Math.abs((input.vecLow[33] ?? 0.5) - (input.vecHigh[33] ?? 0.5));
+      const dominantPlanetOverlap = aAstro.dominant_planets.filter((p) => bAstro.dominant_planets.includes(p));
+
+      const spec = buildExplainSpecComparison({
+        seed: payload.hash,
+        a: {
+          snapshot: input.snapLow,
+          featureVec: input.vecLow,
+          guidanceSummary: guidanceSummaryFromFeatureVec(input.vecLow),
+          plan,
+          planSummary,
+        },
+        b: {
+          snapshot: input.snapHigh,
+          featureVec: input.vecHigh,
+          guidanceSummary: guidanceSummaryFromFeatureVec(input.vecHigh),
+          plan,
+          planSummary,
+        },
+        delta: { elementBlendDiff, tensionDiff, clusteringDiff, dominantPlanetOverlap },
+        gateReport,
+      });
+      rendered = renderExplainSpecToSections(spec);
+    } else {
+      const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
+      const spec = buildExplainSpecSingle({
+        seed: payload.hash,
+        snapshot: input.anchorSnapshot,
+        featureVec,
+        guidanceSummary,
+        plan,
+        planSummary,
+        gateReport,
+      });
+      rendered = renderExplainSpecToSections(spec);
     }
+
+    const signaturesText = rendered.sections.find((s) => s.id === 'signatures')?.text || '';
+    const significanceText = rendered.sections.find((s) => s.id === 'significance')?.text || '';
+    const musicalSection = rendered.sections.find((s) => s.id === 'musical');
+    const musicalText = musicalSection?.text || '';
+    const musicalBullets = musicalSection?.bullets || [];
+
+    const text = {
+      short: signaturesText,
+      long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
+      bullets: musicalBullets,
+      template_id: 'explainspec-aggregate-v1',
+      signatures: signaturesText,
+      significance: significanceText,
+      musicalParagraph: musicalText,
+      musicalBullets,
+    };
+
+    const wavBundle = await runLyriaAlignedExportBlock(
+      (buf, sec) => this.validateRenderedWavDuration(buf, sec),
+      { plan, architecture, featureVec, payload }
+    );
 
     const explanation = {
       spec: 'UnifiedSpecV1.1',
       sections: [
         { title: 'Theme', text: (text as any)?.short ?? '' },
         { title: 'Details', text: (text as any)?.long ?? '' },
-        { title: 'Bullets', text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '' }
-      ]
+        {
+          title: 'Bullets',
+          text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '',
+        },
+      ],
     };
     const planHash = computePlanHash(plan);
     const hashes = {
       control: 'sha256:' + this.sha256(JSON.stringify(payload)),
-      audio: audio.sha256,
+      audio: wavBundle.audio.sha256,
       explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
-      plan_sha256: planHash
+      plan_sha256: planHash,
     };
+
     return {
-      compose_kind: 'group_aggregate_legacy' as const,
+      compose_kind: input.kind === 'comparison' ? 'comparison_aggregate' : 'group_aggregate',
       plan,
       planHash,
       gateReport,
       text,
       explanation,
-      audio,
-      hashes
+      audio: wavBundle.audio,
+      hashes,
     };
   }
 
@@ -2030,7 +1836,7 @@ export class ComposeAPI {
 
 // Export handler function for server integration
 const composeAPI = new ComposeAPI();
-/** Singleton for compat/comparison flow only (composeFromFeatures). Do not use from /api/compose. */
+/** Singleton for compose + aggregate surfaces (runAggregateComposition). Do not duplicate. */
 export { composeAPI };
 
 export async function vnextCompose(req: any, res: any) {

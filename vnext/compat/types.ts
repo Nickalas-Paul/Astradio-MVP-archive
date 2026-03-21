@@ -41,6 +41,9 @@ export const FUSION_METHOD_BLEND_V1 = 'blend_v1' as const;
 export interface FusionParams {
   wA: number;
   wB: number;
+  /** Phase B epoch marker for comparison compose */
+  compose_algorithm_version?: string;
+  compose_skipped?: boolean;
 }
 
 export interface CompatibilityTextStructured {

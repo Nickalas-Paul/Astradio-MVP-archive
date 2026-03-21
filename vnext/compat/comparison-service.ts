@@ -1,6 +1,6 @@
 /**
  * Community Compatibility V1 — comparison generation.
- * Uses architecture-engine (fetch once per chart, then generateArchitectureFromSnapshot) + mergeFeatureVectors + composeFromFeatures only.
+ * Architecture-engine per chart + mergeFeatureVectors + unified aggregate compose runner.
  */
 
 import { fetchChartSnapshot, generateArchitectureFromSnapshot, type ChartInput } from '../core/architecture-engine';
@@ -12,6 +12,9 @@ import * as storage from './storage';
 import type { Chart, ChartBInline, Comparison, CompatibilityTextStructured, RelationshipMode } from './types';
 import { FUSION_METHOD_BLEND_V1 } from './types';
 import * as crypto from 'crypto';
+
+const COMPOSE_SKIPPED_SENTINEL = '__compose_skipped__';
+export const COMPARISON_COMPOSE_ALGORITHM_VERSION = 'comparison_compose_v2';
 
 function chartToChartInput(chart: Chart): ChartInput {
   return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
@@ -50,7 +53,6 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     : await resolveChartOrInline({ chartInline: input.chartBInline! });
   if (!chartB) throw new Error(`Chart not found: ${input.chartBId}`);
 
-  // Single snapshot fetch per chart per request
   const [snapA, snapB] = await Promise.all([
     fetchChartSnapshot(chartToChartInput(chartA)),
     fetchChartSnapshot(chartToChartInput(chartB)),
@@ -67,7 +69,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
   const merged = mergeFeatureVectors(vecA, vecB, {
     relationshipMode: input.relationshipMode,
     wA,
-    wB
+    wB,
   });
 
   const seed = comparisonSeed(
@@ -80,26 +82,76 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
   );
   const payload = controlPayloadFromSeed(seed);
 
-  const result = await composeAPI.composeFromFeatures(merged as import('../contracts').FeatureVec, payload);
+  const genCompose = input.generateComposition !== false;
+
+  if (!genCompose) {
+    const compatText: CompatibilityTextStructured = { short: '', long: '', bullets: [] };
+    const comparison = await storage.createComparison({
+      chartAId: chartA.id,
+      chartBId: chartB.id,
+      seekerChartId: chartA.id,
+      targetChartId: chartB.id,
+      relationshipMode: input.relationshipMode,
+      fusionMethod: FUSION_METHOD_BLEND_V1,
+      fusionParams: {
+        wA,
+        wB,
+        compose_algorithm_version: COMPARISON_COMPOSE_ALGORITHM_VERSION,
+        compose_skipped: true,
+      },
+      mergedFeatureVector64: Array.from(merged),
+      mergedFeatureHash: mergedFeatureHash(merged),
+      compatibilityText: compatText,
+      planHash: COMPOSE_SKIPPED_SENTINEL,
+      compositionId: COMPOSE_SKIPPED_SENTINEL,
+      createdBy: input.createdBy,
+    });
+    return {
+      comparison,
+      planHash: '',
+      compositionId: '',
+    };
+  }
+
+  const idLow = chartA.id.localeCompare(chartB.id, 'en') <= 0 ? chartA.id : chartB.id;
+  const idHigh = chartA.id.localeCompare(chartB.id, 'en') <= 0 ? chartB.id : chartA.id;
+  const snapLow = idLow === chartA.id ? snapA : snapB;
+  const snapHigh = idHigh === chartA.id ? snapA : snapB;
+  const vecLow = idLow === chartA.id ? vecA : vecB;
+  const vecHigh = idHigh === chartA.id ? vecA : vecB;
+
+  const result = await composeAPI.runAggregateComposition({
+    kind: 'comparison',
+    chartIdLow: idLow,
+    chartIdHigh: idHigh,
+    snapLow,
+    snapHigh,
+    vecLow: vecLow as import('../contracts').FeatureVec,
+    vecHigh: vecHigh as import('../contracts').FeatureVec,
+    merged: merged as import('../contracts').FeatureVec,
+    payload,
+  });
 
   const compatText: CompatibilityTextStructured = {
     short: (result.text as any)?.short ?? '',
     long: (result.text as any)?.long ?? '',
-    bullets: Array.isArray((result.text as any)?.bullets) ? (result.text as any).bullets : []
+    bullets: Array.isArray((result.text as any)?.bullets) ? (result.text as any).bullets : [],
   };
 
   const comparison = await storage.createComparison({
     chartAId: chartA.id,
     chartBId: chartB.id,
+    seekerChartId: chartA.id,
+    targetChartId: chartB.id,
     relationshipMode: input.relationshipMode,
     fusionMethod: FUSION_METHOD_BLEND_V1,
-    fusionParams: { wA, wB },
+    fusionParams: { wA, wB, compose_algorithm_version: COMPARISON_COMPOSE_ALGORITHM_VERSION },
     mergedFeatureVector64: Array.from(merged),
     mergedFeatureHash: mergedFeatureHash(merged),
     compatibilityText: compatText,
     planHash: result.planHash,
     compositionId: result.planHash,
-    createdBy: input.createdBy
+    createdBy: input.createdBy,
   });
 
   return {
@@ -107,6 +159,6 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     planHash: result.planHash,
     compositionId: result.planHash,
     audioBase64: result.audio?.base64 || undefined,
-    explanation: result.explanation
+    explanation: result.explanation,
   };
 }

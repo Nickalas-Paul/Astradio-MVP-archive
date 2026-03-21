@@ -595,6 +595,7 @@ function createRelationalRouter(): import('express').Router {
     const body = req.body || {};
     const groupId = typeof body.groupId === 'string' ? body.groupId.trim() : '';
     const chartIdsInput = Array.isArray(body.chartIds) ? body.chartIds : undefined;
+    const generateComposition = (body as { generateComposition?: boolean }).generateComposition;
 
     if (!groupId && (!chartIdsInput || !chartIdsInput.length)) {
       return res.status(400).json({
@@ -618,7 +619,10 @@ function createRelationalRouter(): import('express').Router {
         chartIds = (ids as string[]).map((id) => id.trim());
       }
 
-      const result = await composeGroupFromChartIds(chartIds, { groupId: groupId || undefined });
+      const result = await composeGroupFromChartIds(chartIds, {
+        groupId: groupId || undefined,
+        generateComposition: generateComposition === false ? false : undefined,
+      });
       return res.status(200).json(result);
     } catch (e: unknown) {
       const err = e as Error;
