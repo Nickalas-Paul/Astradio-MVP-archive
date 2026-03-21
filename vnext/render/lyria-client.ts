@@ -28,6 +28,186 @@ function riffDeclaredEnd(buf: Buffer): number | null {
   return 8 + riffSize;
 }
 
+/** Matches compose Lyria export gate (do not widen policy here). */
+const LYRIA_EXPORT_DURATION_MIN_S = 27;
+const LYRIA_EXPORT_DURATION_MAX_S = 40;
+
+const MAX_CHUNK_BODY_BYTES = 256 * 1024 * 1024;
+const MAX_CHUNKS = 64;
+
+type FmtInfo = {
+  audioFormat: number;
+  numChannels: number;
+  sampleRate: number;
+  byteRate: number;
+  blockAlign: number;
+  bitsPerSample: number;
+};
+
+type WavLayoutScan =
+  | {
+      ok: true;
+      fmt: FmtInfo;
+      dataHeaderOffset: number;
+      declaredDataSize: number;
+      actualPcmBytes: number;
+      declaredRiffPayloadSize: number;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Scan RIFF/WAVE for fmt + data; tolerate declared sizes past EOF (provider stale headers).
+ * Assumes PCM in `data` runs to end of buffer (data is last relevant chunk for Lyria output).
+ */
+function scanWavLayoutForNormalize(buf: Buffer): WavLayoutScan {
+  if (!isRiffWavePrefix(buf) || buf.length < 12) {
+    return { ok: false, reason: 'not_riff_wave' };
+  }
+
+  const declaredRiffPayloadSize = buf.readUInt32LE(4);
+  let fmt: FmtInfo | null = null;
+  let dataHeaderOffset = -1;
+  let declaredDataSize = 0;
+
+  let i = 12;
+  let chunkIndex = 0;
+
+  while (i + 8 <= buf.length && chunkIndex < MAX_CHUNKS) {
+    const chunkId = buf.toString('ascii', i, i + 4);
+    const chunkSize = buf.readUInt32LE(i + 4);
+    if (chunkSize > MAX_CHUNK_BODY_BYTES) {
+      return { ok: false, reason: 'chunk_size_implausible' };
+    }
+    const bodyStart = i + 8;
+
+    if (chunkId === 'fmt ') {
+      if (chunkSize < 16 || bodyStart + 16 > buf.length) {
+        return { ok: false, reason: 'fmt_missing_or_truncated' };
+      }
+      fmt = {
+        audioFormat: buf.readUInt16LE(bodyStart),
+        numChannels: buf.readUInt16LE(bodyStart + 2),
+        sampleRate: buf.readUInt32LE(bodyStart + 4),
+        byteRate: buf.readUInt32LE(bodyStart + 8),
+        blockAlign: buf.readUInt16LE(bodyStart + 12),
+        bitsPerSample: buf.readUInt16LE(bodyStart + 14),
+      };
+    } else if (chunkId === 'data') {
+      dataHeaderOffset = i;
+      declaredDataSize = chunkSize;
+      break;
+    }
+
+    const bodyEnd = bodyStart + chunkSize;
+    if (bodyEnd > buf.length) {
+      return { ok: false, reason: 'truncated_before_data' };
+    }
+    i = bodyEnd + (chunkSize % 2);
+    chunkIndex++;
+  }
+
+  if (chunkIndex >= MAX_CHUNKS) {
+    return { ok: false, reason: 'too_many_chunks' };
+  }
+  if (!fmt) {
+    return { ok: false, reason: 'missing_fmt' };
+  }
+  if (dataHeaderOffset < 0) {
+    return { ok: false, reason: 'missing_data' };
+  }
+
+  const pcmStart = dataHeaderOffset + 8;
+  if (pcmStart > buf.length) {
+    return { ok: false, reason: 'data_header_past_eof' };
+  }
+  const actualPcmBytes = buf.length - pcmStart;
+
+  return {
+    ok: true,
+    fmt,
+    dataHeaderOffset,
+    declaredDataSize,
+    actualPcmBytes,
+    declaredRiffPayloadSize,
+  };
+}
+
+/** Loose sanity only; duration contract and frame alignment are enforced separately. */
+function fmtLooksLikeSanePcm(f: FmtInfo): boolean {
+  if (f.audioFormat !== 1) return false;
+  if (f.sampleRate < 8000 || f.sampleRate > 192000) return false;
+  if (f.blockAlign < 1 || f.blockAlign > 8192) return false;
+  const br = effectiveByteRate(f);
+  return br > 0 && Number.isFinite(br);
+}
+
+function effectiveByteRate(f: FmtInfo): number {
+  if (f.byteRate > 0 && Number.isFinite(f.byteRate)) return f.byteRate;
+  return f.sampleRate * f.blockAlign;
+}
+
+/**
+ * If provider WAV has valid fmt/data/PCM but stale RIFF or data chunk sizes, patch header to match actual bytes.
+ * Returns a new Buffer when repaired; otherwise null (caller keeps original and may fail elsewhere).
+ */
+function normalizeProviderWavHeaderSizes(buf: Buffer): Buffer | null {
+  const scan = scanWavLayoutForNormalize(buf);
+  if (!scan.ok) {
+    return null;
+  }
+
+  const { fmt, dataHeaderOffset, declaredDataSize, actualPcmBytes, declaredRiffPayloadSize } = scan;
+
+  if (!fmtLooksLikeSanePcm(fmt)) {
+    return null;
+  }
+
+  const br = effectiveByteRate(fmt);
+  if (actualPcmBytes <= 0 || actualPcmBytes % fmt.blockAlign !== 0) {
+    return null;
+  }
+
+  const durationSec = actualPcmBytes / br;
+  if (!Number.isFinite(durationSec) || durationSec < LYRIA_EXPORT_DURATION_MIN_S || durationSec > LYRIA_EXPORT_DURATION_MAX_S) {
+    return null;
+  }
+
+  const correctRiffPayload = buf.length - 8;
+  const riffOverstated = declaredRiffPayloadSize !== correctRiffPayload;
+  const dataOverstated = declaredDataSize > actualPcmBytes;
+
+  if (!riffOverstated && !dataOverstated) {
+    return null;
+  }
+
+  if (declaredDataSize < actualPcmBytes) {
+    return null;
+  }
+
+  const out = Buffer.from(buf);
+  out.writeUInt32LE(correctRiffPayload, 4);
+  out.writeUInt32LE(actualPcmBytes, dataHeaderOffset + 4);
+
+  try {
+    console.log(
+      '[LYRIA_WAV_HEADER_NORMALIZED]',
+      JSON.stringify({
+        file_length: out.length,
+        riff_payload_was: declaredRiffPayloadSize,
+        riff_payload_now: correctRiffPayload,
+        data_declared_was: declaredDataSize,
+        data_declared_now: actualPcmBytes,
+        duration_s_approx: Math.round(durationSec * 1000) / 1000,
+        byte_rate: br,
+      })
+    );
+  } catch {
+    // best-effort only
+  }
+
+  return out;
+}
+
 type CandidateMetric = {
   path: string;
   base64Length: number;
@@ -307,8 +487,13 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     throw new Error(`Lyria response missing audio field. prediction keys: [${predKeys.join(', ')}]`);
   }
 
-  // No post-processing: Lyria output is used as-is (no concatenation, padding, or re-encode)
-  const wavBuffer = Buffer.from(base64Audio, 'base64');
+  // Base64 decode; optional provider-boundary repair of stale RIFF/data chunk sizes (no re-encode).
+  let wavBuffer = Buffer.from(base64Audio, 'base64');
+  const normalized = normalizeProviderWavHeaderSizes(wavBuffer);
+  if (normalized) {
+    wavBuffer = normalized;
+  }
+
   const decoded_length = wavBuffer.length;
   const expected_decoded_length = Math.floor(base64Audio.length * (3 / 4));
   let riff_size_field: number | null = null;
