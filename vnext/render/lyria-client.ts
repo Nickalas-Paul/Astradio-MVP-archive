@@ -488,10 +488,11 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
   }
 
   // Base64 decode; optional provider-boundary repair of stale RIFF/data chunk sizes (no re-encode).
-  let wavBuffer = Buffer.from(base64Audio, 'base64');
+  let wavBuffer: Buffer = Buffer.from(base64Audio, 'base64');
   const normalized = normalizeProviderWavHeaderSizes(wavBuffer);
   if (normalized) {
-    wavBuffer = normalized;
+    // Avoid TS2322 Buffer<ArrayBufferLike> vs Buffer<ArrayBuffer> under strict @types/node generics.
+    wavBuffer = normalized as Buffer;
   }
 
   const decoded_length = wavBuffer.length;
