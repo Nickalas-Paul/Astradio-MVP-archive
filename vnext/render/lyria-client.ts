@@ -65,7 +65,7 @@ function collectStringCandidates(pred: Record<string, unknown>): { path: string;
   return out;
 }
 
-function scoreCandidate(path: string, base64: string): CandidateMetric | null {
+function scoreCandidate(path: string, base64: string): CandidateMetric {
   const buf = Buffer.from(base64, 'base64');
   const decodedLength = buf.length;
   const expectedDecodedApprox = Math.floor(base64.length * (3 / 4));
