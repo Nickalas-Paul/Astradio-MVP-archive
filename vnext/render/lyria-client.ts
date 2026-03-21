@@ -5,6 +5,103 @@
 
 const LYRIA_MODEL = 'lyria-002';
 
+/** Known Vertex / Lyria prediction fields that may carry base64 WAV. */
+const KNOWN_AUDIO_FIELD_ORDER = ['audioContent', 'bytesBase64Encoded', 'audio'] as const;
+
+function isRiffWavePrefix(buf: Buffer): boolean {
+  return (
+    buf.length >= 12 &&
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x41 &&
+    buf[10] === 0x56 &&
+    buf[11] === 0x45
+  );
+}
+
+function riffDeclaredEnd(buf: Buffer): number | null {
+  if (buf.length < 8) return null;
+  const riffSize = buf.readUInt32LE(4);
+  return 8 + riffSize;
+}
+
+type CandidateMetric = {
+  path: string;
+  base64Length: number;
+  decodedLength: number;
+  expectedDecodedApprox: number;
+  riffOk: boolean;
+  riffExpectedEnd: number | null;
+};
+
+function collectStringCandidates(pred: Record<string, unknown>): { path: string; value: string }[] {
+  const seen = new Set<string>();
+  const out: { path: string; value: string }[] = [];
+
+  const push = (path: string, value: string) => {
+    if (!value || seen.has(path)) return;
+    seen.add(path);
+    out.push({ path, value });
+  };
+
+  for (const k of KNOWN_AUDIO_FIELD_ORDER) {
+    const v = pred[k];
+    if (typeof v === 'string' && v.length > 0) push(k, v);
+  }
+
+  for (const [k, v] of Object.entries(pred)) {
+    if ((KNOWN_AUDIO_FIELD_ORDER as readonly string[]).includes(k)) continue;
+    if (typeof v === 'string' && v.length >= 1000) push(k, v);
+    else if (v && typeof v === 'object' && !Array.isArray(v)) {
+      for (const [k2, v2] of Object.entries(v as Record<string, unknown>)) {
+        if (typeof v2 === 'string' && v2.length >= 1000) push(`${k}.${k2}`, v2);
+      }
+    }
+  }
+
+  return out;
+}
+
+function scoreCandidate(path: string, base64: string): CandidateMetric | null {
+  const buf = Buffer.from(base64, 'base64');
+  const decodedLength = buf.length;
+  const expectedDecodedApprox = Math.floor(base64.length * (3 / 4));
+  const riffOk = isRiffWavePrefix(buf);
+  const riffExpectedEnd = riffOk ? riffDeclaredEnd(buf) : null;
+  return {
+    path,
+    base64Length: base64.length,
+    decodedLength,
+    expectedDecodedApprox,
+    riffOk,
+    riffExpectedEnd,
+  };
+}
+
+function pickBestAudioCandidate(metrics: CandidateMetric[]): CandidateMetric | null {
+  const wav = metrics.filter((m) => m.riffOk);
+  if (wav.length === 0) return null;
+
+  const priorityRank = (path: string): number => {
+    const idx = (KNOWN_AUDIO_FIELD_ORDER as readonly string[]).indexOf(path.split('.')[0] || path);
+    return idx === -1 ? 999 : idx;
+  };
+
+  wav.sort((a, b) => {
+    // Prefer complete payload (decoded covers RIFF-declared size), then longest decode, then known field order.
+    const aComplete = a.riffExpectedEnd != null && a.decodedLength >= a.riffExpectedEnd ? 1 : 0;
+    const bComplete = b.riffExpectedEnd != null && b.decodedLength >= b.riffExpectedEnd ? 1 : 0;
+    if (aComplete !== bComplete) return bComplete - aComplete;
+    if (b.decodedLength !== a.decodedLength) return b.decodedLength - a.decodedLength;
+    return priorityRank(a.path) - priorityRank(b.path);
+  });
+
+  return wav[0] ?? null;
+}
+
 export interface LyriaPredictInput {
   prompt: string;
   seed: number;
@@ -119,10 +216,46 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
   const pred = predictions[0];
   const predObj = pred && typeof pred === 'object' ? (pred as Record<string, unknown>) : undefined;
 
-  // Extract base64 audio from whichever field is present (priority order)
+  const predKeys = predObj ? Object.keys(predObj) : [];
+
+  // Length-only audit of every string field on predictions[0] (and long nested strings); no base64 in logs.
+  const candidate_lengths: Record<string, number | null> = {};
+  if (predObj) {
+    for (const [k, v] of Object.entries(predObj)) {
+      if (typeof v === 'string') candidate_lengths[k] = v.length;
+      else candidate_lengths[k] = null;
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        for (const [k2, v2] of Object.entries(v as Record<string, unknown>)) {
+          const pk = `${k}.${k2}`;
+          if (typeof v2 === 'string') candidate_lengths[pk] = v2.length;
+          else candidate_lengths[pk] = null;
+        }
+      }
+    }
+  }
+
+  const candidates = predObj ? collectStringCandidates(predObj) : [];
+  const metrics: CandidateMetric[] = [];
+  for (const { path, value } of candidates) {
+    const m = scoreCandidate(path, value);
+    if (m) metrics.push(m);
+  }
+
+  const best = pickBestAudioCandidate(metrics);
+
   let base64Audio: string | undefined;
   let selected_field: string | undefined;
-  if (predObj) {
+
+  if (best && predObj) {
+    const chosen = candidates.find((c) => c.path === best.path);
+    if (chosen) {
+      base64Audio = chosen.value;
+      selected_field = best.path;
+    }
+  }
+
+  // Fallback: legacy priority if nothing decodes as RIFF/WAVE (same keys as before)
+  if (!base64Audio && predObj) {
     if (typeof predObj.audioContent === 'string') {
       base64Audio = predObj.audioContent;
       selected_field = 'audioContent';
@@ -135,10 +268,31 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     }
   }
 
+  try {
+    console.log(
+      '[LYRIA_FIELD_AUDIT]',
+      JSON.stringify({
+        keys: predKeys,
+        candidate_lengths,
+        candidate_metrics: metrics.map((m) => ({
+          path: m.path,
+          base64Length: m.base64Length,
+          decodedLength: m.decodedLength,
+          expectedDecodedApprox: m.expectedDecodedApprox,
+          riffOk: m.riffOk,
+          riffExpectedEnd: m.riffExpectedEnd,
+          complete: m.riffExpectedEnd != null && m.decodedLength >= m.riffExpectedEnd,
+        })),
+        selected_field: selected_field ?? null,
+      })
+    );
+  } catch {
+    // best-effort only
+  }
+
   if (!base64Audio) {
     // Safe response-shape logging (no payload, no base64, no credentials)
     const topKeys = Object.keys(data);
-    const predKeys = predObj ? Object.keys(predObj) : [];
     const errInfo: Record<string, unknown> = {
       response_top_keys: topKeys,
       predictions_0_keys: predKeys,
@@ -164,6 +318,28 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     riff_expected_end = 8 + riff_size_field;
   }
   const buffer_length = decoded_length;
+
+  if (
+    isRiffWavePrefix(wavBuffer) &&
+    riff_expected_end != null &&
+    buffer_length < riff_expected_end
+  ) {
+    const truncErr = new Error(
+      `Lyria WAV payload truncated: buffer_length=${buffer_length} riff_expected_end=${riff_expected_end} field=${selected_field ?? '?'}`
+    ) as Error & {
+      code?: string;
+      reason?: string;
+      lyria_truncation?: { buffer_length: number; riff_expected_end: number; selected_field: string | undefined };
+    };
+    truncErr.code = 'INCOMPLETE_WAV_PAYLOAD';
+    truncErr.reason = 'provider_payload_truncated';
+    truncErr.lyria_truncation = {
+      buffer_length,
+      riff_expected_end,
+      selected_field,
+    };
+    throw truncErr;
+  }
 
   console.log('[LYRIA_RESPONSE_DIAGNOSTICS]', {
     http_status,
