@@ -106,16 +106,33 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     throw err;
   }
 
-  const data = (await res.json()) as Record<string, unknown>;
-  const pred = Array.isArray(data.predictions) ? data.predictions[0] : undefined;
+  const http_status = res.status;
+  const content_length_header = res.headers.get('content-length');
+  const transfer_encoding = res.headers.get('transfer-encoding');
+  const rawText = await res.text();
+  const raw_text_length = rawText.length;
+  const raw_byte_length = Buffer.byteLength(rawText, 'utf8');
+  const data = JSON.parse(rawText) as Record<string, unknown>;
+
+  const predictions = Array.isArray(data.predictions) ? data.predictions : [];
+  const predictions_count = predictions.length;
+  const pred = predictions[0];
   const predObj = pred && typeof pred === 'object' ? (pred as Record<string, unknown>) : undefined;
 
   // Extract base64 audio from whichever field is present (priority order)
   let base64Audio: string | undefined;
+  let selected_field: string | undefined;
   if (predObj) {
-    if (typeof predObj.audioContent === 'string') base64Audio = predObj.audioContent;
-    else if (typeof predObj.bytesBase64Encoded === 'string') base64Audio = predObj.bytesBase64Encoded;
-    else if (typeof predObj.audio === 'string') base64Audio = predObj.audio;
+    if (typeof predObj.audioContent === 'string') {
+      base64Audio = predObj.audioContent;
+      selected_field = 'audioContent';
+    } else if (typeof predObj.bytesBase64Encoded === 'string') {
+      base64Audio = predObj.bytesBase64Encoded;
+      selected_field = 'bytesBase64Encoded';
+    } else if (typeof predObj.audio === 'string') {
+      base64Audio = predObj.audio;
+      selected_field = 'audio';
+    }
   }
 
   if (!base64Audio) {
@@ -138,6 +155,33 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
 
   // No post-processing: Lyria output is used as-is (no concatenation, padding, or re-encode)
   const wavBuffer = Buffer.from(base64Audio, 'base64');
+  const decoded_length = wavBuffer.length;
+  const expected_decoded_length = Math.floor(base64Audio.length * (3 / 4));
+  let riff_size_field: number | null = null;
+  let riff_expected_end: number | null = null;
+  if (wavBuffer.length >= 8) {
+    riff_size_field = wavBuffer.readUInt32LE(4);
+    riff_expected_end = 8 + riff_size_field;
+  }
+  const buffer_length = decoded_length;
+
+  console.log('[LYRIA_RESPONSE_DIAGNOSTICS]', {
+    http_status,
+    content_length_header,
+    transfer_encoding,
+    raw_text_length,
+    raw_byte_length,
+    predictions_count,
+    selected_field,
+    base64_typeof: typeof base64Audio,
+    base64_length: base64Audio.length,
+    decoded_length,
+    expected_decoded_length,
+    riff_size_field,
+    riff_expected_end,
+    buffer_length,
+  });
+
   const crypto = require('crypto') as typeof import('crypto');
   const sha256 = crypto.createHash('sha256').update(wavBuffer).digest('hex');
   return {
