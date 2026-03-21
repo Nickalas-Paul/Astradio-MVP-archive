@@ -417,7 +417,14 @@ export class ComposeAPI {
       let export_meta: { provider: string; modelVersion: string; promptHash: string; payload_hash: string; duration_s: number; sha256: string } | undefined;
 
       // Export gating signals (always present in response; no secrets)
-      type ExportErrorCode = 'export_disabled' | 'export_not_attempted' | 'storage_unavailable' | 'render_failed' | 'provider_not_configured' | 'invalid_duration';
+      type ExportErrorCode =
+        | 'export_disabled'
+        | 'export_not_attempted'
+        | 'storage_unavailable'
+        | 'render_failed'
+        | 'provider_not_configured'
+        | 'invalid_duration'
+        | 'incomplete_wav_payload';
       let export_attempted = false;
       let export_error: ExportErrorCode | null = wavExportEnabled ? null : 'export_disabled';
 
@@ -627,17 +634,23 @@ export class ComposeAPI {
             }
           }
           if (!fallbackSucceeded) {
-            if (export_error == null) {
+            if (code === 'INCOMPLETE_WAV_PAYLOAD') {
+              export_error = 'incomplete_wav_payload';
+            } else if (export_error == null) {
               if (exportStep === 'provider') export_error = 'provider_not_configured';
               else if (exportStep === 'render') export_error = 'render_failed';
               else export_error = 'storage_unavailable';
             }
             const failureClass = exportStep === 'store' ? 'C' : 'B';
+            const errReason = (err as Error & { reason?: string }).reason;
             const catchDebug: Record<string, unknown> = {
               export_failure: failureClass,
               step: exportStep,
               message: err.message,
               ...(code ? { code } : {}),
+              ...(code === 'INCOMPLETE_WAV_PAYLOAD'
+                ? { reason: typeof errReason === 'string' && errReason ? errReason : 'provider_payload_truncated' }
+                : {}),
             };
             // Preserve duration-gate diagnostics (do not overwrite measured_duration_s / reason)
             if (
