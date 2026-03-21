@@ -45,6 +45,9 @@ import { buildOverlayCanonicalInput } from '../adapters/overlay-compose-adapter'
 import { buildComparisonPlanChartContext, buildGroupPlanChartContext } from './plan-chart-context-reduction';
 import { buildArchitectureForAggregate } from './aggregate-architecture';
 import { runLyriaAlignedExportBlock, type ExportErrorCode } from './run-lyria-export-block';
+import type { RelationalWeatherStateV1 } from '../relational/weather/types';
+import { mergeRelationalWeatherIntoPlanChartContext } from '../relational/weather/merge-plan-context';
+import { buildRelationalWeatherExplainAnnex } from '../relational/weather/observational-text-v1';
 
 /** Phase B — aggregate surfaces (comparison + group) share one downstream runner. */
 export type AggregateCompositionInput =
@@ -58,6 +61,7 @@ export type AggregateCompositionInput =
       vecHigh: FeatureVec;
       merged: FeatureVec;
       payload: ControlSurfacePayload;
+      relationalWeather?: RelationalWeatherStateV1;
     }
   | {
       kind: 'group';
@@ -65,6 +69,7 @@ export type AggregateCompositionInput =
       snapshotsOrdered: EphemerisSnapshot[];
       composite: FeatureVec;
       payload: ControlSurfacePayload;
+      relationalWeather?: RelationalWeatherStateV1;
     };
 
 export type AggregateComposeResult = {
@@ -822,6 +827,10 @@ export class ComposeAPI {
       architecture = buildArchitectureForAggregate(input.anchorSnapshot, featureVec, payload.hash);
     }
 
+    if (input.relationalWeather) {
+      planChartContext = mergeRelationalWeatherIntoPlanChartContext(planChartContext, input.relationalWeather);
+    }
+
     const { plan, diag } = await generatePlanMLOnly(featureVec, planChartContext);
     if (!diag?.ml_used) {
       const err = new Error('ML inference unavailable; cannot serve plan or audio') as Error & { code?: string };
@@ -886,15 +895,24 @@ export class ComposeAPI {
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
 
+    const weatherAnnex =
+      input.kind === 'group' && input.relationalWeather
+        ? buildRelationalWeatherExplainAnnex(input.relationalWeather)
+        : null;
+    const weatherBlock = weatherAnnex ? `\n\n${weatherAnnex.text}` : '';
+
     const text = {
       short: signaturesText,
-      long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
+      long: significanceText + (musicalText ? '\n\n' + musicalText : '') + weatherBlock,
       bullets: musicalBullets,
-      template_id: 'explainspec-aggregate-v1',
+      template_id: weatherAnnex ? 'explainspec-aggregate-relational-weather-v1' : 'explainspec-aggregate-v1',
       signatures: signaturesText,
       significance: significanceText,
       musicalParagraph: musicalText,
       musicalBullets,
+      relational_weather_v1: weatherAnnex
+        ? { stateHash: input.relationalWeather!.stateHash, sectionId: weatherAnnex.sectionId }
+        : undefined,
     };
 
     const wavBundle = await runLyriaAlignedExportBlock(
@@ -902,16 +920,21 @@ export class ComposeAPI {
       { plan, architecture, featureVec, payload }
     );
 
+    const explanationSections: Array<{ title: string; text: string }> = [
+      { title: 'Theme', text: (text as any)?.short ?? '' },
+      { title: 'Details', text: (text as any)?.long ?? '' },
+      {
+        title: 'Bullets',
+        text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '',
+      },
+    ];
+    if (weatherAnnex) {
+      explanationSections.push({ title: weatherAnnex.title, text: weatherAnnex.text });
+    }
+
     const explanation = {
       spec: 'UnifiedSpecV1.1',
-      sections: [
-        { title: 'Theme', text: (text as any)?.short ?? '' },
-        { title: 'Details', text: (text as any)?.long ?? '' },
-        {
-          title: 'Bullets',
-          text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '',
-        },
-      ],
+      sections: explanationSections,
     };
     const planHash = computePlanHash(plan);
     const hashes = {

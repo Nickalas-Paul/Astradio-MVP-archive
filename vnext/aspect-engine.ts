@@ -8,7 +8,8 @@ import { bodyOrderIndex } from './canonical-bodies';
 
 export type AspectTypeKey = 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
 
-const ASPECT_CONFIG: Record<
+/** Exported for Stage 7 cross-chart (transit×natal) aspect detection — keep in sync with computeAspects. */
+export const ASPECT_CONFIG: Record<
   AspectTypeKey,
   { angle: number; orb: number; dynamics: 'amplifying' | 'supportive' | 'tense' | 'flowing' | 'polarizing' }
 > = {
@@ -34,7 +35,7 @@ export interface AspectResult {
 /**
  * Normalize angular difference to smallest arc [0, 180].
  */
-function smallestArc(lon1: number, lon2: number): number {
+export function smallestArc(lon1: number, lon2: number): number {
   let d = Math.abs(((lon1 % 360) - (lon2 % 360) + 360) % 360);
   if (d > 180) d = 360 - d;
   return d;

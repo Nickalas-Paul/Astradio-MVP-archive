@@ -3,6 +3,10 @@ const express = require('express');
 
 const pgStore = require('../../lib/pg-store');
 const groupComposeAdapter = require('../../dist/vnext/vnext/relational/composition/group-compose-adapter');
+const { transitParamsToChartInput } = require('../../dist/vnext/vnext/relational/weather/transit-chart-input');
+const { fetchChartSnapshot } = require('../../dist/vnext/vnext/core/architecture-engine');
+const { resolveRelationalConnectionFromChartIds } = require('../../dist/vnext/vnext/relational/resolve-relational-connection-context');
+const { computeRelationalWeatherV1 } = require('../../dist/vnext/vnext/relational/weather/compute-relational-weather-v1');
 
 function createStage4Router() {
   const router = express.Router({ mergeParams: true });
@@ -49,6 +53,83 @@ function createStage4Router() {
 
   function artifactHashFromPayload(payload) {
     return crypto.createHash('sha256').update(canonicalJson(payload), 'utf8').digest('hex');
+  }
+
+  function buildCommunityFeedItemV1(weather, kind, bindingId, chartIdsOrdered) {
+    return {
+      weatherVersion: 'relational_weather_v1',
+      kind,
+      bindingId,
+      chartIdsOrdered,
+      transit: weather.transit,
+      weather: {
+        stateHash: weather.stateHash,
+        activation: weather.activation,
+        score: weather.score,
+        themes: weather.themes.dominantThemes,
+      },
+    };
+  }
+
+  async function runRelationalForecast(req, res, { kind, bindingId, chartIds }) {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const transitDatetime = (req.query.transitDatetime || '').toString().trim();
+      if (!transitDatetime) {
+        return res.status(400).json({ error: 'validation_error', code: 'TRANSIT_DATETIME_REQUIRED' });
+      }
+      const transitLat = Number.parseFloat(String(req.query.transitLatitude));
+      const transitLon = Number.parseFloat(String(req.query.transitLongitude));
+      const transitTimezone = (req.query.transitTimezone || 'UTC').toString().trim();
+      const chartInput = transitParamsToChartInput({
+        transitDatetime,
+        transitLatitude: transitLat,
+        transitLongitude: transitLon,
+        transitTimezone,
+      });
+      const owned = await assertOwnedCharts(ownerUserId, chartIds);
+      if (!owned) return res.status(404).json({ error: 'not_found' });
+
+      const transitSnapshot = await fetchChartSnapshot(chartInput);
+      const ctx = await resolveRelationalConnectionFromChartIds(chartIds, bindingId);
+      const weather = computeRelationalWeatherV1({
+        connection: { kind, bindingId, chartIdsOrdered: ctx.chartIdsOrdered },
+        transit: transitSnapshot,
+        memberSnapshotsOrdered: ctx.natalSnapshotsOrdered,
+        vectorHashes: ctx.provenance.vector_hashes,
+      });
+      const feedItem = buildCommunityFeedItemV1(weather, kind, bindingId, ctx.chartIdsOrdered);
+
+      const wantCompose = String(req.query.compose || '').trim() === '1';
+      let artifact = null;
+      if (wantCompose) {
+        const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, {
+          groupId: bindingId,
+          relationalWeather: weather,
+        });
+        artifact = {
+          planHash: composed.planHash,
+          compositionId: composed.compositionId,
+          text: composed.text,
+          audioBase64: composed.audioBase64,
+        };
+      }
+
+      return res.status(200).json({ weather, feedItem, artifact });
+    } catch (e) {
+      const msg = String(e?.message || '');
+      if (msg.includes('missing vectors') || e?.name === 'MissingVectorsError') {
+        return res.status(422).json({ error: 'missing_vectors' });
+      }
+      if (msg.includes('transitDatetime') || msg.includes('transitLatitude') || msg.includes('transitLongitude')) {
+        return res.status(400).json({ error: 'validation_error', message: msg });
+      }
+      if (e?.code === 'ML_INFERENCE_UNAVAILABLE') {
+        return res.status(503).json({ error: 'ml_unavailable', code: e.code });
+      }
+      return res.status(500).json({ error: e?.message || 'forecast_failed' });
+    }
   }
 
   // Memory mode is explicitly unsupported for Stage 4.
@@ -171,6 +252,25 @@ function createStage4Router() {
         return res.status(422).json({ error: 'missing_vectors' });
       }
       return res.status(500).json({ error: e?.message || 'Failed to build relationship composite' });
+    }
+  });
+
+  router.get('/relationships/:id/forecast', async (req, res) => {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const relationship = await pgStore.getRelationshipById(req.params.id);
+      if (!relationship || relationship.ownerUserId !== ownerUserId) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      const chartIds = [relationship.chartIdLow, relationship.chartIdHigh];
+      return runRelationalForecast(req, res, {
+        kind: 'pair',
+        bindingId: relationship.id,
+        chartIds,
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e?.message || 'forecast_failed' });
     }
   });
 
@@ -312,6 +412,27 @@ function createStage4Router() {
 
   router.get('/groups/:id/composite', buildGroupComposite);
   router.post('/groups/:id/composite', buildGroupComposite);
+
+  router.get('/groups/:id/forecast', async (req, res) => {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const group = await pgStore.getRelationalGroupById(req.params.id);
+      if (!group || group.ownerId !== ownerUserId) return res.status(404).json({ error: 'not_found' });
+      const members = await pgStore.listRelationalGroupMembers(req.params.id, ownerUserId);
+      if (!members || members.length === 0) {
+        return res.status(400).json({ error: 'validation_error', code: 'GROUP_EMPTY' });
+      }
+      const chartIds = Array.from(new Set(members.map((m) => m.chartId))).sort((a, b) => a.localeCompare(b, 'en'));
+      return runRelationalForecast(req, res, {
+        kind: 'group',
+        bindingId: req.params.id,
+        chartIds,
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e?.message || 'forecast_failed' });
+    }
+  });
 
   return router;
 }
