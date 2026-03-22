@@ -24,7 +24,7 @@ function PairWeatherPreview({
     if (!relationshipId || !userId) return;
     const ac = new AbortController();
     const qs = new URLSearchParams({
-      transitDatetime: new Date().toISOString().slice(0, 19),
+      transitDatetime: new Date().toISOString(),
       transitLatitude: '0',
       transitLongitude: '0',
       transitTimezone: 'UTC',
