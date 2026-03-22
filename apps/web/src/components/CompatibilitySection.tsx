@@ -19,6 +19,10 @@ interface CompatibilitySectionProps {
   /** Optional controlled mode (e.g. from Connections intent selector). */
   mode?: CompatMode;
   onModeChange?: (mode: CompatMode) => void;
+  /** Phase 8 — session user id for connection requests (not persisted until peer accepts). */
+  currentUserId?: string | null;
+  /** Called after a connection request is sent successfully. */
+  onConnectionRequested?: () => void;
 }
 
 const MODES: { value: CompatMode; label: string }[] = [
@@ -35,8 +39,12 @@ export function CompatibilitySection({
   onSwitchToProfile,
   mode: controlledMode,
   onModeChange,
+  currentUserId,
+  onConnectionRequested,
 }: CompatibilitySectionProps) {
   const [internalMode, setInternalMode] = useState<CompatMode>('friend');
+  const [requestBusy, setRequestBusy] = useState<string | null>(null);
+  const [requestMsg, setRequestMsg] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { matches, isLoading: loading, error, refresh } = useCompat({
@@ -110,39 +118,49 @@ export function CompatibilitySection({
     );
   }
 
-  const handlePlayCompatibility = async (targetChartId: string, score: number) => {
-    trackFeatureUse('compatibility', 'play_mix');
-    
-    try {
-      // Generate two-chart composition for compatibility match
-      const base = getApiBaseUrl();
-      const response = await fetch(`${base || ''}/api/compose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'compatibility',
-          chartId1: chartId,
-          chartId2: targetChartId,
-          compatibilityScore: score,
-          seed: Date.now() // Use timestamp for unique composition
-        })
-      });
-      
-      const composition = await response.json();
-      
-      // Open two-chart composition with explainer and viz
-      console.log('Two-chart composition generated:', composition);
-      // TODO: Navigate to composition player or open modal
-      
-    } catch (error) {
-      console.error('Failed to generate compatibility composition:', error);
-    }
+  const handlePlayCompatibility = async (_targetChartId: string, _score: number) => {
+    trackFeatureUse('compatibility', 'play_mix_attempt_blocked_stage2');
+    console.warn('[CompatibilitySection] Play Mix is disabled in Stage 2; use /api/comparisons-only flow for compatibility.');
   };
 
   const handleViewRationale = (targetChartId: string) => {
     trackFeatureUse('compatibility', 'view_rationale');
     // TODO: Open rationale modal or navigate to detail page
     console.log('Viewing rationale for chart:', targetChartId);
+  };
+
+  const handleRequestConnection = async (match: { userId: string; chartId: string }) => {
+    if (!chartId || !currentUserId) {
+      setRequestMsg('Sign in and ensure your chart is set to request a connection.');
+      return;
+    }
+    setRequestBusy(match.chartId);
+    setRequestMsg(null);
+    try {
+      trackFeatureUse('compatibility', 'connection_request');
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/connect-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          toUserId: match.userId,
+          fromChartId: chartId,
+          toChartId: match.chartId,
+          label: 'Connection',
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setRequestMsg(typeof j.error === 'string' ? j.error : `Request failed (${r.status})`);
+        return;
+      }
+      setRequestMsg('Request sent. They must accept before it appears in Saved connections.');
+      onConnectionRequested?.();
+    } catch (e) {
+      setRequestMsg(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setRequestBusy(null);
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -228,7 +246,9 @@ export function CompatibilitySection({
   return (
     <div className={`card ${className}`}>
       {header}
-      
+      {requestMsg && (
+        <p className="text-sm text-subtext mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">{requestMsg}</p>
+      )}
       <div className="space-y-4">
         {matches.map((match, index) => (
           <motion.div
@@ -311,14 +331,24 @@ export function CompatibilitySection({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
+                type="button"
+                onClick={() => handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
+                disabled={!currentUserId || requestBusy === match.chartId}
+                className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-sm font-medium hover:bg-emerald/30 disabled:opacity-50"
+              >
+                {requestBusy === match.chartId ? 'Sending…' : 'Request connection'}
+              </button>
+              <button
+                type="button"
                 onClick={() => handlePlayCompatibility(match.chartId, match.score)}
-                className="flex-1 btn-primary text-sm py-2"
+                className="flex-1 min-w-[120px] btn-primary text-sm py-2"
               >
                 Play Mix
               </button>
               <button
+                type="button"
                 onClick={() => handleViewRationale(match.chartId)}
                 className="px-3 py-2 bg-bgElev text-subtext rounded-lg hover:bg-border transition-colors text-sm"
               >

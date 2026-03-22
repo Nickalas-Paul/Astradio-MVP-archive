@@ -9,6 +9,15 @@ const store = require('../../lib/community-store');
 const path = require('path');
 const { optionalRequire } = require('../../lib/opt/optional');
 
+let pgStore = null;
+try {
+  if (process.env.POSTGRES_URL) {
+    pgStore = require('../../lib/pg-store');
+  }
+} catch (_) {
+  pgStore = null;
+}
+
 const vnextRoot = path.join(__dirname, '..', '..', 'dist', 'vnext', 'vnext');
 const communityGroupsMod = optionalRequire(path.join(vnextRoot, 'api', 'community-groups'));
 
@@ -129,18 +138,165 @@ router.post('/community/post', communityPostLimiter, async (req, res) => {
   }
 });
 
-// POST /api/community/connect-intent — stub: create connection intent (body: fromUserId, toUserId, chartId?)
+// POST /api/community/connect-intent — Option B: request connection (fromChartId + toChartId + peers)
 router.post('/community/connect-intent', communityPostLimiter, async (req, res) => {
   try {
+    if (!pgStore) return res.status(501).json({ error: 'Connection intent storage unavailable' });
     const body = req.body || {};
-    const { fromUserId, toUserId, chartId } = body;
-    if (!fromUserId || !toUserId) return res.status(400).json({ error: 'fromUserId and toUserId required' });
-    const intent = await store.createConnectionIntent({ fromUserId, toUserId, chartId: chartId || null });
-    if (!intent) return res.status(501).json({ error: 'Connection intent storage unavailable' });
+    const fromUserId = (body.fromUserId && String(body.fromUserId).trim()) || '';
+    const toUserId = (body.toUserId && String(body.toUserId).trim()) || '';
+    const fromChartId = (body.fromChartId && String(body.fromChartId).trim()) || '';
+    const toChartId = (body.toChartId && String(body.toChartId).trim()) || '';
+    const label = (body.label && String(body.label).trim()) || 'Connection';
+    if (!fromUserId || !toUserId || !fromChartId || !toChartId) {
+      return res.status(400).json({ error: 'fromUserId, toUserId, fromChartId, and toChartId required' });
+    }
+    if (fromUserId === toUserId) return res.status(400).json({ error: 'cannot connect to self' });
+    const cFrom = await pgStore.getChart(fromChartId);
+    const cTo = await pgStore.getChart(toChartId);
+    if (!cFrom || !cTo) return res.status(404).json({ error: 'chart_not_found' });
+    if (cFrom.ownerId !== fromUserId) return res.status(403).json({ error: 'from_chart_not_owned' });
+    if (cTo.ownerId !== toUserId) return res.status(403).json({ error: 'to_chart_not_owned' });
+    const intent = await pgStore.createConnectionIntent({
+      fromUserId,
+      toUserId,
+      fromChartId,
+      toChartId,
+      label,
+    });
     return res.status(201).json(intent);
   } catch (e) {
     console.error('[community] POST /community/connect-intent', e);
     return res.status(500).json({ error: e?.message || 'Failed to create connection intent' });
+  }
+});
+
+// POST /api/community/connection-intents/:intentId/accept — recipient accepts → two relationship rows
+router.post('/community/connection-intents/:intentId/accept', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const intentId = (req.params.intentId || '').trim();
+    const body = req.body || {};
+    const userId = (body.userId && String(body.userId).trim()) || (await getDevUserId(req));
+    if (!userId) return res.status(401).json({ error: 'userId required' });
+    const result = await pgStore.acceptConnectionIntent(intentId, userId);
+    if (!result.ok) {
+      if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+      return res.status(400).json({ error: result.error || 'accept_failed' });
+    }
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('[community] POST /community/connection-intents/:id/accept', e);
+    return res.status(500).json({ error: e?.message || 'accept failed' });
+  }
+});
+
+// GET /api/community/connection-intents/incoming?userId=
+router.get('/community/connection-intents/incoming', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = (req.query.userId && String(req.query.userId).trim()) || (await getDevUserId(req));
+    const intents = await pgStore.listPendingIncomingConnectionIntents(userId);
+    return res.json({ intents });
+  } catch (e) {
+    console.error('[community] GET connection-intents/incoming', e);
+    return res.status(500).json({ error: e?.message || 'list failed' });
+  }
+});
+
+async function enrichRelationshipForViewer(rel, viewerUserId) {
+  const cLo = await pgStore.getChart(rel.chartIdLow);
+  const cHi = await pgStore.getChart(rel.chartIdHigh);
+  let peerUserId = null;
+  let peerChartId = null;
+  if (cLo && cHi) {
+    if (cLo.ownerId === viewerUserId && cHi.ownerId !== viewerUserId) {
+      peerChartId = rel.chartIdHigh;
+      peerUserId = cHi.ownerId;
+    } else if (cHi.ownerId === viewerUserId && cLo.ownerId !== viewerUserId) {
+      peerChartId = rel.chartIdLow;
+      peerUserId = cLo.ownerId;
+    }
+  }
+  let peerDisplayName;
+  let peerHandle;
+  if (peerUserId) {
+    const u = await pgStore.getUser(peerUserId);
+    peerDisplayName = u?.displayName;
+    peerHandle = u?.handle;
+  }
+  return {
+    ...rel,
+    peerUserId,
+    peerChartId,
+    peerDisplayName,
+    peerHandle,
+  };
+}
+
+// GET /api/community/inventory?userId= — canonical durable Community backbone (pairs, relational groups, campaigns, pending)
+router.get('/community/inventory', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'inventory requires postgres' });
+    const userId = (req.query.userId && String(req.query.userId).trim()) || (await getDevUserId(req));
+    const relationshipsRaw = await pgStore.listRelationshipsByOwner(userId);
+    const pairs = [];
+    for (const rel of relationshipsRaw) {
+      // eslint-disable-next-line no-await-in-loop
+      pairs.push(await enrichRelationshipForViewer(rel, userId));
+    }
+    const relationalGroups = await pgStore.listRelationalGroupsByOwner(userId);
+    const campaigns = await pgStore.listStage5CampaignsByOwnerOrParticipant(userId);
+    const pendingIncomingIntents = await pgStore.listPendingIncomingConnectionIntents(userId);
+    const pendingOutgoingIntents = await pgStore.listPendingOutgoingConnectionIntents(userId);
+    const pendingRelationalGroupInvites = await pgStore.listPendingRelationalGroupInvitesForInvitee(userId);
+
+    const feedSkeleton = [];
+    for (const p of pairs) {
+      feedSkeleton.push({
+        kind: 'pair',
+        bindingId: p.id,
+        sortAt: p.createdAt || p.updatedAt,
+        feedKey: `pair:${p.id}`,
+      });
+    }
+    for (const g of relationalGroups) {
+      feedSkeleton.push({
+        kind: 'relational_group',
+        bindingId: g.id,
+        sortAt: g.createdAt,
+        feedKey: `relational_group:${g.id}`,
+      });
+    }
+    for (const c of campaigns) {
+      feedSkeleton.push({
+        kind: 'campaign',
+        bindingId: c.campaignId,
+        sortAt: c.createdAt,
+        feedKey: `campaign:${c.campaignId}`,
+      });
+    }
+    feedSkeleton.sort((a, b) => {
+      const ta = new Date(a.sortAt || 0).getTime();
+      const tb = new Date(b.sortAt || 0).getTime();
+      if (tb !== ta) return tb - ta;
+      return String(a.feedKey).localeCompare(String(b.feedKey));
+    });
+
+    return res.json({
+      version: 'community_inventory_v1',
+      userId,
+      pairs,
+      relationalGroups,
+      campaigns,
+      pendingIncomingIntents,
+      pendingOutgoingIntents,
+      pendingRelationalGroupInvites,
+      feedSkeleton,
+    });
+  } catch (e) {
+    console.error('[community] GET /community/inventory', e);
+    return res.status(500).json({ error: e?.message || 'inventory failed' });
   }
 });
 

@@ -35,6 +35,34 @@ function createStage4Router() {
     return true;
   }
 
+  /** Option B: pair forecast/composite if owner holds a relationship row for this chart pair (post-accept). */
+  async function assertPairChartsAuthorizedForForecast(ownerUserId, chartIds) {
+    if (!chartIds || chartIds.length !== 2) return false;
+    if (await assertOwnedCharts(ownerUserId, chartIds)) return true;
+    const [a, b] = chartIds;
+    const lo = String(a).localeCompare(String(b), 'en') <= 0 ? a : b;
+    const hi = lo === a ? b : a;
+    const rel = await pgStore.findRelationshipByOwnerAndCharts(ownerUserId, lo, hi);
+    return !!rel;
+  }
+
+  /** Relational group: owner may run aggregate paths when member rows match chart set and each chart is owned by its member userId. */
+  async function assertGroupChartsAuthorizedForForecast(ownerUserId, groupId, chartIds) {
+    const group = await pgStore.getRelationalGroupById(groupId);
+    if (!group || group.ownerId !== ownerUserId) return false;
+    const members = await pgStore.listRelationalGroupMembers(groupId, ownerUserId);
+    if (!members || members.length === 0) return false;
+    const expected = Array.from(new Set(members.map((m) => m.chartId))).sort((a, b) => a.localeCompare(b, 'en'));
+    const got = Array.from(new Set(chartIds || [])).sort((a, b) => a.localeCompare(b, 'en'));
+    if (expected.length !== got.length || expected.some((id, i) => id !== got[i])) return false;
+    for (const m of members) {
+      // eslint-disable-next-line no-await-in-loop
+      const ch = await pgStore.getChart(m.chartId);
+      if (!ch || ch.ownerId !== m.userId) return false;
+    }
+    return true;
+  }
+
   function canonicalPair(chartAId, chartBId) {
     const a = String(chartAId || '').trim();
     const b = String(chartBId || '').trim();
@@ -88,8 +116,15 @@ function createStage4Router() {
         transitLongitude: transitLon,
         transitTimezone,
       });
-      const owned = await assertOwnedCharts(ownerUserId, chartIds);
-      if (!owned) return res.status(404).json({ error: 'not_found' });
+      let authorized = false;
+      if (kind === 'pair' && chartIds.length === 2) {
+        authorized = await assertPairChartsAuthorizedForForecast(ownerUserId, chartIds);
+      } else if (kind === 'group') {
+        authorized = await assertGroupChartsAuthorizedForForecast(ownerUserId, bindingId, chartIds);
+      } else {
+        authorized = await assertOwnedCharts(ownerUserId, chartIds);
+      }
+      if (!authorized) return res.status(404).json({ error: 'not_found' });
 
       const transitSnapshot = await fetchChartSnapshot(chartInput);
       const ctx = await resolveRelationalConnectionFromChartIds(chartIds, bindingId);
@@ -212,8 +247,8 @@ function createStage4Router() {
         return res.status(404).json({ error: 'not_found' });
       }
       const chartIds = [relationship.chartIdLow, relationship.chartIdHigh];
-      const owned = await assertOwnedCharts(ownerUserId, chartIds);
-      if (!owned) return res.status(404).json({ error: 'not_found' });
+      const okPair = await assertPairChartsAuthorizedForForecast(ownerUserId, chartIds);
+      if (!okPair) return res.status(404).json({ error: 'not_found' });
 
       const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, { groupId: relationship.id });
       const artifactPayload = {
@@ -367,8 +402,8 @@ function createStage4Router() {
       const members = await pgStore.listRelationalGroupMembers(req.params.id, ownerUserId);
       if (!members || members.length === 0) return res.status(400).json({ error: 'validation_error' });
       const chartIds = Array.from(new Set(members.map((m) => m.chartId))).sort((a, b) => a.localeCompare(b, 'en'));
-      const owned = await assertOwnedCharts(ownerUserId, chartIds);
-      if (!owned) return res.status(404).json({ error: 'not_found' });
+      const okGroup = await assertGroupChartsAuthorizedForForecast(ownerUserId, req.params.id, chartIds);
+      if (!okGroup) return res.status(404).json({ error: 'not_found' });
 
       const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, { groupId: req.params.id });
       const artifactPayload = {
@@ -431,6 +466,51 @@ function createStage4Router() {
       });
     } catch (e) {
       return res.status(500).json({ error: e?.message || 'forecast_failed' });
+    }
+  });
+
+  // POST /api/groups/:id/invites — owner invites a peer's chart into relational group (Option B group path)
+  router.post('/groups/:id/invites', async (req, res) => {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const groupId = req.params.id;
+      const group = await pgStore.getRelationalGroupById(groupId);
+      if (!group || group.ownerId !== ownerUserId) return res.status(404).json({ error: 'not_found' });
+      const { inviteeUserId, inviteeChartId } = req.body || {};
+      const iu = (inviteeUserId && String(inviteeUserId).trim()) || '';
+      const ic = (inviteeChartId && String(inviteeChartId).trim()) || '';
+      if (!iu || !ic) return res.status(400).json({ error: 'validation_error', message: 'inviteeUserId and inviteeChartId required' });
+      if (iu === ownerUserId) return res.status(400).json({ error: 'validation_error', message: 'cannot invite self' });
+      const chart = await pgStore.getChart(ic);
+      if (!chart || chart.ownerId !== iu) return res.status(400).json({ error: 'validation_error', message: 'invitee must own inviteeChartId' });
+      const invite = await pgStore.createRelationalGroupInvite({
+        groupId,
+        inviterUserId: ownerUserId,
+        inviteeUserId: iu,
+        inviteeChartId: ic,
+      });
+      return res.status(201).json(invite);
+    } catch (e) {
+      return res.status(500).json({ error: e?.message || 'invite_failed' });
+    }
+  });
+
+  // POST /api/groups/:id/invites/:inviteId/accept — invitee accepts; adds member row
+  router.post('/groups/:id/invites/:inviteId/accept', async (req, res) => {
+    const inviteeUserId = requireOwner(req, res);
+    if (!inviteeUserId) return;
+    try {
+      const { id: groupId, inviteId } = req.params;
+      const result = await pgStore.acceptRelationalGroupInvite(inviteId, inviteeUserId, groupId);
+      if (!result.ok) {
+        if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+        if (result.error === 'group_mismatch') return res.status(400).json({ error: 'group_mismatch' });
+        return res.status(404).json({ error: 'not_found' });
+      }
+      return res.status(200).json({ accepted: true, member: result.member });
+    } catch (e) {
+      return res.status(500).json({ error: e?.message || 'accept_failed' });
     }
   });
 

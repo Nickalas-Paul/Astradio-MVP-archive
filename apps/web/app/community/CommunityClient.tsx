@@ -11,6 +11,7 @@ import { CompatibilitySection } from '../../src/components/CompatibilitySection'
 import { CompareChartsPanel } from '../../src/components/community/CompareChartsPanel';
 import { ProfilePanel } from '../../src/components/community/ProfilePanel';
 import { UserSearchPanel } from '../../src/components/community/UserSearchPanel';
+import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
 import LibraryPanel from '../../src/components/library/LibraryPanel';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
@@ -239,6 +240,8 @@ export default function CommunityClient() {
   const [filter, setFilter] = useState<'all' | 'charts' | 'compositions'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [connectionsIntentId, setConnectionsIntentId] = useState<string>('friendship');
+  const [inventoryRefreshSignal, setInventoryRefreshSignal] = useState(0);
+  const bumpCommunityInventory = () => setInventoryRefreshSignal((n) => n + 1);
   const connectionsMode = CONNECTIONS_INTENTS.find((i) => i.id === connectionsIntentId)?.mode ?? 'friend';
   const { charts } = useChartsStore();
   const { jobHistory } = useCompositionStore();
@@ -270,10 +273,10 @@ export default function CommunityClient() {
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'feed', label: 'Feed', icon: '📱' },
     { id: 'groups', label: 'Groups', icon: '👥' },
-    { id: 'connections', label: 'Connections', icon: '🔗' },
+    { id: 'connections', label: 'Discovery & saved', icon: '🔗' },
     { id: 'compare', label: 'Compare', icon: '⚖️' },
     { id: 'saved', label: 'Saved Tracks', icon: '💾' },
-    { id: 'search', label: 'Search', icon: '🔍' },
+    { id: 'search', label: 'Search & groups', icon: '🔍' },
   ];
 
   return (
@@ -402,6 +405,10 @@ export default function CommunityClient() {
 
         {activeTab === 'connections' && (
           <div className="max-w-4xl mx-auto space-y-8">
+            <p className="text-sm text-subtext max-w-2xl">
+              <strong className="text-text">Discovery</strong> (compatibility suggestions) does not auto-save. Use <strong className="text-text">Request connection</strong> here or under Search; the other person must accept before a pair appears in{' '}
+              <strong className="text-text">Saved connections</strong> below.
+            </p>
             <section className="card space-y-3">
               <h3 className="text-lg font-semibold text-text">What are you looking for?</h3>
               <div className="flex flex-wrap gap-2">
@@ -434,14 +441,10 @@ export default function CommunityClient() {
                 if (next) setConnectionsIntentId(next.id);
               }}
               onSwitchToProfile={() => setActiveTab('profile')}
+              currentUserId={user?.id ?? null}
+              onConnectionRequested={bumpCommunityInventory}
             />
-            <section className="card space-y-3">
-              <h3 className="text-lg font-semibold text-text">Your connections</h3>
-              <p className="text-sm text-subtext">
-                Right now you can discover compatible profiles in <button type="button" onClick={() => setActiveTab('search')} className="text-emerald hover:underline">Search</button> and compare charts. A saved list of connections is planned for a future update.
-              </p>
-              <p className="text-sm text-subtext">People you’ve connected with appear in the panel to the right. Use the compatibility finder above to discover new connections, then add them here.</p>
-            </section>
+            <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
           </div>
         )}
 
@@ -455,9 +458,13 @@ export default function CommunityClient() {
         {activeTab === 'search' && (
           <div className="max-w-4xl mx-auto space-y-6">
             <p className="text-sm text-subtext max-w-xl">
-              Search by name or handle. Compare uses your stored chart only. Results are compatibility- and visibility-aware — not an open directory.
+              Directory search by name or handle. Compare is a one-off reading. Request connection or select people and create a relational chart group — invites and acceptances show under{' '}
+              <button type="button" onClick={() => setActiveTab('connections')} className="text-emerald hover:underline">
+                Discovery &amp; saved
+              </button>
+              .
             </p>
-            <UserSearchPanel />
+            <UserSearchPanel onInventoryRefresh={bumpCommunityInventory} />
             <AtlasSearch />
           </div>
         )}

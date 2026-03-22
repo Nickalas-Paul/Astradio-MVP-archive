@@ -699,3 +699,56 @@ export function useSocialActions() {
   return { connect, accept, saveTrack, like, report };
 }
 
+/** Phase 8 — durable Community inventory (pairs, relational groups, campaigns, pending intents). */
+export type CommunityFeedSkeletonItemV1 = {
+  kind: string;
+  bindingId: string;
+  sortAt?: string;
+  feedKey: string;
+};
+
+export type CommunityInventoryV1 = {
+  version: string;
+  userId: string;
+  pairs: Array<Record<string, unknown>>;
+  relationalGroups: Array<Record<string, unknown>>;
+  campaigns: Array<Record<string, unknown>>;
+  pendingIncomingIntents: Array<Record<string, unknown>>;
+  pendingOutgoingIntents: Array<Record<string, unknown>>;
+  pendingRelationalGroupInvites: Array<Record<string, unknown>>;
+  feedSkeleton: CommunityFeedSkeletonItemV1[];
+};
+
+export function useCommunityInventory() {
+  const [data, setData] = useState<CommunityInventoryV1 | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setLoading(true);
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/inventory`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(typeof json.error === 'string' ? json.error : `Inventory ${r.status}`);
+      }
+      setData(json as CommunityInventoryV1);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Inventory failed');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
+}
+
