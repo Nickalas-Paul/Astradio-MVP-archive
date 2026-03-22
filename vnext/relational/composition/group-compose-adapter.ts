@@ -24,8 +24,21 @@ export interface GroupComposeResult {
   provenance: GroupComposeProvenance;
   planHash: string;
   compositionId: string;
+  /** Inline WAV when non-empty; same policy as snapshot compose (ENABLE_WAV_EXPORT, provider, cache). */
   audioBase64?: string;
   text?: unknown;
+  /** Aggregate audio + export metadata (mirrors snapshot compose audio block). */
+  audio?: {
+    format: 'wav';
+    sha256: string;
+    latency_ms: number;
+    size_bytes: number;
+    base64_present: boolean;
+    export_available: boolean;
+    export_id: string | null;
+    export_attempted: boolean;
+    export_error: string | null;
+  };
   /** Set when generateComposition=false — no runner, no Stage-4 artifact semantics */
   compose_skipped?: boolean;
 }
@@ -62,6 +75,9 @@ export async function composeGroupFromChartIds(
     relationalWeather: opts?.relationalWeather,
   });
 
+  const base64 = result.audio?.base64;
+  const hasInline = typeof base64 === 'string' && base64.length > 0;
+
   return {
     provenance: {
       chart_ids,
@@ -71,7 +87,18 @@ export async function composeGroupFromChartIds(
     },
     planHash: result.planHash,
     compositionId: result.planHash,
-    audioBase64: (result.audio as any)?.base64 || undefined,
+    audioBase64: hasInline ? base64 : undefined,
     text: result.text,
+    audio: {
+      format: 'wav',
+      sha256: result.audio?.sha256 ?? '',
+      latency_ms: result.audio?.latency_ms ?? 0,
+      size_bytes: result.audio?.size_bytes ?? 0,
+      base64_present: hasInline,
+      export_available: result.audio_export_available,
+      export_id: result.export_id ?? null,
+      export_attempted: result.export_attempted,
+      export_error: result.export_error ?? null,
+    },
   };
 }

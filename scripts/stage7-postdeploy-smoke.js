@@ -24,6 +24,25 @@ const assert = (cond, msg) => {
   }
 };
 
+/** Relational forecast compose=1: explicit aggregate audio envelope (same export policy as snapshot compose). */
+function assertAggregateForecastAudio(artifact, label) {
+  const a = artifact?.audio;
+  assert(a && typeof a === 'object', `${label}: artifact.audio object required`);
+  assert(typeof a.export_available === 'boolean', `${label}: audio.export_available boolean required`);
+  assert(typeof a.export_attempted === 'boolean', `${label}: audio.export_attempted boolean required`);
+  assert(typeof a.base64_present === 'boolean', `${label}: audio.base64_present boolean required`);
+  const inline = typeof artifact.audioBase64 === 'string' && artifact.audioBase64.length > 0;
+  assert(
+    inline === a.base64_present,
+    `${label}: audioBase64 and audio.base64_present must agree`
+  );
+  if (a.export_available) {
+    assert(inline || (typeof a.export_id === 'string' && a.export_id.length > 0), `${label}: export_available requires inline base64 or export_id`);
+  } else {
+    assert(a.export_error != null, `${label}: when export_available=false, export_error must be set (e.g. export_disabled)`);
+  }
+}
+
 const RENDER = (process.env.RENDER_BASE || 'https://astradio-mvp-archive.onrender.com').replace(/\/+$/, '');
 const VERCEL_PREVIEW = (process.env.VERCEL_PREVIEW || '').replace(/\/+$/, '');
 const VERCEL_BYPASS = process.env.VERCEL_BYPASS_SECRET || '';
@@ -296,20 +315,28 @@ async function main() {
     longText.includes('Relational field') || longText.includes('relational'),
     'artifact text should include relational weather annex'
   );
+  assertAggregateForecastAudio(rfArt.data.artifact, 'relationship compose=1');
   report.tests.feed_to_artifact_relationship = {
     planHash: rfArt.data.artifact.planHash,
     template_id: rfArt.data.artifact?.text?.template_id,
-    audioLen: (rfArt.data.artifact?.audioBase64 || '').length,
+    audio_inline_len: (rfArt.data.artifact?.audioBase64 || '').length,
+    audio_export_available: rfArt.data.artifact.audio.export_available,
+    audio_export_error: rfArt.data.artifact.audio.export_error,
+    audio_export_id: rfArt.data.artifact.audio.export_id,
   };
 
   console.log('[F2] Group forecast compose=1 (aggregate path parity with pair)');
   const gfArt = await j('GET', fPathGrp(groupId, qsCompose));
   assert(gfArt.status === 200, `group compose forecast ${gfArt.status}`);
   assert(gfArt.data.artifact?.planHash, 'group missing artifact.planHash');
+  assertAggregateForecastAudio(gfArt.data.artifact, 'group compose=1');
   report.tests.feed_to_artifact_group = {
     planHash: gfArt.data.artifact.planHash,
     template_id: gfArt.data.artifact?.text?.template_id,
-    audioLen: (gfArt.data.artifact?.audioBase64 || '').length,
+    audio_inline_len: (gfArt.data.artifact?.audioBase64 || '').length,
+    audio_export_available: gfArt.data.artifact.audio.export_available,
+    audio_export_error: gfArt.data.artifact.audio.export_error,
+    audio_export_id: gfArt.data.artifact.audio.export_id,
   };
 
   console.log('[G] Aggregate composite regression (no weather path)');

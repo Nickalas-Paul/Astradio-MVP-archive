@@ -1,6 +1,7 @@
 // vnext/rpg/campaign/audio-service.ts
-// Deterministic daily audio rails (no generation side effects).
-// GET endpoints are allowed to call these helpers to ensure a pending row exists.
+// RPG daily audio rail — separate from composeAPI / Lyria export (rpg_daily_audio_artifacts).
+// Does not call runLyriaAlignedExportBlock; not canonical compose output.
+// GET endpoints may call these helpers to ensure a pending row exists (no generation in-route).
 
 import type { AudioAlgoVersion, AudioSeed, TurnSeed, RpgAudioProvider } from '../contracts';
 import { makeAudioSeedFromTurnSeed } from '../hash/seeds';

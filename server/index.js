@@ -2171,100 +2171,13 @@ if (HAS_SPA) {
 app.use("/models", express.static(path.join(__dirname, "../models")));
 
 // ---------- Phase-6 Endpoints ----------
-// POST /api/compositions/generate → returns composition id
-app.post('/api/compositions/generate', requireBeta, async (req, res) => {
-  try {
-    const body = req.body || {};
-    const requestId = body.request_id || require('uuid').v4();
-    const startMs = Date.now();
-
-    // Input validation (bounds)
-    if (!body.control_surface && !(body.mode && body.controls)) {
-      return res.status(400).json({ error: 'invalid_payload', message: 'Missing control surface' });
-    }
-
-    // Call existing compose controller via local HTTP to ensure identical path
-    const composeUrl = `http://localhost:${PORT}/api/compose`;
-    const resp = await fetch(composeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-beta-user': (req).betaUser || '' }, body: JSON.stringify({
-      mode: 'sandbox',
-      controls: body.control_surface || body.controls || {},
-      seed: body.seed || 424242
-    })});
-    const composeJson = await resp.json();
-
-    // Build export bundle
-    const id = requestId;
-    const dir = path.join(EXPORTS_DIR, id);
-    ensureDir(dir);
-
-    // track.wav from compose response (real renderer output)
-    const audioPath = path.join(dir, 'track.wav');
-    if (composeJson.audio && typeof composeJson.audio.base64 === 'string' && composeJson.audio.base64.length > 0) {
-      fs.writeFileSync(audioPath, Buffer.from(composeJson.audio.base64, 'base64'));
-    } else {
-      fs.writeFileSync(audioPath, Buffer.alloc(0));
-    }
-
-    // explanation.json
-    writeJson(path.join(dir, 'explanation.json'), composeJson.explanation || {});
-    // control-surface.json
-    writeJson(path.join(dir, 'control-surface.json'), body.control_surface || body.controls || {});
-
-    // model.json
-    const registry = JSON.parse(fs.readFileSync(path.join(__dirname, '../models/registry.json'), 'utf8'));
-    const activeId = registry.registry_metadata?.active_model;
-    const modelJson = {
-      model_id: activeId,
-      registry_hash: activeId,
-      shard_hashes: []
-    };
-    writeJson(path.join(dir, 'model.json'), modelJson);
-
-    // integrity.json with canonical manifest (sorted, canonical JSON)
-    const filesList = ['control-surface.json','explanation.json','model.json','track.wav'];
-    const manifest = filesList.map(name => {
-      const p = path.join(dir, name);
-      const isText = name.endsWith('.json');
-      const data = isText ? fs.readFileSync(p, 'utf8') : fs.readFileSync(p);
-      return {
-        name,
-        size: fs.statSync(p).size,
-        sha256: 'sha256:' + sha256Str(isText ? data : data)
-      };
-    });
-    // Canonical JSON string: sort keys and list already sorted by filename
-    const canonical = JSON.stringify(manifest);
-    const integrity = {
-      manifest_sha256: 'sha256:' + sha256Str(canonical),
-      files: Object.fromEntries(manifest.map(m => [m.name, { size: m.size, sha256: m.sha256 }]))
-    };
-    writeJson(path.join(dir, 'integrity.json'), integrity);
-
-    // LRU cleanup
-    lruCleanupExports();
-
-    // Observability entry
-    const endMs = Date.now();
-    appendRuntimeLog({
-      request_id: id,
-      seed: composeJson?.controls?.hash,
-      determinism_seed: composeJson?.controls?.hash,
-      control_hash: 'sha256:'+sha256Str(JSON.stringify(composeJson?.controls||{})),
-      audio_hash: 'sha256:'+sha256Str('track.wav:'+id),
-      explanation_hash: 'sha256:'+sha256Str(JSON.stringify(composeJson?.explanation||{})),
-      model_id: modelJson.model_id,
-      registry_hash: modelJson.registry_hash,
-      latency_ms: endMs - startMs,
-      length_sec: 30,
-      confusion_hotpair_delta: null,
-      result: 'PASS',
-      beta_user: (req).betaUser || null
-    });
-
-    return res.json({ id });
-  } catch (e) {
-    return res.status(500).json({ error: 'generate_failed', message: e.message });
-  }
+// POST /api/compositions/generate — removed (parallel bundle path). Use POST /api/compose + export_id / GET /api/exports/:id.
+app.post('/api/compositions/generate', requireBeta, (_req, res) => {
+  return res.status(410).json({
+    error: 'deprecated_route',
+    code: 'COMPOSITIONS_GENERATE_REMOVED',
+    message: 'POST /api/compositions/generate is disabled. Use POST /api/compose (Unified Spec v1.1) and GET /api/exports/:export_id for WAV.',
+  });
 });
 
 // GET /api/compositions/:id/play → stream audio

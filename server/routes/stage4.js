@@ -148,6 +148,18 @@ function createStage4Router() {
           compositionId: composed.compositionId,
           text: composed.text,
           audioBase64: composed.audioBase64,
+          // Explicit aggregate audio contract (same export path as snapshot compose; see group-compose-adapter).
+          audio: composed.audio || {
+            format: 'wav',
+            sha256: '',
+            latency_ms: 0,
+            size_bytes: 0,
+            base64_present: false,
+            export_available: false,
+            export_id: null,
+            export_attempted: false,
+            export_error: null,
+          },
         };
       }
 

@@ -8,9 +8,7 @@ import {
   ComposeResponse,
   ControlSurfacePayload,
   GateReport,
-  ExplainerContext
 } from '../explainer/contracts';
-import { TextExplainerEngine } from '../explainer/text-explainer';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
@@ -81,6 +79,11 @@ export type AggregateComposeResult = {
   explanation: { spec: string; sections: Array<{ title: string; text: string }> };
   audio: { format: 'wav'; base64: string; sha256: string; latency_ms: number; size_bytes: number };
   hashes: { control: string; audio: string; explanation: string; plan_sha256: string };
+  /** Same export contract as snapshot compose (runLyriaAlignedExportBlock). */
+  audio_export_available: boolean;
+  export_id?: string;
+  export_attempted: boolean;
+  export_error: ExportErrorCode | null;
 };
 
 /** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
@@ -120,13 +123,11 @@ function legacyTextFromDailySections(dailySections: DailySection[]): {
 }
 
 export class ComposeAPI {
-  private textExplainer: TextExplainerEngine;
   // private featureEncoder: FeatureEncoder;
   private runtimeModel: string;
   private compositionCache: Map<string, any>;
 
   constructor() {
-    this.textExplainer = new TextExplainerEngine();
     // this.featureEncoder = new FeatureEncoder();
     // Runtime model switching - defaults to v2.8 for Phase-6 integration
     this.runtimeModel = process.env.RUNTIME_MODEL || 'student-v2.8-slice-batch';
@@ -326,73 +327,48 @@ export class ComposeAPI {
             console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
             throw e;
           }
-        } catch {
-          // Fail closed: never disturb existing behavior if vNext text path errors.
+        } catch (outerDaily: unknown) {
+          const msg = outerDaily instanceof Error ? outerDaily.message : String(outerDaily);
+          console.warn('[COMPOSE_TEXT] daily-v1 disabled after error; using ExplainSpec path', msg.slice(0, 200));
         }
       }
       
-      // Legacy text explainer (fallback for overlay mode and backward compatibility)
-      const astro = astroSummaryFromSnapshot(architecture.snapshot, architecture.features, payload.modality);
-      const context: any = {
-        mode: request.mode,
-        session_id: this.generateSessionId(),
-        request_id: this.generateRequestId(),
-        chartHash: snapshot_sha256,
-        featuresVersion: 'v1.0'
-      };
-      const explainerInputs = { astro, featureVec: architecture.features, plan };
+      // Overlay text: ExplainSpec only (legacy TextExplainer overlay path removed).
 
       let text: any;
       let textMetricsMs: number | undefined;
       if (hasOverlayContext && request.overlayParams) {
-        const useOverlayExplainSpec = process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
-        if (useOverlayExplainSpec) {
-          const natalSnapshot = canonicalInput.overlayNatalSnapshot;
-          if (!natalSnapshot) {
-            throw new Error('Overlay mode requires natal snapshot context.');
-          }
-          const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
-          const overlaySpec = buildExplainSpecOverlay({
-            seed: payload.hash,
-            natalSnapshot,
-            natalFeatureVec,
-            currentSnapshot: architecture.snapshot,
-            currentFeatureVec: architecture.features,
-            plan,
-            gateReport,
-          });
-          const overlayRendered = renderExplainSpecToSections(overlaySpec);
-          text = {
-            short: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
-            long: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
-            bullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
-            template_id: 'explainspec-overlay-v1',
-            signatures: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
-            significance: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
-            musicalParagraph: overlayRendered.sections.find(s => s.id === 'musical')?.text ?? '',
-            musicalBullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
-          };
-          textMetricsMs = 0;
-        } else {
-          const natalPayload = await this.generateSkyPayload({
-            latitude: request.overlayParams.natalLatitude,
-            longitude: request.overlayParams.natalLongitude,
-            datetime: request.overlayParams.natalDatetime
-          });
-          const currentPayload = payload;
-          const natalGateReport = await this.runAuditionGates(plan, natalPayload.hash);
-          const currentGateReport = gateReport;
-          const overlayResult = (this.textExplainer as any).generateOverlayExplanation(
-            natalPayload,
-            currentPayload,
-            natalGateReport,
-            currentGateReport,
-            context,
-            explainerInputs
+        if (process.env.VNEXT_OVERLAY_EXPLAINSPEC === '0') {
+          throw new Error(
+            'Overlay ExplainSpec is required; legacy overlay explainer is removed. Unset VNEXT_OVERLAY_EXPLAINSPEC or do not set it to 0.'
           );
-          text = overlayResult.text;
-          textMetricsMs = overlayResult.metrics?.total_ms;
         }
+        const natalSnapshot = canonicalInput.overlayNatalSnapshot;
+        if (!natalSnapshot) {
+          throw new Error('Overlay mode requires natal snapshot context.');
+        }
+        const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
+        const overlaySpec = buildExplainSpecOverlay({
+          seed: payload.hash,
+          natalSnapshot,
+          natalFeatureVec,
+          currentSnapshot: architecture.snapshot,
+          currentFeatureVec: architecture.features,
+          plan,
+          gateReport,
+        });
+        const overlayRendered = renderExplainSpecToSections(overlaySpec);
+        text = {
+          short: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
+          long: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
+          bullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
+          template_id: 'explainspec-overlay-v1',
+          signatures: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
+          significance: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
+          musicalParagraph: overlayRendered.sections.find(s => s.id === 'musical')?.text ?? '',
+          musicalBullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
+        };
+        textMetricsMs = 0;
       } else {
         // Single mode: use daily v1 when enabled and available; otherwise ExplainSpec
         if (textVnextDaily?.sections?.length > 0) {
@@ -462,7 +438,7 @@ export class ComposeAPI {
       let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }>;
       
       if (hasOverlayContext && request.overlayParams) {
-        if (process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1' && (text as any)?.template_id === 'explainspec-overlay-v1') {
+        if ((text as any)?.template_id === 'explainspec-overlay-v1') {
           sections = [
             { sectionId: 'signatures', title: 'Natal Signatures', text: t.signatures ?? '' },
             { sectionId: 'significance', title: 'Transit vs Natal', text: t.significance ?? '' },
@@ -509,7 +485,7 @@ export class ComposeAPI {
         }
       }
 
-      const isSpecEngine = !hasOverlayContext || process.env.VNEXT_OVERLAY_EXPLAINSPEC === '1';
+      const isSpecEngine = !hasOverlayContext || (text as any)?.template_id === 'explainspec-overlay-v1';
       const usedDailyV1 = enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) > 0;
       const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
       const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
@@ -953,6 +929,10 @@ export class ComposeAPI {
       explanation,
       audio: wavBundle.audio,
       hashes,
+      audio_export_available: wavBundle.audio_export_available,
+      export_id: wavBundle.export_id,
+      export_attempted: wavBundle.export_attempted,
+      export_error: wavBundle.export_error,
     };
   }
 
