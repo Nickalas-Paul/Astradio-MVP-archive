@@ -557,10 +557,7 @@ async function main() {
       });
       const aud = await au.json().catch(() => ({}));
       assert(au.ok, `rpg audio ${au.status}`);
-      assert(
-        aud.status === 'pending' || aud.status == null,
-        'rpg audio route should not imply completed compose export'
-      );
+      assert(aud.status === 'pending', `expected RPG audio row status=pending, got ${aud.status}`);
       assert(
         !aud.compose_kind && !aud.hashes?.plan_sha256,
         'rpg audio response must not mimic compose payload'
