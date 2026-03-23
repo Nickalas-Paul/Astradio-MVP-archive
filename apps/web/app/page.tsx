@@ -269,6 +269,31 @@ export default function HomePage() {
     };
   }, [dateStr, timeStr, location?.lat, location?.lon]);
 
+  // 2a) Persist canonical location for campaign daily / group anchor (best-effort; session required)
+  const lastTransitSyncKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!location) return;
+    const key = JSON.stringify({
+      source: location.source,
+      lat: location.lat,
+      lon: location.lon,
+      timezone: location.timezone,
+      resolvedAt: location.resolvedAt,
+      label: location.label,
+    });
+    if (lastTransitSyncKey.current === key) return;
+    lastTransitSyncKey.current = key;
+    const base = getApiBaseUrl();
+    void fetch(`${base || ''}/api/users/me/transit-context`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(location),
+    }).catch(() => {
+      /* logged-out or network — fail closed on server; no UI noise */
+    });
+  }, [location]);
+
   // 2b) reverse-geocode label when coords available (display only); idempotent: no setLocation if label unchanged
   useEffect(() => {
     if (location?.lat == null || location?.lon == null) return;

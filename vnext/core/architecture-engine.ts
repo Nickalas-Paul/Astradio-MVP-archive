@@ -19,6 +19,7 @@ export interface ChartInput {
   time: string;
   lat: number;
   lon: number;
+  /** IANA zone; when set, /api/chart-snapshot interprets date+time in this zone. */
   timezone?: string;
 }
 
@@ -47,9 +48,11 @@ export interface ArchitectureOutput {
 export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSnapshot> {
   const PORT = process.env.PORT || '4000';
   const base = process.env.API_BASE_URL || `http://localhost:${PORT}`;
-  const { date, time, lat, lon } = input;
+  const { date, time, lat, lon, timezone } = input;
   const timeStr = time.length === 5 ? time : time.slice(0, 5);
   const q = new URLSearchParams({ date, time: timeStr, lat: String(lat), lon: String(lon) });
+  const tz = timezone && String(timezone).trim();
+  if (tz) q.set('timezone', tz);
   const headers: Record<string, string> = {};
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   if (bypass && typeof bypass === 'string' && bypass.trim()) {

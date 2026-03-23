@@ -410,10 +410,24 @@ async function getTimezoneFromCoords(lat, lon) {
   }
 }
 
-function toJulianDayUT(dateStr, timeStr, lat, lon){
+/**
+ * @param {string} dateStr
+ * @param {string} timeStr
+ * @param {number} lat
+ * @param {number} lon
+ * @param {string|null|undefined} preferredIanaTz - when valid, interpret date+time in this zone (campaign / compose contract)
+ */
+function toJulianDayUT(dateStr, timeStr, lat, lon, preferredIanaTz){
   const [y, m, d] = dateStr.split("-").map(Number);
   const [hh, mm = 0] = timeStr.split(":").map(Number);
-  
+
+  const tzOpt = preferredIanaTz && String(preferredIanaTz).trim();
+  if (tzOpt && moment.tz.zone(tzOpt)) {
+    const localTimeWithTZ = moment.tz([y, m - 1, d, hh, mm], tzOpt);
+    const ut = localTimeWithTZ.utc();
+    return swe.swe_julday(ut.year(), ut.month() + 1, ut.date(), ut.hour() + ut.minute() / 60, swe.SE_GREG_CAL);
+  }
+
   // If we have coordinates, try to get timezone and convert
   if (lat !== undefined && lon !== undefined) {
     try {
@@ -1186,10 +1200,14 @@ app.get("/api/chart-snapshot", (req, res) => {
     const time = normalizeTime(req.query.time || "12:00");
     const lat = parseFloat(req.query.lat);
     const lon = parseFloat(req.query.lon);
+    const timezoneParam = (req.query.timezone || "").toString().trim() || null;
+    if (timezoneParam && !moment.tz.zone(timezoneParam)) {
+      return res.status(400).json({ error: "Invalid IANA timezone" });
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       return res.status(400).json({ error: "Valid lat/lon required" });
     }
-    const jd = toJulianDayUT(date, time, lat, lon);
+    const jd = toJulianDayUT(date, time, lat, lon, timezoneParam);
     const { positions, speeds } = calcPositions(jd, true);
     const cusps = calcPlacidusCusps(jd, lat, lon);
     const aspects = calcAspects(positions, speeds);
@@ -2005,6 +2023,12 @@ app.use("/api", createStage4Router());
 // Phase 8 Stage 5 — Tri-mode campaign (solo, group, auto); canonical /api/campaigns/*
 const { createStage5Router } = require("./routes/stage5");
 app.use("/api", createStage5Router());
+
+// Campaign daily transit + user transit context persistence
+const { createUserTransitContextRouter } = require("./routes/user-transit-context");
+app.use("/api", createUserTransitContextRouter());
+const { createCampaignDailyRouter } = require("./routes/campaign-daily");
+app.use("/api", createCampaignDailyRouter());
 
 // Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
