@@ -18,7 +18,8 @@ import { getCampaignById, getBundleByHash } from '../rpg/store/rpg-store';
 import { buildCampaignView } from '../rpg/campaign/view';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
 import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
-import { buildChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
@@ -286,19 +287,24 @@ async function runInProcessCampaignChecks(
       natalFixture as any,
       hashSnapshot(natalFixture as any)
     );
-    const semanticProfile =
-      arch.semanticProfile ??
-      buildChartSemanticProfile({
-        snapshot: arch.snapshot,
-        featureVec: arch.features,
-        guidance: arch.guidance as any,
-      });
+    const seed = hashSnapshot(natalFixture as any);
+    const canonicalReport = buildCanonicalReportForSnapshotSurface({
+      surface_kind: 'profile_natal',
+      subject_ids: [seed],
+      snapshot: arch.snapshot,
+      featureVec: arch.features,
+      control_surface_hash: seed,
+      compose_seed: seed,
+      guidance: arch.guidance,
+    });
+    const semanticCore = interpretCanonicalReportObject(canonicalReport);
     const bundle = buildRpgEffectsBundleFromSnapshot(arch.snapshot);
     const state = initialCampaignState(bundle);
     const character = buildCharacterProfile({
       natalSnapshot: arch.snapshot,
       featureVec: arch.features,
-      semanticProfile,
+      semanticCore,
+      dominantPlanetNames: canonicalReport.participants[0].dominant_planet_names,
       effectsBundle: bundle,
     });
     const pressures = buildTransitPressureMap({
@@ -309,7 +315,7 @@ async function runInProcessCampaignChecks(
       character,
       pressures,
       state,
-      semanticProfile,
+      semanticCore,
       natalSnapshot: arch.snapshot,
       transitSnapshot: transitFixture as any,
     });
@@ -317,7 +323,7 @@ async function runInProcessCampaignChecks(
       character,
       pressures,
       state,
-      semanticProfile,
+      semanticCore,
       natalSnapshot: arch.snapshot,
       transitSnapshot: transitFixture as any,
     });

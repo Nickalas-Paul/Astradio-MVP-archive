@@ -9,7 +9,6 @@ import {
   ControlSurfacePayload,
   GateReport,
 } from '../explainer/contracts';
-import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
 import { logAudit } from '../logger';
 import { generatePlanMLOnly } from '../plan-generator';
 import {
@@ -23,18 +22,8 @@ import { computePlanHash } from '../plan-hash';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
-import { buildExplainSpecSingle, buildExplainSpecOverlay, buildExplainSpecComparison } from '../explainer/text-generation-engine';
-import { renderExplainSpecToSections } from '../explainer/renderers/deterministic';
-import { guidanceSummaryFromFeatureVec } from '../explainer/guidance-atoms';
-import { buildPlanSummary } from '../explainer/plan-summary';
 import { DEFAULT_DURATION_S } from '../constants';
 import { getProvider } from '../render';
-import { buildTextAnalysis } from '../text/analysis/buildTextAnalysis';
-import { renderDaily } from '../text/renderers/daily';
-import { loadDailyToneSpec } from '../text';
-import type { ChartTextInput } from '../text/contracts';
-import { buildRelationalChartContext } from '../report-context';
-import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 import type { CanonicalCompositionInput } from './canonical-compose-input';
 import { buildHomeCanonicalInput } from '../adapters/home-compose-adapter';
 import { buildProfileNatalCanonicalInput } from '../adapters/profile-natal-compose-adapter';
@@ -45,7 +34,15 @@ import { buildArchitectureForAggregate } from './aggregate-architecture';
 import { runLyriaAlignedExportBlock, type ExportErrorCode } from './run-lyria-export-block';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import { mergeRelationalWeatherIntoPlanChartContext } from '../relational/weather/merge-plan-context';
-import { buildRelationalWeatherExplainAnnex } from '../relational/weather/observational-text-v1';
+import {
+  buildCanonicalReportForSnapshotSurface,
+  buildCanonicalReportForOverlay,
+  buildCanonicalReportForAggregate,
+} from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
+import { projectTextFromSemanticCore } from '../projection/text-projection';
+import type { CanonicalReportObject } from '../canonical/canonical-report-object';
+import { guidanceFromFeatures } from '../astro/guidance';
 
 /** Phase B — aggregate surfaces (comparison + group) share one downstream runner. */
 export type AggregateCompositionInput =
@@ -85,42 +82,6 @@ export type AggregateComposeResult = {
   export_attempted: boolean;
   export_error: ExportErrorCode | null;
 };
-
-/** Daily v1 section shape (id, title, text). Reusable for Profile/Community later. */
-type DailySection = { id: string; title: string; text: string };
-
-/** Map daily v1 sections to response section shape. Reusable for Profile/Community. */
-function mapDailySectionsToResponseSections(
-  dailySections: DailySection[]
-): Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> {
-  return dailySections.map((s) => ({ sectionId: s.id, title: s.title, text: s.text, bullets: undefined }));
-}
-
-/** Derive legacy text fields from daily sections for response.text compatibility. Reusable for Profile/Community. */
-function legacyTextFromDailySections(dailySections: DailySection[]): {
-  short: string;
-  long: string;
-  bullets: string[];
-  template_id: string;
-  signatures: string;
-  significance: string;
-  musicalParagraph: string;
-  musicalBullets: string[];
-} {
-  const first = dailySections[0]?.text ?? '';
-  const allLong = dailySections.map((s) => s.text).filter(Boolean).join('\n\n');
-  const musicSection = dailySections.find((s) => s.id === 'music_translation');
-  return {
-    short: first,
-    long: allLong,
-    bullets: [],
-    template_id: 'daily-v1',
-    signatures: first,
-    significance: dailySections.length > 1 ? (dailySections[1].text ?? first) : first,
-    musicalParagraph: musicSection?.text ?? '',
-    musicalBullets: [],
-  };
-}
 
 export class ComposeAPI {
   // private featureEncoder: FeatureEncoder;
@@ -184,7 +145,7 @@ export class ComposeAPI {
       architecture = await this.runSharedComposePipeline(() =>
         generateArchitectureFromSnapshot(canonicalInput.snapshot, requestSeed)
       );
-      const { snapshot, features: featureVec, guidance, semanticProfile } = architecture;
+      const { snapshot, features: featureVec, guidance } = architecture;
 
       // Compute provenance hashes
       const snapshot_sha256 = this.hashSnapshot(snapshot);
@@ -240,185 +201,65 @@ export class ComposeAPI {
         };
       }
       
-      // Generate text explanation using new ExplainSpec engine (Text Generation Engine v1.0)
-      // Use architecture output (already computed)
-      const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
-      const planSummary = buildPlanSummary(plan);
-      
-      // Build ExplainSpec from canonical pipeline inputs (using architecture output)
-      const spec = buildExplainSpecSingle({
-        seed: payload.hash,
-        snapshot: architecture.snapshot,
-        featureVec: architecture.features,
-        guidanceSummary,
-        plan,
-        planSummary,
-        gateReport
-      });
-      
-      // Render ExplainSpec to sections
-      const rendered = renderExplainSpecToSections(spec);
-
-      // Optional vNext text engine (Phase 1, daily only, behind VNEXT_TEXT_ENGINE)
-      const useTextEngineVnext = process.env.VNEXT_TEXT_ENGINE === 'v1';
-      let textVnextDaily: any = undefined;
-      let textEngineFailureStage: string | undefined;
-      let textEngineFailureName: string | undefined;
-      let textEngineFailureMessage: string | undefined;
-      if (useTextEngineVnext && enableDailyV1Text) {
-        console.log('[COMPOSE_TEXT] daily-v1 branch entered', JSON.stringify({ VNEXT_TEXT_ENGINE: process.env.VNEXT_TEXT_ENGINE ?? '(unset)', request_mode: request.mode }));
-        try {
-          const snapshot = architecture.snapshot;
-          let chartInput: ChartTextInput;
-          try {
-            chartInput = {
-              snapshot,
-              relationalContext: buildRelationalChartContext(snapshot),
-              surface: 'daily',
-              algoVersion: 'vnext-text-1',
-              toneVersion: 'daily.personality.v1',
-              hasHouses: Array.isArray(snapshot.houses) && snapshot.houses.length >= 12,
-              hasAspects: Array.isArray(snapshot.aspects) && snapshot.aspects.length > 0,
-              hasNatalContext: false,
-              missing: [
-                { kind: 'no_natal_context' }
-              ]
-            };
-          } catch (e: any) {
-            textEngineFailureStage = 'buildRelationalChartContext';
-            textEngineFailureName = e?.name ?? 'Error';
-            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
-            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
-            throw e;
-          }
-          let analysis: any;
-          try {
-            analysis = buildTextAnalysis('daily', chartInput, semanticProfile as ChartSemanticProfile);
-          } catch (e: any) {
-            textEngineFailureStage = 'buildTextAnalysis';
-            textEngineFailureName = e?.name ?? 'Error';
-            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
-            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
-            throw e;
-          }
-          let toneSpec;
-          try {
-            toneSpec = loadDailyToneSpec();
-          } catch (e: any) {
-            textEngineFailureStage = 'loadDailyToneSpec';
-            textEngineFailureName = e?.name ?? 'Error';
-            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
-            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
-            throw e;
-          }
-          try {
-            const daily = renderDaily(analysis, toneSpec);
-            textVnextDaily = {
-              surface: daily.surface,
-              hasNatalContext: daily.hasNatalContext,
-              confidence: daily.confidence,
-              sections: daily.sections
-            };
-            console.log('[COMPOSE_TEXT] daily-v1 success', JSON.stringify({ sectionCount: daily.sections?.length ?? 0 }));
-          } catch (e: any) {
-            textEngineFailureStage = 'renderDaily';
-            textEngineFailureName = e?.name ?? 'Error';
-            textEngineFailureMessage = typeof e?.message === 'string' ? e.message.slice(0, 200) : String(e).slice(0, 200);
-            console.warn('[COMPOSE_TEXT] daily-v1 failed', JSON.stringify({ stage: textEngineFailureStage, name: textEngineFailureName, message: textEngineFailureMessage }));
-            throw e;
-          }
-        } catch (outerDaily: unknown) {
-          const msg = outerDaily instanceof Error ? outerDaily.message : String(outerDaily);
-          console.warn('[COMPOSE_TEXT] daily-v1 disabled after error; using ExplainSpec path', msg.slice(0, 200));
-        }
-      }
-      
-      // Overlay text: ExplainSpec only (legacy TextExplainer overlay path removed).
-
-      let text: any;
-      let textMetricsMs: number | undefined;
-      if (hasOverlayContext && request.overlayParams) {
-        if (process.env.VNEXT_OVERLAY_EXPLAINSPEC === '0') {
-          throw new Error(
-            'Overlay ExplainSpec is required; legacy overlay explainer is removed. Unset VNEXT_OVERLAY_EXPLAINSPEC or do not set it to 0.'
-          );
-        }
+      let canonicalReport: CanonicalReportObject;
+      if (hasOverlayContext && canonicalInput.overlayNatalSnapshot) {
         const natalSnapshot = canonicalInput.overlayNatalSnapshot;
-        if (!natalSnapshot) {
-          throw new Error('Overlay mode requires natal snapshot context.');
-        }
         const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
-        const overlaySpec = buildExplainSpecOverlay({
-          seed: payload.hash,
+        canonicalReport = buildCanonicalReportForOverlay({
+          subject_ids: [payload.hash],
           natalSnapshot,
           natalFeatureVec,
-          currentSnapshot: architecture.snapshot,
-          currentFeatureVec: architecture.features,
-          plan,
-          gateReport,
+          transitSnapshot: architecture.snapshot,
+          transitFeatureVec: featureVec,
+          control_surface_hash: payload.hash,
+          compose_seed: requestSeed,
+          guidance: architecture.guidance,
         });
-        const overlayRendered = renderExplainSpecToSections(overlaySpec);
-        text = {
-          short: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
-          long: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
-          bullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
-          template_id: 'explainspec-overlay-v1',
-          signatures: overlayRendered.sections.find(s => s.id === 'signatures')?.text ?? '',
-          significance: overlayRendered.sections.find(s => s.id === 'significance')?.text ?? '',
-          musicalParagraph: overlayRendered.sections.find(s => s.id === 'musical')?.text ?? '',
-          musicalBullets: overlayRendered.sections.find(s => s.id === 'musical')?.bullets ?? [],
-        };
-        textMetricsMs = 0;
       } else {
-        // Single mode: use daily v1 when enabled and available; otherwise ExplainSpec
-        if (textVnextDaily?.sections?.length > 0) {
-          text = legacyTextFromDailySections(textVnextDaily.sections as DailySection[]);
-        } else {
-          // ExplainSpec path: build legacy text format for backward compatibility
-          const signaturesText = rendered.sections.find(s => s.id === 'signatures')?.text || '';
-          const significanceText = rendered.sections.find(s => s.id === 'significance')?.text || '';
-          const musicalSection = rendered.sections.find(s => s.id === 'musical');
-          const musicalText = musicalSection?.text || '';
-          const musicalBullets = musicalSection?.bullets || [];
-
-          const hasAnyContent =
-            !!signaturesText.trim() ||
-            !!significanceText.trim() ||
-            !!musicalText.trim();
-
-          if (!hasAnyContent) {
-            const fallbackMessage = 'Explanation unavailable for this composition (ExplainSpec returned empty content).';
-            text = {
-              short: fallbackMessage,
-              long: fallbackMessage,
-              bullets: [],
-              template_id: 'explainspec-empty-v1',
-              signatures: '',
-              significance: '',
-              musicalParagraph: '',
-              musicalBullets: []
-            };
-          } else {
-            text = {
-              short: signaturesText,
-              long: significanceText + (musicalText ? '\n\n' + musicalText : ''),
-              bullets: musicalBullets,
-              template_id: 'explainspec-v1',
-              signatures: signaturesText,
-              significance: significanceText,
-              musicalParagraph: musicalText,
-              musicalBullets: musicalBullets
-            };
-          }
-        }
-        textMetricsMs = 0; // ExplainSpec/daily generation is fast (no ML)
+        const surface_kind =
+          (request as any).mode === 'sky' && enableDailyV1Text ? 'home_daily' : 'profile_natal';
+        canonicalReport = buildCanonicalReportForSnapshotSurface({
+          surface_kind,
+          subject_ids: [payload.hash],
+          snapshot: architecture.snapshot,
+          featureVec,
+          control_surface_hash: payload.hash,
+          compose_seed: requestSeed,
+          guidance: architecture.guidance,
+        });
       }
-      
+
+      const semanticCore = interpretCanonicalReportObject(canonicalReport);
+      const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
+
+      const dailyLike = projected.map((s) => ({
+        id: s.id,
+        title: s.title,
+        text: s.text,
+        bullets: s.bullets,
+      }));
+      const sig = dailyLike.find((x) => x.id === 'signatures' || x.id === 'sky_summary');
+      const sigText = sig?.text ?? dailyLike[0]?.text ?? '';
+      const mus = dailyLike.find((x) => x.id === 'musical' || x.id === 'music_translation');
+      const allLong = dailyLike.map((s) => s.text).filter(Boolean).join('\n\n');
+      const text: any = {
+        short: sigText,
+        long: allLong || sigText,
+        bullets: mus?.bullets ?? [],
+        template_id: 'semantic-core-v1',
+        signatures: dailyLike.find((s) => s.id === 'signatures')?.text ?? sigText,
+        significance:
+          dailyLike.find((s) => s.id === 'significance' || s.id === 'personal_emphasis')?.text ?? sigText,
+        musicalParagraph: mus?.text ?? '',
+        musicalBullets: mus?.bullets ?? [],
+      };
+      const textMetricsMs = 0;
+
       // Generate audio: shared Lyria/provider path (snapshot + aggregate policy-identical)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
       const wavBundle = await runLyriaAlignedExportBlock(
         (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-        { plan, architecture, featureVec, payload }
+        { plan, architecture, featureVec, payload, semanticCore }
       );
       const audio = wavBundle.audio;
       let audio_export_available = wavBundle.audio_export_available;
@@ -433,98 +274,39 @@ export class ComposeAPI {
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      // Unified Spec v1.1: structured sections from ExplainSpec (or legacy fallback)
-      const t = text as any;
-      let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }>;
-      
-      if (hasOverlayContext && request.overlayParams) {
-        if ((text as any)?.template_id === 'explainspec-overlay-v1') {
-          sections = [
-            { sectionId: 'signatures', title: 'Natal Signatures', text: t.signatures ?? '' },
-            { sectionId: 'significance', title: 'Transit vs Natal', text: t.significance ?? '' },
-            { sectionId: 'musical', title: 'Musical Relationship', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
-          ];
-        } else {
-          const hasStructured = t?.signatures != null && t?.significance != null;
-          sections = hasStructured
-            ? [
-                { sectionId: 'signatures', title: 'Astrological Signatures', text: t.signatures ?? '' },
-                { sectionId: 'significance', title: 'Personal Significance', text: t.significance ?? '' },
-                { sectionId: 'musical', title: 'Musical Identity and Flow', text: t.musicalParagraph ?? '', bullets: Array.isArray(t.musicalBullets) ? t.musicalBullets : undefined }
-              ]
-            : (() => {
-              const short = t?.short ?? '';
-              const long = t?.long ?? '';
-              const bulletsRaw = Array.isArray(t?.bullets) ? t.bullets : [] as string[];
-              const bulletsClean = bulletsRaw.map((b: string) => (b.replace(/^\s*[•·]\s*/, '').trim())).filter(Boolean);
-              let detailsText = long;
-              if (short.startsWith('Tone:') && long.startsWith('Tone:')) {
-                const toneEnd = long.indexOf('.');
-                const tonePrefix = toneEnd > 0 ? long.slice(0, toneEnd + 1).trim() : long.match(/^Tone:[^.]*\.?/)?.[0]?.trim() ?? '';
-                if (tonePrefix && long.startsWith(tonePrefix)) detailsText = long.slice(tonePrefix.length).trim();
-              }
-              return [
-                { sectionId: 'theme', title: 'Theme', text: short },
-                { sectionId: 'details', title: 'Details', text: detailsText },
-                { sectionId: 'bullets', title: 'Bullets', text: bulletsClean.length ? bulletsClean.join(' ') : bulletsRaw.join(' '), bullets: bulletsClean.length ? bulletsClean : undefined }
-              ];
-            })();
-        }
-      } else {
-        // Single mode: use daily v1 sections when enabled and available; otherwise ExplainSpec
-        const useDailySections = enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) > 0;
-        if (useDailySections) {
-          sections = mapDailySectionsToResponseSections(textVnextDaily.sections as DailySection[]);
-        } else {
-          sections = rendered.sections.map(s => ({
-            sectionId: s.id,
-            title: s.title,
-            text: s.text,
-            bullets: s.bullets
-          }));
-        }
-      }
+      let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> =
+        projected.map((s) => ({
+          sectionId: s.id,
+          title: s.title,
+          text: s.text,
+          bullets: s.bullets,
+        }));
 
-      const isSpecEngine = !hasOverlayContext || (text as any)?.template_id === 'explainspec-overlay-v1';
-      const usedDailyV1 = enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) > 0;
-      const hasFactorMap = isSpecEngine && !!(spec?.single?.factorMap?.factors?.length);
-      const factorCount = isSpecEngine ? (spec?.single?.factorMap?.factors?.length ?? 0) : 0;
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
 
       const explanationMeta: {
-        engine: 'legacy' | 'spec' | 'daily-v1';
+        engine: 'semantic-core-v1';
         engineVersion: string;
+        canonical_object_hash: string;
+        semantic_core_schema: string;
+        claim_count: number;
         hasFactorMap: boolean;
         factorCount: number;
-        debug?: { aspectsCount: number; dominantPlanetsLength: number; housesPresent: boolean };
-        text_vnext_daily?: any;
-        text_engine_attempted?: string;
-        text_engine_fallback?: boolean;
-        text_engine_failure_stage?: string;
-        text_engine_failure_name?: string;
-        text_engine_failure_message?: string;
+        debug?: { aspectsCount: number; housesPresent: boolean };
       } = {
-        engine: usedDailyV1 ? 'daily-v1' : isSpecEngine ? 'spec' : 'legacy',
-        engineVersion: 'tge-1.0',
-        hasFactorMap,
-        factorCount
+        engine: 'semantic-core-v1',
+        engineVersion: 'phase-b-1',
+        canonical_object_hash: canonicalReport.object_identity_hash,
+        semantic_core_schema: semanticCore.provenance.core_schema_version,
+        claim_count: semanticCore.claims.length,
+        hasFactorMap: false,
+        factorCount: 0,
       };
-      if (debugExplain && isSpecEngine) {
+      if (debugExplain) {
         explanationMeta.debug = {
           aspectsCount: (snapshot as any)?.aspects?.length ?? 0,
-          dominantPlanetsLength: spec?.single?.signatures?.dominantPlanets?.length ?? 0,
-          housesPresent: !!((snapshot as any)?.houses?.length >= 10)
+          housesPresent: !!((snapshot as any)?.houses?.length >= 10),
         };
-      }
-      if (textVnextDaily) {
-        explanationMeta.text_vnext_daily = textVnextDaily;
-      }
-      if (useTextEngineVnext && enableDailyV1Text && (textVnextDaily?.sections?.length ?? 0) === 0) {
-        explanationMeta.text_engine_attempted = 'daily-v1';
-        explanationMeta.text_engine_fallback = true;
-        if (textEngineFailureStage !== undefined) explanationMeta.text_engine_failure_stage = textEngineFailureStage;
-        if (textEngineFailureName !== undefined) explanationMeta.text_engine_failure_name = textEngineFailureName;
-        if (textEngineFailureMessage !== undefined) explanationMeta.text_engine_failure_message = textEngineFailureMessage;
       }
 
       if (debugExplain && sections) {
@@ -533,8 +315,8 @@ export class ComposeAPI {
           {
             sectionId: 'debug',
             title: 'Debug',
-            text: `engine=${explanationMeta.engine} factorCount=${factorCount} hasFactorMap=${hasFactorMap}`
-          }
+            text: `engine=semantic-core-v1 claims=${semanticCore.claims.length} canonical=${canonicalReport.object_identity_hash.slice(0, 8)}`,
+          },
         ];
       }
 
@@ -814,103 +596,61 @@ export class ComposeAPI {
       throw err;
     }
     const gateReport = await this.runAuditionGates(plan, payload.hash);
-    const planSummary = buildPlanSummary(plan);
+    const participants =
+      input.kind === 'comparison'
+        ? [
+            { snapshot: input.snapLow, featureVec: input.vecLow, role: 'primary' as const },
+            { snapshot: input.snapHigh, featureVec: input.vecHigh, role: 'member_i' as const },
+          ]
+        : input.snapshotsOrdered.map((sn, i) => ({
+            snapshot: sn,
+            featureVec: encodeFeatures(sn) as FeatureVec,
+            role: (i === 0 ? 'primary' : 'member_i') as 'primary' | 'member_i',
+          }));
 
-    let rendered: ReturnType<typeof renderExplainSpecToSections>;
-    if (input.kind === 'comparison') {
-      const aAstro = astroSummaryFromSnapshot(input.snapLow, input.vecLow);
-      const bAstro = astroSummaryFromSnapshot(input.snapHigh, input.vecHigh);
-      const clamp01n = (x: number) => Math.max(0, Math.min(1, x));
-      const elementBlendDiff = {
-        fire: Math.abs(clamp01n(input.vecLow[27] ?? 0) - clamp01n(input.vecHigh[27] ?? 0)),
-        earth: Math.abs(clamp01n(input.vecLow[28] ?? 0) - clamp01n(input.vecHigh[28] ?? 0)),
-        air: Math.abs(clamp01n(input.vecLow[29] ?? 0) - clamp01n(input.vecHigh[29] ?? 0)),
-        water: Math.abs(clamp01n(input.vecLow[30] ?? 0) - clamp01n(input.vecHigh[30] ?? 0)),
-      };
-      const tensionDiff = Math.abs((input.vecLow[32] ?? 0.5) - (input.vecHigh[32] ?? 0.5));
-      const clusteringDiff = Math.abs((input.vecLow[33] ?? 0.5) - (input.vecHigh[33] ?? 0.5));
-      const dominantPlanetOverlap = aAstro.dominant_planets.filter((p) => bAstro.dominant_planets.includes(p));
+    const canonicalReport = buildCanonicalReportForAggregate({
+      kind: input.kind === 'comparison' ? 'comparison' : 'group',
+      subject_ids: [payload.hash],
+      participants,
+      composite: featureVec,
+      anchorIndex: 0,
+      control_surface_hash: payload.hash,
+      compose_seed: payload.hash,
+      guidance: architecture.guidance,
+      relationalWeather: input.relationalWeather ?? null,
+    });
+    const semanticCore = interpretCanonicalReportObject(canonicalReport);
+    const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
 
-      const spec = buildExplainSpecComparison({
-        seed: payload.hash,
-        a: {
-          snapshot: input.snapLow,
-          featureVec: input.vecLow,
-          guidanceSummary: guidanceSummaryFromFeatureVec(input.vecLow),
-          plan,
-          planSummary,
-        },
-        b: {
-          snapshot: input.snapHigh,
-          featureVec: input.vecHigh,
-          guidanceSummary: guidanceSummaryFromFeatureVec(input.vecHigh),
-          plan,
-          planSummary,
-        },
-        delta: { elementBlendDiff, tensionDiff, clusteringDiff, dominantPlanetOverlap },
-        gateReport,
-      });
-      rendered = renderExplainSpecToSections(spec);
-    } else {
-      const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
-      const spec = buildExplainSpecSingle({
-        seed: payload.hash,
-        snapshot: input.anchorSnapshot,
-        featureVec,
-        guidanceSummary,
-        plan,
-        planSummary,
-        gateReport,
-      });
-      rendered = renderExplainSpecToSections(spec);
-    }
-
-    const signaturesText = rendered.sections.find((s) => s.id === 'signatures')?.text || '';
-    const significanceText = rendered.sections.find((s) => s.id === 'significance')?.text || '';
-    const musicalSection = rendered.sections.find((s) => s.id === 'musical');
+    const signaturesText = projected.find((s) => s.id === 'signatures' || s.id === 'relational_field')?.text || '';
+    const significanceText = projected.find((s) => s.id === 'significance')?.text || '';
+    const musicalSection = projected.find((s) => s.id === 'musical');
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
-
-    const weatherAnnex =
-      input.kind === 'group' && input.relationalWeather
-        ? buildRelationalWeatherExplainAnnex(input.relationalWeather)
-        : null;
-    const weatherBlock = weatherAnnex ? `\n\n${weatherAnnex.text}` : '';
+    const allLong = projected.map((s) => s.text).filter(Boolean).join('\n\n');
 
     const text = {
       short: signaturesText,
-      long: significanceText + (musicalText ? '\n\n' + musicalText : '') + weatherBlock,
+      long: allLong || signaturesText,
       bullets: musicalBullets,
-      template_id: weatherAnnex ? 'explainspec-aggregate-relational-weather-v1' : 'explainspec-aggregate-v1',
+      template_id: input.relationalWeather ? 'semantic-core-aggregate-relational-v1' : 'semantic-core-aggregate-v1',
       signatures: signaturesText,
       significance: significanceText,
       musicalParagraph: musicalText,
       musicalBullets,
-      relational_weather_v1: weatherAnnex
-        ? { stateHash: input.relationalWeather!.stateHash, sectionId: weatherAnnex.sectionId }
+      relational_weather_v1: input.relationalWeather
+        ? { stateHash: input.relationalWeather.stateHash, sectionId: 'relational_weather_v1' }
         : undefined,
     };
 
     const wavBundle = await runLyriaAlignedExportBlock(
       (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-      { plan, architecture, featureVec, payload }
+      { plan, architecture, featureVec, payload, semanticCore }
     );
-
-    const explanationSections: Array<{ title: string; text: string }> = [
-      { title: 'Theme', text: (text as any)?.short ?? '' },
-      { title: 'Details', text: (text as any)?.long ?? '' },
-      {
-        title: 'Bullets',
-        text: Array.isArray((text as any)?.bullets) ? (text as any).bullets.join(' · ') : '',
-      },
-    ];
-    if (weatherAnnex) {
-      explanationSections.push({ title: weatherAnnex.title, text: weatherAnnex.text });
-    }
 
     const explanation = {
       spec: 'UnifiedSpecV1.1',
-      sections: explanationSections,
+      sections: projected.map((s) => ({ title: s.title, text: s.text })),
     };
     const planHash = computePlanHash(plan);
     const hashes = {
@@ -951,27 +691,27 @@ export class ComposeAPI {
       err.code = 'ML_INFERENCE_UNAVAILABLE';
       throw err;
     }
-    const gateReport = await this.runAuditionGates(plan, payload.hash);
-    const guidanceSummary = guidanceSummaryFromFeatureVec(featureVec);
-    const planSummary = buildPlanSummary(plan);
-    const spec = buildExplainSpecSingle({
-      seed: payload.hash,
+    await this.runAuditionGates(plan, payload.hash);
+    const guidance = guidanceFromFeatures(featureVec, snapshot, payload.hash);
+    const canonicalReport = buildCanonicalReportForSnapshotSurface({
+      surface_kind: 'profile_natal',
+      subject_ids: [payload.hash],
       snapshot,
       featureVec,
-      guidanceSummary,
-      plan,
-      planSummary,
-      gateReport
+      control_surface_hash: payload.hash,
+      compose_seed: payload.hash,
+      guidance,
     });
-    const rendered = renderExplainSpecToSections(spec);
+    const semanticCore = interpretCanonicalReportObject(canonicalReport);
+    const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
     return {
       spec: 'UnifiedSpecV1.1',
-      sections: rendered.sections.map((s) => ({
+      sections: projected.map((s) => ({
         id: s.id,
         title: s.title,
         text: s.text,
-        bullets: s.bullets
-      }))
+        bullets: s.bullets,
+      })),
     };
   }
 

@@ -4,7 +4,8 @@ import type { ControlSurfacePayload } from "../explainer/contracts";
 import { guidanceFromFeatures } from "../astro/guidance";
 import { buildCompositionNarrativePlan } from "../audio/composition-narrative";
 import { buildLyriaPrompt } from "../render";
-import { buildChartSemanticProfile } from "../interpretation/chart-semantic-profile";
+import { buildCanonicalReportForSnapshotSurface } from "../canonical/build-from-compose-context";
+import { interpretCanonicalReportObject } from "../semantic/semantic-authority";
 
 function makeSnapshot(
   dominant: { fire: number; earth: number; air: number; water: number },
@@ -96,20 +97,24 @@ function narrativeFor(
     astroProfile: { snapshot } as any,
     guidance,
     relationalContext: {} as any,
-    semanticProfile: buildChartSemanticProfile({
-      snapshot,
-      featureVec,
-      guidance,
-      relationalContext: {} as any,
-    }),
     seed: payload.hash,
   };
+  const canonical = buildCanonicalReportForSnapshotSurface({
+    surface_kind: "profile_natal",
+    subject_ids: [payload.hash],
+    snapshot,
+    featureVec,
+    control_surface_hash: payload.hash,
+    compose_seed: payload.hash,
+    guidance,
+  });
+  const semanticCore = interpretCanonicalReportObject(canonical);
   const narrative = buildCompositionNarrativePlan(
     architectureLike,
     featureVec,
     payload,
     plan,
-    architectureLike.semanticProfile
+    semanticCore
   );
   const prompt = buildLyriaPrompt(payload, plan, narrative);
   return { narrative, prompt };

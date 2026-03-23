@@ -4,7 +4,8 @@ import type { ControlSurfacePayload } from "../explainer/contracts";
 import { guidanceFromFeatures } from "../astro/guidance";
 import { buildCompositionNarrativePlan } from "../audio/composition-narrative";
 import { buildLyriaPrompt } from "../render";
-import { buildChartSemanticProfile } from "../interpretation/chart-semantic-profile";
+import { buildCanonicalReportForSnapshotSurface } from "../canonical/build-from-compose-context";
+import { interpretCanonicalReportObject } from "../semantic/semantic-authority";
 
 type ScenarioId =
   | "fire_dominant"
@@ -180,12 +181,16 @@ function makeScenarios(): Scenario[] {
   for (const s of scenarios) {
     const featureVec = encode(s.snapshot);
     const guidance = guidanceFromFeatures(featureVec, s.snapshot, s.payload.hash);
-    const semanticProfile = buildChartSemanticProfile({
+    const canonical = buildCanonicalReportForSnapshotSurface({
+      surface_kind: "profile_natal",
+      subject_ids: [s.payload.hash],
       snapshot: s.snapshot,
       featureVec,
+      control_surface_hash: s.payload.hash,
+      compose_seed: s.payload.hash,
       guidance,
-      relationalContext: {} as any,
     });
+    const semanticCore = interpretCanonicalReportObject(canonical);
     const architectureLike = {
       snapshot: s.snapshot,
       features: featureVec,
@@ -193,7 +198,6 @@ function makeScenarios(): Scenario[] {
       astroProfile: { snapshot: s.snapshot } as any,
       guidance,
       relationalContext: {} as any,
-      semanticProfile,
       seed: s.payload.hash,
     };
     const narrative = buildCompositionNarrativePlan(
@@ -201,7 +205,7 @@ function makeScenarios(): Scenario[] {
       featureVec,
       s.payload,
       s.plan,
-      semanticProfile
+      semanticCore
     );
     const prompt = buildLyriaPrompt(s.payload, s.plan, narrative);
     // eslint-disable-next-line no-console

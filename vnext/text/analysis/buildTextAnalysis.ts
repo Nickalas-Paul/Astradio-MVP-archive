@@ -12,13 +12,9 @@ import type {
 import { bodyOrderIndex, BODY_LABELS, CORE_BODIES } from '../../canonical-bodies';
 import { topRankedAspects } from '../../aspect-priority';
 import { buildAstroProfile } from '../../astro/profile-from-snapshot';
-import type { ChartSemanticProfile } from '../../interpretation/chart-semantic-profile';
-import { deriveCrossSurfaceToneHints } from '../../interpretation/chart-semantic-profile';
-
 export function buildTextAnalysis(
   surface: ChartTextInput['surface'],
-  input: ChartTextInput,
-  semanticProfile?: ChartSemanticProfile
+  input: ChartTextInput
 ): TextAnalysisIntermediate {
   const { snapshot, relationalContext, algoVersion, toneVersion } = input;
 
@@ -28,35 +24,6 @@ export function buildTextAnalysis(
   const themes = synthesizeThemes(astro_facts);
   const tensions = synthesizeTensions(astro_facts);
   const opportunities = synthesizeOpportunities(astro_facts, themes, tensions);
-
-  let music_mapping: MusicMapping | undefined;
-  if (semanticProfile) {
-    const hints = deriveCrossSurfaceToneHints(semanticProfile);
-    music_mapping = {
-      traits: {
-        tempo:
-          hints.audio.harmonicTension === 'high'
-            ? 'driving'
-            : hints.audio.harmonicTension === 'medium'
-            ? 'steady'
-            : 'gentle',
-        density:
-          semanticProfile.tensionIndex >= 0.6
-            ? 'dense'
-            : semanticProfile.tensionIndex <= 0.3
-            ? 'spacious'
-            : 'balanced',
-        register:
-          semanticProfile.primaryElement === 'water'
-            ? 'mid_low'
-            : semanticProfile.primaryElement === 'fire'
-            ? 'mid_high'
-            : 'mixed',
-        motion: semanticProfile.motionProfile,
-        harmonicPosture: semanticProfile.tonalPolarity
-      }
-    };
-  }
 
   const confidenceMissing = [...input.missing];
   if (!input.hasHouses) confidenceMissing.push({ kind: 'no_houses' });
@@ -73,7 +40,6 @@ export function buildTextAnalysis(
     themes,
     tensions,
     opportunities,
-    ...(music_mapping && { music_mapping }),
     confidence: {
       score: confidenceScore,
       missing: confidenceMissing

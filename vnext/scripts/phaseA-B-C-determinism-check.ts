@@ -1,5 +1,8 @@
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
-import { buildChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import { encodeFeatures } from '../feature-encode';
+import { guidanceFromFeatures } from '../astro/guidance';
+import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
@@ -37,52 +40,58 @@ function snapshotVariant(delta: number): EphemerisSnapshot {
   };
 }
 
-function asFeatureVec(len: number): FeatureVec {
-  const arr = new Float32Array(len);
-  for (let i = 0; i < len; i++) arr[i] = (i % 7) / 10;
-  return arr as FeatureVec;
-}
-
 async function main() {
   const natalA = snapshotVariant(0);
   const natalB = snapshotVariant(5);
 
-  const featureVec = asFeatureVec(64);
+  const featureVecA = encodeFeatures(natalA) as FeatureVec;
+  const featureVecB = encodeFeatures(natalB) as FeatureVec;
 
   const bundleA = buildRpgEffectsBundleFromSnapshot(natalA);
   const bundleB = buildRpgEffectsBundleFromSnapshot(natalB);
 
-  const guidanceStub = {
-    motionProfile: { motion: 0.5, flow: 0.5, gravity: 0.5, shimmer: 0.5 },
-  } as any;
-
-  const semanticA = buildChartSemanticProfile({
+  const guidanceA = guidanceFromFeatures(featureVecA, natalA, 'phase-a');
+  const guidanceB = guidanceFromFeatures(featureVecB, natalB, 'phase-b');
+  const canonicalA = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['phase-a'],
     snapshot: natalA,
-    featureVec,
-    guidance: guidanceStub,
+    featureVec: featureVecA,
+    control_surface_hash: 'phase-a',
+    compose_seed: 'phase-a',
+    guidance: guidanceA,
   });
-  const semanticB = buildChartSemanticProfile({
+  const canonicalB = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['phase-b'],
     snapshot: natalB,
-    featureVec,
-    guidance: guidanceStub,
+    featureVec: featureVecB,
+    control_surface_hash: 'phase-b',
+    compose_seed: 'phase-b',
+    guidance: guidanceB,
   });
+  const semanticCoreA = interpretCanonicalReportObject(canonicalA);
+  const semanticCoreB = interpretCanonicalReportObject(canonicalB);
 
   const charA1 = buildCharacterProfile({
     natalSnapshot: natalA,
-    featureVec,
-    semanticProfile: semanticA,
+    featureVec: featureVecA,
+    semanticCore: semanticCoreA,
+    dominantPlanetNames: canonicalA.participants[0].dominant_planet_names,
     effectsBundle: bundleA,
   });
   const charA2 = buildCharacterProfile({
     natalSnapshot: natalA,
-    featureVec,
-    semanticProfile: semanticA,
+    featureVec: featureVecA,
+    semanticCore: semanticCoreA,
+    dominantPlanetNames: canonicalA.participants[0].dominant_planet_names,
     effectsBundle: bundleA,
   });
   const charB = buildCharacterProfile({
     natalSnapshot: natalB,
-    featureVec,
-    semanticProfile: semanticB,
+    featureVec: featureVecB,
+    semanticCore: semanticCoreB,
+    dominantPlanetNames: canonicalB.participants[0].dominant_planet_names,
     effectsBundle: bundleB,
   });
 
@@ -126,7 +135,7 @@ async function main() {
     character: charA1,
     pressures: pressures1,
     state: stubState,
-    semanticProfile: semanticA,
+    semanticCore: semanticCoreA,
     natalSnapshot: natalA,
     transitSnapshot: transit,
   });
@@ -134,7 +143,7 @@ async function main() {
     character: charA1,
     pressures: pressures1,
     state: stubState,
-    semanticProfile: semanticA,
+    semanticCore: semanticCoreA,
     natalSnapshot: natalA,
     transitSnapshot: transit,
   });

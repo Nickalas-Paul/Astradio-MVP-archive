@@ -2,8 +2,12 @@ import type { EphemerisSnapshot, FeatureVec, Plan } from "../contracts";
 import type { ControlSurfacePayload } from "../explainer/contracts";
 import type { ArchitectureOutput } from "../core/architecture-engine";
 import { astroSummaryFromSnapshot } from "../explainer/astro-summary-from-snapshot";
-import type { ChartSemanticProfile, CrossSurfaceToneHints } from "../interpretation/chart-semantic-profile";
-import { deriveCrossSurfaceToneHints } from "../interpretation/chart-semantic-profile";
+import type { SemanticCore } from "../semantic/semantic-core";
+import {
+  deriveCrossSurfaceToneHintsFromSemanticCore,
+  extractNarrativeScalarsFromSemanticCore,
+  type CrossSurfaceToneHints,
+} from "../projection/audio-projection";
 
 export type PrimaryElement = "fire" | "earth" | "air" | "water";
 
@@ -94,8 +98,8 @@ export interface CompositionNarrativePlan {
   luminaryDominance?: LuminaryDominance;
   planetarySignatures?: PlanetarySignatureFlags;
   aspectSignatures?: AspectSignatureFlags;
-  /** Phase 5: shared semantic profile snapshot used to derive this narrative. */
-  semanticProfile: ChartSemanticProfile;
+  /** Canonical object hash whose SemanticCore drove this narrative. */
+  semantic_source_object_hash: string;
   /** Phase 5: lightweight cross-surface tone hints applied to this narrative. */
   toneHints: CrossSurfaceToneHints;
 }
@@ -392,33 +396,30 @@ export function buildCompositionNarrativePlan(
   featureVec: FeatureVec,
   payload: ControlSurfacePayload,
   plan: Plan,
-  semanticProfile: ChartSemanticProfile
+  semanticCore: SemanticCore
 ): CompositionNarrativePlan {
   const snapshot: EphemerisSnapshot = architecture.snapshot;
   const g = architecture.guidance;
 
-  // Phase 5: primary semantic signals are sourced from shared ChartSemanticProfile.
-  const primaryElement = semanticProfile.primaryElement as PrimaryElement;
-  const secondaryElement = semanticProfile.secondaryElement as PrimaryElement | undefined;
+  const nar = extractNarrativeScalarsFromSemanticCore(semanticCore);
+  const primaryElement = nar.primaryElement as PrimaryElement;
+  const secondaryElement = nar.secondaryElement as PrimaryElement | undefined;
 
-  // Allow payload modality to gently bias the shared modality balance without breaking cross-surface alignment.
   const modalityFromPayload = modalityBalanceFromLabel(payload.modality);
   const modalityBalance = {
-    cardinal: clamp01(0.7 * semanticProfile.modalityBalance.cardinal + 0.3 * modalityFromPayload.cardinal),
-    fixed: clamp01(0.7 * semanticProfile.modalityBalance.fixed + 0.3 * modalityFromPayload.fixed),
-    mutable: clamp01(0.7 * semanticProfile.modalityBalance.mutable + 0.3 * modalityFromPayload.mutable),
+    cardinal: clamp01(0.7 * nar.modalityBalance.cardinal + 0.3 * modalityFromPayload.cardinal),
+    fixed: clamp01(0.7 * nar.modalityBalance.fixed + 0.3 * modalityFromPayload.fixed),
+    mutable: clamp01(0.7 * nar.modalityBalance.mutable + 0.3 * modalityFromPayload.mutable),
   };
 
-  const tensionIndex = semanticProfile.tensionIndex;
+  const tensionIndex = nar.tensionIndex;
   const clusterDensity = clamp01(featureVec[33] ?? 0);
 
   const shimmer = clamp01(g.motionProfile.shimmer);
-  const brightnessIndex = clamp01(
-    0.55 * (1 - tensionIndex) + 0.45 * shimmer
-  );
+  const brightnessIndex = clamp01(0.55 * (1 - tensionIndex) + 0.45 * shimmer);
 
   const gravity = clamp01(g.motionProfile.gravity);
-  const resolutionIndex = semanticProfile.resolutionIndex;
+  const resolutionIndex = nar.resolutionIndex;
 
   const arcShape = arcShapeFromGuidance({
     arcBias: g.arcBias,
@@ -427,18 +428,14 @@ export function buildCompositionNarrativePlan(
     tensionIndex,
   });
 
-  const energyCurve = energyCurveFromMotion(
-    g.motionProfile.motion,
-    g.motionProfile.gravity
-  );
+  const energyCurve = energyCurveFromMotion(g.motionProfile.motion, g.motionProfile.gravity);
 
   const peakWindow = peakWindowFromArcBias(g.arcBias);
 
   const moonPhase = clamp01(snapshot.moonPhase);
-  const plutoDepth =
-    architecture.personality?.subsystems?.outers?.plutoDepth ?? 0;
+  const plutoDepth = architecture.personality?.subsystems?.outers?.plutoDepth ?? 0;
 
-  const tonalPolarity = semanticProfile.tonalPolarity as TonalPolarity;
+  const tonalPolarity = nar.tonalPolarity as TonalPolarity;
 
   const endingStyle = endingStyleFromChart({
     primaryElement,
@@ -457,28 +454,20 @@ export function buildCompositionNarrativePlan(
   const rhythmicDrive = rhythmicDriveFromMotion({
     motion: g.motionProfile.motion,
     aspectTension: clamp01(
-      typeof payload.aspect_tension === "number"
-        ? payload.aspect_tension
-        : tensionIndex
+      typeof payload.aspect_tension === "number" ? payload.aspect_tension : tensionIndex
     ),
   });
 
-  // Phase 4: chart identity amplification, derived from existing snapshot/features only.
   const astroSummary = astroSummaryFromSnapshot(snapshot, featureVec, payload.modality);
   const stellium = stelliumFromSnapshot(snapshot, clusterDensity, primaryElement);
   const angularDominance = angularDominanceFromSnapshot(snapshot);
-  const luminaryDominance = luminaryDominanceFromSummary(
-    astroSummary.dominant_planets ?? []
-  );
-  const planetarySignatures = planetarySignaturesFromSummary(
-    astroSummary.dominant_planets ?? []
-  );
+  const luminaryDominance = luminaryDominanceFromSummary(astroSummary.dominant_planets ?? []);
+  const planetarySignatures = planetarySignaturesFromSummary(astroSummary.dominant_planets ?? []);
   const aspectSignatures = aspectSignaturesFromSnapshot(snapshot);
 
-  // Phase 5: cross-surface tone hints derived once from semantic profile.
-  const toneHints = deriveCrossSurfaceToneHints(semanticProfile);
+  const toneHints = deriveCrossSurfaceToneHintsFromSemanticCore(semanticCore);
 
-  void plan; // plan is present for future extensions; unused but part of deterministic signature.
+  void plan;
 
   return {
     primaryElement,
@@ -499,7 +488,7 @@ export function buildCompositionNarrativePlan(
     luminaryDominance,
     ...(planetarySignatures && { planetarySignatures }),
     ...(aspectSignatures && { aspectSignatures }),
-    semanticProfile,
+    semantic_source_object_hash: semanticCore.provenance.source_object_hash,
     toneHints,
   };
 }

@@ -7,9 +7,9 @@
 // separately passed generator version parameter; behavior is fixed by code path.
 
 import type { EphemerisSnapshot } from '../contracts';
-import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import type { SemanticCore } from '../semantic/semantic-core';
 import type { CampaignIdentityTone } from './semantic-adapter';
-import { deriveCampaignIdentityTone } from './semantic-adapter';
+import { deriveCampaignIdentityToneFromSemanticCore } from './identity-from-semantic-core';
 import type {
   CampaignState,
   CharacterProfile,
@@ -181,7 +181,7 @@ export interface BuildChallengeParams {
   character: CharacterProfile;
   pressures: TransitPressure[];
   state: CampaignState;
-  semanticProfile: ChartSemanticProfile;
+  semanticCore: SemanticCore;
   natalSnapshot: EphemerisSnapshot;
   transitSnapshot: EphemerisSnapshot;
 }
@@ -198,10 +198,10 @@ export interface BuildChallengeParams {
  * same (state, transit snapshot, character) must be passed for idempotent scene identity.
  */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
-  const { character, pressures, state, semanticProfile, transitSnapshot } = params;
+  const { character, pressures, state, semanticCore, transitSnapshot } = params;
   if (!pressures.length) return null;
 
-  const tone = deriveCampaignIdentityTone(semanticProfile);
+  const tone = deriveCampaignIdentityToneFromSemanticCore(semanticCore);
   const primary = pickPrimaryPressure(pressures);
   if (!primary) return null;
 

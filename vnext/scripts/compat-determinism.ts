@@ -72,12 +72,27 @@ async function main(): Promise<void> {
 
   try {
     const res = await api.compose(composeRequest);
-    const planHash = (res as any).hashes?.plan_sha256;
+    const hashes = (res as any).hashes || {};
+    const planHash = hashes.plan_sha256;
+    const audioHash = hashes.audio;
+    const explainHash = hashes.explanation;
     if (!planHash || typeof planHash !== 'string') {
       console.error('[compat-determinism] FAIL: compose response missing hashes.plan_sha256');
       failed++;
     } else {
       console.log('[compat-determinism] OK: compose plan_sha256 =', planHash.slice(0, 16) + '...');
+    }
+    if (!audioHash || typeof audioHash !== 'string') {
+      console.error('[compat-determinism] FAIL: compose response missing hashes.audio');
+      failed++;
+    } else {
+      console.log('[compat-determinism] OK: compose audio hash =', audioHash.slice(0, 16) + '...');
+    }
+    if (!explainHash || typeof explainHash !== 'string') {
+      console.error('[compat-determinism] FAIL: compose response missing hashes.explanation');
+      failed++;
+    } else {
+      console.log('[compat-determinism] OK: compose explanation hash =', explainHash.slice(0, 16) + '...');
     }
   } catch (e) {
     console.error('[compat-determinism] Compose golden error:', e);
@@ -142,6 +157,31 @@ async function main(): Promise<void> {
       failed++;
     } else if (hash1 && hash2) {
       console.log('[compat-determinism] OK: mergedFeatureHash identical', hash1.slice(0, 16) + '...');
+    }
+    // Check compatibilityText structured equality where possible
+    const text1 = result1.comparison.compatibilityText;
+    const text2 = result2.comparison.compatibilityText;
+    if (typeof text1 === 'string' || typeof text2 === 'string') {
+      if (text1 !== text2) {
+        console.error('[compat-determinism] FAIL: compatibilityText string differs between runs');
+        failed++;
+      }
+    } else {
+      const t1 = text1 as any;
+      const t2 = text2 as any;
+      const eq =
+        t1.short === t2.short &&
+        t1.long === t2.long &&
+        Array.isArray(t1.bullets) &&
+        Array.isArray(t2.bullets) &&
+        t1.bullets.length === t2.bullets.length &&
+        t1.bullets.every((b: string, i: number) => b === t2.bullets[i]);
+      if (!eq) {
+        console.error('[compat-determinism] FAIL: compatibilityText structured payload differs between runs');
+        failed++;
+      } else {
+        console.log('[compat-determinism] OK: compatibilityText structured payload identical');
+      }
     }
   } catch (e) {
     console.error('[compat-determinism] Comparisons determinism error:', e);

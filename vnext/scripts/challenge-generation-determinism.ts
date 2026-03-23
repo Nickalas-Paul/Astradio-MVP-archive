@@ -5,7 +5,10 @@
 
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
-import { buildChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import { encodeFeatures } from '../feature-encode';
+import { guidanceFromFeatures } from '../astro/guidance';
+import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
@@ -60,29 +63,27 @@ function snapshotWithTransitAspects(): { natal: EphemerisSnapshot; transit: Ephe
   return { natal, transit };
 }
 
-function stubFeatureVec(len: number): FeatureVec {
-  const arr = new Float32Array(len);
-  for (let i = 0; i < len; i++) arr[i] = (i % 7) / 10;
-  return arr as FeatureVec;
-}
-
 function main(): void {
   const { natal, transit } = snapshotWithTransitAspects();
-  const featureVec = stubFeatureVec(64);
-  const guidanceStub = {
-    motionProfile: { motion: 0.5, flow: 0.5, gravity: 0.5, shimmer: 0.5 },
-  } as any;
-
-  const bundle = buildRpgEffectsBundleFromSnapshot(natal);
-  const semanticProfile = buildChartSemanticProfile({
+  const featureVec = encodeFeatures(natal) as FeatureVec;
+  const guidance = guidanceFromFeatures(featureVec, natal, 'challenge-determinism');
+  const canonical = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['challenge-determinism'],
     snapshot: natal,
     featureVec,
-    guidance: guidanceStub,
+    control_surface_hash: 'challenge-determinism',
+    compose_seed: 'challenge-determinism',
+    guidance,
   });
+  const semanticCore = interpretCanonicalReportObject(canonical);
+
+  const bundle = buildRpgEffectsBundleFromSnapshot(natal);
   const character = buildCharacterProfile({
     natalSnapshot: natal,
     featureVec,
-    semanticProfile,
+    semanticCore,
+    dominantPlanetNames: canonical.participants[0].dominant_planet_names,
     effectsBundle: bundle,
   });
   const pressures = buildTransitPressureMap({ natalSnapshot: natal, transitSnapshot: transit });
@@ -98,7 +99,7 @@ function main(): void {
     character,
     pressures,
     state,
-    semanticProfile,
+    semanticCore,
     natalSnapshot: natal,
     transitSnapshot: transit,
   });
@@ -106,7 +107,7 @@ function main(): void {
     character,
     pressures,
     state,
-    semanticProfile,
+    semanticCore,
     natalSnapshot: natal,
     transitSnapshot: transit,
   });

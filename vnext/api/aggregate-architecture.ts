@@ -7,11 +7,10 @@ import type { ArchitectureOutput } from '../core/architecture-engine';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildAstroProfile } from '../astro/profile-from-snapshot';
 import { buildRelationalChartContext } from '../report-context';
-import { buildChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 
 /**
  * Anchor snapshot is the first chart in deterministic order (snapLow / snapshotsOrdered[0]).
- * Guidance and semantic profile use compositeFeatureVec with that real sky context.
+ * Guidance uses compositeFeatureVec with that real sky context.
  */
 export function buildArchitectureForAggregate(
   anchorSnapshot: EphemerisSnapshot,
@@ -22,12 +21,6 @@ export function buildArchitectureForAggregate(
   const personality = guidance.personality;
   const astroProfile = buildAstroProfile(anchorSnapshot);
   const relationalContext = buildRelationalChartContext(anchorSnapshot);
-  const semanticProfile = buildChartSemanticProfile({
-    snapshot: anchorSnapshot,
-    featureVec: compositeFeatureVec,
-    guidance,
-    relationalContext,
-  });
   return {
     snapshot: anchorSnapshot,
     features: compositeFeatureVec,
@@ -35,7 +28,6 @@ export function buildArchitectureForAggregate(
     astroProfile,
     guidance,
     relationalContext,
-    semanticProfile,
     seed,
   };
 }

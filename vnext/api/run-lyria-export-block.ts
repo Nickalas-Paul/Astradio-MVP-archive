@@ -6,7 +6,7 @@
 import type { Plan, FeatureVec } from '../contracts';
 import type { ControlSurfacePayload } from '../explainer/contracts';
 import type { ArchitectureOutput } from '../core/architecture-engine';
-import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import type { SemanticCore } from '../semantic/semantic-core';
 import { DEFAULT_DURATION_S } from '../constants';
 import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider, isProductionOrPreview } from '../render';
 import {
@@ -76,9 +76,10 @@ export async function runLyriaAlignedExportBlock(
     architecture: ArchitectureOutput;
     featureVec: FeatureVec;
     payload: ControlSurfacePayload;
+    semanticCore: SemanticCore;
   }
 ): Promise<LyriaExportBundle> {
-  const { plan, architecture, featureVec, payload } = params;
+  const { plan, architecture, featureVec, payload, semanticCore } = params;
   const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
 
   const stubAudio: LyriaExportAudio = {
@@ -117,7 +118,7 @@ export async function runLyriaAlignedExportBlock(
         featureVec,
         payload,
         plan,
-        architecture.semanticProfile as ChartSemanticProfile
+        semanticCore
       );
       prompt = buildLyriaPrompt(payload, plan, narrativePlan);
       promptHash = hashPrompt(prompt);

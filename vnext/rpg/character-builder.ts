@@ -1,9 +1,10 @@
 import { buildAstroProfile } from '../astro/profile-from-snapshot';
 import type { FeatureVec } from '../contracts';
-import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
 import type { RPGEffectsBundle } from './contracts';
 import type { CharacterProfile, CharacterTemperamentAxes } from './types';
 import { hashSnapshot } from './hash/snapshot-hash';
+import { chartIdentityFieldsFromSemanticCore } from './identity-from-semantic-core';
+import type { SemanticCore } from '../semantic/semantic-core';
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -24,12 +25,14 @@ function normalizeVector(values: Record<keyof CharacterTemperamentAxes, number>)
 export interface BuildCharacterProfileParams {
   natalSnapshot: Parameters<typeof buildAstroProfile>[0];
   featureVec: FeatureVec;
-  semanticProfile: ChartSemanticProfile;
+  semanticCore: SemanticCore;
+  dominantPlanetNames: readonly string[];
   effectsBundle: RPGEffectsBundle;
 }
 
 export function buildCharacterProfile(params: BuildCharacterProfileParams): CharacterProfile {
-  const { natalSnapshot, featureVec, semanticProfile, effectsBundle } = params;
+  const { natalSnapshot, featureVec, semanticCore, dominantPlanetNames, effectsBundle } = params;
+  const idFields = chartIdentityFieldsFromSemanticCore(semanticCore, dominantPlanetNames);
 
   const astro = buildAstroProfile(natalSnapshot);
   const hash = hashSnapshot(natalSnapshot);
@@ -65,19 +68,19 @@ export function buildCharacterProfile(params: BuildCharacterProfileParams): Char
     (elements.air ?? 0) * 0.4;
 
   const bond =
-    (semanticProfile.angularEmphasis.seventh ? 1 : 0) * 0.6 +
+    (idFields.angularEmphasis.seventh ? 1 : 0) * 0.6 +
     (elements.water ?? 0) * 0.3 +
     (featureVec[18] ?? 0) * 0.1;
 
   const shadowCapacity =
-    (semanticProfile.tensionIndex ?? 0) * 0.6 +
-    (semanticProfile.aspectSignature.squareHeavy ? 0.25 : 0) +
-    (semanticProfile.aspectSignature.oppositionHeavy ? 0.15 : 0);
+    (idFields.tensionIndex ?? 0) * 0.6 +
+    (idFields.aspectSignature.squareHeavy ? 0.25 : 0) +
+    (idFields.aspectSignature.oppositionHeavy ? 0.15 : 0);
 
   const radiance =
-    (1 - semanticProfile.tensionIndex) * 0.5 +
-    (semanticProfile.resolutionIndex ?? 0) * 0.3 +
-    (semanticProfile.tonalPolarity === 'bright' ? 0.2 : 0);
+    (1 - idFields.tensionIndex) * 0.5 +
+    (idFields.resolutionIndex ?? 0) * 0.3 +
+    (idFields.tonalPolarity === 'bright' ? 0.2 : 0);
 
   const temperament = normalizeVector({
     will,
@@ -104,13 +107,13 @@ export function buildCharacterProfile(params: BuildCharacterProfileParams): Char
     classSlug: effectsBundle.classSlug,
     subclassSlug: effectsBundle.subclassSlug,
     risingModifierSlug: effectsBundle.risingModifierSlug,
-    primaryElement: semanticProfile.primaryElement,
-    tonalPolarity: semanticProfile.tonalPolarity,
-    motionProfile: semanticProfile.motionProfile,
-    gravityProfile: semanticProfile.gravityProfile,
-    luminaryWeight: semanticProfile.luminaryWeight,
-    dominantPlanets: semanticProfile.dominantPlanets,
-    angularEmphasis: semanticProfile.angularEmphasis,
+    primaryElement: idFields.primaryElement,
+    tonalPolarity: idFields.tonalPolarity,
+    motionProfile: idFields.motionProfile,
+    gravityProfile: idFields.gravityProfile,
+    luminaryWeight: idFields.luminaryWeight,
+    dominantPlanets: idFields.dominantPlanets,
+    angularEmphasis: idFields.angularEmphasis,
     temperament,
     signatureDomains: topDomains,
   };

@@ -1,0 +1,172 @@
+/** Exhaustive ontology literals — SemanticAuthority is the only producer. */
+
+export const CLAIM_IDS = [
+  'ELEMENT_FIRE_DOM',
+  'ELEMENT_EARTH_DOM',
+  'ELEMENT_AIR_DOM',
+  'ELEMENT_WATER_DOM',
+  'ELEMENT_SECONDARY_FIRE',
+  'ELEMENT_SECONDARY_EARTH',
+  'ELEMENT_SECONDARY_AIR',
+  'ELEMENT_SECONDARY_WATER',
+  'MODALITY_CARDINAL',
+  'MODALITY_FIXED',
+  'MODALITY_MUTABLE',
+  'TENSION_BAND_LOW',
+  'TENSION_BAND_MED',
+  'TENSION_BAND_HIGH',
+  'TONAL_BRIGHT',
+  'TONAL_BALANCED',
+  'TONAL_DARK',
+  'RESOLUTION_STRONG',
+  'RESOLUTION_MODERATE',
+  'RESOLUTION_SOFT',
+  'STRUCT_STELLIUM',
+  'STRUCT_ANGULAR_FIRST',
+  'STRUCT_ANGULAR_FOURTH',
+  'STRUCT_ANGULAR_SEVENTH',
+  'STRUCT_ANGULAR_TENTH',
+  'STRUCT_LUMINARY_SUN',
+  'STRUCT_LUMINARY_MOON',
+  'STRUCT_LUMINARY_BALANCED',
+  'STRUCT_ASPECT_TRINE_HEAVY',
+  'STRUCT_ASPECT_SQUARE_HEAVY',
+  'STRUCT_ASPECT_OPPOSITION_HEAVY',
+  'CROSS_ELEMENT_DRIFT_HIGH',
+  'CROSS_TENSION_DELTA_HIGH',
+  'REL_HARMONY_HIGH',
+  'REL_HARMONY_MED',
+  'REL_HARMONY_LOW',
+  'REL_FRICTION_HIGH',
+  'REL_FRICTION_MED',
+  'REL_FRICTION_LOW',
+  'REL_INTENSITY_HIGH',
+  'REL_INTENSITY_MED',
+  'REL_INTENSITY_LOW',
+  'MOTION_LABEL_SURGING',
+  'MOTION_LABEL_RESTLESS',
+  'MOTION_LABEL_QUIET_FLOW',
+  'MOTION_LABEL_INWARD',
+  'MOTION_LABEL_STEADY',
+  'GRAVITY_LABEL_ANCHORED',
+  'GRAVITY_LABEL_WEIGHTED_SPARK',
+  'GRAVITY_LABEL_FLOATING',
+  'GRAVITY_LABEL_LIGHT',
+  'GRAVITY_LABEL_BALANCED',
+] as const;
+
+export type ClaimId = (typeof CLAIM_IDS)[number];
+
+export function isClaimId(s: string): s is ClaimId {
+  return (CLAIM_IDS as readonly string[]).includes(s);
+}
+
+export const DERIVATION_CODES = [
+  'DERIVE_FEATURE_ELEMENT_VEC',
+  'DERIVE_FEATURE_TENSION',
+  'DERIVE_ASTRO_SUMMARY_MODALITY',
+  'DERIVE_BRIGHTNESS_INDEX',
+  'DERIVE_RESOLUTION_INDEX',
+  'DERIVE_SNAPSHOT_STRUCTURE',
+  'DERIVE_CROSS_CHART_VEC',
+  'DERIVE_RELATIONAL_WEATHER',
+] as const;
+
+export type DerivationCode = (typeof DERIVATION_CODES)[number];
+
+export const RELATIONAL_BAND_CODES = [
+  'REL_BAND_HARMONY_HIGH',
+  'REL_BAND_HARMONY_MED',
+  'REL_BAND_HARMONY_LOW',
+  'REL_BAND_FRICTION_HIGH',
+  'REL_BAND_FRICTION_MED',
+  'REL_BAND_FRICTION_LOW',
+  'REL_BAND_INTENSITY_HIGH',
+  'REL_BAND_INTENSITY_MED',
+  'REL_BAND_INTENSITY_LOW',
+] as const;
+
+export type RelationalBandCode = (typeof RELATIONAL_BAND_CODES)[number];
+
+export const CROSS_CHART_DELTA_CODES = [
+  'DELTA_ELEMENT_FIRE_SPREAD',
+  'DELTA_ELEMENT_EARTH_SPREAD',
+  'DELTA_ELEMENT_AIR_SPREAD',
+  'DELTA_ELEMENT_WATER_SPREAD',
+  'DELTA_TENSION_SPREAD',
+  'DELTA_CLUSTERING_SPREAD',
+  'DELTA_DOMINANT_OVERLAP',
+] as const;
+
+export type CrossChartDeltaCode = (typeof CROSS_CHART_DELTA_CODES)[number];
+
+export const PHASE_EMPHASIS_CODES = ['PHASE_ENCOUNTER', 'PHASE_DEVELOPMENT', 'PHASE_RESOLUTION'] as const;
+export type PhaseEmphasisCode = (typeof PHASE_EMPHASIS_CODES)[number];
+
+export const TENSION_BAND_CODES = ['TENSION_BUCKET_LOW', 'TENSION_BUCKET_MED', 'TENSION_BUCKET_HIGH'] as const;
+export type TensionBandCode = (typeof TENSION_BAND_CODES)[number];
+
+export const HARMONY_BAND_CODES = ['HARMONY_BUCKET_LOW', 'HARMONY_BUCKET_MED', 'HARMONY_BUCKET_HIGH'] as const;
+export type HarmonyBandCode = (typeof HARMONY_BAND_CODES)[number];
+
+export const CLAIM_EDGE_KINDS = ['amplifies', 'dampens', 'contrasts'] as const;
+export type ClaimEdgeKind = (typeof CLAIM_EDGE_KINDS)[number];
+
+export const SECTION_TEMPLATE_IDS = [
+  'SECTION_SIGNATURES',
+  'SECTION_SIGNIFICANCE',
+  'SECTION_MUSICAL',
+  'SECTION_SKY_SUMMARY',
+  'SECTION_PERSONAL_EMPHASIS',
+  'SECTION_LIKELY_EXPRESSIONS',
+  'SECTION_WATCH_FORS',
+  'SECTION_INTEGRATION',
+  'SECTION_MUSIC_TRANSLATION',
+  'SECTION_COMPARISON_SIGNATURES',
+  'SECTION_COMPARISON_BRIDGE',
+  'SECTION_AGGREGATE_FIELD',
+  'SECTION_RELATIONAL_WEATHER',
+] as const;
+
+export type SectionTemplateId = (typeof SECTION_TEMPLATE_IDS)[number];
+
+export const TONE_FLAG_CODES = [
+  'TONE_AVOID_SHADOW',
+  'TONE_EMPHASIZE_MIRROR',
+  'TONE_EMPHASIZE_WATER',
+  'TONE_EMPHASIZE_TENSION_HIGH',
+] as const;
+
+export type ToneFlagCode = (typeof TONE_FLAG_CODES)[number];
+
+export const TEMPO_BAND_CODES = ['TEMPO_LOW', 'TEMPO_MED', 'TEMPO_HIGH'] as const;
+export type TempoBandCode = (typeof TEMPO_BAND_CODES)[number];
+
+export const DENSITY_BAND_CODES = ['DENSITY_SPARSE', 'DENSITY_BALANCED', 'DENSITY_DENSE'] as const;
+export type DensityBandCode = (typeof DENSITY_BAND_CODES)[number];
+
+export const ARC_BIAS_CODES = ['ARC_RISE', 'ARC_FALL', 'ARC_CYCLIC', 'ARC_SURGE_RESOLVE'] as const;
+export type ArcBiasCode = (typeof ARC_BIAS_CODES)[number];
+
+export const TENSION_BIAS_CODES = ['AUDIO_TENSION_LOW', 'AUDIO_TENSION_MED', 'AUDIO_TENSION_HIGH'] as const;
+export type TensionBiasCode = (typeof TENSION_BIAS_CODES)[number];
+
+export const RELATIONAL_TEXTURE_CODES = [
+  'REL_TEXTURE_FLUID',
+  'REL_TEXTURE_NEUTRAL',
+  'REL_TEXTURE_CALL_RESPONSE',
+  'REL_TEXTURE_STATIC',
+] as const;
+
+export type RelationalTextureCode = (typeof RELATIONAL_TEXTURE_CODES)[number];
+
+export const NARRATIVE_BEAT_CODES = ['BEAT_NONE'] as const;
+export type NarrativeBeatCode = (typeof NARRATIVE_BEAT_CODES)[number];
+
+export const CHOICE_FLAG_CODES = ['CHOICE_NONE'] as const;
+export type ChoiceFlagCode = (typeof CHOICE_FLAG_CODES)[number];
+
+export const STATE_TRANSITION_CODES = ['STATE_NONE'] as const;
+export type StateTransitionCode = (typeof STATE_TRANSITION_CODES)[number];
+
+export const CORE_SCHEMA_VERSION = 'semantic_core_v1';

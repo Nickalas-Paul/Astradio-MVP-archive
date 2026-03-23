@@ -137,7 +137,7 @@ export function buildChallengeOutcome(params: BuildOutcomeParams): ChallengeOutc
         lat: transitSnapshot.lat,
         lon: transitSnapshot.lon,
       },
-      semanticProfileEnergySignature: undefined,
+      semantic_source_object_hash: undefined,
       primaryDomain: pressure.domain,
       lifeArea: pressure.lifeArea,
       pressureType: pressure.type,

@@ -1,6 +1,6 @@
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { RPGEffectsBundle, RPGDomainScore } from './contracts';
-import type { ChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import type { SemanticCore } from '../semantic/semantic-core';
 import type { RPGCampaignState as InternalCampaignState } from './campaign/state-machine';
 
 export interface CharacterTemperamentAxes {
@@ -23,13 +23,18 @@ export interface CharacterProfile {
   subclassSlug: string;
   risingModifierSlug: string;
   /** High-level chart identity flavor for Campaign surfaces. */
-  primaryElement: ChartSemanticProfile['primaryElement'];
-  tonalPolarity: ChartSemanticProfile['tonalPolarity'];
-  motionProfile: ChartSemanticProfile['motionProfile'];
-  gravityProfile: ChartSemanticProfile['gravityProfile'];
-  luminaryWeight: ChartSemanticProfile['luminaryWeight'];
+  primaryElement: 'fire' | 'earth' | 'air' | 'water';
+  tonalPolarity: 'bright' | 'balanced' | 'dark';
+  motionProfile: string;
+  gravityProfile: string;
+  luminaryWeight: 'sun' | 'moon' | 'balanced';
   dominantPlanets: string[];
-  angularEmphasis: ChartSemanticProfile['angularEmphasis'];
+  angularEmphasis: {
+    first: boolean;
+    fourth: boolean;
+    seventh: boolean;
+    tenth: boolean;
+  };
   /** Normalized temperament axes in \[0,1], derived from natal structure. */
   temperament: CharacterTemperamentAxes;
   /** Top natal domains that seed Campaign focus (from RPGEffectsBundle.domainSummary). */
@@ -107,7 +112,7 @@ export interface ChallengeOutcome {
   provenance: {
     natalSnapshot: Pick<EphemerisSnapshot, 'ts' | 'tz' | 'lat' | 'lon'>;
     transitSnapshot: Pick<EphemerisSnapshot, 'ts' | 'tz' | 'lat' | 'lon'>;
-    semanticProfileEnergySignature?: string;
+    semantic_source_object_hash?: string;
     primaryDomain: string;
     lifeArea: string;
     pressureType: TransitPressureType;
@@ -120,6 +125,7 @@ export interface CharacterBuilderInput {
   natalSnapshot: EphemerisSnapshot;
   featureVec: FeatureVec;
   effectsBundle: RPGEffectsBundle;
-  semanticProfile: ChartSemanticProfile;
+  semanticCore: SemanticCore;
+  dominantPlanetNames: readonly string[];
 }
 

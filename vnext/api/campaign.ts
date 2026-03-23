@@ -1,7 +1,8 @@
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
-import { buildChartSemanticProfile } from '../interpretation/chart-semantic-profile';
+import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
@@ -192,17 +193,24 @@ export function createCampaignRouter(): import('express').Router {
         }
 
         const arch = await generateArchitectureFromSnapshot(natalSnapshot, hashSnapshot(natalSnapshot));
-        const semanticProfile = arch.semanticProfile ?? buildChartSemanticProfile({
+        const seed = hashSnapshot(natalSnapshot);
+        const canonicalReport = buildCanonicalReportForSnapshotSurface({
+          surface_kind: 'profile_natal',
+          subject_ids: [seed],
           snapshot: arch.snapshot,
           featureVec: arch.features,
-          guidance: arch.guidance as any,
+          control_surface_hash: seed,
+          compose_seed: seed,
+          guidance: arch.guidance,
         });
+        const semanticCore = interpretCanonicalReportObject(canonicalReport);
 
         const bundle = buildRpgEffectsBundleFromSnapshot(arch.snapshot);
         const character = buildCharacterProfile({
           natalSnapshot: arch.snapshot,
           featureVec: arch.features,
-          semanticProfile,
+          semanticCore,
+          dominantPlanetNames: canonicalReport.participants[0].dominant_planet_names,
           effectsBundle: bundle,
         });
         // eslint-disable-next-line no-console
@@ -252,16 +260,23 @@ export function createCampaignRouter(): import('express').Router {
         }
 
         const arch = await generateArchitectureFromSnapshot(natalSnapshot, hashSnapshot(natalSnapshot));
-        const semanticProfile = arch.semanticProfile ?? buildChartSemanticProfile({
+        const seed = hashSnapshot(natalSnapshot);
+        const canonicalReport = buildCanonicalReportForSnapshotSurface({
+          surface_kind: 'profile_natal',
+          subject_ids: [seed],
           snapshot: arch.snapshot,
           featureVec: arch.features,
-          guidance: arch.guidance as any,
+          control_surface_hash: seed,
+          compose_seed: seed,
+          guidance: arch.guidance,
         });
+        const semanticCore = interpretCanonicalReportObject(canonicalReport);
         const bundle = buildRpgEffectsBundleFromSnapshot(arch.snapshot);
         const character = buildCharacterProfile({
           natalSnapshot: arch.snapshot,
           featureVec: arch.features,
-          semanticProfile,
+          semanticCore,
+          dominantPlanetNames: canonicalReport.participants[0].dominant_planet_names,
           effectsBundle: bundle,
         });
 
@@ -275,7 +290,7 @@ export function createCampaignRouter(): import('express').Router {
           character,
           pressures,
           state,
-          semanticProfile,
+          semanticCore,
           natalSnapshot,
           transitSnapshot,
         });

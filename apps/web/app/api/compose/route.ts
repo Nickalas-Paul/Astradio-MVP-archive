@@ -24,6 +24,16 @@ export async function POST(req: Request) {
   try {
     const rawBody = await req.json().catch(() => ({}));
 
+    if (rawBody && typeof rawBody.mode === 'string' && rawBody.mode === 'compatibility') {
+      return NextResponse.json(
+        {
+          error: 'mode=\"compatibility\" is not supported via /api/compose. Use /api/comparisons for dual-profile compatibility.',
+          code: 'UNSUPPORTED_COMPOSE_MODE_COMPATIBILITY',
+        },
+        { status: 400 },
+      );
+    }
+
     // Pass through engine-shaped requests (sandbox, overlay) to backend as-is
     const isEngineShape = rawBody && (rawBody.mode === 'sandbox' || rawBody.mode === 'overlay');
     let bodyToSend: string;
