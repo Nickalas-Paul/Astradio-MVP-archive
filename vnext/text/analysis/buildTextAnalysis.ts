@@ -6,8 +6,7 @@ import type {
   AstroAspectFact,
   AnalysisTheme,
   AnalysisTension,
-  AnalysisOpportunity,
-  MusicMapping
+  AnalysisOpportunity
 } from '../contracts';
 import { bodyOrderIndex, BODY_LABELS, CORE_BODIES } from '../../canonical-bodies';
 import { topRankedAspects } from '../../aspect-priority';
