@@ -30,7 +30,13 @@ export interface PersonalityResponse {
   };
   explanation: {
     spec: string;
-    sections: Array<{ id: string; title: string; text: string; bullets?: string[] }>;
+    sections: Array<{
+      id: string;
+      title: string;
+      text: string;
+      bullets?: string[];
+      meta?: import('../projection/projection-types').ProjectedExplanationSection['meta'];
+    }>;
   };
   seed: string;
   generatedAt: string;
@@ -65,7 +71,13 @@ export async function generatePersonalityReport(request: PersonalityRequest): Pr
     guidance: architecture.guidance,
   });
   const semanticCore = interpretCanonicalReportObject(canonicalReport);
-  const projected = projectTextFromSemanticCore(semanticCore, seed);
+  const projected = projectTextFromSemanticCore(semanticCore, seed, {
+    phaseD: true,
+    surface: 'profile',
+    tier: 'baseline',
+    narrativePlan: null,
+    aspectTension: null,
+  });
 
   return {
     chart: chartInput,
@@ -79,6 +91,7 @@ export async function generatePersonalityReport(request: PersonalityRequest): Pr
         title: s.title,
         text: s.text,
         bullets: s.bullets,
+        ...(s.meta ? { meta: s.meta } : {}),
       })),
     },
     seed: architecture.seed,

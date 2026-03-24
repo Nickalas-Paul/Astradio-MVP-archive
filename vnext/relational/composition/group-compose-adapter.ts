@@ -10,6 +10,7 @@ import {
   GROUP_COMPOSE_ALGORITHM_VERSION,
 } from '../resolve-relational-connection-context';
 import type { RelationalWeatherStateV1 } from '../weather/types';
+import type { ExpansionTier } from '../../projection/projection-types';
 
 export { GROUP_COMPOSE_ALGORITHM_VERSION };
 
@@ -45,7 +46,12 @@ export interface GroupComposeResult {
 
 export async function composeGroupFromChartIds(
   chartIdsInput: string[],
-  opts?: { groupId?: string; generateComposition?: boolean; relationalWeather?: RelationalWeatherStateV1 }
+  opts?: {
+    groupId?: string;
+    generateComposition?: boolean;
+    relationalWeather?: RelationalWeatherStateV1;
+    expansionTier?: ExpansionTier;
+  }
 ): Promise<GroupComposeResult> {
   const ctx = await resolveRelationalConnectionFromChartIds(chartIdsInput, opts?.groupId);
   const { chartIdsOrdered: chart_ids, natalSnapshotsOrdered: snapshotsOrdered, composite, payload, provenance } = ctx;
@@ -73,6 +79,7 @@ export async function composeGroupFromChartIds(
     composite: composite as import('../../contracts').FeatureVec,
     payload,
     relationalWeather: opts?.relationalWeather,
+    expansionTier: opts?.expansionTier,
   });
 
   const base64 = result.audio?.base64;

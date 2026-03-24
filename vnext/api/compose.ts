@@ -43,6 +43,14 @@ import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { guidanceFromFeatures } from '../astro/guidance';
+import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
+import type { ExpansionTier, ProjectionSurface } from '../projection/projection-types';
+import type { RelationshipMode } from '../compat/types';
+
+function parseExpansionTier(v: unknown): ExpansionTier {
+  if (v === 'expanded' || v === 'extended') return v;
+  return 'baseline';
+}
 
 /** Phase B — aggregate surfaces (comparison + group) share one downstream runner. */
 export type AggregateCompositionInput =
@@ -57,6 +65,8 @@ export type AggregateCompositionInput =
       merged: FeatureVec;
       payload: ControlSurfacePayload;
       relationalWeather?: RelationalWeatherStateV1;
+      relationshipMode?: RelationshipMode;
+      expansionTier?: ExpansionTier;
     }
   | {
       kind: 'group';
@@ -65,6 +75,7 @@ export type AggregateCompositionInput =
       composite: FeatureVec;
       payload: ControlSurfacePayload;
       relationalWeather?: RelationalWeatherStateV1;
+      expansionTier?: ExpansionTier;
     };
 
 export type AggregateComposeResult = {
@@ -230,7 +241,20 @@ export class ComposeAPI {
       }
 
       const semanticCore = interpretCanonicalReportObject(canonicalReport);
-      const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
+      const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
+      const tier = parseExpansionTier((request as any).expansionTier ?? (request as any).expansion_tier);
+      let projectionSurface: ProjectionSurface = 'profile';
+      if (hasOverlayContext && canonicalInput.overlayNatalSnapshot) projectionSurface = 'overlay_pair';
+      else if ((request as any).mode === 'sky' && enableDailyV1Text) projectionSurface = 'daily';
+      else if ((request as any).mode === 'sandbox') projectionSurface = 'sandbox';
+
+      const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
+        phaseD: true,
+        surface: projectionSurface,
+        tier,
+        narrativePlan,
+        aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+      });
 
       const dailyLike = projected.map((s) => ({
         id: s.id,
@@ -274,13 +298,19 @@ export class ComposeAPI {
       const endTime = process.hrtime.bigint();
       const totalLatency = Number(endTime - startTime) / 1000000;
 
-      let sections: Array<{ sectionId: string; title: string; text?: string; bullets?: string[] }> =
-        projected.map((s) => ({
-          sectionId: s.id,
-          title: s.title,
-          text: s.text,
-          bullets: s.bullets,
-        }));
+      let sections: Array<{
+        sectionId: string;
+        title: string;
+        text?: string;
+        bullets?: string[];
+        meta?: (typeof projected)[0]['meta'];
+      }> = projected.map((s) => ({
+        sectionId: s.id,
+        title: s.title,
+        text: s.text,
+        bullets: s.bullets,
+        ...(s.meta ? { meta: s.meta } : {}),
+      }));
 
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
 
@@ -292,6 +322,7 @@ export class ComposeAPI {
         claim_count: number;
         hasFactorMap: boolean;
         factorCount: number;
+        phase_d?: { surface: ProjectionSurface; tier: ExpansionTier; projection_validation?: unknown };
         debug?: { aspectsCount: number; housesPresent: boolean };
       } = {
         engine: 'semantic-core-v1',
@@ -301,6 +332,11 @@ export class ComposeAPI {
         claim_count: semanticCore.claims.length,
         hasFactorMap: false,
         factorCount: 0,
+        phase_d: {
+          surface: projectionSurface,
+          tier,
+          projection_validation: projected[projected.length - 1]?.meta?.projection_validation,
+        },
       };
       if (debugExplain) {
         explanationMeta.debug = {
@@ -620,7 +656,20 @@ export class ComposeAPI {
       relationalWeather: input.relationalWeather ?? null,
     });
     const semanticCore = interpretCanonicalReportObject(canonicalReport);
-    const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
+    const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
+    const tier = parseExpansionTier((input as { expansionTier?: ExpansionTier }).expansionTier);
+    const projectionSurface: ProjectionSurface = input.kind === 'comparison' ? 'compat_pair' : 'group';
+    const participantCount = participants.length;
+    const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
+      phaseD: true,
+      surface: projectionSurface,
+      tier,
+      narrativePlan,
+      aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
+      connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
+      participantCount,
+      aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+    });
 
     const signaturesText = projected.find((s) => s.id === 'signatures' || s.id === 'relational_field')?.text || '';
     const significanceText = projected.find((s) => s.id === 'significance')?.text || '';
@@ -703,7 +752,14 @@ export class ComposeAPI {
       guidance,
     });
     const semanticCore = interpretCanonicalReportObject(canonicalReport);
-    const projected = projectTextFromSemanticCore(semanticCore, payload.hash);
+    const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
+    const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
+      phaseD: true,
+      surface: 'profile',
+      tier: 'baseline',
+      narrativePlan,
+      aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+    });
     return {
       spec: 'UnifiedSpecV1.1',
       sections: projected.map((s) => ({
@@ -711,6 +767,7 @@ export class ComposeAPI {
         title: s.title,
         text: s.text,
         bullets: s.bullets,
+        meta: s.meta,
       })),
     };
   }

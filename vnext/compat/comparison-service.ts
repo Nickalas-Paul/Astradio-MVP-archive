@@ -133,6 +133,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     vecHigh: vecHigh as import('../contracts').FeatureVec,
     merged: merged as import('../contracts').FeatureVec,
     payload,
+    relationshipMode: input.relationshipMode,
   });
 
   const compatText: CompatibilityTextStructured = {

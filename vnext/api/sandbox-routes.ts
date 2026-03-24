@@ -10,6 +10,7 @@ import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import type { ExpansionTier } from '../projection/projection-types';
 
 /**
  * Adapters may transform structure, never meaning.
@@ -133,7 +134,13 @@ export function createSandboxRouter(): import('express').Router {
         guidance: architecture.guidance,
       });
       const semanticCore = interpretCanonicalReportObject(canonicalReport);
-      const projected = projectTextFromSemanticCore(semanticCore, controlHash);
+      const tier = (body.expansionTier || body.expansion_tier) as ExpansionTier | undefined;
+      const projected = projectTextFromSemanticCore(semanticCore, controlHash, {
+        phaseD: true,
+        surface: 'sandbox',
+        tier: tier === 'expanded' || tier === 'extended' ? tier : 'baseline',
+        aspectTension: null,
+      });
 
       // Compose-free report (no music, no gates). relationalContext for reporting intake.
       return res.status(200).json({

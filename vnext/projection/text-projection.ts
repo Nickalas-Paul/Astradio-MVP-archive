@@ -4,13 +4,11 @@
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { SectionTemplateId } from '../semantic/ontology-codes';
 import type { ClaimId } from '../semantic/ontology-codes';
+import type { ProjectionOptions } from './projection-types';
+import type { ProjectedExplanationSection } from './projection-types';
+import { applyPhaseDProjection } from './phase-d-projection';
 
-export type ProjectedExplanationSection = {
-  id: string;
-  title: string;
-  text: string;
-  bullets?: string[];
-};
+export type { ProjectedExplanationSection };
 
 function hasClaim(core: SemanticCore, id: ClaimId): boolean {
   return core.claims.some((c) => c.claim_id === id);
@@ -148,29 +146,30 @@ function lineForTemplate(
   }
 }
 
+const idMap: Partial<Record<SectionTemplateId, string>> = {
+  SECTION_SIGNATURES: 'signatures',
+  SECTION_SIGNIFICANCE: 'significance',
+  SECTION_MUSICAL: 'musical',
+  SECTION_SKY_SUMMARY: 'sky_summary',
+  SECTION_PERSONAL_EMPHASIS: 'personal_emphasis',
+  SECTION_LIKELY_EXPRESSIONS: 'likely_expressions',
+  SECTION_WATCH_FORS: 'watch_fors',
+  SECTION_INTEGRATION: 'integration_prompt',
+  SECTION_MUSIC_TRANSLATION: 'music_translation',
+  SECTION_COMPARISON_SIGNATURES: 'signatures',
+  SECTION_COMPARISON_BRIDGE: 'significance',
+  SECTION_AGGREGATE_FIELD: 'relational_field',
+  SECTION_RELATIONAL_WEATHER: 'relational_weather_v1',
+};
+
 /**
- * Produce UI sections from core.text emphasis order. No snapshot access.
+ * Raw sections from SemanticCore.text emphasis order (Phase B/C templates).
  */
-export function projectTextFromSemanticCore(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
+export function buildRawProjectedSections(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
   const out: ProjectedExplanationSection[] = [];
   let i = 0;
   for (const tid of core.text.emphasis_order) {
     const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`);
-    const idMap: Partial<Record<SectionTemplateId, string>> = {
-      SECTION_SIGNATURES: 'signatures',
-      SECTION_SIGNIFICANCE: 'significance',
-      SECTION_MUSICAL: 'musical',
-      SECTION_SKY_SUMMARY: 'sky_summary',
-      SECTION_PERSONAL_EMPHASIS: 'personal_emphasis',
-      SECTION_LIKELY_EXPRESSIONS: 'likely_expressions',
-      SECTION_WATCH_FORS: 'watch_fors',
-      SECTION_INTEGRATION: 'integration_prompt',
-      SECTION_MUSIC_TRANSLATION: 'music_translation',
-      SECTION_COMPARISON_SIGNATURES: 'signatures',
-      SECTION_COMPARISON_BRIDGE: 'significance',
-      SECTION_AGGREGATE_FIELD: 'relational_field',
-      SECTION_RELATIONAL_WEATHER: 'relational_weather_v1',
-    };
     out.push({
       id: idMap[tid] ?? tid.toLowerCase(),
       title,
@@ -179,4 +178,25 @@ export function projectTextFromSemanticCore(core: SemanticCore, seed: string): P
     });
   }
   return out;
+}
+
+/**
+ * Produce UI sections from core.text emphasis order. Optional Phase D post-process.
+ * Two-argument form preserves legacy template-only output for scripts/tests.
+ */
+export function projectTextFromSemanticCore(
+  core: SemanticCore,
+  seed: string,
+  options?: ProjectionOptions
+): ProjectedExplanationSection[] {
+  const raw = buildRawProjectedSections(core, seed);
+  if (!options || options.phaseD === false) {
+    return raw;
+  }
+  return applyPhaseDProjection(raw, core, seed, options);
+}
+
+/** FYP-style short card from the same SemanticCore (Phase D feed surface). */
+export function projectFeedCardFromSemanticCore(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
+  return applyPhaseDProjection([], core, seed, { phaseD: true, surface: 'feed', tier: 'baseline' });
 }
