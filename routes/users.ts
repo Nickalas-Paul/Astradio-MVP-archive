@@ -523,39 +523,15 @@ router.get('/me/daily-overlay', authenticateToken, async (req: any, res: Respons
     if (!composeResp.ok) throw new Error(`Compose failed: HTTP ${composeResp.status}`);
     const composeJson = await composeResp.json();
 
-    // Build vector from compose controls (same order as convertPayloadToFeatureVec)
-    const c = composeJson.controls || {};
-    const vector = [
-      c.arc_shape,
-      c.density_level,
-      c.tempo_norm,
-      c.step_bias,
-      c.syncopation_bias,
-      c.motif_rate
-    ].map((v) => Math.max(0, Math.min(1, Number.isFinite(v) ? Number(v) : 0.45)));
-
-    // Minimal chart context for render (elemental mode uses dominantElements)
-    const dominant = (c.element_dominance || '').toString();
-    const dominantElements: Record<string, number> = { fire: 0.25, earth: 0.25, air: 0.25, water: 0.25 };
-    if (['fire','earth','air','water'].includes(dominant)) dominantElements[dominant] = 0.4;
-
-    const renderBody = {
-      chartContext: { dominantElements },
-      mode: 'elemental',
-      vector,
-      format: 'wav',
-      normalize: true,
-      duration: 60
-    };
-
-    const renderResp = await fetch(`${process.env.API_BASE_URL || ''}/api/render`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(renderBody)
-    });
-
-    if (!renderResp.ok) throw new Error(`Render failed: HTTP ${renderResp.status}`);
-    const renderJson = await renderResp.json();
+    // Phase C: single audio path — compose/export only (no parallel /api/render). Adapters may transform structure, never meaning.
+    const exportId = composeJson.export_id ?? composeJson.audio?.export_id ?? null;
+    const apiBase = (process.env.API_BASE_URL || '').replace(/\/$/, '');
+    const preview_url =
+      exportId && apiBase ? `${apiBase}/api/exports/${exportId}` : null;
+    const durationSec =
+      typeof composeJson.duration_s === 'number' && Number.isFinite(composeJson.duration_s)
+        ? composeJson.duration_s
+        : 60;
 
     // 6) Persist track for today with reasoning bundled
     const reasoning = {
@@ -577,14 +553,14 @@ router.get('/me/daily-overlay', authenticateToken, async (req: any, res: Respons
         'daily',
         'overlay',
         seed,
-        renderJson.duration || 60,
-        renderJson.audioUrl || null,
+        durationSec,
+        preview_url,
         JSON.stringify(reasoning)
       ]
     ) as { id: string };
 
     const response = {
-      track: { id: track.id, audio_url: renderJson.audioUrl || null },
+      track: { id: track.id, audio_url: preview_url },
       text: composeJson.text,
       reasoning
     };

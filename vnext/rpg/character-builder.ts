@@ -1,3 +1,8 @@
+/**
+ * Phase C: Temperament axes blend game-layer feature emphasis with identity fields derived from SemanticCore
+ * (chartIdentityFieldsFromSemanticCore). This module does not emit a second astrological reading; explainer text
+ * remains CanonicalReportObject → SemanticCore → TextProjection elsewhere.
+ */
 import { buildAstroProfile } from '../astro/profile-from-snapshot';
 import type { FeatureVec } from '../contracts';
 import type { RPGEffectsBundle } from './contracts';

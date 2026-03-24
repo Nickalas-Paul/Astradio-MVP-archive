@@ -38,7 +38,8 @@ export async function getProfileChartExplainer(chartId: string): Promise<Profile
   const explainer = await composeAPI.getExplainerSectionsForFeatures(
     architecture.features,
     payload,
-    architecture.snapshot
+    architecture.snapshot,
+    architecture.guidance
   );
 
   return {

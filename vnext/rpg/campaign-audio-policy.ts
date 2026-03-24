@@ -1,6 +1,7 @@
 // vnext/rpg/campaign-audio-policy.ts
 // Pass 4 — Pure resolver: which audio context attaches to a campaign challenge.
 // No DB writes, no audio generation, no music engine calls.
+// Phase C: this is not runLyriaAlignedExportBlock; adapters may transform structure, never meaning.
 
 import type { ChallengeScene } from './types';
 

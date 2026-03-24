@@ -240,6 +240,9 @@ export function createCampaignRouter(): import('express').Router {
    * No DB writes, no timestamps or non-deterministic metadata in the response.
    * Same campaignId + same (natalSnapshot, transitSnapshot) body + same campaign state → same challenge payload.
    * transitSnapshot.ts is client-provided; client must send a stable snapshot for the intended challenge window to get idempotent results.
+   *
+   * Phase C: response `audio` is policy-only via resolveCampaignAudioMode — not compose/Lyria export. Campaign audio remains
+   * explicitly non-canonical-composed (no fake semantic alignment to WAV).
    */
   router.post(
     '/campaign/daily-challenge',

@@ -61,13 +61,23 @@ export type SandboxDraft = {
   };
 };
 
+export type SandboxReportExplanation = {
+  spec: string;
+  sections: Array<{ id: string; title: string; text: string; bullets?: string[] }>;
+};
+
 export type SandboxReport = {
   features: number[];
   personality: any;
   guidance: any;
-  explanation: any;
+  explanation: SandboxReportExplanation;
   seed: string;
   meta: {
     combinedHash: string;
+    data_classification?: {
+      explanation: string;
+      features_personality_guidance: string;
+    };
+    canonical_object_hash?: string;
   };
 };

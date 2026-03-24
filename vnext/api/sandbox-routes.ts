@@ -7,6 +7,14 @@
 import type { SandboxBirth, SandboxOverrides, EphemerisSnapshot } from '../contracts';
 import { generateSnapshotWithOverrides, hashBirth, hashOverrides, validateSandboxOverrides } from './sandbox-snapshot';
 import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
+import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
+import { projectTextFromSemanticCore } from '../projection/text-projection';
+
+/**
+ * Adapters may transform structure, never meaning.
+ * Sandbox report explanation is TextProjection(SemanticCore) only; features/personality/guidance are mechanical support data, not authoritative readings.
+ */
 
 const express = require('express') as typeof import('express');
 
@@ -113,17 +121,44 @@ export function createSandboxRouter(): import('express').Router {
         .update(birthHash + overridesHash, 'utf8')
         .digest('hex');
 
-      // Return compose-free report (no music, no gates). relationalContext for reporting intake.
+      const controlHash = combinedHash;
+      const composeSeed = typeof seed === 'string' && seed.length > 0 ? seed : combinedHash;
+      const canonicalReport = buildCanonicalReportForSnapshotSurface({
+        surface_kind: 'profile_natal',
+        subject_ids: [controlHash],
+        snapshot: architecture.snapshot,
+        featureVec: architecture.features,
+        control_surface_hash: controlHash,
+        compose_seed: composeSeed,
+        guidance: architecture.guidance,
+      });
+      const semanticCore = interpretCanonicalReportObject(canonicalReport);
+      const projected = projectTextFromSemanticCore(semanticCore, controlHash);
+
+      // Compose-free report (no music, no gates). relationalContext for reporting intake.
       return res.status(200).json({
         features: Array.from(architecture.features),
         personality: architecture.personality,
         guidance: architecture.guidance,
-        explanation: architecture.astroProfile,
+        explanation: {
+          spec: 'UnifiedSpecV1.1',
+          sections: projected.map((s) => ({
+            id: s.id,
+            title: s.title,
+            text: s.text,
+            bullets: s.bullets,
+          })),
+        },
         relationalContext: architecture.relationalContext,
         seed: architecture.seed,
         meta: {
-          combinedHash
-        }
+          combinedHash,
+          data_classification: {
+            explanation: 'semantic_projection_v1',
+            features_personality_guidance: 'mechanical_support_non_authoritative',
+          },
+          canonical_object_hash: canonicalReport.object_identity_hash,
+        },
       });
     } catch (e: unknown) {
       const err = e as Error;

@@ -105,3 +105,80 @@ export function deriveCrossSurfaceToneHintsFromSemanticCore(core: SemanticCore):
     },
   };
 }
+
+/** Narrative staging from SemanticCore claims only (no snapshot / featureVec / guidance side channels). */
+export interface StelliumNarrativeSig {
+  hasCluster: boolean;
+  strength: number;
+  element?: PrimaryElement;
+}
+
+export interface AngularNarrativeSig {
+  first: boolean;
+  fourth: boolean;
+  seventh: boolean;
+  tenth: boolean;
+}
+
+export interface AspectNarrativeSig {
+  trineHeavy: boolean;
+  squareHeavy: boolean;
+  oppositionHeavy: boolean;
+}
+
+export type LuminaryNarrativeSig = 'sun' | 'moon' | 'balanced';
+
+export function extractMotionScalarFromSemanticCore(core: SemanticCore): number {
+  if (has(core, 'MOTION_LABEL_SURGING')) return 0.88;
+  if (has(core, 'MOTION_LABEL_RESTLESS')) return 0.72;
+  if (has(core, 'MOTION_LABEL_QUIET_FLOW')) return 0.52;
+  if (has(core, 'MOTION_LABEL_INWARD')) return 0.38;
+  if (has(core, 'MOTION_LABEL_STEADY')) return 0.5;
+  return 0.5;
+}
+
+export function extractGravityScalarFromSemanticCore(core: SemanticCore): number {
+  if (has(core, 'GRAVITY_LABEL_ANCHORED')) return 0.78;
+  if (has(core, 'GRAVITY_LABEL_WEIGHTED_SPARK')) return 0.55;
+  if (has(core, 'GRAVITY_LABEL_FLOATING')) return 0.35;
+  if (has(core, 'GRAVITY_LABEL_LIGHT')) return 0.25;
+  if (has(core, 'GRAVITY_LABEL_BALANCED')) return 0.45;
+  return 0.45;
+}
+
+export function extractStelliumNarrativeFromSemanticCore(
+  core: SemanticCore,
+  primaryElement: PrimaryElement
+): StelliumNarrativeSig | undefined {
+  if (!has(core, 'STRUCT_STELLIUM')) return undefined;
+  return {
+    hasCluster: true,
+    strength: claimStrength(core, 'STRUCT_STELLIUM'),
+    element: primaryElement,
+  };
+}
+
+export function extractAngularNarrativeFromSemanticCore(core: SemanticCore): AngularNarrativeSig | undefined {
+  const first = has(core, 'STRUCT_ANGULAR_FIRST');
+  const fourth = has(core, 'STRUCT_ANGULAR_FOURTH');
+  const seventh = has(core, 'STRUCT_ANGULAR_SEVENTH');
+  const tenth = has(core, 'STRUCT_ANGULAR_TENTH');
+  if (!first && !fourth && !seventh && !tenth) return undefined;
+  return { first, fourth, seventh, tenth };
+}
+
+export function extractLuminaryNarrativeFromSemanticCore(core: SemanticCore): LuminaryNarrativeSig {
+  if (has(core, 'STRUCT_LUMINARY_SUN')) return 'sun';
+  if (has(core, 'STRUCT_LUMINARY_MOON')) return 'moon';
+  return 'balanced';
+}
+
+export function extractAspectNarrativeFromSemanticCore(core: SemanticCore): AspectNarrativeSig {
+  const trineHeavy = has(core, 'STRUCT_ASPECT_TRINE_HEAVY');
+  const squareHeavy = has(core, 'STRUCT_ASPECT_SQUARE_HEAVY');
+  const oppositionHeavy = has(core, 'STRUCT_ASPECT_OPPOSITION_HEAVY');
+  if (!trineHeavy && !squareHeavy && !oppositionHeavy) {
+    return { trineHeavy: false, squareHeavy: false, oppositionHeavy: false };
+  }
+  return { trineHeavy, squareHeavy, oppositionHeavy };
+}

@@ -42,6 +42,8 @@ export interface CreateComparisonResult {
   compositionId: string;
   audioBase64?: string;
   explanation?: { spec: string; sections: Array<{ title: string; text: string }> };
+  /** False when generateComposition=false: no canonical aggregate reading was produced (metadata-only path). */
+  semantic_reading_available: boolean;
 }
 
 export async function createComparison(input: CreateComparisonInput): Promise<CreateComparisonResult> {
@@ -110,6 +112,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
       comparison,
       planHash: '',
       compositionId: '',
+      semantic_reading_available: false,
     };
   }
 
@@ -160,5 +163,6 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     compositionId: result.planHash,
     audioBase64: result.audio?.base64 || undefined,
     explanation: result.explanation,
+    semantic_reading_available: true,
   };
 }

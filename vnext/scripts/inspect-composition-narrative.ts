@@ -177,7 +177,7 @@ function makeScenarios(): Scenario[] {
     },
   ];
 
-  // Attach feature vectors and guidance-derived fields via buildCompositionNarrativePlan call.
+  // Narrative plan from SemanticCore + control payload only (Phase C).
   for (const s of scenarios) {
     const featureVec = encode(s.snapshot);
     const guidance = guidanceFromFeatures(featureVec, s.snapshot, s.payload.hash);
@@ -191,22 +191,7 @@ function makeScenarios(): Scenario[] {
       guidance,
     });
     const semanticCore = interpretCanonicalReportObject(canonical);
-    const architectureLike = {
-      snapshot: s.snapshot,
-      features: featureVec,
-      personality: guidance.personality,
-      astroProfile: { snapshot: s.snapshot } as any,
-      guidance,
-      relationalContext: {} as any,
-      seed: s.payload.hash,
-    };
-    const narrative = buildCompositionNarrativePlan(
-      architectureLike,
-      featureVec,
-      s.payload,
-      s.plan,
-      semanticCore
-    );
+    const narrative = buildCompositionNarrativePlan(s.payload, s.plan, semanticCore);
     const prompt = buildLyriaPrompt(s.payload, s.plan, narrative);
     // eslint-disable-next-line no-console
     console.log(

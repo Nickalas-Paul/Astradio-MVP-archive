@@ -90,15 +90,6 @@ function narrativeFor(
 ) {
   const featureVec = encodeFeatures(snapshot) as FeatureVec;
   const guidance = guidanceFromFeatures(featureVec, snapshot, payload.hash);
-  const architectureLike = {
-    snapshot,
-    features: featureVec,
-    personality: guidance.personality,
-    astroProfile: { snapshot } as any,
-    guidance,
-    relationalContext: {} as any,
-    seed: payload.hash,
-  };
   const canonical = buildCanonicalReportForSnapshotSurface({
     surface_kind: "profile_natal",
     subject_ids: [payload.hash],
@@ -109,13 +100,7 @@ function narrativeFor(
     guidance,
   });
   const semanticCore = interpretCanonicalReportObject(canonical);
-  const narrative = buildCompositionNarrativePlan(
-    architectureLike,
-    featureVec,
-    payload,
-    plan,
-    semanticCore
-  );
+  const narrative = buildCompositionNarrativePlan(payload, plan, semanticCore);
   const prompt = buildLyriaPrompt(payload, plan, narrative);
   return { narrative, prompt };
 }

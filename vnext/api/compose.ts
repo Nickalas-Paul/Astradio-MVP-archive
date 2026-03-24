@@ -678,12 +678,13 @@ export class ComposeAPI {
 
   /**
    * Explainer-only path for profile chart (no audio). Used by GET /api/profile/chart.
-   * Same pipeline: plan → gates → ExplainSpec → render. Additive; does not change compose().
+   * Phase C: `guidance` must be the same ArchitectureOutput.guidance used to build features/snapshot (no guidanceFromFeatures fork).
    */
   async getExplainerSectionsForFeatures(
     featureVec: FeatureVec,
     payload: ControlSurfacePayload,
-    snapshot: EphemerisSnapshot
+    snapshot: EphemerisSnapshot,
+    guidance: ArchitectureOutput['guidance']
   ): Promise<{ spec: string; sections: Array<{ id: string; title: string; text: string; bullets?: string[] }> }> {
     const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
     if (!diag?.ml_used) {
@@ -692,7 +693,6 @@ export class ComposeAPI {
       throw err;
     }
     await this.runAuditionGates(plan, payload.hash);
-    const guidance = guidanceFromFeatures(featureVec, snapshot, payload.hash);
     const canonicalReport = buildCanonicalReportForSnapshotSurface({
       surface_kind: 'profile_natal',
       subject_ids: [payload.hash],

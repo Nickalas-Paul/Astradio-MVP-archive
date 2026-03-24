@@ -459,7 +459,8 @@ export function createCompatRouter(): import('express').Router {
         relationshipMode: comparison.relationshipMode,
         roles: responseRoles,
         planHash: result.planHash,
-        compositionId: result.compositionId
+        compositionId: result.compositionId,
+        semantic_reading_available: result.semantic_reading_available,
       };
       if (result.audioBase64) {
         (response as any).audio = { base64: result.audioBase64, format: 'wav' };

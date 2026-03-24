@@ -113,13 +113,7 @@ export async function runLyriaAlignedExportBlock(
     let lyriaSeed = '';
     try {
       const planHash = computePlanHash(plan);
-      const narrativePlan = buildCompositionNarrativePlan(
-        architecture,
-        featureVec,
-        payload,
-        plan,
-        semanticCore
-      );
+      const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
       prompt = buildLyriaPrompt(payload, plan, narrativePlan);
       promptHash = hashPrompt(prompt);
       lyriaSeed = planHash + ':phase3';

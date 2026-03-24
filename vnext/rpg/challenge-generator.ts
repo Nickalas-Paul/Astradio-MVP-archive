@@ -5,9 +5,14 @@
 // Versioning: Determinism is bound to the checked-in generator implementation and the
 // campaign versioned state path (rpg_map_version, rpg_algo_version). There is no
 // separately passed generator version parameter; behavior is fixed by code path.
+//
+// Phase C containment: astrological wording for theme comes only from TextProjection(SemanticCore).
+// Pressure/type strings are game-layer mechanics, not a second interpreter.
 
 import type { EphemerisSnapshot } from '../contracts';
 import type { SemanticCore } from '../semantic/semantic-core';
+import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { hashSnapshot } from './hash/snapshot-hash';
 import type { CampaignIdentityTone } from './semantic-adapter';
 import { deriveCampaignIdentityToneFromSemanticCore } from './identity-from-semantic-core';
 import type {
@@ -37,44 +42,22 @@ function supportPressures(pressures: TransitPressure[], primary: TransitPressure
     .slice(0, 3);
 }
 
-function sceneThemeFromPressure(
-  pressure: TransitPressure,
-  character: CharacterProfile
+/** Primary reading line from canonical semantic pipeline only. */
+function semanticReadingLine(core: SemanticCore, seed: string): string {
+  const sections = projectTextFromSemanticCore(core, seed);
+  const sig = sections.find((s) => s.id === 'signatures' || s.id === 'sky_summary');
+  return (sig?.text ?? sections[0]?.text ?? '').trim();
+}
+
+function challengeThemeFromSemantic(
+  core: SemanticCore,
+  natalSnapshot: EphemerisSnapshot,
+  pressure: TransitPressure
 ): string {
-  const base = pressure.lifeArea === 'relationships'
-    ? 'Relational tension'
-    : pressure.lifeArea === 'work_public'
-      ? 'Public pressure'
-      : pressure.lifeArea === 'home_foundations'
-        ? 'Foundations in flux'
-        : pressure.lifeArea === 'health_body'
-          ? 'Energy and body signals'
-          : 'Inner weather turning';
-
-  if (pressure.type === 'revelation') {
-    return `${base}: something important comes into focus`;
-  }
-  if (pressure.type === 'constraint') {
-    return `${base}: running into a real limit`;
-  }
-  if (pressure.type === 'conflict') {
-    return `${base}: friction that asks for honesty`;
-  }
-  if (pressure.type === 'release') {
-    return `${base}: time to lay something down`;
-  }
-  if (pressure.type === 'restructuring') {
-    return `${base}: structures are ready to be redesigned`;
-  }
-  if (pressure.type === 'endurance') {
-    return `${base}: staying with a long process`;
-  }
-  if (pressure.type === 'confusion') {
-    return `${base}: unclear signals and mixed feelings`;
-  }
-
-  const tone = character.temperament.courage >= 0.7 ? 'taking a courageous next step' : 'finding a sustainable next step';
-  return `${base}: ${tone}`;
+  const line = semanticReadingLine(core, hashSnapshot(natalSnapshot));
+  return line.length > 0
+    ? line
+    : `focus:${pressure.lifeArea}:${pressure.type}`;
 }
 
 function sceneSettingFromTone(
@@ -103,16 +86,14 @@ function sceneSettingFromTone(
   return base;
 }
 
-function sceneObstacle(
-  pressure: TransitPressure,
-  character: CharacterProfile
-): string {
+/** Game-layer obstacle copy only (no chart interpretation beyond SemanticCore-backed theme). */
+function sceneObstacleGame(pressure: TransitPressure, character: CharacterProfile): string {
   const leaning =
     character.temperament.shadowCapacity >= 0.7
       ? 'old coping patterns feel strong'
       : 'habits are present but more workable today';
 
-  return `A live situation in the ${pressure.lifeArea} area carries ${pressure.type} pressure. ${leaning}, and your chart emphasizes ${pressure.domain} as a repeating learning field.`;
+  return `A situation in the ${pressure.lifeArea} area (${pressure.type}) touches domain ${pressure.domain}. ${leaning}.`;
 }
 
 function baseChoices(patternBias: 'reflective' | 'decisive' | 'mixed'): ChoiceOption[] {
@@ -198,7 +179,7 @@ export interface BuildChallengeParams {
  * same (state, transit snapshot, character) must be passed for idempotent scene identity.
  */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
-  const { character, pressures, state, semanticCore, transitSnapshot } = params;
+  const { character, pressures, state, semanticCore, transitSnapshot, natalSnapshot } = params;
   if (!pressures.length) return null;
 
   const tone = deriveCampaignIdentityToneFromSemanticCore(semanticCore);
@@ -206,9 +187,9 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   if (!primary) return null;
 
   const supporting = supportPressures(pressures, primary);
-  const theme = sceneThemeFromPressure(primary, character);
+  const theme = challengeThemeFromSemantic(semanticCore, natalSnapshot, primary);
   const setting = sceneSettingFromTone(tone, primary);
-  const obstacle = sceneObstacle(primary, character);
+  const obstacle = sceneObstacleGame(primary, character);
 
   const choices = baseChoices(tone.actionBias);
 

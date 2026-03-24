@@ -31,13 +31,19 @@ function normalizeReport(report: any): string {
       themes: report.guidance.themes || [],
       advice: report.guidance.advice || ''
     } : null,
-    explanation: report.explanation ? {
-      summary: report.explanation.summary || '',
-      factors: report.explanation.factors ? report.explanation.factors.map((f: any) => ({
-        name: f.name,
-        description: f.description
-      })).sort((a: any, b: any) => a.name.localeCompare(b.name)) : []
-    } : null,
+    explanation: report.explanation
+      ? {
+          spec: report.explanation.spec || '',
+          sections: Array.isArray(report.explanation.sections)
+            ? report.explanation.sections.map((s: any) => ({
+                id: s.id,
+                title: s.title,
+                text: s.text,
+                bullets: s.bullets || [],
+              }))
+            : [],
+        }
+      : null,
     meta: report.meta || {}
   };
   return JSON.stringify(normalized);

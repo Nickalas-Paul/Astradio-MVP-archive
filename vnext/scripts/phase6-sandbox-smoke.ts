@@ -121,6 +121,9 @@ async function main(): Promise<void> {
   if (!reportJson || !reportJson.personality || !reportJson.explanation) {
     fail('report missing personality or explanation fields');
   }
+  if (reportJson.explanation.spec !== 'UnifiedSpecV1.1' || !Array.isArray(reportJson.explanation.sections)) {
+    fail('report explanation must be UnifiedSpecV1.1 with sections[] (semantic projection)');
+  }
 
   // 3) Compose
   log('[3] POST /api/compose (sandbox, overriddenSnapshot)');
