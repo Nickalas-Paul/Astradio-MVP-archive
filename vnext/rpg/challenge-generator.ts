@@ -42,9 +42,15 @@ function supportPressures(pressures: TransitPressure[], primary: TransitPressure
     .slice(0, 3);
 }
 
-/** Primary reading line from canonical semantic pipeline only. */
+/** Primary reading line from canonical semantic pipeline only (Phase D campaign surface). */
 function semanticReadingLine(core: SemanticCore, seed: string): string {
-  const sections = projectTextFromSemanticCore(core, seed);
+  const sections = projectTextFromSemanticCore(core, seed, {
+    phaseD: true,
+    surface: 'campaign',
+    tier: 'baseline',
+    narrativePlan: null,
+    aspectTension: null,
+  });
   const sig = sections.find((s) => s.id === 'signatures' || s.id === 'sky_summary');
   return (sig?.text ?? sections[0]?.text ?? '').trim();
 }

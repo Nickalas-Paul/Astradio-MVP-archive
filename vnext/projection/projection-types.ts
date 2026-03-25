@@ -36,13 +36,24 @@ export type ProjectionOptions = {
   aspectTension?: number | null;
   /** Canonical aggregate runner kind (surface_kind is always overlay_aggregate). */
   aggregateKind?: 'comparison' | 'group';
+  /**
+   * @internal Gate A — preserve user-requested tier across a single downgrade retry (same seed).
+   */
+  originalTierRequested?: ExpansionTier;
+  /**
+   * @internal Gate A — violations from the failed higher-tier attempt (copied before retry).
+   */
+  _priorAttemptViolations?: string[];
 };
 
 export type ProjectionValidation = {
   ok: boolean;
+  tierRequested: ExpansionTier;
   tierEffective: ExpansionTier;
   downgradedFrom?: ExpansionTier;
   violations: string[];
+  /** Present only after a downgrade retry; copies the failed attempt’s violation list. */
+  prior_attempt_violations?: string[];
 };
 
 export type SurfaceSectionSchema = {

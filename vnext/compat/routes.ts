@@ -5,7 +5,7 @@
 
 import * as storage from './storage';
 import { getChartById, createChart } from './chart-store';
-import { createComparison } from './comparison-service';
+import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { getCompatMatches, type CompatMatchMode } from './matches';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
@@ -386,6 +386,8 @@ export function createCompatRouter(): import('express').Router {
         generateComposition,
         fusion,
         createdBy,
+        expansionTier,
+        expansion_tier,
         mode,
         seekerChartId,
         targetChartId,
@@ -398,6 +400,8 @@ export function createCompatRouter(): import('express').Router {
         generateComposition?: boolean;
         fusion?: { wA: unknown; wB: unknown };
         createdBy?: string;
+        expansionTier?: string;
+        expansion_tier?: string;
         mode?: string;
         seekerChartId?: string;
         targetChartId?: string;
@@ -438,6 +442,7 @@ export function createCompatRouter(): import('express').Router {
         generateComposition: generateComposition !== false,
         fusion: fusionInput,
         createdBy: createdBy || undefined,
+        expansionTier: parseExpansionTier(expansionTier ?? expansion_tier),
         // Preserve explicit seeker/target ids on the record when provided.
         seekerChartId: seekerChartId || undefined,
         targetChartId: targetChartId || undefined,

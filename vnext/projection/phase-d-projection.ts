@@ -2,7 +2,13 @@
  * Phase D — deterministic projection post-processing (same SemanticCore; no authority rerun).
  */
 import type { SemanticCore } from '../semantic/semantic-core';
-import type { ExpansionTier, ProjectionOptions, ProjectionSurface, ProjectionValidation, ProjectedExplanationSection } from './projection-types';
+import type {
+  ExpansionTier,
+  ProjectionOptions,
+  ProjectionSurface,
+  ProjectionValidation,
+  ProjectedExplanationSection,
+} from './projection-types';
 import { SURFACE_SCHEMAS, expansionKeysFor } from './surface-schemas';
 import { lintSectionBody } from './language-lint';
 import { validateDensity, densityForSurfaceBaseline } from './density-validate';
@@ -54,6 +60,39 @@ function splitIntoParagraphs(text: string): string[] {
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+/** Join audio explanation paragraphs into one block (sentence order preserved; no paraphrase). */
+function normalizeAudioExplanationBody(audioText: string): string {
+  return audioText
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildFinalProjectionValidation(
+  tierRequested: ExpansionTier,
+  tierEffective: ExpansionTier,
+  validateResult: { ok: boolean; violations: string[] },
+  priorAttemptViolations?: string[]
+): ProjectionValidation {
+  const downgraded =
+    tierRequested !== 'baseline' &&
+    tierEffective === 'baseline' &&
+    priorAttemptViolations != null &&
+    priorAttemptViolations.length > 0;
+  const out: ProjectionValidation = {
+    ok: validateResult.ok,
+    tierRequested,
+    tierEffective,
+    violations: validateResult.violations,
+  };
+  if (downgraded) {
+    out.downgradedFrom = tierRequested;
+    out.prior_attempt_violations = [...priorAttemptViolations!];
+  }
+  return out;
 }
 
 function densityForSectionId(sectionId: string, defaultD: 'short' | 'medium' | 'long'): 'short' | 'medium' | 'long' {
@@ -130,13 +169,16 @@ export function applyPhaseDProjection(
   _retryDepth = 0
 ): ProjectedExplanationSection[] {
   const surface = options.surface;
+  const tierMetaRequested: ExpansionTier = options.originalTierRequested ?? options.tier ?? 'baseline';
   let tierEff: ExpansionTier = options.tier ?? 'baseline';
   const schema = SURFACE_SCHEMAS[surface];
 
   if (surface === 'feed') {
+    const tierRequested = options.tier ?? 'baseline';
     const feed = buildFeedSections(core, seed);
-    const validation = validateReport(feed, surface, 'baseline', core, tierEff);
-    feed[feed.length - 1].meta = { ...feed[feed.length - 1].meta, projection_validation: validation };
+    const vr = validateReportSections(feed, surface, 'baseline', core, tierRequested);
+    const pv = buildFinalProjectionValidation(tierRequested, 'baseline', vr, undefined);
+    feed[feed.length - 1].meta = { ...feed[feed.length - 1].meta, projection_validation: pv };
     return feed;
   }
 
@@ -362,8 +404,9 @@ export function applyPhaseDProjection(
   }
 
   const audio = buildAudioExplanationBlock(core, tierEff, options.narrativePlan ?? null);
+  const audioBodyNormalized = normalizeAudioExplanationBody(audio.text);
   if (tierEff === 'baseline') {
-    const parts = audio.text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const parts = audioBodyNormalized.split(/(?<=[.!?])\s+/).filter(Boolean);
     const shortAudio = parts.slice(0, 2).join(' ');
     const { text } = enrichSectionText(shortAudio, [], 'short', `${seed}:aud`, []);
     out.push({
@@ -373,7 +416,13 @@ export function applyPhaseDProjection(
       meta: { claimIdsReferenced: [], phaseD: true },
     });
   } else {
-    const { text } = enrichSectionText(audio.text, [], densityForSectionId('audio_staging', 'short'), `${seed}:audf`, []);
+    const { text } = enrichSectionText(
+      audioBodyNormalized,
+      [],
+      densityForSectionId('audio_staging', 'short'),
+      `${seed}:audf`,
+      []
+    );
     out.push({
       id: 'audio_staging',
       title: audio.title,
@@ -404,27 +453,45 @@ export function applyPhaseDProjection(
     seed,
   });
 
-  let validation = validateReport(framed, surface, tierEff, core, tierEff);
+  const validationResult = validateReportSections(framed, surface, tierEff, core, tierEff);
 
-  if (!validation.ok && tierEff !== 'baseline' && _retryDepth < 1) {
-    return applyPhaseDProjection(raw, core, seed + ':retry', { ...options, tier: 'baseline' }, _retryDepth + 1);
+  if (!validationResult.ok && tierEff !== 'baseline' && _retryDepth < 1) {
+    return applyPhaseDProjection(
+      raw,
+      core,
+      seed,
+      {
+        ...options,
+        tier: 'baseline',
+        originalTierRequested: tierMetaRequested,
+        _priorAttemptViolations: [...validationResult.violations],
+      },
+      _retryDepth + 1
+    );
   }
+
+  const projectionValidation = buildFinalProjectionValidation(
+    tierMetaRequested,
+    tierEff,
+    validationResult,
+    options._priorAttemptViolations
+  );
 
   framed[framed.length - 1].meta = {
     ...framed[framed.length - 1].meta,
-    projection_validation: validation,
+    projection_validation: projectionValidation,
   };
 
   return framed;
 }
 
-function validateReport(
+function validateReportSections(
   sections: ProjectedExplanationSection[],
   surface: ProjectionSurface,
   tier: ExpansionTier,
   core: SemanticCore,
   tierForDensity: ExpansionTier
-): ProjectionValidation {
+): { ok: boolean; violations: string[] } {
   const schema = SURFACE_SCHEMAS[surface];
   const violations: string[] = [];
   if (sections.length < schema.baselineMinSections) {
@@ -445,5 +512,5 @@ function validateReport(
     if (!v.ok) violations.push(`${sec.id}:${v.reasons.join(';')}`);
   }
 
-  return { ok: violations.length === 0, tierEffective: tier, violations };
+  return { ok: violations.length === 0, violations };
 }

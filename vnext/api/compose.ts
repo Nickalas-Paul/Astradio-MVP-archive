@@ -44,7 +44,7 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
-import type { ExpansionTier, ProjectionSurface } from '../projection/projection-types';
+import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
 import type { RelationshipMode } from '../compat/types';
 
 function parseExpansionTier(v: unknown): ExpansionTier {
@@ -84,7 +84,26 @@ export type AggregateComposeResult = {
   planHash: string;
   gateReport: GateReport;
   text: any;
-  explanation: { spec: string; sections: Array<{ title: string; text: string }> };
+  explanation: {
+    spec: string;
+    sections: Array<{
+      sectionId: string;
+      title: string;
+      text?: string;
+      bullets?: string[];
+      meta?: { claimIdsReferenced?: string[]; phaseD?: boolean; projection_validation?: ProjectionValidation };
+    }>;
+    meta?: {
+      phase_d: {
+        surface: ProjectionSurface;
+        tier: ExpansionTier;
+        tierRequested: ExpansionTier;
+        tierEffective: ExpansionTier;
+        downgradedFrom?: ExpansionTier;
+        projection_validation?: ProjectionValidation;
+      };
+    };
+  };
   audio: { format: 'wav'; base64: string; sha256: string; latency_ms: number; size_bytes: number };
   hashes: { control: string; audio: string; explanation: string; plan_sha256: string };
   /** Same export contract as snapshot compose (runLyriaAlignedExportBlock). */
@@ -314,6 +333,8 @@ export class ComposeAPI {
 
       const debugExplain = process.env.DEBUG_EXPLAINER === '1';
 
+      const pvMain = projected[projected.length - 1]?.meta?.projection_validation;
+
       const explanationMeta: {
         engine: 'semantic-core-v1';
         engineVersion: string;
@@ -322,7 +343,14 @@ export class ComposeAPI {
         claim_count: number;
         hasFactorMap: boolean;
         factorCount: number;
-        phase_d?: { surface: ProjectionSurface; tier: ExpansionTier; projection_validation?: unknown };
+        phase_d?: {
+          surface: ProjectionSurface;
+          tier: ExpansionTier;
+          tierRequested: ExpansionTier;
+          tierEffective: ExpansionTier;
+          downgradedFrom?: ExpansionTier;
+          projection_validation?: ProjectionValidation;
+        };
         debug?: { aspectsCount: number; housesPresent: boolean };
       } = {
         engine: 'semantic-core-v1',
@@ -334,8 +362,11 @@ export class ComposeAPI {
         factorCount: 0,
         phase_d: {
           surface: projectionSurface,
-          tier,
-          projection_validation: projected[projected.length - 1]?.meta?.projection_validation,
+          tier: pvMain?.tierEffective ?? tier,
+          tierRequested: pvMain?.tierRequested ?? tier,
+          tierEffective: pvMain?.tierEffective ?? tier,
+          downgradedFrom: pvMain?.downgradedFrom,
+          projection_validation: pvMain,
         },
       };
       if (debugExplain) {
@@ -697,9 +728,26 @@ export class ComposeAPI {
       { plan, architecture, featureVec, payload, semanticCore }
     );
 
+    const pvAgg = projected[projected.length - 1]?.meta?.projection_validation;
     const explanation = {
       spec: 'UnifiedSpecV1.1',
-      sections: projected.map((s) => ({ title: s.title, text: s.text })),
+      sections: projected.map((s) => ({
+        sectionId: s.id,
+        title: s.title,
+        text: s.text,
+        bullets: s.bullets,
+        ...(s.meta ? { meta: s.meta } : {}),
+      })),
+      meta: {
+        phase_d: {
+          surface: projectionSurface,
+          tier: pvAgg?.tierEffective ?? tier,
+          tierRequested: pvAgg?.tierRequested ?? tier,
+          tierEffective: pvAgg?.tierEffective ?? tier,
+          downgradedFrom: pvAgg?.downgradedFrom,
+          projection_validation: pvAgg,
+        },
+      },
     };
     const planHash = computePlanHash(plan);
     const hashes = {

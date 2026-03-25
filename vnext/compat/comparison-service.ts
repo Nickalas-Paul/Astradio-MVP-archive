@@ -11,9 +11,15 @@ import { getChartById, resolveChartOrInline } from './chart-store';
 import * as storage from './storage';
 import type { Chart, ChartBInline, Comparison, CompatibilityTextStructured, RelationshipMode } from './types';
 import { FUSION_METHOD_BLEND_V1 } from './types';
+import type { ExpansionTier } from '../projection/projection-types';
 import * as crypto from 'crypto';
 
 const COMPOSE_SKIPPED_SENTINEL = '__compose_skipped__';
+
+export function parseExpansionTier(v: unknown): ExpansionTier {
+  if (v === 'expanded' || v === 'extended') return v;
+  return 'baseline';
+}
 export const COMPARISON_COMPOSE_ALGORITHM_VERSION = 'comparison_compose_v2';
 
 function chartToChartInput(chart: Chart): ChartInput {
@@ -34,6 +40,7 @@ export interface CreateComparisonInput {
   generateComposition?: boolean;
   fusion?: { wA: number; wB: number };
   createdBy?: string;
+  expansionTier?: ExpansionTier;
 }
 
 export interface CreateComparisonResult {
@@ -41,7 +48,17 @@ export interface CreateComparisonResult {
   planHash: string;
   compositionId: string;
   audioBase64?: string;
-  explanation?: { spec: string; sections: Array<{ title: string; text: string }> };
+  explanation?: {
+    spec: string;
+    sections: Array<{
+      sectionId: string;
+      title: string;
+      text?: string;
+      bullets?: string[];
+      meta?: Record<string, unknown>;
+    }>;
+    meta?: Record<string, unknown>;
+  };
   /** False when generateComposition=false: no canonical aggregate reading was produced (metadata-only path). */
   semantic_reading_available: boolean;
 }
@@ -134,6 +151,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     merged: merged as import('../contracts').FeatureVec,
     payload,
     relationshipMode: input.relationshipMode,
+    expansionTier: parseExpansionTier(input.expansionTier),
   });
 
   const compatText: CompatibilityTextStructured = {
