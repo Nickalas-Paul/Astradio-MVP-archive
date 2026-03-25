@@ -4,6 +4,7 @@
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { CompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier } from './projection-types';
+import type { ProjectionSurface } from './projection-types';
 
 function mapTempo(code: string): string {
   if (code === 'TEMPO_HIGH') return 'faster pacing and shorter phrase windows';
@@ -40,13 +41,34 @@ function mapTexture(code: string): string {
 export function buildAudioExplanationBlock(
   core: SemanticCore,
   tier: ExpansionTier,
-  narrativePlan: CompositionNarrativePlan | null | undefined
+  narrativePlan: CompositionNarrativePlan | null | undefined,
+  surface?: ProjectionSurface
 ): { title: string; text: string; bullets?: string[]; claimIds: string[] } {
   const a = core.audio;
   const th = core.tension_harmony;
   const claimIds: string[] = [];
 
+  const surfaceLead: Record<ProjectionSurface, string> = {
+    profile:
+      'Profile audio framing: this staging follows enduring trait-level tendencies in the same semantic readout.',
+    daily:
+      'Daily audio framing: this staging emphasizes short-window sky activation and near-term pacing shifts.',
+    sandbox:
+      'Sandbox audio framing: this staging reflects override-sensitive lab conditions in the encoded field.',
+    overlay_pair:
+      'Overlay audio framing: this staging keeps natal and transit layers visible as parallel threads.',
+    compat_pair:
+      'Compatibility audio framing: this staging follows pair dynamics and interaction pacing from the same core.',
+    group:
+      'Group audio framing: this staging reflects ensemble-level field behavior before dyadic reduction.',
+    campaign:
+      'Campaign audio framing: this staging follows pressure-to-response pacing in the same semantic profile.',
+    feed:
+      'Feed audio framing: this staging surfaces a short signal thread from the same semantic source.',
+  };
+
   const baselineSentences = [
+    surface ? surfaceLead[surface] : surfaceLead.profile,
     `Composition staging tends to align with ${mapTempo(a.tempo_band)}, ${mapDensity(a.density_band)}, and ${mapTensionBias(a.tension_bias)} in the encoded audio envelope.`,
     `Arc bias in the audio envelope reads as ${mapArc(a.arc_bias)}, while relational texture reads as ${mapTexture(a.relational_texture)}.`,
   ];

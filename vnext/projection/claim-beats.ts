@@ -20,7 +20,7 @@ function claimWindow(tier: ExpansionTier): number {
   return 999;
 }
 
-function sentenceForClaim(c: SemanticClaim, seed: string): string {
+export function sentenceForClaim(c: SemanticClaim, seed: string): string {
   const id = c.claim_id as ClaimId;
   const s = `${seed}:${id}`;
   const strengthNote =
@@ -91,6 +91,25 @@ function sentenceForClaim(c: SemanticClaim, seed: string): string {
     return pickVariant(s, variants);
   }
   return `The encoded claim ${id} ${strengthNote}; this may show up as subtle shifts in emphasis rather than a single fixed behavioral label.`;
+}
+
+export function claimSentencesFromRange(
+  core: SemanticCore,
+  start: number,
+  maxCount: number,
+  seed: string,
+  excludeClaimIds?: Set<string>
+): { text: string; claimIds: string[] } {
+  const lines: string[] = [];
+  const ids: string[] = [];
+  const excl = excludeClaimIds ?? new Set<string>();
+  for (let i = start; i < core.claims.length && lines.length < maxCount; i++) {
+    const c = core.claims[i];
+    if (excl.has(c.claim_id)) continue;
+    lines.push(sentenceForClaim(c, `${seed}:rng:${i}`));
+    ids.push(c.claim_id);
+  }
+  return { text: lines.join(' '), claimIds: ids };
 }
 
 /** Mechanism + expression style paragraph from top claims (deterministic order = core order). */
