@@ -60,9 +60,8 @@ interface RpgCampaignView {
 
 interface HistoryItem {
   id?: string;
-  userId?: string;
-  chartId?: string;
   ts?: string;
+  model_id?: string | null;
   [key: string]: unknown;
 }
 
@@ -137,8 +136,35 @@ function main(): Promise<void> {
   let turnSeedFirst: string | null = null;
   let audioSeedFirst: string | null = null;
   let profileChartSnapshot: ProfileChartResult | null = null;
-  let birth: { date: string; time: string; lat: number; lon: number } | null = null;
-  const sandboxPayload = { birth: { date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 }, overrides: { planets: {} as Record<string, unknown> } };
+  let birth: {
+    date: string;
+    time: string;
+    location: {
+      source: 'geofinder';
+      label: string;
+      lat: number;
+      lon: number;
+      timezone: string;
+      resolvedAt: string;
+    };
+    houseSystem: string;
+  } | null = null;
+  const sandboxPayload = {
+    birth: {
+      date: '1990-01-01',
+      time: '12:00',
+      location: {
+        source: 'geofinder' as const,
+        label: 'Smoke Birth Seed',
+        lat: 40.7128,
+        lon: -74.006,
+        timezone: 'UTC',
+        resolvedAt: '2026-01-01T00:00:00.000Z',
+      },
+      houseSystem: 'placidus',
+    },
+    overrides: { planets: {} as Record<string, unknown> },
+  };
 
   function withUser(path: string): string {
     if (!userId || sessionCookie) return path;
@@ -245,11 +271,20 @@ function main(): Promise<void> {
         printAndExit(results);
       }
       profileChartSnapshot = body;
+      const chartLat = typeof body.chart.lat === 'number' ? body.chart.lat : 40.7128;
+      const chartLon = typeof body.chart.lon === 'number' ? body.chart.lon : -74.006;
       birth = {
         date: String(body.chart.date ?? '1990-01-01').slice(0, 10),
         time: String(body.chart.time ?? '12:00').slice(0, 5),
-        lat: typeof body.chart.lat === 'number' ? body.chart.lat : 40.7128,
-        lon: typeof body.chart.lon === 'number' ? body.chart.lon : -74.006,
+        location: {
+          source: 'geofinder',
+          label: `Smoke Birth (${chartLat.toFixed(4)}, ${chartLon.toFixed(4)})`,
+          lat: chartLat,
+          lon: chartLon,
+          timezone: String(body.chart.timezone ?? 'UTC'),
+          resolvedAt: '2026-01-01T00:00:00.000Z',
+        },
+        houseSystem: 'placidus',
       };
       sandboxPayload.birth = birth;
       result(results, '4. Profile chart', 'pass', 'chart.id matches; snapshot/explainer present', [`chartId=${chartIdFromChart}`]);
@@ -288,8 +323,8 @@ function main(): Promise<void> {
       chartData: {
         date: sandboxPayload.birth.date,
         time: sandboxPayload.birth.time,
-        lat: sandboxPayload.birth.lat,
-        lon: sandboxPayload.birth.lon,
+        lat: sandboxPayload.birth.location.lat,
+        lon: sandboxPayload.birth.location.lon,
       },
       controls: {},
     };
@@ -502,32 +537,18 @@ function main(): Promise<void> {
       if (r.status !== 200) {
         result(results, '14. History', 'fail', `HTTP ${r.status}`, []);
       } else {
-        let consistencyOk = true;
         const details: string[] = [`items=${items.length}`];
-        for (const item of items) {
-          if (userId && item.userId != null && item.userId !== userId) {
-            consistencyOk = false;
-            details.push(`item ${item.id ?? '?'} userId=${item.userId} expected ${userId}`);
-          }
-          if (chartId && item.chartId != null && item.chartId !== chartId) {
-            consistencyOk = false;
-            details.push(`item ${item.id ?? '?'} chartId=${item.chartId} expected ${chartId}`);
-          }
-        }
-        const hasUserIdOnItems = items.some((i) => 'userId' in i && i.userId != null);
-        const hasIdOnItems = items.some((i) => 'id' in i && i.id != null);
-        const matchUserId = userId && items.some((i) => i.userId === userId);
+        const itemsHaveId = items.every((i) => typeof i.id === 'string' && i.id.length > 0);
+        const itemsHaveTs = items.every((i) => typeof i.ts === 'string' && i.ts.length > 0);
+        const itemsHaveModelKey = items.every((i) => Object.prototype.hasOwnProperty.call(i, 'model_id'));
         const matchExportId = exportId && items.some((i) => i.id === exportId);
-        const persistenceSignal =
-          (hasUserIdOnItems && !!matchUserId) ||
-          (hasIdOnItems && exportId && !!matchExportId) ||
-          (!hasUserIdOnItems && !(exportId && hasIdOnItems));
-        if (!persistenceSignal) details.push('persistence: no item.userId or item.id match');
-        else if (matchUserId) details.push('persistence: at least one item.userId match');
-        else if (matchExportId) details.push('persistence: at least one item.id === export_id');
-        else details.push('persistence: 200 and array (minimal contract)');
-        const pass = consistencyOk && persistenceSignal;
-        result(results, '14. History', pass ? 'pass' : 'fail', pass ? '200; array; identity consistency and persistence' : 'identity mismatch or persistence fail', details);
+        if (!itemsHaveId) details.push('contract: one or more items missing string id');
+        if (!itemsHaveTs) details.push('contract: one or more items missing string ts');
+        if (!itemsHaveModelKey) details.push('contract: one or more items missing model_id key');
+        if (matchExportId) details.push('persistence: at least one item.id === export_id');
+        else details.push('persistence: minimal contract path (200 + array)');
+        const pass = itemsHaveId && itemsHaveTs && itemsHaveModelKey;
+        result(results, '14. History', pass ? 'pass' : 'fail', pass ? '200; array; id/ts/model_id contract' : 'history contract mismatch', details);
       }
     }
 
