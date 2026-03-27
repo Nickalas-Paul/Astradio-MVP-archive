@@ -212,37 +212,46 @@ function appendSectionGroupBlock(
 function applyAggregateSurfaceIdentityOverrides(
   sections: ProjectedExplanationSection[],
   surface: ProjectionSurface,
-  seed: string
+  seed: string,
+  core: SemanticCore,
+  tierEff: ExpansionTier,
+  reportPadUsed: Set<string>
 ): ProjectedExplanationSection[] {
   if (surface !== 'compat_pair' && surface !== 'group') return sections;
   const out = sections.map((s) => ({ ...s }));
+  const schema = SURFACE_SCHEMAS[surface];
+  const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
+  const d = densityForSectionId('relational_field', defaultD);
   for (let i = 0; i < out.length; i++) {
     const s = out[i];
     if (s.id !== 'relational_field') continue;
-    if (surface === 'compat_pair') {
-      s.text = lintSectionBody(
-        expandSentencesToMin(
-          pickVariant(`${seed}:compat:rel`, [
+    const baseIdentity =
+      surface === 'compat_pair'
+        ? pickVariant(`${seed}:compat:rel`, [
             'Pair field framing: this section prioritizes dyadic pacing and mutual regulation loops before broader generalization.',
             'Pair field framing: this section reads relational activation as two-person interface dynamics, not ensemble diffusion.',
-          ]),
-          3,
-          `${seed}:compat:rel:sent`
-        )
-      ).text;
-    } else {
-      s.text = lintSectionBody(
-        expandSentencesToMin(
-          pickVariant(`${seed}:group:rel`, [
+          ])
+        : pickVariant(`${seed}:group:rel`, [
             'Group field framing: this section prioritizes ensemble distribution effects before any single dyad is highlighted.',
             'Group field framing: this section reads activation as a multi-node field with local clusters, not one pair axis.',
-          ]),
-          3,
-          `${seed}:group:rel:sent`
-        )
-      ).text;
-    }
-    out[i] = s;
+          ]);
+    const claimIdsIn =
+      s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
+        ? [...s.meta.claimIdsReferenced]
+        : core.claims.slice(0, 8).map((c) => c.claim_id);
+    const { text, claimIds } = enrichSectionText(
+      baseIdentity,
+      [],
+      d,
+      `${seed}:${surface === 'compat_pair' ? 'compat' : 'group'}:rel:enrich:${i}`,
+      claimIdsIn,
+      reportPadUsed
+    );
+    out[i] = {
+      ...s,
+      text,
+      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true },
+    };
   }
   return out;
 }
@@ -697,7 +706,7 @@ export function applyPhaseDProjection(
     tier: tierEff,
     seed,
   });
-  framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed);
+  framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
 
   const validationResult = validateReportSections(framed, surface, tierEff, core, tierEff);
 
