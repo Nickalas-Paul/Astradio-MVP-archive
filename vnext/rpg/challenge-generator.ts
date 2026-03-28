@@ -162,7 +162,7 @@ function baseChoices(patternBias: 'reflective' | 'decisive' | 'mixed'): ChoiceOp
 /**
  * Inputs for deterministic challenge generation. No randomness is used.
  * All arrays (pressures, state.flags) are assumed to be in deterministic order
- * (pressures from buildTransitPressureMap; state from campaign state machine).
+ * (pressures from Phase 1 resolver / legacy bridge or legacy map in tests only; state from campaign state machine).
  */
 export interface BuildChallengeParams {
   character: CharacterProfile;

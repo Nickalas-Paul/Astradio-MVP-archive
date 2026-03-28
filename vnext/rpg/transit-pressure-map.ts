@@ -1,3 +1,8 @@
+/**
+ * QUARANTINED for product Campaign pressure (Phase 1+).
+ * Do not use as primary Campaign input — use `vnext/campaign/phase1` + cross-aspects instead.
+ * Retained for non-Campaign RPG surfaces unless removed.
+ */
 import type { EphemerisSnapshot } from '../contracts';
 import type { RPGDomainScore } from './contracts';
 import { detectTransitSignals } from './transit/signal-detection';

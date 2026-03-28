@@ -4,8 +4,8 @@ import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-sn
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildCharacterProfile } from '../rpg/character-builder';
-import { buildTransitPressureMap } from '../rpg/transit-pressure-map';
 import { buildChallengeScene } from '../rpg/challenge-generator';
+import { resolveCampaignDaily, campaignSeedToLegacyTransitPressures } from '../campaign/phase1';
 import { buildChallengeOutcome } from '../rpg/reflection-mapper';
 import { getOrCreateRpgProfileForChart, getOrCreateCampaign, getCampaignById, updateCampaignState } from '../rpg/store/rpg-store';
 import { initialCampaignState } from '../rpg/campaign/state-machine';
@@ -283,10 +283,33 @@ export function createCampaignRouter(): import('express').Router {
           effectsBundle: bundle,
         });
 
-        const pressures = buildTransitPressureMap({
-          natalSnapshot,
-          transitSnapshot,
+        const officialDate = String(transitSnapshot?.ts ?? '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(officialDate)) {
+          return res.status(400).json({ error: 'transitSnapshot.ts must be ISO date for Phase 1 daily resolution' });
+        }
+
+        const phase1Seed = resolveCampaignDaily({
+          kind: 'solo',
+          campaign_id: campaignId,
+          chart_id: campaign.chart_id,
+          date: officialDate,
+          state_hash_before: campaign.state_hash || '',
+          natal: natalSnapshot,
+          transit: transitSnapshot,
         });
+
+        if (phase1Seed.refusal?.code === 'NO_PRIMARY_PRESSURE') {
+          return res.status(422).json({
+            error: 'NO_PRIMARY_PRESSURE',
+            code: 'NO_PRIMARY_PRESSURE',
+            campaignResolutionSeed: phase1Seed,
+          });
+        }
+
+        const pressures = campaignSeedToLegacyTransitPressures(
+          phase1Seed.pressure_events,
+          phase1Seed.daily_pressure_state
+        );
 
         const state = (campaign.state_json || {}) as CampaignState;
         const scene = buildChallengeScene({
@@ -313,6 +336,7 @@ export function createCampaignRouter(): import('express').Router {
         return res.status(200).json({
           scene,
           characterId: character.id,
+          campaignResolutionSeed: phase1Seed,
           audio: {
             mode: audio.mode,
             ...(audio.audioContextId != null && { audioContextId: audio.audioContextId }),

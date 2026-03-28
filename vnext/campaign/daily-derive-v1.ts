@@ -1,4 +1,11 @@
 /**
+ * QUARANTINED — NOT USED FOR PRODUCT CAMPAIGN EXECUTION (Phase 1+).
+ * Campaign daily pressure is resolved only via `vnext/campaign/phase1/resolve-campaign-daily.ts`
+ * and `computeCrossAspectsForMember` + relational weather aggregation.
+ *
+ * This module remains for legacy tests or non-Campaign callers only; do not wire new routes here.
+ *
+ * ---
  * Bounded deterministic campaign daily derivation — allowlisted snapshot fields + lookup tables only.
  */
 

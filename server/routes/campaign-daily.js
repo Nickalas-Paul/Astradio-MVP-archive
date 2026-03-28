@@ -12,14 +12,13 @@ const { anchorFallbackOrder } = require('../lib/campaign-daily-anchor');
 const vnextRoot = path.join(__dirname, '../../dist/vnext/vnext');
 
 function loadVnext() {
+  const phase1 = require(path.join(vnextRoot, 'campaign/phase1'));
   return {
     fetchChartSnapshot: require(path.join(vnextRoot, 'core/architecture-engine')).fetchChartSnapshot,
     resolveRelationalConnectionFromChartIds: require(path.join(vnextRoot, 'relational/resolve-relational-connection-context'))
       .resolveRelationalConnectionFromChartIds,
-    vectorToControlPayload: require(path.join(vnextRoot, 'relational/composition/vector-to-controls')).vectorToControlPayload,
-    deriveCampaignDailySoloV1: require(path.join(vnextRoot, 'campaign/daily-derive-v1')).deriveCampaignDailySoloV1,
-    deriveCampaignDailyGroupV1: require(path.join(vnextRoot, 'campaign/daily-derive-v1')).deriveCampaignDailyGroupV1,
-    dailyStateBodyHash: require(path.join(vnextRoot, 'campaign/daily-derive-v1')).dailyStateBodyHash,
+    resolveCampaignDaily: phase1.resolveCampaignDaily,
+    campaignPhase1DerivationFingerprint: phase1.campaignPhase1DerivationFingerprint,
     buildTransitChartInput: require(path.join(vnextRoot, 'campaign/transit-chart-input')).buildTransitChartInput,
     getChartById: require(path.join(vnextRoot, 'compat/chart-store')).getChartById,
   };
@@ -89,7 +88,7 @@ function createCampaignDailyRouter() {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const date = (req.query.date || body.date || '').toString().trim();
     const time = (req.query.time || body.time || '').toString().trim();
-    const engineVersion = (req.query.engineVersion || body.engineVersion || 'campaign_daily_v1').toString().trim();
+    const engineVersion = (req.query.engineVersion || body.engineVersion || 'campaign_daily_phase1_v1').toString().trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'invalid_request', message: 'date YYYY-MM-DD required' });
@@ -167,14 +166,32 @@ function createCampaignDailyRouter() {
           vn.fetchChartSnapshot(transitInput),
         ]);
 
-        const { derived, derivationInputsFingerprint } = vn.deriveCampaignDailySoloV1({
+        const stateHashBefore = campaign.stateHash || '';
+
+        const seed = vn.resolveCampaignDaily({
+          kind: 'solo',
+          campaign_id: campaignId,
+          chart_id: charts[0],
+          date,
+          state_hash_before: stateHashBefore,
           natal,
           transit,
-          engineVersion,
         });
 
+        if (seed.refusal && seed.refusal.code === 'NO_PRIMARY_PRESSURE') {
+          return res.status(422).json({
+            error: 'NO_PRIMARY_PRESSURE',
+            code: 'NO_PRIMARY_PRESSURE',
+            campaignResolutionSeed: seed,
+          });
+        }
+
+        const derivationInputsFingerprint = vn.campaignPhase1DerivationFingerprint(seed);
+
         const daily = {
-          ...derived,
+          engine_version: engineVersion,
+          trait_derivation_mode: seed.trait_derivation_mode,
+          campaign_resolution_seed: seed,
           mode: 'solo',
         };
         const dailyStateJson = {
@@ -185,6 +202,8 @@ function createCampaignDailyRouter() {
             anchor_user_id: callerUserId,
             transit_context_fingerprint: fpReq,
             derivation_inputs_fingerprint: derivationInputsFingerprint,
+            phase1_engine: seed.provenance.engine_version,
+            phase1_rules: seed.provenance.rules_version,
           },
         };
         const dailyStateHash = sha256(canonicalJson(daily));
@@ -251,7 +270,6 @@ function createCampaignDailyRouter() {
         throw e;
       }
 
-      const control = vn.vectorToControlPayload(ctx.composite, ctx.provenance.seed);
       const transitOrder = anchorFallbackOrder(campaignId, date, engineVersion, campaign.participantUserIds);
 
       let anchorUserId = null;
@@ -277,14 +295,52 @@ function createCampaignDailyRouter() {
       const transitInput = vn.buildTransitChartInput({ date, time, location: anchorLocation });
       const transit = await vn.fetchChartSnapshot(transitInput);
 
-      const { derived, derivationInputsFingerprint } = vn.deriveCampaignDailyGroupV1({
-        control,
+      const memberNatals = [];
+      for (const cid of participantCharts) {
+        const ch = await vn.getChartById(cid);
+        if (!ch) {
+          return res.status(422).json({ error: 'unprocessable', message: `natal chart not found: ${cid}` });
+        }
+        let natalInputG;
+        try {
+          natalInputG = chartRowToNatalInput(ch);
+        } catch (e) {
+          if (e.code === 'NATAL_TIMEZONE_REQUIRED') {
+            return res.status(422).json({ error: 'unprocessable', code: 'NATAL_TIMEZONE_REQUIRED' });
+          }
+          throw e;
+        }
+        memberNatals.push(await vn.fetchChartSnapshot(natalInputG));
+      }
+
+      const stateHashBeforeG = campaign.stateHash || '';
+
+      const seed = vn.resolveCampaignDaily({
+        kind: 'group',
+        campaign_id: campaignId,
+        group_id: campaign.groupId || undefined,
+        date,
+        state_hash_before: stateHashBeforeG,
+        chart_ids_ordered: participantCharts,
+        member_natals: memberNatals,
         transit,
-        engineVersion,
+        vector_hashes: ctx.provenance.vector_hashes || {},
       });
 
+      if (seed.refusal && seed.refusal.code === 'NO_PRIMARY_PRESSURE') {
+        return res.status(422).json({
+          error: 'NO_PRIMARY_PRESSURE',
+          code: 'NO_PRIMARY_PRESSURE',
+          campaignResolutionSeed: seed,
+        });
+      }
+
+      const derivationInputsFingerprint = vn.campaignPhase1DerivationFingerprint(seed);
+
       const daily = {
-        ...derived,
+        engine_version: engineVersion,
+        trait_derivation_mode: seed.trait_derivation_mode,
+        campaign_resolution_seed: seed,
         mode: mode === 'auto' ? 'auto' : 'group',
       };
       const fpAnchor = transitContextFingerprint(anchorLocation, date, time);
@@ -296,6 +352,8 @@ function createCampaignDailyRouter() {
           anchor_user_id: anchorUserId,
           transit_context_fingerprint: fpAnchor,
           derivation_inputs_fingerprint: derivationInputsFingerprint,
+          phase1_engine: seed.provenance.engine_version,
+          phase1_rules: seed.provenance.rules_version,
         },
       };
       const dailyStateHash = sha256(canonicalJson(daily));

@@ -1,4 +1,5 @@
 // vnext/rpg/transit/signal-detection.ts
+// QUARANTINED as primary Campaign pressure source (Phase 1+). Use cross-aspects / phase1 resolver.
 // Layer 1: Deterministic transit signal detection.
 
 import type { EphemerisSnapshot } from '../../contracts';
