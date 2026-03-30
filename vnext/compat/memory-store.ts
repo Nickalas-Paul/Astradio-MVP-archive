@@ -9,20 +9,11 @@ import type { User, Chart, Comparison } from './types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (exports as any).__compatName = 'memory';
 
+import { resolveChartTimezoneForChartInsert } from './chart-timezone-resolve';
+
 const nanoid = () =>
   require('crypto').randomBytes(8).toString('hex');
 const now = () => new Date().toISOString();
-
-// Path from compiled dist/vnext/vnext/compat/ -> repo root lib (same as vector-cache.ts)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { resolveChartTimezoneForChartInsert } = require('../../../../lib/chart-timezone-resolve') as {
-  resolveChartTimezoneForChartInsert: (input: {
-    timezone?: string | null;
-    tz?: string | null;
-    lat: number;
-    lon: number;
-  }) => string;
-};
 
 const users = new Map<string, User & { handle?: string }>();
 const charts = new Map<string, Chart>();

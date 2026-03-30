@@ -53,7 +53,7 @@
     "test:contract": "jest tests/engine-adapter.contract.test.ts",
     "test:e2e": "playwright test tests/e2e.smoke.spec.ts",
     "test:campaign-daily": "node --test tests/campaign-daily-anchor.test.js tests/campaign-daily-canonical-location.test.js",
-    "test:chart-timezone": "node --test tests/chart-timezone-resolve.test.js tests/chart-pg-store-timezone.integration.test.js",
+    "test:chart-timezone": "npm run vnext:build && node --test tests/chart-timezone-resolve.test.js tests/chart-pg-store-timezone.integration.test.js",
     "backfill:chart-timezones": "node scripts/backfill-chart-timezones.js",
     "smoke:campaign-daily": "node scripts/stage8-campaign-daily-smoke.js",
     "test:integration": "node scripts/test-integration.js",
