@@ -86,4 +86,6 @@ export interface ChartBInline {
   lat: number;
   lon: number;
   timezone?: string;
+  /** Alias for `timezone` (community / legacy clients). */
+  tz?: string;
 }

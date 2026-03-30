@@ -14,6 +14,8 @@ export type ChartInput = {
   lat: number;
   lon: number;
   timezone?: string;
+  /** Alias for `timezone` (community clients). */
+  tz?: string;
   snapshotHash?: string;
 };
 
@@ -52,7 +54,7 @@ export async function resolveChartOrInline(input: ResolveChartInput): Promise<Ch
     time: inline.time,
     lat: inline.lat,
     lon: inline.lon,
-    timezone: inline.timezone,
+    timezone: inline.timezone ?? inline.tz,
   });
 }
 

@@ -13,6 +13,17 @@ const nanoid = () =>
   require('crypto').randomBytes(8).toString('hex');
 const now = () => new Date().toISOString();
 
+// Path from compiled dist/vnext/vnext/compat/ -> repo root lib (same as vector-cache.ts)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { resolveChartTimezoneForChartInsert } = require('../../../../lib/chart-timezone-resolve') as {
+  resolveChartTimezoneForChartInsert: (input: {
+    timezone?: string | null;
+    tz?: string | null;
+    lat: number;
+    lon: number;
+  }) => string;
+};
+
 const users = new Map<string, User & { handle?: string }>();
 const charts = new Map<string, Chart>();
 const comparisons = new Map<string, Comparison>();
@@ -90,9 +101,16 @@ export async function createChart(input: {
   lat: number;
   lon: number;
   timezone?: string;
+  tz?: string;
   snapshotHash?: string;
 }): Promise<Chart> {
   const id = input.id || `chart_${nanoid()}`;
+  const resolvedTimezone = resolveChartTimezoneForChartInsert({
+    timezone: input.timezone,
+    tz: input.tz,
+    lat: input.lat,
+    lon: input.lon,
+  });
   const chart: Chart = {
     id,
     ownerId: input.ownerId,
@@ -101,7 +119,7 @@ export async function createChart(input: {
     time: input.time,
     lat: input.lat,
     lon: input.lon,
-    timezone: input.timezone,
+    timezone: resolvedTimezone,
     snapshotHash: input.snapshotHash,
     createdAt: now(),
     updatedAt: now(),
@@ -140,6 +158,7 @@ export async function listComparisonsByUser(userId: string): Promise<Comparison[
 export async function ensureDefaultProfileChart(): Promise<Chart> {
   let chart = charts.get(DEFAULT_PROFILE_CHART_ID);
   if (chart) return chart;
+  const resolvedTimezone = resolveChartTimezoneForChartInsert({ lat: 40.7128, lon: -74.006 });
   chart = {
     id: DEFAULT_PROFILE_CHART_ID,
     ownerId: undefined,
@@ -148,7 +167,7 @@ export async function ensureDefaultProfileChart(): Promise<Chart> {
     time: '12:00',
     lat: 40.7128,
     lon: -74.006,
-    timezone: undefined,
+    timezone: resolvedTimezone,
     snapshotHash: undefined,
     createdAt: now(),
     updatedAt: now(),

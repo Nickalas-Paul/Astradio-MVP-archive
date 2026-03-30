@@ -18,6 +18,11 @@ import type { ChartBInline, Comparison } from './types';
 const express = require('express') as typeof import('express');
 const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
 
+function isChartTimezoneError(e: unknown): e is { message: string; code: string } {
+  const c = (e as { code?: string })?.code;
+  return c === 'INVALID_CHART_TIMEZONE' || c === 'CHART_TIMEZONE_UNRESOLVABLE';
+}
+
 type ComparisonWithRoles = Comparison & {
   seekerChartId?: string;
   targetChartId?: string;
@@ -181,10 +186,15 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon [, timezone] } }
+  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon [, timezone | tz] } }
   router.post('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const body = (req.body || {}) as { displayName: string; handle?: string; email?: string; chart?: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string } };
+      const body = (req.body || {}) as {
+        displayName: string;
+        handle?: string;
+        email?: string;
+        chart?: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string; tz?: string };
+      };
       const { displayName, handle, email, chart: chartInput } = body;
       if (!displayName || typeof displayName !== 'string' || !displayName.trim()) {
         return res.status(400).json({ error: 'displayName required' });
@@ -215,7 +225,13 @@ export function createCompatRouter(): import('express').Router {
       });
       let primaryChart: import('./types').Chart | null = null;
       if (chartInput != null && typeof chartInput === 'object') {
-        const { label, date, time, lat, lon, timezone: tz } = chartInput;
+        const { label, date, time, lat, lon, timezone: tzField, tz: tzAlt } = chartInput;
+        const clientTzRaw =
+          typeof tzField === 'string' && tzField.trim()
+            ? tzField.trim()
+            : typeof tzAlt === 'string' && tzAlt.trim()
+              ? tzAlt.trim()
+              : undefined;
         primaryChart = await storage.createChart({
           ownerId: user.id,
           label: label.trim(),
@@ -223,7 +239,7 @@ export function createCompatRouter(): import('express').Router {
           time: String(time).slice(0, 5),
           lat: Number(lat),
           lon: Number(lon),
-          ...(typeof tz === 'string' && tz.trim() && { timezone: tz.trim() }),
+          ...(clientTzRaw !== undefined ? { timezone: clientTzRaw } : {}),
         });
         console.log('[compat][profile][createChart]', {
           userId: user.id,
@@ -266,6 +282,9 @@ export function createCompatRouter(): import('express').Router {
         primaryChart: primaryChart ? { id: primaryChart.id, label: primaryChart.label, date: primaryChart.date, time: primaryChart.time, lat: primaryChart.lat, lon: primaryChart.lon, timezone: primaryChart.timezone } : null,
       });
     } catch (e: any) {
+      if (isChartTimezoneError(e)) {
+        return res.status(400).json({ error: 'invalid_request', message: e.message, code: e.code });
+      }
       console.error('[compat] POST /profile', e);
       return res.status(500).json({ error: e?.message || 'Failed to create profile' });
     }
@@ -336,13 +355,19 @@ export function createCompatRouter(): import('express').Router {
   router.post('/charts', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
-      const { ownerId, label, date, time, lat, lon, timezone, snapshotHash } = body;
+      const { ownerId, label, date, time, lat, lon, timezone, tz, snapshotHash } = body;
       if (!label || !date || !time || Number.isFinite(lat) === false || Number.isFinite(lon) === false) {
         return res.status(400).json({
           error: 'Missing or invalid fields',
           message: 'Required: label, date, time, lat, lon'
         });
       }
+      const tzClient =
+        typeof timezone === 'string' && timezone.trim()
+          ? timezone.trim()
+          : typeof tz === 'string' && tz.trim()
+            ? tz.trim()
+            : undefined;
       const chart = await createChart({
         ownerId: ownerId || undefined,
         label,
@@ -350,7 +375,7 @@ export function createCompatRouter(): import('express').Router {
         time: String(time).slice(0, 5),
         lat: Number(lat),
         lon: Number(lon),
-        timezone: timezone || undefined,
+        ...(tzClient !== undefined ? { timezone: tzClient } : {}),
         snapshotHash: snapshotHash || undefined
       });
       // Phase 4: populate stored vector when Postgres available (single write path)
@@ -361,6 +386,9 @@ export function createCompatRouter(): import('express').Router {
       }
       return res.status(201).json(chart);
     } catch (e: any) {
+      if (isChartTimezoneError(e)) {
+        return res.status(400).json({ error: 'invalid_request', message: e.message, code: e.code });
+      }
       console.error('[compat] POST /charts', e);
       return res.status(500).json({ error: e?.message || 'Failed to create chart' });
     }

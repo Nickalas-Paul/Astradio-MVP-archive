@@ -208,7 +208,9 @@ function createRelationalRouter(): import('express').Router {
     const ownerId = await requireOwner(req, res);
     if (!ownerId) return;
     const body = req.body || {};
-    const { label, date, time, lat, lon, timezone } = body;
+    const { label, date, time, lat, lon, timezone, tz } = body;
+    const tzBody =
+      (timezone && String(timezone).trim()) || (tz && String(tz).trim()) || undefined;
 
     if (!label || typeof label !== 'string' || !label.trim()) {
       return res
@@ -249,14 +251,21 @@ function createRelationalRouter(): import('express').Router {
         time: String(time).slice(0, 5),
         lat: latNum,
         lon: lonNum,
-        timezone: (timezone && String(timezone).trim()) || undefined,
+        timezone: tzBody || undefined,
       });
     } catch (e: unknown) {
-      const err = e as Error;
+      const err = e as { code?: string; message?: string };
+      if (err.code === 'INVALID_CHART_TIMEZONE' || err.code === 'CHART_TIMEZONE_UNRESOLVABLE') {
+        return res.status(400).json({
+          error: 'invalid_request',
+          message: err.message || 'Timezone could not be resolved',
+          code: err.code,
+        });
+      }
       console.error('[relational] POST /relational/charts create', err);
       return res.status(500).json({
         error: 'internal_error',
-        message: err?.message || 'Failed to create chart',
+        message: (err as Error)?.message || 'Failed to create chart',
       });
     }
 
