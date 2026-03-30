@@ -69,6 +69,13 @@ const nextConfig = {
         if (request === 'tzlookup') {
           return callback(null, 'commonjs tzlookup');
         }
+        // vnext/compat imports these from outside apps/web; externalize so resolution uses apps/web/node_modules.
+        if (request === 'moment-timezone') {
+          return callback(null, 'commonjs moment-timezone');
+        }
+        if (request === 'moment') {
+          return callback(null, 'commonjs moment');
+        }
         callback();
       });
     }
