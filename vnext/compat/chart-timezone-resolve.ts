@@ -4,7 +4,8 @@
  * 2) else lat/lon finite → tzlookup + IANA validation
  * 3) else fail closed (no UTC or server defaults)
  *
- * Canonical implementation (compiled to dist). lib/chart-timezone-resolve.js loads this after vnext:build.
+ * Canonical source (no dist/ at runtime for this module). Next bundles this file directly.
+ * Node/pg-store uses lib/chart-timezone-resolve.js, which re-requires the compiled copy after vnext:build only on the engine.
  */
 
 /* eslint-disable @typescript-eslint/no-var-requires */

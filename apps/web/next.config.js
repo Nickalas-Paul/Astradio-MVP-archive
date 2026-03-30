@@ -65,6 +65,10 @@ const nextConfig = {
         if (request === 'pg') {
           return callback(null, 'commonjs pg');
         }
+        // tzlookup reads binary data via __dirname; bundling breaks path to node_modules/tzlookup/data.
+        if (request === 'tzlookup') {
+          return callback(null, 'commonjs tzlookup');
+        }
         callback();
       });
     }

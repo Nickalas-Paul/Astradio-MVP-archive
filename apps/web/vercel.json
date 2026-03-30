@@ -1,6 +1,5 @@
 {
-  "installCommand": "cd ../.. && npm install && cd apps/web && npm install",
-  "buildCommand": "cd ../.. && npm run vnext:build && cd apps/web && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs"
 }
