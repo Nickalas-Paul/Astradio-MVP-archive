@@ -33,19 +33,37 @@ type DailyResponse = {
       };
       challenge_archetype: {
         id: string;
+        primary_transit_body: string;
+        primary_natal_body: string;
+        primary_natal_house: number;
+        primary_aspect_type: string;
         primary_pressure_family: string;
         primary_domain_id: string;
+        primary_intensity_band: string;
+        primary_intensity_score: number;
         interaction_type: string;
         event_count: number;
+        archetype_category: string;
+        supporting_domain_pattern: string[];
+        supporting_family_pattern: string[];
+        supporting_member_chart_ids: string[];
+        primary_member_chart_ids: string[];
       };
       challenge: {
         id: string;
+        archetypeCategory?: string;
         theme: string;
         setting: string;
         obstacle: string;
         primaryPressure: {
+          transitBody: string;
+          natalBody: string;
+          natalHouse: number;
+          aspectType: string;
           type: string;
           domain: string;
+          pressureFamily: string;
+          intensityBand: string;
           lifeArea: string;
         };
         supportingPressures: Array<{
@@ -59,30 +77,81 @@ type DailyResponse = {
           label: string;
           symbolicGesture: string;
           patternTag: string;
+          posture: string;
+          modality: string;
+          riskProfile: string;
+          outcomeDirection: string;
         }>;
       };
+      response_paths: Array<{
+        path_id: string;
+        pattern_tag: string;
+        posture: string;
+        modality: string;
+        risk_profile: string;
+        outcome_direction: string;
+        domain_context: string;
+        interaction_context: string;
+        intensity_band: string;
+        ordinal: number;
+      }>;
+      response_collection: {
+        accepted_response_count: number;
+        members_total: number;
+        ready_member_chart_ids: string[];
+        pending_member_chart_ids: string[];
+        accepted_responses: Record<string, {
+          member_id: string;
+          user_id: string;
+          choice_id: string;
+          response_path_id: string;
+          response_pattern_tag: string;
+          response_posture: string;
+          response_label: string;
+          accepted_at: string | null;
+        }>;
+      };
+      participant_roster: Array<{ user_id: string; chart_id: string; ordinal: number }>;
       challenge_fingerprint: string;
       state_hash_before: string;
     };
     resolution: null | {
-      choice_id: string;
-      outcome_patch_id: string;
-      response_pattern_tag: string;
+      challenge_fingerprint: string;
+      response_count: number;
+      resolved_member_chart_ids: string[];
       state_hash_after: string;
       resolved_at: string;
+      ordered_member_resolutions: Array<{
+        member_id: string;
+        user_id: string;
+        choice_id: string;
+        outcome_patch_id: string;
+        response_path_id: string;
+        response_pattern_tag: string;
+        response_posture: string;
+        response_label: string;
+      }>;
     };
   };
 };
 
 type ResolveResponse = {
-  resolution: {
+  acceptedResponse?: {
+    member_id: string;
     choice_id: string;
-    outcome_patch_id: string;
     response_pattern_tag: string;
-    state_hash_before: string;
-    state_hash_after: string;
-    resolved_at: string;
+    response_posture: string;
+    response_label: string;
   };
+  responseCollection?: DailyResponse['daily']['daily']['response_collection'];
+  readiness?: {
+    is_ready: boolean;
+    accepted_response_count: number;
+    members_total: number;
+    ready_member_chart_ids: string[];
+    pending_member_chart_ids: string[];
+  };
+  resolution: DailyResponse['daily']['resolution'];
   newState: {
     chapter?: number;
     flags?: string[];
@@ -163,6 +232,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 5);
   }, [campaign, resolveResult]);
+  const liveResponseCollection = resolveResult?.responseCollection ?? daily?.daily.daily.response_collection;
 
   async function fetchDaily() {
     setIsLoadingDaily(true);
@@ -345,9 +415,11 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
             <div>
               <h2 className="text-lg font-semibold">Challenge</h2>
               <p className="mt-2 text-sm text-subtext">
-                {daily.calendarDate} | {daily.daily.daily.challenge_archetype.primary_pressure_family} |{' '}
+                {daily.calendarDate} | {daily.daily.daily.challenge_archetype.archetype_category} |{' '}
+                {daily.daily.daily.challenge_archetype.primary_transit_body} {'->'} {daily.daily.daily.challenge_archetype.primary_natal_body} |{' '}
                 {daily.daily.daily.challenge_archetype.primary_domain_id} |{' '}
-                {daily.daily.daily.challenge_archetype.interaction_type}
+                {daily.daily.daily.challenge_archetype.interaction_type} |{' '}
+                {daily.daily.daily.challenge_archetype.primary_intensity_band}
               </p>
             </div>
 
@@ -356,20 +428,44 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
               <p><strong>Setting:</strong> {daily.daily.daily.challenge.setting}</p>
               <p><strong>Obstacle:</strong> {daily.daily.daily.challenge.obstacle}</p>
               <p className="text-sm text-subtext">
-                Primary pressure: {daily.daily.daily.challenge.primaryPressure.type} / {daily.daily.daily.challenge.primaryPressure.domain} /{' '}
-                {daily.daily.daily.challenge.primaryPressure.lifeArea}
+                Primary pressure: {daily.daily.daily.challenge.primaryPressure.transitBody} {'->'} {daily.daily.daily.challenge.primaryPressure.natalBody} /{' '}
+                house {daily.daily.daily.challenge.primaryPressure.natalHouse} / {daily.daily.daily.challenge.primaryPressure.aspectType} /{' '}
+                {daily.daily.daily.challenge.primaryPressure.pressureFamily} / {daily.daily.daily.challenge.primaryPressure.domain}
               </p>
             </div>
+
+            {campaign.mode !== 'solo' && liveResponseCollection && (
+              <div className="rounded border border-white/10 p-3 text-sm">
+                <p>
+                  Group readiness: {liveResponseCollection.accepted_response_count} / {liveResponseCollection.members_total}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {daily.daily.daily.participant_roster.map((member) => {
+                    const accepted = liveResponseCollection.accepted_responses[member.chart_id];
+                    return (
+                      <div key={member.chart_id}>
+                        {member.user_id} ({member.chart_id}):{' '}
+                        {accepted ? `${accepted.response_label} [${accepted.response_posture}]` : 'waiting'}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <h3 className="font-medium">Choices</h3>
               {daily.daily.daily.challenge.choices.map((choice) => {
-                const isSelected = daily.daily.resolution?.choice_id === choice.id;
+                const isSelected = Boolean(
+                  daily.daily.resolution?.ordered_member_resolutions?.some((resolution) => resolution.choice_id === choice.id)
+                );
                 return (
                   <div key={choice.id} className="rounded border border-white/10 p-3">
                     <p className="font-medium">{choice.label}</p>
                     <p className="text-sm text-subtext">{choice.symbolicGesture}</p>
-                    <p className="text-xs text-subtext mt-1">pattern: {choice.patternTag}</p>
+                    <p className="text-xs text-subtext mt-1">
+                      posture: {choice.posture} | modality: {choice.modality} | risk: {choice.riskProfile}
+                    </p>
                     <button
                       type="button"
                       className="mt-3 rounded bg-white px-3 py-2 text-black disabled:opacity-60"
@@ -386,10 +482,15 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
             {daily.daily.resolution && (
               <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-4">
                 <h3 className="font-medium">Resolution</h3>
-                <p className="text-sm mt-2">Choice: {daily.daily.resolution.choice_id}</p>
-                <p className="text-sm">Outcome patch: {daily.daily.resolution.outcome_patch_id}</p>
-                <p className="text-sm">Pattern: {daily.daily.resolution.response_pattern_tag}</p>
+                <p className="text-sm mt-2">Responses resolved: {daily.daily.resolution.response_count}</p>
                 <p className="text-sm">State hash after: {daily.daily.resolution.state_hash_after}</p>
+                <div className="mt-3 space-y-1 text-sm">
+                  {daily.daily.resolution.ordered_member_resolutions.map((entry) => (
+                    <div key={`${entry.member_id}:${entry.choice_id}`}>
+                      {entry.user_id} ({entry.member_id}): {entry.response_label} [{entry.response_posture}] {'->'} {entry.outcome_patch_id}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>

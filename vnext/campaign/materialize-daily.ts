@@ -7,7 +7,7 @@ import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildChallengeScene } from '../rpg/challenge-generator';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 import { hashCanonicalJson } from '../rpg/hash/json-hash';
-import type { CampaignState, ChoiceOption } from '../rpg/types';
+import type { CampaignState, ChoiceOption, ResponseModality, ResponsePosture } from '../rpg/types';
 import type { CampaignResolutionSeed, DailyPressureState, PressureEvent, PressureFamily } from './phase1/contracts';
 
 export interface CharacterSheet {
@@ -22,15 +22,33 @@ export interface ChallengeArchetype {
   id: string;
   daily_pressure_state_id: string;
   primary_pressure_event_id: string;
+  primary_transit_body: string;
+  primary_natal_body: string;
+  primary_natal_house: number;
+  primary_aspect_type: string;
   primary_pressure_family: PressureFamily;
   primary_domain_id: string;
+  primary_intensity_band: DailyPressureState['primary_intensity_band'];
+  primary_intensity_score: number;
   interaction_type: DailyPressureState['interaction_type'];
   event_count: number;
+  archetype_category: string;
+  supporting_domain_pattern: string[];
+  supporting_family_pattern: PressureFamily[];
+  supporting_member_chart_ids: string[];
+  primary_member_chart_ids: string[];
 }
 
 export interface ResponsePath {
   path_id: string;
   pattern_tag: string;
+  posture: ResponsePosture;
+  modality: ResponseModality;
+  risk_profile: string;
+  outcome_direction: string;
+  domain_context: string;
+  interaction_context: DailyPressureState['interaction_type'];
+  intensity_band: DailyPressureState['primary_intensity_band'];
   ordinal: number;
 }
 
@@ -65,23 +83,75 @@ function familyToPressureType(family: PressureFamily): 'constraint' | 'invitatio
 }
 
 function domainToLifeArea(domain: string): string {
-  if (domain === 'self' || domain === 'belief') return 'identity';
-  if (domain === 'partnership' || domain === 'community') return 'relationships';
-  if (domain === 'career' || domain === 'work') return 'work_public';
-  if (domain === 'home' || domain === 'assets') return 'home_foundations';
-  if (domain === 'creativity' || domain === 'subconscious') return 'inner_world';
-  return 'inner_world';
+  switch (domain) {
+    case 'self':
+      return 'identity';
+    case 'assets':
+      return 'resources';
+    case 'communication':
+      return 'communication';
+    case 'home':
+      return 'home_foundations';
+    case 'creativity':
+      return 'creativity';
+    case 'work':
+      return 'work_public';
+    case 'partnership':
+      return 'relationships';
+    case 'transformation':
+      return 'thresholds';
+    case 'belief':
+      return 'belief';
+    case 'career':
+      return 'career_visibility';
+    case 'community':
+      return 'community';
+    case 'subconscious':
+      return 'inner_world';
+    default:
+      return domain;
+  }
+}
+
+function buildArchetypeCategory(dailyState: DailyPressureState, primary: PressureEvent): string {
+  switch (dailyState.interaction_type) {
+    case 'transforming':
+      return primary.pressure_family === 'wound' ? 'repair' : 'reorientation';
+    case 'escalating':
+      return primary.pressure_family === 'constraint' ? 'commitment' : 'conflict';
+    case 'dissolving':
+      return 'release';
+    case 'cross_pressuring':
+      return primary.pressure_family === 'identity' || primary.pressure_family === 'value' ? 'integration' : 'tension';
+    case 'reinforcing':
+      return primary.pressure_family === 'expansion' ? 'opportunity' : 'commitment';
+    case 'none':
+    default:
+      if (primary.pressure_family === 'conflict') return 'conflict';
+      if (primary.pressure_family === 'dissolution') return 'release';
+      if (primary.pressure_family === 'transformation' || primary.pressure_family === 'wound') return 'repair';
+      if (primary.pressure_family === 'expansion') return 'opportunity';
+      if (primary.pressure_family === 'constraint' || primary.pressure_family === 'directional') return 'commitment';
+      return 'tension';
+  }
 }
 
 function eventToChallengePressure(event: PressureEvent) {
   return {
     id: event.pressure_event_id,
+    transitBody: event.transit_body,
+    natalBody: event.natal_body,
+    natalHouse: event.natal_house,
+    aspectType: event.aspect_type,
     domain: event.domain_id,
+    pressureFamily: event.pressure_family,
     type: familyToPressureType(event.pressure_family),
     intensity: event.intensity_score,
+    intensityBand: event.intensity_band,
     lifeArea: domainToLifeArea(event.domain_id),
     likelyShadowPattern: `phase1_shadow:${event.pressure_polarity}`,
     growthPath: `phase1_growth:${event.interaction_hint}`,
+    memberChartId: event.member_chart_id,
     contributingDomains: [
       {
         domain: `campaign_${event.domain_id}`,
@@ -113,19 +183,11 @@ function buildCharacterSheet(snapshot: EphemerisSnapshot): CharacterSheet {
 }
 
 function choiceToOutcomePatch(choice: ChoiceOption): string {
-  switch (choice.patternTag) {
-    case 'pause_observe':
-    case 'delay_action':
-      return 'patch_defer_decision';
-    case 'name_truth':
-    case 'push_forward':
-      return 'patch_increase_identity_resolve';
-    case 'seek_counsel':
-    case 'draw_boundary':
-    case 'make_offering':
-    default:
-      return 'patch_strengthen_bond';
-  }
+  return `patch_${choice.outcomeDirection}`;
+}
+
+function choiceToDomainAwarePatch(choice: ChoiceOption, domainId: string): string {
+  return `${choiceToOutcomePatch(choice)}_${domainId}`;
 }
 
 export async function materializeCampaignDaily(params: {
@@ -178,6 +240,11 @@ export async function materializeCampaignDaily(params: {
     semanticCore,
     natalSnapshot,
     transitSnapshot,
+    challengeContext: {
+      archetypeCategory: buildArchetypeCategory(dailyState, primary),
+      interactionType: dailyState.interaction_type,
+      intensityBand: dailyState.primary_intensity_band,
+    },
   });
   if (!scene) {
     throw new Error('challenge unavailable');
@@ -187,20 +254,40 @@ export async function materializeCampaignDaily(params: {
     id: `challenge_${dailyState.daily_pressure_state_id}`,
     daily_pressure_state_id: dailyState.daily_pressure_state_id,
     primary_pressure_event_id: dailyState.primary_pressure_event_id,
+    primary_transit_body: primary.transit_body,
+    primary_natal_body: primary.natal_body,
+    primary_natal_house: primary.natal_house,
+    primary_aspect_type: primary.aspect_type,
     primary_pressure_family: dailyState.primary_pressure_family,
     primary_domain_id: dailyState.primary_domain_id,
+    primary_intensity_band: dailyState.primary_intensity_band,
+    primary_intensity_score: dailyState.primary_intensity_score,
     interaction_type: dailyState.interaction_type,
     event_count: dailyState.event_count,
+    archetype_category: buildArchetypeCategory(dailyState, primary),
+    supporting_domain_pattern: supporting.map((event) => event.domain_id),
+    supporting_family_pattern: supporting.map((event) => event.pressure_family),
+    supporting_member_chart_ids: supporting
+      .map((event) => event.member_chart_id)
+      .filter((memberId): memberId is string => Boolean(memberId)),
+    primary_member_chart_ids: dailyState.group_context?.primary_member_chart_ids ?? [],
   };
 
   const responsePaths: ResponsePath[] = scene.choices.map((choice, index) => ({
     path_id: choice.id,
     pattern_tag: choice.patternTag,
+    posture: choice.posture,
+    modality: choice.modality,
+    risk_profile: choice.riskProfile,
+    outcome_direction: choice.outcomeDirection,
+    domain_context: dailyState.primary_domain_id,
+    interaction_context: dailyState.interaction_type,
+    intensity_band: dailyState.primary_intensity_band,
     ordinal: index,
   }));
 
   const choiceOutcomePatchIds = Object.fromEntries(
-    scene.choices.map((choice) => [choice.id, choiceToOutcomePatch(choice)])
+    scene.choices.map((choice) => [choice.id, choiceToDomainAwarePatch(choice, dailyState.primary_domain_id)])
   );
 
   const challengeFingerprint = hashCanonicalJson({

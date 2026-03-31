@@ -14,16 +14,31 @@ function main(): void {
     obstacle: 'A live situation in the work_public area carries constraint pressure.',
     primaryPressure: {
       id: 'tp_0_identity_heat',
+      transitBody: 'saturn',
+      natalBody: 'sun',
+      natalHouse: 10,
+      aspectType: 'square',
       domain: 'identity_heat',
+      pressureFamily: 'constraint',
       type: 'constraint',
       intensity: 0.9,
+      intensityBand: 'critical',
       lifeArea: 'work_public',
       likelyShadowPattern: 'pushing harder',
       growthPath: 'name the actual limit',
       contributingDomains: [],
     },
     supportingPressures: [],
-    choices: [{ id: 'pause_observe', label: 'Pause and observe', symbolicGesture: 'step back', patternTag: 'pause_observe' }],
+    choices: [{
+      id: 'pause_observe',
+      label: 'Pause and observe',
+      symbolicGesture: 'step back',
+      patternTag: 'pause_observe',
+      posture: 'observe',
+      modality: 'reflective',
+      riskProfile: 'low immediate risk, but may preserve ambiguity longer',
+      outcomeDirection: 'observe_hold',
+    }],
   };
 
   const campaignId = 'rpg_camp_test123';

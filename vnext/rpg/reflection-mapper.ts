@@ -6,12 +6,26 @@ function shortLifeAreaLabel(lifeArea: string): string {
   switch (lifeArea) {
     case 'identity':
       return 'your sense of self and direction';
+    case 'resources':
+      return 'your resources, values, and material footing';
+    case 'communication':
+      return 'your words, interpretations, and immediate exchanges';
     case 'relationships':
       return 'your bonds and mutual commitments';
+    case 'creativity':
+      return 'your desire, expression, and creative risk';
     case 'work_public':
       return 'your public role, vocation, or reputation';
+    case 'career_visibility':
+      return 'your visible role, reputation, and external accountability';
     case 'home_foundations':
       return 'your home, roots, and foundations';
+    case 'community':
+      return 'your networks, alliances, and sense of belonging';
+    case 'belief':
+      return 'your convictions, horizon, and search for meaning';
+    case 'thresholds':
+      return 'shared thresholds, trust, and deeper entanglements';
     case 'health_body':
       return 'your body, energy, and daily systems';
     default:
@@ -35,6 +49,8 @@ function responseSummary(patternTag: string): string {
       return 'You chose to move forward in spite of tension.';
     case 'delay_action':
       return 'You chose to delay action on purpose.';
+    case 'reframe_pattern':
+      return 'You chose to reframe the pattern before acting.';
     default:
       return 'You chose a particular way to meet the pressure.';
   }
@@ -68,6 +84,9 @@ function symbolicMeaningFor(
   if (patternTag === 'delay_action') {
     return `${base} It honors timing as part of the work, treating conscious delay as different from avoidance.`;
   }
+  if (patternTag === 'reframe_pattern') {
+    return `${base} It treats interpretation itself as a lever, changing the meaning of the moment before changing the outer behavior.`;
+  }
   return `${base} It expresses one of the available ways to meet this pattern in real life.`;
 }
 
@@ -99,6 +118,9 @@ function realWorldReflectionFor(
   if (patternTag === 'delay_action') {
     return `${basePrompt} Put a specific check-in time on your calendar to revisit the situation, so the delay stays conscious rather than vague.`;
   }
+  if (patternTag === 'reframe_pattern') {
+    return `${basePrompt} Write down the first story you are telling about the situation, then rewrite it in a way that keeps the facts but changes the posture you can take.`;
+  }
   return `${basePrompt} Note what you actually do, and how that lines up with the pattern you chose in the scene.`;
 }
 
@@ -113,7 +135,7 @@ export function buildChallengeOutcome(params: BuildOutcomeParams): ChallengeOutc
   const { scene, choice, natalSnapshot, transitSnapshot } = params;
   const pressure: TransitPressure = scene.primaryPressure;
 
-  const narrative = `${responseSummary(choice.patternTag)} The scene unfolds under ${pressure.type} pressure in the ${pressure.lifeArea} domain, with your response reshaping how that energy moves.`;
+  const narrative = `${responseSummary(choice.patternTag)} ${pressure.transitBody} pressing on ${pressure.natalBody} through a ${pressure.aspectType} in house ${pressure.natalHouse} focuses ${pressure.pressureFamily} pressure in ${pressure.domain}, and your ${choice.posture} posture reshapes how that energy moves.`;
 
   const symbolicMeaning = symbolicMeaningFor(pressure, choice.patternTag);
   const realWorldReflection = realWorldReflectionFor(pressure, choice.patternTag);

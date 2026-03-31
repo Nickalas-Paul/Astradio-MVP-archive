@@ -747,6 +747,7 @@ function createCampaignDailyRouter() {
               acceptedResponse: acceptance.response,
               responseStatus: acceptance.status,
               readiness: computeReadiness(participantRoster, collectionAfterAcceptance),
+              responseCollection: collectionAfterAcceptance,
               resolution: dailyStateJson.resolution,
               newState: campaign.state_json,
               stateHash: campaign.state_hash,
@@ -817,6 +818,9 @@ function createCampaignDailyRouter() {
             turn_id: `${campaignId}:${calendarDate}:${acceptedResponse.member_id}`,
             choice_id: acceptedResponse.choice_id,
             outcome_patch_id: orderedOutcomePatchId,
+            primary_domain: daily.challenge.primaryPressure && daily.challenge.primaryPressure.domain
+              ? String(daily.challenge.primaryPressure.domain)
+              : undefined,
             tone_tag: daily.challenge.primaryPressure && daily.challenge.primaryPressure.type ? String(daily.challenge.primaryPressure.type) : undefined,
             actor_chart_id: acceptedResponse.member_id,
           });
@@ -843,6 +847,8 @@ function createCampaignDailyRouter() {
             outcome_patch_id: orderedOutcomePatchId,
             response_path_id: acceptedResponse.response_path_id,
             response_pattern_tag: acceptedResponse.response_pattern_tag,
+            response_posture: acceptedResponse.response_posture,
+            response_label: acceptedResponse.response_label,
             outcome,
           });
         }
@@ -886,6 +892,7 @@ function createCampaignDailyRouter() {
             acceptedResponse: acceptance.response,
             responseStatus: acceptance.status,
             readiness: acceptance.readiness,
+            responseCollection: collectionAfterAcceptance,
             resolution,
             newState: nextState,
             stateHash: newStateHash,

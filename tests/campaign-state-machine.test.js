@@ -36,6 +36,34 @@ describe('campaign state-machine attribution', () => {
     assert.ok(next.members.chart_a.flags.includes('seen:patch_increase_identity_resolve'));
   });
 
+  it('applies bounded domain-aware patch directions without introducing a second mutation path', async () => {
+    const { applyOutcome } = await import('../dist/vnext/vnext/rpg/campaign/state-machine.js');
+
+    const initial = {
+      tone_track: { neutral: 1 },
+      domain_track: {},
+      chapter: 1,
+      flags: [],
+      history: [],
+      members: {},
+    };
+
+    const next = applyOutcome(initial, {
+      turn_id: 'camp:2026-03-31:chart_a',
+      choice_id: 'choice_assert',
+      outcome_patch_id: 'patch_assert_define_partnership',
+      tone_tag: 'conflict',
+      actor_chart_id: 'chart_a',
+    });
+
+    assert.strictEqual(next.domain_track['domain:partnership:clarity'], 0.2);
+    assert.strictEqual(next.domain_track['domain:partnership:agency'], 0.2);
+    assert.strictEqual(next.domain_track['domain:partnership:pressure'], 0.1);
+    assert.ok(next.flags.includes('direction:assert_define'));
+    assert.ok(next.flags.includes('domain:partnership'));
+    assert.strictEqual(next.members.chart_a.domain_track['domain:partnership:clarity'], 0.2);
+  });
+
   it('remains deterministic for the same attributed input sequence', async () => {
     const { applyOutcome } = await import('../dist/vnext/vnext/rpg/campaign/state-machine.js');
 

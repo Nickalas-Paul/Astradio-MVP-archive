@@ -32,7 +32,7 @@ describe('campaign-group-resolve', () => {
     ]);
     const initial = buildInitialResponseCollection(roster);
     const member = resolveRosterMember(roster, 'user_a').member;
-    const choice = { id: 'choice_pause', patternTag: 'pause_observe' };
+    const choice = { id: 'choice_pause', label: 'Pause and observe', patternTag: 'pause_observe', posture: 'observe' };
 
     const accepted = acceptMemberResponse({
       roster,
@@ -43,6 +43,8 @@ describe('campaign-group-resolve', () => {
     });
     assert.strictEqual(accepted.status, 'accepted');
     assert.strictEqual(accepted.readiness.is_ready, false);
+    assert.strictEqual(accepted.response.response_posture, 'observe');
+    assert.strictEqual(accepted.response.response_label, 'Pause and observe');
 
     const idempotent = acceptMemberResponse({
       roster,
@@ -67,7 +69,7 @@ describe('campaign-group-resolve', () => {
       roster,
       collection: initial,
       member,
-      choice: { id: 'choice_pause', patternTag: 'pause_observe' },
+      choice: { id: 'choice_pause', label: 'Pause and observe', patternTag: 'pause_observe', posture: 'observe' },
       acceptedAt: '2026-03-31T00:00:00.000Z',
     });
 
@@ -75,7 +77,7 @@ describe('campaign-group-resolve', () => {
       roster,
       collection: accepted.collection,
       member,
-      choice: { id: 'choice_push', patternTag: 'push_forward' },
+      choice: { id: 'choice_push', label: 'Push forward with intention', patternTag: 'push_forward', posture: 'engage' },
       acceptedAt: '2026-03-31T00:01:00.000Z',
     });
     assert.strictEqual(conflict.status, 'conflict');
@@ -91,14 +93,14 @@ describe('campaign-group-resolve', () => {
       roster,
       collection: initial,
       member: resolveRosterMember(roster, 'user_b').member,
-      choice: { id: 'choice_b', patternTag: 'seek_counsel' },
+      choice: { id: 'choice_b', label: 'Seek counsel', patternTag: 'seek_counsel', posture: 'support' },
       acceptedAt: '2026-03-31T00:00:00.000Z',
     });
     const acceptedA = acceptMemberResponse({
       roster,
       collection: acceptedB.collection,
       member: resolveRosterMember(roster, 'user_a').member,
-      choice: { id: 'choice_a', patternTag: 'push_forward' },
+      choice: { id: 'choice_a', label: 'Push forward with intention', patternTag: 'push_forward', posture: 'engage' },
       acceptedAt: '2026-03-31T00:01:00.000Z',
     });
 

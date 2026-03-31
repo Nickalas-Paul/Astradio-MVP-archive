@@ -64,6 +64,8 @@ function normalizeResponseCollection(roster, rawCollection) {
       choice_id: typeof existing.choice_id === 'string' ? existing.choice_id : '',
       response_path_id: typeof existing.response_path_id === 'string' ? existing.response_path_id : '',
       response_pattern_tag: typeof existing.response_pattern_tag === 'string' ? existing.response_pattern_tag : '',
+      response_posture: typeof existing.response_posture === 'string' ? existing.response_posture : '',
+      response_label: typeof existing.response_label === 'string' ? existing.response_label : '',
       canonical_response_hash: typeof existing.canonical_response_hash === 'string' ? existing.canonical_response_hash : '',
       accepted_at: typeof existing.accepted_at === 'string' ? existing.accepted_at : null,
     };
@@ -112,6 +114,8 @@ function buildCanonicalMemberResponse(member, choice) {
     choice_id: choice.id,
     response_path_id: choice.id,
     response_pattern_tag: choice.patternTag,
+    response_posture: typeof choice.posture === 'string' ? choice.posture : '',
+    response_label: typeof choice.label === 'string' ? choice.label : '',
   };
   return {
     ...canonicalPayload,

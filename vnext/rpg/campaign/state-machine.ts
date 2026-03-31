@@ -29,19 +29,100 @@ export interface RpgOutcome {
   actor_chart_id?: string;
 }
 
+type PatchDirection =
+  | 'assert_define'
+  | 'engage_advance'
+  | 'observe_hold'
+  | 'withdraw_protect'
+  | 'support_connect'
+  | 'offer_restore'
+  | 'reframe_integrate'
+  | 'contain_limit'
+  | 'legacy_identity'
+  | 'legacy_defer'
+  | 'legacy_bond';
+
+function parsePatch(patch: string): { direction: PatchDirection; domain: string } {
+  if (patch === 'patch_increase_identity_resolve') {
+    return { direction: 'legacy_identity', domain: 'self' };
+  }
+  if (patch === 'patch_defer_decision') {
+    return { direction: 'legacy_defer', domain: 'subconscious' };
+  }
+  if (patch === 'patch_strengthen_bond') {
+    return { direction: 'legacy_bond', domain: 'partnership' };
+  }
+  const match = /^patch_([a-z]+_[a-z]+)_([a-z_]+)$/.exec(patch);
+  if (!match) {
+    return { direction: 'legacy_defer', domain: 'self' };
+  }
+  return {
+    direction: match[1] as PatchDirection,
+    domain: match[2],
+  };
+}
+
 function applyPatchMutation(
-  target: { domain_track: Record<string, number> },
+  target: { domain_track: Record<string, number>; tone_track?: Record<string, number> },
   patch: string,
 ) {
-  switch (patch) {
-    case 'patch_increase_identity_resolve':
-      target.domain_track['identity_heat'] = (target.domain_track['identity_heat'] ?? 0) + 0.2;
+  const { direction, domain } = parsePatch(patch);
+  const bump = (key: string, amount = 0.2) => {
+    target.domain_track[key] = (target.domain_track[key] ?? 0) + amount;
+  };
+  const toneBump = (key: string, amount = 0.25) => {
+    if (!target.tone_track) return;
+    target.tone_track[key] = (target.tone_track[key] ?? 0) + amount;
+  };
+
+  bump(`domain:${domain}:pressure`, 0.1);
+
+  switch (direction) {
+    case 'assert_define':
+    case 'legacy_identity':
+      bump('identity_heat');
+      bump(`domain:${domain}:clarity`);
+      bump(`domain:${domain}:agency`);
+      toneBump('clarity');
       break;
-    case 'patch_defer_decision':
-      target.domain_track['fog_ambiguity'] = (target.domain_track['fog_ambiguity'] ?? 0) + 0.2;
+    case 'engage_advance':
+      bump(`domain:${domain}:momentum`);
+      bump(`domain:${domain}:agency`);
+      toneBump('momentum');
       break;
-    case 'patch_strengthen_bond':
-      target.domain_track['community_cohesion'] = (target.domain_track['community_cohesion'] ?? 0) + 0.2;
+    case 'observe_hold':
+    case 'legacy_defer':
+      bump('fog_ambiguity');
+      bump(`domain:${domain}:reflection`);
+      bump(`domain:${domain}:latency`);
+      toneBump('ambiguity');
+      break;
+    case 'withdraw_protect':
+      bump(`domain:${domain}:protection`);
+      bump(`domain:${domain}:distance`);
+      toneBump('containment');
+      break;
+    case 'support_connect':
+    case 'legacy_bond':
+      bump('community_cohesion');
+      bump(`domain:${domain}:cohesion`);
+      bump(`domain:${domain}:trust`);
+      toneBump('cohesion');
+      break;
+    case 'offer_restore':
+      bump(`domain:${domain}:repair`);
+      bump(`domain:${domain}:care`);
+      toneBump('repair');
+      break;
+    case 'reframe_integrate':
+      bump(`domain:${domain}:integration`);
+      bump(`domain:${domain}:adaptation`);
+      toneBump('integration');
+      break;
+    case 'contain_limit':
+      bump(`domain:${domain}:boundary`);
+      bump(`domain:${domain}:stability`);
+      toneBump('containment');
       break;
     default:
       break;
@@ -71,8 +152,11 @@ function applyFlagMutation(
   target: { flags: string[] },
   patch: string,
 ) {
+  const { direction, domain } = parsePatch(patch);
   const uniqueFlags = Array.from(new Set(target.flags));
   uniqueFlags.push(`seen:${patch}`);
+  uniqueFlags.push(`direction:${direction}`);
+  uniqueFlags.push(`domain:${domain}`);
   target.flags = Array.from(new Set(uniqueFlags)).sort();
 }
 

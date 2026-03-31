@@ -115,9 +115,15 @@ export function buildTransitPressureMap(
 
     return {
       id: `tp_${idx}_${d.domain}`,
+      transitBody: 'sun',
+      natalBody: 'sun',
+      natalHouse: 1,
+      aspectType: 'conjunction',
       domain: d.domain,
+      pressureFamily: type === 'constraint' ? 'constraint' : 'identity',
       type,
       intensity,
+      intensityBand: intensity >= 0.8 ? 'critical' : intensity >= 0.55 ? 'high' : intensity >= 0.3 ? 'moderate' : 'low',
       lifeArea,
       likelyShadowPattern,
       growthPath,
