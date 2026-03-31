@@ -111,6 +111,37 @@ export type OutcomeDirection =
   | 'reframe_integrate'
   | 'contain_limit';
 
+export type ArchetypeId =
+  | 'identity_test'
+  | 'identity_definition'
+  | 'resource_strain'
+  | 'resource_opportunity'
+  | 'signal_friction'
+  | 'signal_reframe'
+  | 'foundation_pressure'
+  | 'foundation_repair'
+  | 'creative_risk'
+  | 'creative_devotion'
+  | 'duty_pressure'
+  | 'duty_alignment'
+  | 'bond_friction'
+  | 'bond_repair'
+  | 'threshold_reckoning'
+  | 'horizon_reorientation';
+
+export type NatalBodyModifier =
+  | 'core'
+  | 'felt'
+  | 'interpretive'
+  | 'relational'
+  | 'volitional'
+  | 'expansive'
+  | 'structural'
+  | 'disruptive'
+  | 'diffuse'
+  | 'depth'
+  | 'tender';
+
 export interface ChoiceOption {
   id: string;
   /** Short verb phrase for UI; not moralized. */
@@ -132,6 +163,7 @@ export interface ChoiceOption {
 export interface ChallengeScene {
   id: string;
   archetypeCategory?: string;
+  archetypeId?: ArchetypeId;
   theme: string;
   /** Symbolic setting texture, not literal world-building. */
   setting: string;

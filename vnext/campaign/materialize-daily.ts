@@ -7,7 +7,14 @@ import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildChallengeScene } from '../rpg/challenge-generator';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 import { hashCanonicalJson } from '../rpg/hash/json-hash';
-import type { CampaignState, ChoiceOption, ResponseModality, ResponsePosture } from '../rpg/types';
+import type {
+  ArchetypeId,
+  CampaignState,
+  ChoiceOption,
+  NatalBodyModifier,
+  ResponseModality,
+  ResponsePosture,
+} from '../rpg/types';
 import type { CampaignResolutionSeed, DailyPressureState, PressureEvent, PressureFamily } from './phase1/contracts';
 
 export interface CharacterSheet {
@@ -20,6 +27,8 @@ export interface CharacterSheet {
 
 export interface ChallengeArchetype {
   id: string;
+  archetype_id: ArchetypeId;
+  natal_body_modifier: NatalBodyModifier;
   daily_pressure_state_id: string;
   primary_pressure_event_id: string;
   primary_transit_body: string;
@@ -113,26 +122,67 @@ function domainToLifeArea(domain: string): string {
   }
 }
 
-function buildArchetypeCategory(dailyState: DailyPressureState, primary: PressureEvent): string {
-  switch (dailyState.interaction_type) {
-    case 'transforming':
-      return primary.pressure_family === 'wound' ? 'repair' : 'reorientation';
-    case 'escalating':
-      return primary.pressure_family === 'constraint' ? 'commitment' : 'conflict';
-    case 'dissolving':
-      return 'release';
-    case 'cross_pressuring':
-      return primary.pressure_family === 'identity' || primary.pressure_family === 'value' ? 'integration' : 'tension';
-    case 'reinforcing':
-      return primary.pressure_family === 'expansion' ? 'opportunity' : 'commitment';
-    case 'none':
+function natalBodyModifier(body: PressureEvent['natal_body']): NatalBodyModifier {
+  switch (body) {
+    case 'sun':
+      return 'core';
+    case 'moon':
+      return 'felt';
+    case 'mercury':
+      return 'interpretive';
+    case 'venus':
+      return 'relational';
+    case 'mars':
+      return 'volitional';
+    case 'jupiter':
+      return 'expansive';
+    case 'saturn':
+      return 'structural';
+    case 'uranus':
+      return 'disruptive';
+    case 'neptune':
+      return 'diffuse';
+    case 'pluto':
+      return 'depth';
+    case 'chiron':
     default:
-      if (primary.pressure_family === 'conflict') return 'conflict';
-      if (primary.pressure_family === 'dissolution') return 'release';
-      if (primary.pressure_family === 'transformation' || primary.pressure_family === 'wound') return 'repair';
-      if (primary.pressure_family === 'expansion') return 'opportunity';
-      if (primary.pressure_family === 'constraint' || primary.pressure_family === 'directional') return 'commitment';
-      return 'tension';
+      return 'tender';
+  }
+}
+
+function isHeavyArchetype(primary: PressureEvent): boolean {
+  if (primary.pressure_family === 'wound' || primary.pressure_family === 'transformation' || primary.pressure_family === 'dissolution') {
+    return true;
+  }
+  return primary.intensity_band === 'high' || primary.intensity_band === 'critical';
+}
+
+function buildArchetypeId(primary: PressureEvent): ArchetypeId {
+  const heavy = isHeavyArchetype(primary);
+  switch (primary.domain_id) {
+    case 'self':
+      return heavy ? 'identity_test' : 'identity_definition';
+    case 'assets':
+      return heavy ? 'resource_strain' : 'resource_opportunity';
+    case 'communication':
+      return heavy ? 'signal_friction' : 'signal_reframe';
+    case 'home':
+    case 'subconscious':
+      return heavy ? 'foundation_pressure' : 'foundation_repair';
+    case 'creativity':
+      return heavy ? 'creative_risk' : 'creative_devotion';
+    case 'work':
+    case 'career':
+      return heavy ? 'duty_pressure' : 'duty_alignment';
+    case 'partnership':
+    case 'community':
+      return heavy ? 'bond_friction' : 'bond_repair';
+    case 'transformation':
+      return 'threshold_reckoning';
+    case 'belief':
+      return 'horizon_reorientation';
+    default:
+      return 'identity_test';
   }
 }
 
@@ -241,9 +291,14 @@ export async function materializeCampaignDaily(params: {
     natalSnapshot,
     transitSnapshot,
     challengeContext: {
-      archetypeCategory: buildArchetypeCategory(dailyState, primary),
+      archetypeCategory: buildArchetypeId(primary),
+      archetypeId: buildArchetypeId(primary),
       interactionType: dailyState.interaction_type,
       intensityBand: dailyState.primary_intensity_band,
+      pressurePolarity: primary.pressure_polarity,
+      primaryDomain: dailyState.primary_domain_id,
+      natalBodyModifier: natalBodyModifier(primary.natal_body),
+      mechanicTags: dailyState.mechanic_tags,
     },
   });
   if (!scene) {
@@ -252,6 +307,8 @@ export async function materializeCampaignDaily(params: {
 
   const challengeArchetype: ChallengeArchetype = {
     id: `challenge_${dailyState.daily_pressure_state_id}`,
+    archetype_id: buildArchetypeId(primary),
+    natal_body_modifier: natalBodyModifier(primary.natal_body),
     daily_pressure_state_id: dailyState.daily_pressure_state_id,
     primary_pressure_event_id: dailyState.primary_pressure_event_id,
     primary_transit_body: primary.transit_body,
@@ -264,7 +321,7 @@ export async function materializeCampaignDaily(params: {
     primary_intensity_score: dailyState.primary_intensity_score,
     interaction_type: dailyState.interaction_type,
     event_count: dailyState.event_count,
-    archetype_category: buildArchetypeCategory(dailyState, primary),
+    archetype_category: buildArchetypeId(primary),
     supporting_domain_pattern: supporting.map((event) => event.domain_id),
     supporting_family_pattern: supporting.map((event) => event.pressure_family),
     supporting_member_chart_ids: supporting

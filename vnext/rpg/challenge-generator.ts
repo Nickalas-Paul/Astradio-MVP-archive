@@ -16,10 +16,15 @@ import { hashSnapshot } from './hash/snapshot-hash';
 import type { CampaignIdentityTone } from './semantic-adapter';
 import { deriveCampaignIdentityToneFromSemanticCore } from './identity-from-semantic-core';
 import type {
+  ArchetypeId,
   CampaignState,
   CharacterProfile,
   ChoiceOption,
   ChallengeScene,
+  NatalBodyModifier,
+  OutcomeDirection,
+  ResponseModality,
+  ResponsePosture,
   TransitPressure,
 } from './types';
 
@@ -63,9 +68,13 @@ function challengeThemeFromSemantic(
 ): string {
   const line = semanticReadingLine(core, hashSnapshot(natalSnapshot));
   const context = `${pressure.transitBody} contacting ${pressure.natalBody} in house ${pressure.natalHouse} concentrates ${pressure.pressureFamily} around ${pressure.domain}`;
+  const nuance = challengeContext?.natalBodyModifier ? ` through a ${challengeContext.natalBodyModifier} natal emphasis` : '';
+  const refinement = challengeContext?.mechanicTags && challengeContext.mechanicTags.length > 0
+    ? ` [${challengeContext.mechanicTags.slice(0, 2).join(', ')}]`
+    : '';
   const intensity = challengeContext?.intensityBand ? ` at ${challengeContext.intensityBand} intensity` : '';
   return line.length > 0
-    ? `${line} Today, ${context}${intensity}.`
+    ? `${line} Today, ${context}${nuance}${intensity}.${refinement}`
     : `focus:${pressure.domain}:${pressure.transitBody}:${pressure.natalBody}:${pressure.type}`;
 }
 
@@ -115,116 +124,251 @@ function sceneObstacleGame(pressure: TransitPressure, character: CharacterProfil
   return `${pressure.transitBody} presses on ${pressure.natalBody} through a ${pressure.aspectType} in house ${pressure.natalHouse}, concentrating ${pressure.pressureFamily} pressure in ${pressure.domain}. ${leaning}.`;
 }
 
+const BASE_POSTURE_SLATES: Record<ArchetypeId, ResponsePosture[]> = {
+  identity_test: ['observe', 'assert', 'reframe', 'contain'],
+  identity_definition: ['assert', 'engage', 'observe', 'reframe'],
+  resource_strain: ['observe', 'contain', 'withdraw', 'assert'],
+  resource_opportunity: ['engage', 'assert', 'offer', 'observe'],
+  signal_friction: ['observe', 'assert', 'reframe', 'withdraw'],
+  signal_reframe: ['observe', 'reframe', 'support', 'contain'],
+  foundation_pressure: ['contain', 'withdraw', 'observe', 'support'],
+  foundation_repair: ['support', 'offer', 'observe', 'reframe'],
+  creative_risk: ['engage', 'assert', 'observe', 'reframe'],
+  creative_devotion: ['offer', 'engage', 'observe', 'contain'],
+  duty_pressure: ['contain', 'assert', 'engage', 'observe'],
+  duty_alignment: ['engage', 'reframe', 'assert', 'contain'],
+  bond_friction: ['observe', 'assert', 'support', 'contain'],
+  bond_repair: ['support', 'offer', 'observe', 'reframe'],
+  threshold_reckoning: ['observe', 'withdraw', 'contain', 'reframe'],
+  horizon_reorientation: ['reframe', 'observe', 'engage', 'support'],
+};
+
+const POSTURE_PRIORITY: ResponsePosture[] = ['observe', 'assert', 'engage', 'withdraw', 'support', 'offer', 'reframe', 'contain'];
+
+function postureOutcomeDirection(posture: ResponsePosture): OutcomeDirection {
+  switch (posture) {
+    case 'observe':
+      return 'observe_hold';
+    case 'assert':
+      return 'assert_define';
+    case 'engage':
+      return 'engage_advance';
+    case 'withdraw':
+      return 'withdraw_protect';
+    case 'support':
+      return 'support_connect';
+    case 'offer':
+      return 'offer_restore';
+    case 'reframe':
+      return 'reframe_integrate';
+    case 'contain':
+      return 'contain_limit';
+  }
+}
+
+function posturePatternTag(posture: ResponsePosture): string {
+  switch (posture) {
+    case 'observe':
+      return 'pause_observe';
+    case 'assert':
+      return 'name_truth';
+    case 'engage':
+      return 'push_forward';
+    case 'withdraw':
+      return 'delay_action';
+    case 'support':
+      return 'seek_counsel';
+    case 'offer':
+      return 'make_offering';
+    case 'reframe':
+      return 'reframe_pattern';
+    case 'contain':
+      return 'draw_boundary';
+  }
+}
+
+function postureLabel(posture: ResponsePosture): string {
+  switch (posture) {
+    case 'observe':
+      return 'Pause and observe';
+    case 'assert':
+      return 'Name the truth directly';
+    case 'engage':
+      return 'Push forward with intention';
+    case 'withdraw':
+      return 'Delay action on purpose';
+    case 'support':
+      return 'Seek counsel';
+    case 'offer':
+      return 'Make an offering';
+    case 'reframe':
+      return 'Reframe the pattern';
+    case 'contain':
+      return 'Draw a boundary';
+  }
+}
+
+function postureGesture(posture: ResponsePosture): string {
+  switch (posture) {
+    case 'observe':
+      return 'step back enough to feel and name what is actually happening before acting';
+    case 'assert':
+      return 'speak one honest sentence about what is real for you';
+    case 'engage':
+      return 'take a deliberate, bounded action even if conditions are imperfect';
+    case 'withdraw':
+      return 'consciously schedule a later moment to revisit instead of drifting away';
+    case 'support':
+      return 'bring the situation to someone you trust for reflection';
+    case 'offer':
+      return 'offer time, attention, or a small concrete gesture aligned with your values';
+    case 'reframe':
+      return 'name a different interpretation that changes how you meet the moment';
+    case 'contain':
+      return 'clarify what you can and cannot carry right now';
+  }
+}
+
+function postureModality(posture: ResponsePosture): ResponseModality {
+  switch (posture) {
+    case 'observe':
+      return 'reflective';
+    case 'assert':
+      return 'direct';
+    case 'engage':
+      return 'decisive';
+    case 'withdraw':
+      return 'protective';
+    case 'support':
+      return 'relational';
+    case 'offer':
+      return 'restorative';
+    case 'reframe':
+      return 'interpretive';
+    case 'contain':
+      return 'bounded';
+  }
+}
+
+function postureRiskProfile(posture: ResponsePosture): string {
+  switch (posture) {
+    case 'observe':
+      return 'low immediate risk, but may preserve ambiguity longer';
+    case 'assert':
+      return 'raises clarity quickly, with some exposure or friction';
+    case 'engage':
+      return 'creates momentum quickly, but can amplify strain if conditions are unstable';
+    case 'withdraw':
+      return 'reduces immediate exposure, but can prolong uncertainty if overused';
+    case 'support':
+      return 'builds perspective and connection, but slows solitary momentum';
+    case 'offer':
+      return 'supports repair and reciprocity, but can overextend if misread';
+    case 'reframe':
+      return 'supports integration and flexibility, but may under-act if used to avoid contact';
+    case 'contain':
+      return 'protects capacity, but can harden distance if poorly timed';
+  }
+}
+
+function addFifthPosture(
+  slate: ResponsePosture[],
+  polarity: BuildChallengeParams['challengeContext']['pressurePolarity'],
+  intensityBand: BuildChallengeParams['challengeContext']['intensityBand'],
+): ResponsePosture[] {
+  const out = [...slate];
+  const tryAdd = (posture: ResponsePosture) => {
+    if (!out.includes(posture)) out.push(posture);
+  };
+
+  if (polarity === 'constructive') {
+    tryAdd('engage');
+    if (out.length === slate.length) tryAdd('offer');
+  } else if (polarity === 'frictional') {
+    tryAdd('contain');
+    if (out.length === slate.length) tryAdd('assert');
+  } else if (polarity === 'volatile') {
+    tryAdd('withdraw');
+    if (out.length === slate.length) tryAdd('contain');
+  } else if (polarity === 'binding') {
+    tryAdd('observe');
+    if (out.length === slate.length) tryAdd('support');
+  }
+
+  if (intensityBand === 'critical' && out.length > slate.length && out[out.length - 1] === 'engage' && !slate.includes('engage')) {
+    out.pop();
+    if (!out.includes('contain')) out.push('contain');
+    else if (!out.includes('observe')) out.push('observe');
+  }
+
+  return out;
+}
+
+function replaceLowestPriority(
+  slate: ResponsePosture[],
+  priorityOrder: ResponsePosture[],
+  required: ResponsePosture,
+): ResponsePosture[] {
+  if (slate.includes(required)) return slate;
+  const replacementIndex = [...slate]
+    .map((posture, index) => ({ posture, index }))
+    .sort(
+      (a, b) =>
+        priorityOrder.indexOf(b.posture) - priorityOrder.indexOf(a.posture) ||
+        POSTURE_PRIORITY.indexOf(b.posture) - POSTURE_PRIORITY.indexOf(a.posture) ||
+        b.index - a.index,
+    )[0]?.index;
+  if (typeof replacementIndex !== 'number') return slate;
+  const next = [...slate];
+  next[replacementIndex] = required;
+  return Array.from(new Set(next));
+}
+
+function enforceDomainConstraints(
+  slate: ResponsePosture[],
+  priorityOrder: ResponsePosture[],
+  domain: string,
+): ResponsePosture[] {
+  let next = [...slate];
+  if (domain === 'partnership' || domain === 'community') {
+    if (!next.includes('support') && !next.includes('offer')) {
+      next = replaceLowestPriority(next, priorityOrder, 'support');
+    }
+  } else if (domain === 'career' || domain === 'work') {
+    if (!next.includes('assert') && !next.includes('engage') && !next.includes('contain')) {
+      next = replaceLowestPriority(next, priorityOrder, 'contain');
+    }
+  } else if (domain === 'subconscious' || domain === 'transformation' || domain === 'home') {
+    if (!next.includes('observe') && !next.includes('withdraw') && !next.includes('contain') && !next.includes('reframe')) {
+      next = replaceLowestPriority(next, priorityOrder, 'observe');
+    }
+  }
+  return next;
+}
+
+function buildChoice(posture: ResponsePosture): ChoiceOption {
+  return {
+    id: posturePatternTag(posture),
+    label: postureLabel(posture),
+    symbolicGesture: postureGesture(posture),
+    patternTag: posturePatternTag(posture),
+    posture,
+    modality: postureModality(posture),
+    riskProfile: postureRiskProfile(posture),
+    outcomeDirection: postureOutcomeDirection(posture),
+  };
+}
+
 function baseChoices(
-  patternBias: 'reflective' | 'decisive' | 'mixed',
   pressure: TransitPressure,
   challengeContext?: BuildChallengeParams['challengeContext']
 ): ChoiceOption[] {
-  const common: ChoiceOption[] = [
-    {
-      id: 'pause_observe',
-      label: 'Pause and observe',
-      symbolicGesture: 'step back enough to feel and name what is actually happening before acting',
-      patternTag: 'pause_observe',
-      posture: 'observe',
-      modality: 'reflective',
-      riskProfile: 'low immediate risk, but may preserve ambiguity longer',
-      outcomeDirection: 'observe_hold',
-    },
-    {
-      id: 'name_truth',
-      label: 'Name the truth directly',
-      symbolicGesture: 'speak one honest sentence about what is real for you',
-      patternTag: 'name_truth',
-      posture: 'assert',
-      modality: 'direct',
-      riskProfile: 'raises clarity quickly, with some exposure or friction',
-      outcomeDirection: 'assert_define',
-    },
-    {
-      id: 'seek_counsel',
-      label: 'Seek counsel',
-      symbolicGesture: 'bring the situation to someone you trust for reflection',
-      patternTag: 'seek_counsel',
-      posture: 'support',
-      modality: 'relational',
-      riskProfile: 'builds perspective and connection, but slows solitary momentum',
-      outcomeDirection: 'support_connect',
-    },
-    {
-      id: 'draw_boundary',
-      label: 'Draw a boundary',
-      symbolicGesture: 'clarify what you can and cannot carry right now',
-      patternTag: 'draw_boundary',
-      posture: 'contain',
-      modality: 'bounded',
-      riskProfile: 'protects capacity, but can harden distance if poorly timed',
-      outcomeDirection: 'contain_limit',
-    },
-    {
-      id: 'make_offering',
-      label: 'Make an offering',
-      symbolicGesture: 'offer time, attention, or a small concrete gesture aligned with your values',
-      patternTag: 'make_offering',
-      posture: 'offer',
-      modality: 'restorative',
-      riskProfile: 'supports repair and reciprocity, but can overextend if misread',
-      outcomeDirection: 'offer_restore',
-    },
-  ];
-
-  const forward: ChoiceOption = {
-    id: 'push_forward',
-    label: 'Push forward with intention',
-    symbolicGesture: 'take a deliberate, bounded action even if conditions are imperfect',
-    patternTag: 'push_forward',
-    posture: 'engage',
-    modality: 'decisive',
-    riskProfile: 'creates momentum quickly, but can amplify strain if conditions are unstable',
-    outcomeDirection: 'engage_advance',
-  };
-
-  const delay: ChoiceOption = {
-    id: 'delay_action',
-    label: 'Delay action on purpose',
-    symbolicGesture: 'consciously schedule a later moment to revisit instead of drifting away',
-    patternTag: 'delay_action',
-    posture: 'withdraw',
-    modality: 'protective',
-    riskProfile: 'reduces immediate exposure, but can prolong uncertainty if overused',
-    outcomeDirection: 'withdraw_protect',
-  };
-
-  const reframe: ChoiceOption = {
-    id: 'reframe_pattern',
-    label: 'Reframe the pattern',
-    symbolicGesture: 'name a different interpretation that changes how you meet the moment',
-    patternTag: 'reframe_pattern',
-    posture: 'reframe',
-    modality: 'interpretive',
-    riskProfile: 'supports integration and flexibility, but may under-act if used to avoid contact',
-    outcomeDirection: 'reframe_integrate',
-  };
-
-  if (pressure.domain === 'partnership' || pressure.domain === 'community') {
-    return [common[0], common[1], common[2], common[3], common[4]];
-  }
-  if (pressure.domain === 'career' || pressure.domain === 'work') {
-    return [forward, common[1], common[0], reframe, common[3]];
-  }
-  if (pressure.domain === 'subconscious' || pressure.domain === 'transformation') {
-    return [common[0], delay, reframe, common[3], common[2]];
-  }
-  if (challengeContext?.interactionType === 'cross_pressuring') {
-    return [common[0], reframe, common[1], common[3], delay];
-  }
-  if (patternBias === 'decisive') {
-    return [forward, common[1], common[3], common[4], common[0]];
-  }
-  if (patternBias === 'reflective') {
-    return [common[0], delay, common[2], reframe, common[4]];
-  }
-  return [common[0], common[1], common[2], forward, reframe];
+  const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
+  const baseSlate = [...(BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test)];
+  let slate = addFifthPosture(baseSlate, challengeContext?.pressurePolarity, challengeContext?.intensityBand);
+  slate = enforceDomainConstraints(slate, slate, pressure.domain);
+  slate = Array.from(new Set(slate));
+  return slate.slice(0, 5).map(buildChoice);
 }
 
 /**
@@ -241,8 +385,13 @@ export interface BuildChallengeParams {
   transitSnapshot: EphemerisSnapshot;
   challengeContext?: {
     archetypeCategory?: string;
+    archetypeId?: ArchetypeId;
     interactionType?: string;
-    intensityBand?: string;
+    intensityBand?: TransitPressure['intensityBand'];
+    pressurePolarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
+    primaryDomain?: string;
+    natalBodyModifier?: NatalBodyModifier;
+    mechanicTags?: string[];
   };
 }
 
@@ -270,7 +419,7 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   const setting = sceneSettingFromTone(tone, primary);
   const obstacle = sceneObstacleGame(primary, character);
 
-  const choices = baseChoices(tone.actionBias, primary, challengeContext);
+  const choices = baseChoices(primary, challengeContext);
 
   const transitKey = transitSnapshot?.ts ?? '';
   const id = [
@@ -285,6 +434,7 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   return {
     id,
     archetypeCategory: challengeContext?.archetypeCategory,
+    archetypeId: challengeContext?.archetypeId,
     theme,
     setting,
     obstacle,

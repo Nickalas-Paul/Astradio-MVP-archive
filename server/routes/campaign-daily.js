@@ -821,8 +821,16 @@ function createCampaignDailyRouter() {
             primary_domain: daily.challenge.primaryPressure && daily.challenge.primaryPressure.domain
               ? String(daily.challenge.primaryPressure.domain)
               : undefined,
-            tone_tag: daily.challenge.primaryPressure && daily.challenge.primaryPressure.type ? String(daily.challenge.primaryPressure.type) : undefined,
             actor_chart_id: acceptedResponse.member_id,
+            archetype_id: daily.challenge_archetype && daily.challenge_archetype.archetype_id
+              ? String(daily.challenge_archetype.archetype_id)
+              : undefined,
+            pressure_polarity: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.likelyShadowPattern
+              ? String(daily.challenge.primaryPressure.likelyShadowPattern).replace('phase1_shadow:', '')
+              : undefined,
+            intensity_band: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.intensityBand
+              ? String(daily.challenge.primaryPressure.intensityBand)
+              : undefined,
           });
           const outcome = vn.buildChallengeOutcome({
             scene: daily.challenge,

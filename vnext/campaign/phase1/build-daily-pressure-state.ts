@@ -112,21 +112,9 @@ function buildClusters(eligible: PressureEvent[]): { clusters: Cluster[]; merged
 
   for (const [, arr] of [...byDomain.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const sorted = [...arr].sort((a, b) => comparePrimary(a, b));
-    const components: PressureEvent[][] = [];
-    for (const e of sorted) {
-      let placed = false;
-      for (const comp of components) {
-        const ref = comp[0];
-        const tagsA = ref.mechanic_tags.join('\0');
-        const tagsB = e.mechanic_tags.join('\0');
-        if (tagsA === tagsB) {
-          comp.push(e);
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) components.push([e]);
-    }
+    // Mechanic tags are preserved for downstream refinement, but they must not
+    // change phase-1 pressure selection semantics.
+    const components: PressureEvent[][] = [sorted];
     for (const comp of components) {
       const member_ids = comp.map((c) => c.pressure_event_id).sort((a, b) => a.localeCompare(b));
       const rep = [...comp].sort(comparePrimary)[0];

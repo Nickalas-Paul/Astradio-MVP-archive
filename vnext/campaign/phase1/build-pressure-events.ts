@@ -38,6 +38,41 @@ function emphasisWeightForHouse(house: number): number {
   return 1.0;
 }
 
+function buildIdentityModifierIds(
+  natalBody: PressureEvent['natal_body'],
+  natalHouse: PressureEvent['natal_house'],
+  domainId: PressureEvent['domain_id'],
+): string[] {
+  return [
+    `identity:natal_body:${natalBody}`,
+    `identity:natal_house:${natalHouse}`,
+    `identity:domain:${domainId}`,
+  ];
+}
+
+function buildMechanicTags(params: {
+  sourceMode: PressureSourceMode;
+  transitBody: PressureEvent['transit_body'];
+  natalBody: PressureEvent['natal_body'];
+  aspectType: Phase1AspectType;
+  natalHouse: PressureEvent['natal_house'];
+  domainId: PressureEvent['domain_id'];
+  pressurePolarity: PressureEvent['pressure_polarity'];
+  intensityBand: PressureEvent['intensity_band'];
+}): string[] {
+  const tags = [
+    `source_mode:${params.sourceMode}`,
+    `transit_body:${params.transitBody}`,
+    `natal_body:${params.natalBody}`,
+    `aspect_type:${params.aspectType}`,
+    `natal_house:${params.natalHouse}`,
+    `domain:${params.domainId}`,
+    `polarity:${params.pressurePolarity}`,
+    `intensity:${params.intensityBand}`,
+  ];
+  return tags.sort((a, b) => a.localeCompare(b));
+}
+
 export function buildPressureEventsForMember(params: {
   campaign_id: string;
   date: string;
@@ -79,6 +114,7 @@ export function buildPressureEventsForMember(params: {
 
     const pressure_family = PRESSURE_FAMILY_BY_TRANSIT_BODY[tb];
     const pressure_polarity = derivePressurePolarity(aspectType, tb, nb);
+    const intensity_band = intensityBand(intensity_score);
 
     const cross_aspect_hash = hashCanonicalJson({
       transit_body: tb,
@@ -89,6 +125,17 @@ export function buildPressureEventsForMember(params: {
     });
 
     const synthetic = buildPhase1SyntheticTraitId(nb, natal_house, params.natal);
+    const identity_modifier_ids = buildIdentityModifierIds(nb, natal_house, domain_id);
+    const mechanic_tags = buildMechanicTags({
+      sourceMode: params.source_mode,
+      transitBody: tb,
+      natalBody: nb,
+      aspectType,
+      natalHouse: natal_house,
+      domainId: domain_id,
+      pressurePolarity: pressure_polarity,
+      intensityBand: intensity_band,
+    });
 
     const provenance = {
       transit_snapshot_hash: params.transit_snapshot_hash,
@@ -136,12 +183,12 @@ export function buildPressureEventsForMember(params: {
       recurrence_weight,
       emphasis_weight,
       intensity_score,
-      intensity_band: intensityBand(intensity_score),
+      intensity_band,
       exactness_score: h.exactness,
       target_priority_score: Math.min(1, h.weight / 2),
       activated_trait_ids: [synthetic],
-      identity_modifier_ids: [],
-      mechanic_tags: [],
+      identity_modifier_ids,
+      mechanic_tags,
       provenance,
     };
     out.push(ev);

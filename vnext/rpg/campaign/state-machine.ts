@@ -3,6 +3,7 @@
 
 import type { RPGEffectsBundle, RPGDomainScore } from '../contracts';
 import { canonicalize } from '../hash/json-hash';
+import type { ArchetypeId } from '../types';
 
 export interface RPGCampaignState {
   tone_track: Record<string, number>;
@@ -27,6 +28,9 @@ export interface RpgOutcome {
   primary_domain?: string;
   tone_tag?: string;
   actor_chart_id?: string;
+  archetype_id?: ArchetypeId;
+  pressure_polarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
+  intensity_band?: 'low' | 'moderate' | 'high' | 'critical';
 }
 
 type PatchDirection =
@@ -62,17 +66,39 @@ function parsePatch(patch: string): { direction: PatchDirection; domain: string 
   };
 }
 
+function directionTone(direction: PatchDirection): string {
+  switch (direction) {
+    case 'assert_define':
+    case 'legacy_identity':
+      return 'clarity';
+    case 'engage_advance':
+      return 'momentum';
+    case 'observe_hold':
+    case 'legacy_defer':
+      return 'ambiguity';
+    case 'withdraw_protect':
+      return 'containment';
+    case 'support_connect':
+    case 'legacy_bond':
+      return 'cohesion';
+    case 'offer_restore':
+      return 'repair';
+    case 'reframe_integrate':
+      return 'integration';
+    case 'contain_limit':
+      return 'stability';
+    default:
+      return 'ambiguity';
+  }
+}
+
 function applyPatchMutation(
-  target: { domain_track: Record<string, number>; tone_track?: Record<string, number> },
+  target: { domain_track: Record<string, number> },
   patch: string,
 ) {
   const { direction, domain } = parsePatch(patch);
   const bump = (key: string, amount = 0.2) => {
     target.domain_track[key] = (target.domain_track[key] ?? 0) + amount;
-  };
-  const toneBump = (key: string, amount = 0.25) => {
-    if (!target.tone_track) return;
-    target.tone_track[key] = (target.tone_track[key] ?? 0) + amount;
   };
 
   bump(`domain:${domain}:pressure`, 0.1);
@@ -80,49 +106,33 @@ function applyPatchMutation(
   switch (direction) {
     case 'assert_define':
     case 'legacy_identity':
-      bump('identity_heat');
       bump(`domain:${domain}:clarity`);
       bump(`domain:${domain}:agency`);
-      toneBump('clarity');
       break;
     case 'engage_advance':
-      bump(`domain:${domain}:momentum`);
       bump(`domain:${domain}:agency`);
-      toneBump('momentum');
       break;
     case 'observe_hold':
     case 'legacy_defer':
-      bump('fog_ambiguity');
-      bump(`domain:${domain}:reflection`);
-      bump(`domain:${domain}:latency`);
-      toneBump('ambiguity');
       break;
     case 'withdraw_protect':
-      bump(`domain:${domain}:protection`);
-      bump(`domain:${domain}:distance`);
-      toneBump('containment');
+      bump(`domain:${domain}:boundary`);
       break;
     case 'support_connect':
     case 'legacy_bond':
-      bump('community_cohesion');
-      bump(`domain:${domain}:cohesion`);
       bump(`domain:${domain}:trust`);
-      toneBump('cohesion');
       break;
     case 'offer_restore':
       bump(`domain:${domain}:repair`);
-      bump(`domain:${domain}:care`);
-      toneBump('repair');
+      bump(`domain:${domain}:trust`);
       break;
     case 'reframe_integrate':
       bump(`domain:${domain}:integration`);
-      bump(`domain:${domain}:adaptation`);
-      toneBump('integration');
+      bump(`domain:${domain}:clarity`);
       break;
     case 'contain_limit':
       bump(`domain:${domain}:boundary`);
-      bump(`domain:${domain}:stability`);
-      toneBump('containment');
+      bump(`domain:${domain}:clarity`);
       break;
     default:
       break;
@@ -131,32 +141,45 @@ function applyPatchMutation(
 
 function applyToneMutation(
   target: { tone_track: Record<string, number> },
-  toneTag?: string,
+  patch: string,
+  outcome: RpgOutcome,
 ) {
-  if (!toneTag) return;
-  target.tone_track[toneTag] = (target.tone_track[toneTag] ?? 0) + 0.5;
+  const { direction } = parsePatch(patch);
+  const tones = [directionTone(direction)];
+  if (
+    (outcome.pressure_polarity === 'frictional' || outcome.pressure_polarity === 'volatile') &&
+    (outcome.intensity_band === 'high' || outcome.intensity_band === 'critical')
+  ) {
+    tones.push('strain');
+  }
+  target.tone_track = Object.fromEntries(tones.slice(0, 2).map((tone) => [tone, 1]));
 }
 
 function applyHistoryMutation(
   target: { history?: string[] },
   patch: string,
+  outcome: RpgOutcome,
 ) {
   if (!target.history) return;
-  target.history.push(patch);
+  const { direction, domain } = parsePatch(patch);
+  const archetypeId = outcome.archetype_id ?? 'identity_test';
+  target.history.push(`h:${archetypeId}:${direction}:${domain}`);
   if (target.history.length > 10) {
-    target.history = target.history.slice(-10);
+    target.history.shift();
   }
 }
 
 function applyFlagMutation(
   target: { flags: string[] },
   patch: string,
+  outcome: RpgOutcome,
 ) {
   const { direction, domain } = parsePatch(patch);
   const uniqueFlags = Array.from(new Set(target.flags));
-  uniqueFlags.push(`seen:${patch}`);
-  uniqueFlags.push(`direction:${direction}`);
+  uniqueFlags.push(`outcome:${direction}`);
+  if (outcome.archetype_id) uniqueFlags.push(`archetype:${outcome.archetype_id}`);
   uniqueFlags.push(`domain:${domain}`);
+  if (outcome.pressure_polarity) uniqueFlags.push(`polarity:${outcome.pressure_polarity}`);
   target.flags = Array.from(new Set(uniqueFlags)).sort();
 }
 
@@ -206,11 +229,11 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
 
   const patch = outcome.outcome_patch_id || 'generic';
   applyPatchMutation(next, patch);
-  applyToneMutation(next, outcome.tone_tag);
-  applyHistoryMutation(next, outcome.outcome_patch_id);
+  applyToneMutation(next, patch, outcome);
+  applyHistoryMutation(next, patch, outcome);
 
   next.chapter = state.chapter + 1;
-  applyFlagMutation(next, outcome.outcome_patch_id);
+  applyFlagMutation(next, patch, outcome);
 
   if (outcome.actor_chart_id) {
     const memberId = outcome.actor_chart_id;
@@ -229,9 +252,9 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
           history: [],
         };
     applyPatchMutation(memberState, patch);
-    applyToneMutation(memberState, outcome.tone_tag);
-    applyHistoryMutation(memberState, outcome.outcome_patch_id);
-    applyFlagMutation(memberState, outcome.outcome_patch_id);
+    applyToneMutation(memberState, patch, outcome);
+    applyHistoryMutation(memberState, patch, outcome);
+    applyFlagMutation(memberState, patch, outcome);
     next.members = {
       ...nextMembers,
       [memberId]: memberState,
