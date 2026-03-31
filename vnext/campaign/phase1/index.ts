@@ -10,7 +10,6 @@ export * from './resolve-campaign-daily';
 export * from './build-pressure-events';
 export * from './build-daily-pressure-state';
 export { TRAIT_DERIVATION_MODE_PHASE1 } from './synthetic-trait';
-export { campaignSeedToLegacyTransitPressures } from './legacy-pressures-bridge';
 
 import { hashCanonicalJson } from '../../rpg/hash/json-hash';
 import type { CampaignResolutionSeed } from './contracts';

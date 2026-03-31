@@ -2020,9 +2020,9 @@ if (relationalMod && typeof relationalMod.createRelationalRouter === "function")
 const { createStage4Router } = require("./routes/stage4");
 app.use("/api", createStage4Router());
 
-// Phase 8 Stage 5 — Tri-mode campaign (solo, group, auto); canonical /api/campaigns/*
-const { createStage5Router } = require("./routes/stage5");
-app.use("/api", createStage5Router());
+// Campaign lifecycle routes
+const { createCampaignRouter } = require("./routes/campaign");
+app.use("/api", createCampaignRouter());
 
 // Campaign daily transit + user transit context persistence
 const { createUserTransitContextRouter } = require("./routes/user-transit-context");

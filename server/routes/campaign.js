@@ -1,7 +1,6 @@
 /**
- * Phase 8 Stage 5 — Tri-mode campaign routes (solo, group, auto).
- * Identity from session only (header/query set by proxy). Never trust body userId.
- * Single creation path; context_key unique; concurrency-safe.
+ * Campaign routes for solo, group, and auto creation flows.
+ * Identity comes from the authenticated caller only.
  */
 
 const crypto = require('crypto');
@@ -11,7 +10,7 @@ const path = require('path');
 const pgStore = require('../../lib/pg-store');
 const vectorStore = require('../../lib/vector-store');
 
-const STAGE5_AUTO_PARTY_SIZE = 4;
+const CAMPAIGN_AUTO_PARTY_SIZE = 4;
 const SCORING_VERSION = 'stage4_compat_v1';
 const SELECTION_RULES_VERSION = 'party_max_4_v1';
 
@@ -53,11 +52,11 @@ function unprocessable(res, msg) {
   return res.status(422).json({ error: 'unprocessable', message: msg || 'Unprocessable' });
 }
 
-function createStage5Router() {
+function createCampaignRouter() {
   const router = express.Router({ mergeParams: true });
 
   if (!process.env.POSTGRES_URL) {
-    router.use((_req, res) => res.status(501).json({ error: 'stage5_requires_postgres' }));
+    router.use((_req, res) => res.status(501).json({ error: 'campaign_requires_postgres' }));
     return router;
   }
 
@@ -190,7 +189,7 @@ function createStage5Router() {
     const sortedGroupIds = groups.map((g) => g.id).sort((a, b) => a.localeCompare(b, 'en'));
     for (const gid of sortedGroupIds) {
       const members = await pgStore.listRelationalGroupMembers(gid, ownerUserId);
-      if (!members || members.length === 0 || members.length > STAGE5_AUTO_PARTY_SIZE) continue;
+      if (!members || members.length === 0 || members.length > CAMPAIGN_AUTO_PARTY_SIZE) continue;
       const chartIds = canonicalSort(members.map((m) => m.chartId));
       const artifacts = await pgStore.listCompositeArtifactsByBinding({ ownerUserId, kind: 'group', groupId: gid });
       if (artifacts && artifacts.length > 0) {
@@ -354,4 +353,4 @@ function createStage5Router() {
   return router;
 }
 
-module.exports = { createStage5Router };
+module.exports = { createCampaignRouter };
