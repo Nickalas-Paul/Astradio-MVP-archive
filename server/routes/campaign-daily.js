@@ -8,6 +8,15 @@ const pgStore = require('../../lib/pg-store');
 const { validateCanonicalLocation, transitContextFingerprint, canonicalJson, sha256 } = require('../lib/canonical-location');
 const { anchorFallbackOrder } = require('../lib/campaign-daily-anchor');
 const {
+  acceptMemberResponse,
+  buildInitialResponseCollection,
+  buildLockedParticipantRoster,
+  computeReadiness,
+  normalizeResponseCollection,
+  orderedAcceptedResponses,
+  resolveRosterMember,
+} = require('../lib/campaign-group-resolve');
+const {
   CAMPAIGN_DAILY_ENGINE_VERSION,
   requireCampaignRuntimeModule,
 } = require('../lib/campaign-runtime');
@@ -116,12 +125,27 @@ async function resolveSoloTransitContext(params) {
 
 function currentCampaignState(campaign) {
   const state = campaign && campaign.stateJson && typeof campaign.stateJson === 'object' ? campaign.stateJson : {};
+  const rawMembers = state.members && typeof state.members === 'object' ? state.members : {};
+  const members = Object.fromEntries(
+    Object.entries(rawMembers)
+      .filter(([memberId]) => typeof memberId === 'string' && memberId.trim())
+      .map(([memberId, memberState]) => [
+        memberId,
+        {
+          tone_track: memberState && memberState.tone_track && typeof memberState.tone_track === 'object' ? memberState.tone_track : {},
+          domain_track: memberState && memberState.domain_track && typeof memberState.domain_track === 'object' ? memberState.domain_track : {},
+          flags: memberState && Array.isArray(memberState.flags) ? memberState.flags : [],
+          history: memberState && Array.isArray(memberState.history) ? memberState.history : [],
+        },
+      ]),
+  );
   return {
     tone_track: state.tone_track && typeof state.tone_track === 'object' ? state.tone_track : { neutral: 1 },
     domain_track: state.domain_track && typeof state.domain_track === 'object' ? state.domain_track : {},
     chapter: Number.isFinite(state.chapter) ? state.chapter : 1,
     flags: Array.isArray(state.flags) ? state.flags : [],
     history: Array.isArray(state.history) ? state.history : [],
+    members,
   };
 }
 
@@ -137,6 +161,7 @@ async function buildDailyStateJson(params) {
     resolution,
     natalSnapshot,
     transitSnapshot,
+    participantRoster,
   } = params;
 
   const materialized = await vn.materializeCampaignDaily({
@@ -158,6 +183,8 @@ async function buildDailyStateJson(params) {
     choice_outcome_patch_ids: materialized.choice_outcome_patch_ids,
     challenge_fingerprint: materialized.challenge_fingerprint,
     state_hash_before: resolution.state_hash_before,
+    participant_roster: participantRoster,
+    response_collection: buildInitialResponseCollection(participantRoster),
     mode,
   };
 
@@ -174,6 +201,10 @@ async function buildDailyStateJson(params) {
       phase1_rules: resolution.provenance.rules_version,
     },
   };
+}
+
+function rosterFromDaily(daily) {
+  return buildLockedParticipantRoster(Array.isArray(daily && daily.participant_roster) ? daily.participant_roster : []);
 }
 
 function createCampaignDailyRouter() {
@@ -225,6 +256,58 @@ function createCampaignDailyRouter() {
 
     const existing = await pgStore.getCampaignDailyState(campaignId, date, engineVersion);
     if (existing) {
+      let existingDailyStateJson = alignDailyStateJsonShape(existing.dailyStateJson);
+      const existingDaily = existingDailyStateJson && existingDailyStateJson.daily && typeof existingDailyStateJson.daily === 'object'
+        ? existingDailyStateJson.daily
+        : null;
+      if (existingDaily && !Array.isArray(existingDaily.participant_roster)) {
+        let participantRoster = null;
+        if (mode === 'solo') {
+          const soloCharts = campaign.participantChartIds || [];
+          if (soloCharts.length === 1) {
+            participantRoster = buildLockedParticipantRoster([
+              {
+                user_id: campaign.ownerUserId,
+                chart_id: soloCharts[0],
+              },
+            ]);
+          }
+        } else if (campaign.groupId) {
+          const groupMembers = await pgStore.listRelationalGroupMembers(campaign.groupId, campaign.ownerUserId);
+          const derivedRoster = buildLockedParticipantRoster(
+            (Array.isArray(groupMembers) ? groupMembers : []).map((member) => ({
+              user_id: member.userId,
+              chart_id: member.chartId,
+            })),
+          );
+          if (sortedEq(derivedRoster.map((entry) => entry.chart_id), campaign.participantChartIds || [])) {
+            participantRoster = derivedRoster;
+          }
+        }
+
+        if (participantRoster) {
+          existingDailyStateJson = {
+            ...existingDailyStateJson,
+            daily: {
+              ...existingDaily,
+              participant_roster: participantRoster,
+              response_collection: normalizeResponseCollection(
+                participantRoster,
+                existingDaily.response_collection || buildInitialResponseCollection(participantRoster),
+              ),
+            },
+          };
+          const nextExistingDailyStateHash = sha256(canonicalJson(existingDailyStateJson));
+          await pgStore.withTransaction(async (client) => {
+            await client.query(
+              `UPDATE campaign_daily_state
+               SET daily_state_json = $1::jsonb, daily_state_hash = $2
+               WHERE campaign_id = $3 AND calendar_date = $4::date AND engine_version = $5`,
+              [JSON.stringify(existingDailyStateJson), nextExistingDailyStateHash, campaignId, date, engineVersion]
+            );
+          });
+        }
+      }
       if (mode === 'solo') {
         const locVal = await resolveSoloTransitContext({
           req,
@@ -241,11 +324,11 @@ function createCampaignDailyRouter() {
         }
       }
       if (
-        existing.dailyStateJson &&
-        existing.dailyStateJson.daily &&
-        existing.dailyStateJson.daily.campaign_resolution &&
-        existing.dailyStateJson.daily.challenge &&
-        existing.dailyStateJson.daily.challenge_fingerprint
+        existingDailyStateJson &&
+        existingDailyStateJson.daily &&
+        existingDailyStateJson.daily.campaign_resolution &&
+        existingDailyStateJson.daily.challenge &&
+        existingDailyStateJson.daily.challenge_fingerprint
       ) {
         return res.status(200).json({
           campaignId,
@@ -255,7 +338,7 @@ function createCampaignDailyRouter() {
           fromCache: true,
           anchorUserId: existing.anchorUserId,
           transitContextFingerprint: existing.transitContextFingerprint,
-          daily: alignDailyStateJsonShape(existing.dailyStateJson),
+          daily: existingDailyStateJson,
         });
       }
     }
@@ -300,6 +383,12 @@ function createCampaignDailyRouter() {
         ]);
 
         const stateHashBefore = campaign.stateHash || '';
+        const participantRoster = buildLockedParticipantRoster([
+          {
+            user_id: campaign.ownerUserId,
+            chart_id: charts[0],
+          },
+        ]);
 
         const seed = vn.resolveCampaignDaily({
           kind: 'solo',
@@ -330,6 +419,7 @@ function createCampaignDailyRouter() {
           resolution: seed,
           natalSnapshot: natal,
           transitSnapshot: transit,
+          participantRoster,
         });
         const dailyStateHash = sha256(canonicalJson(dailyStateJson));
 
@@ -419,6 +509,16 @@ function createCampaignDailyRouter() {
 
       const transitInput = vn.buildTransitChartInput({ date, time, location: anchorLocation });
       const transit = await vn.fetchChartSnapshot(transitInput);
+      const groupMembers = await pgStore.listRelationalGroupMembers(campaign.groupId, campaign.ownerUserId);
+      const participantRoster = buildLockedParticipantRoster(
+        (Array.isArray(groupMembers) ? groupMembers : []).map((member) => ({
+          user_id: member.userId,
+          chart_id: member.chartId,
+        })),
+      );
+      if (!sortedEq(participantRoster.map((entry) => entry.chart_id), participantCharts)) {
+        return res.status(409).json({ error: 'GROUP_MEMBERSHIP_DRIFT', code: 'GROUP_MEMBERSHIP_DRIFT' });
+      }
 
       const memberNatals = [];
       for (const cid of participantCharts) {
@@ -481,6 +581,7 @@ function createCampaignDailyRouter() {
         resolution: seed,
         natalSnapshot: challengeNatal,
         transitSnapshot: transit,
+        participantRoster,
       });
       const dailyStateHash = sha256(canonicalJson(dailyStateJson));
 
@@ -591,33 +692,99 @@ function createCampaignDailyRouter() {
           return { status: 409, body: { error: 'STALE_CAMPAIGN_STATE', code: 'STALE_CAMPAIGN_STATE' } };
         }
 
+        let participantRoster;
+        try {
+          participantRoster = rosterFromDaily(daily);
+        } catch (e) {
+          return { status: 422, body: { error: 'INVALID_PARTICIPANT_ROSTER', code: 'INVALID_PARTICIPANT_ROSTER' } };
+        }
+        const memberResolution = resolveRosterMember(participantRoster, callerUserId);
+        if (!memberResolution.ok) {
+          return { status: 409, body: { error: memberResolution.error, code: memberResolution.code } };
+        }
+
         const choices = Array.isArray(daily.challenge.choices) ? daily.challenge.choices : [];
         const choice = choices.find((entry) => entry && entry.id === choiceId);
         if (!choice) {
           return { status: 400, body: { error: 'invalid_request', message: 'choiceId not found in challenge choices' } };
         }
 
-        if (dailyStateJson.resolution) {
-          if (dailyStateJson.resolution.choice_id === choiceId) {
-            return {
-              status: 200,
-              body: {
-                campaignId,
-                calendarDate,
-                engineVersion,
-                resolution: dailyStateJson.resolution,
-                newState: campaign.state_json,
-                stateHash: campaign.state_hash,
-                stateVersion: campaign.state_version,
-              },
-            };
-          }
-          return { status: 409, body: { error: 'ALREADY_RESOLVED', code: 'ALREADY_RESOLVED' } };
-        }
-
         const outcomePatchId = daily.choice_outcome_patch_ids[choiceId];
         if (!outcomePatchId) {
           return { status: 422, body: { error: 'invalid_choice_mapping', code: 'INVALID_CHOICE_MAPPING' } };
+        }
+
+        const acceptedAt = new Date().toISOString();
+        const acceptance = acceptMemberResponse({
+          roster: participantRoster,
+          collection: daily.response_collection,
+          member: memberResolution.member,
+          choice,
+          acceptedAt,
+        });
+
+        if (acceptance.status === 'conflict') {
+          return {
+            status: 409,
+            body: {
+              error: 'RESPONSE_CONFLICT',
+              code: 'RESPONSE_CONFLICT',
+              responseCollection: acceptance.collection,
+              readiness: acceptance.readiness,
+            },
+          };
+        }
+
+        const collectionAfterAcceptance = acceptance.collection;
+
+        if (dailyStateJson.resolution) {
+          return {
+            status: 200,
+            body: {
+              campaignId,
+              calendarDate,
+              engineVersion,
+              acceptedResponse: acceptance.response,
+              responseStatus: acceptance.status,
+              readiness: computeReadiness(participantRoster, collectionAfterAcceptance),
+              resolution: dailyStateJson.resolution,
+              newState: campaign.state_json,
+              stateHash: campaign.state_hash,
+              stateVersion: campaign.state_version,
+            },
+          };
+        }
+
+        const nextDailyWithoutResolution = {
+          ...dailyStateJson,
+          daily: {
+            ...daily,
+            participant_roster: participantRoster,
+            response_collection: collectionAfterAcceptance,
+          },
+        };
+
+        if (!acceptance.readiness.is_ready) {
+          const nextDailyStateHash = sha256(canonicalJson(nextDailyWithoutResolution));
+          await client.query(
+            `UPDATE campaign_daily_state
+             SET daily_state_json = $1::jsonb, daily_state_hash = $2
+             WHERE campaign_id = $3 AND calendar_date = $4::date AND engine_version = $5`,
+            [JSON.stringify(nextDailyWithoutResolution), nextDailyStateHash, campaignId, calendarDate, engineVersion]
+          );
+          return {
+            status: acceptance.status === 'idempotent' ? 200 : 202,
+            body: {
+              campaignId,
+              calendarDate,
+              engineVersion,
+              acceptedResponse: acceptance.response,
+              responseStatus: acceptance.status,
+              readiness: acceptance.readiness,
+              responseCollection: collectionAfterAcceptance,
+              stateMutated: false,
+            },
+          };
         }
 
         const previousState = {
@@ -630,45 +797,68 @@ function createCampaignDailyRouter() {
           chapter: campaign.state_json && Number.isFinite(campaign.state_json.chapter) ? campaign.state_json.chapter : 1,
           flags: campaign.state_json && Array.isArray(campaign.state_json.flags) ? campaign.state_json.flags : [],
           history: campaign.state_json && Array.isArray(campaign.state_json.history) ? campaign.state_json.history : [],
+          members: campaign.state_json && campaign.state_json.members && typeof campaign.state_json.members === 'object'
+            ? campaign.state_json.members
+            : {},
         };
-        const nextState = vn.applyOutcome(previousState, {
-          turn_id: `${campaignId}:${calendarDate}`,
-          choice_id: choiceId,
-          outcome_patch_id: outcomePatchId,
-          tone_tag: daily.challenge.primaryPressure && daily.challenge.primaryPressure.type ? String(daily.challenge.primaryPressure.type) : undefined,
-        });
+        const orderedResponses = orderedAcceptedResponses(participantRoster, collectionAfterAcceptance);
+        let nextState = previousState;
+        const orderedMemberResolutions = [];
+        for (const acceptedResponse of orderedResponses) {
+          const orderedChoice = choices.find((entry) => entry && entry.id === acceptedResponse.choice_id);
+          if (!orderedChoice) {
+            return { status: 422, body: { error: 'invalid_choice_mapping', code: 'INVALID_CHOICE_MAPPING' } };
+          }
+          const orderedOutcomePatchId = daily.choice_outcome_patch_ids[acceptedResponse.choice_id];
+          if (!orderedOutcomePatchId) {
+            return { status: 422, body: { error: 'invalid_choice_mapping', code: 'INVALID_CHOICE_MAPPING' } };
+          }
+          nextState = vn.applyOutcome(nextState, {
+            turn_id: `${campaignId}:${calendarDate}:${acceptedResponse.member_id}`,
+            choice_id: acceptedResponse.choice_id,
+            outcome_patch_id: orderedOutcomePatchId,
+            tone_tag: daily.challenge.primaryPressure && daily.challenge.primaryPressure.type ? String(daily.challenge.primaryPressure.type) : undefined,
+            actor_chart_id: acceptedResponse.member_id,
+          });
+          const outcome = vn.buildChallengeOutcome({
+            scene: daily.challenge,
+            choice: orderedChoice,
+            natalSnapshot: {
+              ts: '',
+              tz: 'UTC',
+              lat: 0,
+              lon: 0,
+            },
+            transitSnapshot: {
+              ts: '',
+              tz: 'UTC',
+              lat: 0,
+              lon: 0,
+            },
+          });
+          orderedMemberResolutions.push({
+            member_id: acceptedResponse.member_id,
+            user_id: acceptedResponse.user_id,
+            choice_id: acceptedResponse.choice_id,
+            outcome_patch_id: orderedOutcomePatchId,
+            response_path_id: acceptedResponse.response_path_id,
+            response_pattern_tag: acceptedResponse.response_pattern_tag,
+            outcome,
+          });
+        }
         const newStateHash = vn.hashCanonicalJson(nextState);
-        const outcome = vn.buildChallengeOutcome({
-          scene: daily.challenge,
-          choice,
-          natalSnapshot: {
-            ts: '',
-            tz: 'UTC',
-            lat: 0,
-            lon: 0,
-          },
-          transitSnapshot: {
-            ts: '',
-            tz: 'UTC',
-            lat: 0,
-            lon: 0,
-          },
-        });
-
         const resolution = {
-          choice_id: choiceId,
-          outcome_patch_id: outcomePatchId,
-          response_path_id: choiceId,
-          response_pattern_tag: choice.patternTag,
+          ordered_member_resolutions: orderedMemberResolutions,
           challenge_fingerprint: daily.challenge_fingerprint,
           state_hash_before: stateHashBefore,
           state_hash_after: newStateHash,
-          outcome,
-          resolved_at: new Date().toISOString(),
+          response_count: orderedMemberResolutions.length,
+          resolved_member_chart_ids: orderedMemberResolutions.map((entry) => entry.member_id),
+          resolved_at: acceptedAt,
         };
 
         const nextDailyStateJson = {
-          ...dailyStateJson,
+          ...nextDailyWithoutResolution,
           resolution,
         };
         const nextDailyStateHash = sha256(canonicalJson(nextDailyStateJson));
@@ -693,10 +883,14 @@ function createCampaignDailyRouter() {
             campaignId,
             calendarDate,
             engineVersion,
+            acceptedResponse: acceptance.response,
+            responseStatus: acceptance.status,
+            readiness: acceptance.readiness,
             resolution,
             newState: nextState,
             stateHash: newStateHash,
             stateVersion: campaign.state_version + 1,
+            stateMutated: true,
           },
         };
       });
