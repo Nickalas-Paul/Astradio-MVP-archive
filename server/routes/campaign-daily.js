@@ -65,6 +65,31 @@ function chartRowToNatalInput(chart) {
   };
 }
 
+function locationFromStoredContext(row) {
+  if (!row || !row.contextJson) {
+    return { ok: false, error: 'location required', code: 'LOCATION_REQUIRED' };
+  }
+  return validateCanonicalLocation(row.contextJson);
+}
+
+async function resolveSoloTransitContext(params) {
+  const { req, body, callerUserId, existing } = params;
+  const queryLocation = req.query && req.query.location ? req.query.location : null;
+  const bodyLocation = body && body.location ? body.location : null;
+  const inputLocation = bodyLocation || queryLocation;
+
+  if (inputLocation) {
+    return validateCanonicalLocation(inputLocation);
+  }
+
+  if (existing && existing.transitContextJson) {
+    return validateCanonicalLocation(existing.transitContextJson);
+  }
+
+  const stored = await pgStore.getUserTransitContext(callerUserId);
+  return locationFromStoredContext(stored);
+}
+
 function currentCampaignState(campaign) {
   const state = campaign && campaign.stateJson && typeof campaign.stateJson === 'object' ? campaign.stateJson : {};
   return {
@@ -176,7 +201,12 @@ function createCampaignDailyRouter() {
     const existing = await pgStore.getCampaignDailyState(campaignId, date, engineVersion);
     if (existing) {
       if (mode === 'solo') {
-        const locVal = validateCanonicalLocation(body.location);
+        const locVal = await resolveSoloTransitContext({
+          req,
+          body,
+          callerUserId,
+          existing,
+        });
         if (!locVal.ok) {
           return res.status(400).json({ error: locVal.error, code: locVal.code || 'LOCATION_INVALID' });
         }
@@ -207,7 +237,12 @@ function createCampaignDailyRouter() {
 
     try {
       if (mode === 'solo') {
-        const locVal = validateCanonicalLocation(body.location);
+        const locVal = await resolveSoloTransitContext({
+          req,
+          body,
+          callerUserId,
+          existing,
+        });
         if (!locVal.ok) {
           return res.status(400).json({ error: locVal.error, code: locVal.code || 'LOCATION_INVALID' });
         }
