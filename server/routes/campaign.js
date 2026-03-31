@@ -5,10 +5,10 @@
 
 const crypto = require('crypto');
 const express = require('express');
-const path = require('path');
 
 const pgStore = require('../../lib/pg-store');
 const vectorStore = require('../../lib/vector-store');
+const { requireCampaignRuntimeModule } = require('../lib/campaign-runtime');
 
 const CAMPAIGN_AUTO_PARTY_SIZE = 4;
 const SCORING_VERSION = 'stage4_compat_v1';
@@ -70,7 +70,7 @@ function createCampaignRouter() {
     const natalSnapshot = body.natalSnapshot;
     let profile;
     try {
-      const rpgStore = require(path.join(__dirname, '../../dist/vnext/vnext/rpg/store/rpg-store'));
+      const rpgStore = requireCampaignRuntimeModule('rpg/store/rpg-store');
       profile = await rpgStore.getOrCreateRpgProfileForChart({
         userId: ownerUserId,
         chartId,
@@ -94,8 +94,8 @@ function createCampaignRouter() {
     let stateJson = {};
     let stateHash = sha256('{}');
     try {
-      const stateMachine = require(path.join(__dirname, '../../dist/vnext/vnext/rpg/campaign/state-machine'));
-      const rpgStoreMod = require(path.join(__dirname, '../../dist/vnext/vnext/rpg/store/rpg-store'));
+      const stateMachine = requireCampaignRuntimeModule('rpg/campaign/state-machine');
+      const rpgStoreMod = requireCampaignRuntimeModule('rpg/store/rpg-store');
       const bundleRow = await rpgStoreMod.getBundleByHash(profile.bundle_hash);
       if (bundleRow && bundleRow.bundle_json) {
         const initialState = stateMachine.initialCampaignState(bundleRow.bundle_json);

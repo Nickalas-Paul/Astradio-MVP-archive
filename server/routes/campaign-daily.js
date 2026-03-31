@@ -3,28 +3,52 @@
  */
 
 const express = require('express');
-const path = require('path');
 
 const pgStore = require('../../lib/pg-store');
 const { validateCanonicalLocation, transitContextFingerprint, canonicalJson, sha256 } = require('../lib/canonical-location');
 const { anchorFallbackOrder } = require('../lib/campaign-daily-anchor');
-
-const vnextRoot = path.join(__dirname, '../../dist/vnext/vnext');
+const {
+  CAMPAIGN_DAILY_ENGINE_VERSION,
+  requireCampaignRuntimeModule,
+} = require('../lib/campaign-runtime');
 
 function loadVnext() {
-  const phase1 = require(path.join(vnextRoot, 'campaign/phase1'));
+  const phase1 = requireCampaignRuntimeModule('campaign/phase1');
   return {
-    fetchChartSnapshot: require(path.join(vnextRoot, 'core/architecture-engine')).fetchChartSnapshot,
-    resolveRelationalConnectionFromChartIds: require(path.join(vnextRoot, 'relational/resolve-relational-connection-context'))
+    fetchChartSnapshot: requireCampaignRuntimeModule('core/architecture-engine').fetchChartSnapshot,
+    resolveRelationalConnectionFromChartIds: requireCampaignRuntimeModule('relational/resolve-relational-connection-context')
       .resolveRelationalConnectionFromChartIds,
     resolveCampaignDaily: phase1.resolveCampaignDaily,
     campaignPhase1DerivationFingerprint: phase1.campaignPhase1DerivationFingerprint,
-    buildTransitChartInput: require(path.join(vnextRoot, 'campaign/transit-chart-input')).buildTransitChartInput,
-    materializeCampaignDaily: require(path.join(vnextRoot, 'campaign/materialize-daily')).materializeCampaignDaily,
-    applyOutcome: require(path.join(vnextRoot, 'rpg/campaign/state-machine')).applyOutcome,
-    buildChallengeOutcome: require(path.join(vnextRoot, 'rpg/reflection-mapper')).buildChallengeOutcome,
-    hashCanonicalJson: require(path.join(vnextRoot, 'rpg/hash/json-hash')).hashCanonicalJson,
-    getChartById: require(path.join(vnextRoot, 'compat/chart-store')).getChartById,
+    buildTransitChartInput: requireCampaignRuntimeModule('campaign/transit-chart-input').buildTransitChartInput,
+    materializeCampaignDaily: requireCampaignRuntimeModule('campaign/materialize-daily').materializeCampaignDaily,
+    applyOutcome: requireCampaignRuntimeModule('rpg/campaign/state-machine').applyOutcome,
+    buildChallengeOutcome: requireCampaignRuntimeModule('rpg/reflection-mapper').buildChallengeOutcome,
+    hashCanonicalJson: requireCampaignRuntimeModule('rpg/hash/json-hash').hashCanonicalJson,
+    getChartById: requireCampaignRuntimeModule('compat/chart-store').getChartById,
+  };
+}
+
+function alignDailyStateJsonShape(dailyStateJson) {
+  if (!dailyStateJson || typeof dailyStateJson !== 'object') return dailyStateJson;
+  const daily = dailyStateJson.daily && typeof dailyStateJson.daily === 'object' ? dailyStateJson.daily : null;
+  if (!daily) return dailyStateJson;
+
+  const campaignResolution =
+    daily.campaign_resolution && typeof daily.campaign_resolution === 'object'
+      ? daily.campaign_resolution
+      : null;
+
+  if (daily.daily_pressure_state || !campaignResolution || !campaignResolution.daily_pressure_state) {
+    return dailyStateJson;
+  }
+
+  return {
+    ...dailyStateJson,
+    daily: {
+      ...daily,
+      daily_pressure_state: campaignResolution.daily_pressure_state,
+    },
   };
 }
 
@@ -126,6 +150,7 @@ async function buildDailyStateJson(params) {
     engine_version: engineVersion,
     trait_derivation_mode: resolution.trait_derivation_mode,
     campaign_resolution: resolution,
+    daily_pressure_state: resolution.daily_pressure_state,
     character_sheet: materialized.character_sheet,
     challenge_archetype: materialized.challenge_archetype,
     challenge: materialized.challenge,
@@ -163,7 +188,7 @@ function createCampaignDailyRouter() {
   try {
     vn = loadVnext();
   } catch (e) {
-    console.error('[campaign-daily] vnext dist missing; run npm run vnext:build', e);
+    console.error('[campaign-daily] active Campaign runtime unavailable; run npm run vnext:build', e);
     router.use((_req, res) => res.status(503).json({ error: 'campaign_daily_engine_unavailable', message: 'Run vnext:build' }));
     return router;
   }
@@ -178,7 +203,7 @@ function createCampaignDailyRouter() {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const date = (req.query.date || body.date || '').toString().trim();
     const time = (req.query.time || body.time || '').toString().trim();
-    const engineVersion = (req.query.engineVersion || body.engineVersion || 'campaign_daily_phase1_v1').toString().trim();
+    const engineVersion = (req.query.engineVersion || body.engineVersion || CAMPAIGN_DAILY_ENGINE_VERSION).toString().trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'invalid_request', message: 'date YYYY-MM-DD required' });
@@ -230,7 +255,7 @@ function createCampaignDailyRouter() {
           fromCache: true,
           anchorUserId: existing.anchorUserId,
           transitContextFingerprint: existing.transitContextFingerprint,
-          daily: existing.dailyStateJson,
+          daily: alignDailyStateJsonShape(existing.dailyStateJson),
         });
       }
     }
@@ -334,7 +359,7 @@ function createCampaignDailyRouter() {
           fromCache: !inserted,
           anchorUserId: row.anchorUserId,
           transitContextFingerprint: row.transitContextFingerprint,
-          daily: row.dailyStateJson,
+          daily: alignDailyStateJsonShape(row.dailyStateJson),
         });
       }
 
@@ -482,7 +507,7 @@ function createCampaignDailyRouter() {
         fromCache: !inserted,
         anchorUserId: row.anchorUserId,
         transitContextFingerprint: row.transitContextFingerprint,
-        daily: row.dailyStateJson,
+        daily: alignDailyStateJsonShape(row.dailyStateJson),
       });
     } catch (e) {
       const msg = String(e?.message || '');
@@ -503,7 +528,7 @@ function createCampaignDailyRouter() {
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const calendarDate = (body.calendarDate || '').toString().trim();
-    const engineVersion = (body.engineVersion || 'campaign_daily_phase1_v1').toString().trim();
+    const engineVersion = (body.engineVersion || CAMPAIGN_DAILY_ENGINE_VERSION).toString().trim();
     const choiceId = (body.choiceId || '').toString().trim();
     const challengeFingerprint = (body.challengeFingerprint || '').toString().trim();
     const stateHashBefore = (body.stateHashBefore || '').toString().trim();
@@ -551,7 +576,7 @@ function createCampaignDailyRouter() {
           return { status: 404, body: { error: 'not_found', message: 'daily generation not found' } };
         }
 
-        const dailyStateJson = row.daily_state_json || {};
+        const dailyStateJson = alignDailyStateJsonShape(row.daily_state_json || {});
         const daily = dailyStateJson.daily || {};
         if (!daily.challenge || !daily.challenge_fingerprint || !daily.choice_outcome_patch_ids) {
           return { status: 422, body: { error: 'challenge_unavailable', code: 'CHALLENGE_UNAVAILABLE' } };

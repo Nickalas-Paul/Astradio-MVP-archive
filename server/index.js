@@ -37,6 +37,7 @@ const noopMw = noopMiddleware();
 const noopRouterInstance = noopRouter();
 
 const vnextRoot = path.join(__dirname, "..", "dist", "vnext", "vnext");
+const { ensureCampaignRuntimeParity } = require('./lib/campaign-runtime');
 const composeMod = optionalRequire(path.join(vnextRoot, "api", "compose"));
 const shadowMod = optionalRequire(path.join(vnextRoot, "api", "shadow"));
 const canaryMod = optionalRequire(path.join(vnextRoot, "api", "canary"));
@@ -2273,7 +2274,7 @@ app.get('/api/debug/last-compose-path', (req, res) => {
   res.json(p);
 });
 
-// Phase 8 debug helper: latest RPG campaign IDs for env wiring.
+// Phase 8 debug helper: latest unified Campaign IDs for env wiring.
 // Disabled by default; only available when PHASE8_DEBUG=1.
 app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
   if (process.env.PHASE8_DEBUG !== '1') {
@@ -2287,13 +2288,14 @@ app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
 
   let pool;
   try {
+    ensureCampaignRuntimeParity();
     const pg = require('pg');
     const Pool = pg.Pool;
     pool = new Pool({ connectionString: conn });
 
     const result = await pool.query(`
-      SELECT id, user_id, created_at
-      FROM rpg_campaigns
+      SELECT campaign_id, owner_user_id, mode, created_at
+      FROM stage5_campaigns
       ORDER BY created_at DESC
       LIMIT 1
     `);
@@ -2304,8 +2306,9 @@ app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
     }
 
     return res.status(200).json({
-      campaignId: row.id,
-      userId: row.user_id,
+      campaignId: row.campaign_id,
+      userId: row.owner_user_id,
+      mode: row.mode,
       createdAt: row.created_at,
     });
   } catch (e) {

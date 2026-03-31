@@ -6,6 +6,8 @@
  */
 require('dotenv').config();
 
+const { CAMPAIGN_DAILY_ENGINE_VERSION } = require('../server/lib/campaign-runtime');
+
 const POSTGRES_URL = process.env.POSTGRES_URL;
 if (!POSTGRES_URL) {
   console.log('[stage8-campaign-daily-smoke] POSTGRES_URL unset — skip');
@@ -55,7 +57,7 @@ async function j(method, path, body, userId) {
   const time = '12:00';
   const d1 = await j(
     'POST',
-    `/api/campaigns/${encodeURIComponent(campaignId)}/daily?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}&engineVersion=campaign_daily_v1`,
+    `/api/campaigns/${encodeURIComponent(campaignId)}/daily?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}&engineVersion=${encodeURIComponent(CAMPAIGN_DAILY_ENGINE_VERSION)}`,
     { location: loc },
     uid
   );
@@ -63,10 +65,23 @@ async function j(method, path, body, userId) {
     console.error('FAIL daily first', d1.status, d1.data);
     process.exit(1);
   }
+  const daily1 = d1.data && d1.data.daily && d1.data.daily.daily;
+  if (
+    !daily1 ||
+    !daily1.daily_pressure_state ||
+    !daily1.challenge_archetype ||
+    !daily1.challenge ||
+    !Array.isArray(daily1.response_paths) ||
+    !daily1.challenge_fingerprint ||
+    typeof daily1.state_hash_before !== 'string'
+  ) {
+    console.error('FAIL daily shape', d1.status, d1.data);
+    process.exit(1);
+  }
 
   const d2 = await j(
     'POST',
-    `/api/campaigns/${encodeURIComponent(campaignId)}/daily?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}&engineVersion=campaign_daily_v1`,
+    `/api/campaigns/${encodeURIComponent(campaignId)}/daily?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}&engineVersion=${encodeURIComponent(CAMPAIGN_DAILY_ENGINE_VERSION)}`,
     { location: loc },
     uid
   );
