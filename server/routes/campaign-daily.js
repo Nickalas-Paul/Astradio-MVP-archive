@@ -831,6 +831,18 @@ function createCampaignDailyRouter() {
             intensity_band: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.intensityBand
               ? String(daily.challenge.primaryPressure.intensityBand)
               : undefined,
+            transit_body: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.transitBody
+              ? String(daily.challenge.primaryPressure.transitBody)
+              : undefined,
+            natal_body: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.natalBody
+              ? String(daily.challenge.primaryPressure.natalBody)
+              : undefined,
+            natal_house: daily.challenge && daily.challenge.primaryPressure && Number.isFinite(daily.challenge.primaryPressure.natalHouse)
+              ? Number(daily.challenge.primaryPressure.natalHouse)
+              : undefined,
+            aspect_type: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.aspectType
+              ? String(daily.challenge.primaryPressure.aspectType)
+              : undefined,
           });
           const outcome = vn.buildChallengeOutcome({
             scene: daily.challenge,

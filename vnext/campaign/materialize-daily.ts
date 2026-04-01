@@ -150,11 +150,30 @@ function natalBodyModifier(body: PressureEvent['natal_body']): NatalBodyModifier
   }
 }
 
+function isAngularHouse(house: PressureEvent['natal_house']): boolean {
+  return house === 1 || house === 4 || house === 7 || house === 10;
+}
+
+function primarySemanticWeight(primary: PressureEvent): number {
+  let weight = 0;
+  if (primary.intensity_band === 'high' || primary.intensity_band === 'critical') weight += 1;
+  if (isAngularHouse(primary.natal_house)) weight += 1;
+
+  const modifier = natalBodyModifier(primary.natal_body);
+  if (modifier === 'volitional' || modifier === 'structural' || modifier === 'disruptive' || modifier === 'depth') {
+    weight += 1;
+  }
+
+  if (primary.aspect_type === 'square' || primary.aspect_type === 'opposition') weight += 1;
+  if (primary.pressure_polarity === 'frictional' || primary.pressure_polarity === 'volatile') weight += 1;
+  return weight;
+}
+
 function isHeavyArchetype(primary: PressureEvent): boolean {
   if (primary.pressure_family === 'wound' || primary.pressure_family === 'transformation' || primary.pressure_family === 'dissolution') {
     return true;
   }
-  return primary.intensity_band === 'high' || primary.intensity_band === 'critical';
+  return primarySemanticWeight(primary) >= 2;
 }
 
 function buildArchetypeId(primary: PressureEvent): ArchetypeId {
@@ -295,9 +314,10 @@ export async function materializeCampaignDaily(params: {
       archetypeId: buildArchetypeId(primary),
       interactionType: dailyState.interaction_type,
       intensityBand: dailyState.primary_intensity_band,
-      pressurePolarity: primary.pressure_polarity,
+      pressurePolarity: dailyState.primary_pressure_polarity,
       primaryDomain: dailyState.primary_domain_id,
       natalBodyModifier: natalBodyModifier(primary.natal_body),
+      supportingNatalBodyModifiers: supporting.map((event) => natalBodyModifier(event.natal_body)),
       mechanicTags: dailyState.mechanic_tags,
     },
   });
@@ -311,10 +331,10 @@ export async function materializeCampaignDaily(params: {
     natal_body_modifier: natalBodyModifier(primary.natal_body),
     daily_pressure_state_id: dailyState.daily_pressure_state_id,
     primary_pressure_event_id: dailyState.primary_pressure_event_id,
-    primary_transit_body: primary.transit_body,
-    primary_natal_body: primary.natal_body,
-    primary_natal_house: primary.natal_house,
-    primary_aspect_type: primary.aspect_type,
+    primary_transit_body: dailyState.primary_transit_body,
+    primary_natal_body: dailyState.primary_natal_body,
+    primary_natal_house: dailyState.primary_natal_house,
+    primary_aspect_type: dailyState.primary_aspect_type,
     primary_pressure_family: dailyState.primary_pressure_family,
     primary_domain_id: dailyState.primary_domain_id,
     primary_intensity_band: dailyState.primary_intensity_band,

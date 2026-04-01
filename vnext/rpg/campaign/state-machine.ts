@@ -31,6 +31,10 @@ export interface RpgOutcome {
   archetype_id?: ArchetypeId;
   pressure_polarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
   intensity_band?: 'low' | 'moderate' | 'high' | 'critical';
+  transit_body?: string;
+  natal_body?: string;
+  natal_house?: number;
+  aspect_type?: string;
 }
 
 type PatchDirection =
@@ -164,7 +168,14 @@ function applyHistoryMutation(
   const { direction, domain } = parsePatch(patch);
   const archetypeId = outcome.archetype_id ?? 'identity_test';
   target.history.push(`h:${archetypeId}:${direction}:${domain}`);
-  if (target.history.length > 10) {
+  if (outcome.natal_body || outcome.natal_house || outcome.aspect_type || outcome.transit_body) {
+    const transit = outcome.transit_body ?? 'unknown';
+    const natal = outcome.natal_body ?? 'unknown';
+    const house = typeof outcome.natal_house === 'number' ? String(outcome.natal_house) : 'unknown';
+    const aspect = outcome.aspect_type ?? 'unknown';
+    target.history.push(`hs:${transit}:${natal}:${house}:${aspect}`);
+  }
+  while (target.history.length > 10) {
     target.history.shift();
   }
 }
@@ -180,6 +191,10 @@ function applyFlagMutation(
   if (outcome.archetype_id) uniqueFlags.push(`archetype:${outcome.archetype_id}`);
   uniqueFlags.push(`domain:${domain}`);
   if (outcome.pressure_polarity) uniqueFlags.push(`polarity:${outcome.pressure_polarity}`);
+  if (outcome.transit_body) uniqueFlags.push(`transit_body:${outcome.transit_body}`);
+  if (outcome.natal_body) uniqueFlags.push(`natal_body:${outcome.natal_body}`);
+  if (typeof outcome.natal_house === 'number') uniqueFlags.push(`natal_house:${outcome.natal_house}`);
+  if (outcome.aspect_type) uniqueFlags.push(`aspect_type:${outcome.aspect_type}`);
   target.flags = Array.from(new Set(uniqueFlags)).sort();
 }
 

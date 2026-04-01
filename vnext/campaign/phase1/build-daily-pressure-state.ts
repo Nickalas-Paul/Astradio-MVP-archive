@@ -199,6 +199,11 @@ export function buildDailyPressureState(params: {
       intensity_score: e.intensity_score,
       pressure_family: e.pressure_family,
       domain_id: e.domain_id,
+      natal_body: e.natal_body,
+      natal_house: e.natal_house,
+      aspect_type: e.aspect_type,
+      pressure_polarity: e.pressure_polarity,
+      intensity_band: e.intensity_band,
     });
   }
 
@@ -271,7 +276,12 @@ export function buildDailyPressureState(params: {
     mode: params.mode,
     date: params.date,
     primary_pressure_event_id: primary.pressure_event_id,
+    primary_transit_body: primary.transit_body,
+    primary_natal_body: primary.natal_body,
+    primary_natal_house: primary.natal_house,
+    primary_aspect_type: primary.aspect_type,
     primary_pressure_family: primary.pressure_family,
+    primary_pressure_polarity: primary.pressure_polarity,
     primary_domain_id: primary.domain_id,
     primary_intensity_score: primary.intensity_score,
     primary_intensity_band: primary.intensity_band,

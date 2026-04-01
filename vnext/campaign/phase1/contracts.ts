@@ -114,6 +114,11 @@ export type SupportingPressureRef = {
   intensity_score: number;
   pressure_family: PressureFamily;
   domain_id: DomainId;
+  natal_body: CampaignBodyId;
+  natal_house: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  aspect_type: Phase1AspectType;
+  pressure_polarity: PressurePolarity;
+  intensity_band: PressureIntensityBand;
 };
 
 export type DailyPressureState = {
@@ -122,7 +127,12 @@ export type DailyPressureState = {
   mode: 'solo' | 'group';
   date: string;
   primary_pressure_event_id: string;
+  primary_transit_body: CampaignBodyId;
+  primary_natal_body: CampaignBodyId;
+  primary_natal_house: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  primary_aspect_type: Phase1AspectType;
   primary_pressure_family: PressureFamily;
+  primary_pressure_polarity: PressurePolarity;
   primary_domain_id: DomainId;
   primary_intensity_score: number;
   primary_intensity_band: PressureIntensityBand;

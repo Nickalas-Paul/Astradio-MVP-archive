@@ -36,26 +36,49 @@ type ChallengeContext = {
   pressurePolarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
   primaryDomain?: string;
   natalBodyModifier?: NatalBodyModifier;
+  supportingNatalBodyModifiers?: NatalBodyModifier[];
   mechanicTags?: string[];
 };
 
-/** Deterministic: sort by intensity DESC, then type ASC, then domain ASC. Tie-breaks ensure stable primary. */
-function pickPrimaryPressure(pressures: TransitPressure[]): TransitPressure | null {
-  if (!pressures.length) return null;
-  const sorted = [...pressures].sort((a, b) => {
-    if (b.intensity !== a.intensity) return b.intensity - a.intensity;
-    if (a.type !== b.type) return a.type.localeCompare(b.type);
-    return a.domain.localeCompare(b.domain);
-  });
-  return sorted[0];
-}
+function supportingBiasPostures(
+  pressures: TransitPressure[],
+  natalBodyModifiers: NatalBodyModifier[] = [],
+): ResponsePosture[] {
+  const score = new Map<ResponsePosture, number>();
+  const bump = (posture: ResponsePosture, amount: number) => {
+    score.set(posture, (score.get(posture) ?? 0) + amount);
+  };
 
-/** Deterministic: exclude primary, sort by intensity DESC, take first 3. */
-function supportPressures(pressures: TransitPressure[], primary: TransitPressure): TransitPressure[] {
-  return pressures
-    .filter((p) => p.id !== primary.id)
-    .sort((a, b) => b.intensity - a.intensity)
-    .slice(0, 3);
+  for (let index = 0; index < pressures.length; index++) {
+    const pressure = pressures[index]!;
+    const weight =
+      pressure.intensityBand === 'critical' ? 4 :
+      pressure.intensityBand === 'high' ? 3 :
+      pressure.intensityBand === 'moderate' ? 2 :
+      1;
+    const polarity = String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+    const modifier = natalBodyModifiers[index];
+
+    if (polarity === 'constructive') bump('engage', weight);
+    if (polarity === 'frictional') bump('contain', weight);
+    if (polarity === 'volatile') bump('withdraw', weight);
+    if (polarity === 'binding') bump('observe', weight);
+
+    if (pressure.natalHouse === 7 || pressure.natalHouse === 11) bump('support', weight);
+    if (pressure.natalHouse === 10 || pressure.natalHouse === 6) bump('contain', weight);
+    if (pressure.natalHouse === 4 || pressure.natalHouse === 8 || pressure.natalHouse === 12) bump('observe', weight);
+
+    if (modifier === 'core' || modifier === 'volitional') bump('assert', weight);
+    if (modifier === 'felt' || modifier === 'relational') bump('support', weight);
+    if (modifier === 'interpretive' || modifier === 'expansive') bump('reframe', weight);
+    if (modifier === 'structural' || modifier === 'depth') bump('contain', weight);
+    if (modifier === 'disruptive' || modifier === 'diffuse') bump('withdraw', weight);
+  }
+
+  return [...score.entries()]
+    .sort((a, b) => b[1] - a[1] || POSTURE_PRIORITY.indexOf(a[0]) - POSTURE_PRIORITY.indexOf(b[0]))
+    .map(([posture]) => posture)
+    .slice(0, 2);
 }
 
 /** Primary reading line from canonical semantic pipeline only (Phase D campaign surface). */
@@ -372,12 +395,16 @@ function buildChoice(posture: ResponsePosture): ChoiceOption {
 
 function baseChoices(
   pressure: TransitPressure,
+  supporting: TransitPressure[],
   challengeContext?: ChallengeContext
 ): ChoiceOption[] {
   const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
   const baseSlate = [...(BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test)];
   let slate = addFifthPosture(baseSlate, challengeContext?.pressurePolarity, challengeContext?.intensityBand);
   slate = enforceDomainConstraints(slate, slate, pressure.domain);
+  for (const posture of supportingBiasPostures(supporting, challengeContext?.supportingNatalBodyModifiers)) {
+    slate = replaceLowestPriority(slate, slate, posture);
+  }
   slate = Array.from(new Set(slate));
   return slate.slice(0, 5).map(buildChoice);
 }
@@ -413,15 +440,15 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   if (!pressures.length) return null;
 
   const tone = deriveCampaignIdentityToneFromSemanticCore(semanticCore);
-  const primary = pickPrimaryPressure(pressures);
+  const primary = pressures[0] ?? null;
   if (!primary) return null;
 
-  const supporting = supportPressures(pressures, primary);
+  const supporting = pressures.slice(1, 4);
   const theme = challengeThemeFromSemantic(semanticCore, natalSnapshot, primary, challengeContext);
   const setting = sceneSettingFromTone(tone, primary);
   const obstacle = sceneObstacleGame(primary, character);
 
-  const choices = baseChoices(primary, challengeContext);
+  const choices = baseChoices(primary, supporting, challengeContext);
 
   const transitKey = transitSnapshot?.ts ?? '';
   const id = [
