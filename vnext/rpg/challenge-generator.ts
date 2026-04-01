@@ -28,6 +28,17 @@ import type {
   TransitPressure,
 } from './types';
 
+type ChallengeContext = {
+  archetypeCategory?: string;
+  archetypeId?: ArchetypeId;
+  interactionType?: string;
+  intensityBand?: TransitPressure['intensityBand'];
+  pressurePolarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
+  primaryDomain?: string;
+  natalBodyModifier?: NatalBodyModifier;
+  mechanicTags?: string[];
+};
+
 /** Deterministic: sort by intensity DESC, then type ASC, then domain ASC. Tie-breaks ensure stable primary. */
 function pickPrimaryPressure(pressures: TransitPressure[]): TransitPressure | null {
   if (!pressures.length) return null;
@@ -64,7 +75,7 @@ function challengeThemeFromSemantic(
   core: SemanticCore,
   natalSnapshot: EphemerisSnapshot,
   pressure: TransitPressure,
-  challengeContext?: BuildChallengeParams['challengeContext']
+  challengeContext?: ChallengeContext
 ): string {
   const line = semanticReadingLine(core, hashSnapshot(natalSnapshot));
   const context = `${pressure.transitBody} contacting ${pressure.natalBody} in house ${pressure.natalHouse} concentrates ${pressure.pressureFamily} around ${pressure.domain}`;
@@ -273,8 +284,8 @@ function postureRiskProfile(posture: ResponsePosture): string {
 
 function addFifthPosture(
   slate: ResponsePosture[],
-  polarity: BuildChallengeParams['challengeContext']['pressurePolarity'],
-  intensityBand: BuildChallengeParams['challengeContext']['intensityBand'],
+  polarity?: ChallengeContext['pressurePolarity'],
+  intensityBand?: ChallengeContext['intensityBand'],
 ): ResponsePosture[] {
   const out = [...slate];
   const tryAdd = (posture: ResponsePosture) => {
@@ -361,7 +372,7 @@ function buildChoice(posture: ResponsePosture): ChoiceOption {
 
 function baseChoices(
   pressure: TransitPressure,
-  challengeContext?: BuildChallengeParams['challengeContext']
+  challengeContext?: ChallengeContext
 ): ChoiceOption[] {
   const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
   const baseSlate = [...(BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test)];
@@ -383,16 +394,7 @@ export interface BuildChallengeParams {
   semanticCore: SemanticCore;
   natalSnapshot: EphemerisSnapshot;
   transitSnapshot: EphemerisSnapshot;
-  challengeContext?: {
-    archetypeCategory?: string;
-    archetypeId?: ArchetypeId;
-    interactionType?: string;
-    intensityBand?: TransitPressure['intensityBand'];
-    pressurePolarity?: 'constructive' | 'frictional' | 'volatile' | 'binding';
-    primaryDomain?: string;
-    natalBodyModifier?: NatalBodyModifier;
-    mechanicTags?: string[];
-  };
+  challengeContext?: ChallengeContext;
 }
 
 /**
