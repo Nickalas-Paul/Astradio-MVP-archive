@@ -15,6 +15,24 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import { hashSnapshot } from './hash/snapshot-hash';
 import type { CampaignIdentityTone } from './semantic-adapter';
 import { deriveCampaignIdentityToneFromSemanticCore } from './identity-from-semantic-core';
+import {
+  aspectPressure,
+  compactText,
+  continuityLines,
+  domainContext,
+  domainLabel,
+  dominantToneKey,
+  firstSentence,
+  houseLanguage,
+  intensityQualifier,
+  intensityUrgency,
+  modifierLanguage,
+  outcomeSentence,
+  polarityImplication,
+  polarityTone,
+  polarityTradeoff,
+  stableVariant,
+} from './projection-language';
 import type {
   ArchetypeId,
   CampaignState,
@@ -94,27 +112,107 @@ function semanticReadingLine(core: SemanticCore, seed: string): string {
   return (sig?.text ?? sections[0]?.text ?? '').trim();
 }
 
+const ARCHETYPE_FRAMING: Record<ArchetypeId, string> = {
+  identity_test: 'a test of identity under pressure',
+  identity_definition: 'a moment of clearer self-definition',
+  resource_strain: 'a strain around value, effort, or material footing',
+  resource_opportunity: 'an opening around value or tangible support',
+  signal_friction: 'a communication knot that benefits from cleaner phrasing',
+  signal_reframe: 'a chance to reinterpret what is being signaled',
+  foundation_pressure: 'pressure on foundations, rest, or private steadiness',
+  foundation_repair: 'a chance to repair or steady the base layer',
+  creative_risk: 'a risk around expression, desire, or visibility',
+  creative_devotion: 'a steadier invitation into expression or care',
+  duty_pressure: 'a pressure point around duty, role, or responsibility',
+  duty_alignment: 'a chance to align effort with the role you want to hold',
+  bond_friction: 'a strain in contact that asks for cleaner exchange',
+  bond_repair: 'an opening for repair, care, or reconnection',
+  threshold_reckoning: 'a reckoning with trust, stakes, or deeper exchange',
+  horizon_reorientation: 'a reorientation in meaning, direction, or worldview',
+};
+
+function challengeFramingLine(
+  pressure: TransitPressure,
+  challengeContext: ChallengeContext | undefined,
+  state: CampaignState,
+): string {
+  const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
+  const archetypeFrame = ARCHETYPE_FRAMING[archetypeId] ?? ARCHETYPE_FRAMING.identity_test;
+  const domain = challengeContext?.primaryDomain ?? pressure.domain;
+  const variants = [
+    `Today's challenge centers on ${domainLabel(domain)}, with ${archetypeFrame}.`,
+    `The active challenge sits in ${domainLabel(domain)}, where this reads as ${archetypeFrame}.`,
+  ];
+  return stableVariant(
+    `${pressure.id}:${archetypeId}:${state.chapter}:challenge-frame`,
+    variants,
+  );
+}
+
+function supportingPressureLine(
+  supporting: TransitPressure[],
+  challengeContext?: ChallengeContext
+): string {
+  const firstSupport = supporting[0];
+  if (!firstSupport) return '';
+  const supportPolarity = String(firstSupport.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const supportDomain = domainLabel(firstSupport.domain);
+  const supportAspect = aspectPressure(firstSupport.aspectType);
+  const supportTone = polarityImplication(supportPolarity);
+  const interaction = challengeContext?.interactionType;
+  const variants = [
+    `Supporting pressure in ${supportDomain} ${supportAspect} and ${supportTone}.`,
+    `A secondary layer in ${supportDomain} ${supportAspect}, which ${supportTone}.`,
+  ];
+  if (interaction && interaction !== 'none') {
+    return `${stableVariant(`${firstSupport.id}:${interaction}:support`, variants)} Together, the pressures read as ${interaction.replace(/_/g, ' ')} rather than isolated.`;
+  }
+  return stableVariant(`${firstSupport.id}:support`, variants);
+}
+
 function challengeThemeFromSemantic(
   core: SemanticCore,
   natalSnapshot: EphemerisSnapshot,
   pressure: TransitPressure,
+  supporting: TransitPressure[],
+  state: CampaignState,
   challengeContext?: ChallengeContext
 ): string {
-  const line = semanticReadingLine(core, hashSnapshot(natalSnapshot));
-  const context = `${pressure.transitBody} contacting ${pressure.natalBody} in house ${pressure.natalHouse} concentrates ${pressure.pressureFamily} around ${pressure.domain}`;
-  const nuance = challengeContext?.natalBodyModifier ? ` through a ${challengeContext.natalBodyModifier} natal emphasis` : '';
-  const refinement = challengeContext?.mechanicTags && challengeContext.mechanicTags.length > 0
-    ? ` [${challengeContext.mechanicTags.slice(0, 2).join(', ')}]`
-    : '';
-  const intensity = challengeContext?.intensityBand ? ` at ${challengeContext.intensityBand} intensity` : '';
-  return line.length > 0
-    ? `${line} Today, ${context}${nuance}${intensity}.${refinement}`
-    : `focus:${pressure.domain}:${pressure.transitBody}:${pressure.natalBody}:${pressure.type}`;
+  const line = firstSentence(semanticReadingLine(core, hashSnapshot(natalSnapshot)));
+  const frame = challengeFramingLine(pressure, challengeContext, state);
+  const support = supportingPressureLine(supporting, challengeContext);
+  const continuity = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);
+  return [line, frame, support, ...continuity]
+    .map(compactText)
+    .filter(Boolean)
+    .join(' ');
+}
+
+function pressureInterpretationLine(
+  pressure: TransitPressure,
+  challengeContext: ChallengeContext | undefined,
+  state: CampaignState,
+): string {
+  const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
+  const modifier = modifierLanguage(challengeContext?.natalBodyModifier);
+  const aspect = aspectPressure(pressure.aspectType);
+  const domain = domainContext(challengeContext?.primaryDomain ?? pressure.domain);
+  const house = houseLanguage(pressure.natalHouse);
+  const toneKey = dominantToneKey(state);
+  const variants = [
+    `The pressure is ${intensityUrgency(intensityBand)} and ${polarityTone(polarity)}: it ${aspect} around ${domain}, with extra emphasis on ${house} and ${modifier}.`,
+    `This reads as ${intensityUrgency(intensityBand)} pressure that ${aspect} around ${domain}, carrying a ${modifier} emphasis through ${house}.`,
+  ];
+  const base = stableVariant(`${pressure.id}:${polarity}:${intensityBand}:${toneKey}:pressure`, variants);
+  return `${base} The tradeoff is that ${polarityTradeoff(polarity)}.`;
 }
 
 function sceneSettingFromTone(
   tone: CampaignIdentityTone,
-  pressure: TransitPressure
+  pressure: TransitPressure,
+  state: CampaignState,
+  challengeContext?: ChallengeContext,
 ): string {
   const byDomain: Record<string, string> = {
     self: 'a moment where your sense of self, pacing, or direction becomes hard to ignore',
@@ -140,22 +238,33 @@ function sceneSettingFromTone(
           ? 'a private setting that holds your foundations and routines'
           : 'an inner landscape where feelings and intuitions surface first');
 
-  if (tone.narrativeMood === 'somber') {
-    return `${base}, with a heavier, more serious tone today`;
+  const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
+  const toneKey = dominantToneKey(state);
+  if (tone.narrativeMood === 'somber' || toneKey === 'strain') {
+    return `${base}, with a steadier and more serious tone while the pressure stays ${intensityUrgency(intensityBand)}`;
   }
-  if (tone.narrativeMood === 'bright') {
-    return `${base}, with light available even as tension shows up`;
+  if (tone.narrativeMood === 'bright' && polarity === 'constructive') {
+    return `${base}, with some light available because the pressure remains ${polarityTone(polarity)}`;
   }
-  return base;
+  if (toneKey === 'clarity' || toneKey === 'stability') {
+    return `${base}, with cleaner edges and a more deliberate pace`;
+  }
+  return `${base}, with a reflective pace that keeps the pressure readable`;
 }
 
 /** Game-layer obstacle copy only (no chart interpretation beyond SemanticCore-backed theme). */
-function sceneObstacleGame(pressure: TransitPressure, character: CharacterProfile): string {
+function sceneObstacleGame(
+  pressure: TransitPressure,
+  character: CharacterProfile,
+  challengeContext: ChallengeContext | undefined,
+  state: CampaignState,
+): string {
   const leaning =
     character.temperament.shadowCapacity >= 0.7
-      ? 'old coping patterns feel strong'
-      : 'habits are present but more workable today';
-  return `${pressure.transitBody} presses on ${pressure.natalBody} through a ${pressure.aspectType} in house ${pressure.natalHouse}, concentrating ${pressure.pressureFamily} pressure in ${pressure.domain}. ${leaning}.`;
+      ? 'older coping patterns may feel closer to the surface'
+      : 'habits are present, but still workable if you keep the move small';
+  return `${pressureInterpretationLine(pressure, challengeContext, state)} ${leaning}.`;
 }
 
 const BASE_POSTURE_SLATES: Record<ArchetypeId, ResponsePosture[]> = {
@@ -287,24 +396,81 @@ function postureLabel(posture: ResponsePosture): string {
   }
 }
 
-function postureGesture(posture: ResponsePosture): string {
+function postureGesture(
+  posture: ResponsePosture,
+  pressure: TransitPressure,
+  challengeContext: ChallengeContext | undefined,
+  state: CampaignState,
+): string {
+  const domain = domainContext(challengeContext?.primaryDomain ?? pressure.domain);
+  const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
+  const toneKey = dominantToneKey(state);
   switch (posture) {
     case 'observe':
-      return 'step back enough to feel and name what is actually happening before acting';
+      return stableVariant(
+        `${pressure.id}:${posture}:${toneKey}`,
+        [
+          `Clarify what is actually happening around ${domain} before you commit to a move, especially while the pressure remains ${intensityUrgency(intensityBand)}.`,
+          `Slow the first reaction long enough to read what is really happening around ${domain}, rather than answering the first spike of pressure.`,
+        ],
+      );
     case 'assert':
-      return 'speak one honest sentence about what is real for you';
+      return stableVariant(
+        `${pressure.id}:${posture}:${polarity}`,
+        [
+          `State one clear line about ${domain} so the situation is less implied and more directly named.`,
+          `Define what is true for you in ${domain} with one clean sentence rather than letting the tension speak for you.`,
+        ],
+      );
     case 'engage':
-      return 'take a deliberate, bounded action even if conditions are imperfect';
+      return stableVariant(
+        `${pressure.id}:${posture}:${intensityBand}`,
+        [
+          `Take one deliberate step in ${domain} that moves the situation without pretending conditions are perfect.`,
+          `Use the pressure to create motion in ${domain} through a bounded action that you can actually follow through on today.`,
+        ],
+      );
     case 'withdraw':
-      return 'consciously schedule a later moment to revisit instead of drifting away';
+      return stableVariant(
+        `${pressure.id}:${posture}:${polarity}`,
+        [
+          `Reduce exposure in ${domain} on purpose and choose a later return point, rather than disappearing into drift.`,
+          `Step back from direct contact in ${domain} long enough to regain timing control, then revisit it deliberately.`,
+        ],
+      );
     case 'support':
-      return 'bring the situation to someone you trust for reflection';
+      return stableVariant(
+        `${pressure.id}:${posture}:${toneKey}`,
+        [
+          `Bring this part of ${domain} to someone trustworthy so perspective becomes part of the response instead of staying solitary.`,
+          `Use relationship as a stabilizer for ${domain} by asking for reflection, witness, or grounded feedback.`,
+        ],
+      );
     case 'offer':
-      return 'offer time, attention, or a small concrete gesture aligned with your values';
+      return stableVariant(
+        `${pressure.id}:${posture}:${polarity}`,
+        [
+          `Contribute one concrete gesture in ${domain} that reflects care, reciprocity, or follow-through.`,
+          `Respond through a small real offering in ${domain} so the pressure is met with participation rather than theory alone.`,
+        ],
+      );
     case 'reframe':
-      return 'name a different interpretation that changes how you meet the moment';
+      return stableVariant(
+        `${pressure.id}:${posture}:${intensityBand}`,
+        [
+          `Change the interpretation around ${domain} so your next move comes from a different frame instead of the loudest first story.`,
+          `Rename what this moment means in ${domain} so you can meet it with more flexibility and less automatic compression.`,
+        ],
+      );
     case 'contain':
-      return 'clarify what you can and cannot carry right now';
+      return stableVariant(
+        `${pressure.id}:${posture}:${toneKey}`,
+        [
+          `Narrow the scope of ${domain} to what you can actually carry, protect, or decide right now.`,
+          `Set a cleaner limit around ${domain} so the pressure has edges instead of spreading into everything else.`,
+        ],
+      );
   }
 }
 
@@ -329,24 +495,31 @@ function postureModality(posture: ResponsePosture): ResponseModality {
   }
 }
 
-function postureRiskProfile(posture: ResponsePosture): string {
+function postureRiskProfile(
+  posture: ResponsePosture,
+  pressure: TransitPressure,
+  challengeContext: ChallengeContext | undefined,
+): string {
+  const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
+  const intensityWord = intensityQualifier(intensityBand);
   switch (posture) {
     case 'observe':
-      return 'low immediate risk, but may preserve ambiguity longer';
+      return `This protects clarity before commitment, but ${polarityTradeoff(polarity)} and may preserve ambiguity ${intensityWord} longer.`;
     case 'assert':
-      return 'raises clarity quickly, with some exposure or friction';
+      return `This increases definition quickly, but ${polarityTradeoff(polarity)} and can raise direct friction when the pressure is already ${intensityUrgency(intensityBand)}.`;
     case 'engage':
-      return 'creates momentum quickly, but can amplify strain if conditions are unstable';
+      return `This creates momentum quickly, but ${polarityTradeoff(polarity)} and can amplify strain if the conditions are still unstable.`;
     case 'withdraw':
-      return 'reduces immediate exposure, but can prolong uncertainty if overused';
+      return `This reduces immediate exposure, but ${polarityTradeoff(polarity)} and can prolong uncertainty if the retreat becomes indefinite.`;
     case 'support':
-      return 'builds perspective and connection, but slows solitary momentum';
+      return `This builds connection and perspective, but ${polarityTradeoff(polarity)} and may slow solitary momentum while the larger picture comes into view.`;
     case 'offer':
-      return 'supports repair and reciprocity, but can overextend if misread';
+      return `This supports repair and reciprocity, but ${polarityTradeoff(polarity)} and can overextend you if the other side cannot meet it.`;
     case 'reframe':
-      return 'supports integration and flexibility, but may under-act if used to avoid contact';
+      return `This supports flexibility and integration, but ${polarityTradeoff(polarity)} and may under-act if interpretation replaces contact.`;
     case 'contain':
-      return 'protects capacity, but can harden distance if poorly timed';
+      return `This protects capacity and steadiness, but ${polarityTradeoff(polarity)} and can harden distance if the limit lands too rigidly.`;
   }
 }
 
@@ -447,22 +620,29 @@ function postureFromSupport(
   return polarity === 'constructive' ? 'engage' : 'observe';
 }
 
-function buildChoice(posture: ResponsePosture): ChoiceOption {
+function buildChoice(
+  posture: ResponsePosture,
+  pressure: TransitPressure,
+  state: CampaignState,
+  challengeContext?: ChallengeContext,
+): ChoiceOption {
+  const outcomeDirection = postureOutcomeDirection(posture);
   return {
     id: posturePatternTag(posture),
     label: postureLabel(posture),
-    symbolicGesture: postureGesture(posture),
+    symbolicGesture: postureGesture(posture, pressure, challengeContext, state),
     patternTag: posturePatternTag(posture),
     posture,
     modality: postureModality(posture),
-    riskProfile: postureRiskProfile(posture),
-    outcomeDirection: postureOutcomeDirection(posture),
+    riskProfile: `${postureRiskProfile(posture, pressure, challengeContext)} ${outcomeSentence(outcomeDirection, challengeContext?.primaryDomain ?? pressure.domain)}`,
+    outcomeDirection,
   };
 }
 
 function baseChoices(
   pressure: TransitPressure,
   supporting: TransitPressure[],
+  state: CampaignState,
   challengeContext?: ChallengeContext
 ): ChoiceOption[] {
   const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
@@ -491,7 +671,7 @@ function baseChoices(
   slate = enforceDomainConstraints(slate, slate, pressure.domain);
   if (!hasRegulatingPosture(slate)) slate = replaceLowestPriority(slate, slate, 'observe', new Set([anchor]));
   if (!hasDirectionalPosture(slate)) slate = replaceLowestPriority(slate, slate, 'assert', new Set([anchor]));
-  return slate.slice(0, 5).map(buildChoice);
+  return slate.slice(0, 5).map((posture) => buildChoice(posture, pressure, state, challengeContext));
 }
 
 /**
@@ -529,11 +709,11 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   if (!primary) return null;
 
   const supporting = pressures.slice(1, 4);
-  const theme = challengeThemeFromSemantic(semanticCore, natalSnapshot, primary, challengeContext);
-  const setting = sceneSettingFromTone(tone, primary);
-  const obstacle = sceneObstacleGame(primary, character);
+  const theme = challengeThemeFromSemantic(semanticCore, natalSnapshot, primary, supporting, state, challengeContext);
+  const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
+  const obstacle = sceneObstacleGame(primary, character, challengeContext, state);
 
-  const choices = baseChoices(primary, supporting, challengeContext);
+  const choices = baseChoices(primary, supporting, state, challengeContext);
 
   const transitKey = transitSnapshot?.ts ?? '';
   const id = [

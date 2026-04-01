@@ -1,6 +1,7 @@
 import type { EphemerisSnapshot } from '../contracts';
 import type { ChallengeOutcome, ChallengeScene, TransitPressure } from './types';
 import type { ChoiceOption } from './types';
+import { domainLabel, outcomeSentence } from './projection-language';
 
 function shortLifeAreaLabel(lifeArea: string): string {
   switch (lifeArea) {
@@ -61,7 +62,7 @@ function symbolicMeaningFor(
   patternTag: string
 ): string {
   const area = shortLifeAreaLabel(pressure.lifeArea);
-  const base = `This choice is a way of working with ${pressure.type} energy in ${area}.`;
+  const base = `This choice is a way of working with the active pressure in ${area}.`;
 
   if (patternTag === 'pause_observe') {
     return `${base} It shifts the story from reacting inside the pressure to witnessing it, which often opens more grounded options.`;
@@ -134,8 +135,8 @@ export interface BuildOutcomeParams {
 export function buildChallengeOutcome(params: BuildOutcomeParams): ChallengeOutcome {
   const { scene, choice, natalSnapshot, transitSnapshot } = params;
   const pressure: TransitPressure = scene.primaryPressure;
-
-  const narrative = `${responseSummary(choice.patternTag)} ${pressure.transitBody} pressing on ${pressure.natalBody} through a ${pressure.aspectType} in house ${pressure.natalHouse} focuses ${pressure.pressureFamily} pressure in ${pressure.domain}, and your ${choice.posture} posture reshapes how that energy moves.`;
+  const domain = domainLabel(pressure.domain);
+  const narrative = `${responseSummary(choice.patternTag)} ${outcomeSentence(choice.outcomeDirection, pressure.domain)} The pressure remains active around ${domain}, and this posture changes what gets strengthened first.`;
 
   const symbolicMeaning = symbolicMeaningFor(pressure, choice.patternTag);
   const realWorldReflection = realWorldReflectionFor(pressure, choice.patternTag);
