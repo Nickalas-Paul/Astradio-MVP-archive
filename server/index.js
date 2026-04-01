@@ -1,6 +1,11 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const {
+  hasValidDebugAuth,
+  isPhase8DebugEnabled,
+  buildAuthorizedCampaignAuthFixture,
+} = require('./lib/debug-campaign-auth-fixture');
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -2277,7 +2282,7 @@ app.get('/api/debug/last-compose-path', (req, res) => {
 // Phase 8 debug helper: latest unified Campaign IDs for env wiring.
 // Disabled by default; only available when PHASE8_DEBUG=1.
 app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
-  if (process.env.PHASE8_DEBUG !== '1') {
+  if (!isPhase8DebugEnabled()) {
     return res.status(404).json({ error: 'not_found' });
   }
 
@@ -2324,7 +2329,7 @@ app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
 
 // Phase 8 debug-only: bootstrap real user + campaign + compat profile on engine (Render-only).
 app.get('/api/debug/phase8/create-test-user', async (req, res) => {
-  if (process.env.PHASE8_DEBUG !== '1') {
+  if (!isPhase8DebugEnabled()) {
     return res.status(404).json({ error: 'not_found' });
   }
   if (!process.env.POSTGRES_URL) {
@@ -2352,7 +2357,7 @@ app.get('/api/debug/phase8/create-test-user', async (req, res) => {
 
 // Phase 8 Stage 5: isolation verification — second deterministic test user (phase8_iso_user).
 app.get('/api/debug/phase8/create-iso-user', async (req, res) => {
-  if (process.env.PHASE8_DEBUG !== '1') {
+  if (!isPhase8DebugEnabled()) {
     return res.status(404).json({ error: 'not_found' });
   }
   if (!process.env.POSTGRES_URL) {
@@ -2372,6 +2377,38 @@ app.get('/api/debug/phase8/create-iso-user', async (req, res) => {
       return res.status(503).json({ error: 'schema_missing:user_profiles' });
     }
     return res.status(500).json({ error: msg });
+  }
+});
+
+app.get('/api/debug/phase8/campaign-auth/:campaignId', async (req, res) => {
+  if (!isPhase8DebugEnabled()) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  if (!hasValidDebugAuth(req)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  const campaignId = (req.params.campaignId || '').toString().trim();
+  if (!campaignId) {
+    return res.status(400).json({ error: 'invalid_request', message: 'campaignId required' });
+  }
+
+  try {
+    const campaign = await require('./../lib/pg-store').getStage5CampaignById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const payload = buildAuthorizedCampaignAuthFixture(campaign);
+    if (!payload) {
+      return res.status(500).json({ error: 'internal_error' });
+    }
+
+    return res.status(200).json(payload);
+  } catch (e) {
+    const msg = e && e.message ? e.message : 'Failed to read campaign auth fixture';
+    console.error('[api/debug/phase8/campaign-auth] error', msg);
+    return res.status(500).json({ error: 'internal_error' });
   }
 });
 
