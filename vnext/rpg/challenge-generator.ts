@@ -178,6 +178,51 @@ const BASE_POSTURE_SLATES: Record<ArchetypeId, ResponsePosture[]> = {
 };
 
 const POSTURE_PRIORITY: ResponsePosture[] = ['observe', 'assert', 'engage', 'withdraw', 'support', 'offer', 'reframe', 'contain'];
+const REGULATING_POSTURES = new Set<ResponsePosture>(['observe', 'withdraw', 'contain']);
+const DIRECTIONAL_POSTURES = new Set<ResponsePosture>(['assert', 'engage', 'offer']);
+
+function requiredDomainAnchor(domain: string): ResponsePosture {
+  switch (domain) {
+    case 'partnership':
+    case 'community':
+      return 'support';
+    case 'career':
+    case 'work':
+      return 'contain';
+    case 'subconscious':
+    case 'transformation':
+    case 'home':
+      return 'observe';
+    case 'communication':
+      return 'reframe';
+    case 'creativity':
+      return 'engage';
+    case 'assets':
+      return 'contain';
+    default:
+      return 'assert';
+  }
+}
+
+function hasRegulatingPosture(slate: ResponsePosture[]): boolean {
+  return slate.some((posture) => REGULATING_POSTURES.has(posture));
+}
+
+function hasDirectionalPosture(slate: ResponsePosture[]): boolean {
+  return slate.some((posture) => DIRECTIONAL_POSTURES.has(posture));
+}
+
+function supportReplacementLimit(supporting: TransitPressure[]): number {
+  if (supporting.length < 2) return supporting.length > 0 ? 1 : 0;
+  const [first, second] = supporting;
+  if (!first || !second) return 1;
+  const samePolarity = first.likelyShadowPattern === second.likelyShadowPattern;
+  const sameDomain = first.domain === second.domain;
+  const bothHighImpact =
+    (first.intensityBand === 'high' || first.intensityBand === 'critical') &&
+    (second.intensityBand === 'high' || second.intensityBand === 'critical');
+  return samePolarity && (sameDomain || bothHighImpact) ? 2 : 1;
+}
 
 function postureOutcomeDirection(posture: ResponsePosture): OutcomeDirection {
   switch (posture) {
@@ -342,10 +387,12 @@ function replaceLowestPriority(
   slate: ResponsePosture[],
   priorityOrder: ResponsePosture[],
   required: ResponsePosture,
+  locked: Set<ResponsePosture> = new Set(),
 ): ResponsePosture[] {
   if (slate.includes(required)) return slate;
   const replacementIndex = [...slate]
     .map((posture, index) => ({ posture, index }))
+    .filter((entry) => !locked.has(entry.posture))
     .sort(
       (a, b) =>
         priorityOrder.indexOf(b.posture) - priorityOrder.indexOf(a.posture) ||
@@ -364,20 +411,40 @@ function enforceDomainConstraints(
   domain: string,
 ): ResponsePosture[] {
   let next = [...slate];
-  if (domain === 'partnership' || domain === 'community') {
-    if (!next.includes('support') && !next.includes('offer')) {
-      next = replaceLowestPriority(next, priorityOrder, 'support');
-    }
-  } else if (domain === 'career' || domain === 'work') {
-    if (!next.includes('assert') && !next.includes('engage') && !next.includes('contain')) {
-      next = replaceLowestPriority(next, priorityOrder, 'contain');
-    }
-  } else if (domain === 'subconscious' || domain === 'transformation' || domain === 'home') {
-    if (!next.includes('observe') && !next.includes('withdraw') && !next.includes('contain') && !next.includes('reframe')) {
-      next = replaceLowestPriority(next, priorityOrder, 'observe');
-    }
-  }
+  const anchor = requiredDomainAnchor(domain);
+  next = replaceLowestPriority(next, priorityOrder, anchor);
+  if (!hasRegulatingPosture(next)) next = replaceLowestPriority(next, priorityOrder, 'observe', new Set([anchor]));
+  if (!hasDirectionalPosture(next)) next = replaceLowestPriority(next, priorityOrder, 'assert', new Set([anchor]));
   return next;
+}
+
+function postureFromSupport(
+  pressure: TransitPressure,
+  natalBodyModifier?: NatalBodyModifier,
+): ResponsePosture {
+  const polarity = String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  if (pressure.domain === 'partnership' || pressure.domain === 'community') {
+    if (polarity === 'constructive') return 'support';
+    if (polarity === 'frictional') return 'contain';
+  }
+  if (pressure.domain === 'career' || pressure.domain === 'work' || pressure.domain === 'assets') {
+    if (polarity === 'constructive') return 'engage';
+    return 'contain';
+  }
+  if (pressure.domain === 'home' || pressure.domain === 'subconscious' || pressure.domain === 'transformation') {
+    if (polarity === 'volatile') return 'withdraw';
+    return 'observe';
+  }
+  if (pressure.domain === 'communication' || pressure.domain === 'belief') {
+    if (polarity === 'constructive') return 'reframe';
+    return 'observe';
+  }
+  if (natalBodyModifier === 'relational' || natalBodyModifier === 'felt') return 'support';
+  if (natalBodyModifier === 'volitional' || natalBodyModifier === 'core') return 'assert';
+  if (natalBodyModifier === 'interpretive' || natalBodyModifier === 'expansive') return 'reframe';
+  if (natalBodyModifier === 'structural' || natalBodyModifier === 'depth') return 'contain';
+  if (natalBodyModifier === 'disruptive' || natalBodyModifier === 'diffuse') return 'withdraw';
+  return polarity === 'constructive' ? 'engage' : 'observe';
 }
 
 function buildChoice(posture: ResponsePosture): ChoiceOption {
@@ -402,10 +469,28 @@ function baseChoices(
   const baseSlate = [...(BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test)];
   let slate = addFifthPosture(baseSlate, challengeContext?.pressurePolarity, challengeContext?.intensityBand);
   slate = enforceDomainConstraints(slate, slate, pressure.domain);
-  for (const posture of supportingBiasPostures(supporting, challengeContext?.supportingNatalBodyModifiers)) {
-    slate = replaceLowestPriority(slate, slate, posture);
+  const anchor = requiredDomainAnchor(pressure.domain);
+  const supportBiases = supportingBiasPostures(supporting, challengeContext?.supportingNatalBodyModifiers);
+  const supportTargets = supporting
+    .map((entry, index) => postureFromSupport(entry, challengeContext?.supportingNatalBodyModifiers?.[index]))
+    .filter((posture, index, arr) => arr.indexOf(posture) === index);
+  const combinedSupportTargets = [...supportTargets, ...supportBiases].filter(
+    (posture, index, arr) => arr.indexOf(posture) === index,
+  );
+  const replacementLimit = supportReplacementLimit(supporting);
+  let replacements = 0;
+  for (const posture of combinedSupportTargets) {
+    if (replacements >= replacementLimit) break;
+    const nextSlate = replaceLowestPriority(slate, slate, posture, new Set([anchor]));
+    if (nextSlate.join('|') !== slate.join('|')) {
+      slate = nextSlate;
+      replacements += 1;
+    }
   }
   slate = Array.from(new Set(slate));
+  slate = enforceDomainConstraints(slate, slate, pressure.domain);
+  if (!hasRegulatingPosture(slate)) slate = replaceLowestPriority(slate, slate, 'observe', new Set([anchor]));
+  if (!hasDirectionalPosture(slate)) slate = replaceLowestPriority(slate, slate, 'assert', new Set([anchor]));
   return slate.slice(0, 5).map(buildChoice);
 }
 

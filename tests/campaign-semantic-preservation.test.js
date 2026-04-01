@@ -240,6 +240,135 @@ describe('campaign semantic preservation', () => {
     assert.strictEqual(materialized.challenge_archetype.primary_pressure_event_id, 'primary_consistent');
   });
 
+  it('keeps archetype domain family stable while differentiating body and aspect semantics', async () => {
+    const { materializeCampaignDaily } = await import('../dist/vnext/vnext/campaign/materialize-daily.js');
+
+    const baseState = { tone_track: { neutral: 1 }, domain_track: {}, chapter: 1, flags: [], history: [] };
+    const natalSnapshot = makeSnapshot('1990-01-01T12:00:00Z', 0);
+    const transitSnapshot = makeSnapshot('2026-04-01T12:00:00Z', 15);
+    const baseResolution = {
+      campaign_id: 'camp_semantic',
+      mode: 'solo',
+      date: '2026-04-01',
+      character_sheet_id: 'char_sheet_test',
+      state_hash_before: 'state_before',
+      trait_derivation_mode: 'phase1_synthetic_v1',
+      provenance: {
+        engine_version: 'campaign_phase1_v1',
+        rules_version: 'campaign_contract_v1',
+        transit_snapshot_hash: 'transit_hash',
+      },
+    };
+
+    const marsPrimary = makePressureEvent({
+      pressure_event_id: 'mars_primary',
+      transit_body: 'moon',
+      natal_body: 'mars',
+      natal_house: 7,
+      aspect_type: 'square',
+      pressure_polarity: 'frictional',
+      intensity_score: 0.81,
+      intensity_band: 'critical',
+      domain_id: 'partnership',
+    });
+    const venusPrimary = makePressureEvent({
+      pressure_event_id: 'venus_primary',
+      transit_body: 'venus',
+      natal_body: 'venus',
+      natal_house: 7,
+      aspect_type: 'trine',
+      pressure_polarity: 'constructive',
+      pressure_family: 'value',
+      intensity_score: 0.51,
+      intensity_band: 'moderate',
+      domain_id: 'partnership',
+    });
+    const marsTrinePrimary = makePressureEvent({
+      pressure_event_id: 'mars_trine_primary',
+      transit_body: 'moon',
+      natal_body: 'mars',
+      natal_house: 7,
+      aspect_type: 'trine',
+      pressure_polarity: 'constructive',
+      pressure_family: 'value',
+      intensity_score: 0.49,
+      intensity_band: 'moderate',
+      domain_id: 'partnership',
+    });
+
+    const buildResolution = (primary) => ({
+      ...baseResolution,
+      pressure_events: [primary],
+      daily_pressure_state: {
+        daily_pressure_state_id: `daily_${primary.pressure_event_id}`,
+        campaign_id: 'camp_semantic',
+        mode: 'solo',
+        date: '2026-04-01',
+        primary_pressure_event_id: primary.pressure_event_id,
+        primary_transit_body: primary.transit_body,
+        primary_natal_body: primary.natal_body,
+        primary_natal_house: primary.natal_house,
+        primary_aspect_type: primary.aspect_type,
+        primary_pressure_family: primary.pressure_family,
+        primary_pressure_polarity: primary.pressure_polarity,
+        primary_domain_id: primary.domain_id,
+        primary_intensity_score: primary.intensity_score,
+        primary_intensity_band: primary.intensity_band,
+        supporting_pressures: [],
+        interaction_type: 'none',
+        activated_trait_ids: primary.activated_trait_ids,
+        identity_modifier_ids: primary.identity_modifier_ids,
+        mechanic_tags: primary.mechanic_tags,
+        carryover_bias: 0,
+        uncertainty_modifier: 0,
+        event_count: 1,
+        eligible_event_count: 1,
+        ranking_trace: {
+          candidate_pressure_event_ids: [primary.pressure_event_id],
+          filtered_out_event_ids: [],
+          merged_cluster_ids: [],
+          tie_break_rule_applied: 'none',
+        },
+        provenance: {
+          pressure_event_set_hash: `set_${primary.pressure_event_id}`,
+          engine_version: 'campaign_phase1_v1',
+          rules_version: 'campaign_contract_v1',
+        },
+      },
+    });
+
+    const marsMaterialized = await materializeCampaignDaily({
+      resolution: buildResolution(marsPrimary),
+      state: baseState,
+      natalSnapshot,
+      transitSnapshot,
+    });
+    const venusMaterialized = await materializeCampaignDaily({
+      resolution: buildResolution(venusPrimary),
+      state: baseState,
+      natalSnapshot,
+      transitSnapshot,
+    });
+    const marsTrineMaterialized = await materializeCampaignDaily({
+      resolution: buildResolution(marsTrinePrimary),
+      state: baseState,
+      natalSnapshot,
+      transitSnapshot,
+    });
+
+    assert.strictEqual(marsMaterialized.challenge_archetype.archetype_id, 'bond_friction');
+    assert.strictEqual(venusMaterialized.challenge_archetype.archetype_id, 'bond_repair');
+    assert.strictEqual(marsTrineMaterialized.challenge_archetype.archetype_id, 'bond_repair');
+    assert.notDeepStrictEqual(
+      marsMaterialized.response_paths.map((path) => path.posture),
+      venusMaterialized.response_paths.map((path) => path.posture),
+    );
+    assert.notDeepStrictEqual(
+      marsMaterialized.response_paths.map((path) => path.posture),
+      marsTrineMaterialized.response_paths.map((path) => path.posture),
+    );
+  });
+
   it('produces different downstream behavior for house, natal-body, aspect, and support changes while remaining deterministic', async () => {
     const { buildChallengeScene } = await import('../dist/vnext/vnext/rpg/challenge-generator.js');
 
@@ -404,6 +533,114 @@ describe('campaign semantic preservation', () => {
     );
   });
 
+  it('keeps support influence bounded and preserves posture coverage', async () => {
+    const { buildChallengeScene } = await import('../dist/vnext/vnext/rpg/challenge-generator.js');
+
+    const character = {
+      id: 'char',
+      classSlug: 'class_test',
+      subclassSlug: 'subclass_test',
+      risingModifierSlug: 'rising_test',
+      primaryElement: 'fire',
+      tonalPolarity: 'balanced',
+      motionProfile: 'steady',
+      gravityProfile: 'grounded',
+      luminaryWeight: 'balanced',
+      dominantPlanets: ['sun'],
+      angularEmphasis: { first: true, fourth: false, seventh: true, tenth: false },
+      temperament: {
+        will: 0.5,
+        insight: 0.5,
+        attunement: 0.5,
+        courage: 0.5,
+        discipline: 0.5,
+        adaptability: 0.5,
+        bond: 0.5,
+        shadowCapacity: 0.5,
+        radiance: 0.5,
+      },
+      signatureDomains: [{ domain: 'partnership', weight: 1 }],
+    };
+    const state = { tone_track: { neutral: 1 }, domain_track: {}, chapter: 1, flags: [], history: [] };
+    const natalSnapshot = makeSnapshot('1990-01-01T12:00:00Z', 0);
+    const transitSnapshot = makeSnapshot('2026-04-01T12:00:00Z', 15);
+    const semanticCore = await buildSemanticCore(natalSnapshot);
+
+    const scene = buildChallengeScene({
+      character,
+      pressures: [
+        {
+          id: 'primary',
+          transitBody: 'moon',
+          natalBody: 'mars',
+          natalHouse: 7,
+          aspectType: 'square',
+          domain: 'partnership',
+          pressureFamily: 'emotional',
+          type: 'conflict',
+          intensity: 0.8,
+          intensityBand: 'high',
+          lifeArea: 'relationships',
+          likelyShadowPattern: 'phase1_shadow:frictional',
+          growthPath: 'phase1_growth:none',
+          contributingDomains: [],
+        },
+        {
+          id: 'support_1',
+          transitBody: 'venus',
+          natalBody: 'venus',
+          natalHouse: 11,
+          aspectType: 'trine',
+          domain: 'community',
+          pressureFamily: 'value',
+          type: 'invitation',
+          intensity: 0.76,
+          intensityBand: 'high',
+          lifeArea: 'community',
+          likelyShadowPattern: 'phase1_shadow:constructive',
+          growthPath: 'phase1_growth:none',
+          contributingDomains: [],
+        },
+        {
+          id: 'support_2',
+          transitBody: 'jupiter',
+          natalBody: 'moon',
+          natalHouse: 11,
+          aspectType: 'trine',
+          domain: 'community',
+          pressureFamily: 'expansion',
+          type: 'invitation',
+          intensity: 0.77,
+          intensityBand: 'high',
+          lifeArea: 'community',
+          likelyShadowPattern: 'phase1_shadow:constructive',
+          growthPath: 'phase1_growth:none',
+          contributingDomains: [],
+        },
+      ],
+      state,
+      semanticCore,
+      natalSnapshot,
+      transitSnapshot,
+      challengeContext: {
+        archetypeCategory: 'bond_friction',
+        archetypeId: 'bond_friction',
+        pressurePolarity: 'frictional',
+        intensityBand: 'high',
+        natalBodyModifier: 'volitional',
+        supportingNatalBodyModifiers: ['relational', 'felt'],
+      },
+    });
+
+    assert.ok(scene);
+    const postures = scene.choices.map((choice) => choice.posture);
+    assert.ok(postures.length >= 4 && postures.length <= 5);
+    assert.strictEqual(new Set(postures).size, postures.length);
+    assert.ok(postures.includes('support'));
+    assert.ok(postures.some((posture) => ['observe', 'withdraw', 'contain'].includes(posture)));
+    assert.ok(postures.some((posture) => ['assert', 'engage', 'offer'].includes(posture)));
+  });
+
   it('records semantic provenance in flags and history without changing state shape', async () => {
     const { applyOutcome } = await import('../dist/vnext/vnext/rpg/campaign/state-machine.js');
 
@@ -428,11 +665,47 @@ describe('campaign semantic preservation', () => {
     assert.ok(next.flags.includes('natal_body:mars'));
     assert.ok(next.flags.includes('natal_house:7'));
     assert.ok(next.flags.includes('aspect_type:square'));
+    assert.ok(next.flags.includes('tone:ambiguity'));
+    assert.ok(next.flags.includes('climate:observe_hold'));
     assert.ok(next.history.some((entry) => entry === 'hs:moon:mars:7:square'));
+    assert.ok(next.history.some((entry) => entry === 'hc:observe_hold:ambiguity'));
+    assert.ok(next.members.chart_a.history.length <= 8);
+    assert.ok(next.history.length <= 10);
     assert.ok(Object.prototype.hasOwnProperty.call(next, 'tone_track'));
     assert.ok(Object.prototype.hasOwnProperty.call(next, 'domain_track'));
     assert.ok(Object.prototype.hasOwnProperty.call(next, 'flags'));
     assert.ok(Object.prototype.hasOwnProperty.call(next, 'history'));
     assert.ok(!Object.prototype.hasOwnProperty.call(next, 'semantic_provenance'));
+  });
+
+  it('keeps patch vocabulary bounded and adds momentum only for engage outcomes', async () => {
+    const { applyOutcome } = await import('../dist/vnext/vnext/rpg/campaign/state-machine.js');
+
+    const engaged = applyOutcome(
+      { tone_track: { neutral: 1 }, domain_track: {}, chapter: 1, flags: [], history: [] },
+      {
+        turn_id: 'camp:2026-04-01:chart_a',
+        choice_id: 'push_forward',
+        outcome_patch_id: 'patch_engage_advance_career',
+        actor_chart_id: 'chart_a',
+      },
+    );
+    const observed = applyOutcome(
+      { tone_track: { neutral: 1 }, domain_track: {}, chapter: 1, flags: [], history: [] },
+      {
+        turn_id: 'camp:2026-04-01:chart_a',
+        choice_id: 'pause_observe',
+        outcome_patch_id: 'patch_observe_hold_career',
+        actor_chart_id: 'chart_a',
+      },
+    );
+
+    const engagedKeys = Object.keys(engaged.domain_track);
+    const observedKeys = Object.keys(observed.domain_track);
+    assert.ok(engagedKeys.includes('domain:career:momentum'));
+    assert.ok(!observedKeys.includes('domain:career:momentum'));
+    for (const key of engagedKeys.concat(observedKeys)) {
+      assert.match(key, /^domain:[a-z_]+:(pressure|clarity|agency|boundary|trust|repair|integration|momentum)$/);
+    }
   });
 });

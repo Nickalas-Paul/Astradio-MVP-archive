@@ -115,6 +115,7 @@ function applyPatchMutation(
       break;
     case 'engage_advance':
       bump(`domain:${domain}:agency`);
+      bump(`domain:${domain}:momentum`);
       break;
     case 'observe_hold':
     case 'legacy_defer':
@@ -163,19 +164,22 @@ function applyHistoryMutation(
   target: { history?: string[] },
   patch: string,
   outcome: RpgOutcome,
+  maxEntries = 10,
+  memberScoped = false,
 ) {
   if (!target.history) return;
   const { direction, domain } = parsePatch(patch);
   const archetypeId = outcome.archetype_id ?? 'identity_test';
-  target.history.push(`h:${archetypeId}:${direction}:${domain}`);
+  target.history.push(memberScoped ? `hm:${direction}:${domain}` : `h:${archetypeId}:${direction}:${domain}`);
+  target.history.push(memberScoped ? `hc:${direction}` : `hc:${direction}:${directionTone(direction)}`);
   if (outcome.natal_body || outcome.natal_house || outcome.aspect_type || outcome.transit_body) {
     const transit = outcome.transit_body ?? 'unknown';
     const natal = outcome.natal_body ?? 'unknown';
     const house = typeof outcome.natal_house === 'number' ? String(outcome.natal_house) : 'unknown';
     const aspect = outcome.aspect_type ?? 'unknown';
-    target.history.push(`hs:${transit}:${natal}:${house}:${aspect}`);
+    target.history.push(memberScoped ? `hmb:${natal}:${aspect}` : `hs:${transit}:${natal}:${house}:${aspect}`);
   }
-  while (target.history.length > 10) {
+  while (target.history.length > maxEntries) {
     target.history.shift();
   }
 }
@@ -190,7 +194,10 @@ function applyFlagMutation(
   uniqueFlags.push(`outcome:${direction}`);
   if (outcome.archetype_id) uniqueFlags.push(`archetype:${outcome.archetype_id}`);
   uniqueFlags.push(`domain:${domain}`);
+  uniqueFlags.push(`tone:${directionTone(direction)}`);
+  uniqueFlags.push(`climate:${direction}`);
   if (outcome.pressure_polarity) uniqueFlags.push(`polarity:${outcome.pressure_polarity}`);
+  if (outcome.intensity_band) uniqueFlags.push(`intensity:${outcome.intensity_band}`);
   if (outcome.transit_body) uniqueFlags.push(`transit_body:${outcome.transit_body}`);
   if (outcome.natal_body) uniqueFlags.push(`natal_body:${outcome.natal_body}`);
   if (typeof outcome.natal_house === 'number') uniqueFlags.push(`natal_house:${outcome.natal_house}`);
@@ -245,7 +252,7 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
   const patch = outcome.outcome_patch_id || 'generic';
   applyPatchMutation(next, patch);
   applyToneMutation(next, patch, outcome);
-  applyHistoryMutation(next, patch, outcome);
+  applyHistoryMutation(next, patch, outcome, 10, false);
 
   next.chapter = state.chapter + 1;
   applyFlagMutation(next, patch, outcome);
@@ -268,7 +275,7 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
         };
     applyPatchMutation(memberState, patch);
     applyToneMutation(memberState, patch, outcome);
-    applyHistoryMutation(memberState, patch, outcome);
+    applyHistoryMutation(memberState, patch, outcome, 8, true);
     applyFlagMutation(memberState, patch, outcome);
     next.members = {
       ...nextMembers,

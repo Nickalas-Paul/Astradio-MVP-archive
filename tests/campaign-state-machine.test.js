@@ -26,14 +26,16 @@ describe('campaign state-machine attribution', () => {
     });
 
     assert.strictEqual(next.chapter, 2);
-    assert.strictEqual(next.domain_track.identity_heat, 0.2);
-    assert.strictEqual(next.tone_track.conflict, 0.5);
-    assert.ok(next.flags.includes('seen:patch_increase_identity_resolve'));
+    assert.strictEqual(next.domain_track['domain:self:clarity'], 0.2);
+    assert.strictEqual(next.domain_track['domain:self:agency'], 0.2);
+    assert.strictEqual(next.tone_track.clarity, 1);
+    assert.ok(next.flags.includes('outcome:legacy_identity'));
     assert.ok(next.members);
     assert.deepStrictEqual(Object.keys(next.members), ['chart_a']);
-    assert.strictEqual(next.members.chart_a.domain_track.identity_heat, 0.2);
-    assert.strictEqual(next.members.chart_a.tone_track.conflict, 0.5);
-    assert.ok(next.members.chart_a.flags.includes('seen:patch_increase_identity_resolve'));
+    assert.strictEqual(next.members.chart_a.domain_track['domain:self:clarity'], 0.2);
+    assert.strictEqual(next.members.chart_a.domain_track['domain:self:agency'], 0.2);
+    assert.strictEqual(next.members.chart_a.tone_track.clarity, 1);
+    assert.ok(next.members.chart_a.flags.includes('outcome:legacy_identity'));
   });
 
   it('applies bounded domain-aware patch directions without introducing a second mutation path', async () => {
@@ -59,7 +61,7 @@ describe('campaign state-machine attribution', () => {
     assert.strictEqual(next.domain_track['domain:partnership:clarity'], 0.2);
     assert.strictEqual(next.domain_track['domain:partnership:agency'], 0.2);
     assert.strictEqual(next.domain_track['domain:partnership:pressure'], 0.1);
-    assert.ok(next.flags.includes('direction:assert_define'));
+    assert.ok(next.flags.includes('outcome:assert_define'));
     assert.ok(next.flags.includes('domain:partnership'));
     assert.strictEqual(next.members.chart_a.domain_track['domain:partnership:clarity'], 0.2);
   });

@@ -154,48 +154,69 @@ function isAngularHouse(house: PressureEvent['natal_house']): boolean {
   return house === 1 || house === 4 || house === 7 || house === 10;
 }
 
-function primarySemanticWeight(primary: PressureEvent): number {
-  let weight = 0;
-  if (primary.intensity_band === 'high' || primary.intensity_band === 'critical') weight += 1;
-  if (isAngularHouse(primary.natal_house)) weight += 1;
+function archetypeEdgeScore(primary: PressureEvent, supporting: PressureEvent[]): number {
+  let score = 0;
+  if (primary.pressure_polarity === 'frictional' || primary.pressure_polarity === 'volatile') score += 1;
+  if (primary.intensity_band === 'high' || primary.intensity_band === 'critical') score += 1;
+  if (primary.aspect_type === 'square' || primary.aspect_type === 'opposition') score += 1;
+  if (
+    primary.pressure_family === 'transformation' ||
+    primary.pressure_family === 'dissolution' ||
+    primary.pressure_family === 'wound' ||
+    primary.pressure_family === 'constraint'
+  ) {
+    score += 1;
+  }
+  if (isAngularHouse(primary.natal_house)) score += 1;
 
-  const modifier = natalBodyModifier(primary.natal_body);
-  if (modifier === 'volitional' || modifier === 'structural' || modifier === 'disruptive' || modifier === 'depth') {
-    weight += 1;
+  const reinforcingSupports = supporting.filter(
+    (event) =>
+      event.domain_id === primary.domain_id &&
+      (event.pressure_polarity === 'frictional' ||
+        event.pressure_polarity === 'volatile' ||
+        event.intensity_band === 'high' ||
+        event.intensity_band === 'critical' ||
+        event.aspect_type === 'square' ||
+        event.aspect_type === 'opposition' ||
+        event.pressure_family === 'transformation' ||
+        event.pressure_family === 'dissolution' ||
+        event.pressure_family === 'wound' ||
+        event.pressure_family === 'constraint')
+  );
+  if (reinforcingSupports.length >= 2) {
+    score += 1;
+  } else if (
+    reinforcingSupports.length === 1 &&
+    (primary.pressure_polarity === reinforcingSupports[0]!.pressure_polarity ||
+      primary.pressure_family === reinforcingSupports[0]!.pressure_family)
+  ) {
+    score += 1;
   }
 
-  if (primary.aspect_type === 'square' || primary.aspect_type === 'opposition') weight += 1;
-  if (primary.pressure_polarity === 'frictional' || primary.pressure_polarity === 'volatile') weight += 1;
-  return weight;
+  return score;
 }
 
-function isHeavyArchetype(primary: PressureEvent): boolean {
-  if (primary.pressure_family === 'wound' || primary.pressure_family === 'transformation' || primary.pressure_family === 'dissolution') {
-    return true;
-  }
-  return primarySemanticWeight(primary) >= 2;
-}
-
-function buildArchetypeId(primary: PressureEvent): ArchetypeId {
-  const heavy = isHeavyArchetype(primary);
+function buildArchetypeId(primary: PressureEvent, supporting: PressureEvent[]): ArchetypeId {
+  const edgeScore = archetypeEdgeScore(primary, supporting);
+  const pressureSide = edgeScore >= 3;
   switch (primary.domain_id) {
     case 'self':
-      return heavy ? 'identity_test' : 'identity_definition';
+      return pressureSide ? 'identity_test' : 'identity_definition';
     case 'assets':
-      return heavy ? 'resource_strain' : 'resource_opportunity';
+      return pressureSide ? 'resource_strain' : 'resource_opportunity';
     case 'communication':
-      return heavy ? 'signal_friction' : 'signal_reframe';
+      return pressureSide ? 'signal_friction' : 'signal_reframe';
     case 'home':
     case 'subconscious':
-      return heavy ? 'foundation_pressure' : 'foundation_repair';
+      return pressureSide ? 'foundation_pressure' : 'foundation_repair';
     case 'creativity':
-      return heavy ? 'creative_risk' : 'creative_devotion';
+      return pressureSide ? 'creative_risk' : 'creative_devotion';
     case 'work':
     case 'career':
-      return heavy ? 'duty_pressure' : 'duty_alignment';
+      return pressureSide ? 'duty_pressure' : 'duty_alignment';
     case 'partnership':
     case 'community':
-      return heavy ? 'bond_friction' : 'bond_repair';
+      return pressureSide ? 'bond_friction' : 'bond_repair';
     case 'transformation':
       return 'threshold_reckoning';
     case 'belief':
@@ -301,6 +322,7 @@ export async function materializeCampaignDaily(params: {
     dominantPlanetNames: canonicalReport.participants[0]?.dominant_planet_names ?? [],
     effectsBundle: bundle,
   });
+  const archetypeId = buildArchetypeId(primary, supporting);
 
   const scene = buildChallengeScene({
     character,
@@ -310,8 +332,8 @@ export async function materializeCampaignDaily(params: {
     natalSnapshot,
     transitSnapshot,
     challengeContext: {
-      archetypeCategory: buildArchetypeId(primary),
-      archetypeId: buildArchetypeId(primary),
+      archetypeCategory: archetypeId,
+      archetypeId,
       interactionType: dailyState.interaction_type,
       intensityBand: dailyState.primary_intensity_band,
       pressurePolarity: dailyState.primary_pressure_polarity,
@@ -327,7 +349,7 @@ export async function materializeCampaignDaily(params: {
 
   const challengeArchetype: ChallengeArchetype = {
     id: `challenge_${dailyState.daily_pressure_state_id}`,
-    archetype_id: buildArchetypeId(primary),
+    archetype_id: archetypeId,
     natal_body_modifier: natalBodyModifier(primary.natal_body),
     daily_pressure_state_id: dailyState.daily_pressure_state_id,
     primary_pressure_event_id: dailyState.primary_pressure_event_id,
@@ -341,7 +363,7 @@ export async function materializeCampaignDaily(params: {
     primary_intensity_score: dailyState.primary_intensity_score,
     interaction_type: dailyState.interaction_type,
     event_count: dailyState.event_count,
-    archetype_category: buildArchetypeId(primary),
+    archetype_category: archetypeId,
     supporting_domain_pattern: supporting.map((event) => event.domain_id),
     supporting_family_pattern: supporting.map((event) => event.pressure_family),
     supporting_member_chart_ids: supporting
