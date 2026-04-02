@@ -76,6 +76,11 @@ export interface Comparison {
   exportJobId?: string;
   createdAt: string;
   createdBy?: string;
+  compatibilityFieldHash?: string;
+  compatibilityRecord?: import('../compatibility/contracts').PersistedCompatibilityRecord;
+  compatibilityField?: import('../compatibility/contracts').CanonicalRelationalFieldObject;
+  scoring?: import('../compatibility/contracts').RelationalFieldScoreContract;
+  classification?: import('../compatibility/contracts').CompatibilityClassification;
 }
 
 /** Inline chart B when not persisted */

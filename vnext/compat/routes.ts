@@ -14,6 +14,7 @@ import { createGroupProfile, type GroupsProfileRequest } from '../api/community-
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
 import type { ChartBInline, Comparison } from './types';
+import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 
 const express = require('express') as typeof import('express');
 const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
@@ -58,6 +59,26 @@ function isFusionParams(value: unknown): value is { wA: number; wB: number } {
     Number.isFinite(candidate.wA) &&
     Number.isFinite(candidate.wB)
   );
+}
+
+function parseTransitInput(value: unknown): { date: string; time: string; lat: number; lon: number; timezone?: string } | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.date !== 'string' ||
+    typeof candidate.time !== 'string' ||
+    typeof candidate.lat !== 'number' ||
+    typeof candidate.lon !== 'number'
+  ) {
+    return undefined;
+  }
+  return {
+    date: candidate.date.slice(0, 10),
+    time: candidate.time.slice(0, 5),
+    lat: candidate.lat,
+    lon: candidate.lon,
+    timezone: typeof candidate.timezone === 'string' ? candidate.timezone : undefined,
+  };
 }
 
 const COMPAT_RESPONSE_VERSION = 'v1';
@@ -107,6 +128,70 @@ export function createCompatRouter(): import('express').Router {
       synastry: 'disabled',
       matchesMock,
     });
+  });
+
+  router.post('/compatibility/field', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const chartIds = Array.isArray(req.body?.chartIds) ? req.body.chartIds.filter((v: unknown): v is string => typeof v === 'string' && !!v.trim()) : [];
+      if (chartIds.length < 2) {
+        return res.status(400).json({ error: 'chartIds array with at least two chart ids required' });
+      }
+      const transitInput = parseTransitInput(req.body?.transit);
+      const field = await computeCompatibilityFieldOnly({
+        chartIds,
+        relationshipBindingId: typeof req.body?.relationshipBindingId === 'string' ? req.body.relationshipBindingId : null,
+        transitInput,
+      });
+      return res.status(200).json(field);
+    } catch (e: any) {
+      console.error('[compat] POST /compatibility/field', e);
+      return res.status(500).json({ error: e?.message || 'Failed to build compatibility field' });
+    }
+  });
+
+  router.post('/compatibility/score', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const chartIds = Array.isArray(req.body?.chartIds) ? req.body.chartIds.filter((v: unknown): v is string => typeof v === 'string' && !!v.trim()) : [];
+      if (chartIds.length < 2) {
+        return res.status(400).json({ error: 'chartIds array with at least two chart ids required' });
+      }
+      const transitInput = parseTransitInput(req.body?.transit);
+      const result = await computeCompatibilitySystem({
+        chartIds,
+        relationshipBindingId: typeof req.body?.relationshipBindingId === 'string' ? req.body.relationshipBindingId : null,
+        transitInput,
+      });
+      return res.status(200).json({
+        compatibility_field_hash: result.field.object_identity_hash,
+        scoring: result.scoring,
+      });
+    } catch (e: any) {
+      console.error('[compat] POST /compatibility/score', e);
+      return res.status(500).json({ error: e?.message || 'Failed to score compatibility field' });
+    }
+  });
+
+  router.post('/compatibility/classify', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const chartIds = Array.isArray(req.body?.chartIds) ? req.body.chartIds.filter((v: unknown): v is string => typeof v === 'string' && !!v.trim()) : [];
+      if (chartIds.length < 2) {
+        return res.status(400).json({ error: 'chartIds array with at least two chart ids required' });
+      }
+      const transitInput = parseTransitInput(req.body?.transit);
+      const result = await computeCompatibilitySystem({
+        chartIds,
+        relationshipBindingId: typeof req.body?.relationshipBindingId === 'string' ? req.body.relationshipBindingId : null,
+        transitInput,
+      });
+      return res.status(200).json({
+        compatibility_field_hash: result.field.object_identity_hash,
+        scoring: result.scoring,
+        classification: result.classification,
+      });
+    } catch (e: any) {
+      console.error('[compat] POST /compatibility/classify', e);
+      return res.status(500).json({ error: e?.message || 'Failed to classify compatibility field' });
+    }
   });
 
   // GET /api/compat/matches?chartId=...&mode=friend|lover|rival&limit=...&cursor=... (cursor optional, stubbed for paging)

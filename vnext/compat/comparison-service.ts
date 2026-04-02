@@ -13,6 +13,7 @@ import type { Chart, ChartBInline, Comparison, CompatibilityTextStructured, Rela
 import { FUSION_METHOD_BLEND_V1 } from './types';
 import type { ExpansionTier } from '../projection/projection-types';
 import * as crypto from 'crypto';
+import { computeCompatibilitySystem } from '../compatibility/service';
 
 const COMPOSE_SKIPPED_SENTINEL = '__compose_skipped__';
 
@@ -102,6 +103,10 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
   const payload = controlPayloadFromSeed(seed);
 
   const genCompose = input.generateComposition !== false;
+  const compatibility = await computeCompatibilitySystem({
+    chartIds: [chartA.id, chartB.id],
+    relationshipBindingId: null,
+  });
 
   if (!genCompose) {
     const compatText: CompatibilityTextStructured = { short: '', long: '', bullets: [] };
@@ -124,6 +129,11 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
       planHash: COMPOSE_SKIPPED_SENTINEL,
       compositionId: COMPOSE_SKIPPED_SENTINEL,
       createdBy: input.createdBy,
+      compatibilityFieldHash: compatibility.field.object_identity_hash,
+      compatibilityRecord: compatibility.record,
+      compatibilityField: compatibility.field,
+      scoring: compatibility.scoring,
+      classification: compatibility.classification,
     });
     return {
       comparison,
@@ -174,6 +184,11 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     planHash: result.planHash,
     compositionId: result.planHash,
     createdBy: input.createdBy,
+    compatibilityFieldHash: compatibility.field.object_identity_hash,
+    compatibilityRecord: compatibility.record,
+    compatibilityField: compatibility.field,
+    scoring: compatibility.scoring,
+    classification: compatibility.classification,
   });
 
   return {

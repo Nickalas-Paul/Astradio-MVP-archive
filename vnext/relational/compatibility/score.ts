@@ -1,21 +1,6 @@
-/**
- * Phase 5 — Intent-weighted 1:1 compatibility scoring.
- * Uses stored vectors only. No generateArchitecture. Deterministic.
- * Facet math matches vnext/compat/matches.ts (duplicated for isolation).
- * Element dims: vnext/relational/constants.ts (authoritative: feature-encode.ts indices 27-30).
- */
-
-import * as crypto from 'crypto';
-import {
-  FEATURE_ELEMENT_INDICES,
-  FEATURE_TENSION_INDEX,
-} from '../constants';
+import crypto from 'crypto';
+import { computeCompatibilitySystem } from '../../compatibility/service';
 import type { IntentProfile } from '../intent-profiles';
-import { getIntentProfileById, getIntentProfileBySlug } from '../intent-profiles';
-
-// Path from compiled dist/vnext/vnext/relational/compatibility/ -> repo root lib (5 levels up)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const vectorStore = require('../../../../../lib/vector-store');
 
 export interface FacetBreakdown {
   overall: number;
@@ -24,79 +9,6 @@ export interface FacetBreakdown {
   preference: number;
 }
 
-/** Deterministic: cosine similarity in 64-D. Same inputs => same score. */
-function cosineSimilarity(a: Float32Array | number[], b: Float32Array | number[]): number {
-  const n = Math.min(a.length, b.length, 64);
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < n; i++) {
-    const x = typeof a[i] === 'number' ? (a[i] as number) : 0;
-    const y = typeof b[i] === 'number' ? (b[i] as number) : 0;
-    dot += x * y;
-    normA += x * x;
-    normB += y * y;
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  if (denom <= 0) return 0;
-  const raw = dot / denom;
-  return Math.max(0, Math.min(1, (raw + 1) / 2));
-}
-
-/**
- * Compute facet breakdown. Same math as vnext/compat/matches.ts facetScores.
- */
-export function computeFacetBreakdown(
-  vecA: Float32Array | number[],
-  vecB: Float32Array | number[]
-): FacetBreakdown {
-  const n = Math.min(vecA.length, vecB.length, 64);
-  const a = vecA;
-  const b = vecB;
-  const elStart = FEATURE_ELEMENT_INDICES[0];
-  const elEnd = FEATURE_ELEMENT_INDICES[FEATURE_ELEMENT_INDICES.length - 1] + 1;
-  const elemental =
-    n >= elEnd
-      ? cosineSimilarity(
-          (a as number[]).slice(elStart, elEnd),
-          (b as number[]).slice(elStart, elEnd)
-        )
-      : 0.5;
-  const tension =
-    n > FEATURE_TENSION_INDEX
-      ? (Math.abs((a[FEATURE_TENSION_INDEX] ?? 0) - (b[FEATURE_TENSION_INDEX] ?? 0)) < 0.3 ? 0.8 : 0.5)
-      : 0.5;
-  const preference =
-    n >= 48
-      ? cosineSimilarity((a as number[]).slice(44, 48), (b as number[]).slice(44, 48))
-      : 0.5;
-  const overall = cosineSimilarity(a, b);
-  return { overall, elemental, tension, preference };
-}
-
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-
-/**
- * Score two vectors using intent profile weights.
- * score = weighted sum of facet scores; weights from profile.facet_weights.
- */
-export function scoreWithIntent(
-  vecA: Float32Array | number[],
-  vecB: Float32Array | number[],
-  profile: IntentProfile
-): { score: number; facets: FacetBreakdown } {
-  const facets = computeFacetBreakdown(vecA, vecB);
-  const { facet_weights } = profile;
-  const raw =
-    facets.overall * facet_weights.overall +
-    facets.elemental * facet_weights.elemental +
-    facets.tension * facet_weights.tension +
-    facets.preference * facet_weights.preference;
-  const score = clamp01(raw);
-  return { score, facets };
-}
-
-/** Stable hash of vector for provenance. Deterministic. */
 export function hashVector64(vec: Float32Array | number[]): string {
   const arr = vec.length >= 64 ? vec : new Array(64).fill(0);
   const str = Array.from(arr)
@@ -118,45 +30,83 @@ export interface IntentScoringResult {
   vector_hash_b: string;
 }
 
-/**
- * Score two charts by intent. Uses stored vectors only. Fail-closed if either missing.
- */
+function cosineSimilarity(a: Float32Array | number[], b: Float32Array | number[]): number {
+  const n = Math.min(a.length, b.length, 64);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < n; i++) {
+    const x = typeof a[i] === 'number' ? (a[i] as number) : 0;
+    const y = typeof b[i] === 'number' ? (b[i] as number) : 0;
+    dot += x * y;
+    normA += x * x;
+    normB += y * y;
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denom <= 0) return 0;
+  return Math.max(0, Math.min(1, (dot / denom + 1) / 2));
+}
+
+export function computeFacetBreakdown(
+  vecA: Float32Array | number[],
+  vecB: Float32Array | number[]
+): FacetBreakdown {
+  return {
+    overall: cosineSimilarity(vecA, vecB),
+    elemental: cosineSimilarity((vecA as number[]).slice(27, 31), (vecB as number[]).slice(27, 31)),
+    tension: Math.abs(((vecA as number[])[32] ?? 0) - ((vecB as number[])[32] ?? 0)) < 0.3 ? 0.8 : 0.5,
+    preference: cosineSimilarity((vecA as number[]).slice(44, 48), (vecB as number[]).slice(44, 48)),
+  };
+}
+
+export function scoreWithIntent(
+  vecA: Float32Array | number[],
+  vecB: Float32Array | number[],
+  profile: IntentProfile
+): { score: number; facets: FacetBreakdown } {
+  const facets = computeFacetBreakdown(vecA, vecB);
+  const raw =
+    facets.overall * profile.facet_weights.overall +
+    facets.elemental * profile.facet_weights.elemental +
+    facets.tension * profile.facet_weights.tension +
+    facets.preference * profile.facet_weights.preference;
+  return { score: Math.max(0, Math.min(1, raw)), facets };
+}
+
+function scoreByIntentProfileSlug(slug: string, scoring: Awaited<ReturnType<typeof computeCompatibilitySystem>>['scoring']): number {
+  const cohesion = scoring.derived_indices.cohesion_index;
+  const tension = scoring.derived_indices.tension_index;
+  const transformation = scoring.derived_indices.transformation_index;
+  const stability = scoring.derived_indices.stability_index;
+  if (slug.includes('rival')) return Math.max(0, Math.min(1, tension * 0.45 + transformation * 0.3 + scoring.scalar_outputs.overall_relational_intensity * 0.25));
+  if (slug.includes('lover') || slug.includes('dating')) return Math.max(0, Math.min(1, cohesion * 0.35 + transformation * 0.4 + stability * 0.25));
+  return Math.max(0, Math.min(1, cohesion * 0.4 + stability * 0.35 + scoring.scalar_outputs.overall_relational_intensity * 0.25));
+}
+
 export async function scoreChartsByIntent(
   chartIdA: string,
   chartIdB: string,
   intentProfileIdOrSlug: string
 ): Promise<IntentScoringResult> {
-  const vecRowA = await vectorStore.getChartVector(chartIdA);
-  if (!vecRowA) {
-    throw new Error(`Vector not found for chart ${chartIdA}; run vector population first`);
-  }
-  const vecRowB = await vectorStore.getChartVector(chartIdB);
-  if (!vecRowB) {
-    throw new Error(`Vector not found for chart ${chartIdB}; run vector population first`);
-  }
-
-  const profile = intentProfileIdOrSlug.startsWith('intent_')
-    ? getIntentProfileById(intentProfileIdOrSlug)
-    : getIntentProfileBySlug(intentProfileIdOrSlug);
-
-  const vecA = vecRowA.vector64;
-  const vecB = vecRowB.vector64;
-  const { score, facets } = scoreWithIntent(vecA, vecB, profile);
-
-  const vector_hash_a = hashVector64(vecA);
-  const vector_hash_b = hashVector64(vecB);
-  const encoder_version = vecRowA.encoderVersion ?? 'v1';
-
+  const computed = await computeCompatibilitySystem({
+    chartIds: [chartIdA, chartIdB],
+    relationshipBindingId: null,
+  });
   return {
-    score,
-    facet_breakdown: facets,
-    intent_profile_id: profile.id,
-    intent_profile_version: profile.version,
-    intent_profile_hash: profile.profile_hash,
-    encoder_version,
-    algorithm_version: profile.algorithm_version,
-    vector_hash_a,
-    vector_hash_b,
+    score: scoreByIntentProfileSlug(intentProfileIdOrSlug, computed.scoring),
+    facet_breakdown: {
+      overall: computed.scoring.scalar_outputs.overall_relational_intensity,
+      elemental: computed.scoring.derived_indices.cohesion_index,
+      tension: computed.scoring.derived_indices.tension_index,
+      preference: computed.scoring.derived_indices.transformation_index,
+    },
+    intent_profile_id: intentProfileIdOrSlug,
+    intent_profile_version: 'compatibility_projection_v1',
+    intent_profile_hash: computed.scoring.compatibility_field_hash,
+    encoder_version: Object.values(computed.scoring.provenance.encoder_versions)[0] ?? 'v1',
+    algorithm_version: computed.scoring.scoring_algorithm_version,
+    vector_hash_a: computed.scoring.vector_hashes[computed.field.created_from.chart_ids_ordered[0]],
+    vector_hash_b: computed.scoring.vector_hashes[computed.field.created_from.chart_ids_ordered[1]],
   };
 }
 
@@ -166,14 +116,7 @@ export interface CompatResultForSort {
   chart_id: string;
 }
 
-/**
- * Compare two compatibility results for deterministic sort.
- * Order: score DESC, vector_hash ASC, chart_id ASC.
- */
-export function compareCompatResults(
-  a: CompatResultForSort,
-  b: CompatResultForSort
-): number {
+export function compareCompatResults(a: CompatResultForSort, b: CompatResultForSort): number {
   if (b.score !== a.score) return b.score - a.score;
   const hashCmp = a.vector_hash.localeCompare(b.vector_hash);
   if (hashCmp !== 0) return hashCmp;

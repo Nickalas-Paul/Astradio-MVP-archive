@@ -1,12 +1,14 @@
 /**
  * Compatibility intent API: POST /api/compatibility/intent
- * Curated clusters by domain bands. No ranked list; no percentages in response. Deterministic.
+ * Projection-layer ranking over canonical compatibility fields only.
  */
 
-import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
+import type { ChartInput } from '../core/architecture-engine';
 import { getChartById } from '../compat/chart-store';
+import * as compatStorage from '../compat/storage';
 import type { Chart } from '../compat/types';
-import { scoreCompatibility, type CompatMatchMode } from '../compat/matches';
+import { computeCompatibilitySystem } from '../compatibility/service';
+import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import { getScopedCandidates } from './scope-resolver';
 
 export type IntentType =
@@ -60,36 +62,45 @@ export interface CompatibilityIntentResponse {
   meta?: { scope: ScopeType; candidateCount: number };
 }
 
-const INTENT_TO_MODE: Record<IntentType, CompatMatchMode> = {
-  friendship: 'friend',
-  dating: 'lover',
-  collaboration: 'friend',
-  mentor: 'friend',
-  roommate: 'friend',
-  study: 'friend'
+const INTENT_WEIGHTS: Record<IntentType, { cohesion: number; tension: number; transformation: number; stability: number }> = {
+  friendship: { cohesion: 0.4, tension: 0.1, transformation: 0.15, stability: 0.35 },
+  dating: { cohesion: 0.3, tension: 0.1, transformation: 0.4, stability: 0.2 },
+  collaboration: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
+  mentor: { cohesion: 0.25, tension: 0.15, transformation: 0.4, stability: 0.2 },
+  roommate: { cohesion: 0.3, tension: 0.1, transformation: 0.1, stability: 0.5 },
+  study: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
 };
 
-/** Map facet scores to narrative descriptors (no percentages). */
-function descriptorsFromFacets(facets: { id: string; score: number }[]): string[] {
+function descriptorsFromScore(scoring: RelationalFieldScoreContract): string[] {
   const out: string[] = [];
-  for (const f of facets) {
-    if (f.score >= 0.7) out.push(`Strong ${f.id} alignment`);
-    else if (f.score >= 0.5) out.push(`Moderate ${f.id} fit`);
-    else out.push(`Different ${f.id} signature`);
+  const parts = [
+    ['cohesion', scoring.derived_indices.cohesion_index],
+    ['tension', scoring.derived_indices.tension_index],
+    ['transformation', scoring.derived_indices.transformation_index],
+    ['stability', scoring.derived_indices.stability_index],
+  ] as const;
+  for (const [id, score] of parts) {
+    if (score >= 0.7) out.push(`Strong ${id} signal`);
+    else if (score >= 0.5) out.push(`Moderate ${id} signal`);
+    else out.push(`Light ${id} signal`);
   }
   return out;
 }
 
-/** Assign band from facet mix (deterministic). */
-function assignBand(
-  overall: number,
-  elemental: number,
-  tension: number,
-  preference: number
-): ClusterBand {
-  if (elemental >= 0.7 && tension >= 0.6) return 'ease';
-  if (preference >= 0.7) return 'spark';
-  if (tension >= 0.5 && overall >= 0.5) return 'growth';
+function rankForIntent(scoring: RelationalFieldScoreContract, intent: IntentType): number {
+  const weights = INTENT_WEIGHTS[intent];
+  return (
+    scoring.derived_indices.cohesion_index * weights.cohesion +
+    scoring.derived_indices.tension_index * weights.tension +
+    scoring.derived_indices.transformation_index * weights.transformation +
+    scoring.derived_indices.stability_index * weights.stability
+  );
+}
+
+function assignBand(scoring: RelationalFieldScoreContract): ClusterBand {
+  if (scoring.derived_indices.cohesion_index >= 0.68 && scoring.derived_indices.stability_index >= 0.6) return 'ease';
+  if (scoring.derived_indices.transformation_index >= 0.65) return 'spark';
+  if (scoring.derived_indices.tension_index >= 0.55) return 'growth';
   return 'complex';
 }
 
@@ -120,13 +131,29 @@ function whyBullets(band: ClusterBand): string[] {
   }
 }
 
-function chartToChartInput(chart: Chart): ChartInput {
-  return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
+async function resolveSeekerChartId(seekerChartId?: string, inlineChart?: ChartInput): Promise<string> {
+  if (seekerChartId) {
+    const chart = await getChartById(seekerChartId);
+    if (!chart) throw new Error(`Chart not found: ${seekerChartId}`);
+    return seekerChartId;
+  }
+  if (!inlineChart) {
+    throw new Error('Either seekerChartId or chart must be provided');
+  }
+  const created = await compatStorage.createChart({
+    label: 'Intent Inline Chart',
+    date: inlineChart.date,
+    time: inlineChart.time,
+    lat: inlineChart.lat,
+    lon: inlineChart.lon,
+    timezone: inlineChart.timezone,
+  });
+  return created.id;
 }
 
 /**
- * Compute compatibility intent response: clustered candidates, no sorted scoreboard.
- * Uses architecture-engine for seeker and candidates. Deterministic.
+ * Compute compatibility intent response.
+ * Intent only filters/ranks canonical field results; it never computes alternate compatibility logic.
  */
 export async function computeCompatibilityIntent(
   request: CompatibilityIntentRequest
@@ -137,53 +164,31 @@ export async function computeCompatibilityIntent(
     throw new Error('groupId required when scope is group');
   }
 
-  let seekerVec: Float32Array | number[];
-  let seekerChartIdResolved: string;
-
-  if (seekerChartId) {
-    const chart = await getChartById(seekerChartId);
-    if (!chart) throw new Error(`Chart not found: ${seekerChartId}`);
-    const arch = await generateArchitecture(chartToChartInput(chart), seekerChartId);
-    seekerVec = arch.features;
-    seekerChartIdResolved = seekerChartId;
-  } else if (inlineChart) {
-    const arch = await generateArchitecture(inlineChart);
-    seekerVec = arch.features;
-    seekerChartIdResolved = 'inline';
-  } else {
-    throw new Error('Either seekerChartId or chart must be provided');
-  }
-
-  const mode = INTENT_TO_MODE[intent];
+  const seekerChartIdResolved = await resolveSeekerChartId(seekerChartId, inlineChart);
   const candidates = await getScopedCandidates(scope, groupId, seekerUserId);
-  const memberVecs: Array<{ userId: string; chartId: string; displayName?: string; vec: Float32Array | number[] }> = [];
-
-  for (const cand of candidates) {
-    const c = await getChartById(cand.chartId);
-    if (!c) continue;
-    const arch = await generateArchitecture(chartToChartInput(c), cand.chartId);
-    memberVecs.push({
-      userId: cand.userId,
-      chartId: cand.chartId,
-      displayName: cand.displayName,
-      vec: arch.features
+  const scored: Array<{
+    userId: string;
+    chartId: string;
+    displayName?: string;
+    score: number;
+    band: ClusterBand;
+    scoring: RelationalFieldScoreContract;
+    rationale: string;
+  }> = [];
+  for (const candidate of candidates) {
+    if (candidate.chartId === seekerChartIdResolved) continue;
+    const computed = await computeCompatibilitySystem({
+      chartIds: [seekerChartIdResolved, candidate.chartId],
+      relationshipBindingId: null,
+    });
+    scored.push({
+      ...candidate,
+      score: rankForIntent(computed.scoring, intent),
+      band: assignBand(computed.scoring),
+      scoring: computed.scoring,
+      rationale: `Intent projection over canonical field ${computed.field.object_identity_hash.slice(0, 12)}.`,
     });
   }
-
-  const scored = memberVecs.map((m) => {
-    const { score, rationale, facets } = scoreCompatibility(seekerVec, m.vec, mode);
-    const elemental = facets.find((f) => f.id === 'elemental')?.score ?? 0.5;
-    const tension = facets.find((f) => f.id === 'tension')?.score ?? 0.5;
-    const preference = facets.find((f) => f.id === 'preference')?.score ?? 0.5;
-    const band = assignBand(score, elemental, tension, preference);
-    return {
-      ...m,
-      score,
-      rationale,
-      facets,
-      band
-    };
-  });
 
   const bandOrder: ClusterBand[] = ['ease', 'spark', 'growth', 'complex'];
   const clusters: IntentCluster[] = bandOrder.map((band, idx) => {
@@ -202,7 +207,7 @@ export async function computeCompatibilityIntent(
         userId: s.userId,
         chartId: s.chartId,
         displayName: s.displayName,
-        descriptors: descriptorsFromFacets(s.facets),
+        descriptors: descriptorsFromScore(s.scoring),
         sharedContext: [s.rationale]
       })),
       why: { bullets: whyBullets(band) }

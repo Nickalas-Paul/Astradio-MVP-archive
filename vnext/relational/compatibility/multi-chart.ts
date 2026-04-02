@@ -1,38 +1,12 @@
 /**
- * Phase 5 — Multi-chart compatibility (pairwise matrix + aggregates).
- * Uses stored vectors only (vectorStore). Deterministic. Fail-closed on missing vectors.
+ * Multi-chart compatibility adapter over the canonical relational field.
+ * No independent scoring or intent logic lives here.
  */
 
-import { FEATURE_ELEMENT_INDICES } from '../constants';
-import {
-  scoreWithIntent,
-  type FacetBreakdown,
-  hashVector64,
-} from './score';
-import type { IntentProfile } from '../intent-profiles';
-import { getIntentProfileById, getIntentProfileBySlug } from '../intent-profiles';
-
-// Path from compiled dist/vnext/vnext/relational/compatibility/ -> repo root lib (5 levels up)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const vectorStore = require('../../../../../lib/vector-store');
+import { computeCompatibilitySystem } from '../../compatibility/service';
+import { hashVector64, type FacetBreakdown } from './score';
 
 const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
-
-// Invariant: element indices must remain [27, 28, 29, 30] mapping to [fire, earth, air, water].
-// If encoder layout changes, this module must be updated explicitly.
-(function assertElementIndices() {
-  const expected = [27, 28, 29, 30];
-  if (
-    FEATURE_ELEMENT_INDICES.length !== expected.length ||
-    FEATURE_ELEMENT_INDICES.some((v, i) => v !== expected[i])
-  ) {
-    throw new Error(
-      `FEATURE_ELEMENT_INDICES invariant violated in multi-chart: expected [27,28,29,30], got [${FEATURE_ELEMENT_INDICES.join(
-        ','
-      )}]`
-    );
-  }
-})();
 
 function mean(values: number[]): number {
   if (!values.length) return 0;
@@ -44,29 +18,6 @@ function variance(values: number[]): number {
   const m = mean(values);
   const sq = values.reduce((s, v) => s + (v - m) * (v - m), 0);
   return sq / values.length;
-}
-
-type ElementLabel = 'fire' | 'earth' | 'air' | 'water';
-
-// Explicit tie-break order for dominant element: FIRE > EARTH > AIR > WATER.
-const ELEMENT_ORDER: ElementLabel[] = ['fire', 'earth', 'air', 'water'];
-
-function dominantElementForVector(vec: number[]): ElementLabel {
-  if (!FEATURE_ELEMENT_INDICES.length) return 'fire';
-  const vals = FEATURE_ELEMENT_INDICES.map((i) =>
-    Number.isFinite(vec[i]) ? (vec[i] as number) : 0
-  );
-  let maxVal = vals[0];
-  for (let i = 1; i < vals.length; i++) {
-    if (vals[i] > maxVal) maxVal = vals[i];
-  }
-  // Tie-break by ELEMENT_ORDER priority
-  for (let idx = 0; idx < ELEMENT_ORDER.length; idx++) {
-    if (vals[idx] === maxVal) {
-      return ELEMENT_ORDER[idx];
-    }
-  }
-  return 'fire';
 }
 
 export interface AggregateMetrics {
@@ -107,7 +58,7 @@ interface PairRecord {
 
 export function computeAggregateMetrics(
   chartIds: string[],
-  vectors: Record<string, number[]>,
+  fields: Array<Awaited<ReturnType<typeof computeCompatibilitySystem>>>,
   pairs: PairRecord[]
 ): AggregateMetrics {
   const scores = pairs.map((p) => p.score);
@@ -117,27 +68,16 @@ export function computeAggregateMetrics(
   const tensionVar = variance(tensions);
   const stability = clamp01(1 - scoreVar);
 
-  const counts: Record<ElementLabel, number> = {
-    fire: 0,
-    earth: 0,
-    air: 0,
-    water: 0,
-  };
-
-  for (const id of chartIds) {
-    const vec = vectors[id] || [];
-    const el = dominantElementForVector(vec);
-    counts[el] += 1;
+  const categoryWeights = { reinforcing: 0, cross_pressuring: 0, escalating: 0, dissolving: 0, transforming: 0 };
+  for (const field of fields) {
+    const pair = field.field.pairwise_matrix[0];
+    if (!pair) continue;
+    categoryWeights[pair.dominant_category] += 1;
   }
-
-  let best: ElementLabel = 'fire';
-  let bestCount = counts[best];
-  for (const el of ELEMENT_ORDER) {
-    if (counts[el] > bestCount) {
-      best = el;
-      bestCount = counts[el];
-    }
-  }
+  const best = (Object.keys(categoryWeights) as Array<keyof typeof categoryWeights>).sort((a, b) => {
+    if (categoryWeights[b] !== categoryWeights[a]) return categoryWeights[b] - categoryWeights[a];
+    return a.localeCompare(b, 'en');
+  })[0] ?? 'reinforcing';
 
   return {
     mean_resonance: meanRes,
@@ -153,69 +93,14 @@ export function computeAggregateMetrics(
  */
 export function computeMultiChartFromVectors(
   chartIdsInput: string[],
-  profile: IntentProfile,
+  _profile: { id: string; version: string; profile_hash: string; algorithm_version: string },
   vectorsById: Record<string, number[]>,
   encoderVersionsById: Record<string, string> = {}
 ): MultiChartOutput {
-  const chart_ids = Array.from(new Set(chartIdsInput)).sort((a, b) =>
-    a.localeCompare(b, 'en')
-  );
-  if (chart_ids.length === 0) {
-    throw new Error('chartIds required');
-  }
-
-  const vectors: Record<string, number[]> = {};
-  const encoderVersions: Record<string, string> = {};
-  const vectorHashes: Record<string, string> = {};
-  const missing: string[] = [];
-
-  for (const id of chart_ids) {
-    const vec = vectorsById[id];
-    if (!vec || !Array.isArray(vec) || vec.length === 0) {
-      missing.push(id);
-      continue;
-    }
-    vectors[id] = vec;
-    encoderVersions[id] = encoderVersionsById[id] ?? 'v1';
-    vectorHashes[id] = hashVector64(vec);
-  }
-
-  if (missing.length > 0) {
-    throw new MissingVectorsError(missing);
-  }
-
-  const n = chart_ids.length;
-  const matrix: number[][] = Array.from({ length: n }, () =>
-    Array(n).fill(1)
-  );
-  const pairs: PairRecord[] = [];
-
-  for (let i = 0; i < n; i++) {
-    const idA = chart_ids[i];
-    const vecA = vectors[idA];
-    for (let j = i + 1; j < n; j++) {
-      const idB = chart_ids[j];
-      const vecB = vectors[idB];
-      const { score, facets } = scoreWithIntent(vecA, vecB, profile);
-      matrix[i][j] = score;
-      matrix[j][i] = score;
-      pairs.push({ i, j, score, facets });
-    }
-  }
-
-  const aggregate_metrics = computeAggregateMetrics(chart_ids, vectors, pairs);
-
-  return {
-    chart_ids,
-    intent_profile_id: profile.id,
-    intent_profile_version: profile.version,
-    intent_profile_hash: profile.profile_hash,
-    encoder_versions: encoderVersions,
-    algorithm_version: profile.algorithm_version,
-    vector_hashes: vectorHashes,
-    compatibility_matrix: matrix,
-    aggregate_metrics,
-  };
+  void chartIdsInput;
+  void vectorsById;
+  void encoderVersionsById;
+  throw new Error('computeMultiChartFromVectors deprecated; use computeMultiChartCompatibility via canonical field pipeline');
 }
 
 /**
@@ -233,33 +118,54 @@ export async function computeMultiChartCompatibility(
     throw new Error('chartIds required');
   }
 
-  const profile: IntentProfile = intentProfileIdOrSlug.startsWith('intent_')
-    ? getIntentProfileById(intentProfileIdOrSlug)
-    : getIntentProfileBySlug(intentProfileIdOrSlug);
-
-  const vecMap: Map<
-    string,
-    { chartId: string; vector64: number[]; version: string; encoderVersion: string }
-  > = await vectorStore.getChartVectorsByIds(chart_ids);
-
   const vectorsById: Record<string, number[]> = {};
   const encoderVersionsById: Record<string, string> = {};
-
-  for (const id of chart_ids) {
-    const row = vecMap.get(id);
-    if (!row || !Array.isArray(row.vector64) || row.vector64.length === 0) {
-      // We'll fail-closed inside computeMultiChartFromVectors via missing check.
-      continue;
+  const computedPairs: Array<Awaited<ReturnType<typeof computeCompatibilitySystem>>> = [];
+  const matrix: number[][] = Array.from({ length: chart_ids.length }, () => Array(chart_ids.length).fill(1));
+  const pairs: PairRecord[] = [];
+  for (let i = 0; i < chart_ids.length; i++) {
+    for (let j = i + 1; j < chart_ids.length; j++) {
+      const computed = await computeCompatibilitySystem({
+        chartIds: [chart_ids[i], chart_ids[j]],
+        relationshipBindingId: null,
+      });
+      computedPairs.push(computed);
+      const intensity = computed.scoring.scalar_outputs.overall_relational_intensity;
+      const tension = computed.scoring.derived_indices.tension_index;
+      matrix[i][j] = intensity;
+      matrix[j][i] = intensity;
+      pairs.push({
+        i,
+        j,
+        score: intensity,
+        facets: {
+          overall: intensity,
+          elemental: computed.scoring.derived_indices.cohesion_index,
+          tension,
+          preference: computed.scoring.derived_indices.transformation_index,
+        },
+      });
+      for (const [chartId, vectorHash] of Object.entries(computed.scoring.vector_hashes)) {
+        if (!(chartId in vectorsById)) vectorsById[chartId] = [];
+        encoderVersionsById[chartId] = computed.scoring.provenance.encoder_versions[chartId] ?? 'v1';
+        vectorsById[chartId] = [vectorHash.length];
+      }
     }
-    vectorsById[id] = row.vector64 as number[];
-    encoderVersionsById[id] = row.encoderVersion ?? 'v1';
   }
 
-  return computeMultiChartFromVectors(
-    chart_ids,
-    profile,
-    vectorsById,
-    encoderVersionsById
+  const vector_hashes = Object.fromEntries(
+    chart_ids.map((chartId) => [chartId, computedPairs.find((pair) => pair.scoring.vector_hashes[chartId])?.scoring.vector_hashes[chartId] ?? hashVector64(vectorsById[chartId] ?? [])])
   );
+  return {
+    chart_ids,
+    intent_profile_id: intentProfileIdOrSlug,
+    intent_profile_version: 'compatibility_projection_v1',
+    intent_profile_hash: computedPairs[0]?.field.object_identity_hash ?? 'none',
+    encoder_versions: encoderVersionsById,
+    algorithm_version: 'compatibility_projection_v1',
+    vector_hashes,
+    compatibility_matrix: matrix,
+    aggregate_metrics: computeAggregateMetrics(chart_ids, computedPairs, pairs),
+  };
 }
 
