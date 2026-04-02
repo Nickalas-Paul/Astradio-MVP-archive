@@ -33,7 +33,7 @@ async function testComposeController() {
         const request = {
           mode: 'sandbox' as const,
           controls: chart.control_surface,
-          seed: 424242 // Fixed seed for determinism
+          seed: '424242', // Fixed seed for determinism
         };
         
         const startTime = Date.now();

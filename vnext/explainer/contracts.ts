@@ -161,6 +161,14 @@ export interface ComposeRequest {
   genre?: string;
   includePlan?: boolean | number; // Optional: request plan in response (default: auto when audio_export_available is false)
   includeMidi?: boolean | number; // Optional: request MIDI artifact in response
+  /** Deterministic compose seed (optional). */
+  seed?: string;
+  /** Sandbox resolve: projection variant only; same canonical pipeline. */
+  output_kind?: "full" | "feed_card";
+  /** Ephemeris snapshot from sandbox preview (validated server-side). */
+  overriddenSnapshot?: import("../contracts").EphemerisSnapshot;
+  /** Birth chart input when no overriddenSnapshot. */
+  chartData?: { date: string; time: string; lat: number; lon: number };
   testOverride?: {
     forceFail?: string;
     calibrated?: boolean;

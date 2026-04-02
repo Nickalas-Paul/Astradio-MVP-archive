@@ -4,7 +4,7 @@
  *
  * This hits the real engine HTTP surface when available:
  *  - POST /api/sandbox/snapshot
- *  - POST /api/sandbox/report
+ *  - POST /api/sandbox/resolve
  *  - POST /api/compose (mode: 'sandbox', overriddenSnapshot)
  *  - Optional: GET /api/exports/:id when export is enabled
  *  - Optional: POST/GET /api/sandbox/compositions when DB is available
@@ -111,38 +111,40 @@ async function main(): Promise<void> {
   }
   const combinedHash: string = meta.combinedHash;
 
-  // 2) Report
-  log('[2] POST /api/sandbox/report');
-  const reportRes = await postJson('/api/sandbox/report', { birth, overrides, seed: combinedHash });
-  if (reportRes.status !== 200) {
-    fail(`report status=${reportRes.status} body=${JSON.stringify(reportRes.json)}`);
+  // 2) Unified resolve (canonical pipeline: single path)
+  log('[2] POST /api/sandbox/resolve');
+  const resolveBody = {
+    schema_version: '1',
+    slots: [{ ephemeris_birth: birth, overrides }],
+    active_slot_index: 0,
+    compose_controls: controls,
+    output_kind: 'full' as const,
+    seed: combinedHash,
+  };
+  const resolveRes = await postJson('/api/sandbox/resolve', resolveBody);
+  if (resolveRes.status !== 200) {
+    fail(`resolve status=${resolveRes.status} body=${JSON.stringify(resolveRes.json)}`);
   }
-  const reportJson = reportRes.json;
-  if (!reportJson || !reportJson.personality || !reportJson.explanation) {
-    fail('report missing personality or explanation fields');
+  const resolveJson = resolveRes.json;
+  if (!resolveJson?.compose?.explanation) {
+    fail('resolve missing compose.explanation');
   }
+  const reportJson = {
+    personality: null,
+    guidance: null,
+    explanation: resolveJson.compose.explanation,
+  };
   if (reportJson.explanation.spec !== 'UnifiedSpecV1.1' || !Array.isArray(reportJson.explanation.sections)) {
-    fail('report explanation must be UnifiedSpecV1.1 with sections[] (semantic projection)');
+    fail('resolve explanation must be UnifiedSpecV1.1 with sections[] (semantic projection)');
   }
 
-  // 3) Compose
-  log('[3] POST /api/compose (sandbox, overriddenSnapshot)');
-  const composeBody = {
-    mode: 'sandbox',
-    controls,
-    seed: combinedHash,
-    overriddenSnapshot: snapshot,
-  };
-  const composeRes = await postJson('/api/compose', composeBody);
-  if (composeRes.status !== 200) {
-    fail(`compose status=${composeRes.status} body=${JSON.stringify(composeRes.json)}`);
-  }
-  const hashes = composeRes.json?.hashes;
+  const composeRes = { json: resolveJson.compose, status: 200 };
+  const hashes = resolveJson.compose?.hashes;
   const planSha: string | undefined = hashes?.plan_sha256;
   if (!planSha || typeof planSha !== 'string') {
-    fail('compose missing hashes.plan_sha256');
+    fail('resolve compose missing hashes.plan_sha256');
   }
-  log(`[3] plan_sha256=${planSha.slice(0, 16)}…`);
+  log(`[2] plan_sha256=${planSha.slice(0, 16)}…`);
 
   // Export and playable-audio regression guard (Phase 8G: natal soundtrack must be playable)
   const topExportId: string | undefined = composeRes.json?.export_id;
@@ -150,7 +152,7 @@ async function main(): Promise<void> {
   const exportId = topExportId ?? audioExportId;
   let hasPlayableArtifact = false;
   if (exportId) {
-    log('[3a] GET /api/exports/:id');
+    log('[2a] GET /api/exports/:id');
     const exportRes = await getRaw(`/api/exports/${exportId}`);
     if (!exportRes.ok) {
       fail(`export GET failed status=${exportRes.status}`);
@@ -170,32 +172,32 @@ async function main(): Promise<void> {
       typeof audio?.export_error === 'string' ||
       audio?.export_enabled === false;
     if (!hasPlayableArtifact && (!audio || !hasUnavailableSignal)) {
-      log('[3a] SKIP export: no export_id and no explicit export-unavailable signal (treating as optional).');
+      log('[2a] SKIP export: no export_id and no explicit export-unavailable signal (treating as optional).');
     } else if (!hasPlayableArtifact) {
-      log('[3a] SKIP export: export unavailable per audio_debug/export_error.');
+      log('[2a] SKIP export: export unavailable per audio_debug/export_error.');
     }
   }
   if (!hasPlayableArtifact && process.env.PHASE6_SMOKE_REQUIRE_PLAYABLE_AUDIO === '1') {
     fail('Regression guard: compose must return playable audio (audio.base64 or export_id). Set ENABLE_WAV_EXPORT=1 and ensure render path works.');
   }
 
-  // 4) Determinism: re-run compose with same seed + snapshot
-  log('[4] Determinism check — re-run compose with same seed/snapshot');
-  const composeRes2 = await postJson('/api/compose', composeBody);
-  if (composeRes2.status !== 200) {
-    fail(`compose(2) status=${composeRes2.status} body=${JSON.stringify(composeRes2.json)}`);
+  // 3) Determinism: re-run resolve with same payload
+  log('[3] Determinism check — re-run /api/sandbox/resolve');
+  const resolveRes2 = await postJson('/api/sandbox/resolve', resolveBody);
+  if (resolveRes2.status !== 200) {
+    fail(`resolve(2) status=${resolveRes2.status} body=${JSON.stringify(resolveRes2.json)}`);
   }
-  const planSha2: string | undefined = composeRes2.json?.hashes?.plan_sha256;
+  const planSha2: string | undefined = resolveRes2.json?.compose?.hashes?.plan_sha256;
   if (!planSha2 || typeof planSha2 !== 'string') {
-    fail('compose(2) missing hashes.plan_sha256');
+    fail('resolve(2) missing compose.hashes.plan_sha256');
   }
   if (planSha2 !== planSha) {
     fail(`Determinism mismatch: plan_sha256(1)=${planSha} plan_sha256(2)=${planSha2}`);
   }
-  log('[4] Determinism OK (plan_sha256 match).');
+  log('[3] Determinism OK (plan_sha256 match).');
 
-  // 5) Optional DB-backed compositions (Stage 6: caller required; use test userId)
-  log('[5] Optional DB-backed /api/sandbox/compositions');
+  // 4) Optional DB-backed compositions (Stage 6: caller required; use test userId)
+  log('[4] Optional DB-backed /api/sandbox/compositions');
   const compositionsUserId = 'phase6_smoke_user';
   try {
     const saveRes = await postJson(`/api/sandbox/compositions?userId=${encodeURIComponent(compositionsUserId)}`, {
@@ -203,15 +205,24 @@ async function main(): Promise<void> {
       vector_hash: combinedHash,
       seed: combinedHash,
       plan_hash: planSha,
-      report: reportRes.json ?? {},
+      report: {
+        ...reportJson,
+        artifact_envelope: {
+          composition_mode: resolveJson.composition_mode,
+          canonical_slot_order: resolveJson.canonical_slot_order,
+          canonical_input_hash: resolveJson.canonical_input_hash,
+          canonical_input_hash_version: resolveJson.canonical_input_hash_version,
+          output_kind: resolveJson.output_kind,
+        },
+      },
       provider: composeRes.json?.audio?.provider_used ?? null,
       provider_version: null,
       export_id: exportId ?? null,
     });
     if (saveRes.status === 503) {
-      log('[5] SKIP compositions: database unavailable (503).');
+      log('[4] SKIP compositions: database unavailable (503).');
     } else if (saveRes.status === 401) {
-      log('[5] SKIP compositions: caller required (401). Engine may require userId for Stage 6 isolation.');
+      log('[4] SKIP compositions: caller required (401). Engine may require userId for Stage 6 isolation.');
     } else if (saveRes.status >= 400) {
       fail(`compositions POST status=${saveRes.status} body=${JSON.stringify(saveRes.json)}`);
     } else {
@@ -235,12 +246,12 @@ async function main(): Promise<void> {
       if (!getJson || getJson.plan_hash !== planSha) {
         fail('compositions GET by id missing or mismatched plan_hash');
       }
-      log('[5] Compositions save/list/get OK.');
+      log('[4] Compositions save/list/get OK.');
     }
   } catch (e: any) {
     const msg = e?.message || String(e);
     if (msg.includes('ECONNREFUSED')) {
-      log('[5] SKIP compositions: database not reachable (connection refused).');
+      log('[4] SKIP compositions: database not reachable (connection refused).');
     } else {
       fail(`compositions check error: ${msg}`);
     }

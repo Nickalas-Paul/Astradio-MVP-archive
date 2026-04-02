@@ -7,6 +7,7 @@
 import type { EphemerisSnapshot, SandboxBirth, SandboxOverrides, PlanetKey } from '../contracts';
 import { BODY_DISPLAY_ORDER } from '../canonical-bodies';
 import { computeAspects, toSnapshotAspects } from '../aspect-engine';
+import { serializeNumberForHash } from './sandbox-determinism';
 
 /** Canonical body order for snapshot derivation. */
 const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
@@ -141,7 +142,15 @@ export function generateSnapshotWithOverrides(
  */
 export function hashBirth(birth: SandboxBirth): string {
   const crypto = require('crypto') as typeof import('crypto');
-  const str = `${birth.date}|${birth.time}|${birth.lat}|${birth.lon}|${birth.tz || 'UTC'}|${birth.houseSystem || 'placidus'}`;
+  const payload = {
+    date: birth.date,
+    time: birth.time,
+    lat: birth.lat,
+    lon: birth.lon,
+    tz: birth.tz ?? 'UTC',
+    houseSystem: birth.houseSystem ?? 'placidus',
+  };
+  const str = JSON.stringify(payload, Object.keys(payload).sort());
   return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
 }
 
@@ -150,13 +159,24 @@ export function hashBirth(birth: SandboxBirth): string {
  */
 export function hashOverrides(overrides: SandboxOverrides): string {
   const crypto = require('crypto') as typeof import('crypto');
-  // Sort planet keys for deterministic hashing
-  const planetEntries = Object.entries(overrides.planets || {})
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${v.lonDeg.toFixed(1)}`);
-  const angleEntries: string[] = [];
-  if (overrides.angles?.ascDeg !== undefined) angleEntries.push(`asc:${overrides.angles.ascDeg.toFixed(1)}`);
-  if (overrides.angles?.mcDeg !== undefined) angleEntries.push(`mc:${overrides.angles.mcDeg.toFixed(1)}`);
-  const str = [...planetEntries, ...angleEntries].join('|');
+  const planets = overrides.planets || {};
+  const sortedKeys = Object.keys(planets).sort((a, b) => a.localeCompare(b));
+  const planetObj: Record<string, { lonDeg: string }> = {};
+  for (const k of sortedKeys) {
+    const v = planets[k as PlanetKey];
+    if (v && typeof v.lonDeg === 'number' && Number.isFinite(v.lonDeg)) {
+      planetObj[k] = { lonDeg: serializeNumberForHash(v.lonDeg) };
+    }
+  }
+  const angles = overrides.angles;
+  const anglePart: Record<string, string> = {};
+  if (angles?.ascDeg !== undefined && typeof angles.ascDeg === 'number' && Number.isFinite(angles.ascDeg)) {
+    anglePart.ascDeg = serializeNumberForHash(angles.ascDeg);
+  }
+  if (angles?.mcDeg !== undefined && typeof angles.mcDeg === 'number' && Number.isFinite(angles.mcDeg)) {
+    anglePart.mcDeg = serializeNumberForHash(angles.mcDeg);
+  }
+  const payload = { planets: planetObj, angles: anglePart };
+  const str = JSON.stringify(payload, (_k, v) => v);
   return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
 }

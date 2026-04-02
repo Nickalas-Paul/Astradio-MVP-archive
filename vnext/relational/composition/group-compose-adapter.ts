@@ -51,6 +51,8 @@ export async function composeGroupFromChartIds(
     generateComposition?: boolean;
     relationalWeather?: RelationalWeatherStateV1;
     expansionTier?: ExpansionTier;
+    /** Same canonical pipeline; projection variant only. */
+    output_kind?: 'full' | 'feed_card';
   }
 ): Promise<GroupComposeResult> {
   const ctx = await resolveRelationalConnectionFromChartIds(chartIdsInput, opts?.groupId);
@@ -80,6 +82,7 @@ export async function composeGroupFromChartIds(
     payload,
     relationalWeather: opts?.relationalWeather,
     expansionTier: opts?.expansionTier,
+    output_kind: opts?.output_kind,
   });
 
   const base64 = result.audio?.base64;

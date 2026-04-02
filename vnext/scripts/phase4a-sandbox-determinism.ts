@@ -13,30 +13,18 @@ function sha256Hex(str: string): string {
   return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
 }
 
-/**
- * Normalize report JSON for deterministic checksum.
- * Sorts nested objects/arrays and removes non-deterministic fields.
- */
-function normalizeReport(report: any): string {
-  // Extract key fields
+/** Normalize /api/sandbox/resolve response for deterministic checksum (compose projection only). */
+function normalizeResolve(d: any): string {
+  const ex = d?.compose?.explanation;
   const normalized = {
-    personality: report.personality ? {
-      traits: report.personality.traits ? Object.keys(report.personality.traits).sort().map(k => ({
-        key: k,
-        value: report.personality.traits[k]
-      })) : [],
-      summary: report.personality.summary || ''
-    } : null,
-    guidance: report.guidance ? {
-      themes: report.guidance.themes || [],
-      advice: report.guidance.advice || ''
-    } : null,
-    explanation: report.explanation
+    canonical_input_hash: d?.canonical_input_hash || '',
+    canonical_object_hash: d?.canonical_object_hash || '',
+    explanation: ex
       ? {
-          spec: report.explanation.spec || '',
-          sections: Array.isArray(report.explanation.sections)
-            ? report.explanation.sections.map((s: any) => ({
-                id: s.id,
+          spec: ex.spec || '',
+          sections: Array.isArray(ex.sections)
+            ? ex.sections.map((s: any) => ({
+                id: s.sectionId || s.id,
                 title: s.title,
                 text: s.text,
                 bullets: s.bullets || [],
@@ -44,7 +32,6 @@ function normalizeReport(report: any): string {
             : [],
         }
       : null,
-    meta: report.meta || {}
   };
   return JSON.stringify(normalized);
 }
@@ -70,37 +57,50 @@ async function main() {
   let failed = 0;
 
   try {
+    const SANDBOX_CONTROLS = {
+      arc_shape: 0.5,
+      density_level: 0.6,
+      tempo_norm: 0.7,
+      step_bias: 0.7,
+      leap_cap: 5,
+      rhythm_template_id: 3,
+      syncopation_bias: 0.3,
+      motif_rate: 0.6,
+    };
     const payload = {
-      birth: FIXED_BIRTH,
-      overrides: FIXED_OVERRIDES,
-      seed: 'phase4a-determinism-seed'
+      schema_version: '1',
+      slots: [{ ephemeris_birth: FIXED_BIRTH, overrides: FIXED_OVERRIDES }],
+      active_slot_index: 0,
+      compose_controls: SANDBOX_CONTROLS,
+      output_kind: 'full',
+      seed: 'phase4a-determinism-seed',
     };
 
     const results: string[] = [];
     for (let i = 0; i < 3; i++) {
-      const r = await fetch(`${base}/api/sandbox/report`, {
+      const r = await fetch(`${base}/api/sandbox/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       if (r.status !== 200) {
-        console.error('FAIL: POST /api/sandbox/report returned', r.status);
+        console.error('FAIL: POST /api/sandbox/resolve returned', r.status);
         const text = await r.text();
         console.error('Response:', text);
         failed++;
         break;
       }
       const d = await r.json();
-      results.push(normalizeReport(d));
+      results.push(normalizeResolve(d));
     }
 
     if (results.length === 3) {
       const c0 = sha256Hex(results[0]);
       if (results[0] === results[1] && results[1] === results[2]) {
-        console.log('OK: sandbox report — 3 runs produced identical outputs');
+        console.log('OK: sandbox resolve — 3 runs produced identical outputs');
         console.log('REPORT_CHECKSUM=' + c0);
       } else {
-        console.error('FAIL: sandbox report not deterministic');
+        console.error('FAIL: sandbox resolve not deterministic');
         console.error('Run 1:', results[0].substring(0, 200));
         console.error('Run 2:', results[1].substring(0, 200));
         console.error('Run 3:', results[2].substring(0, 200));
@@ -108,7 +108,7 @@ async function main() {
       }
     }
   } catch (e) {
-    console.error('FAIL: sandbox report', e instanceof Error ? e.message : e);
+    console.error('FAIL: sandbox resolve', e instanceof Error ? e.message : e);
     failed++;
   }
 

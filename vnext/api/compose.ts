@@ -40,7 +40,7 @@ import {
   buildCanonicalReportForAggregate,
 } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
-import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
@@ -67,6 +67,7 @@ export type AggregateCompositionInput =
       relationalWeather?: RelationalWeatherStateV1;
       relationshipMode?: RelationshipMode;
       expansionTier?: ExpansionTier;
+      output_kind?: 'full' | 'feed_card';
     }
   | {
       kind: 'group';
@@ -76,6 +77,7 @@ export type AggregateCompositionInput =
       payload: ControlSurfacePayload;
       relationalWeather?: RelationalWeatherStateV1;
       expansionTier?: ExpansionTier;
+      output_kind?: 'full' | 'feed_card';
     };
 
 export type AggregateComposeResult = {
@@ -267,13 +269,17 @@ export class ComposeAPI {
       else if ((request as any).mode === 'sky' && enableDailyV1Text) projectionSurface = 'daily';
       else if ((request as any).mode === 'sandbox') projectionSurface = 'sandbox';
 
-      const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
-        phaseD: true,
-        surface: projectionSurface,
-        tier,
-        narrativePlan,
-        aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
-      });
+      const outputKind = (request as any).output_kind === 'feed_card' ? 'feed_card' : 'full';
+      const projected =
+        outputKind === 'feed_card'
+          ? projectFeedCardFromSemanticCore(semanticCore, payload.hash)
+          : projectTextFromSemanticCore(semanticCore, payload.hash, {
+              phaseD: true,
+              surface: projectionSurface,
+              tier,
+              narrativePlan,
+              aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+            });
 
       const dailyLike = projected.map((s) => ({
         id: s.id,
@@ -691,16 +697,20 @@ export class ComposeAPI {
     const tier = parseExpansionTier((input as { expansionTier?: ExpansionTier }).expansionTier);
     const projectionSurface: ProjectionSurface = input.kind === 'comparison' ? 'compat_pair' : 'group';
     const participantCount = participants.length;
-    const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
-      phaseD: true,
-      surface: projectionSurface,
-      tier,
-      narrativePlan,
-      aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
-      connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
-      participantCount,
-      aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
-    });
+    const aggOutputKind = input.output_kind === 'feed_card' ? 'feed_card' : 'full';
+    const projected =
+      aggOutputKind === 'feed_card'
+        ? projectFeedCardFromSemanticCore(semanticCore, payload.hash)
+        : projectTextFromSemanticCore(semanticCore, payload.hash, {
+            phaseD: true,
+            surface: projectionSurface,
+            tier,
+            narrativePlan,
+            aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
+            connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
+            participantCount,
+            aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+          });
 
     const signaturesText = projected.find((s) => s.id === 'signatures' || s.id === 'relational_field')?.text || '';
     const significanceText = projected.find((s) => s.id === 'significance')?.text || '';
@@ -739,6 +749,7 @@ export class ComposeAPI {
         ...(s.meta ? { meta: s.meta } : {}),
       })),
       meta: {
+        canonical_object_hash: canonicalReport.object_identity_hash,
         phase_d: {
           surface: projectionSurface,
           tier: pvAgg?.tierEffective ?? tier,

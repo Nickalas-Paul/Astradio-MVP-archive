@@ -1,27 +1,16 @@
 /**
- * Phase 4A — Sandbox API routes.
- * POST /api/sandbox/snapshot — generate snapshot with overrides
- * POST /api/sandbox/report — generate compose-free report from sandbox draft
+ * Sandbox API routes.
+ * POST /api/sandbox/snapshot — preview-only (not on artifact critical path)
+ * POST /api/sandbox/resolve — unified composition → canonical pipeline
  */
 
 import type { SandboxBirth, SandboxOverrides, EphemerisSnapshot } from '../contracts';
 import { generateSnapshotWithOverrides, hashBirth, hashOverrides, validateSandboxOverrides } from './sandbox-snapshot';
-import { generateArchitectureFromSnapshot } from '../core/architecture-engine';
-import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
-import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
-import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
-import type { ExpansionTier } from '../projection/projection-types';
-
-/**
- * Adapters may transform structure, never meaning.
- * Sandbox report explanation is TextProjection(SemanticCore) only; features/personality/guidance are mechanical support data, not authoritative readings.
- */
+import { executeSandboxComposition } from './sandbox-composition-execute';
+import { CANONICAL_INPUT_HASH_VERSION } from './sandbox-determinism';
 
 const express = require('express') as typeof import('express');
 
-/**
- * Fetch base snapshot from /api/chart-snapshot endpoint.
- */
 async function fetchBaseSnapshot(birth: SandboxBirth): Promise<EphemerisSnapshot> {
   const PORT = process.env.PORT || '4000';
   const base = process.env.API_BASE_URL || process.env.ENGINE_BASE_URL || `http://localhost:${PORT}`;
@@ -30,7 +19,7 @@ async function fetchBaseSnapshot(birth: SandboxBirth): Promise<EphemerisSnapshot
     date: birth.date,
     time: timeStr,
     lat: String(birth.lat),
-    lon: String(birth.lon)
+    lon: String(birth.lon),
   });
   const url = `${base}/api/chart-snapshot?${params}`;
   const res = await fetch(url);
@@ -40,10 +29,14 @@ async function fetchBaseSnapshot(birth: SandboxBirth): Promise<EphemerisSnapshot
   return res.json();
 }
 
+function extractCanonicalObjectHashFromCompose(compose: { explanation?: { meta?: { canonical_object_hash?: string } } }): string | null {
+  const h = compose?.explanation?.meta?.canonical_object_hash;
+  return typeof h === 'string' ? h : null;
+}
+
 export function createSandboxRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
 
-  // POST /api/sandbox/snapshot
   router.post('/sandbox/snapshot', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
@@ -60,26 +53,25 @@ export function createSandboxRouter(): import('express').Router {
         return res.status(400).json({ error: msg });
       }
 
-      // Fetch base snapshot
       const baseSnapshot = await fetchBaseSnapshot(birth);
-
-      // Apply overrides
       const overriddenSnapshot = generateSnapshotWithOverrides(baseSnapshot, overrides);
 
-      // Generate hashes
       const birthHash = hashBirth(birth);
       const overridesHash = hashOverrides(overrides);
-      const combinedHash = require('crypto').createHash('sha256')
+      const combinedHash = require('crypto')
+        .createHash('sha256')
         .update(birthHash + overridesHash, 'utf8')
         .digest('hex');
 
       return res.status(200).json({
         snapshot: overriddenSnapshot,
         meta: {
+          preview_only: true,
           baseHash: birthHash,
           overridesHash,
-          combinedHash
-        }
+          combinedHash,
+          canonical_input_hash_version: CANONICAL_INPUT_HASH_VERSION,
+        },
       });
     } catch (e: unknown) {
       const err = e as Error;
@@ -88,187 +80,40 @@ export function createSandboxRouter(): import('express').Router {
     }
   });
 
-  // POST /api/sandbox/report
-  router.post('/sandbox/report', async (req: import('express').Request, res: import('express').Response) => {
+  router.post('/sandbox/resolve', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const body = req.body || {};
-      const birth: SandboxBirth = body.birth;
-      const overrides: SandboxOverrides = body.overrides || { planets: {} };
-      const seed: string | undefined = body.seed;
-
-      if (!birth || !birth.date || !birth.time || typeof birth.lat !== 'number' || typeof birth.lon !== 'number') {
-        return res.status(400).json({ error: 'birth object with date, time, lat, lon required' });
-      }
-      try {
-        validateSandboxOverrides(overrides);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Invalid overrides';
-        return res.status(400).json({ error: msg });
+      const result = await executeSandboxComposition(req.body);
+      if (!result.ok) {
+        return res.status(result.status).json({
+          ok: false,
+          code: result.code,
+          error: result.message,
+        });
       }
 
-      // Fetch base snapshot
-      const baseSnapshot = await fetchBaseSnapshot(birth);
+      let canonical_object_hash: string | null = null;
+      if (result.compose) {
+        canonical_object_hash = extractCanonicalObjectHashFromCompose(result.compose as any);
+      } else if (result.aggregate) {
+        const meta = (result.aggregate as any).explanation?.meta;
+        canonical_object_hash = typeof meta?.canonical_object_hash === 'string' ? meta.canonical_object_hash : null;
+      }
 
-      // Apply overrides
-      const overriddenSnapshot = generateSnapshotWithOverrides(baseSnapshot, overrides);
-
-      // Generate architecture from overridden snapshot
-      const architecture = await generateArchitectureFromSnapshot(overriddenSnapshot, seed);
-
-      // Generate combined hash
-      const birthHash = hashBirth(birth);
-      const overridesHash = hashOverrides(overrides);
-      const combinedHash = require('crypto').createHash('sha256')
-        .update(birthHash + overridesHash, 'utf8')
-        .digest('hex');
-
-      const controlHash = combinedHash;
-      const composeSeed = typeof seed === 'string' && seed.length > 0 ? seed : combinedHash;
-      const canonicalReport = buildCanonicalReportForSnapshotSurface({
-        surface_kind: 'profile_natal',
-        subject_ids: [controlHash],
-        snapshot: architecture.snapshot,
-        featureVec: architecture.features,
-        control_surface_hash: controlHash,
-        compose_seed: composeSeed,
-        guidance: architecture.guidance,
-      });
-      const semanticCore = interpretCanonicalReportObject(canonicalReport);
-      const tier = (body.expansionTier || body.expansion_tier) as ExpansionTier | undefined;
-      const projected = projectTextFromSemanticCore(semanticCore, controlHash, {
-        phaseD: true,
-        surface: 'sandbox',
-        tier: tier === 'expanded' || tier === 'extended' ? tier : 'baseline',
-        narrativePlan: null,
-        aspectTension: null,
-      });
-
-      const pv = projected[projected.length - 1]?.meta?.projection_validation;
-
-      // Compose-free report (no music, no gates). relationalContext for reporting intake.
       return res.status(200).json({
-        features: Array.from(architecture.features),
-        personality: architecture.personality,
-        guidance: architecture.guidance,
-        explanation: {
-          spec: 'UnifiedSpecV1.1',
-          sections: projected.map((s) => ({
-            id: s.id,
-            title: s.title,
-            text: s.text,
-            bullets: s.bullets,
-            ...(s.meta ? { meta: s.meta } : {}),
-          })),
-          ...(pv
-            ? {
-                meta: {
-                  phase_d: {
-                    surface: 'sandbox' as const,
-                    tier: pv.tierEffective,
-                    tierRequested: pv.tierRequested,
-                    tierEffective: pv.tierEffective,
-                    downgradedFrom: pv.downgradedFrom,
-                    projection_validation: pv,
-                  },
-                },
-              }
-            : {}),
-        },
-        relationalContext: architecture.relationalContext,
-        seed: architecture.seed,
-        meta: {
-          combinedHash,
-          data_classification: {
-            explanation: 'semantic_projection_v1',
-            features_personality_guidance: 'mechanical_support_non_authoritative',
-          },
-          canonical_object_hash: canonicalReport.object_identity_hash,
-        },
+        ok: true,
+        composition_mode: result.composition_mode,
+        canonical_slot_order: result.canonical_slot_order,
+        canonical_input_hash: result.canonical_input_hash,
+        canonical_input_hash_version: result.canonical_input_hash_version,
+        output_kind: result.output_kind,
+        canonical_object_hash,
+        compose: result.compose ?? undefined,
+        aggregate: result.aggregate ?? undefined,
       });
     } catch (e: unknown) {
       const err = e as Error;
-      console.error('[sandbox] POST /sandbox/report', err);
-      return res.status(500).json({ error: err?.message || 'Failed to generate sandbox report' });
-    }
-  });
-
-  // POST /api/sandbox/feed-card — Phase D feed surface (short semantic card; same intake as /sandbox/report).
-  router.post('/sandbox/feed-card', async (req: import('express').Request, res: import('express').Response) => {
-    try {
-      const body = req.body || {};
-      const birth: SandboxBirth = body.birth;
-      const overrides: SandboxOverrides = body.overrides || { planets: {} };
-      const seed: string | undefined = body.seed;
-
-      if (!birth || !birth.date || !birth.time || typeof birth.lat !== 'number' || typeof birth.lon !== 'number') {
-        return res.status(400).json({ error: 'birth object with date, time, lat, lon required' });
-      }
-      try {
-        validateSandboxOverrides(overrides);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Invalid overrides';
-        return res.status(400).json({ error: msg });
-      }
-
-      const baseSnapshot = await fetchBaseSnapshot(birth);
-      const overriddenSnapshot = generateSnapshotWithOverrides(baseSnapshot, overrides);
-      const architecture = await generateArchitectureFromSnapshot(overriddenSnapshot, seed);
-
-      const birthHash = hashBirth(birth);
-      const overridesHash = hashOverrides(overrides);
-      const combinedHash = require('crypto').createHash('sha256')
-        .update(birthHash + overridesHash, 'utf8')
-        .digest('hex');
-
-      const controlHash = combinedHash;
-      const composeSeed = typeof seed === 'string' && seed.length > 0 ? seed : combinedHash;
-      const canonicalReport = buildCanonicalReportForSnapshotSurface({
-        surface_kind: 'profile_natal',
-        subject_ids: [controlHash],
-        snapshot: architecture.snapshot,
-        featureVec: architecture.features,
-        control_surface_hash: controlHash,
-        compose_seed: composeSeed,
-        guidance: architecture.guidance,
-      });
-      const semanticCore = interpretCanonicalReportObject(canonicalReport);
-      const projected = projectFeedCardFromSemanticCore(semanticCore, controlHash);
-      const pv = projected[projected.length - 1]?.meta?.projection_validation;
-
-      return res.status(200).json({
-        explanation: {
-          spec: 'UnifiedSpecV1.1',
-          sections: projected.map((s) => ({
-            id: s.id,
-            title: s.title,
-            text: s.text,
-            bullets: s.bullets,
-            ...(s.meta ? { meta: s.meta } : {}),
-          })),
-          ...(pv
-            ? {
-                meta: {
-                  phase_d: {
-                    surface: 'feed' as const,
-                    tier: pv.tierEffective,
-                    tierRequested: pv.tierRequested,
-                    tierEffective: pv.tierEffective,
-                    downgradedFrom: pv.downgradedFrom,
-                    projection_validation: pv,
-                  },
-                },
-              }
-            : {}),
-        },
-        meta: {
-          combinedHash,
-          canonical_object_hash: canonicalReport.object_identity_hash,
-        },
-      });
-    } catch (e: unknown) {
-      const err = e as Error;
-      console.error('[sandbox] POST /sandbox/feed-card', err);
-      return res.status(500).json({ error: err?.message || 'Failed to generate feed card' });
+      console.error('[sandbox] POST /sandbox/resolve', err);
+      return res.status(500).json({ ok: false, code: 'internal_error', error: err?.message || 'resolve failed' });
     }
   });
 
