@@ -11,19 +11,22 @@ const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary o
 
 export default function CommunityGroupPage({ params }: { params: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState<string>('');
-  const [group, setGroup] = useState<{ id: string; slug: string; name: string; description: string; tags: string[]; memberCount: number } | null>(null);
-  const [profile, setProfile] = useState<{ explanation?: { sections: Array<{ title: string; text: string }> }; memberCount?: number } | null>(null);
-  const [posts, setPosts] = useState<Array<{ id: string; title: string; body: string; createdAt: string }>>([]);
-  const [joined, setJoined] = useState(false);
+  const [group, setGroup] = useState<{
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    memberCount?: number;
+  } | null>(null);
+  const [profile, setProfile] = useState<{ explanation?: { sections: Array<{ title: string; text: string }> } } | null>(null);
   const [members, setMembers] = useState<Array<{ userId: string; chartId?: string; displayName: string }>>([]);
   const [loading, setLoading] = useState(true);
-  const [joinLoading, setJoinLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { primaryChart } = useProfile();
+  const { user, primaryChart } = useProfile();
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   useEffect(() => {
-    params.then(p => setSlug(p.slug));
+    params.then((p) => setSlug(p.slug));
   }, [params]);
 
   useEffect(() => {
@@ -32,7 +35,10 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
       setLoading(true);
       setError(null);
       try {
-        const gRes = await fetch(`/api/community/groups/${encodeURIComponent(slug)}`);
+        const qs = user?.id ? `?userId=${encodeURIComponent(user.id)}` : '';
+        const gRes = await fetch(`/api/community/relational-group/${encodeURIComponent(slug)}${qs}`, {
+          credentials: 'same-origin',
+        });
         if (!gRes.ok) {
           setError(gRes.status === 404 ? 'Group not found' : 'Failed to load group');
           setLoading(false);
@@ -41,48 +47,38 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
         const g = await gRes.json();
         setGroup(g);
 
-        const postsRes = await fetch(`/api/community/groups/${g.id}/posts`);
-        if (postsRes.ok) {
-          const { posts: p } = await postsRes.json();
-          setPosts(p || []);
-        }
-        const membersRes = await fetch(`/api/community/groups/${g.id}/members`);
+        let roster: Array<{ userId: string; chartId?: string; displayName: string }> = [];
+        const membersRes = await fetch(`/api/community/relational-group/${encodeURIComponent(g.id)}/members${qs}`, {
+          credentials: 'same-origin',
+        });
         if (membersRes.ok) {
-          const { members: m } = await membersRes.json();
-          setMembers(m || []);
+          const body = await membersRes.json();
+          roster = body.members || [];
+          setMembers(roster);
         }
 
-        try {
-          const profileRes = await fetch(`/api/community/groups/${g.id}/profile`, { method: 'POST' });
+        const chartIds = roster
+          .map((x) => x.chartId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0);
+        if (chartIds.length > 0) {
+          const profileRes = await fetch('/api/community/groups/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ groupId: g.id, chartIds }),
+          });
           if (profileRes.ok) {
             const pr = await profileRes.json();
             setProfile(pr);
           }
-        } catch {
-          // no member charts
         }
-      } catch (e) {
+      } catch {
         setError('Failed to load');
       } finally {
         setLoading(false);
       }
     })();
-  }, [slug]);
-
-  const onJoin = async () => {
-    if (!group) return;
-    setJoinLoading(true);
-    try {
-      const r = await fetch(`/api/community/groups/${group.id}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-      if (r.ok) setJoined(true);
-    } finally {
-      setJoinLoading(false);
-    }
-  };
+  }, [slug, user?.id]);
 
   if (loading && !group) {
     return (
@@ -96,7 +92,9 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
       <AppShell>
         <div className="max-w-3xl mx-auto p-6">
           <p className="text-red-500">{error || 'Group not found'}</p>
-          <Link href="/community" className="text-emerald-500 hover:underline mt-2 inline-block">← Back to Community</Link>
+          <Link href="/community" className="text-emerald-500 hover:underline mt-2 inline-block">
+            ← Back to Community
+          </Link>
         </div>
       </AppShell>
     );
@@ -105,7 +103,9 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-        <Link href="/community" className="text-subtext hover:text-text text-sm">← Back to Community</Link>
+        <Link href="/community" className="text-subtext hover:text-text text-sm">
+          ← Back to Community
+        </Link>
 
         <div className="rounded-lg border border-amber-200/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-200">
           {GUIDANCE_BANNER}
@@ -114,14 +114,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
         <header>
           <h1 className="text-2xl font-bold text-text">{group.name}</h1>
           <p className="text-subtext mt-1">{group.description}</p>
-          {group.tags && group.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {group.tags.map(t => (
-                <span key={t} className="px-2 py-0.5 rounded bg-surface-2 text-xs text-subtext">{t}</span>
-              ))}
-            </div>
-          )}
-          <p className="text-sm text-subtext mt-2">{group.memberCount ?? 0} members</p>
+          <p className="text-sm text-subtext mt-2">{group.memberCount ?? members.length} members</p>
         </header>
 
         {profile && (
@@ -134,26 +127,17 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
               </div>
             ))}
             {!profile.explanation?.sections?.length && (
-              <p className="text-sm text-subtext">No aggregate profile (add member charts when joining to compute).</p>
+              <p className="text-sm text-subtext">No aggregate profile (add member charts to compute).</p>
             )}
           </section>
         )}
 
-        <div className="flex gap-2">
-          <button
-            onClick={onJoin}
-            disabled={joined || joinLoading}
-            className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium disabled:opacity-50"
-          >
-            {joined ? 'Joined' : joinLoading ? 'Joining…' : 'Join group'}
-          </button>
-          <Link
-            href={`/compatibility/intent?groupId=${group.id}`}
-            className="px-4 py-2 rounded-lg border border-border bg-surface-2 text-sm font-medium hover:bg-surface-3"
-          >
-            Compatibility in this group
-          </Link>
-        </div>
+        <Link
+          href={`/compatibility/intent?groupId=${group.id}`}
+          className="inline-block px-4 py-2 rounded-lg border border-border bg-surface-2 text-sm font-medium hover:bg-surface-3"
+        >
+          Compatibility in this group
+        </Link>
 
         {members.length > 0 && (
           <section>
@@ -161,7 +145,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {members.map((m) => (
                 <MemberCard
-                  key={m.userId}
+                  key={`${m.userId}-${m.chartId || ''}`}
                   member={{
                     userId: m.userId,
                     chartId: m.chartId || '',
@@ -175,25 +159,6 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
             </div>
           </section>
         )}
-
-        <section>
-          <h2 className="text-lg font-medium text-text mb-3">Posts</h2>
-          {posts.length === 0 ? (
-            <p className="text-subtext text-sm">No posts yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {posts.map(p => (
-                <li key={p.id}>
-                  <Link href={`/community/post/${p.id}`} className="block rounded-lg border border-border bg-surface-1 p-4 hover:bg-surface-2">
-                    <h3 className="font-medium text-text">{p.title}</h3>
-                    <p className="text-sm text-subtext line-clamp-2 mt-1">{p.body}</p>
-                    <span className="text-xs text-subtext mt-2 block">{new Date(p.createdAt).toLocaleDateString()}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
       </div>
     </AppShell>
   );

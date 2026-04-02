@@ -1,7 +1,7 @@
 /**
- * Phase 3C — Server-side scope resolver for compatibility intent.
- * Returns candidate chartIds (with userId, displayName) restricted by scope.
- * Candidate charts must exist in compat storage.
+ * Server-side scope resolver for compatibility intent.
+ * Relational groups only (astradio_relational_groups + astradio_relational_group_members).
+ * Legacy community-store is not used.
  */
 
 import { getChartById } from '../compat/chart-store';
@@ -15,25 +15,42 @@ export interface ScopedCandidate {
   displayName?: string;
 }
 
-let communityStore: {
-  getGroup: (id: string) => Promise<{ id: string } | undefined>;
-  getGroupBySlug: (slug: string) => Promise<{ id: string } | undefined>;
-  getMembershipsByGroup: (groupId: string) => Promise<Array<{ userId: string; chartId?: string }>>;
-  getMembershipsByUser: (userId: string) => Promise<Array<{ groupId: string }>>;
+type PgRelational = {
   getUser: (id: string) => Promise<{ displayName?: string; handle?: string } | undefined>;
-} | null = null;
+  listRelationalGroupMembersForScope: (
+    groupId: string,
+    viewerUserId: string
+  ) => Promise<
+    | Array<{
+        chartId: string;
+        userId: string | null;
+        label?: string | null;
+      }>
+    | undefined
+  >;
+  resolveRelationalGroupForScope: (
+    slugOrId: string,
+    viewerUserId: string
+  ) => Promise<{ id: string } | undefined>;
+  listRelationalGroupsAccessibleToUser: (
+    userId: string
+  ) => Promise<Array<{ id: string }>>;
+};
 
-try {
-  // From dist/vnext/vnext/api/ -> project root lib
-  communityStore = require('../../../../lib/community-store');
-} catch {
-  // community store not available (e.g. test env)
+function loadPgRelational(): PgRelational | null {
+  if (!process.env.POSTGRES_URL) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const m = require('../../../../lib/pg-store') as PgRelational;
+    return m;
+  } catch {
+    return null;
+  }
 }
 
-async function resolveGroup(slugOrId: string): Promise<{ id: string } | undefined> {
-  if (!communityStore) return undefined;
-  if (slugOrId && slugOrId.startsWith('grp_')) return communityStore.getGroup(slugOrId);
-  return communityStore.getGroupBySlug(slugOrId);
+function syntheticUserIdForMember(m: { userId: string | null; chartId: string }): string {
+  if (m.userId) return m.userId;
+  return `non_platform:${m.chartId}`;
 }
 
 /**
@@ -46,6 +63,7 @@ export async function getScopedCandidates(
   seekerUserId?: string
 ): Promise<ScopedCandidate[]> {
   const byChartId = (a: ScopedCandidate, b: ScopedCandidate) => a.chartId.localeCompare(b.chartId);
+  const pg = loadPgRelational();
 
   if (scope === 'global') {
     const candidates = await compatStorage.ensureMatchCandidateCharts();
@@ -58,42 +76,50 @@ export async function getScopedCandidates(
   }
 
   if (scope === 'group' && groupId) {
-    const group = (await resolveGroup(groupId)) || (communityStore ? await communityStore.getGroup(groupId) : undefined);
-    if (!group || !communityStore) return [];
-    const memberships = await communityStore.getMembershipsByGroup(group.id);
+    if (!seekerUserId || !pg) return [];
+    const group = await pg.resolveRelationalGroupForScope(groupId, seekerUserId);
+    if (!group) return [];
+    const memberships = await pg.listRelationalGroupMembersForScope(group.id, seekerUserId);
+    if (!memberships) return [];
     const out: ScopedCandidate[] = [];
     for (const m of memberships) {
       if (!m.chartId) continue;
       const chart = await getChartById(m.chartId);
       if (!chart) continue;
-      const u = await communityStore.getUser(m.userId);
-      out.push({
-        chartId: m.chartId,
-        userId: m.userId,
-        displayName: u?.displayName || u?.handle || m.userId
-      });
+      const uid = syntheticUserIdForMember(m);
+      let displayName: string | undefined;
+      if (m.userId) {
+        const u = await pg.getUser(m.userId);
+        displayName = u?.displayName || u?.handle || m.userId;
+      } else {
+        displayName = (m.label && String(m.label)) || m.chartId;
+      }
+      out.push({ chartId: m.chartId, userId: uid, displayName });
     }
     return out.sort(byChartId);
   }
 
-  if (scope === 'my_groups' && seekerUserId && communityStore) {
-    const myMemberships = await communityStore.getMembershipsByUser(seekerUserId);
-    const groupIds = [...new Set(myMemberships.map((m) => m.groupId))];
+  if (scope === 'my_groups' && seekerUserId && pg) {
+    const groups = await pg.listRelationalGroupsAccessibleToUser(seekerUserId);
     const seen = new Set<string>();
     const out: ScopedCandidate[] = [];
-    for (const gid of groupIds) {
-      const memberships = await communityStore.getMembershipsByGroup(gid);
+    for (const g of groups) {
+      const memberships = await pg.listRelationalGroupMembersForScope(g.id, seekerUserId);
+      if (!memberships) continue;
       for (const m of memberships) {
         if (!m.chartId || seen.has(m.chartId)) continue;
         const chart = await getChartById(m.chartId);
         if (!chart) continue;
         seen.add(m.chartId);
-        const u = await communityStore.getUser(m.userId);
-        out.push({
-          chartId: m.chartId,
-          userId: m.userId,
-          displayName: u?.displayName || u?.handle || m.userId
-        });
+        const uid = syntheticUserIdForMember(m);
+        let displayName: string | undefined;
+        if (m.userId) {
+          const u = await pg.getUser(m.userId);
+          displayName = u?.displayName || u?.handle || m.userId;
+        } else {
+          displayName = (m.label && String(m.label)) || m.chartId;
+        }
+        out.push({ chartId: m.chartId, userId: uid, displayName });
       }
     }
     return out.sort(byChartId);

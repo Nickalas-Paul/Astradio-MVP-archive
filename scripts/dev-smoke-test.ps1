@@ -62,13 +62,24 @@ try {
     Write-Host "  ❌ Trending endpoint failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# Test community feed
-Write-Host "👥 Community feed test..." -ForegroundColor Cyan
+# Test community relational feed (POST; 501 acceptable when postgres / vnext module absent)
+Write-Host "👥 Community relational feed test..." -ForegroundColor Cyan
 try {
-    $feed = Invoke-RestMethod -Uri "$BaseUrl/api/community/feed"
-    Write-Host "  ✅ Community feed working (returned $($feed.Count) items)" -ForegroundColor Green
+    $payload = '{"transit":{"date":"2026-04-02","time":"12:00","lat":29.76,"lon":-95.37,"timezone":"America/Chicago"}}'
+    try {
+        $null = Invoke-RestMethod -Uri "$BaseUrl/api/community/relational-feed" -Method Post -Body $payload -ContentType 'application/json'
+        Write-Host "  ✅ Community relational feed responded (200)" -ForegroundColor Green
+    } catch {
+        $status = $null
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        if ($status -eq 501) {
+            Write-Host "  ✅ Community relational feed responded (501 — optional deps missing)" -ForegroundColor Green
+        } else {
+            Write-Host "  ❌ Community relational feed failed: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
 } catch {
-    Write-Host "  ❌ Community feed failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  ❌ Community relational feed failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 # Test error schema

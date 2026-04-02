@@ -45,7 +45,7 @@ export interface DirectoryEligibleUser {
   label?: string;
 }
 
-// Community in-memory (minimal for compat router; community routes use lib/community-store which we'll swap to pg-store)
+// Community in-memory (minimal for compat router; engine community routes use lib/pg-store)
 const groups = new Map<string, any>();
 const memberships = new Map<string, any>();
 const posts = new Map<string, any>();

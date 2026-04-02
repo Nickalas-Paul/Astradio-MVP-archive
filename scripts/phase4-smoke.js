@@ -46,18 +46,36 @@ async function main() {
     result(false, `GET /api/compat/health error: ${e.message}`);
   }
 
-  // 2. GET /api/community/feed returns deterministic (200, posts array; empty or seeded)
+  // 2. POST /api/community/relational-feed — relational weather feed (501 without pg build; 200 with envelope)
   try {
-    const r = await fetchOk(`${BASE}/api/community/feed`);
-    if (r.status === 200 && Array.isArray(r.data?.posts)) {
-      result(true, 'GET /api/community/feed 200 posts array');
-    } else if (r.status === 200) {
-      result(false, 'GET /api/community/feed 200 but no posts array');
+    const r = await fetchOk(`${BASE}/api/community/relational-feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transit: {
+          date: '2026-04-02',
+          time: '12:00',
+          lat: 29.76,
+          lon: -95.37,
+          timezone: 'America/Chicago',
+        },
+      }),
+    });
+    if (r.status === 501) {
+      result(true, 'POST /api/community/relational-feed 501 (feed module or postgres unavailable — expected in some envs)');
+    } else if (
+      r.status === 200 &&
+      r.data?.version === 'community_relational_feed_v1' &&
+      typeof r.data?.transit_lock === 'object' &&
+      typeof r.data?.sort_tuple_version === 'string' &&
+      Array.isArray(r.data?.items)
+    ) {
+      result(true, 'POST /api/community/relational-feed 200 community_relational_feed_v1');
     } else {
-      result(false, `GET /api/community/feed ${r.status}`);
+      result(false, `POST /api/community/relational-feed ${r.status} unexpected body`);
     }
   } catch (e) {
-    result(false, `GET /api/community/feed error: ${e.message}`);
+    result(false, `POST /api/community/relational-feed error: ${e.message}`);
   }
 
   // 3. GET /api/profile/:handle returns 404 when handle not found

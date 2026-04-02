@@ -71,12 +71,15 @@ else
     echo "  ❌ Trending endpoint failed"
 fi
 
-# Test community feed
-echo "👥 Community feed test..."
-if curl -fsS "$BASE_URL/api/community/feed" >/dev/null; then
-    echo "  ✅ Community feed working"
+# Test community relational feed (POST; 200 or 501 OK)
+echo "👥 Community relational feed test..."
+RF_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/community/relational-feed" \
+  -H "Content-Type: application/json" \
+  -d '{"transit":{"date":"2026-04-02","time":"12:00","lat":29.76,"lon":-95.37,"timezone":"America/Chicago"}}')
+if [ "$RF_CODE" = "200" ] || [ "$RF_CODE" = "501" ]; then
+    echo "  ✅ Community relational feed responded ($RF_CODE)"
 else
-    echo "  ❌ Community feed failed"
+    echo "  ❌ Community relational feed failed (HTTP $RF_CODE)"
 fi
 
 # Test error schema

@@ -28,15 +28,17 @@ export async function resolveOwnerId(req: RequestLike): Promise<string | undefin
   const b = (req?.body?.userId as string) || undefined;
   if (b && typeof b === 'string' && b.trim()) return b.trim();
 
-  try {
-    const communityStore = require('../../../../lib/community-store');
-    const ensure = communityStore?.ensureDevUser;
-    if (ensure) {
-      const dev = await ensure();
-      return dev?.id;
+  if (process.env.POSTGRES_URL) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pgStore = require('../../../../lib/pg-store');
+      if (pgStore?.ensureDevUser) {
+        const dev = await pgStore.ensureDevUser();
+        if (dev?.id) return String(dev.id).trim();
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
   return undefined;
 }

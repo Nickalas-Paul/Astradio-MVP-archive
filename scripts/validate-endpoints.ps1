@@ -25,7 +25,7 @@ Write-Host "  📋 Client calls..."
 $clientCalls = @(
     "/api/chart",
     "/api/compat/matches", 
-    "/api/community/feed",
+    "/api/community/relational-feed",
     "/api/compose",
     "/api/connect/accept/[requestId]",
     "/api/connect/[userId]",

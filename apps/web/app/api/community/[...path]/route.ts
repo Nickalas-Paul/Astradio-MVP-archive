@@ -1,6 +1,6 @@
 /**
  * Proxy to engine for Phase 3A community routes not handled by more specific routes.
- * Forwards GET/POST to backend /api/community/{path}. Does not handle /api/community/search, feed, or groups/profile (those have dedicated routes).
+ * Forwards GET/POST to backend /api/community/{path}. Does not handle /api/community/search, relational-feed, or groups/profile (those have dedicated routes).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';

@@ -553,69 +553,114 @@ export function useTrending(params: {
   return { tracks, isLoading, error };
 }
 
-// Social feed hook
-export function useSocialFeed(params: {
-  since?: string;
-  cursor?: string;
-}) {
-  const [items, setItems] = useState<any[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
+/** Transit for relational feed: current instant in primary chart timezone + chart coordinates. */
+export function buildRelationalFeedTransitFromPrimaryChart(
+  chart: ProfilePrimaryChart | null
+): { date: string; time: string; lat: number; lon: number; timezone?: string } | null {
+  if (!chart || typeof chart.lat !== 'number' || typeof chart.lon !== 'number') return null;
+  const tz = (chart.timezone && chart.timezone.trim()) || 'UTC';
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  const y = pick('year');
+  const mo = pick('month');
+  const d = pick('day');
+  const h = pick('hour');
+  const mi = pick('minute');
+  if (!y || !mo || !d) return null;
+  return {
+    date: `${y}-${mo}-${d}`,
+    time: `${h || '00'}:${mi || '00'}`,
+    lat: chart.lat,
+    lon: chart.lon,
+    timezone: tz,
+  };
+}
+
+export interface RelationalCommunityFeedItem {
+  feed_item_id: string;
+  connection_kind: string;
+  binding_id: string;
+  chart_ids_ordered: string[];
+  compatibility_field_hash: string;
+  relational_weather_state_hash: string | null;
+  transit_snapshot_hash: string;
+  ranking: {
+    activation_intensity: number;
+    overall_relational_intensity: number;
+    tie_break_key: string;
+  };
+}
+
+export interface RelationalCommunityFeedResponse {
+  version: string;
+  sort_tuple_version: string;
+  transit_lock: Record<string, unknown>;
+  items: RelationalCommunityFeedItem[];
+  transit_snapshot_hash?: string;
+  relational_weather_state_hash?: string | null;
+  generated_at?: string;
+}
+
+/** Established connections only; server-side sort. No client reordering. */
+export function useRelationalCommunityFeed(userId: string | null, primaryChart: ProfilePrimaryChart | null) {
+  const [data, setData] = useState<RelationalCommunityFeedResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const abortController = new AbortController();
-    
+    if (!userId) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+    const transit = buildRelationalFeedTransitFromPrimaryChart(primaryChart);
+    if (!transit) {
+      setData(null);
+      setError('Set a profile with birth location so the feed can resolve sky context.');
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
-      const base = getApiBaseUrl();
-      let url = (base || '') + '/api/community/feed';
-      const searchParams = new URLSearchParams();
-      if (params.since) searchParams.set('since', params.since);
-      if (params.cursor) searchParams.set('cursor', params.cursor);
-      if (searchParams.toString()) url += '?' + searchParams.toString();
-      
-      const response = await fetch(url, {
-        signal: abortController.signal,
-        credentials: 'same-origin'
-      });
-      if (!response.ok) throw new Error('Failed to fetch feed');
-      const data = await response.json();
-      // Phase 8G: merge posts and recentJoins into one list (backend returns { posts, recentJoins })
-      const postItems = (data.posts || []).map((p: { id: string; title?: string; body?: string; createdAt?: string; author?: { displayName?: string } }) => ({
-        t: 'post',
-        id: p.id,
-        userName: p.author?.displayName ?? 'Someone',
-        title: p.title ?? '',
-        body: p.body ?? '',
-        at: p.createdAt ?? new Date().toISOString(),
-      }));
-      const joinItems = (data.recentJoins || []).map((j: { userId: string; displayName?: string; createdAt?: string }) => ({
-        t: 'joined',
-        id: j.userId,
-        userName: j.displayName ?? 'Someone',
-        at: j.createdAt ?? new Date().toISOString(),
-      }));
-      const merged = [...postItems, ...joinItems].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-      setItems(merged);
-      setNextCursor(data.nextCursor);
       setError(null);
+      const base = getApiBaseUrl();
+      const r = await fetch(`${base || ''}/api/community/relational-feed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ userId, transit }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error || `Feed request failed (${r.status})`);
+      }
+      const json = (await r.json()) as RelationalCommunityFeedResponse;
+      setData(json);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Failed to load feed');
-      setItems([]);
+      setError(err instanceof Error ? err.message : 'Failed to load relational feed');
+      setData(null);
     } finally {
       setIsLoading(false);
     }
-    
-    return () => abortController.abort();
-  }, [params.since, params.cursor]);
+  }, [userId, primaryChart]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { items, nextCursor, isLoading, error, refresh };
+  return { data, isLoading, error, refresh };
 }
 
 // Social actions hook

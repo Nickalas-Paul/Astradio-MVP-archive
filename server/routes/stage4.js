@@ -348,7 +348,7 @@ function createStage4Router() {
     const ownerUserId = requireOwner(req, res);
     if (!ownerUserId) return;
     try {
-      const groups = await pgStore.listRelationalGroupsByOwner(ownerUserId);
+      const groups = await pgStore.listRelationalGroupsAccessibleToUser(ownerUserId);
       return res.status(200).json({ groups });
     } catch (e) {
       return res.status(500).json({ error: e?.message || 'Failed to list groups' });
