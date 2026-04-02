@@ -13,6 +13,7 @@ import { RELATIONSHIP_MODES, type RelationshipMode } from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
+import { ensureSeedCandidateVectors } from './seed-vectors';
 import type { ChartBInline, Comparison } from './types';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 
@@ -114,8 +115,31 @@ export function createCompatRouter(): import('express').Router {
 
   // Seed default profile chart and match candidates once at startup (async; idempotent).
   setImmediate(() => {
-    storage.ensureDefaultProfileChart().catch((e) => console.error('[compat] seed ensureDefaultProfileChart', e));
-    storage.ensureMatchCandidateCharts().catch((e) => console.error('[compat] seed ensureMatchCandidateCharts', e));
+    void (async () => {
+      try {
+        await storage.ensureDefaultProfileChart();
+      } catch (e) {
+        console.error('[compat] seed ensureDefaultProfileChart', e);
+      }
+
+      try {
+        await storage.ensureMatchCandidateCharts();
+      } catch (e) {
+        console.error('[compat] seed ensureMatchCandidateCharts', e);
+      }
+
+      try {
+        const results = await ensureSeedCandidateVectors();
+        if (results.length > 0) {
+          console.log('[compat] seed candidate vectors', {
+            total: results.length,
+            regenerated: results.filter((result) => result.status === 'regenerated').map((result) => result.chartId),
+          });
+        }
+      } catch (e) {
+        console.error('[compat] seed ensureSeedCandidateVectors', e);
+      }
+    })();
   });
 
   // GET /api/compat/health — report synastry/mock state for beta clarity

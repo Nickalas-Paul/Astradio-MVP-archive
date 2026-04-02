@@ -12,7 +12,8 @@ import type { Chart } from './types';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const vectorStore = require('../../../../lib/vector-store');
 
-const ENCODER_VERSION = 'v1';
+export const CHART_VECTOR_VERSION = 'v1';
+export const CHART_VECTOR_ENCODER_VERSION = 'v1';
 
 function chartToChartInput(chart: Chart): ChartInput {
   return {
@@ -46,8 +47,8 @@ export async function populateChartVector(chartId: string, snapshotHash?: string
   return vectorStore.upsertChartVector({
     chartId,
     vector64,
-    version: 'v1',
-    encoderVersion: ENCODER_VERSION,
+    version: CHART_VECTOR_VERSION,
+    encoderVersion: CHART_VECTOR_ENCODER_VERSION,
     snapshotHash: snapshotHash ?? chart.snapshotHash ?? undefined,
   });
 }
