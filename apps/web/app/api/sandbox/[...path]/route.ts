@@ -11,6 +11,15 @@ function isCompositionsRoute(pathStr: string): boolean {
   return pathStr === 'compositions' || pathStr.startsWith('compositions/');
 }
 
+/** Pass engine JSON through unchanged on errors (preserve `code`, `ok`, `error`, `message`, etc.). */
+function jsonResponseForUpstreamError(status: number, data: unknown, statusText: string): NextResponse {
+  const httpStatus = status >= 400 ? status : 502;
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    return NextResponse.json(data, { status: httpStatus });
+  }
+  return NextResponse.json({ error: statusText || 'Bad gateway' }, { status: httpStatus });
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
@@ -29,10 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     });
     const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
     if (!r.ok) {
-      return NextResponse.json(
-        { error: (data && typeof data.error === 'string' ? data.error : data) || r.statusText },
-        { status: r.status >= 400 ? r.status : 502 }
-      );
+      return jsonResponseForUpstreamError(r.status, data, r.statusText);
     }
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
@@ -66,10 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
     const r = await fetch(targetUrl.toString());
     const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
     if (!r.ok) {
-      return NextResponse.json(
-        { error: (data && typeof data.error === 'string' ? data.error : data) || r.statusText },
-        { status: r.status >= 400 ? r.status : 502 }
-      );
+      return jsonResponseForUpstreamError(r.status, data, r.statusText);
     }
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
