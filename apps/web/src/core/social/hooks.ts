@@ -297,11 +297,28 @@ export interface ProfileChartSection {
   text: string;
   bullets?: string[];
 }
+export interface ProfileChartIdentity {
+  profile_contract_version: number;
+  natal_snapshot_fingerprint: string;
+  profile_natal_compose_anchor: string;
+  object_identity_hash: string;
+  surface_kind: 'profile_natal';
+}
+
 export interface ProfileChartResponse {
   chart: ProfilePrimaryChart & { createdAt?: string; updatedAt?: string };
   snapshot: Record<string, unknown>;
-  explainer: { spec: string; sections: ProfileChartSection[] };
+  explainer: {
+    spec: string;
+    sections: ProfileChartSection[];
+    meta?: { canonical_object_hash: string };
+  };
   meta: { encoderVersion?: string; explainerVersion?: string; generatedAt: string };
+  identity?: ProfileChartIdentity;
+  personality?: {
+    temperament?: { activation?: number; stability?: number; expressiveness?: number };
+    emphasis?: Record<string, number>;
+  };
 }
 
 export function useProfile() {

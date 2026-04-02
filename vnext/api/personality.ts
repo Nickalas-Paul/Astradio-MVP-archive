@@ -1,20 +1,19 @@
 /**
- * Personality API - Phase 1 Foundation
- *
- * Returns personality profile, astro profile, and narrative sections.
- * Does NOT generate music or call compose.
- * Text sections are TextProjection(SemanticCore) only.
+ * Personality API — Profile natal projection only (unified anchor with GET /api/profile/chart).
+ * No independent seed path; optional client `seed` is rejected fail-closed.
  */
 
-import { generateArchitecture, type ChartInput } from '../core/architecture-engine';
 import { getChartById } from '../compat/chart-store';
-import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
-import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
-import { projectTextFromSemanticCore } from '../projection/text-projection';
+import type { ChartInput } from '../core/architecture-engine';
+import {
+  buildProfileNatalProjectionFromChartInput,
+  PROFILE_CONTRACT_VERSION,
+} from '../profile/profile-natal-projection';
 
 export interface PersonalityRequest {
   chartId?: string;
   chart?: ChartInput;
+  /** @deprecated Rejected — natal identity is derived from chart snapshot only. */
   seed?: string;
 }
 
@@ -37,17 +36,28 @@ export interface PersonalityResponse {
       bullets?: string[];
       meta?: import('../projection/projection-types').ProjectedExplanationSection['meta'];
     }>;
+    meta: { canonical_object_hash: string };
   };
-  seed: string;
+  /** Same as profile_natal compose anchor (formerly ambiguous `seed`). */
+  profile_natal_compose_anchor: string;
+  object_identity_hash: string;
+  profile_contract_version: number;
+  surface_kind: 'profile_natal';
   generatedAt: string;
 }
 
 /**
- * Generate personality report from chart input.
- *
- * This is the canonical way to get personality data without music generation.
+ * Generate personality report from chart input — same projection pipeline as Profile chart explainer.
  */
 export async function generatePersonalityReport(request: PersonalityRequest): Promise<PersonalityResponse> {
+  if (request.seed !== undefined && request.seed !== null && String(request.seed).length > 0) {
+    const err = new Error(
+      'Personality API does not accept seed; natal identity is unified on chart snapshot (profile_natal anchor).'
+    ) as Error & { code?: string };
+    err.code = 'SEED_NOT_SUPPORTED';
+    throw err;
+  }
+
   let chartInput: ChartInput;
   if (request.chart) {
     chartInput = request.chart;
@@ -59,42 +69,22 @@ export async function generatePersonalityReport(request: PersonalityRequest): Pr
     throw new Error('Either chart or chartId must be provided');
   }
 
-  const architecture = await generateArchitecture(chartInput, request.seed);
-  const seed = architecture.seed;
-  const canonicalReport = buildCanonicalReportForSnapshotSurface({
-    surface_kind: 'profile_natal',
-    subject_ids: [seed],
-    snapshot: architecture.snapshot,
-    featureVec: architecture.features,
-    control_surface_hash: seed,
-    compose_seed: seed,
-    guidance: architecture.guidance,
-  });
-  const semanticCore = interpretCanonicalReportObject(canonicalReport);
-  const projected = projectTextFromSemanticCore(semanticCore, seed, {
-    phaseD: true,
-    surface: 'profile',
-    tier: 'baseline',
-    narrativePlan: null,
-    aspectTension: null,
-  });
+  const bundle = await buildProfileNatalProjectionFromChartInput(chartInput);
 
   return {
     chart: chartInput,
-    personality: architecture.personality,
-    astroProfile: architecture.astroProfile,
-    guidance: architecture.guidance,
+    personality: bundle.architecture.personality,
+    astroProfile: bundle.architecture.astroProfile,
+    guidance: bundle.architecture.guidance,
     explanation: {
-      spec: 'UnifiedSpecV1.1',
-      sections: projected.map((s) => ({
-        id: s.id,
-        title: s.title,
-        text: s.text,
-        bullets: s.bullets,
-        ...(s.meta ? { meta: s.meta } : {}),
-      })),
+      spec: bundle.explainer.spec,
+      sections: bundle.explainer.sections as PersonalityResponse['explanation']['sections'],
+      meta: bundle.explainer.meta,
     },
-    seed: architecture.seed,
+    profile_natal_compose_anchor: bundle.anchor,
+    object_identity_hash: bundle.explainer.object_identity_hash,
+    profile_contract_version: PROFILE_CONTRACT_VERSION,
+    surface_kind: 'profile_natal',
     generatedAt: new Date().toISOString(),
   };
 }

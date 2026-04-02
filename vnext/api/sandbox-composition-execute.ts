@@ -159,15 +159,21 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         };
       }
       const natalSnap = await fetchChartSnapshot(chartToChartInput(natalChart));
+      const natalTz =
+        typeof natalChart.timezone === 'string' && natalChart.timezone.trim() ? natalChart.timezone.trim() : undefined;
+      const curTz =
+        typeof tc.current_timezone === 'string' && tc.current_timezone.trim() ? tc.current_timezone.trim() : undefined;
       const composeReq: ComposeRequest = {
         mode: 'overlay',
         overlayParams: {
           natalLatitude: natalSnap.lat,
           natalLongitude: natalSnap.lon,
           natalDatetime: natalSnap.ts,
+          ...(natalTz ? { natalTimezone: natalTz } : {}),
           currentLatitude: tc.current_latitude,
           currentLongitude: tc.current_longitude,
           currentDatetime: tc.current_datetime,
+          ...(curTz ? { currentTimezone: curTz } : {}),
         },
         controls: normalized.compose_controls as ComposeRequest['controls'],
         seed: normalized.seed,

@@ -7,6 +7,7 @@ import * as storage from './storage';
 import { getChartById, createChart } from './chart-store';
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
+import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
 import { getCompatMatches, type CompatMatchMode } from './matches';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import { RELATIONSHIP_MODES, type RelationshipMode } from './types';
@@ -419,6 +420,50 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: any) {
       console.error('[compat] PATCH /profile', e);
       return res.status(500).json({ error: e?.message || 'Failed to update profile' });
+    }
+  });
+
+  // POST /api/profile/active-state — A + C(t) via overlay compose (comparison_pair). Body: { chartId, calendarDate, localTime, location, userId? }
+  router.post('/profile/active-state', express.json({ limit: '64kb' }), async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const body = (req.body || {}) as {
+        chartId?: string;
+        calendarDate?: string;
+        localTime?: string;
+        location?: Record<string, unknown>;
+        userId?: string;
+        skipCache?: boolean;
+      };
+      const chartId = typeof body.chartId === 'string' ? body.chartId.trim() : '';
+      const calendarDate = typeof body.calendarDate === 'string' ? body.calendarDate.trim() : '';
+      const localTime = typeof body.localTime === 'string' ? body.localTime.trim() : '';
+      if (!chartId || !calendarDate || !localTime || !body.location || typeof body.location !== 'object') {
+        return res.status(400).json({
+          error: 'chartId, calendarDate, localTime, and location are required',
+          code: 'PROFILE_ACTIVE_INVALID_BODY',
+        });
+      }
+      const result = await buildProfileActiveStateProjection({
+        chartId,
+        calendarDate,
+        localTime,
+        location: body.location,
+        userId: typeof body.userId === 'string' ? body.userId.trim() : null,
+        skipCache: body.skipCache === true,
+      });
+      return res.status(200).json(result);
+    } catch (e: any) {
+      const code = e?.code as string | undefined;
+      if (code === 'NATAL_TIMEZONE_REQUIRED') {
+        return res.status(422).json({ error: e?.message || 'NATAL_TIMEZONE_REQUIRED', code });
+      }
+      if (code === 'LOCATION_REQUIRED' || code === 'INVALID_SOURCE' || code === 'LOCATION_INVALID') {
+        return res.status(400).json({ error: e?.message || 'Invalid location', code: code || 'LOCATION_INVALID' });
+      }
+      if (e?.message?.includes('Chart not found')) return res.status(404).json({ error: e.message });
+      if ((e as any)?.code === 'ML_INFERENCE_UNAVAILABLE') return res.status(503).json({ error: 'ML inference unavailable' });
+      console.error('[compat] POST /profile/active-state', e);
+      return res.status(500).json({ error: e?.message || 'Failed to build profile active state' });
     }
   });
 

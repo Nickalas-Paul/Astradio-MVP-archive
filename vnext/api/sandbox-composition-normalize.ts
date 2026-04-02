@@ -34,6 +34,8 @@ export type OverlayTransitContextInput = {
   current_datetime: string;
   current_latitude: number;
   current_longitude: number;
+  /** IANA zone for transit snapshot (aligned with transitContextFingerprint / Profile active state). */
+  current_timezone?: string;
 };
 
 export type CompositionBindingInput = {

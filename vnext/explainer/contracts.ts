@@ -153,9 +153,13 @@ export interface ComposeRequest {
     natalLatitude: number;
     natalLongitude: number;
     natalDatetime: string;
+    /** When set, natal chart-snapshot uses this IANA zone (aligned with Campaign / transit fingerprint). */
+    natalTimezone?: string;
     currentLatitude: number;
     currentLongitude: number;
     currentDatetime: string;
+    /** When set, transit chart-snapshot uses this IANA zone (aligned with transitContextFingerprint). */
+    currentTimezone?: string;
   };
   controls?: Partial<ControlSurfacePayload>; // For sandbox mode
   genre?: string;

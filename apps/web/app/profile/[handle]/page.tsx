@@ -7,16 +7,17 @@ import { CompatibilityLensModal } from '@/components/compatibility/Compatibility
 import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
 
-interface DirectoryUser {
+interface ProfileByHandleUser {
   userId: string;
   displayName: string;
   chartId: string;
   label?: string;
+  handle?: string;
 }
 
 export default function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const [handle, setHandle] = useState('');
-  const [user, setUser] = useState<DirectoryUser | null>(null);
+  const [user, setUser] = useState<ProfileByHandleUser | null>(null);
   const [personality, setPersonality] = useState<{ temperament?: { activation?: number; stability?: number }; emphasis?: Record<string, number> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lensOpen, setLensOpen] = useState(false);
@@ -35,30 +36,33 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
 
     (async () => {
       try {
-        const r = await fetch(`/api/community/search?q=${encodeURIComponent(handle)}&limit=5`);
-        if (!r.ok) throw new Error('Search failed');
-        const data = await r.json();
-        const users: DirectoryUser[] = data.users || [];
-        const match = users.find(
-          (u) =>
-            u.userId === handle ||
-            u.displayName?.toLowerCase() === handle.toLowerCase() ||
-            u.userId.toLowerCase().includes(handle.toLowerCase())
-        ) || users[0];
-        if (!match) {
+        const pr = await fetch(`/api/profile/${encodeURIComponent(handle)}`);
+        if (!pr.ok) {
           setLoading(false);
           return;
         }
-        setUser(match);
-
-        const pr = await fetch('/api/personality', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chartId: match.chartId }),
+        const data = await pr.json();
+        const u = data.user as { id?: string; displayName?: string; handle?: string } | null;
+        const pc = data.primaryChart as { id?: string; label?: string } | null;
+        if (!u?.id || !pc?.id) {
+          setLoading(false);
+          return;
+        }
+        setUser({
+          userId: u.id,
+          displayName: u.displayName || u.id,
+          chartId: pc.id,
+          label: pc.label,
+          handle: u.handle,
         });
-        if (pr.ok) {
-          const pData = await pr.json();
-          setPersonality(pData);
+
+        const chartRes = await fetch(`/api/profile/chart?chartId=${encodeURIComponent(pc.id)}`);
+        if (chartRes.ok) {
+          const chartData = await chartRes.json();
+          const p = chartData.personality as
+            | { temperament?: { activation?: number; stability?: number }; emphasis?: Record<string, number> }
+            | undefined;
+          if (p) setPersonality({ temperament: p.temperament, emphasis: p.emphasis });
         }
       } catch {
         // ignore

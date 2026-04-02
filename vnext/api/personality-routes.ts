@@ -18,6 +18,9 @@ export function createPersonalityRouter(): import('express').Router {
       return res.status(200).json(result);
     } catch (e: any) {
       console.error('[personality] GET /personality/:chartId', e);
+      if (e?.code === 'SEED_NOT_SUPPORTED') {
+        return res.status(400).json({ error: e.message, code: e.code });
+      }
       if (e?.message?.includes('Chart not found')) {
         return res.status(404).json({ error: e.message });
       }
@@ -41,6 +44,9 @@ export function createPersonalityRouter(): import('express').Router {
       return res.status(200).json(result);
     } catch (e: any) {
       console.error('[personality] POST /personality', e);
+      if (e?.code === 'SEED_NOT_SUPPORTED') {
+        return res.status(400).json({ error: e.message, code: e.code });
+      }
       if (e?.message?.includes('not found')) {
         return res.status(404).json({ error: e.message });
       }

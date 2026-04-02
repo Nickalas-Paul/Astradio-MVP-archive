@@ -793,7 +793,14 @@ export class ComposeAPI {
     payload: ControlSurfacePayload,
     snapshot: EphemerisSnapshot,
     guidance: ArchitectureOutput['guidance']
-  ): Promise<{ spec: string; sections: Array<{ id: string; title: string; text: string; bullets?: string[] }> }> {
+  ): Promise<{
+    spec: string;
+    sections: Array<{ id: string; title: string; text: string; bullets?: string[]; meta?: unknown }>;
+    object_identity_hash: string;
+    surface_kind: 'profile_natal';
+    profile_contract_version: number;
+    meta: { canonical_object_hash: string };
+  }> {
     const { plan, diag } = await generatePlanMLOnly(featureVec, payload);
     if (!diag?.ml_used) {
       const err = new Error('ML inference unavailable') as Error & { code?: string };
@@ -819,6 +826,7 @@ export class ComposeAPI {
       narrativePlan,
       aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
     });
+    const object_identity_hash = canonicalReport.object_identity_hash;
     return {
       spec: 'UnifiedSpecV1.1',
       sections: projected.map((s) => ({
@@ -828,6 +836,10 @@ export class ComposeAPI {
         bullets: s.bullets,
         meta: s.meta,
       })),
+      object_identity_hash,
+      surface_kind: 'profile_natal',
+      profile_contract_version: 1,
+      meta: { canonical_object_hash: object_identity_hash },
     };
   }
 
@@ -853,11 +865,16 @@ export class ComposeAPI {
       const payload = await this.generateOverlayPayload(request.overlayParams);
       const natalDt = request.overlayParams.natalDatetime;
       const [natalDate, natalTimePart] = String(natalDt).split('T');
+      const natalTz =
+        typeof request.overlayParams.natalTimezone === 'string' && request.overlayParams.natalTimezone.trim()
+          ? request.overlayParams.natalTimezone.trim()
+          : undefined;
       const natalInput: ChartInput = {
         date: natalDate,
         time: (natalTimePart || '').slice(0, 5),
         lat: request.overlayParams.natalLatitude,
         lon: request.overlayParams.natalLongitude,
+        ...(natalTz ? { timezone: natalTz } : {}),
       };
       const natalSnapshot = await fetchChartSnapshot(natalInput);
       return buildOverlayCanonicalInput({
@@ -928,6 +945,10 @@ export class ComposeAPI {
       const dt = req.overlayParams.currentDatetime;
       const lat = req.overlayParams.currentLatitude;
       const lon = req.overlayParams.currentLongitude;
+      const curTz =
+        typeof req.overlayParams.currentTimezone === 'string' && req.overlayParams.currentTimezone.trim()
+          ? req.overlayParams.currentTimezone.trim()
+          : undefined;
       if (
         typeof dt !== 'string' ||
         !dt.includes('T') ||
@@ -943,7 +964,7 @@ export class ComposeAPI {
       if (!d || !timePart) {
         throw new Error('Invalid overlayParams.currentDatetime; expected YYYY-MM-DDTHH:mm:ssZ');
       }
-      return { date: d, time: timePart, lat, lon };
+      return { date: d, time: timePart, lat, lon, ...(curTz ? { timezone: curTz } : {}) };
     }
 
     if (req.chartData && typeof req.chartData.date === 'string' && typeof req.chartData.time === 'string') {

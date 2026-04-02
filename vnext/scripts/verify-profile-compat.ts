@@ -91,11 +91,45 @@ async function main() {
         console.error('FAIL: explainer.sections missing or empty', j?.explainer);
         failed++;
       } else {
-        console.log('OK: GET /api/profile/chart returns explainer with', sections.length, 'sections');
+        const id = j?.identity;
+        const hash = id?.object_identity_hash || j?.explainer?.meta?.canonical_object_hash;
+        if (typeof hash !== 'string' || hash.length !== 64) {
+          console.error('FAIL: profile/chart missing identity.object_identity_hash (64 hex)', id, j?.explainer?.meta);
+          failed++;
+        } else if (!id?.profile_natal_compose_anchor || id?.surface_kind !== 'profile_natal') {
+          console.error('FAIL: profile/chart identity envelope incomplete', id);
+          failed++;
+        } else {
+          console.log('OK: GET /api/profile/chart returns explainer with', sections.length, 'sections + identity');
+        }
       }
     }
   } catch (e) {
     console.error('FAIL: GET /api/profile/chart', e);
+    failed++;
+  }
+
+  // 4) POST /api/personality with seed must fail closed (unified anchor)
+  try {
+    const r = await fetch(`${base}/api/personality`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chartId, seed: 'legacy-should-reject' }),
+    });
+    if (r.status !== 400) {
+      console.error('FAIL: POST /api/personality with seed expected 400 got', r.status);
+      failed++;
+    } else {
+      const j = await r.json().catch(() => ({}));
+      if (j.code !== 'SEED_NOT_SUPPORTED') {
+        console.error('FAIL: personality seed rejection missing SEED_NOT_SUPPORTED', j);
+        failed++;
+      } else {
+        console.log('OK: POST /api/personality rejects legacy seed');
+      }
+    }
+  } catch (e) {
+    console.error('FAIL: POST /api/personality seed check', e);
     failed++;
   }
 
