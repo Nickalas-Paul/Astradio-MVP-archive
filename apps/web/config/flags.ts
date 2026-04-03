@@ -29,19 +29,24 @@ const DEFAULT_FLAGS: FeatureFlags = {
   ENABLE_VIZ_ENGINE: process.env.NODE_ENV === 'development',
 };
 
+/** Only keys present in the URL override defaults; absence means leave default. */
+function queryFlagEnabled(urlParams: URLSearchParams, key: string): boolean {
+  return urlParams.get(key) === '1' || urlParams.get(key) === 'true';
+}
+
 const getRuntimeFlags = (): Partial<FeatureFlags> => {
   const flags: Partial<FeatureFlags> = {};
   if (typeof window !== 'undefined') {
     flags.USE_MOCK = !!(window as any).__USE_MOCK__;
     const urlParams = new URLSearchParams(window.location.search);
-    flags.ENABLE_TRENDING = urlParams.get('trending') === '1' || urlParams.get('trending') === 'true';
-    flags.ENABLE_COMPAT = urlParams.get('compat') === '1' || urlParams.get('compat') === 'true';
-    flags.ENABLE_SOCIAL = urlParams.get('social') === '1' || urlParams.get('social') === 'true';
-    flags.ENABLE_ATLAS = urlParams.get('atlas') === '1' || urlParams.get('atlas') === 'true';
-    flags.ENABLE_ANALYTICS = urlParams.get('analytics') === '1' || urlParams.get('analytics') === 'true';
-    flags.ENABLE_SHARING = urlParams.get('sharing') === '1' || urlParams.get('sharing') === 'true';
-    flags.ENABLE_PLAYLISTS = urlParams.get('playlists') === '1' || urlParams.get('playlists') === 'true';
-    flags.ENABLE_VIZ_ENGINE = urlParams.get('viz') === '1' || urlParams.get('viz') === 'true';
+    if (urlParams.has('trending')) flags.ENABLE_TRENDING = queryFlagEnabled(urlParams, 'trending');
+    if (urlParams.has('compat')) flags.ENABLE_COMPAT = queryFlagEnabled(urlParams, 'compat');
+    if (urlParams.has('social')) flags.ENABLE_SOCIAL = queryFlagEnabled(urlParams, 'social');
+    if (urlParams.has('atlas')) flags.ENABLE_ATLAS = queryFlagEnabled(urlParams, 'atlas');
+    if (urlParams.has('analytics')) flags.ENABLE_ANALYTICS = queryFlagEnabled(urlParams, 'analytics');
+    if (urlParams.has('sharing')) flags.ENABLE_SHARING = queryFlagEnabled(urlParams, 'sharing');
+    if (urlParams.has('playlists')) flags.ENABLE_PLAYLISTS = queryFlagEnabled(urlParams, 'playlists');
+    if (urlParams.has('viz')) flags.ENABLE_VIZ_ENGINE = queryFlagEnabled(urlParams, 'viz');
   }
   return flags;
 };

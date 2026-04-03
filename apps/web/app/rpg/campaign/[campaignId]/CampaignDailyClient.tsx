@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LocationFinder, type GeocodeResult } from '@/components/sandbox/LocationFinder';
 
 type CampaignStateMember = {
   tone_track?: Record<string, number>;
@@ -191,10 +192,6 @@ function initialTime() {
   return `${hh}:${mm}`;
 }
 
-function initialTimezone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-}
-
 function titleCase(value: string) {
   return value
     .replace(/[_-]+/g, ' ')
@@ -312,10 +309,14 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
       tone: 'danger',
     };
   }
-  if (message.includes('latitude, longitude, and timezone')) {
+  if (
+    message.includes('latitude, longitude, and timezone') ||
+    message.includes('location required') ||
+    message.includes('location_invalid')
+  ) {
     return {
       title: 'Location still needed',
-      description: 'Add a saved location below before generating this solo daily.',
+      description: 'Search and select a valid place below, or ensure your saved location is set in Profile, before running this solo daily.',
       tone: 'warning',
     };
   }
@@ -356,12 +357,9 @@ function ControlPanel(props: {
   setDate: (value: string) => void;
   time: string;
   setTime: (value: string) => void;
-  lat: string;
-  setLat: (value: string) => void;
-  lon: string;
-  setLon: (value: string) => void;
-  timezone: string;
-  setTimezone: (value: string) => void;
+  locationSearchLabel: string;
+  onLocationSelect: (r: GeocodeResult) => void;
+  onLocationClear: () => void;
   isLoadingDaily: boolean;
   onGenerate: () => void;
 }) {
@@ -371,12 +369,9 @@ function ControlPanel(props: {
     setDate,
     time,
     setTime,
-    lat,
-    setLat,
-    lon,
-    setLon,
-    timezone,
-    setTimezone,
+    locationSearchLabel,
+    onLocationSelect,
+    onLocationClear,
     isLoadingDaily,
     onGenerate,
   } = props;
@@ -387,7 +382,7 @@ function ControlPanel(props: {
         <div className="space-y-1">
           <h2 className="text-sm font-medium text-text">Daily controls</h2>
           <p className="text-xs text-subtext">
-            Adjust the timing for this daily. Solo mode can optionally save a location override before generation.
+            Adjust the timing for this daily. Solo mode can optionally set a place override from search before generation.
           </p>
         </div>
         <button
@@ -399,7 +394,7 @@ function ControlPanel(props: {
           {isLoadingDaily ? 'Generating...' : 'Generate Daily'}
         </button>
       </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-4">
+      <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <label className="space-y-1">
           <span className="text-sm">Date</span>
           <input className="w-full rounded border px-3 py-2 text-black" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -408,22 +403,21 @@ function ControlPanel(props: {
           <span className="text-sm">Time</span>
           <input className="w-full rounded border px-3 py-2 text-black" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
         </label>
-        {requiresLocation && (
-          <>
-            <label className="space-y-1">
-              <span className="text-sm">Latitude</span>
-              <input className="w-full rounded border px-3 py-2 text-black" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="optional" />
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">Longitude</span>
-              <input className="w-full rounded border px-3 py-2 text-black" value={lon} onChange={(e) => setLon(e.target.value)} placeholder="optional" />
-            </label>
-            <label className="space-y-1 md:col-span-2">
-              <span className="text-sm">Timezone</span>
-              <input className="w-full rounded border px-3 py-2 text-black" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
-            </label>
-          </>
-        )}
+        {requiresLocation ? (
+          <div className="space-y-1 lg:col-span-2">
+            <span className="text-sm text-text">Place (optional override)</span>
+            <p className="text-xs text-subtext">
+              Search and choose a result to save today&apos;s transit place. Otherwise your saved profile location is used when available.
+            </p>
+            <LocationFinder
+              value={locationSearchLabel}
+              onSelect={onLocationSelect}
+              onClear={onLocationClear}
+              disabled={isLoadingDaily}
+              placeholder="City, state, or country"
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -596,10 +590,39 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
   const [isResolving, setIsResolving] = useState(false);
   const [date, setDate] = useState(initialDate);
   const [time, setTime] = useState(initialTime);
+  /** Internal only — set from LocationFinder selection, never user-typed coordinates */
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
-  const [timezone, setTimezone] = useState(initialTimezone);
+  const [timezone, setTimezone] = useState('');
+  const [locationSearchLabel, setLocationSearchLabel] = useState('');
   const [resolveResult, setResolveResult] = useState<ResolveResponse | null>(null);
+
+  const dailyRef = useRef<DailyResponse | null>(null);
+  dailyRef.current = daily;
+  const lastLoadedContextKeyRef = useRef<string>('');
+  const dailyAbortRef = useRef<AbortController | null>(null);
+  const dailyLoadGenRef = useRef(0);
+
+  const onLocationSelect = useCallback((r: GeocodeResult) => {
+    setLocationSearchLabel(r.label);
+    setLat(String(r.lat));
+    setLon(String(r.lon));
+    setTimezone(r.timezone);
+  }, []);
+
+  const onLocationClear = useCallback(() => {
+    setLocationSearchLabel('');
+    setLat('');
+    setLon('');
+    setTimezone('');
+  }, []);
+
+  useEffect(() => {
+    setDaily(null);
+    setResolveResult(null);
+    lastLoadedContextKeyRef.current = '';
+    dailyAbortRef.current?.abort();
+  }, [campaignId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -663,12 +686,10 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
   const challengeContinuityLine = continuityLines[1] ?? continuityLines[0] ?? null;
 
   const currentAcceptedResponse = useMemo(() => {
-    if (!liveResponseCollection) return resolveResult?.acceptedResponse ?? null;
-    if (resolveResult?.acceptedResponse) return resolveResult.acceptedResponse;
-    const acceptedResponses = Object.values(liveResponseCollection.accepted_responses || {});
-    if (!daily?.anchorUserId) return null;
-    return acceptedResponses.find((entry) => entry.user_id === daily.anchorUserId) ?? null;
-  }, [daily?.anchorUserId, liveResponseCollection, resolveResult?.acceptedResponse]);
+    // `anchorUserId` identifies the stored transit-context owner for the day, not the current viewer.
+    // Using it here can incorrectly hide response options from other valid group members.
+    return resolveResult?.acceptedResponse ?? null;
+  }, [resolveResult?.acceptedResponse]);
 
   const groupStage = useMemo(() => {
     if (!campaign || campaign.mode === 'solo') return 'solo';
@@ -677,43 +698,104 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
     return 'pre';
   }, [campaign, currentAcceptedResponse, resolution]);
 
-  async function fetchDaily() {
-    setIsLoadingDaily(true);
-    setError(null);
-    setResolveResult(null);
-    try {
-      const body: Record<string, unknown> = { date, time };
-      if (requiresLocation) {
-        const latitude = Number(lat);
-        const longitude = Number(lon);
-        const hasLocationOverride = Number.isFinite(latitude) && Number.isFinite(longitude) && timezone.trim();
-        if (hasLocationOverride) {
-          const location = { lat: latitude, lon: longitude, timezone: timezone.trim() };
-          body.location = location;
-          await fetch('/api/users/me/transit-context', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(location),
-          });
+  const executeDailyPost = useCallback(
+    async (signal: AbortSignal, clearResolveResult: boolean) => {
+      if (!campaign) return;
+      const gen = ++dailyLoadGenRef.current;
+      const solo = campaign.mode === 'solo';
+      const geoPart = solo ? `${lat}|${lon}|${timezone}` : '';
+      const contextKey = `${campaignId}|${date}|${time}|${geoPart}`;
+
+      if (clearResolveResult) setResolveResult(null);
+      setError(null);
+      setIsLoadingDaily(true);
+      try {
+        const body: Record<string, unknown> = { date, time };
+        if (solo) {
+          const latitude = Number(lat);
+          const longitude = Number(lon);
+          const hasLocationOverride = Number.isFinite(latitude) && Number.isFinite(longitude) && timezone.trim();
+          if (hasLocationOverride) {
+            const location = { lat: latitude, lon: longitude, timezone: timezone.trim() };
+            body.location = location;
+            const putRes = await fetch('/api/users/me/transit-context', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(location),
+              signal,
+            });
+            if (signal.aborted) return;
+            if (!putRes.ok) {
+              const errBody = await putRes.json().catch(() => ({}));
+              throw new Error(
+                (errBody as { error?: string; message?: string }).error ||
+                  (errBody as { message?: string }).message ||
+                  'Could not save your place for this daily'
+              );
+            }
+          }
+        }
+
+        const response = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/daily`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+          signal,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (signal.aborted) return;
+        if (!response.ok) {
+          throw new Error(
+            (data as { code?: string; message?: string; error?: string }).code ||
+              (data as { message?: string }).message ||
+              (data as { error?: string }).error ||
+              'Failed to generate campaign daily'
+          );
+        }
+        setDaily(data as DailyResponse);
+        lastLoadedContextKeyRef.current = contextKey;
+      } catch (loadError: unknown) {
+        if (signal.aborted) return;
+        const err = loadError as { name?: string };
+        if (err && err.name === 'AbortError') return;
+        setError(loadError instanceof Error ? loadError.message : String(loadError));
+      } finally {
+        if (dailyLoadGenRef.current === gen) {
+          setIsLoadingDaily(false);
         }
       }
+    },
+    [campaign, campaignId, date, time, lat, lon, timezone]
+  );
 
-      const response = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/daily`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.code || data?.message || data?.error || 'Failed to generate campaign daily');
-      }
-      setDaily(data as DailyResponse);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : String(loadError));
-    } finally {
-      setIsLoadingDaily(false);
+  const kickoffDailyRequest = useCallback(
+    (clearResolveResult: boolean) => {
+      dailyAbortRef.current?.abort();
+      const ac = new AbortController();
+      dailyAbortRef.current = ac;
+      void executeDailyPost(ac.signal, clearResolveResult);
+    },
+    [executeDailyPost]
+  );
+
+  useEffect(() => {
+    if (!campaign || isLoadingCampaign) return;
+    const solo = campaign.mode === 'solo';
+    const geoPart = solo ? `${lat}|${lon}|${timezone}` : '';
+    const contextKey = `${campaignId}|${date}|${time}|${geoPart}`;
+    if (dailyRef.current !== null && lastLoadedContextKeyRef.current === contextKey) {
+      return;
     }
-  }
+
+    dailyAbortRef.current?.abort();
+    const ac = new AbortController();
+    dailyAbortRef.current = ac;
+    void executeDailyPost(ac.signal, true);
+
+    return () => {
+      ac.abort();
+    };
+  }, [campaign, isLoadingCampaign, campaignId, date, time, campaign?.mode, lat, lon, timezone, executeDailyPost]);
 
   async function resolveChoice(choiceId: string) {
     if (!daily) return;
@@ -794,14 +876,11 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
           setDate={setDate}
           time={time}
           setTime={setTime}
-          lat={lat}
-          setLat={setLat}
-          lon={lon}
-          setLon={setLon}
-          timezone={timezone}
-          setTimezone={setTimezone}
+          locationSearchLabel={locationSearchLabel}
+          onLocationSelect={onLocationSelect}
+          onLocationClear={onLocationClear}
           isLoadingDaily={isLoadingDaily}
-          onGenerate={() => void fetchDaily()}
+          onGenerate={() => kickoffDailyRequest(true)}
         />
 
         {errorState ? <ErrorPanel state={errorState} /> : null}
@@ -928,11 +1007,16 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
               </div>
             </DetailsDisclosure>
           </>
+        ) : isLoadingDaily ? (
+          <section className="rounded border border-white/10 bg-white/[0.03] p-5">
+            <h2 className="text-lg font-semibold">Today&apos;s challenge</h2>
+            <p className="mt-2 text-sm text-subtext">Loading daily artifact for the selected date and time…</p>
+          </section>
         ) : (
           <section className="rounded border border-white/10 bg-white/[0.03] p-5">
             <h2 className="text-lg font-semibold">Today&apos;s challenge</h2>
             <p className="mt-2 text-sm text-subtext">
-              Generate the daily artifact to bring the challenge, continuity, and response options into view.
+              No daily is available yet for this date and time. Adjust controls and use Generate Daily, or confirm your place and saved profile location for solo mode.
             </p>
           </section>
         )}

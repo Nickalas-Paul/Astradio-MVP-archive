@@ -644,7 +644,9 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
     const transit = buildRelationalFeedTransitFromPrimaryChart(primaryChart);
     if (!transit) {
       setData(null);
-      setError('Set a profile with birth location so the feed can resolve sky context.');
+      setError(
+        'Complete your profile with a resolved birth place (search and select a location) so the feed can run.'
+      );
       setIsLoading(false);
       return;
     }

@@ -170,7 +170,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-bgElev p-4">
           <h3 className="mb-3 text-sm font-medium text-text">Chart A</h3>
-          <p className="text-xs text-subtext mb-2">Use location search and date/time. Coordinates are set from your place selection.</p>
+          <p className="text-xs text-subtext mb-2">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationA}
@@ -224,7 +224,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             />
             Use inline (no save)
           </label>
-          <p className="text-xs text-subtext mb-2 mt-1">Use location search and date/time. Coordinates are set from your place selection.</p>
+          <p className="text-xs text-subtext mb-2 mt-1">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationB}
