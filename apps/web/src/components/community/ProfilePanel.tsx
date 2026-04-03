@@ -469,6 +469,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         });
                         const data = await r.json().catch(() => ({}));
                         if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
+                        if (data?.user?.id && typeof localStorage !== 'undefined') {
+                          try {
+                            localStorage.setItem('astradio_last_user_id', data.user.id);
+                          } catch {
+                            /* ignore */
+                          }
+                        }
                         const newChartId = data?.primaryChart?.id ?? null;
                         setCreateName(''); setCreateHandle('');
                         setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');

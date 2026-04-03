@@ -34,10 +34,8 @@ export default function HomePage() {
   const [timeStr, setTimeStr] = useState<string>('');
   const [location, setLocation] = useState<CanonicalLocation | null>(null);
   const [geoPermission, setGeoPermission] = useState<GeoPermissionStatus>('unknown');
-
-  function formatCoords(lat: number, lon: number) {
-    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-  }
+  /** True when /api/profile returns a user — used to gate signed-in-only persistence. */
+  const [signedInUserPresent, setSignedInUserPresent] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
   /** Lyria-only: explicit message when artifact missing or playback fails. */
   const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
@@ -63,6 +61,14 @@ export default function HomePage() {
     setShowDebugPanel(dev || fromUrl);
   }, []);
 
+  useEffect(() => {
+    const base = getApiBaseUrl();
+    void fetch(`${base || ''}/api/profile`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setSignedInUserPresent(!!d?.user))
+      .catch(() => setSignedInUserPresent(false));
+  }, []);
+
   // 1) defaults: today / now / browser geolocation (single source of truth for home)
   useEffect(() => {
     const now = new Date();
@@ -85,7 +91,7 @@ export default function HomePage() {
               : 'UTC';
           const baseLocation: CanonicalLocation = {
             source: 'browser_geo',
-            label: formatCoords(latitude, longitude),
+            label: 'Current location',
             lat: latitude,
             lon: longitude,
             timezone: browserTz,
@@ -269,10 +275,10 @@ export default function HomePage() {
     };
   }, [dateStr, timeStr, location?.lat, location?.lon]);
 
-  // 2a) Persist canonical location for campaign daily / group anchor (best-effort; session required)
+  // 2a) Persist canonical location for campaign daily / group anchor (signed-in only; skip anonymous 401 noise)
   const lastTransitSyncKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!location) return;
+    if (!signedInUserPresent || !location) return;
     const key = JSON.stringify({
       source: location.source,
       lat: location.lat,
@@ -290,9 +296,9 @@ export default function HomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(location),
     }).catch(() => {
-      /* logged-out or network — fail closed on server; no UI noise */
+      /* network — ignore */
     });
-  }, [location]);
+  }, [location, signedInUserPresent]);
 
   // 2b) reverse-geocode label when coords available (display only); idempotent: no setLocation if label unchanged
   useEffect(() => {
@@ -307,19 +313,27 @@ export default function HomePage() {
         const r = await fetch(`${base || ''}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
         const j = await r.json();
         if (cancelled) return;
-        const label = j?.label ?? formatCoords(lat, lon);
         const parts = [j?.city, j?.region, j?.country].filter(Boolean);
-        const displayLabel = parts.length > 0 ? parts.join(', ') : label;
+        let displayLabel = parts.length > 0 ? parts.join(', ') : '';
+        if (!displayLabel && typeof j?.label === 'string' && j.label.trim()) {
+          const short = j.label
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .slice(0, 3)
+            .join(', ');
+          displayLabel = short || 'Your area';
+        }
+        if (!displayLabel) displayLabel = 'Your area';
         setLocation((prev) => {
           if (!prev || prev.label === displayLabel) return prev;
           return { ...prev, label: displayLabel };
         });
       } catch {
         if (!cancelled) {
-          const fallback = formatCoords(lat, lon);
           setLocation((prev) => {
-            if (!prev || prev.label === fallback) return prev;
-            return { ...prev, label: fallback };
+            if (!prev || prev.label === 'Your area') return prev;
+            return { ...prev, label: 'Your area' };
           });
         }
       }
@@ -413,7 +427,11 @@ export default function HomePage() {
               <div className="flex flex-col text-xs text-subtext">
                 <span className="mb-1 font-medium text-text">Location</span>
                 <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                  {location ? location.label : geoPermission === 'denied' ? 'Geolocation denied' : 'Locating...'}
+                  {location
+                    ? location.label
+                    : geoPermission === 'denied'
+                      ? 'Location unavailable — allow location or set place from Profile'
+                      : 'Locating…'}
                 </span>
               </div>
             </div>
@@ -489,14 +507,12 @@ export default function HomePage() {
                   🔊 Audio: {audioStartupTime.toFixed(0)}ms
                 </p>
               )}
-              <p className="text-xs text-zinc-500">
-                Geolocation:{' '}
-                {geoPermission === 'granted'
-                  ? location
-                    ? `granted (${location.lat.toFixed(4)}, ${location.lon.toFixed(4)})`
-                    : 'granted (no location yet)'
-                  : geoPermission}
-              </p>
+              {showDebugPanel ? (
+                <p className="text-xs text-zinc-500">
+                  Geolocation permission: {geoPermission}
+                  {signedInUserPresent ? ' · transit context sync: on' : ' · transit context sync: off (sign in to persist)'}
+                </p>
+              ) : null}
             </div>
           </section>
         </div>

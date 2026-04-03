@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useProfile, useUserSearch, useProfileChart, type ProfileChartSection, type DirectoryUser } from '../../core/social/hooks';
 import { getApiBaseUrl } from '../../core/api-base';
@@ -68,6 +68,12 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
   const { users, loading, error, refresh } = useUserSearch({ q, limit: 15 });
   const { data: profileChartData, loading: profileLoading, error: profileError } = useProfileChart(selectedChartId);
   const chartAId = hasRealChart(primaryChart) ? primaryChart.id : null;
+  const profilePreviewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedChartId) return;
+    profilePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedChartId]);
 
   const handleCompare = async (target: DirectoryUser) => {
     if (!chartAId) {
@@ -321,7 +327,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
       )}
 
       {selectedChartId && (
-        <div className="border-t border-border pt-6 mt-6">
+        <div ref={profilePreviewRef} className="border-t border-border pt-6 mt-6 scroll-mt-8">
           <h3 className="text-lg font-semibold text-text mb-4">Profile</h3>
           {profileLoading && <div className="text-subtext text-sm">Loading chart…</div>}
           {profileError && <p className="text-subtext text-sm">{profileError}</p>}

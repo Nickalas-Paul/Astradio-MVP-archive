@@ -1,5 +1,6 @@
 import { AppShell } from '@/components/AppShell';
 import { ProfilePanel } from '@/components/community/ProfilePanel';
+import { TestSessionResumeBlock } from '@/components/session/TestSessionResumeBlock';
 
 export default function ProfilePage() {
   return (
@@ -12,6 +13,7 @@ export default function ProfilePage() {
           </p>
         </section>
 
+        <TestSessionResumeBlock />
         <ProfilePanel />
       </div>
     </AppShell>

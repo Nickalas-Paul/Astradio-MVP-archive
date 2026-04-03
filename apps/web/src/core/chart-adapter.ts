@@ -46,9 +46,12 @@ export function normalizeChartForWheel(raw: unknown): ChartForWheel | null {
   if ((!positions || Object.keys(positions).length === 0) && Array.isArray(obj.planets)) {
     for (const entry of obj.planets) {
       if (entry && typeof entry === 'object') {
-        const name = (entry as { name?: string }).name ?? (entry as { id?: string }).id;
+        const rawName = (entry as { name?: string }).name ?? (entry as { id?: string }).id;
         const lon = (entry as { lon?: number }).lon ?? (entry as { longitude?: number }).longitude;
-        if (name && Number.isFinite(lon)) positions[name] = Number(lon);
+        if (rawName && Number.isFinite(lon)) {
+          const name = String(rawName).toLowerCase();
+          positions[name] = Number(lon);
+        }
       }
     }
   }

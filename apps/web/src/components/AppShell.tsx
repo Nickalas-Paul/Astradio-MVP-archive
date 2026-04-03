@@ -1,7 +1,8 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Header } from './Header';
+import Link from 'next/link';
+import HeaderTabs from './HeaderTabs';
 import { PlayerBar } from './PlayerBar';
 import { ToastContainer } from './ToastContainer';
 import { useUIStore } from '../store';
@@ -17,15 +18,13 @@ export function AppShell({ children, showContextRail, contextRailContent }: AppS
 
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-surface-0/80 border-b border-border">
-        <div className="mx-auto max-w-content px-6 py-3 flex items-center justify-between">
-          <span className="text-lg tracking-wide font-medium">Astradio</span>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1.5 rounded-pill bg-surface-2 hover:bg-surface-3 transition duration-base ease-aurora border border-border text-text-primary">
-              Dashboard
-            </button>
-          </div>
+      {/* Header — same primary surface links as Home (HeaderTabs) */}
+      <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-bg/80 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <Link href="/" className="text-emerald-400 font-semibold tracking-wide shrink-0">
+            Astradio
+          </Link>
+          <HeaderTabs />
         </div>
       </header>
       

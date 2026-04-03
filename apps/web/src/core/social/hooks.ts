@@ -369,8 +369,14 @@ export function useProfileChart(chartId: string | null) {
         `${getApiBaseUrl() || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`,
         { credentials: 'same-origin' }
       );
-      if (!r.ok) throw new Error('Failed to fetch profile chart');
-      const json = await r.json();
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg =
+          typeof (json as { error?: string }).error === 'string'
+            ? (json as { error: string }).error
+            : `Could not load chart preview (${r.status})`;
+        throw new Error(msg);
+      }
       setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chart explainer');
