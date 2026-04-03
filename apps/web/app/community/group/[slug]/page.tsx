@@ -35,12 +35,17 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
       setLoading(true);
       setError(null);
       try {
-        const qs = user?.id ? `?userId=${encodeURIComponent(user.id)}` : '';
-        const gRes = await fetch(`/api/community/relational-group/${encodeURIComponent(slug)}${qs}`, {
+        const gRes = await fetch(`/api/community/relational-group/${encodeURIComponent(slug)}`, {
           credentials: 'same-origin',
         });
         if (!gRes.ok) {
-          setError(gRes.status === 404 ? 'Group not found' : 'Failed to load group');
+          setError(
+            gRes.status === 404
+              ? 'Group not found'
+              : gRes.status === 401
+                ? 'Sign in to view this group'
+                : 'Failed to load group'
+          );
           setLoading(false);
           return;
         }
@@ -48,7 +53,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
         setGroup(g);
 
         let roster: Array<{ userId: string; chartId?: string; displayName: string }> = [];
-        const membersRes = await fetch(`/api/community/relational-group/${encodeURIComponent(g.id)}/members${qs}`, {
+        const membersRes = await fetch(`/api/community/relational-group/${encodeURIComponent(g.id)}/members`, {
           credentials: 'same-origin',
         });
         if (membersRes.ok) {

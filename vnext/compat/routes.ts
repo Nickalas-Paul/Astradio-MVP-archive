@@ -19,6 +19,15 @@ import type { ChartBInline, Comparison } from './types';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 
 const express = require('express') as typeof import('express');
+const argon2 = require('argon2') as typeof import('argon2');
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const astradioPgStore = require('../../lib/pg-store') as {
+  normalizeLoginEmail: (e: string) => string;
+  createRegisteredUser: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  getUserAuthForLogin: (
+    e: string
+  ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
+};
 const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
 
 function isChartTimezoneError(e: unknown): e is { message: string; code: string } {
@@ -110,6 +119,68 @@ async function linkUserPrimaryChartWithRetry(userId: string, chartId: string): P
   }
   throw lastError instanceof Error ? lastError : new Error('Failed to set primary chart after retry');
 }
+
+type ProfileChartBody = {
+  label: string;
+  date: string;
+  time: string;
+  lat: number;
+  lon: number;
+  timezone?: string;
+  tz?: string;
+};
+
+/** Shared chart + primary link path for register and proxy-authenticated profile completion. */
+async function attachPrimaryChartForNewUser(
+  userId: string,
+  chartInput: ProfileChartBody | null | undefined
+): Promise<import('./types').Chart | null> {
+  let primaryChart: import('./types').Chart | null = null;
+  if (chartInput != null && typeof chartInput === 'object') {
+    const { label, date, time, lat, lon, timezone: tzField, tz: tzAlt } = chartInput;
+    const clientTzRaw =
+      typeof tzField === 'string' && tzField.trim()
+        ? tzField.trim()
+        : typeof tzAlt === 'string' && tzAlt.trim()
+          ? tzAlt.trim()
+          : undefined;
+    primaryChart = await storage.createChart({
+      ownerId: userId,
+      label: label.trim(),
+      date: String(date).slice(0, 10),
+      time: String(time).slice(0, 5),
+      lat: Number(lat),
+      lon: Number(lon),
+      ...(clientTzRaw !== undefined ? { timezone: clientTzRaw } : {}),
+    });
+    await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
+    if (process.env.POSTGRES_URL) {
+      populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
+        console.warn('[compat] vector populate after chart create:', err?.message);
+      });
+    }
+  } else {
+    const defaultChart = await storage.ensureDefaultProfileChart();
+    primaryChart = await storage.createChart({
+      ownerId: userId,
+      label: defaultChart.label,
+      date: defaultChart.date,
+      time: defaultChart.time,
+      lat: defaultChart.lat,
+      lon: defaultChart.lon,
+      timezone: defaultChart.timezone,
+    });
+    await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
+    if (process.env.POSTGRES_URL) {
+      populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
+        console.warn('[compat] vector populate after chart create:', err?.message);
+      });
+    }
+  }
+  return primaryChart;
+}
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
@@ -263,6 +334,143 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
+  // POST /api/auth/register — email + password + profile/chart (engine-only verification; no session cookie here)
+  router.post('/auth/register', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const body = (req.body || {}) as {
+        email?: string;
+        password?: string;
+        displayName?: string;
+        handle?: string;
+        chart?: ProfileChartBody;
+      };
+      const emailRaw = typeof body.email === 'string' ? body.email : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      const displayName = typeof body.displayName === 'string' ? body.displayName : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
+      if (!emailNormalized || !emailRaw.includes('@')) {
+        return res.status(400).json({ error: 'valid email required' });
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+      }
+      if (!displayName.trim()) {
+        return res.status(400).json({ error: 'displayName required' });
+      }
+      const chartInput = body.chart;
+      if (chartInput != null && typeof chartInput === 'object') {
+        const { label, date, time, lat, lon } = chartInput;
+        if (!label || typeof label !== 'string' || !label.trim()) {
+          return res.status(400).json({ error: 'chart.label required when chart is provided' });
+        }
+        if (!date || typeof date !== 'string' || !date.trim()) {
+          return res.status(400).json({ error: 'chart.date required when chart is provided' });
+        }
+        if (!time || typeof time !== 'string' || !time.trim()) {
+          return res.status(400).json({ error: 'chart.time required when chart is provided' });
+        }
+        if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+          return res.status(400).json({ error: 'chart.lat required and must be a number between -90 and 90' });
+        }
+        if (typeof lon !== 'number' || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+          return res.status(400).json({ error: 'chart.lon required and must be a number between -180 and 180' });
+        }
+      }
+
+      const existing = await astradioPgStore.getUserAuthForLogin(emailNormalized);
+      if (existing) {
+        return res.status(409).json({ error: 'email already registered' });
+      }
+
+      const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+      let user: { id: string; displayName: string; handle?: string };
+      try {
+        const created = await astradioPgStore.createRegisteredUser({
+          displayName: displayName.trim(),
+          handle: typeof body.handle === 'string' ? body.handle.trim() || undefined : undefined,
+          email: emailRaw.trim(),
+          emailNormalized,
+          passwordHash,
+        });
+        user = {
+          id: String(created.id),
+          displayName: String(created.displayName),
+          handle: typeof created.handle === 'string' ? created.handle : undefined,
+        };
+      } catch (e: unknown) {
+        const err = e as { code?: string };
+        if (err.code === '23505') {
+          return res.status(409).json({ error: 'email or handle already registered' });
+        }
+        throw e;
+      }
+
+      let primaryChart: import('./types').Chart | null = null;
+      try {
+        primaryChart = await attachPrimaryChartForNewUser(user.id, chartInput ?? undefined);
+      } catch (e: unknown) {
+        if (isChartTimezoneError(e)) {
+          return res.status(400).json({
+            error: 'invalid_request',
+            message: String((e as { message?: string }).message || e),
+            code: (e as { code?: string }).code,
+          });
+        }
+        throw e;
+      }
+
+      return res.status(201).json({
+        user: { id: user.id, displayName: user.displayName, handle: user.handle },
+        primaryChart: primaryChart
+          ? {
+              id: primaryChart.id,
+              label: primaryChart.label,
+              date: primaryChart.date,
+              time: primaryChart.time,
+              lat: primaryChart.lat,
+              lon: primaryChart.lon,
+              timezone: primaryChart.timezone,
+            }
+          : null,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[compat] POST /auth/register', e);
+      return res.status(500).json({ error: msg || 'Registration failed' });
+    }
+  });
+
+  router.post('/auth/login', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const body = (req.body || {}) as { email?: string; password?: string };
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(typeof body.email === 'string' ? body.email : '');
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (!emailNormalized || !password) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const row = await astradioPgStore.getUserAuthForLogin(emailNormalized);
+      if (!row || !row.passwordHash) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const ok = await argon2.verify(row.passwordHash, password);
+      if (!ok) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      return res.status(200).json({
+        user: { id: row.id, displayName: row.displayName, handle: row.handle },
+      });
+    } catch (e: unknown) {
+      console.error('[compat] POST /auth/login', e);
+      return res.status(500).json({ error: 'Login failed' });
+    }
+  });
+
   // GET /api/profile?userId= — current user + primary chart (for dev/preview; no auth)
   router.get('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
@@ -296,118 +504,89 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // POST /api/profile — create user (dev, no auth). Body: { displayName, handle?, email?, chart?: { label, date, time, lat, lon [, timezone | tz] } }
-  router.post('/profile', async (req: import('express').Request, res: import('express').Response) => {
+  // POST /api/profile — disabled: anonymous account creation removed; use POST /api/auth/register (Next sets session).
+  router.post('/profile', (_req: import('express').Request, res: import('express').Response) => {
+    return res.status(403).json({
+      error: 'registration_required',
+      message: 'Use POST /api/auth/register to create an account.',
+    });
+  });
+
+  // POST /api/profile/user-chart — Next-only: requires x-proxy-session-user-id (session user from Vercel proxy).
+  router.post('/profile/user-chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const body = (req.body || {}) as {
-        displayName: string;
-        handle?: string;
-        email?: string;
-        chart?: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string; tz?: string };
-      };
-      const { displayName, handle, email, chart: chartInput } = body;
-      if (!displayName || typeof displayName !== 'string' || !displayName.trim()) {
-        return res.status(400).json({ error: 'displayName required' });
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
       }
-      if (chartInput != null && typeof chartInput === 'object') {
-        const { label, date, time, lat, lon } = chartInput;
-        if (!label || typeof label !== 'string' || !label.trim()) {
-          return res.status(400).json({ error: 'chart.label required when chart is provided' });
-        }
-        if (!date || typeof date !== 'string' || !date.trim()) {
-          return res.status(400).json({ error: 'chart.date required when chart is provided' });
-        }
-        if (!time || typeof time !== 'string' || !time.trim()) {
-          return res.status(400).json({ error: 'chart.time required when chart is provided' });
-        }
-        if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) {
-          return res.status(400).json({ error: 'chart.lat required and must be a number between -90 and 90' });
-        }
-        if (typeof lon !== 'number' || !Number.isFinite(lon) || lon < -180 || lon > 180) {
-          return res.status(400).json({ error: 'chart.lon required and must be a number between -180 and 180' });
-        }
+      const u = await storage.getUser(proxyUserId);
+      if (!u) {
+        return res.status(404).json({ error: 'User not found' });
       }
-      const user = await storage.createUser({ displayName: displayName.trim(), handle: handle?.trim() || undefined, email: email?.trim() || undefined });
-      console.log('[compat][profile][createUser]', {
-        userId: user.id,
-        handle: (user as any)?.handle,
-        success: true,
-      });
+      const body = (req.body || {}) as { chart?: ProfileChartBody };
+      const chartInput = body.chart;
+      if (chartInput == null || typeof chartInput !== 'object') {
+        return res.status(400).json({ error: 'chart required' });
+      }
+      const { label, date, time, lat, lon } = chartInput;
+      if (!label || typeof label !== 'string' || !label.trim()) {
+        return res.status(400).json({ error: 'chart.label required' });
+      }
+      if (!date || typeof date !== 'string' || !date.trim()) {
+        return res.status(400).json({ error: 'chart.date required' });
+      }
+      if (!time || typeof time !== 'string' || !time.trim()) {
+        return res.status(400).json({ error: 'chart.time required' });
+      }
+      if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({ error: 'chart.lat invalid' });
+      }
+      if (typeof lon !== 'number' || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({ error: 'chart.lon invalid' });
+      }
       let primaryChart: import('./types').Chart | null = null;
-      if (chartInput != null && typeof chartInput === 'object') {
-        const { label, date, time, lat, lon, timezone: tzField, tz: tzAlt } = chartInput;
-        const clientTzRaw =
-          typeof tzField === 'string' && tzField.trim()
-            ? tzField.trim()
-            : typeof tzAlt === 'string' && tzAlt.trim()
-              ? tzAlt.trim()
-              : undefined;
-        primaryChart = await storage.createChart({
-          ownerId: user.id,
-          label: label.trim(),
-          date: String(date).slice(0, 10),
-          time: String(time).slice(0, 5),
-          lat: Number(lat),
-          lon: Number(lon),
-          ...(clientTzRaw !== undefined ? { timezone: clientTzRaw } : {}),
-        });
-        console.log('[compat][profile][createChart]', {
-          userId: user.id,
-          chartId: primaryChart.id,
-          path: 'inline',
-          success: true,
-        });
-        await linkUserPrimaryChartWithRetry(user.id, primaryChart.id);
-        if (process.env.POSTGRES_URL) {
-          populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
-            console.warn('[compat] vector populate after chart create:', err?.message);
+      try {
+        primaryChart = await attachPrimaryChartForNewUser(proxyUserId, chartInput);
+      } catch (e: unknown) {
+        if (isChartTimezoneError(e)) {
+          return res.status(400).json({
+            error: 'invalid_request',
+            message: String((e as { message?: string }).message || e),
+            code: (e as { code?: string }).code,
           });
         }
-      } else {
-        const defaultChart = await storage.ensureDefaultProfileChart();
-        primaryChart = await storage.createChart({
-          ownerId: user.id,
-          label: defaultChart.label,
-          date: defaultChart.date,
-          time: defaultChart.time,
-          lat: defaultChart.lat,
-          lon: defaultChart.lon,
-          timezone: defaultChart.timezone,
-        });
-        console.log('[compat][profile][createChart]', {
-          userId: user.id,
-          chartId: primaryChart.id,
-          path: 'default-clone',
-          success: true,
-        });
-        await linkUserPrimaryChartWithRetry(user.id, primaryChart.id);
-        if (process.env.POSTGRES_URL) {
-          populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err) => {
-            console.warn('[compat] vector populate after chart create:', err?.message);
-          });
-        }
+        throw e;
       }
       return res.status(201).json({
-        user: { id: user.id, displayName: user.displayName, handle: user.handle },
-        primaryChart: primaryChart ? { id: primaryChart.id, label: primaryChart.label, date: primaryChart.date, time: primaryChart.time, lat: primaryChart.lat, lon: primaryChart.lon, timezone: primaryChart.timezone } : null,
+        user: { id: u.id, displayName: u.displayName, handle: (u as { handle?: string }).handle },
+        primaryChart: primaryChart
+          ? {
+              id: primaryChart.id,
+              label: primaryChart.label,
+              date: primaryChart.date,
+              time: primaryChart.time,
+              lat: primaryChart.lat,
+              lon: primaryChart.lon,
+              timezone: primaryChart.timezone,
+            }
+          : null,
       });
-    } catch (e: any) {
-      if (isChartTimezoneError(e)) {
-        return res.status(400).json({ error: 'invalid_request', message: e.message, code: e.code });
-      }
-      console.error('[compat] POST /profile', e);
-      return res.status(500).json({ error: e?.message || 'Failed to create profile' });
+    } catch (e: unknown) {
+      console.error('[compat] POST /profile/user-chart', e);
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to save chart' });
     }
   });
 
-  // PATCH /api/profile — update discoverability / feed visibility (Phase 8G). Body: { userId, discoverable?, show_in_feed? }
+  // PATCH /api/profile — update discoverability / feed visibility (Phase 8G). userId from x-proxy-session-user-id only (Next proxy).
   router.patch('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const body = (req.body || {}) as { userId: string; discoverable?: boolean; show_in_feed?: boolean };
-      const { userId, discoverable, show_in_feed } = body;
-      if (!userId || typeof userId !== 'string' || !userId.trim()) {
-        return res.status(400).json({ error: 'userId required' });
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
       }
+      const body = (req.body || {}) as { discoverable?: boolean; show_in_feed?: boolean };
+      const { discoverable, show_in_feed } = body;
+      const userId = proxyUserId;
       const u = await storage.getUser(userId.trim());
       if (!u) return res.status(404).json({ error: 'User not found' });
       await storage.updateUserDiscoverability(userId.trim(), { discoverable, show_in_feed });
@@ -443,12 +622,15 @@ export function createCompatRouter(): import('express').Router {
           code: 'PROFILE_ACTIVE_INVALID_BODY',
         });
       }
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const userIdForProjection =
+        proxyUserId || (typeof body.userId === 'string' ? body.userId.trim() : null);
       const result = await buildProfileActiveStateProjection({
         chartId,
         calendarDate,
         localTime,
         location: body.location,
-        userId: typeof body.userId === 'string' ? body.userId.trim() : null,
+        userId: userIdForProjection,
         skipCache: body.skipCache === true,
       });
       return res.status(200).json(result);

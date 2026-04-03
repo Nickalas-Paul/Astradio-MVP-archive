@@ -665,7 +665,7 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         cache: 'no-store',
-        body: JSON.stringify({ userId, transit }),
+        body: JSON.stringify({ transit }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));

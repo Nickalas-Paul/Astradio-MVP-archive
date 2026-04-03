@@ -1,16 +1,11 @@
 /**
  * Current user profile. Proxies to engine using Session Identity Layer (Phase 8H).
- * When no session: returns { user: null, primaryChart: null } so UI shows create-profile and never a fake chart.
+ * When no session: returns { user: null, primaryChart: null }.
+ * POST: authenticated chart completion only (proxies to engine /api/profile/user-chart).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
-import {
-  getSessionUserId,
-  createSessionCookieValue,
-  SESSION_COOKIE_NAME,
-  SESSION_COOKIE_OPTIONS,
-  LEGACY_COOKIE_NAME,
-} from '@/lib/session';
+import { getSessionUserId, SESSION_COOKIE_NAME, LEGACY_COOKIE_NAME } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,10 +19,12 @@ export async function GET(req: NextRequest) {
 
   let userId = sessionUserId;
 
-  // Phase 8H / dev-only fallback: when there is no session but a userId query
-  // is provided and PHASE8_DEBUG is enabled, allow explicit identity override
-  // for verification scripts. This path never sets or clears cookies.
-  if (!userId && qsUserId && process.env.PHASE8_DEBUG === '1') {
+  const debugAllowed =
+    process.env.NODE_ENV !== 'production' &&
+    process.env.PHASE8_DEBUG === '1' &&
+    qsUserId;
+
+  if (!userId && debugAllowed) {
     userId = qsUserId;
   }
 
@@ -58,11 +55,24 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const userId = getSessionUserId(req.cookies);
+  if (!userId) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  }
+  if (!process.env.ASTRADIO_SESSION_SECRET || process.env.ASTRADIO_SESSION_SECRET.length < 32) {
+    return NextResponse.json(
+      { error: 'ASTRADIO_SESSION_SECRET must be set (min 32 chars) for authenticated profile actions' },
+      { status: 503 },
+    );
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const chart = body?.chart;
-    if (chart && chart.location) {
-      const loc = chart.location as any;
+    if (!chart || typeof chart !== 'object') {
+      return NextResponse.json({ error: 'chart required' }, { status: 400 });
+    }
+    if (chart.location) {
+      const loc = chart.location as Record<string, unknown>;
       if (loc.source !== 'geofinder') {
         return NextResponse.json(
           { error: 'Invalid location source for profile chart. Expected source=geofinder.' },
@@ -77,10 +87,7 @@ export async function POST(req: NextRequest) {
         !Number.isFinite(loc.lon) ||
         !loc.timezone
       ) {
-        return NextResponse.json(
-          { error: 'Invalid canonical location for profile chart' },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: 'Invalid canonical location for profile chart' }, { status: 400 });
       }
       body.chart = {
         label: chart.label,
@@ -92,25 +99,19 @@ export async function POST(req: NextRequest) {
       };
     }
     const base = getEngineBaseUrl();
-    const r = await fetch(`${base}/api/profile`, {
+    const r = await fetch(`${base}/api/profile/user-chart`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-session-user-id': userId,
+      },
+      body: JSON.stringify({ chart: body.chart }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });
-    const res = NextResponse.json(data, { status: 201 });
-    if (data?.user?.id) {
-      try {
-        res.cookies.set(SESSION_COOKIE_NAME, createSessionCookieValue(data.user.id), SESSION_COOKIE_OPTIONS);
-      } catch {
-        // No ASTRADIO_SESSION_SECRET: set legacy cookie so identity still persists (no breaking change)
-        res.cookies.set(LEGACY_COOKIE_NAME, data.user.id, { path: '/', maxAge: 60 * 60 * 24 * 365 });
-      }
-    }
-    return res;
+    return NextResponse.json(data, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Profile create failed' }, { status: 502 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Profile chart save failed' }, { status: 502 });
   }
 }
 
@@ -121,11 +122,15 @@ export async function PATCH(req: NextRequest) {
   }
   try {
     const body = await req.json().catch(() => ({}));
+    const { discoverable, show_in_feed } = body as { discoverable?: boolean; show_in_feed?: boolean };
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, userId }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-session-user-id': userId,
+      },
+      body: JSON.stringify({ discoverable, show_in_feed }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });

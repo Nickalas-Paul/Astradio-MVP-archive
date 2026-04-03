@@ -330,6 +330,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [authTab, setAuthTab] = useState<'register' | 'login'>('register');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [natalComposeInProgress, setNatalComposeInProgress] = useState(false);
 
@@ -356,8 +363,31 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     );
   }
 
-  // No session: show create-profile form only. No fake chart.
+  // No session: register or log in (account creation is POST /api/auth/register only).
   if (user === null) {
+    const chartPayload = {
+      label: createChartLabel.trim() || 'My Natal',
+      date: createChartDate,
+      time: createChartTime,
+      lat: Number(createChartLat),
+      lon: Number(createChartLon),
+      timezone: createChartTz || 'UTC',
+    };
+    const chartReady =
+      createChartDate &&
+      createChartTime &&
+      createChartLat !== '' &&
+      createChartLon !== '' &&
+      createChartTz !== '' &&
+      Number.isFinite(Number(createChartLat)) &&
+      Number.isFinite(Number(createChartLon));
+    const canRegister =
+      registerEmail.trim().includes('@') &&
+      registerPassword.length >= 8 &&
+      createName.trim() &&
+      chartReady;
+    const canLogin = loginEmail.trim().includes('@') && loginPassword.length >= 1;
+
     return (
       <div className="max-w-4xl mx-auto">
         <motion.div
@@ -365,142 +395,222 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           animate={{ opacity: 1, y: 0 }}
           className="card space-y-6"
         >
-          <h2 className="text-xl font-semibold text-text">Create a profile</h2>
+          <h2 className="text-xl font-semibold text-text">Sign in to Astradio</h2>
           <p className="text-sm text-subtext">
-            Astradio profiles are based on your natal chart. Enter your birth details to create your profile.
+            Register with email and password, or log in to continue. Your natal chart is saved with your account.
           </p>
-          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
-            <input
-              placeholder="Display name"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              className="input w-full"
-            />
-            <input
-              placeholder="Handle (optional)"
-              value={createHandle}
-              onChange={(e) => setCreateHandle(e.target.value)}
-              className="input w-full"
-            />
-            <div className="space-y-3 border-t border-border pt-4">
-              <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
+          <div className="flex gap-2 border-b border-border pb-2">
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                authTab === 'register' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
+              }`}
+              onClick={() => {
+                setAuthTab('register');
+                setAuthError(null);
+              }}
+            >
+              Register
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                authTab === 'login' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
+              }`}
+              onClick={() => {
+                setAuthTab('login');
+                setAuthError(null);
+              }}
+            >
+              Log in
+            </button>
+          </div>
+
+          {authTab === 'login' ? (
+            <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4 max-w-md">
               <input
-                placeholder="Label (e.g. My Natal)"
-                value={createChartLabel}
-                onChange={(e) => setCreateChartLabel(e.target.value)}
+                type="email"
+                autoComplete="email"
+                placeholder="Email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
                 className="input w-full"
               />
-              <div className="grid grid-cols-2 gap-2">
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="input w-full"
+              />
+              {authError && <p className="text-red-500 text-xs">{authError}</p>}
+              <button
+                type="button"
+                disabled={authBusy || !canLogin}
+                className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+                onClick={async () => {
+                  setAuthBusy(true);
+                  setAuthError(null);
+                  try {
+                    const r = await fetch('/api/auth/login', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'same-origin',
+                      body: JSON.stringify({
+                        email: loginEmail.trim(),
+                        password: loginPassword,
+                      }),
+                    });
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok) {
+                      setAuthError(typeof data.error === 'string' ? data.error : 'Login failed');
+                      return;
+                    }
+                    setLoginPassword('');
+                    await refresh();
+                  } finally {
+                    setAuthBusy(false);
+                  }
+                }}
+              >
+                {authBusy ? 'Signing in…' : 'Log in'}
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
                 <input
-                  type="date"
-                  value={createChartDate}
-                  onChange={(e) => setCreateChartDate(e.target.value)}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Email"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
                   className="input w-full"
-                  required
                 />
                 <input
-                  type="time"
-                  value={createChartTime}
-                  onChange={(e) => setCreateChartTime(e.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Password (min 8 characters)"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
                   className="input w-full"
-                  required
                 />
               </div>
-              <LocationFinder
-                value={createChartLocationLabel}
-                onSelect={(r) => {
-                  setCreateChartLocationLabel(r.label);
-                  setCreateChartLat(String(r.lat));
-                  setCreateChartLon(String(r.lon));
-                  setCreateChartTz(r.timezone || 'UTC');
-                }}
-                onClear={() => {
-                  setCreateChartLocationLabel('');
-                  setCreateChartLat('');
-                  setCreateChartLon('');
-                  setCreateChartTz('');
-                }}
-                placeholder="Birth place (city, region, or address)"
+              <input
+                placeholder="Display name"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                className="input w-full"
               />
-            </div>
-            {createError && <p className="text-red-500 text-xs">{createError}</p>}
-            <div className="flex gap-2">
-              {(() => {
-                const canSubmit = Boolean(
-                  createName.trim() &&
-                  createChartDate &&
-                  createChartTime &&
-                  createChartLat !== '' &&
-                  createChartLon !== '' &&
-                  createChartTz !== '' &&
-                  Number.isFinite(Number(createChartLat)) &&
-                  Number.isFinite(Number(createChartLon))
-                );
-                const disabled = creating || !canSubmit;
-                return (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    aria-busy={creating}
-                    onClick={async () => {
-                      setCreating(true); setCreateError(null);
-                      try {
-                        const body = {
-                          displayName: createName.trim(),
-                          handle: createHandle.trim() || undefined,
-                          chart: {
-                            label: createChartLabel.trim() || 'My Natal',
-                            date: createChartDate,
-                            time: createChartTime,
-                            location: {
-                              source: 'geofinder',
-                              label: createChartLocationLabel,
-                              lat: Number(createChartLat),
-                              lon: Number(createChartLon),
-                              timezone: createChartTz || 'UTC',
-                              resolvedAt: new Date().toISOString(),
-                            },
-                          },
-                        };
-                        const r = await fetch('/api/profile', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(body),
-                        });
-                        const data = await r.json().catch(() => ({}));
-                        if (!r.ok) { setCreateError(data?.error || 'Failed'); return; }
-                        if (data?.user?.id && typeof localStorage !== 'undefined') {
-                          try {
-                            localStorage.setItem('astradio_last_user_id', data.user.id);
-                          } catch {
-                            /* ignore */
-                          }
-                        }
-                        const newChartId = data?.primaryChart?.id ?? null;
-                        setCreateName(''); setCreateHandle('');
-                        setCreateChartLabel(''); setCreateChartDate(''); setCreateChartTime('12:00');
-                        setCreateChartLat(''); setCreateChartLon(''); setCreateChartTz(''); setCreateChartLocationLabel('');
-                        await refresh();
-                        if (newChartId) {
-                          setNatalComposeInProgress(true);
-                          triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
-                        }
-                      } finally {
-                        setCreating(false);
-                      }
-                    }}
-                    className={
-                      disabled
-                        ? 'px-4 py-2.5 rounded-lg bg-bgElev text-subtext text-sm font-medium border border-border cursor-not-allowed min-w-[140px]'
-                        : 'px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-500/40 min-w-[140px] hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-bg transition'
+              <input
+                placeholder="Handle (optional)"
+                value={createHandle}
+                onChange={(e) => setCreateHandle(e.target.value)}
+                className="input w-full"
+              />
+              <div className="space-y-3 border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
+                <input
+                  placeholder="Label (e.g. My Natal)"
+                  value={createChartLabel}
+                  onChange={(e) => setCreateChartLabel(e.target.value)}
+                  className="input w-full"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={createChartDate}
+                    onChange={(e) => setCreateChartDate(e.target.value)}
+                    className="input w-full"
+                    required
+                  />
+                  <input
+                    type="time"
+                    value={createChartTime}
+                    onChange={(e) => setCreateChartTime(e.target.value)}
+                    className="input w-full"
+                    required
+                  />
+                </div>
+                <LocationFinder
+                  value={createChartLocationLabel}
+                  onSelect={(r) => {
+                    setCreateChartLocationLabel(r.label);
+                    setCreateChartLat(String(r.lat));
+                    setCreateChartLon(String(r.lon));
+                    setCreateChartTz(r.timezone || 'UTC');
+                  }}
+                  onClear={() => {
+                    setCreateChartLocationLabel('');
+                    setCreateChartLat('');
+                    setCreateChartLon('');
+                    setCreateChartTz('');
+                  }}
+                  placeholder="Birth place (city, region, or address)"
+                />
+              </div>
+              {(createError || authError) && (
+                <p className="text-red-500 text-xs">{authError || createError}</p>
+              )}
+              <button
+                type="button"
+                disabled={creating || authBusy || !canRegister}
+                className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+                onClick={async () => {
+                  setCreating(true);
+                  setCreateError(null);
+                  setAuthError(null);
+                  try {
+                    const body = {
+                      email: registerEmail.trim(),
+                      password: registerPassword,
+                      displayName: createName.trim(),
+                      handle: createHandle.trim() || undefined,
+                      chart: chartPayload,
+                    };
+                    const r = await fetch('/api/auth/register', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'same-origin',
+                      body: JSON.stringify(body),
+                    });
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok) {
+                      const msg =
+                        typeof data.error === 'string'
+                          ? data.error
+                          : typeof data.message === 'string'
+                            ? data.message
+                            : 'Registration failed';
+                      setAuthError(msg);
+                      return;
                     }
-                  >
-                    {creating ? 'Creating…' : 'Create profile'}
-                  </button>
-                );
-              })()}
+                    const newChartId = data?.primaryChart?.id ?? null;
+                    setRegisterPassword('');
+                    setCreateName('');
+                    setCreateHandle('');
+                    setCreateChartLabel('');
+                    setCreateChartDate('');
+                    setCreateChartTime('12:00');
+                    setCreateChartLat('');
+                    setCreateChartLon('');
+                    setCreateChartTz('');
+                    setCreateChartLocationLabel('');
+                    await refresh();
+                    if (newChartId) {
+                      setNatalComposeInProgress(true);
+                      triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
+                    }
+                  } finally {
+                    setCreating(false);
+                  }
+                }}
+              >
+                {creating || authBusy ? 'Creating account…' : 'Create account'}
+              </button>
             </div>
-          </div>
+          )}
         </motion.div>
       </div>
     );
@@ -532,24 +642,129 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               </p>
             )}
           </div>
-          {onSwitchToConnections && realChart && (
+          <div className="flex flex-wrap items-center gap-2">
+            {onSwitchToConnections && realChart && (
+              <button
+                type="button"
+                onClick={onSwitchToConnections}
+                className="px-5 py-2.5 rounded-full bg-emerald text-bg font-medium text-sm shadow-md hover:opacity-90 transition-opacity"
+              >
+                Find connections
+              </button>
+            )}
             <button
               type="button"
-              onClick={onSwitchToConnections}
-              className="px-5 py-2.5 rounded-full bg-emerald text-bg font-medium text-sm shadow-md hover:opacity-90 transition-opacity"
+              className="px-4 py-2 rounded-lg border border-border text-subtext text-sm hover:bg-bgElev"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+                await refresh();
+              }}
             >
-              Find connections
+              Log out
             </button>
-          )}
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
           <div>
             {noRealChart ? (
-              <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex flex-col items-center justify-center text-center p-6 gap-2">
-                <p className="text-subtext text-sm">No natal chart linked to your profile.</p>
-                <p className="text-xs text-subtext">Create a new profile with birth data above, or build a chart in the Sandbox and link it when that flow is available.</p>
-                <Link href="/sandbox" className="text-sm text-emerald hover:underline mt-2">Open Sandbox</Link>
+              <div className="max-w-full space-y-4 rounded-2xl border border-border bg-bgElev p-4">
+                <p className="text-sm font-medium text-text">Add your birth chart</p>
+                <p className="text-xs text-subtext">Required for profile wheel, matches, and soundtrack.</p>
+                <input
+                  placeholder="Label (e.g. My Natal)"
+                  value={createChartLabel}
+                  onChange={(e) => setCreateChartLabel(e.target.value)}
+                  className="input w-full"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={createChartDate}
+                    onChange={(e) => setCreateChartDate(e.target.value)}
+                    className="input w-full"
+                  />
+                  <input
+                    type="time"
+                    value={createChartTime}
+                    onChange={(e) => setCreateChartTime(e.target.value)}
+                    className="input w-full"
+                  />
+                </div>
+                <LocationFinder
+                  value={createChartLocationLabel}
+                  onSelect={(r) => {
+                    setCreateChartLocationLabel(r.label);
+                    setCreateChartLat(String(r.lat));
+                    setCreateChartLon(String(r.lon));
+                    setCreateChartTz(r.timezone || 'UTC');
+                  }}
+                  onClear={() => {
+                    setCreateChartLocationLabel('');
+                    setCreateChartLat('');
+                    setCreateChartLon('');
+                    setCreateChartTz('');
+                  }}
+                  placeholder="Birth place (city, region, or address)"
+                />
+                {createError && <p className="text-red-500 text-xs">{createError}</p>}
+                <button
+                  type="button"
+                  disabled={creating}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+                  onClick={async () => {
+                    setCreating(true);
+                    setCreateError(null);
+                    try {
+                      const body = {
+                        chart: {
+                          label: createChartLabel.trim() || 'My Natal',
+                          date: createChartDate,
+                          time: createChartTime,
+                          location: {
+                            source: 'geofinder',
+                            label: createChartLocationLabel,
+                            lat: Number(createChartLat),
+                            lon: Number(createChartLon),
+                            timezone: createChartTz || 'UTC',
+                            resolvedAt: new Date().toISOString(),
+                          },
+                        },
+                      };
+                      const r = await fetch('/api/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(body),
+                      });
+                      const data = await r.json().catch(() => ({}));
+                      if (!r.ok) {
+                        setCreateError(typeof data.error === 'string' ? data.error : 'Failed to save chart');
+                        return;
+                      }
+                      const newChartId = data?.primaryChart?.id ?? null;
+                      setCreateChartLabel('');
+                      setCreateChartDate('');
+                      setCreateChartTime('12:00');
+                      setCreateChartLat('');
+                      setCreateChartLon('');
+                      setCreateChartTz('');
+                      setCreateChartLocationLabel('');
+                      await refresh();
+                      if (newChartId) {
+                        setNatalComposeInProgress(true);
+                        triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
+                      }
+                    } finally {
+                      setCreating(false);
+                    }
+                  }}
+                >
+                  {creating ? 'Saving…' : 'Save birth chart'}
+                </button>
+                <Link href="/sandbox" className="block text-sm text-emerald hover:underline">
+                  Open Sandbox
+                </Link>
               </div>
             ) : loading ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />

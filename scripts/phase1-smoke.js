@@ -111,11 +111,21 @@ async function step1() {
   console.log('bypassTokenPresent:', !!(bypass && bypass.trim().length > 0));
   console.log('bypassTokenLength:', (bypass || '').length);
   console.log('shareTokenPresent:', !!(share && share.trim().length > 0));
+  const smokeTag = Date.now();
   const createBody = {
-    displayName: 'Phase1 Smoke ' + Date.now(),
-    chart: { label: 'Smoke Chart', date: '1990-01-01', time: '12:00', lat: 40.7128, lon: -74.006 },
+    email: `phase1-smoke-${smokeTag}@example.invalid`,
+    password: 'phase1-smoke-test-password-ok',
+    displayName: 'Phase1 Smoke ' + smokeTag,
+    chart: {
+      label: 'Smoke Chart',
+      date: '1990-01-01',
+      time: '12:00',
+      lat: 40.7128,
+      lon: -74.006,
+      timezone: 'America/New_York',
+    },
   };
-  const createUrl = `${WEB_URL}/api/profile`;
+  const createUrl = `${WEB_URL}/api/auth/register`;
   const createFullUrl = withShare(createUrl);
   const createHeaders = buildWebJsonHeaders();
   const createBodyStr = JSON.stringify(createBody);
@@ -145,7 +155,7 @@ async function step1() {
     const setCookieCount = Array.isArray(sc) ? sc.length : sc ? 1 : 0;
     results.step1 = {
       pass: false,
-      error: `POST /api/profile redirect ${createStatus}`,
+      error: `POST /api/auth/register redirect ${createStatus}`,
       status: createStatus,
       location: loc,
       setCookieCount,
@@ -161,7 +171,7 @@ async function step1() {
     results.meta.webAuthGate = true;
     results.step1 = {
       pass: false,
-      error: `POST /api/profile ${createStatus} (web auth gate)`,
+      error: `POST /api/auth/register ${createStatus} (web auth gate)`,
       status: createStatus,
       body: createData,
       snippet: createSnippet,
@@ -171,7 +181,7 @@ async function step1() {
   if (createStatus !== 201 || !createData?.user?.id) {
     results.step1 = {
       pass: false,
-      error: `POST /api/profile ${createStatus} or no user.id`,
+      error: `POST /api/auth/register ${createStatus} or no user.id`,
       status: createStatus,
       body: createData,
       snippet: createSnippet,

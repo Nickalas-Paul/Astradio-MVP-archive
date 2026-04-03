@@ -55,9 +55,9 @@ export function IntentForm({
       };
       if (seekerChartId) body.seekerChartId = seekerChartId;
       if (backendScope === 'group' && groupId) body.groupId = groupId;
-      if (backendScope === 'my_groups') body.seekerUserId = 'usr_dev'; // TODO: auth integration
 
       const r = await fetch('/api/compatibility/intent', {
+        credentials: 'same-origin',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

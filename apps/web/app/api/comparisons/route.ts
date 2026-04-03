@@ -16,14 +16,16 @@ import { getEngineBaseUrl } from '@/lib/engine-base';
 import { getSessionUserId } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
+  const sessionUserId = getSessionUserId(req.cookies);
+  if (!sessionUserId) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  }
   try {
     const backend = getEngineBaseUrl();
     const body = await req.json().catch(() => ({}));
-    const sessionUserId = getSessionUserId(req.cookies);
     const backendBody = {
       ...body,
-      // Server-owned ownership: ignore/overwrite any caller-provided createdBy.
-      ...(sessionUserId && { createdBy: sessionUserId }),
+      createdBy: sessionUserId,
     };
 
     const r = await fetch(`${backend}/api/comparisons`, {

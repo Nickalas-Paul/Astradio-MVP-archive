@@ -1,16 +1,37 @@
 /**
  * Proxy to engine for Phase 3A community routes not handled by more specific routes.
- * Forwards GET/POST to backend /api/community/{path}. Does not handle /api/community/search, relational-feed, or groups/profile (those have dedicated routes).
+ * Session-derived userId only: strips client userId from query/body and injects session id (or 401).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { getSessionUserId } from '@/lib/session';
+
+function isPublicCommunityGetPath(pathStr: string): boolean {
+  return pathStr === 'guidance' || pathStr.startsWith('guidance/');
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
     const pathStr = path.join('/');
-    const { searchParams } = new URL(req.url);
-    const qs = searchParams.toString();
+    if (isPublicCommunityGetPath(pathStr)) {
+      const { searchParams } = new URL(req.url);
+      const qs = searchParams.toString();
+      const backend = getEngineBaseUrl();
+      const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`);
+      const data = await r.json().catch(() => ({}));
+      return NextResponse.json(data, { status: r.status });
+    }
+
+    const sessionUserId = getSessionUserId(req.cookies);
+    if (!sessionUserId) {
+      return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    url.searchParams.delete('userId');
+    url.searchParams.set('userId', sessionUserId);
+    const qs = url.searchParams.toString();
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`);
     const data = await r.json().catch(() => ({}));
@@ -26,14 +47,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
+    const sessionUserId = getSessionUserId(req.cookies);
+    if (!sessionUserId) {
+      return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+    }
+
     const { path } = await params;
     const pathStr = path.join('/');
     const backend = getEngineBaseUrl();
     const body = await req.json().catch(() => ({}));
+    const payload =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? { ...body }
+        : {};
+    delete (payload as Record<string, unknown>).userId;
+    (payload as Record<string, unknown>).userId = sessionUserId;
+
     const r = await fetch(`${backend}/api/community/${pathStr}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload),
     });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
