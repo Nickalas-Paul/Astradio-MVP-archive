@@ -118,7 +118,7 @@ export default function HomePage() {
     if (!dateStr || !timeStr || lat == null || lon == null || !location) {
       return;
     }
-    const stableKey = `${dateStr}|${timeStr}|${lat}|${lon}`;
+    const stableKey = `${dateStr}|${timeStr}|${lat}|${lon}|${location?.timezone ?? ''}`;
     if (composeInFlightRef.current && composeRequestKeyRef.current === stableKey) {
       return;
     }
@@ -236,10 +236,14 @@ export default function HomePage() {
             const lat = location.lat;
             const lon = location.lon;
             try {
+              const tzParam =
+                location.timezone && String(location.timezone).trim()
+                  ? `&timezone=${encodeURIComponent(location.timezone.trim())}`
+                  : '';
               const snapRes = await fetch(
                 `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(
                   timeStr
-                )}&lat=${lat}&lon=${lon}`
+                )}&lat=${lat}&lon=${lon}${tzParam}`
               );
               if (snapRes.ok) {
                 const snapshot = await snapRes.json().catch(() => null);
@@ -273,7 +277,7 @@ export default function HomePage() {
       cancelled = true;
       composeInFlightRef.current = false;
     };
-  }, [dateStr, timeStr, location?.lat, location?.lon]);
+  }, [dateStr, timeStr, location?.lat, location?.lon, location?.timezone]);
 
   // 2a) Persist canonical location for campaign daily / group anchor (signed-in only; skip anonymous 401 noise)
   const lastTransitSyncKey = useRef<string | null>(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -340,8 +340,25 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [natalComposeInProgress, setNatalComposeInProgress] = useState(false);
+  /** Signed-in user: edit existing primary chart birth data (POST /api/profile updates row in place). */
+  const [editingChart, setEditingChart] = useState(false);
 
   useHydrateCompositionUrls();
+
+  useEffect(() => {
+    if (!editingChart || !primaryChart || !realChart || primaryChart.id === DEFAULT_PROFILE_CHART_ID) return;
+    setCreateChartLabel(primaryChart.label);
+    setCreateChartDate(primaryChart.date);
+    setCreateChartTime(primaryChart.time);
+    setCreateChartLat(String(primaryChart.lat));
+    setCreateChartLon(String(primaryChart.lon));
+    setCreateChartTz(
+      primaryChart.timezone && isPersistableChartTimezone(primaryChart.timezone)
+        ? primaryChart.timezone
+        : '',
+    );
+    setCreateChartLocationLabel('');
+  }, [editingChart, primaryChart, realChart]);
 
   if (profileLoading) {
     return (
@@ -806,6 +823,114 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     triggerNatalComposition(realChart.id).finally(() => setNatalComposeInProgress(false));
                   }}
                 />
+                <div className="mt-4 rounded-2xl border border-border bg-bgElev p-4 space-y-3">
+                  <button
+                    type="button"
+                    className="text-sm text-emerald hover:underline"
+                    onClick={() => {
+                      setEditingChart((v) => !v);
+                      setCreateError(null);
+                    }}
+                  >
+                    {editingChart ? 'Cancel editing birth chart' : 'Update birth chart'}
+                  </button>
+                  {editingChart && (
+                    <div className="space-y-3 pt-2 border-t border-border">
+                      <p className="text-xs text-subtext">
+                        Search for your birth place again if the timezone was wrong (e.g. showed UTC). Saving updates this chart in place.
+                      </p>
+                      <input
+                        placeholder="Label (e.g. My Natal)"
+                        value={createChartLabel}
+                        onChange={(e) => setCreateChartLabel(e.target.value)}
+                        className="input w-full"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="date"
+                          value={createChartDate}
+                          onChange={(e) => setCreateChartDate(e.target.value)}
+                          className="input w-full"
+                        />
+                        <input
+                          type="time"
+                          value={createChartTime}
+                          onChange={(e) => setCreateChartTime(e.target.value)}
+                          className="input w-full"
+                        />
+                      </div>
+                      <LocationFinder
+                        value={createChartLocationLabel}
+                        onSelect={(r) => {
+                          setCreateChartLocationLabel(r.label);
+                          setCreateChartLat(String(r.lat));
+                          setCreateChartLon(String(r.lon));
+                          setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
+                        }}
+                        onClear={() => {
+                          setCreateChartLocationLabel('');
+                          setCreateChartLat('');
+                          setCreateChartLon('');
+                          setCreateChartTz('');
+                        }}
+                        placeholder="Birth place (search to set timezone)"
+                      />
+                      {createError && <p className="text-red-500 text-xs">{createError}</p>}
+                      <button
+                        type="button"
+                        disabled={creating}
+                        className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+                        onClick={async () => {
+                          setCreating(true);
+                          setCreateError(null);
+                          try {
+                            if (!isPersistableChartTimezone(createChartTz)) {
+                              setCreateError(
+                                'Choose a birth place from search results so a valid local timezone is set (UTC alone is not accepted).',
+                              );
+                              return;
+                            }
+                            const body = {
+                              chart: {
+                                label: createChartLabel.trim() || 'My Natal',
+                                date: createChartDate,
+                                time: createChartTime,
+                                location: {
+                                  source: 'geofinder' as const,
+                                  label: createChartLocationLabel,
+                                  lat: Number(createChartLat),
+                                  lon: Number(createChartLon),
+                                  timezone: createChartTz.trim(),
+                                  resolvedAt: new Date().toISOString(),
+                                },
+                              },
+                            };
+                            const r = await fetch('/api/profile', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'same-origin',
+                              body: JSON.stringify(body),
+                            });
+                            const data = await r.json().catch(() => ({}));
+                            if (!r.ok) {
+                              setCreateError(typeof data.error === 'string' ? data.error : 'Failed to update chart');
+                              return;
+                            }
+                            setEditingChart(false);
+                            setCreateChartLocationLabel('');
+                            await refresh();
+                            setNatalComposeInProgress(true);
+                            triggerNatalComposition(realChart.id).finally(() => setNatalComposeInProgress(false));
+                          } finally {
+                            setCreating(false);
+                          }
+                        }}
+                      >
+                        {creating ? 'Saving…' : 'Save updated birth chart'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>

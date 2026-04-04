@@ -145,20 +145,45 @@ async function attachPrimaryChartForNewUser(
         : typeof tzAlt === 'string' && tzAlt.trim()
           ? tzAlt.trim()
           : undefined;
-    primaryChart = await storage.createChart({
-      ownerId: userId,
+    const birthPayload = {
       label: label.trim(),
       date: String(date).slice(0, 10),
       time: String(time).slice(0, 5),
       lat: Number(lat),
       lon: Number(lon),
       ...(clientTzRaw !== undefined ? { timezone: clientTzRaw } : {}),
-    });
-    await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
-    if (process.env.POSTGRES_URL) {
-      populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
-        console.warn('[compat] vector populate after chart create:', err?.message);
+    };
+    const existingPrimaryId =
+      storage.getUserPrimaryChart != null ? await storage.getUserPrimaryChart(userId) : undefined;
+    if (
+      existingPrimaryId &&
+      existingPrimaryId !== storage.DEFAULT_PROFILE_CHART_ID &&
+      storage.updateChartBirthFields != null
+    ) {
+      const existingRow = await storage.getChart(existingPrimaryId);
+      if (existingRow && existingRow.ownerId === userId) {
+        primaryChart = (await storage.updateChartBirthFields(existingPrimaryId, userId, birthPayload)) ?? null;
+        if (primaryChart) {
+          await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
+          if (process.env.POSTGRES_URL) {
+            populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
+              console.warn('[compat] vector populate after chart update:', err?.message);
+            });
+          }
+        }
+      }
+    }
+    if (!primaryChart) {
+      primaryChart = await storage.createChart({
+        ownerId: userId,
+        ...birthPayload,
       });
+      await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
+      if (process.env.POSTGRES_URL) {
+        populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
+          console.warn('[compat] vector populate after chart create:', err?.message);
+        });
+      }
     }
   } else {
     const defaultChart = await storage.ensureDefaultProfileChart();

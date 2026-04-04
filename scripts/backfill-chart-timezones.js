@@ -7,7 +7,9 @@
  *   --utc-placeholders: rows with UTC-equivalent placeholder saved with valid lat/lon.
  *
  *   POSTGRES_URL=... node scripts/backfill-chart-timezones.js [--dry-run] [--null-only]
- *   POSTGRES_URL=... node scripts/backfill-chart-timezones.js --utc-placeholders [--dry-run] [--refresh-vectors]
+ *   POSTGRES_URL=... node scripts/backfill-chart-timezones.js --utc-placeholders [--execute] [--dry-run] [--refresh-vectors]
+ *
+ *   --utc-placeholders defaults to dry-run (no DB writes). Pass --execute to apply updates.
  *
  * --refresh-vectors: after real updates, re-run populateChartVector for each updated chart (requires npm run vnext:build).
  */
@@ -19,8 +21,11 @@ const { Pool } = require('pg');
 const { resolveChartTimezoneForChartInsert } = require('../lib/chart-timezone-resolve');
 
 const POSTGRES_URL = process.env.POSTGRES_URL;
-const dryRun = process.argv.includes('--dry-run');
 const utcMode = process.argv.includes('--utc-placeholders');
+const forceDryRun = process.argv.includes('--dry-run');
+const utcExecute = process.argv.includes('--execute');
+/** Legacy null backfill writes by default; UTC-placeholder repair is dry-run until --execute. */
+const dryRun = forceDryRun || (utcMode && !utcExecute);
 const refreshVectors = process.argv.includes('--refresh-vectors') && !dryRun;
 
 const UTC_PLACEHOLDER_SQL = `(
@@ -94,7 +99,7 @@ async function main() {
         continue;
       }
       await pool.query(
-        `UPDATE astradio_charts SET timezone = $1, updated_at = NOW() WHERE id = $2`,
+        `UPDATE astradio_charts SET timezone = $1, snapshot_hash = NULL, updated_at = NOW() WHERE id = $2`,
         [resolved, id],
       );
       console.log(JSON.stringify({ id, action: 'updated', from: existingTz, to: resolved }));

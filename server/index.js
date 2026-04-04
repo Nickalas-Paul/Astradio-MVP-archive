@@ -1235,9 +1235,35 @@ app.get("/api/chart-snapshot", (req, res) => {
       lon: positions[name]
     }));
     const houses = cusps.length === 12 ? cusps : Array.from({ length: 12 }, (_, i) => i * 30);
+
+    const [y, mo, d] = date.split("-").map(Number);
+    const [hh, mmPart = 0] = time.split(":").map(Number);
+    const mi = Number(mmPart) || 0;
+    let tzUsed = "UTC";
+    let tsUtcIso;
+    const tzQuery = timezoneParam && moment.tz.zone(timezoneParam) ? timezoneParam : null;
+    if (tzQuery) {
+      tzUsed = tzQuery;
+      tsUtcIso = moment.tz([y, mo - 1, d, hh, mi], tzQuery).utc().toISOString();
+    } else if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      try {
+        const geoTz = tzlookup.tzNameAt(lat, lon);
+        if (geoTz && moment.tz.zone(geoTz)) {
+          tzUsed = geoTz;
+          tsUtcIso = moment.tz([y, mo - 1, d, hh, mi], geoTz).utc().toISOString();
+        }
+      } catch (_e) {
+        /* fall through */
+      }
+    }
+    if (!tsUtcIso) {
+      tzUsed = "UTC";
+      tsUtcIso = moment.utc([y, mo - 1, d, hh, mi]).toISOString();
+    }
+
     const snapshot = {
-      ts: `${date}T${time}:00Z`,
-      tz: "UTC",
+      ts: tsUtcIso,
+      tz: tzUsed,
       lat,
       lon,
       houseSystem: "placidus",

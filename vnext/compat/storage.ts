@@ -27,6 +27,12 @@ export type StorageAdapter = {
   setUserPrimaryChart?: (userId: string, chartId: string) => Promise<void>;
   getUserPrimaryChart?: (userId: string) => Promise<string | undefined>;
   createChart: (input: any) => Promise<Chart>;
+  /** Birth-field update for profile chart correction (owner-scoped). */
+  updateChartBirthFields?: (
+    chartId: string,
+    ownerId: string,
+    input: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string; tz?: string }
+  ) => Promise<Chart | undefined>;
   getChart: (id: string) => Promise<Chart | undefined>;
   listChartsByOwner: (ownerId: string) => Promise<Chart[]>;
   createComparison: (input: Omit<Comparison, 'id' | 'createdAt'>) => Promise<Comparison>;
@@ -68,6 +74,17 @@ export async function getUserByHandle(handle: string): Promise<(User & { handle?
 
 export async function createChart(input: any): Promise<Chart> {
   return adapter.createChart(input);
+}
+
+export async function updateChartBirthFields(
+  chartId: string,
+  ownerId: string,
+  input: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string; tz?: string }
+): Promise<Chart | undefined> {
+  if (adapter.updateChartBirthFields) {
+    return adapter.updateChartBirthFields(chartId, ownerId, input);
+  }
+  return undefined;
 }
 
 export async function getChart(id: string): Promise<Chart | undefined> {

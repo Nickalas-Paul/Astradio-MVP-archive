@@ -127,6 +127,46 @@ export async function listChartsByOwner(ownerId: string): Promise<Chart[]> {
   return Array.from(charts.values()).filter((c) => c.ownerId === ownerId);
 }
 
+export async function updateChartBirthFields(
+  chartId: string,
+  ownerId: string,
+  input: {
+    label: string;
+    date: string;
+    time: string;
+    lat: number;
+    lon: number;
+    timezone?: string;
+    tz?: string;
+  }
+): Promise<Chart | undefined> {
+  const c = charts.get(chartId);
+  if (!c || c.ownerId !== ownerId) {
+    const err = new Error('Chart not found or not owned by user') as Error & { code?: string };
+    err.code = 'CHART_UPDATE_FORBIDDEN';
+    throw err;
+  }
+  const resolvedTimezone = resolveChartTimezoneForChartInsert({
+    timezone: input.timezone,
+    tz: input.tz,
+    lat: input.lat,
+    lon: input.lon,
+  });
+  const updated: Chart = {
+    ...c,
+    label: input.label,
+    date: input.date,
+    time: input.time,
+    lat: input.lat,
+    lon: input.lon,
+    timezone: resolvedTimezone,
+    snapshotHash: undefined,
+    updatedAt: now(),
+  };
+  charts.set(chartId, updated);
+  return updated;
+}
+
 export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt'>): Promise<Comparison> {
   const id = `cmp_${nanoid()}`;
   const comparison: Comparison = {

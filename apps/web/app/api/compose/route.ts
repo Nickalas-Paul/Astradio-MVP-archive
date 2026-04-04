@@ -55,12 +55,18 @@ export async function POST(req: Request) {
       }
       const data: SkyClientComposeBody = validationResult.data;
       const { date, time, location } = data;
-      const datetime = `${date}T${time}:00Z`;
+      // Wall-clock calendar + time in the client's canonical IANA zone (same contract as Profile active-state / Campaign transit).
+      const datetime = `${date}T${time}:00`;
       const latitude = location.lat;
       const longitude = location.lon;
       bodyToSend = JSON.stringify({
         mode: 'sky' as const,
-        skyParams: { latitude, longitude, datetime },
+        skyParams: {
+          latitude,
+          longitude,
+          datetime,
+          timezone: location.timezone,
+        },
         locationMeta: location as CanonicalLocation,
       });
     }

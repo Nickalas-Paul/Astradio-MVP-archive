@@ -934,11 +934,15 @@ export class ComposeAPI {
         throw new Error('Invalid skyParams: latitude, longitude, and ISO datetime are required');
       }
       const [d, t] = dt.split('T');
-      const timePart = t ? t.slice(0, 5) : '';
+      const timePart = t ? t.replace(/Z$/i, '').slice(0, 5) : '';
       if (!d || !timePart) {
-        throw new Error('Invalid skyParams.datetime; expected YYYY-MM-DDTHH:mm:ssZ');
+        throw new Error('Invalid skyParams.datetime; expected YYYY-MM-DDTHH:mm[:ss] with optional Z');
       }
-      return { date: d, time: timePart, lat, lon };
+      const skyTz =
+        typeof req.skyParams.timezone === 'string' && req.skyParams.timezone.trim()
+          ? req.skyParams.timezone.trim()
+          : undefined;
+      return { date: d, time: timePart, lat, lon, ...(skyTz ? { timezone: skyTz } : {}) };
     }
 
     if (req.mode === 'overlay' && req.overlayParams) {

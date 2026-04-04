@@ -57,6 +57,8 @@
     "test:campaign-daily": "npm run vnext:build && node --test tests/campaign-daily-anchor.test.js tests/campaign-daily-canonical-location.test.js tests/campaign-group-resolve.test.js tests/campaign-state-machine.test.js",
     "test:chart-timezone": "npm run vnext:build && node --test tests/chart-timezone-resolve.test.js tests/chart-pg-store-timezone.integration.test.js",
     "backfill:chart-timezones": "node scripts/backfill-chart-timezones.js",
+    "repair:chart-utc-placeholders": "node scripts/backfill-chart-timezones.js --utc-placeholders",
+    "repair:chart-utc-placeholders:execute": "node scripts/backfill-chart-timezones.js --utc-placeholders --execute",
     "smoke:campaign-daily": "npm run vnext:build && node scripts/stage8-campaign-daily-smoke.js",
     "test:integration": "node scripts/test-integration.js",
     "test:all": "npm run test:contract && npm run test:e2e",
