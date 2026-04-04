@@ -2005,6 +2005,10 @@ if (compatMod && typeof compatMod.createCompatRouter === "function") {
     compatStorage.setStorage(store);
   }
   app.use("/api", compatMod.createCompatRouter());
+} else {
+  console.error(
+    "[compat][boot] SKIPPED: compat bundle not loaded (ensure dist/vnext/vnext exists; run npm run vnext:build before start)",
+  );
 }
 
 // Personality API — Phase 1 Foundation (personality reports without music)

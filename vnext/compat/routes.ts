@@ -17,11 +17,12 @@ import { populateChartVector } from './vector-cache';
 import { ensureSeedCandidateVectors } from './seed-vectors';
 import type { ChartBInline, Comparison } from './types';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
+import path from 'path';
 
 const express = require('express') as typeof import('express');
 const argon2 = require('argon2') as typeof import('argon2');
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-const astradioPgStore = require('../../lib/pg-store') as {
+const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'pg-store')) as {
   normalizeLoginEmail: (e: string) => string;
   createRegisteredUser: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   getUserAuthForLogin: (
