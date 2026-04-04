@@ -65,6 +65,27 @@ describe('chart-timezone-resolve', () => {
     );
   });
 
+  it('replaces UTC placeholder with geographic zone when lat/lon are finite', () => {
+    const z = resolveChartTimezoneForChartInsert({
+      timezone: 'UTC',
+      lat: 29.4241,
+      lon: -98.4936,
+    });
+    assert.strictEqual(z, 'America/Chicago');
+  });
+
+  it('rejects UTC placeholder when coordinates are not resolvable', () => {
+    assert.throws(
+      () =>
+        resolveChartTimezoneForChartInsert({
+          timezone: 'UTC',
+          lat: NaN,
+          lon: NaN,
+        }),
+      (e) => e.code === 'CHART_TIMEZONE_UNRESOLVABLE'
+    );
+  });
+
   it('isValidIanaTimezone', () => {
     assert.strictEqual(isValidIanaTimezone('UTC'), true);
     assert.strictEqual(isValidIanaTimezone(''), false);

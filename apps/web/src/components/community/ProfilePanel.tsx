@@ -11,6 +11,7 @@ import { useCompositionStore, type LastNatalComposeResult } from '../../store';
 import { useHydrateCompositionUrls } from '../../hooks/useHydrateCompositionUrls';
 import { getApiBaseUrl } from '../../core/api-base';
 import type { CompositionJob } from '../../types';
+import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -371,14 +372,14 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       time: createChartTime,
       lat: Number(createChartLat),
       lon: Number(createChartLon),
-      timezone: createChartTz || 'UTC',
+      timezone: createChartTz.trim(),
     };
     const chartReady =
       createChartDate &&
       createChartTime &&
       createChartLat !== '' &&
       createChartLon !== '' &&
-      createChartTz !== '' &&
+      isPersistableChartTimezone(createChartTz) &&
       Number.isFinite(Number(createChartLat)) &&
       Number.isFinite(Number(createChartLon));
     const canRegister =
@@ -539,7 +540,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     setCreateChartLocationLabel(r.label);
                     setCreateChartLat(String(r.lat));
                     setCreateChartLon(String(r.lon));
-                    setCreateChartTz(r.timezone || 'UTC');
+                    setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
                   }}
                   onClear={() => {
                     setCreateChartLocationLabel('');
@@ -697,7 +698,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     setCreateChartLocationLabel(r.label);
                     setCreateChartLat(String(r.lat));
                     setCreateChartLon(String(r.lon));
-                    setCreateChartTz(r.timezone || 'UTC');
+                    setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
                   }}
                   onClear={() => {
                     setCreateChartLocationLabel('');
@@ -716,6 +717,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     setCreating(true);
                     setCreateError(null);
                     try {
+                      if (!isPersistableChartTimezone(createChartTz)) {
+                        setCreateError(
+                          'Choose a birth place from search results so a valid local timezone is set (UTC alone is not accepted).',
+                        );
+                        return;
+                      }
                       const body = {
                         chart: {
                           label: createChartLabel.trim() || 'My Natal',
@@ -726,7 +733,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                             label: createChartLocationLabel,
                             lat: Number(createChartLat),
                             lon: Number(createChartLon),
-                            timezone: createChartTz || 'UTC',
+                            timezone: createChartTz.trim(),
                             resolvedAt: new Date().toISOString(),
                           },
                         },

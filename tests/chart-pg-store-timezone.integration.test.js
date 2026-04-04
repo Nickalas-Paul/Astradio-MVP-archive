@@ -24,5 +24,25 @@ describe(
         await pgStore.deleteChart(chart.id);
       }
     });
+
+    it('createChart replaces persisted UTC placeholder with tzlookup when lat/lon are valid', async () => {
+      const pgStore = require('../lib/pg-store');
+      const chart = await pgStore.createChart({
+        ownerId: null,
+        label: 'tz_integration_test_utc_override',
+        date: '1988-05-15',
+        time: '12:30',
+        lat: 29.4241,
+        lon: -98.4936,
+        timezone: 'UTC',
+      });
+      try {
+        assert.strictEqual(chart.timezone, 'America/Chicago');
+        const again = await pgStore.getChart(chart.id);
+        assert.strictEqual(again?.timezone, 'America/Chicago');
+      } finally {
+        await pgStore.deleteChart(chart.id);
+      }
+    });
   }
 );

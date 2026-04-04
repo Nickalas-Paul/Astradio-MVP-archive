@@ -1074,24 +1074,35 @@ app.get("/geocode", async (req, res) => {
     }});
     if (!r.ok) return res.status(503).json({ error: `Nominatim ${r.status} (rate limited). Try again soon.` });
     const json = await r.json();
-    const tzlookup = require('tzlookup');
-    const items = json.map((x) => {
+    const tzPack = require('tzlookup');
+    const items = json.flatMap((x) => {
       const lat = parseFloat(x.lat);
       const lon = parseFloat(x.lon);
-      let timezone = 'UTC';
-      try {
-        if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          timezone = tzlookup(lat, lon);
-        }
-      } catch {
-        timezone = 'UTC';
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return [];
       }
-      return {
-        label: x.display_name,
-        lat,
-        lon,
-        timezone,
-      };
+      let timezone;
+      try {
+        timezone = tzPack.tzNameAt(lat, lon);
+      } catch {
+        return [];
+      }
+      if (!timezone || typeof timezone !== 'string' || !timezone.trim() || !moment.tz.zone(timezone.trim())) {
+        return [];
+      }
+      const tzFinal = timezone.trim();
+      const upper = tzFinal.toUpperCase();
+      if (upper === 'UTC' || tzFinal === 'Etc/UTC' || upper === 'GMT' || /^Etc\/GMT/.test(tzFinal)) {
+        return [];
+      }
+      return [
+        {
+          label: x.display_name,
+          lat,
+          lon,
+          timezone: tzFinal,
+        },
+      ];
     });
     geoCache.set(key, { t: Date.now(), items });
     res.json(items);
