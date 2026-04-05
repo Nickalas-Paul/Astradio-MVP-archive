@@ -1,28 +1,9 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import type { CanonicalLocation } from '../../../../src/types/location';
 import { getEngineBaseUrl } from '@/lib/engine-base';
-
-const CanonicalLocationSchema = z.object({
-  source: z.literal('geofinder'),
-  label: z.string().min(1).max(300),
-  lat: z.number().min(-90).max(90),
-  lon: z.number().min(-180).max(180),
-  timezone: z.string().min(1).max(100),
-  resolvedAt: z.string().min(1).max(100),
-}) satisfies z.ZodType<CanonicalLocation>;
-
-const SandboxBirthSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^\d{2}:\d{2}$/),
-  location: CanonicalLocationSchema,
-  houseSystem: z.string().min(1).max(50).optional(),
-});
-
-const SandboxSnapshotRequestSchema = z.object({
-  birth: SandboxBirthSchema,
-  overrides: z.any(),
-});
+import {
+  SandboxSnapshotRequestSchema,
+  wireBirthToEngineBirth,
+} from '@/lib/sandbox-bff-wire';
 
 export async function POST(req: Request) {
   try {
@@ -42,14 +23,7 @@ export async function POST(req: Request) {
     }
 
     const { birth, overrides } = parsed.data;
-    const engineBirth = {
-      date: birth.date,
-      time: birth.time,
-      lat: birth.location.lat,
-      lon: birth.location.lon,
-      tz: birth.location.timezone,
-      houseSystem: birth.houseSystem ?? 'placidus',
-    };
+    const engineBirth = wireBirthToEngineBirth(birth);
 
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/sandbox/snapshot`, {
@@ -70,4 +44,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
