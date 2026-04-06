@@ -245,11 +245,23 @@ export default function SandboxPage() {
 
   const generateDisabledReasons: string[] = [];
   if (!birth) {
-    generateDisabledReasons.push('Enter birth data.');
+    generateDisabledReasons.push('Add birth data (date, time, and place) first.');
   }
-  if (!preview.baseSnapshot && !preview.overriddenSnapshot && birth) generateDisabledReasons.push('Wait for the chart snapshot to load.');
-  if (!preview.snapshotMeta?.combinedHash && birth) generateDisabledReasons.push('Wait for the internal hash to compute.');
-  if (surfaceState === 'syncing_overrides') generateDisabledReasons.push('Finish syncing overrides.');
+  if (!preview.baseSnapshot && !preview.overriddenSnapshot && birth) {
+    generateDisabledReasons.push('Wait for the chart preview to finish loading.');
+  }
+  if (!preview.snapshotMeta?.combinedHash && birth) {
+    generateDisabledReasons.push('Wait for the preview hash to finish updating (required before generate).');
+  }
+  if (surfaceState === 'syncing_overrides') {
+    generateDisabledReasons.push('Wait until override edits finish syncing to the preview.');
+  }
+
+  const previewCombinedHash = preview.snapshotMeta?.combinedHash;
+  const lastResolveCombinedHash = compositionModel.lastResolve?.combinedHashUsed ?? null;
+  const resolveOutputStaleVsPreview = Boolean(
+    lastResolveCombinedHash && previewCombinedHash && lastResolveCombinedHash !== previewCombinedHash
+  );
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate || !birth) return;
@@ -770,6 +782,7 @@ export default function SandboxPage() {
                     );
                   })}
                 </div>
+                <p className="text-xs text-subtext mt-3">These slots match what resolve uses for the current composition.</p>
               </div>
 
               <div className="card">
@@ -777,7 +790,10 @@ export default function SandboxPage() {
                   <div>
                     <h2 className="text-xl font-semibold text-text">Wheel</h2>
                     <p className="text-sm text-subtext mt-1">Drag planets or use degree inputs. Houses are from birth chart geometry in Phase 6.</p>
-                    <p className="text-xs text-subtext mt-1">Preview (snapshot) · active slot {compositionModel.compositionInput.active_slot_index}</p>
+                    <p className="text-xs text-subtext mt-1">
+                      Ephemeris preview for active slot {compositionModel.compositionInput.active_slot_index}—positions here are not the resolved
+                      report or audio output.
+                    </p>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-subtext">
                     <label className="flex items-center gap-2">
@@ -808,7 +824,11 @@ export default function SandboxPage() {
               </div>
 
               <div className="card">
-                <h2 className="text-xl font-semibold text-text mb-4">Generate</h2>
+                <h2 className="text-xl font-semibold text-text mb-2">Generate</h2>
+                <p className="text-xs text-subtext mb-4">
+                  Resolve uses your current composition (slots and controls) and a hash seed from the chart preview; Generate refreshes the preview,
+                  then runs resolve.
+                </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleGenerate}
@@ -875,7 +895,18 @@ export default function SandboxPage() {
                     )}
                   </div>
                 )}
-                {hasGenerated && <p className="mt-6 text-xs text-subtext">Last generated (report / audio)</p>}
+                {hasGenerated && (
+                  <div className="mt-6 space-y-1">
+                    <p className="text-xs text-subtext font-medium text-text">Last generated (report / audio)</p>
+                    <p className="text-xs text-subtext">
+                      From the last successful resolve. If you changed the chart after that, this section may be out of step with the wheel
+                      until you generate again.
+                    </p>
+                    {resolveOutputStaleVsPreview && (
+                      <p className="text-xs text-amber-500/90">Output does not reflect current preview.</p>
+                    )}
+                  </div>
+                )}
                 {displayReport && (
                   <div className="mt-6 space-y-4">
                     {displayReport.personality && (
@@ -910,7 +941,7 @@ export default function SandboxPage() {
                             Stop
                           </button>
                           <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                            Replay
+                            Restart
                           </button>
                           <button type="button" onClick={handleDownloadWav} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
                             Download WAV
@@ -949,7 +980,7 @@ export default function SandboxPage() {
                   <div className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold text-text">Provenance</h3>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                         <button onClick={handleExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
                           Export JSON
                         </button>
@@ -958,10 +989,13 @@ export default function SandboxPage() {
                           disabled={replayLoading || !replayNeedsSnapshot}
                           className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
                         >
-                          {replayLoading ? 'Replaying…' : 'Replay (same seed)'}
+                          {replayLoading ? 'Re-running…' : 'Re-run last resolve'}
                         </button>
                       </div>
                     </div>
+                    <p className="text-xs text-subtext">
+                      Re-run sends the previous resolve request again—not your current edits. Use Generate to resolve what you see now.
+                    </p>
                     <div className="grid gap-2 sm:grid-cols-3">
                       <div>
                         <span className="font-semibold">combinedHash:</span>{' '}
