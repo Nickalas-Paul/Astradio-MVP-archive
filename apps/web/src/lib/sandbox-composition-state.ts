@@ -10,6 +10,7 @@ import type {
   SandboxReport,
   SandboxSnapshotMeta,
   SandboxResolvedSession,
+  SandboxLiveResolveSession,
   SandboxCompositionInputState,
 } from '../types/sandbox';
 
@@ -108,6 +109,13 @@ export type SandboxCompositionAction =
       exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
     }
   | { type: 'resolve_cleared' }
+  | {
+      type: 'loaded_row_artifacts';
+      report: SandboxReport | null;
+      planSha256: string | null;
+      exportId: string | null;
+      combinedHashUsed: string | null;
+    }
   | { type: 'load_saved_baseline'; birth: SandboxBirth; overrides: SandboxOverrides }
   | {
       type: 'load_saved_snapshot_restored';
@@ -167,6 +175,7 @@ export function sandboxCompositionReducer(
       slots[0] = s0;
       return {
         ...state,
+        lastResolve: null,
         compositionInput: { ...state.compositionInput, slots, seed: undefined },
         preview: {
           ...state.preview,
@@ -213,27 +222,43 @@ export function sandboxCompositionReducer(
       };
     }
 
-    case 'resolve_success':
+    case 'resolve_success': {
+      const live: SandboxLiveResolveSession = {
+        source: 'live_resolve',
+        fullResponse: action.payload,
+        lastSubmittedResolveBody: action.lastSubmittedResolveBody,
+        snapshotUsed: action.snapshotUsed,
+        combinedHashUsed: action.combinedHashUsed,
+        planSha256: action.planSha256,
+        canonicalSlotOrder: action.canonicalSlotOrder,
+        canonicalInputHash: action.canonicalInputHash,
+        canonicalObjectHash: action.canonicalObjectHash,
+        report: action.report,
+        exportId: action.exportId,
+        lastComposeProvider: action.lastComposeProvider,
+        exportUnavailableReason: action.exportUnavailableReason,
+      };
       return {
         ...state,
-        lastResolve: {
-          fullResponse: action.payload,
-          lastSubmittedResolveBody: action.lastSubmittedResolveBody,
-          snapshotUsed: action.snapshotUsed,
-          combinedHashUsed: action.combinedHashUsed,
-          planSha256: action.planSha256,
-          canonicalSlotOrder: action.canonicalSlotOrder,
-          canonicalInputHash: action.canonicalInputHash,
-          canonicalObjectHash: action.canonicalObjectHash,
-          report: action.report,
-          exportId: action.exportId,
-          lastComposeProvider: action.lastComposeProvider,
-          exportUnavailableReason: action.exportUnavailableReason,
-        },
+        lastResolve: live,
       };
+    }
 
     case 'resolve_cleared':
       return { ...state, lastResolve: null };
+
+    case 'loaded_row_artifacts':
+      return {
+        ...state,
+        lastResolve: {
+          source: 'loaded_row',
+          report: action.report,
+          planSha256: action.planSha256,
+          exportId: action.exportId,
+          combinedHashUsed: action.combinedHashUsed,
+          lastSubmittedResolveBody: null,
+        },
+      };
 
     case 'load_saved_baseline':
       return {

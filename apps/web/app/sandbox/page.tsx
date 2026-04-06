@@ -85,13 +85,6 @@ export default function SandboxPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
-  /** Hydrated from persistence row when lastResolve is null (full document persistence is a later step). */
-  const [persistenceHydration, setPersistenceHydration] = useState<{
-    report: SandboxReport | null;
-    planHash: string | null;
-    combinedHash: string | null;
-    exportId: string | null;
-  } | null>(null);
 
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -101,15 +94,14 @@ export default function SandboxPage() {
   const preview = compositionModel.preview;
   const lastResolve = compositionModel.lastResolve;
 
-  const displayReport = lastResolve?.report ?? persistenceHydration?.report ?? null;
-  const planHash = lastResolve?.planSha256 ?? persistenceHydration?.planHash ?? null;
-  const exportId = lastResolve?.exportId ?? persistenceHydration?.exportId ?? null;
-  const exportUnavailableReason = lastResolve?.exportUnavailableReason ?? null;
-  const lastComposeProvider = lastResolve?.lastComposeProvider ?? null;
-  const canonicalSlotOrder = lastResolve?.canonicalSlotOrder ?? null;
-  const canonicalInputHash = lastResolve?.canonicalInputHash ?? null;
-  const lastCombinedHashUsed =
-    lastResolve?.combinedHashUsed ?? preview.snapshotMeta?.combinedHash ?? persistenceHydration?.combinedHash ?? null;
+  const displayReport = lastResolve?.report ?? null;
+  const planHash = lastResolve?.planSha256 ?? null;
+  const exportId = lastResolve?.exportId ?? null;
+  const exportUnavailableReason = lastResolve?.source === 'live_resolve' ? lastResolve.exportUnavailableReason : null;
+  const lastComposeProvider = lastResolve?.source === 'live_resolve' ? lastResolve.lastComposeProvider : null;
+  const canonicalSlotOrder = lastResolve?.source === 'live_resolve' ? lastResolve.canonicalSlotOrder : null;
+  const canonicalInputHash = lastResolve?.source === 'live_resolve' ? lastResolve.canonicalInputHash : null;
+  const lastCombinedHashUsed = lastResolve?.combinedHashUsed ?? preview.snapshotMeta?.combinedHash ?? null;
 
   useEffect(() => {
     if (!exportId) {
@@ -174,7 +166,6 @@ export default function SandboxPage() {
     setSurfaceState('loading_base');
     setError(null);
     setGenerateError(null);
-    setPersistenceHydration(null);
     const overridesToUse = { planets: {} };
     try {
       const base = getApiBaseUrl();
@@ -260,7 +251,6 @@ export default function SandboxPage() {
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
-    setPersistenceHydration(null);
     dispatchComposition({ type: 'resolve_cleared' });
     setReplayStatus('idle');
     setReplayError(null);
@@ -413,7 +403,8 @@ export default function SandboxPage() {
   }, [canGenerate, birth, overrides]);
 
   const handleReplay = useCallback(async () => {
-    const body = compositionModel.lastResolve?.lastSubmittedResolveBody;
+    const lr = compositionModel.lastResolve;
+    const body = lr?.source === 'live_resolve' ? lr.lastSubmittedResolveBody : null;
     if (!planHash || !body) {
       setReplayError('Replay unavailable: missing last composition payload or plan hash from last generate.');
       setReplayStatus('error');
@@ -449,7 +440,7 @@ export default function SandboxPage() {
     } finally {
       setReplayLoading(false);
     }
-  }, [planHash, compositionModel.lastResolve?.lastSubmittedResolveBody]);
+  }, [planHash, compositionModel.lastResolve]);
 
   const handleAudioPlay = useCallback(() => {
     setPlaybackError(null);
@@ -601,15 +592,16 @@ export default function SandboxPage() {
         setError('Invalid saved composition: missing birth data');
         return;
       }
-      setPersistenceHydration({
-        report: comp.report ?? null,
-        planHash: comp.plan_hash ?? null,
-        combinedHash: comp.seed ?? comp.vector_hash ?? null,
-        exportId: comp.export_id ?? null,
-      });
       setHasGenerated(true);
       setGenerateError(null);
       dispatchComposition({ type: 'load_saved_baseline', birth: rowBirth, overrides: rowOverrides });
+      dispatchComposition({
+        type: 'loaded_row_artifacts',
+        report: comp.report ?? null,
+        planSha256: comp.plan_hash ?? null,
+        exportId: comp.export_id ?? null,
+        combinedHashUsed: comp.seed ?? comp.vector_hash ?? null,
+      });
       setSurfaceState('loading_base');
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
@@ -662,7 +654,12 @@ export default function SandboxPage() {
   if (preview.baseSnapshot) for (const p of preview.baseSnapshot.planets) basePositions[p.name] = p.lon;
   const cusps = currentSnapshot?.houses ?? [];
 
-  const replayNeedsSnapshot = Boolean(compositionModel.lastResolve?.snapshotUsed && lastCombinedHashUsed && planHash);
+  const replayNeedsSnapshot = Boolean(
+    compositionModel.lastResolve?.source === 'live_resolve' &&
+      compositionModel.lastResolve.lastSubmittedResolveBody &&
+      compositionModel.lastResolve.planSha256 &&
+      compositionModel.lastResolve.snapshotUsed
+  );
 
   return (
     <AppShell>
@@ -703,7 +700,6 @@ export default function SandboxPage() {
                   setSurfaceState('idle');
                   setError(null);
                   dispatchComposition({ type: 'reset_all' });
-                  setPersistenceHydration(null);
                 }}
                 className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
               >

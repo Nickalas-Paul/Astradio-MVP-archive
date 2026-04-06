@@ -77,8 +77,9 @@ export type SandboxCompositionInputState = {
   binding?: Record<string, unknown>;
 };
 
-/** Outcome of the last successful resolve (authoritative artifact line; separate from preview). */
-export type SandboxResolvedSession = {
+/** Successful resolve through the canonical pipeline; holds replay body. */
+export type SandboxLiveResolveSession = {
+  source: 'live_resolve';
   fullResponse: Record<string, unknown>;
   /** Exact JSON object last POSTed to /api/sandbox/resolve for this session (replay). */
   lastSubmittedResolveBody: Record<string, unknown>;
@@ -93,6 +94,19 @@ export type SandboxResolvedSession = {
   lastComposeProvider: string | null;
   exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
 };
+
+/** Artifacts rehydrated from a saved row; replay body absent until a new resolve. */
+export type SandboxLoadedRowSession = {
+  source: 'loaded_row';
+  report: SandboxReport | null;
+  planSha256: string | null;
+  exportId: string | null;
+  combinedHashUsed: string | null;
+  lastSubmittedResolveBody: null;
+};
+
+/** Unified resolve / saved-row display line (never preview). */
+export type SandboxResolvedSession = SandboxLiveResolveSession | SandboxLoadedRowSession;
 
 export type SandboxReportExplanation = {
   spec: string;
