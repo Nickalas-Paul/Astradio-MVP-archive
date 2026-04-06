@@ -6,7 +6,15 @@ import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
-import type { SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport, SandboxSnapshotMeta } from '../../src/types/sandbox';
+import type {
+  SandboxBirth,
+  SandboxOverrides,
+  PlanetKey,
+  EphemerisSnapshot,
+  SandboxReport,
+  SandboxSnapshotMeta,
+  SandboxResolvedSession,
+} from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
 import {
@@ -16,6 +24,8 @@ import {
   roundSandboxDegree,
   sandboxCompositionReducer,
   serializeSandboxResolveRequestBody,
+  firstEphemerisBirthForSnapshot,
+  parsePersistedSandboxState,
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
@@ -61,6 +71,83 @@ function slot0Birth(model: SandboxCompositionModelState): SandboxBirth | undefin
 
 function slot0Overrides(model: SandboxCompositionModelState): SandboxOverrides {
   return model.compositionInput.slots[0]?.overrides ?? { planets: {} };
+}
+
+function buildLastResolveFromLoadedRow(
+  comp: Record<string, unknown>,
+  parsed: ReturnType<typeof parsePersistedSandboxState>,
+  snapshot: EphemerisSnapshot | null
+): SandboxResolvedSession | null {
+  const report = (comp.report ?? null) as SandboxReport | null;
+  const planSha256 = typeof comp.plan_hash === 'string' ? comp.plan_hash : null;
+  const exportId = typeof comp.export_id === 'string' ? comp.export_id : null;
+  const combinedHashUsed =
+    typeof comp.seed === 'string' ? comp.seed : typeof comp.vector_hash === 'string' ? comp.vector_hash : null;
+
+  const body = parsed.lastSubmittedResolveBody;
+  if (body && planSha256 && snapshot) {
+    const full =
+      parsed.fullResolveResponse && Object.keys(parsed.fullResolveResponse).length > 0
+        ? parsed.fullResolveResponse
+        : ({} as Record<string, unknown>);
+    const env =
+      report && typeof report === 'object' && 'artifact_envelope' in report
+        ? (report as SandboxReport & { artifact_envelope?: Record<string, unknown> }).artifact_envelope
+        : undefined;
+    const canonicalSlotOrder = Array.isArray(full.canonical_slot_order)
+      ? (full.canonical_slot_order as string[])
+      : env && Array.isArray(env.canonical_slot_order)
+        ? (env.canonical_slot_order as string[])
+        : null;
+    const canonicalInputHash =
+      typeof full.canonical_input_hash === 'string'
+        ? full.canonical_input_hash
+        : env && typeof env.canonical_input_hash === 'string'
+          ? env.canonical_input_hash
+          : null;
+    const canonicalObjectHash =
+      report?.meta?.canonical_object_hash ??
+      (typeof full.canonical_object_hash === 'string' ? full.canonical_object_hash : null) ??
+      null;
+
+    const safeReport =
+      report ??
+      ({
+        features: [],
+        personality: null as unknown as SandboxReport['personality'],
+        guidance: null as unknown as SandboxReport['guidance'],
+        explanation: { spec: 'UnifiedSpecV1.1', sections: [] },
+        seed: combinedHashUsed ?? '',
+        meta: { combinedHash: combinedHashUsed ?? '' },
+      } as SandboxReport);
+
+    return {
+      source: 'live_resolve',
+      fullResponse: full,
+      lastSubmittedResolveBody: body,
+      snapshotUsed: snapshot,
+      combinedHashUsed: combinedHashUsed ?? '',
+      planSha256,
+      canonicalSlotOrder,
+      canonicalInputHash,
+      canonicalObjectHash,
+      report: safeReport,
+      exportId,
+      lastComposeProvider: null,
+      exportUnavailableReason: exportId ? null : { summary: 'Export unavailable' },
+    };
+  }
+
+  if (!report && !planSha256) return null;
+
+  return {
+    source: 'loaded_row',
+    report,
+    planSha256,
+    exportId,
+    combinedHashUsed,
+    lastSubmittedResolveBody: null,
+  };
 }
 
 /** Thin extraction only: one of compose | aggregate per response, never mixed. */
@@ -561,41 +648,53 @@ export default function SandboxPage() {
     }
   }, []);
 
-  const canSave = Boolean(
-    hasGenerated &&
-    birth &&
-    lastCombinedHashUsed &&
-    planHash &&
-    displayReport != null
-  );
+  const canSave = Boolean(hasGenerated && lastCombinedHashUsed && planHash && displayReport != null);
 
   const handleSave = useCallback(async () => {
-    if (!canSave || !birth) return;
+    if (!canSave) return;
     const base = getApiBaseUrl();
     setSaveLoading(true);
     setSaveError(null);
     try {
+      const lr = compositionModel.lastResolve;
+      const fr =
+        lr?.source === 'live_resolve' && lr.fullResponse && typeof lr.fullResponse === 'object'
+          ? (lr.fullResponse as Record<string, unknown>)
+          : null;
+      const loadedEnv = (displayReport as (SandboxReport & { artifact_envelope?: Record<string, unknown> }) | null)?.artifact_envelope;
+      const composition_mode =
+        (typeof fr?.composition_mode === 'string' && fr.composition_mode) ||
+        (typeof loadedEnv?.composition_mode === 'string' && loadedEnv.composition_mode) ||
+        'single';
+      const artifact_envelope = {
+        composition_mode,
+        canonical_slot_order:
+          (Array.isArray(fr?.canonical_slot_order) ? fr.canonical_slot_order : canonicalSlotOrder) ??
+          (Array.isArray(loadedEnv?.canonical_slot_order) ? loadedEnv.canonical_slot_order : null),
+        canonical_input_hash:
+          (typeof fr?.canonical_input_hash === 'string' ? fr.canonical_input_hash : canonicalInputHash) ??
+          (typeof loadedEnv?.canonical_input_hash === 'string' ? loadedEnv.canonical_input_hash : null),
+        canonical_input_hash_version:
+          typeof fr?.canonical_input_hash_version === 'number' ? fr.canonical_input_hash_version : 2,
+        output_kind:
+          (typeof fr?.output_kind === 'string' ? fr.output_kind : compositionModel.compositionInput.output_kind) ?? 'full',
+      };
       const r = await fetch(`${base}/api/sandbox/compositions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sandbox_state: {
-            birth,
-            overrides: normalizeSandboxOverrides(overrides),
-            controls: SANDBOX_COMPOSE_CONTROLS,
+            composition_input: compositionModel.compositionInput,
+            last_submitted_resolve_body:
+              lr?.source === 'live_resolve' && lr.lastSubmittedResolveBody ? lr.lastSubmittedResolveBody : null,
+            full_resolve_response: lr?.source === 'live_resolve' ? lr.fullResponse : null,
           },
           vector_hash: lastCombinedHashUsed,
           seed: lastCombinedHashUsed,
           plan_hash: planHash,
           report: {
             ...(displayReport ?? {}),
-            artifact_envelope: {
-              composition_mode: 'single',
-              canonical_slot_order: canonicalSlotOrder,
-              canonical_input_hash: canonicalInputHash,
-              canonical_input_hash_version: 2,
-              output_kind: 'full',
-            },
+            artifact_envelope,
           },
           provider: lastComposeProvider ?? null,
           provider_version: null,
@@ -613,8 +712,8 @@ export default function SandboxPage() {
     }
   }, [
     canSave,
-    birth,
-    overrides,
+    compositionModel.compositionInput,
+    compositionModel.lastResolve,
     lastCombinedHashUsed,
     planHash,
     displayReport,
@@ -634,40 +733,69 @@ export default function SandboxPage() {
         setError(comp?.error ?? 'Failed to load composition');
         return;
       }
-      const rowState = comp.sandbox_state || {};
-      const rowBirth = rowState.birth as SandboxBirth | undefined;
-      const rowOverrides = rowState.overrides || { planets: {} };
-      if (!rowBirth || !rowBirth.date || !rowBirth.time) {
-        setError('Invalid saved composition: missing birth data');
-        return;
+      const compRec = comp as Record<string, unknown>;
+      const rowState = compRec.sandbox_state;
+      const parsed = parsePersistedSandboxState(rowState);
+      const hasNewComposition =
+        rowState && typeof rowState === 'object' && 'composition_input' in (rowState as object);
+      if (!hasNewComposition) {
+        const slot0 = parsed.compositionInput.slots[0];
+        const b = slot0?.ephemeris_birth;
+        if (!b || !b.date || !b.time) {
+          setError('Invalid saved composition: missing birth data');
+          return;
+        }
       }
+
       setHasGenerated(true);
       setGenerateError(null);
-      dispatchComposition({ type: 'load_saved_baseline', birth: rowBirth, overrides: rowOverrides });
-      dispatchComposition({
-        type: 'loaded_row_artifacts',
-        report: comp.report ?? null,
-        planSha256: comp.plan_hash ?? null,
-        exportId: comp.export_id ?? null,
-        combinedHashUsed: comp.seed ?? comp.vector_hash ?? null,
-      });
       setSurfaceState('loading_base');
-      const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth: rowBirth, overrides: normalizeSandboxOverrides(rowOverrides) }),
-      });
-      const snapData = await snapRes.json().catch(() => ({}));
-      if (!snapRes.ok) {
-        setSurfaceState('ready_builder');
-        setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
-        return;
+
+      const ephem = firstEphemerisBirthForSnapshot(parsed.compositionInput);
+      if (ephem) {
+        const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birth: ephem.birth, overrides: ephem.overrides }),
+        });
+        const snapData = await snapRes.json().catch(() => ({}));
+        if (!snapRes.ok) {
+          setSurfaceState('ready_builder');
+          setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
+          return;
+        }
+        const snapshot = snapData.snapshot as EphemerisSnapshot;
+        const meta = snapData.meta as SandboxSnapshotMeta;
+        const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, snapshot);
+        dispatchComposition({
+          type: 'hydrate_from_persistence',
+          compositionInput: parsed.compositionInput,
+          preview: {
+            epoch: 0,
+            syncStatus: 'idle',
+            baseSnapshot: snapshot,
+            overriddenSnapshot: snapshot,
+            snapshotMeta: meta,
+            error: null,
+          },
+          lastResolve,
+        });
+      } else {
+        const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, null);
+        dispatchComposition({
+          type: 'hydrate_from_persistence',
+          compositionInput: parsed.compositionInput,
+          preview: {
+            epoch: 0,
+            syncStatus: 'idle',
+            baseSnapshot: null,
+            overriddenSnapshot: null,
+            snapshotMeta: null,
+            error: null,
+          },
+          lastResolve,
+        });
       }
-      dispatchComposition({
-        type: 'load_saved_snapshot_restored',
-        snapshot: snapData.snapshot as EphemerisSnapshot,
-        meta: snapData.meta as SandboxSnapshotMeta,
-      });
       setSurfaceState('ready_report');
       setError(null);
     } catch (e) {
@@ -677,9 +805,7 @@ export default function SandboxPage() {
 
   const handleExportJson = useCallback(() => {
     const bundle = {
-      birth,
-      overrides: normalizeSandboxOverrides(overrides),
-      controls: SANDBOX_COMPOSE_CONTROLS,
+      composition_input: compositionModel.compositionInput,
       combinedHashUsed: lastCombinedHashUsed ?? null,
       plan_sha256: planHash ?? null,
       export_id: exportId ?? null,
@@ -692,7 +818,7 @@ export default function SandboxPage() {
     a.download = `astradio-sandbox-${lastCombinedHashUsed?.slice(0, 8) ?? 'export'}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }, [birth, overrides, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
+  }, [compositionModel.compositionInput, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
 
   useEffect(() => {
     if (surfaceState === 'ready_builder' || surfaceState === 'ready_report') fetchSavedList();
@@ -706,8 +832,7 @@ export default function SandboxPage() {
   const replayNeedsSnapshot = Boolean(
     compositionModel.lastResolve?.source === 'live_resolve' &&
       compositionModel.lastResolve.lastSubmittedResolveBody &&
-      compositionModel.lastResolve.planSha256 &&
-      compositionModel.lastResolve.snapshotUsed
+      compositionModel.lastResolve.planSha256
   );
 
   return (

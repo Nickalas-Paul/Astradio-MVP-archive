@@ -50,6 +50,86 @@ function initialCompositionInput(): SandboxCompositionInputState {
   };
 }
 
+/** First slot with full ephemeris birth (for /api/sandbox/snapshot after load). */
+export function firstEphemerisBirthForSnapshot(input: SandboxCompositionInputState): {
+  birth: SandboxBirth;
+  overrides: SandboxOverrides;
+} | null {
+  for (const slot of input.slots) {
+    const b = slot.ephemeris_birth;
+    if (b && typeof b.date === 'string' && b.date.length >= 8 && typeof b.time === 'string' && b.time.length >= 4) {
+      return { birth: b, overrides: normalizeSandboxOverrides(slot.overrides ?? { planets: {} }) };
+    }
+  }
+  return null;
+}
+
+export type ParsedPersistedSandboxState = {
+  compositionInput: SandboxCompositionInputState;
+  lastSubmittedResolveBody: Record<string, unknown> | null;
+  fullResolveResponse: Record<string, unknown> | null;
+};
+
+/** Full-composition rows use `composition_input`; legacy rows use `birth` / `overrides` / `controls`. */
+export function parsePersistedSandboxState(rowState: unknown): ParsedPersistedSandboxState {
+  if (!rowState || typeof rowState !== 'object') {
+    return {
+      compositionInput: initialCompositionInput(),
+      lastSubmittedResolveBody: null,
+      fullResolveResponse: null,
+    };
+  }
+  const r = rowState as Record<string, unknown>;
+  const ci = r.composition_input;
+  if (ci && typeof ci === 'object' && !Array.isArray(ci)) {
+    const raw = ci as SandboxCompositionInputState;
+    const slots = Array.isArray(raw.slots) && raw.slots.length > 0 ? raw.slots : [{ overrides: { planets: {} } }];
+    const active =
+      typeof raw.active_slot_index === 'number' && raw.active_slot_index >= 0 && raw.active_slot_index < slots.length
+        ? raw.active_slot_index
+        : 0;
+    const controls =
+      raw.compose_controls && typeof raw.compose_controls === 'object'
+        ? { ...raw.compose_controls }
+        : { ...SANDBOX_COMPOSE_CONTROLS };
+    return {
+      compositionInput: {
+        schema_version: typeof raw.schema_version === 'string' ? raw.schema_version : '1',
+        slots,
+        active_slot_index: active,
+        compose_controls: controls,
+        output_kind: raw.output_kind === 'feed_card' ? 'feed_card' : 'full',
+        ...(raw.transit_context && typeof raw.transit_context === 'object' ? { transit_context: raw.transit_context } : {}),
+        ...(raw.binding && typeof raw.binding === 'object' ? { binding: raw.binding } : {}),
+      },
+      lastSubmittedResolveBody:
+        r.last_submitted_resolve_body && typeof r.last_submitted_resolve_body === 'object' && !Array.isArray(r.last_submitted_resolve_body)
+          ? (r.last_submitted_resolve_body as Record<string, unknown>)
+          : null,
+      fullResolveResponse:
+        r.full_resolve_response && typeof r.full_resolve_response === 'object' && !Array.isArray(r.full_resolve_response)
+          ? (r.full_resolve_response as Record<string, unknown>)
+          : null,
+    };
+  }
+
+  const birth = r.birth as SandboxBirth | undefined;
+  const overrides = (r.overrides as SandboxOverrides) || { planets: {} };
+  const controlsFlat = r.controls as Record<string, number> | undefined;
+  const mergedControls =
+    controlsFlat && typeof controlsFlat === 'object' ? { ...SANDBOX_COMPOSE_CONTROLS, ...controlsFlat } : { ...SANDBOX_COMPOSE_CONTROLS };
+  return {
+    compositionInput: {
+      ...initialCompositionInput(),
+      slots: [{ ephemeris_birth: birth, overrides: normalizeSandboxOverrides(overrides) }],
+      active_slot_index: 0,
+      compose_controls: mergedControls,
+    },
+    lastSubmittedResolveBody: null,
+    fullResolveResponse: null,
+  };
+}
+
 export type SandboxPreviewSlice = {
   epoch: number;
   syncStatus: 'idle' | 'debouncing' | 'syncing' | 'error';
@@ -121,6 +201,12 @@ export type SandboxCompositionAction =
       type: 'load_saved_snapshot_restored';
       snapshot: EphemerisSnapshot;
       meta: SandboxSnapshotMeta;
+    }
+  | {
+      type: 'hydrate_from_persistence';
+      compositionInput: SandboxCompositionInputState;
+      preview: SandboxPreviewSlice;
+      lastResolve: SandboxResolvedSession | null;
     };
 
 function slot0(state: SandboxCompositionModelState) {
@@ -289,6 +375,13 @@ export function sandboxCompositionReducer(
           error: null,
         },
         compositionInput: { ...state.compositionInput, seed: undefined },
+      };
+
+    case 'hydrate_from_persistence':
+      return {
+        compositionInput: { ...action.compositionInput, seed: undefined },
+        preview: action.preview,
+        lastResolve: action.lastResolve,
       };
 
     default:
