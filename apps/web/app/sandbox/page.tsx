@@ -63,6 +63,48 @@ function slot0Overrides(model: SandboxCompositionModelState): SandboxOverrides {
   return model.compositionInput.slots[0]?.overrides ?? { planets: {} };
 }
 
+/** Thin extraction only: one of compose | aggregate per response, never mixed. */
+function extractSandboxResolvePayload(resolveData: Record<string, unknown>): {
+  explanation: unknown;
+  planSha256: string;
+  exportId: string | null;
+  exportAvailable: boolean;
+} | null {
+  const compose = resolveData.compose;
+  const aggregate = resolveData.aggregate;
+  const source =
+    compose && typeof compose === 'object'
+      ? (compose as Record<string, unknown>)
+      : aggregate && typeof aggregate === 'object'
+        ? (aggregate as Record<string, unknown>)
+        : null;
+  if (!source) return null;
+  const explanation = source.explanation;
+  const hashes = source.hashes as { plan_sha256?: string } | undefined;
+  const planSha256 = hashes?.plan_sha256;
+  const exportIdRaw = source.export_id;
+  const exportId = typeof exportIdRaw === 'string' && exportIdRaw.length > 0 ? exportIdRaw : null;
+  const exportAvailable = exportId != null;
+  if (!explanation || typeof explanation !== 'object' || !planSha256 || typeof planSha256 !== 'string' || !planSha256.trim()) {
+    return null;
+  }
+  return { explanation, planSha256, exportId, exportAvailable };
+}
+
+function extractPlanSha256FromResolveResponse(resolveData: Record<string, unknown>): string | undefined {
+  const compose = resolveData.compose;
+  if (compose && typeof compose === 'object') {
+    const h = (compose as Record<string, unknown>).hashes as { plan_sha256?: string } | undefined;
+    if (typeof h?.plan_sha256 === 'string' && h.plan_sha256.trim()) return h.plan_sha256;
+  }
+  const aggregate = resolveData.aggregate;
+  if (aggregate && typeof aggregate === 'object') {
+    const h = (aggregate as Record<string, unknown>).hashes as { plan_sha256?: string } | undefined;
+    if (typeof h?.plan_sha256 === 'string' && h.plan_sha256.trim()) return h.plan_sha256;
+  }
+  return undefined;
+}
+
 export default function SandboxPage() {
   const [compositionModel, dispatchComposition] = useReducer(sandboxCompositionReducer, createInitialSandboxCompositionModelState());
   const compositionRef = useRef(compositionModel);
@@ -329,18 +371,22 @@ export default function SandboxPage() {
       const canonicalInputHashNext =
         typeof resolveData.canonical_input_hash === 'string' ? resolveData.canonical_input_hash : null;
 
-      const composeData = resolveData.compose as Record<string, unknown> | undefined;
-      if (!composeData) {
+      const resolved = extractSandboxResolvePayload(resolveData);
+      if (!resolved) {
         setGenerateError({
-          audio: 'Resolve returned no compose payload (aggregate-only result not supported in this UI yet)',
+          report: 'Resolve response missing a valid compose or aggregate payload with explainer and plan hash.',
         });
         setGenerateLoading(false);
         return;
       }
 
-      const explanation = composeData.explanation as { sections?: unknown[]; spec?: string; meta?: { canonical_object_hash?: string } } | undefined;
-      const sections = Array.isArray(explanation?.sections)
-        ? explanation!.sections!.map((s: unknown) => {
+      const explanationForSections = resolved.explanation as {
+        sections?: unknown[];
+        spec?: string;
+        meta?: { canonical_object_hash?: string };
+      };
+      const sections = Array.isArray(explanationForSections?.sections)
+        ? explanationForSections.sections!.map((s: unknown) => {
             const x = s as { sectionId?: string; id?: string; title?: string; text?: string; bullets?: string[]; meta?: unknown };
             return {
               id: x.sectionId || x.id || '',
@@ -357,14 +403,14 @@ export default function SandboxPage() {
         personality: null as unknown as SandboxReport['personality'],
         guidance: null as unknown as SandboxReport['guidance'],
         explanation: {
-          spec: explanation?.spec || 'UnifiedSpecV1.1',
+          spec: explanationForSections?.spec || 'UnifiedSpecV1.1',
           sections,
         },
-        seed: ((composeData.artifacts as { provenance?: { seed?: string } } | undefined)?.provenance?.seed as string | undefined) ?? combinedHashUsed,
+        seed: combinedHashUsed,
         meta: {
           combinedHash: combinedHashUsed,
           canonical_object_hash:
-            (resolveData.canonical_object_hash as string | undefined) ?? explanation?.meta?.canonical_object_hash,
+            (resolveData.canonical_object_hash as string | undefined) ?? explanationForSections?.meta?.canonical_object_hash,
           data_classification: {
             explanation: 'semantic_projection_v1',
             features_personality_guidance: 'mechanical_support_non_authoritative',
@@ -372,29 +418,13 @@ export default function SandboxPage() {
         },
       };
 
-      const providerUsed = (composeData.audio as { provider_used?: string } | undefined)?.provider_used ?? (composeData.export_meta as { provider?: string } | undefined)?.provider ?? null;
-      const exportErr = (composeData.audio as { export_error?: string | null } | undefined)?.export_error ?? null;
-      const isLyriaSuccess = providerUsed === 'lyria' && (exportErr == null || exportErr === '') && composeData.export_id;
+      const exportIdNext = resolved.exportId;
+      const exportUnavailableReasonNext: { summary: string; step?: string; message?: string } | null = resolved.exportAvailable
+        ? null
+        : { summary: 'Export unavailable' };
+      const lastComposeProviderNext: string | null = null;
 
-      let exportIdNext: string | null = null;
-      let exportUnavailableReasonNext: { summary: string; step?: string; message?: string } | null = null;
-      let lastComposeProviderNext: string | null = null;
-
-      if (isLyriaSuccess) {
-        exportIdNext = composeData.export_id as string;
-        lastComposeProviderNext = providerUsed;
-      } else {
-        const ad = composeData.audio_debug as { step?: string; message?: string } | undefined;
-        exportUnavailableReasonNext = {
-          summary: exportErr ? 'Lyria export failed' : 'Export disabled or failed',
-          step: ad?.step,
-          message: ad?.message ?? (exportErr ? String(exportErr) : undefined),
-        };
-      }
-
-      const hashes = composeData.hashes as { plan_sha256?: string } | undefined;
-      const planSha256 = hashes?.plan_sha256 ?? null;
-      if (!planSha256) setGenerateError((e) => ({ ...e, audio: 'Compose response missing plan_sha256' }));
+      const planSha256 = resolved.planSha256;
 
       dispatchComposition({
         type: 'resolve_success',
@@ -407,7 +437,9 @@ export default function SandboxPage() {
         canonicalInputHash: canonicalInputHashNext,
         canonicalObjectHash:
           (typeof resolveData.canonical_object_hash === 'string' ? resolveData.canonical_object_hash : null) ??
-          (typeof explanation?.meta?.canonical_object_hash === 'string' ? explanation.meta.canonical_object_hash : null),
+          (typeof explanationForSections?.meta?.canonical_object_hash === 'string'
+            ? explanationForSections.meta.canonical_object_hash
+            : null),
         report,
         exportId: exportIdNext,
         lastComposeProvider: lastComposeProviderNext,
@@ -444,8 +476,7 @@ export default function SandboxPage() {
         setReplayStatus('error');
         return;
       }
-      const composeData = resolveData.compose;
-      const replayPlan = composeData?.hashes?.plan_sha256 as string | undefined;
+      const replayPlan = extractPlanSha256FromResolveResponse(resolveData as Record<string, unknown>);
       if (!replayPlan) {
         setReplayError('Replay resolve response missing plan_sha256');
         setReplayStatus('error');
