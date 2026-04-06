@@ -49,16 +49,49 @@ export type EphemerisSnapshot = {
   dominantElements: { fire: number; earth: number; air: number; water: number };
 };
 
-export type SandboxDraft = {
-  birth: SandboxBirth | null;
-  baseSnapshot: EphemerisSnapshot | null;
-  overrides: SandboxOverrides;
-  overriddenSnapshot: EphemerisSnapshot | null;
-  hash?: {
-    birthHash: string;
-    overridesHash: string;
-    combinedHash?: string;
-  };
+/** Snapshot route meta; aligns with engine `vnext/api/sandbox-routes` snapshot response. */
+export type SandboxSnapshotMeta = {
+  preview_only?: boolean;
+  birthHash?: string;
+  overridesHash?: string;
+  combinedHash?: string;
+  canonical_input_hash_version?: number;
+};
+
+/** One slot in the wire body for POST /api/sandbox/resolve (BFF normalizes nested birth). */
+export type SandboxCompositionSlotWire = {
+  chart_id?: string;
+  ephemeris_birth?: SandboxBirth;
+  overrides?: SandboxOverrides;
+};
+
+/** Resolve-bound fields; matches SandboxCompositionInputV1 subset used by the Sandbox page today. */
+export type SandboxCompositionInputState = {
+  schema_version: string;
+  slots: SandboxCompositionSlotWire[];
+  active_slot_index: number;
+  compose_controls: Record<string, number>;
+  output_kind: 'full' | 'feed_card';
+  seed?: string;
+  transit_context?: Record<string, unknown>;
+  binding?: Record<string, unknown>;
+};
+
+/** Outcome of the last successful resolve (authoritative artifact line; separate from preview). */
+export type SandboxResolvedSession = {
+  fullResponse: Record<string, unknown>;
+  /** Exact JSON object last POSTed to /api/sandbox/resolve for this session (replay). */
+  lastSubmittedResolveBody: Record<string, unknown>;
+  snapshotUsed: EphemerisSnapshot;
+  combinedHashUsed: string;
+  planSha256: string | null;
+  canonicalSlotOrder: string[] | null;
+  canonicalInputHash: string | null;
+  canonicalObjectHash: string | null;
+  report: SandboxReport;
+  exportId: string | null;
+  lastComposeProvider: string | null;
+  exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
 };
 
 export type SandboxReportExplanation = {

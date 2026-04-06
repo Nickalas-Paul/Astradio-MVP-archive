@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useReducer } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
-import type { SandboxDraft, SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport } from '../../src/types/sandbox';
+import type { SandboxBirth, SandboxOverrides, PlanetKey, EphemerisSnapshot, SandboxReport, SandboxSnapshotMeta } from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
-import { BODY_DISPLAY_ORDER } from '../../../../vnext/canonical-bodies';
+import {
+  SANDBOX_COMPOSE_CONTROLS,
+  createInitialSandboxCompositionModelState,
+  normalizeSandboxOverrides,
+  roundSandboxDegree,
+  sandboxCompositionReducer,
+  serializeSandboxResolveRequestBody,
+  type SandboxCompositionModelState,
+} from '../../src/lib/sandbox-composition-state';
 
-const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
-
-type SandboxState =
+type SandboxSurfaceState =
   | 'idle'
   | 'loading_base'
   | 'ready_builder'
@@ -22,91 +28,88 @@ type SandboxState =
   | 'generating'
   | 'error';
 
-function roundDegree(lonDeg: number): number {
-  return Math.round(lonDeg * 10) / 10;
-}
-
-function normalizeOverrides(overrides: SandboxOverrides): SandboxOverrides {
-  const sortedPlanets: Partial<Record<PlanetKey, { lonDeg: number }>> = {};
-  const planetKeys = Object.keys(overrides.planets || {}) as PlanetKey[];
-  planetKeys.sort((a, b) => a.localeCompare(b));
-  for (const key of planetKeys) {
-    const override = overrides.planets[key];
-    if (override) sortedPlanets[key] = { lonDeg: roundDegree(override.lonDeg) };
-  }
-  return { planets: sortedPlanets, angles: overrides.angles };
-}
-
-const SANDBOX_CONTROLS = {
-  arc_shape: 0.5,
-  density_level: 0.6,
-  tempo_norm: 0.7,
-  step_bias: 0.7,
-  leap_cap: 5,
-  rhythm_template_id: 3,
-  syncopation_bias: 0.3,
-  motif_rate: 0.6,
-};
-
-function ExplainerSections({ explanation }: { explanation: any }) {
-  if (!explanation?.sections) return null;
-  const sections = Array.isArray(explanation.sections) ? explanation.sections : [];
+function ExplainerSections({ explanation }: { explanation: unknown }) {
+  const ex = explanation as { sections?: unknown } | null;
+  if (!ex?.sections) return null;
+  const sections = Array.isArray(ex.sections) ? ex.sections : [];
   return (
     <div className="space-y-6">
-      {sections.map((sec: any, i: number) => (
-        <section key={i} className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="text-lg font-semibold text-text mb-3">{sec.title || sec.id || `Section ${i + 1}`}</h3>
-          <div className="text-subtext text-sm leading-relaxed whitespace-pre-wrap">{sec.text || sec.content || ''}</div>
-          {sec.bullets?.length > 0 && (
-            <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
-              {sec.bullets.map((b: string, j: number) => <li key={j}>{b}</li>)}
-            </ul>
-          )}
-        </section>
-      ))}
+      {sections.map((sec: unknown, i: number) => {
+        const s = sec as { title?: string; id?: string; text?: string; content?: string; bullets?: string[] };
+        return (
+          <section key={i} className="rounded-lg border border-border bg-bgElev p-4">
+            <h3 className="text-lg font-semibold text-text mb-3">{s.title || s.id || `Section ${i + 1}`}</h3>
+            <div className="text-subtext text-sm leading-relaxed whitespace-pre-wrap">{s.text || s.content || ''}</div>
+            {s.bullets?.length ? (
+              <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
+                {s.bullets.map((b: string, j: number) => (
+                  <li key={j}>{b}</li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }
 
+function slot0Birth(model: SandboxCompositionModelState): SandboxBirth | undefined {
+  return model.compositionInput.slots[0]?.ephemeris_birth;
+}
+
+function slot0Overrides(model: SandboxCompositionModelState): SandboxOverrides {
+  return model.compositionInput.slots[0]?.overrides ?? { planets: {} };
+}
+
 export default function SandboxPage() {
-  const [state, setState] = useState<SandboxState>('idle');
+  const [compositionModel, dispatchComposition] = useReducer(sandboxCompositionReducer, createInitialSandboxCompositionModelState());
+  const compositionRef = useRef(compositionModel);
+  compositionRef.current = compositionModel;
+
+  const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<SandboxDraft>({
-    birth: null,
-    baseSnapshot: null,
-    overrides: { planets: {} },
-    overriddenSnapshot: null,
-  });
-  const [report, setReport] = useState<SandboxReport | null>(null);
   const [constrainToHouse, setConstrainToHouse] = useState(true);
   const [showAspectLines, setShowAspectLines] = useState(true);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
-  const [exportId, setExportId] = useState<string | null>(null);
-  const [planHash, setPlanHash] = useState<string | null>(null);
-  const [hasGenerated, setHasGenerated] = useState(false);
-  const [lastSnapshotUsed, setLastSnapshotUsed] = useState<EphemerisSnapshot | null>(null);
-  const [lastCombinedHashUsed, setLastCombinedHashUsed] = useState<string | null>(null);
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayStatus, setReplayStatus] = useState<'idle' | 'match' | 'mismatch' | 'error'>('idle');
   const [replayError, setReplayError] = useState<string | null>(null);
-  const [exportUnavailableReason, setExportUnavailableReason] = useState<{ summary: string; step?: string; message?: string } | null>(null);
-  const [lastComposeProvider, setLastComposeProvider] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
-  const [canonicalSlotOrder, setCanonicalSlotOrder] = useState<string[] | null>(null);
-  const [canonicalInputHash, setCanonicalInputHash] = useState<string | null>(null);
-  const lastCompositionBodyRef = useRef<Record<string, unknown> | null>(null);
   const [savedList, setSavedList] = useState<Array<{ id: string; plan_hash: string; vector_hash: string; created_at: string; export_id?: string | null }>>([]);
   const [listLoading, setListLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  /** Hydrated from persistence row when lastResolve is null (full document persistence is a later step). */
+  const [persistenceHydration, setPersistenceHydration] = useState<{
+    report: SandboxReport | null;
+    planHash: string | null;
+    combinedHash: string | null;
+    exportId: string | null;
+  } | null>(null);
+
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const preview = compositionModel.preview;
+  const lastResolve = compositionModel.lastResolve;
+
+  const displayReport = lastResolve?.report ?? persistenceHydration?.report ?? null;
+  const planHash = lastResolve?.planSha256 ?? persistenceHydration?.planHash ?? null;
+  const exportId = lastResolve?.exportId ?? persistenceHydration?.exportId ?? null;
+  const exportUnavailableReason = lastResolve?.exportUnavailableReason ?? null;
+  const lastComposeProvider = lastResolve?.lastComposeProvider ?? null;
+  const canonicalSlotOrder = lastResolve?.canonicalSlotOrder ?? null;
+  const canonicalInputHash = lastResolve?.canonicalInputHash ?? null;
+  const lastCombinedHashUsed =
+    lastResolve?.combinedHashUsed ?? preview.snapshotMeta?.combinedHash ?? persistenceHydration?.combinedHash ?? null;
 
   useEffect(() => {
     if (!exportId) {
@@ -122,120 +125,145 @@ export default function SandboxPage() {
     }
   }, [exportId]);
 
-  const updateSnapshot = useCallback(async (birth: SandboxBirth, overrides: SandboxOverrides) => {
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-    const sequenceId = ++snapshotSequenceRef.current;
-    updateTimeoutRef.current = setTimeout(async () => {
-      if (sequenceId !== snapshotSequenceRef.current) return;
-      setState('syncing_overrides');
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      try {
-        const base = getApiBaseUrl();
-        const res = await fetch(`${base}/api/sandbox/snapshot`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ birth, overrides: normalizeOverrides(overrides) }),
-          signal: controller.signal,
-        });
-        if (sequenceId !== snapshotSequenceRef.current) return;
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data?.error ?? data?.message) || `Snapshot failed: ${res.status}`);
-        setDraft((prev) => ({ ...prev, overriddenSnapshot: data.snapshot, hash: data.meta }));
-        setState('ready_report');
-      } catch (err) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setState('error');
-          setError(err.message);
-        }
-      } finally {
-        if (sequenceId === snapshotSequenceRef.current) abortControllerRef.current = null;
-      }
-    }, 300);
-  }, []);
+  const birth = slot0Birth(compositionModel);
+  const overrides = slot0Overrides(compositionModel);
 
-  const handleBirthSubmit = useCallback(async (birth: SandboxBirth) => {
-    setState('loading_base');
+  const updateSnapshot = useCallback(
+    async (b: SandboxBirth, ov: SandboxOverrides) => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      const sequenceId = ++snapshotSequenceRef.current;
+      updateTimeoutRef.current = setTimeout(async () => {
+        if (sequenceId !== snapshotSequenceRef.current) return;
+        setSurfaceState('syncing_overrides');
+        dispatchComposition({ type: 'preview_sync_start' });
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        try {
+          const base = getApiBaseUrl();
+          const res = await fetch(`${base}/api/sandbox/snapshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ birth: b, overrides: normalizeSandboxOverrides(ov) }),
+            signal: controller.signal,
+          });
+          if (sequenceId !== snapshotSequenceRef.current) return;
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error((data?.error ?? data?.message) || `Snapshot failed: ${res.status}`);
+          dispatchComposition({
+            type: 'preview_sync_success',
+            snapshot: data.snapshot as EphemerisSnapshot,
+            meta: data.meta as SandboxSnapshotMeta,
+          });
+          setSurfaceState('ready_report');
+        } catch (err) {
+          if (err instanceof Error && err.name !== 'AbortError') {
+            setSurfaceState('error');
+            setError(err.message);
+            dispatchComposition({ type: 'preview_sync_error', message: err.message });
+          }
+        } finally {
+          if (sequenceId === snapshotSequenceRef.current) abortControllerRef.current = null;
+        }
+      }, 300);
+    },
+    []
+  );
+
+  const handleBirthSubmit = useCallback(async (b: SandboxBirth) => {
+    setSurfaceState('loading_base');
     setError(null);
     setGenerateError(null);
+    setPersistenceHydration(null);
     const overridesToUse = { planets: {} };
     try {
       const base = getApiBaseUrl();
       const res = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth, overrides: overridesToUse }),
+        body: JSON.stringify({ birth: b, overrides: overridesToUse }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data?.error ?? data?.message) || 'Failed to load chart');
-      const overriddenSnapshot = data.snapshot;
-      setDraft({
-        birth,
-        baseSnapshot: data.snapshot,
-        overrides: overridesToUse,
-        overriddenSnapshot,
-        hash: data.meta,
+      dispatchComposition({
+        type: 'birth_first_snapshot_success',
+        birth: b,
+        snapshot: data.snapshot as EphemerisSnapshot,
+        meta: data.meta as SandboxSnapshotMeta,
       });
-      setState('ready_builder');
+      setSurfaceState('ready_builder');
     } catch (err) {
-      setState('error');
+      setSurfaceState('error');
       setError(err instanceof Error ? err.message : 'Failed to load birth data');
       throw err;
     }
-  }, [draft.overrides]);
+  }, []);
 
-  const handleOverrideChange = useCallback((planet: PlanetKey, lonDeg: number | null) => {
-    setDraft((prev) => {
-      const newOverrides: SandboxOverrides = { ...prev.overrides, planets: { ...prev.overrides.planets } };
+  const handleOverrideChange = useCallback(
+    (planet: PlanetKey, lonDeg: number | null) => {
+      const model = compositionRef.current;
+      const b = slot0Birth(model);
+      if (!b) return;
+      const prevOverrides = slot0Overrides(model);
+      const newOverrides: SandboxOverrides = { ...prevOverrides, planets: { ...prevOverrides.planets } };
       if (lonDeg === null) delete newOverrides.planets[planet];
-      else newOverrides.planets[planet] = { lonDeg: roundDegree(lonDeg) };
-      const normalized = normalizeOverrides(newOverrides);
-      if (prev.overriddenSnapshot && prev.birth) {
-        const updatedPlanets = prev.overriddenSnapshot.planets.map((p) =>
-          p.name === planet ? { ...p, lon: lonDeg !== null ? roundDegree(lonDeg) : p.lon } : p
-        );
-        updateSnapshot(prev.birth, normalized);
-        return { ...prev, overrides: normalized, overriddenSnapshot: { ...prev.overriddenSnapshot, planets: updatedPlanets } };
+      else newOverrides.planets[planet] = { lonDeg: roundSandboxDegree(lonDeg) };
+      const normalized = normalizeSandboxOverrides(newOverrides);
+
+      let optimistic: EphemerisSnapshot | null = null;
+      const snap = model.preview.overriddenSnapshot;
+      if (snap && b) {
+        optimistic = {
+          ...snap,
+          planets: snap.planets.map((p) =>
+            p.name === planet ? { ...p, lon: lonDeg !== null ? roundSandboxDegree(lonDeg) : p.lon } : p
+          ),
+        };
       }
-      return { ...prev, overrides: normalized };
-    });
-  }, [updateSnapshot]);
+
+      dispatchComposition({
+        type: 'overrides_changed',
+        overrides: normalized,
+        optimisticSnapshot: optimistic ?? undefined,
+      });
+      if (model.preview.overriddenSnapshot && b) {
+        updateSnapshot(b, normalized);
+      }
+    },
+    [updateSnapshot]
+  );
 
   const handleResetAllOverrides = useCallback(() => {
-    if (!draft.birth || !draft.baseSnapshot) return;
-    const empty: SandboxOverrides = { planets: {} };
-    setDraft((prev) => ({ ...prev, overrides: empty, overriddenSnapshot: prev.baseSnapshot }));
-    updateSnapshot(draft.birth, empty);
-    setState('ready_builder');
-  }, [draft.birth, draft.baseSnapshot, updateSnapshot]);
+    if (!birth || !preview.baseSnapshot) return;
+    dispatchComposition({ type: 'reset_overrides_to_base' });
+    updateSnapshot(birth, { planets: {} });
+    setSurfaceState('ready_builder');
+  }, [birth, preview.baseSnapshot, updateSnapshot]);
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 
-  const canGenerate = Boolean(draft.birth && (draft.overriddenSnapshot || draft.baseSnapshot) && draft.hash?.combinedHash);
+  const canGenerate = Boolean(
+    birth && (preview.overriddenSnapshot || preview.baseSnapshot) && preview.snapshotMeta?.combinedHash && surfaceState !== 'syncing_overrides'
+  );
+
   const generateDisabledReasons: string[] = [];
-  if (!draft.birth) {
+  if (!birth) {
     generateDisabledReasons.push('Enter birth data.');
   }
-  if (!draft.baseSnapshot && !draft.overriddenSnapshot && draft.birth) generateDisabledReasons.push('Wait for the chart snapshot to load.');
-  if (!draft.hash?.combinedHash && draft.birth) generateDisabledReasons.push('Wait for the internal hash to compute.');
-  if (state === 'syncing_overrides') generateDisabledReasons.push('Finish syncing overrides.');
+  if (!preview.baseSnapshot && !preview.overriddenSnapshot && birth) generateDisabledReasons.push('Wait for the chart snapshot to load.');
+  if (!preview.snapshotMeta?.combinedHash && birth) generateDisabledReasons.push('Wait for the internal hash to compute.');
+  if (surfaceState === 'syncing_overrides') generateDisabledReasons.push('Finish syncing overrides.');
 
   const handleGenerate = useCallback(async () => {
-    if (!canGenerate || !draft.birth) return;
-    const birth = draft.birth;
-    const overrides = normalizeOverrides(draft.overrides);
+    if (!canGenerate || !birth) return;
+    const overridesNorm = normalizeSandboxOverrides(overrides);
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
-    setExportId(null);
-    setPlanHash(null);
+    setPersistenceHydration(null);
+    dispatchComposition({ type: 'resolve_cleared' });
     setReplayStatus('idle');
     setReplayError(null);
-    setLastSnapshotUsed(null);
-    setLastCombinedHashUsed(null);
-    setExportUnavailableReason(null);
-    setLastComposeProvider(null);
     setDownloadError(null);
     setPlaybackError(null);
     const el = audioRef.current;
@@ -243,18 +271,16 @@ export default function SandboxPage() {
       el.pause();
       el.currentTime = 0;
     }
-      const base = getApiBaseUrl();
-    // Cancel any in-flight snapshot sync to avoid races.
+    const base = getApiBaseUrl();
     if (abortControllerRef.current) abortControllerRef.current.abort();
     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     snapshotSequenceRef.current++;
-    let snapshotUsed: EphemerisSnapshot | null = null;
-    let combinedHashUsed: string | null = null;
+
     try {
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth, overrides }),
+        body: JSON.stringify({ birth, overrides: overridesNorm }),
       });
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
@@ -262,60 +288,40 @@ export default function SandboxPage() {
         setGenerateLoading(false);
         return;
       }
-      snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
-      combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
+      const snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
+      const combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
       if (!snapshotUsed || !combinedHashUsed) {
         setGenerateError({ chart: 'Snapshot response missing snapshot or combinedHash' });
         setGenerateLoading(false);
         return;
       }
-      setLastSnapshotUsed(snapshotUsed);
-      setLastCombinedHashUsed(combinedHashUsed);
 
-      if (!snapshotUsed || !combinedHashUsed) {
-        setGenerateError((e) => ({ ...e, audio: 'No snapshot or seed available for resolve' }));
-        setGenerateLoading(false);
-        return;
-      }
-
-      const compositionBody = {
-        schema_version: '1',
-        slots: [{ ephemeris_birth: birth, overrides }],
-        active_slot_index: 0,
-        compose_controls: SANDBOX_CONTROLS,
-        output_kind: 'full' as const,
-        seed: combinedHashUsed,
-      };
-      lastCompositionBodyRef.current = compositionBody;
+      const resolveBody = serializeSandboxResolveRequestBody(compositionRef.current, combinedHashUsed);
 
       const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(compositionBody),
+        body: JSON.stringify(resolveBody),
       });
-      const resolveData = await resolveRes.json().catch(() => ({}));
+      const resolveData = (await resolveRes.json().catch(() => ({}))) as Record<string, unknown>;
       if (!resolveRes.ok || resolveData.ok === false) {
         const msg =
-          resolveData?.error ||
-          resolveData?.message ||
-          (typeof resolveData?.code === 'string' ? resolveData.code : null) ||
+          (resolveData.error as string) ||
+          (resolveData.message as string) ||
+          (typeof resolveData.code === 'string' ? resolveData.code : null) ||
           `Resolve: ${resolveRes.status}`;
         setGenerateError({ report: String(msg) });
-        setReport(null);
-        setCanonicalSlotOrder(null);
-        setCanonicalInputHash(null);
         setGenerateLoading(false);
         return;
       }
 
-      setCanonicalSlotOrder(
-        Array.isArray(resolveData.canonical_slot_order) ? resolveData.canonical_slot_order : null
-      );
-      setCanonicalInputHash(
-        typeof resolveData.canonical_input_hash === 'string' ? resolveData.canonical_input_hash : null
-      );
+      const canonicalSlotOrderNext = Array.isArray(resolveData.canonical_slot_order)
+        ? (resolveData.canonical_slot_order as string[])
+        : null;
+      const canonicalInputHashNext =
+        typeof resolveData.canonical_input_hash === 'string' ? resolveData.canonical_input_hash : null;
 
-      const composeData = resolveData.compose;
+      const composeData = resolveData.compose as Record<string, unknown> | undefined;
       if (!composeData) {
         setGenerateError({
           audio: 'Resolve returned no compose payload (aggregate-only result not supported in this UI yet)',
@@ -324,62 +330,91 @@ export default function SandboxPage() {
         return;
       }
 
-      const sections = Array.isArray(composeData.explanation?.sections)
-        ? composeData.explanation.sections.map((s: { sectionId?: string; id?: string; title?: string; text?: string; bullets?: string[]; meta?: unknown }) => ({
-            id: s.sectionId || s.id || '',
-            title: s.title || '',
-            text: s.text || '',
-            bullets: s.bullets,
-            meta: s.meta,
-          }))
+      const explanation = composeData.explanation as { sections?: unknown[]; spec?: string; meta?: { canonical_object_hash?: string } } | undefined;
+      const sections = Array.isArray(explanation?.sections)
+        ? explanation!.sections!.map((s: unknown) => {
+            const x = s as { sectionId?: string; id?: string; title?: string; text?: string; bullets?: string[]; meta?: unknown };
+            return {
+              id: x.sectionId || x.id || '',
+              title: x.title || '',
+              text: x.text || '',
+              bullets: x.bullets,
+              meta: x.meta,
+            };
+          })
         : [];
-      setReport({
+
+      const report: SandboxReport = {
         features: [],
         personality: null as unknown as SandboxReport['personality'],
         guidance: null as unknown as SandboxReport['guidance'],
         explanation: {
-          spec: composeData.explanation?.spec || 'UnifiedSpecV1.1',
+          spec: explanation?.spec || 'UnifiedSpecV1.1',
           sections,
         },
-        seed: (composeData.artifacts?.provenance?.seed as string | undefined) ?? combinedHashUsed,
+        seed: ((composeData.artifacts as { provenance?: { seed?: string } } | undefined)?.provenance?.seed as string | undefined) ?? combinedHashUsed,
         meta: {
           combinedHash: combinedHashUsed,
-          canonical_object_hash: resolveData.canonical_object_hash ?? composeData.explanation?.meta?.canonical_object_hash,
+          canonical_object_hash:
+            (resolveData.canonical_object_hash as string | undefined) ?? explanation?.meta?.canonical_object_hash,
           data_classification: {
             explanation: 'semantic_projection_v1',
             features_personality_guidance: 'mechanical_support_non_authoritative',
           },
         },
-      });
+      };
 
-      const providerUsed = composeData.audio?.provider_used ?? composeData.export_meta?.provider ?? null;
-      const exportErr = composeData.audio?.export_error ?? null;
+      const providerUsed = (composeData.audio as { provider_used?: string } | undefined)?.provider_used ?? (composeData.export_meta as { provider?: string } | undefined)?.provider ?? null;
+      const exportErr = (composeData.audio as { export_error?: string | null } | undefined)?.export_error ?? null;
       const isLyriaSuccess = providerUsed === 'lyria' && (exportErr == null || exportErr === '') && composeData.export_id;
+
+      let exportIdNext: string | null = null;
+      let exportUnavailableReasonNext: { summary: string; step?: string; message?: string } | null = null;
+      let lastComposeProviderNext: string | null = null;
+
       if (isLyriaSuccess) {
-        setExportId(composeData.export_id);
-        setExportUnavailableReason(null);
-        setLastComposeProvider(providerUsed);
+        exportIdNext = composeData.export_id as string;
+        lastComposeProviderNext = providerUsed;
       } else {
-        setExportId(null);
-        const ad = composeData.audio_debug;
-        setExportUnavailableReason({
+        const ad = composeData.audio_debug as { step?: string; message?: string } | undefined;
+        exportUnavailableReasonNext = {
           summary: exportErr ? 'Lyria export failed' : 'Export disabled or failed',
           step: ad?.step,
           message: ad?.message ?? (exportErr ? String(exportErr) : undefined),
-        });
-        setLastComposeProvider(null);
+        };
       }
-      if (composeData.hashes?.plan_sha256) setPlanHash(composeData.hashes.plan_sha256);
-      else setGenerateError((e) => ({ ...e, audio: 'Compose response missing plan_sha256' }));
+
+      const hashes = composeData.hashes as { plan_sha256?: string } | undefined;
+      const planSha256 = hashes?.plan_sha256 ?? null;
+      if (!planSha256) setGenerateError((e) => ({ ...e, audio: 'Compose response missing plan_sha256' }));
+
+      dispatchComposition({
+        type: 'resolve_success',
+        payload: resolveData,
+        lastSubmittedResolveBody: resolveBody,
+        snapshotUsed,
+        combinedHashUsed,
+        planSha256,
+        canonicalSlotOrder: canonicalSlotOrderNext,
+        canonicalInputHash: canonicalInputHashNext,
+        canonicalObjectHash:
+          (typeof resolveData.canonical_object_hash === 'string' ? resolveData.canonical_object_hash : null) ??
+          (typeof explanation?.meta?.canonical_object_hash === 'string' ? explanation.meta.canonical_object_hash : null),
+        report,
+        exportId: exportIdNext,
+        lastComposeProvider: lastComposeProviderNext,
+        exportUnavailableReason: exportUnavailableReasonNext,
+      });
     } catch (e) {
       setGenerateError({ audio: e instanceof Error ? e.message : 'Generate failed' });
     } finally {
       setGenerateLoading(false);
     }
-  }, [canGenerate, draft]);
+  }, [canGenerate, birth, overrides]);
 
   const handleReplay = useCallback(async () => {
-    if (!planHash || !lastCompositionBodyRef.current) {
+    const body = compositionModel.lastResolve?.lastSubmittedResolveBody;
+    if (!planHash || !body) {
       setReplayError('Replay unavailable: missing last composition payload or plan hash from last generate.');
       setReplayStatus('error');
       return;
@@ -392,11 +427,11 @@ export default function SandboxPage() {
       const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(lastCompositionBodyRef.current),
+        body: JSON.stringify(body),
       });
       const resolveData = await resolveRes.json().catch(() => ({}));
       if (!resolveRes.ok || resolveData.ok === false) {
-        setReplayError((resolveData?.error ?? resolveData?.message) || `Replay resolve: ${resolveRes.status}`);
+        setReplayError((resolveData.error ?? resolveData.message) || `Replay resolve: ${resolveRes.status}`);
         setReplayStatus('error');
         return;
       }
@@ -407,18 +442,14 @@ export default function SandboxPage() {
         setReplayStatus('error');
         return;
       }
-      if (replayPlan !== planHash) {
-        setReplayStatus('mismatch');
-      } else {
-        setReplayStatus('match');
-      }
+      setReplayStatus(replayPlan !== planHash ? 'mismatch' : 'match');
     } catch (e) {
       setReplayError(e instanceof Error ? e.message : 'Replay failed');
       setReplayStatus('error');
     } finally {
       setReplayLoading(false);
     }
-  }, [planHash]);
+  }, [planHash, compositionModel.lastResolve?.lastSubmittedResolveBody]);
 
   const handleAudioPlay = useCallback(() => {
     setPlaybackError(null);
@@ -479,7 +510,7 @@ export default function SandboxPage() {
     setListLoading(true);
     try {
       const r = await fetch(`${base}/api/sandbox/compositions?limit=50`);
-      const data = await r.json().catch(() => ([]));
+      const data = await r.json().catch(() => []);
       if (!r.ok) {
         setSavedList([]);
         return;
@@ -492,14 +523,14 @@ export default function SandboxPage() {
 
   const canSave = Boolean(
     hasGenerated &&
-    draft.birth &&
+    birth &&
     lastCombinedHashUsed &&
     planHash &&
-    report != null
+    displayReport != null
   );
 
   const handleSave = useCallback(async () => {
-    if (!canSave || !draft.birth) return;
+    if (!canSave || !birth) return;
     const base = getApiBaseUrl();
     setSaveLoading(true);
     setSaveError(null);
@@ -509,15 +540,15 @@ export default function SandboxPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sandbox_state: {
-            birth: draft.birth,
-            overrides: normalizeOverrides(draft.overrides),
-            controls: SANDBOX_CONTROLS,
+            birth,
+            overrides: normalizeSandboxOverrides(overrides),
+            controls: SANDBOX_COMPOSE_CONTROLS,
           },
           vector_hash: lastCombinedHashUsed,
           seed: lastCombinedHashUsed,
           plan_hash: planHash,
           report: {
-            ...(report ?? {}),
+            ...(displayReport ?? {}),
             artifact_envelope: {
               composition_mode: 'single',
               canonical_slot_order: canonicalSlotOrder,
@@ -542,11 +573,11 @@ export default function SandboxPage() {
     }
   }, [
     canSave,
-    draft.birth,
-    draft.overrides,
+    birth,
+    overrides,
     lastCombinedHashUsed,
     planHash,
-    report,
+    displayReport,
     lastComposeProvider,
     exportId,
     fetchSavedList,
@@ -563,46 +594,40 @@ export default function SandboxPage() {
         setError(comp?.error ?? 'Failed to load composition');
         return;
       }
-      const state = comp.sandbox_state || {};
-      const birth = state.birth;
-      const overrides = state.overrides || { planets: {} };
-      if (!birth || !birth.date || !birth.time) {
+      const rowState = comp.sandbox_state || {};
+      const rowBirth = rowState.birth as SandboxBirth | undefined;
+      const rowOverrides = rowState.overrides || { planets: {} };
+      if (!rowBirth || !rowBirth.date || !rowBirth.time) {
         setError('Invalid saved composition: missing birth data');
         return;
       }
-      setReport(comp.report ?? null);
-      setPlanHash(comp.plan_hash ?? null);
-      setLastCombinedHashUsed(comp.seed ?? comp.vector_hash ?? null);
-      setExportId(comp.export_id ?? null);
-      setLastSnapshotUsed(null);
+      setPersistenceHydration({
+        report: comp.report ?? null,
+        planHash: comp.plan_hash ?? null,
+        combinedHash: comp.seed ?? comp.vector_hash ?? null,
+        exportId: comp.export_id ?? null,
+      });
       setHasGenerated(true);
       setGenerateError(null);
-      setDraft({
-        birth,
-        baseSnapshot: null,
-        overrides,
-        overriddenSnapshot: null,
-      });
-      setState('loading_base');
+      dispatchComposition({ type: 'load_saved_baseline', birth: rowBirth, overrides: rowOverrides });
+      setSurfaceState('loading_base');
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth, overrides: normalizeOverrides(overrides) }),
+        body: JSON.stringify({ birth: rowBirth, overrides: normalizeSandboxOverrides(rowOverrides) }),
       });
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
-        setState('ready_builder');
+        setSurfaceState('ready_builder');
         setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
         return;
       }
-      setLastSnapshotUsed(snapData.snapshot ?? null);
-      setDraft((prev) => ({
-        ...prev,
-        baseSnapshot: snapData.snapshot,
-        overriddenSnapshot: snapData.snapshot,
-        hash: snapData.meta,
-      }));
-      setState('ready_report');
+      dispatchComposition({
+        type: 'load_saved_snapshot_restored',
+        snapshot: snapData.snapshot as EphemerisSnapshot,
+        meta: snapData.meta as SandboxSnapshotMeta,
+      });
+      setSurfaceState('ready_report');
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Load failed');
@@ -611,9 +636,9 @@ export default function SandboxPage() {
 
   const handleExportJson = useCallback(() => {
     const bundle = {
-      birth: draft.birth,
-      overrides: normalizeOverrides(draft.overrides),
-      controls: SANDBOX_CONTROLS,
+      birth,
+      overrides: normalizeSandboxOverrides(overrides),
+      controls: SANDBOX_COMPOSE_CONTROLS,
       combinedHashUsed: lastCombinedHashUsed ?? null,
       plan_sha256: planHash ?? null,
       export_id: exportId ?? null,
@@ -626,16 +651,18 @@ export default function SandboxPage() {
     a.download = `astradio-sandbox-${lastCombinedHashUsed?.slice(0, 8) ?? 'export'}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }, [draft.birth, draft.overrides, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
+  }, [birth, overrides, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
 
   useEffect(() => {
-    if (state === 'ready_builder' || state === 'ready_report') fetchSavedList();
-  }, [state, fetchSavedList]);
+    if (surfaceState === 'ready_builder' || surfaceState === 'ready_report') fetchSavedList();
+  }, [surfaceState, fetchSavedList]);
 
-  const currentSnapshot = draft.overriddenSnapshot || draft.baseSnapshot;
+  const currentSnapshot = preview.overriddenSnapshot || preview.baseSnapshot;
   const basePositions: Record<string, number> = {};
-  if (draft.baseSnapshot) for (const p of draft.baseSnapshot.planets) basePositions[p.name] = p.lon;
+  if (preview.baseSnapshot) for (const p of preview.baseSnapshot.planets) basePositions[p.name] = p.lon;
   const cusps = currentSnapshot?.houses ?? [];
+
+  const replayNeedsSnapshot = Boolean(compositionModel.lastResolve?.snapshotUsed && lastCombinedHashUsed && planHash);
 
   return (
     <AppShell>
@@ -650,7 +677,7 @@ export default function SandboxPage() {
           </p>
         </motion.div>
 
-        {state === 'idle' && (
+        {surfaceState === 'idle' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-4">Enter birth data</h2>
             <BirthDataForm onSubmit={handleBirthSubmit} />
@@ -660,33 +687,55 @@ export default function SandboxPage() {
           </motion.div>
         )}
 
-        {state === 'loading_base' && (
+        {surfaceState === 'loading_base' && (
           <div className="card max-w-2xl mx-auto text-center">
             <p className="text-subtext">Loading chart...</p>
           </div>
         )}
 
-        {state === 'error' && error && (
+        {surfaceState === 'error' && error && (
           <div className="card max-w-2xl mx-auto">
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
               <p className="font-semibold mb-2">Error</p>
               <p className="text-sm">{error}</p>
-              <button onClick={() => { setState('idle'); setError(null); setDraft({ birth: null, baseSnapshot: null, overrides: { planets: {} }, overriddenSnapshot: null }); }} className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm">Reset</button>
+              <button
+                onClick={() => {
+                  setSurfaceState('idle');
+                  setError(null);
+                  dispatchComposition({ type: 'reset_all' });
+                  setPersistenceHydration(null);
+                }}
+                className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
+              >
+                Reset
+              </button>
             </div>
           </div>
         )}
 
-        {/* Phase 8H verification (dev): body count, aspect metadata */}
-        {(state === 'ready_builder' || state === 'syncing_overrides' || state === 'ready_report') && currentSnapshot && (
+        {(surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') && currentSnapshot && (
           <details className="card mt-4">
             <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Phase 8H verification</summary>
             <div className="mt-3 text-xs font-mono text-subtext space-y-1">
-              <p><strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})</p>
-              <p><strong>Aspects:</strong> {currentSnapshot.aspects?.length ?? 0}</p>
+              <p>
+                <strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})
+              </p>
+              <p>
+                <strong>Aspects:</strong> {currentSnapshot.aspects?.length ?? 0}
+              </p>
               {currentSnapshot.aspects?.length ? (
-                <p><strong>Sample aspect:</strong> {(currentSnapshot.aspects[0].bodyA ?? (currentSnapshot.aspects[0] as { a?: string }).a)}–{(currentSnapshot.aspects[0].bodyB ?? (currentSnapshot.aspects[0] as { b?: string }).b)} {currentSnapshot.aspects[0].type} orb={currentSnapshot.aspects[0].orb}
-                  {' '}{(currentSnapshot.aspects[0] as { dynamics?: string; strength?: number; exactness?: number; priorityBase?: number }).dynamics != null && (
-                    <>dynamics={(currentSnapshot.aspects[0] as { dynamics?: string }).dynamics} strength={(currentSnapshot.aspects[0] as { strength?: number }).strength} exactness={(currentSnapshot.aspects[0] as { exactness?: number }).exactness} priorityBase={(currentSnapshot.aspects[0] as { priorityBase?: number }).priorityBase}</>
+                <p>
+                  <strong>Sample aspect:</strong> {(currentSnapshot.aspects[0].bodyA ?? (currentSnapshot.aspects[0] as { a?: string }).a)}–
+                  {(currentSnapshot.aspects[0].bodyB ?? (currentSnapshot.aspects[0] as { b?: string }).b)} {currentSnapshot.aspects[0].type} orb=
+                  {currentSnapshot.aspects[0].orb}{' '}
+                  {(currentSnapshot.aspects[0] as { dynamics?: string; strength?: number; exactness?: number; priorityBase?: number }).dynamics !=
+                    null && (
+                    <>
+                      dynamics={(currentSnapshot.aspects[0] as { dynamics?: string }).dynamics} strength=
+                      {(currentSnapshot.aspects[0] as { strength?: number }).strength} exactness=
+                      {(currentSnapshot.aspects[0] as { exactness?: number }).exactness} priorityBase=
+                      {(currentSnapshot.aspects[0] as { priorityBase?: number }).priorityBase}
+                    </>
                   )}
                 </p>
               ) : null}
@@ -694,7 +743,7 @@ export default function SandboxPage() {
           </details>
         )}
 
-        {(state === 'ready_builder' || state === 'syncing_overrides' || state === 'ready_report') && draft.birth && (
+        {(surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') && birth && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
@@ -713,16 +762,18 @@ export default function SandboxPage() {
                       Aspect lines
                     </label>
                   </div>
-                  {Object.keys(draft.overrides.planets).length > 0 && (
-                    <button onClick={handleResetAllOverrides} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">Reset All</button>
+                  {Object.keys(overrides.planets).length > 0 && (
+                    <button onClick={handleResetAllOverrides} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">
+                      Reset All
+                    </button>
                   )}
                 </div>
                 <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
                   <WheelCanvasBuilder
                     snapshot={currentSnapshot}
-                    overrides={draft.overrides}
+                    overrides={overrides}
                     onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}
-                    isUpdating={state === 'syncing_overrides'}
+                    isUpdating={surfaceState === 'syncing_overrides'}
                     constrainToHouse={constrainToHouse}
                     showAspectLines={showAspectLines}
                   />
@@ -768,17 +819,11 @@ export default function SandboxPage() {
                     </div>
                     <div>
                       <span className="font-semibold">Report:</span>{' '}
-                      {generateLoading ? 'Generating…' : generateError?.report ? 'Failed' : report ? 'OK' : 'Not run'}
+                      {generateLoading ? 'Generating…' : generateError?.report ? 'Failed' : displayReport ? 'OK' : 'Not run'}
                     </div>
                     <div>
                       <span className="font-semibold">Audio:</span>{' '}
-                      {generateLoading
-                        ? 'Generating…'
-                        : generateError?.audio
-                        ? 'Failed'
-                        : exportId
-                        ? 'Ready'
-                        : 'Export unavailable'}
+                      {generateLoading ? 'Generating…' : generateError?.audio ? 'Failed' : exportId ? 'Ready' : 'Export unavailable'}
                     </div>
                   </div>
                 )}
@@ -803,21 +848,25 @@ export default function SandboxPage() {
                     )}
                   </div>
                 )}
-                {report && (
+                {displayReport && (
                   <div className="mt-6 space-y-4">
-                    {report.personality && (
+                    {displayReport.personality && (
                       <section className="rounded-lg border border-border bg-bgElev p-4">
                         <h3 className="text-lg font-semibold text-text mb-3">Personality</h3>
-                        <div className="text-subtext text-sm">{report.personality.summary || JSON.stringify(report.personality, null, 2)}</div>
+                        <div className="text-subtext text-sm">
+                          {displayReport.personality.summary || JSON.stringify(displayReport.personality, null, 2)}
+                        </div>
                       </section>
                     )}
-                    {report.guidance && (
+                    {displayReport.guidance && (
                       <section className="rounded-lg border border-border bg-bgElev p-4">
                         <h3 className="text-lg font-semibold text-text mb-3">Guidance</h3>
-                        <div className="text-subtext text-sm">{report.guidance.advice || JSON.stringify(report.guidance, null, 2)}</div>
+                        <div className="text-subtext text-sm">
+                          {displayReport.guidance.advice || JSON.stringify(displayReport.guidance, null, 2)}
+                        </div>
                       </section>
                     )}
-                    {report.explanation && <ExplainerSections explanation={report.explanation} />}
+                    {displayReport.explanation && <ExplainerSections explanation={displayReport.explanation} />}
                   </div>
                 )}
                 {hasGenerated && (
@@ -839,13 +888,7 @@ export default function SandboxPage() {
                             Download WAV
                           </button>
                         </div>
-                        <audio
-                          key={exportId}
-                          ref={audioRef}
-                          src={sandboxAudioSrc ?? undefined}
-                          controls
-                          className="max-w-full w-full"
-                        />
+                        <audio key={exportId} ref={audioRef} src={sandboxAudioSrc ?? undefined} controls className="max-w-full w-full" />
                         {playbackError && <p className="text-xs text-red-400">{playbackError}</p>}
                         {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
                       </div>
@@ -853,9 +896,7 @@ export default function SandboxPage() {
                       <div className="space-y-2">
                         <p className="text-xs text-subtext">
                           Audio export unavailable.
-                          {exportUnavailableReason && (
-                            <span className="ml-1">{exportUnavailableReason.summary}</span>
-                          )}
+                          {exportUnavailableReason && <span className="ml-1">{exportUnavailableReason.summary}</span>}
                           {planHash && (
                             <span className="ml-1">
                               Plan hash: <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
@@ -866,7 +907,9 @@ export default function SandboxPage() {
                           <details className="text-xs text-subtext" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
                             <summary className="cursor-pointer hover:text-text">Details</summary>
                             <pre className="mt-1 p-2 bg-bgElev rounded border border-border/60 overflow-auto">
-                              {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message].filter(Boolean).join('\n')}
+                              {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message]
+                                .filter(Boolean)
+                                .join('\n')}
                             </pre>
                           </details>
                         )}
@@ -879,15 +922,12 @@ export default function SandboxPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold text-text">Provenance</h3>
                       <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={handleExportJson}
-                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text"
-                        >
+                        <button onClick={handleExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
                           Export JSON
                         </button>
                         <button
                           onClick={handleReplay}
-                          disabled={replayLoading || !lastSnapshotUsed || !lastCombinedHashUsed || !planHash}
+                          disabled={replayLoading || !replayNeedsSnapshot}
                           className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
                         >
                           {replayLoading ? 'Replaying…' : 'Replay (same seed)'}
@@ -898,9 +938,7 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">combinedHash:</span>{' '}
                         {lastCombinedHashUsed ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
-                            {lastCombinedHashUsed}
-                          </code>
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{lastCombinedHashUsed}</code>
                         ) : (
                           <span>—</span>
                         )}
@@ -908,9 +946,7 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">plan_sha256:</span>{' '}
                         {planHash ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
-                            {planHash}
-                          </code>
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{planHash}</code>
                         ) : (
                           <span>—</span>
                         )}
@@ -918,23 +954,15 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">export_id:</span>{' '}
                         {exportId ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">
-                            {exportId}
-                          </code>
+                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{exportId}</code>
                         ) : (
                           <span>—</span>
                         )}
                       </div>
                     </div>
-                    {replayStatus === 'mismatch' && (
-                      <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>
-                    )}
-                    {replayStatus === 'match' && (
-                      <p className="text-xs text-emerald-400">Replay matched plan hash.</p>
-                    )}
-                    {replayStatus === 'error' && replayError && (
-                      <p className="text-xs text-red-400">{replayError}</p>
-                    )}
+                    {replayStatus === 'mismatch' && <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>}
+                    {replayStatus === 'match' && <p className="text-xs text-emerald-400">Replay matched plan hash.</p>}
+                    {replayStatus === 'error' && replayError && <p className="text-xs text-red-400">{replayError}</p>}
                   </div>
                 )}
               </div>
@@ -942,7 +970,7 @@ export default function SandboxPage() {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
-                <DegreePanel overrides={draft.overrides} basePositions={basePositions} cusps={cusps.length === 12 ? cusps : undefined} onOverrideChange={handleOverrideChange} onResetPlanet={handleResetPlanet} />
+                <DegreePanel overrides={overrides} basePositions={basePositions} cusps={cusps.length === 12 ? cusps : undefined} onOverrideChange={handleOverrideChange} onResetPlanet={handleResetPlanet} />
               </div>
               <div className="card">
                 <div className="flex items-center justify-between mb-3">
@@ -965,11 +993,7 @@ export default function SandboxPage() {
                         <span className="truncate text-subtext" title={item.id}>
                           {item.plan_hash?.slice(0, 8) ?? item.id.slice(0, 8)} — {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleLoad(item.id)}
-                          className="flex-shrink-0 px-2 py-1 rounded border border-border bg-bgElev hover:bg-bgElev/80 text-text"
-                        >
+                        <button type="button" onClick={() => handleLoad(item.id)} className="flex-shrink-0 px-2 py-1 rounded border border-border bg-bgElev hover:bg-bgElev/80 text-text">
                           Load
                         </button>
                       </li>
