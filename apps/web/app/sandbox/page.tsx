@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useReducer } from 'react';
+import { useState, useCallback, useRef, useEffect, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
@@ -18,6 +18,7 @@ import {
   serializeSandboxResolveRequestBody,
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
+import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 
 type SandboxSurfaceState =
   | 'idle'
@@ -119,6 +120,11 @@ export default function SandboxPage() {
 
   const birth = slot0Birth(compositionModel);
   const overrides = slot0Overrides(compositionModel);
+
+  const slotProjectionRows = useMemo(
+    () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
+    [compositionModel.compositionInput],
+  );
 
   const updateSnapshot = useCallback(
     async (b: SandboxBirth, ov: SandboxOverrides) => {
@@ -743,10 +749,35 @@ export default function SandboxPage() {
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
+                <p className="text-sm font-semibold text-text mb-3">
+                  Slots: <span className="font-normal text-subtext">{compositionModel.compositionInput.slots.length}</span> · active:{' '}
+                  <span className="font-mono text-text">{compositionModel.compositionInput.active_slot_index}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {slotProjectionRows.map((row) => {
+                    const active = row.index === compositionModel.compositionInput.active_slot_index;
+                    return (
+                      <div
+                        key={row.index}
+                        className={`rounded-lg border px-2 py-1.5 text-xs ${
+                          active ? 'border-primary bg-primary/10' : 'border-border bg-bgElev/50'
+                        }`}
+                      >
+                        <span className="font-mono text-subtext">#{row.index}</span>{' '}
+                        <span className="text-text capitalize">{row.kind}</span>
+                        <span className="text-subtext"> · {row.summary}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="card">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-xl font-semibold text-text">Wheel</h2>
                     <p className="text-sm text-subtext mt-1">Drag planets or use degree inputs. Houses are from birth chart geometry in Phase 6.</p>
+                    <p className="text-xs text-subtext mt-1">Preview (snapshot) · active slot {compositionModel.compositionInput.active_slot_index}</p>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-subtext">
                     <label className="flex items-center gap-2">
@@ -844,6 +875,7 @@ export default function SandboxPage() {
                     )}
                   </div>
                 )}
+                {hasGenerated && <p className="mt-6 text-xs text-subtext">Last generated (report / audio)</p>}
                 {displayReport && (
                   <div className="mt-6 space-y-4">
                     {displayReport.personality && (
