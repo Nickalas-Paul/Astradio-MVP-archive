@@ -197,7 +197,7 @@ export default function SandboxPage() {
   const compositionRef = useRef(compositionModel);
   compositionRef.current = compositionModel;
 
-  const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('idle');
+  const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('ready_builder');
   const [error, setError] = useState<string | null>(null);
   const [constrainToHouse, setConstrainToHouse] = useState(true);
   const [showAspectLines, setShowAspectLines] = useState(true);
@@ -329,7 +329,6 @@ export default function SandboxPage() {
     (planet: PlanetKey, lonDeg: number | null) => {
       const model = compositionRef.current;
       const b = slot0Birth(model);
-      if (!b) return;
       const prevOverrides = slot0Overrides(model);
       const newOverrides: SandboxOverrides = { ...prevOverrides, planets: { ...prevOverrides.planets } };
       if (lonDeg === null) delete newOverrides.planets[planet];
@@ -821,7 +820,13 @@ export default function SandboxPage() {
   }, [compositionModel.compositionInput, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
 
   useEffect(() => {
-    if (surfaceState === 'ready_builder' || surfaceState === 'ready_report') fetchSavedList();
+    if (
+      surfaceState === 'ready_builder' ||
+      surfaceState === 'ready_report' ||
+      surfaceState === 'idle'
+    ) {
+      fetchSavedList();
+    }
   }, [surfaceState, fetchSavedList]);
 
   const currentSnapshot = preview.overriddenSnapshot || preview.baseSnapshot;
@@ -834,6 +839,12 @@ export default function SandboxPage() {
       compositionModel.lastResolve.lastSubmittedResolveBody &&
       compositionModel.lastResolve.planSha256
   );
+
+  const showComposerSurface =
+    surfaceState === 'ready_builder' ||
+    surfaceState === 'syncing_overrides' ||
+    surfaceState === 'ready_report' ||
+    surfaceState === 'idle';
 
   return (
     <AppShell>
@@ -848,16 +859,6 @@ export default function SandboxPage() {
           </p>
         </motion.div>
 
-        {surfaceState === 'idle' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold text-text mb-4">Enter birth data</h2>
-            <BirthDataForm onSubmit={handleBirthSubmit} />
-            <div className="mt-6 w-full aspect-square max-w-md mx-auto bg-bgElev border border-border rounded-2xl flex items-center justify-center">
-              <p className="text-subtext text-sm">Enter birth data to see the wheel</p>
-            </div>
-          </motion.div>
-        )}
-
         {surfaceState === 'loading_base' && (
           <div className="card max-w-2xl mx-auto text-center">
             <p className="text-subtext">Loading chart...</p>
@@ -871,7 +872,7 @@ export default function SandboxPage() {
               <p className="text-sm">{error}</p>
               <button
                 onClick={() => {
-                  setSurfaceState('idle');
+                  setSurfaceState('ready_builder');
                   setError(null);
                   dispatchComposition({ type: 'reset_all' });
                 }}
@@ -913,9 +914,15 @@ export default function SandboxPage() {
           </details>
         )}
 
-        {(surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') && birth && (
+        {showComposerSurface && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              {!birth && (
+                <div className="card max-w-2xl">
+                  <h2 className="text-xl font-semibold text-text mb-4">Enter birth data</h2>
+                  <BirthDataForm onSubmit={handleBirthSubmit} />
+                </div>
+              )}
               <div className="card">
                 <p className="text-sm font-semibold text-text mb-3">
                   Slots: <span className="font-normal text-subtext">{compositionModel.compositionInput.slots.length}</span> · active:{' '}
