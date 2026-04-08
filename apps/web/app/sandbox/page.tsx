@@ -92,7 +92,7 @@ function buildLastResolveFromLoadedRow(
     typeof comp.seed === 'string' ? comp.seed : typeof comp.vector_hash === 'string' ? comp.vector_hash : null;
 
   const body = parsed.lastSubmittedResolveBody;
-  if (body && planSha256 && snapshot) {
+  if (body && planSha256) {
     const full =
       parsed.fullResolveResponse && Object.keys(parsed.fullResolveResponse).length > 0
         ? parsed.fullResolveResponse
@@ -1052,11 +1052,27 @@ export default function SandboxPage() {
         }
       }
 
+      resolvePreviewBirthBySlotRef.current.clear();
+
       setHasGenerated(true);
       setGenerateError(null);
       setSurfaceState('loading_base');
 
       const input = parsed.compositionInput;
+      for (const i of getPopulatedSlotIndicesFromCompositionInput(input)) {
+        const cid = typeof input.slots[i]?.chart_id === 'string' ? input.slots[i].chart_id.trim() : '';
+        if (!cid) continue;
+        try {
+          const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+          const chartData = await chartRes.json().catch(() => ({}));
+          if (chartRes.ok) {
+            resolvePreviewBirthBySlotRef.current.set(i, chartApiRecordToSandboxBirthWire(chartData));
+          }
+        } catch {
+          /* best-effort: Generate can refetch if needed */
+        }
+      }
+
       const activeIdx = getActiveSlotIndexFromCompositionInput(input);
       const activeSlot = input.slots[activeIdx];
 
@@ -1168,6 +1184,7 @@ export default function SandboxPage() {
   }, []);
 
   const handleExportJson = useCallback(() => {
+    const lr = compositionModel.lastResolve;
     const bundle = {
       composition_input: compositionModel.compositionInput,
       combinedHashUsed: lastCombinedHashUsed ?? null,
@@ -1175,6 +1192,13 @@ export default function SandboxPage() {
       export_id: exportId ?? null,
       provider: lastComposeProvider ?? null,
       createdAt: new Date().toISOString(),
+      ...(lr?.source === 'live_resolve'
+        ? {
+            last_submitted_resolve_body: lr.lastSubmittedResolveBody,
+            full_resolve_response:
+              lr.fullResponse && Object.keys(lr.fullResponse).length > 0 ? lr.fullResponse : undefined,
+          }
+        : {}),
     };
     const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -1182,7 +1206,7 @@ export default function SandboxPage() {
     a.download = `astradio-sandbox-${lastCombinedHashUsed?.slice(0, 8) ?? 'export'}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }, [compositionModel.compositionInput, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
+  }, [compositionModel.compositionInput, compositionModel.lastResolve, lastCombinedHashUsed, planHash, exportId, lastComposeProvider]);
 
   useEffect(() => {
     if (

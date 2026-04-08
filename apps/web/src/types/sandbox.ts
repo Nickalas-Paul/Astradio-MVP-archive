@@ -83,7 +83,8 @@ export type SandboxLiveResolveSession = {
   fullResponse: Record<string, unknown>;
   /** Exact JSON object last POSTed to /api/sandbox/resolve for this session (replay). */
   lastSubmittedResolveBody: Record<string, unknown>;
-  snapshotUsed: EphemerisSnapshot;
+  /** Null after load when preview was not reconstructed (e.g. empty active slot); replay does not require this. */
+  snapshotUsed: EphemerisSnapshot | null;
   combinedHashUsed: string;
   planSha256: string | null;
   canonicalSlotOrder: string[] | null;
