@@ -394,13 +394,15 @@ export default function SandboxPage() {
 
   const generateDisabledReasons: string[] = [];
   if (!birth) {
-    generateDisabledReasons.push('Add birth data (date, time, and place) first.');
+    generateDisabledReasons.push(
+      'Add birth date, time, and place so the workspace has natal geometry for resolve. You can use the wheel and degrees first—manual placements are kept when you save birth data.',
+    );
   }
   if (!preview.baseSnapshot && !preview.overriddenSnapshot && birth) {
-    generateDisabledReasons.push('Wait for the chart preview to finish loading.');
+    generateDisabledReasons.push('Wait for the chart preview to finish loading after birth data.');
   }
   if (!preview.snapshotMeta?.combinedHash && birth) {
-    generateDisabledReasons.push('Wait for the preview hash to finish updating (required before generate).');
+    generateDisabledReasons.push('Wait for the preview hash to finish updating after the last edit (required for resolve).');
   }
   if (surfaceState === 'syncing_overrides') {
     generateDisabledReasons.push('Wait until override edits finish syncing to the preview.');
@@ -873,10 +875,11 @@ export default function SandboxPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-text">Sandbox</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Composition lab: enter birth data, refine placements, then resolve once through the canonical pipeline (preview snapshot + unified resolve).
+            Composition workspace: build the chart on the wheel and degree panel, add birth data when you need natal houses and ephemeris for resolve, then{' '}
+            <span className="text-text font-medium">Generate</span> to run the canonical pipeline for what you see.
           </p>
           <p className="text-xs text-subtext/80 max-w-xl mx-auto">
-            Enter birth data first, then edit planets. Canonical order for the current composition is shown after resolve.
+            Manual placement is the override layer. Canonical slot order for the composition is shown after resolve—not a substitute for the live wheel.
           </p>
         </motion.div>
 
@@ -938,12 +941,6 @@ export default function SandboxPage() {
         {showComposerSurface && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              {!birth && (
-                <div className="card max-w-2xl">
-                  <h2 className="text-xl font-semibold text-text mb-4">Enter birth data</h2>
-                  <BirthDataForm onSubmit={handleBirthSubmit} />
-                </div>
-              )}
               <div className="card">
                 <p className="text-sm font-semibold text-text mb-3">
                   Slots: <span className="font-normal text-subtext">{compositionModel.compositionInput.slots.length}</span> · active:{' '}
@@ -973,7 +970,9 @@ export default function SandboxPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-xl font-semibold text-text">Wheel</h2>
-                    <p className="text-sm text-subtext mt-1">Drag planets or use degree inputs. Houses are from birth chart geometry in Phase 6.</p>
+                    <p className="text-sm text-subtext mt-1">
+                      Drag planets or use degree inputs. Without birth data, the wheel uses a neutral layout; after birth, house cusps follow the natal chart.
+                    </p>
                     <p className="text-xs text-subtext mt-1">
                       Ephemeris preview for active slot {compositionModel.compositionInput.active_slot_index}—positions here are not the resolved
                       report or audio output.
@@ -1015,11 +1014,23 @@ export default function SandboxPage() {
                 </div>
               </div>
 
+              {!birth && (
+                <div className="card max-w-2xl">
+                  <h2 className="text-xl font-semibold text-text mb-1">Birth data</h2>
+                  <p className="text-sm text-subtext mb-4">
+                    Needed before resolve: natal geometry, ephemeris, and preview hash. Optional order—you can place planets first; manual placements stay
+                    when you submit this form.
+                  </p>
+                  <BirthDataForm onSubmit={handleBirthSubmit} />
+                </div>
+              )}
+
               <div className="card">
-                <h2 className="text-xl font-semibold text-text mb-2">Generate</h2>
+                <h2 className="text-xl font-semibold text-text mb-1">Resolve composition</h2>
                 <p className="text-xs text-subtext mb-4">
-                  Resolve uses your current composition (slots and controls) and a hash seed from the chart preview; Generate refreshes the preview,
-                  then runs resolve.
+                  <span className="font-medium text-text">Generate</span> is the primary action: it refreshes the preview snapshot for your{' '}
+                  <span className="font-medium text-text">current</span> wheel and slots, then runs unified resolve (report + audio). Use it whenever the
+                  on-screen composition is what you want shipped downstream—not after a separate “load-only” step.
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -1027,7 +1038,7 @@ export default function SandboxPage() {
                     disabled={!canGenerate || generateLoading}
                     className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {generateLoading ? 'Generating…' : 'Generate chart, report & audio'}
+                    {generateLoading ? 'Resolving…' : 'Generate from current composition'}
                   </button>
                   {canSave && (
                     <button
@@ -1042,7 +1053,7 @@ export default function SandboxPage() {
                 {saveError && <p className="mt-2 text-xs text-red-400">{saveError}</p>}
                 {!canGenerate && (
                   <div className="mt-3 text-xs text-subtext">
-                    <p className="mb-1">Generate is disabled until:</p>
+                    <p className="mb-1 text-text font-medium">Resolve unavailable until:</p>
                     <ul className="list-disc list-inside space-y-0.5">
                       {generateDisabledReasons.map((reason, idx) => (
                         <li key={idx}>{reason}</li>
@@ -1091,8 +1102,8 @@ export default function SandboxPage() {
                   <div className="mt-6 space-y-1">
                     <p className="text-xs text-subtext font-medium text-text">Last generated (report / audio)</p>
                     <p className="text-xs text-subtext">
-                      From the last successful resolve. If you changed the chart after that, this section may be out of step with the wheel
-                      until you generate again.
+                      From the last successful resolve. If you edited the wheel afterward, use <span className="font-medium text-text">Generate from current composition</span>{' '}
+                      above—do not rely on this block as the live composition.
                     </p>
                     {resolveOutputStaleVsPreview && (
                       <p className="text-xs text-amber-500/90">Output does not reflect current preview.</p>
@@ -1169,25 +1180,29 @@ export default function SandboxPage() {
                   </div>
                 )}
                 {hasGenerated && (
-                  <div className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-semibold text-text">Provenance</h3>
-                      <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-                        <button onClick={handleExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                          Export JSON
-                        </button>
-                        <button
-                          onClick={handleReplay}
-                          disabled={replayLoading || !replayNeedsSnapshot}
-                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text"
-                        >
-                          {replayLoading ? 'Re-running…' : 'Re-run last resolve'}
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-subtext">
-                      Re-run sends the previous resolve request again—not your current edits. Use Generate to resolve what you see now.
+                  <details className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3 group">
+                    <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 text-subtext hover:text-text [&::-webkit-details-marker]:hidden">
+                      <span className="font-semibold text-text">Provenance &amp; debug replay</span>
+                      <span className="text-[10px] uppercase tracking-wide text-subtext/90 group-open:hidden">Show secondary tools</span>
+                      <span className="text-[10px] uppercase tracking-wide text-subtext/90 hidden group-open:inline">Hide</span>
+                    </summary>
+                    <p className="mt-2 text-xs text-subtext">
+                      Secondary only: export the last bundle or replay the <span className="font-medium text-text">exact JSON</span> from the previous resolve. This is not a second
+                      Generate and does <span className="font-medium text-text">not</span> use your current wheel—use{' '}
+                      <span className="font-medium text-text">Generate from current composition</span> for that.
                     </p>
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                      <button onClick={handleExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                        Export JSON
+                      </button>
+                      <button
+                        onClick={handleReplay}
+                        disabled={replayLoading || !replayNeedsSnapshot}
+                        className="px-3 py-1.5 text-xs rounded-lg border border-dashed border-border/80 bg-bgElev/60 hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-subtext"
+                      >
+                        {replayLoading ? 'Replaying…' : 'Replay last resolve payload'}
+                      </button>
+                    </div>
                     <div className="grid gap-2 sm:grid-cols-3">
                       <div>
                         <span className="font-semibold">combinedHash:</span>{' '}
@@ -1217,7 +1232,7 @@ export default function SandboxPage() {
                     {replayStatus === 'mismatch' && <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>}
                     {replayStatus === 'match' && <p className="text-xs text-emerald-400">Replay matched plan hash.</p>}
                     {replayStatus === 'error' && replayError && <p className="text-xs text-red-400">{replayError}</p>}
-                  </div>
+                  </details>
                 )}
               </div>
             </motion.div>
