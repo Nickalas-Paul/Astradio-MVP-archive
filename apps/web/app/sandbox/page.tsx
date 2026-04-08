@@ -26,6 +26,9 @@ import {
   sandboxCompositionReducer,
   serializeSandboxResolveRequestBody,
   getActiveSlotIndexFromCompositionInput,
+  getPopulatedSlotIndicesFromCompositionInput,
+  compositionHasInvalidSlotWire,
+  populatedSlotsAreAggregateEligible,
   parsePersistedSandboxState,
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
@@ -75,12 +78,6 @@ function activeSlotBirth(model: SandboxCompositionModelState): SandboxBirth | un
 function activeSlotOverrides(model: SandboxCompositionModelState): SandboxOverrides {
   const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
   return model.compositionInput.slots[i]?.overrides ?? { planets: {} };
-}
-
-function activeSlotChartId(model: SandboxCompositionModelState): string {
-  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
-  const id = model.compositionInput.slots[i]?.chart_id;
-  return typeof id === 'string' ? id.trim() : '';
 }
 
 function buildLastResolveFromLoadedRow(
@@ -266,7 +263,6 @@ export default function SandboxPage() {
 
   const birth = activeSlotBirth(compositionModel);
   const overrides = activeSlotOverrides(compositionModel);
-  const chartIdActive = activeSlotChartId(compositionModel);
 
   const slotProjectionRows = useMemo(
     () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
@@ -594,24 +590,42 @@ export default function SandboxPage() {
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 
-  const hasResolveSource = Boolean(birth || chartIdActive);
+  const populatedSlotIndices = useMemo(
+    () => getPopulatedSlotIndicesFromCompositionInput(compositionModel.compositionInput),
+    [compositionModel.compositionInput],
+  );
+  const aggregateEligible = populatedSlotsAreAggregateEligible(compositionModel.compositionInput, populatedSlotIndices);
+  const hasInvalidSlotWire = compositionHasInvalidSlotWire(compositionModel.compositionInput);
+  const isMultiChartAggregate = populatedSlotIndices.length >= 2 && aggregateEligible;
+  const hasResolveSource = Boolean(
+    populatedSlotIndices.length > 0 && !hasInvalidSlotWire && (populatedSlotIndices.length >= 2 ? aggregateEligible : true),
+  );
+  const previewReadyForSeed = Boolean(
+    (preview.overriddenSnapshot || preview.baseSnapshot) && preview.snapshotMeta?.combinedHash,
+  );
   const canGenerate = Boolean(
-    hasResolveSource &&
-      (preview.overriddenSnapshot || preview.baseSnapshot) &&
-      preview.snapshotMeta?.combinedHash &&
-      surfaceState !== 'syncing_overrides'
+    hasResolveSource && (isMultiChartAggregate || previewReadyForSeed) && surfaceState !== 'syncing_overrides',
   );
 
   const generateDisabledReasons: string[] = [];
-  if (!hasResolveSource) {
-    generateDisabledReasons.push(
-      'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
-    );
+  if (hasInvalidSlotWire) {
+    generateDisabledReasons.push('A slot has both chart ID and birth data—clear one or split them so each slot is either a stored chart or ephemeris birth.');
   }
-  if (!preview.baseSnapshot && !preview.overriddenSnapshot && hasResolveSource) {
+  if (!hasResolveSource && !hasInvalidSlotWire) {
+    if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
+      generateDisabledReasons.push(
+        'Two or more occupied slots need a stored chart ID on each (import via GET /api/charts/:id). Aggregate pair/group does not accept ephemeris-only rows—persist births as charts first.',
+      );
+    } else {
+      generateDisabledReasons.push(
+        'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
+      );
+    }
+  }
+  if (hasResolveSource && !isMultiChartAggregate && !preview.baseSnapshot && !preview.overriddenSnapshot) {
     generateDisabledReasons.push('Wait for the chart preview to finish loading.');
   }
-  if (!preview.snapshotMeta?.combinedHash && hasResolveSource) {
+  if (hasResolveSource && !isMultiChartAggregate && !preview.snapshotMeta?.combinedHash) {
     generateDisabledReasons.push('Wait for the preview hash to finish updating after the last edit (required for resolve).');
   }
   if (surfaceState === 'syncing_overrides') {
@@ -621,23 +635,34 @@ export default function SandboxPage() {
   const previewCombinedHash = preview.snapshotMeta?.combinedHash;
   const lastResolveCombinedHash = compositionModel.lastResolve?.combinedHashUsed ?? null;
   const resolveOutputStaleVsPreview = Boolean(
-    lastResolveCombinedHash && previewCombinedHash && lastResolveCombinedHash !== previewCombinedHash
+    !isMultiChartAggregate &&
+      lastResolveCombinedHash &&
+      previewCombinedHash &&
+      lastResolveCombinedHash !== previewCombinedHash,
   );
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
     const modelPre = compositionRef.current;
-    const idxGen = getActiveSlotIndexFromCompositionInput(modelPre.compositionInput);
-    let birthForSnap: SandboxBirth | null =
-      modelPre.compositionInput.slots[idxGen]?.ephemeris_birth ??
-      resolvePreviewBirthBySlotRef.current.get(idxGen) ??
-      null;
-    const cid =
-      typeof modelPre.compositionInput.slots[idxGen]?.chart_id === 'string'
-        ? modelPre.compositionInput.slots[idxGen].chart_id.trim()
-        : '';
+    const input = modelPre.compositionInput;
+    const populated = getPopulatedSlotIndicesFromCompositionInput(input);
+    if (populated.length === 0) return;
+
     const base = getApiBaseUrl();
-    if (!birthForSnap && cid) {
+    let birthForSnap: SandboxBirth | null = null;
+    let overridesNorm: SandboxOverrides;
+
+    if (populated.length >= 2) {
+      if (!populatedSlotsAreAggregateEligible(input, populated)) {
+        setGenerateError({
+          report:
+            'Two or more occupied slots require chart_id on each slot. Import charts or persist births as stored charts before generating.',
+        });
+        return;
+      }
+      const seedIdx = populated[0];
+      const cid = String(input.slots[seedIdx]?.chart_id ?? '').trim();
+      overridesNorm = normalizeSandboxOverrides(input.slots[seedIdx]?.overrides ?? { planets: {} });
       try {
         const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
         const chartData = await chartRes.json().catch(() => ({}));
@@ -646,14 +671,36 @@ export default function SandboxPage() {
           return;
         }
         birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-        resolvePreviewBirthBySlotRef.current.set(idxGen, birthForSnap);
+        resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
       } catch (e) {
         setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
         return;
       }
+    } else {
+      const onlyIdx = populated[0];
+      const slot = input.slots[onlyIdx];
+      birthForSnap =
+        slot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(onlyIdx) ?? null;
+      const cid = typeof slot?.chart_id === 'string' ? slot.chart_id.trim() : '';
+      if (!birthForSnap && cid) {
+        try {
+          const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+          const chartData = await chartRes.json().catch(() => ({}));
+          if (!chartRes.ok) {
+            setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
+            return;
+          }
+          birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthBySlotRef.current.set(onlyIdx, birthForSnap);
+        } catch (e) {
+          setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
+          return;
+        }
+      }
+      if (!birthForSnap) return;
+      overridesNorm = normalizeSandboxOverrides(slot?.overrides ?? { planets: {} });
     }
-    if (!birthForSnap) return;
-    const overridesNorm = normalizeSandboxOverrides(activeSlotOverrides(compositionRef.current));
+
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
@@ -1395,11 +1442,19 @@ export default function SandboxPage() {
 
               <div className="card">
                 <h2 className="text-xl font-semibold text-text mb-1">Resolve composition</h2>
-                <p className="text-xs text-subtext mb-4">
-                  <span className="font-medium text-text">Generate</span> is the primary action: it refreshes the preview snapshot for your{' '}
-                  <span className="font-medium text-text">current</span> wheel and slots, then runs unified resolve (report + audio). Use it whenever the
-                  on-screen composition is what you want shipped downstream—not after a separate “load-only” step.
+                <p className="text-xs text-subtext mb-2">
+                  <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
+                  <span className="font-medium text-text">occupied</span> slot in order (empty rows are ignored). One slot → single compose; two chart IDs →
+                  pair aggregate; three or more chart IDs → group aggregate. The wheel preview still follows the active slot only.
                 </p>
+                {populatedSlotIndices.length > 0 ? (
+                  <p className="text-xs text-subtext mb-4 font-mono">
+                    Membership: {populatedSlotIndices.length} occupied (indices {populatedSlotIndices.join(', ')})
+                    {isMultiChartAggregate ? ' · aggregate preflight uses first occupied chart for seed' : ''}
+                  </p>
+                ) : (
+                  <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleGenerate}

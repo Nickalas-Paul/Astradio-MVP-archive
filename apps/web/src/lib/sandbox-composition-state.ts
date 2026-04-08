@@ -58,6 +58,51 @@ export function getActiveSlotIndexFromCompositionInput(input: SandboxComposition
   return i >= 0 && i < n ? i : 0;
 }
 
+/** Mirrors engine `sandbox-composition-normalize` slot population (chart_id vs wire ephemeris_birth are exclusive). */
+export function slotWirePopulationKind(
+  slot: SandboxCompositionInputState['slots'][number]
+): 'chart_id' | 'ephemeris_birth' | 'empty' | 'invalid' {
+  const hasChart = typeof slot.chart_id === 'string' && slot.chart_id.trim().length > 0;
+  const b = slot.ephemeris_birth;
+  const hasBirth = !!(
+    b &&
+    typeof b.date === 'string' &&
+    b.date.length >= 8 &&
+    typeof b.time === 'string' &&
+    b.time.length >= 4
+  );
+  if (hasChart && hasBirth) return 'invalid';
+  if (hasChart) return 'chart_id';
+  if (hasBirth) return 'ephemeris_birth';
+  return 'empty';
+}
+
+/** Strict ascending UI indices of occupied slots (engine ignores empties between). */
+export function getPopulatedSlotIndicesFromCompositionInput(input: SandboxCompositionInputState): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < input.slots.length; i++) {
+    const k = slotWirePopulationKind(input.slots[i]);
+    if (k === 'empty' || k === 'invalid') continue;
+    indices.push(i);
+  }
+  return indices;
+}
+
+export function compositionHasInvalidSlotWire(input: SandboxCompositionInputState): boolean {
+  return input.slots.some((s) => slotWirePopulationKind(s) === 'invalid');
+}
+
+/**
+ * When 2+ slots are occupied, the engine only accepts chart_id rows (no ephemeris_birth) for pair/group aggregate.
+ */
+export function populatedSlotsAreAggregateEligible(
+  input: SandboxCompositionInputState,
+  populatedIndices: number[]
+): boolean {
+  if (populatedIndices.length < 2) return true;
+  return populatedIndices.every((i) => slotWirePopulationKind(input.slots[i]) === 'chart_id');
+}
+
 /** First slot with full ephemeris birth (for /api/sandbox/snapshot after load). */
 export function firstEphemerisBirthForSnapshot(input: SandboxCompositionInputState): {
   birth: SandboxBirth;
