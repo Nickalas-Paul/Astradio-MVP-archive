@@ -93,14 +93,17 @@ export function compositionHasInvalidSlotWire(input: SandboxCompositionInputStat
 }
 
 /**
- * When 2+ slots are occupied, the engine only accepts chart_id rows (no ephemeris_birth) for pair/group aggregate.
+ * Multi-slot aggregate accepts any mix of chart_id and ephemeris_birth (engine-normalized); invalid wire still blocks.
  */
 export function populatedSlotsAreAggregateEligible(
   input: SandboxCompositionInputState,
   populatedIndices: number[]
 ): boolean {
   if (populatedIndices.length < 2) return true;
-  return populatedIndices.every((i) => slotWirePopulationKind(input.slots[i]) === 'chart_id');
+  return populatedIndices.every((i) => {
+    const k = slotWirePopulationKind(input.slots[i]);
+    return k === 'chart_id' || k === 'ephemeris_birth';
+  });
 }
 
 /** First slot with full ephemeris birth (for /api/sandbox/snapshot after load). */

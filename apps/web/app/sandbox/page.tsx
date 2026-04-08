@@ -29,6 +29,7 @@ import {
   getPopulatedSlotIndicesFromCompositionInput,
   compositionHasInvalidSlotWire,
   populatedSlotsAreAggregateEligible,
+  slotWirePopulationKind,
   parsePersistedSandboxState,
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
@@ -611,12 +612,12 @@ export default function SandboxPage() {
   if (hasInvalidSlotWire) {
     generateDisabledReasons.push('A slot has both chart ID and birth data—clear one or split them so each slot is either a stored chart or ephemeris birth.');
   }
-  if (!hasResolveSource && !hasInvalidSlotWire) {
-    if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
-      generateDisabledReasons.push(
-        'Two or more occupied slots need a stored chart ID on each (import via GET /api/charts/:id). Aggregate pair/group does not accept ephemeris-only rows—persist births as charts first.',
-      );
-    } else {
+    if (!hasResolveSource && !hasInvalidSlotWire) {
+      if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
+        generateDisabledReasons.push(
+          'Two or more occupied slots must each be either a stored chart or ephemeris birth (not both, not empty).',
+        );
+      } else {
       generateDisabledReasons.push(
         'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
       );
@@ -656,22 +657,36 @@ export default function SandboxPage() {
       if (!populatedSlotsAreAggregateEligible(input, populated)) {
         setGenerateError({
           report:
-            'Two or more occupied slots require chart_id on each slot. Import charts or persist births as stored charts before generating.',
+            'Two or more occupied slots must each be either a stored chart ID or ephemeris birth (mutually exclusive per slot).',
         });
         return;
       }
       const seedIdx = populated[0];
-      const cid = String(input.slots[seedIdx]?.chart_id ?? '').trim();
-      overridesNorm = normalizeSandboxOverrides(input.slots[seedIdx]?.overrides ?? { planets: {} });
+      const seedSlot = input.slots[seedIdx];
+      overridesNorm = normalizeSandboxOverrides(seedSlot?.overrides ?? { planets: {} });
+      const seedKind = slotWirePopulationKind(seedSlot ?? { overrides: { planets: {} } });
       try {
-        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
-        const chartData = await chartRes.json().catch(() => ({}));
-        if (!chartRes.ok) {
-          setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
+        if (seedKind === 'chart_id') {
+          const cid = String(seedSlot?.chart_id ?? '').trim();
+          const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+          const chartData = await chartRes.json().catch(() => ({}));
+          if (!chartRes.ok) {
+            setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
+            return;
+          }
+          birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
+        } else if (seedKind === 'ephemeris_birth') {
+          birthForSnap =
+            seedSlot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(seedIdx) ?? null;
+          if (!birthForSnap) {
+            setGenerateError({ chart: 'First occupied slot needs complete birth data for resolve seed snapshot.' });
+            return;
+          }
+        } else {
+          setGenerateError({ chart: 'First occupied slot is invalid for aggregate seed.' });
           return;
         }
-        birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-        resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
       } catch (e) {
         setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
         return;
@@ -1468,13 +1483,15 @@ export default function SandboxPage() {
                 <h2 className="text-xl font-semibold text-text mb-1">Resolve composition</h2>
                 <p className="text-xs text-subtext mb-2">
                   <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
-                  <span className="font-medium text-text">occupied</span> slot in order (empty rows are ignored). One slot → single compose; two chart IDs →
-                  pair aggregate; three or more chart IDs → group aggregate. The wheel preview still follows the active slot only.
+                  <span className="font-medium text-text">occupied</span> slot in <span className="font-medium text-text">ascending slot index order</span>{' '}
+                  (empty rows are ignored). Each slot may be a stored <span className="font-medium text-text">chart_id</span> or{' '}
+                  <span className="font-medium text-text">ephemeris_birth</span>, with per-slot overrides applied for resolve. One slot → single compose; two
+                  occupied slots → pair aggregate; three or more → group aggregate. The wheel preview still follows the active slot only.
                 </p>
                 {populatedSlotIndices.length > 0 ? (
                   <p className="text-xs text-subtext mb-4 font-mono">
                     Membership: {populatedSlotIndices.length} occupied (indices {populatedSlotIndices.join(', ')})
-                    {isMultiChartAggregate ? ' · aggregate preflight uses first occupied chart for seed' : ''}
+                    {isMultiChartAggregate ? ' · seed snapshot uses first occupied slot only; all slots participate in resolve' : ''}
                   </p>
                 ) : (
                   <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>

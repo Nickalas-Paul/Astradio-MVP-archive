@@ -1,15 +1,17 @@
 /**
  * Sandbox composition resolve — normalization + routing to existing compose / aggregate only.
+ * Per-slot: natal + overrides → overridden EphemerisSnapshot (LOCK 1–2). Sandbox group: no vector_store (LOCK 3).
  */
 
 import * as crypto from 'crypto';
 import type { ComposeRequest, ComposeResponse } from '../explainer/contracts';
-import type { EphemerisSnapshot } from '../contracts';
+import type { EphemerisSnapshot, SandboxBirth, SandboxOverrides } from '../contracts';
 import { composeAPI, type AggregateComposeResult } from './compose';
 import {
   normalizeCompositionInput,
   type SandboxCompositionInputV1,
   type NormalizedCompositionSuccess,
+  type SandboxSlotResolution,
   SANDBOX_COMPOSITION_ERROR_CODES,
 } from './sandbox-composition-normalize';
 import { generateSnapshotWithOverrides, hashBirth, hashOverrides } from './sandbox-snapshot';
@@ -20,9 +22,12 @@ import { mergeFeatureVectors } from '../compat/fusion';
 import { controlPayloadFromSeed, comparisonSeed } from '../compat/payload-from-seed';
 import { FUSION_METHOD_BLEND_V1 } from '../compat/types';
 import type { RelationshipMode } from '../compat/types';
-import { resolveRelationalConnectionFromChartIds } from '../relational/resolve-relational-connection-context';
-import { MissingVectorsError } from '../relational/compatibility/multi-chart';
 import type { FeatureVec } from '../contracts';
+import { aggregateFeatureVectors } from '../community/group-profile';
+import { hashVector64 } from '../relational/compatibility/score';
+import { vectorToControlPayload } from '../relational/composition/vector-to-controls';
+
+const SANDBOX_GROUP_SEED_VERSION = 'sandbox_group_v3';
 
 export const SANDBOX_RESOLVE_ERROR_CODES = {
   ...SANDBOX_COMPOSITION_ERROR_CODES,
@@ -38,9 +43,7 @@ export type SandboxResolveSuccess = {
   canonical_input_hash: string;
   canonical_input_hash_version: number;
   output_kind: NormalizedCompositionSuccess['output_kind'];
-  /** Single / overlay compose response */
   compose?: ComposeResponse;
-  /** Pair / group aggregate result */
   aggregate?: AggregateComposeResult;
 };
 
@@ -57,10 +60,70 @@ function chartToChartInput(chart: Chart): ChartInput {
   return { date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone };
 }
 
-function combinedBirthOverridesHash(birth: import('../contracts').SandboxBirth, overrides: import('../contracts').SandboxOverrides): string {
+function combinedBirthOverridesHash(birth: SandboxBirth, overrides: SandboxOverrides): string {
   const bh = hashBirth(birth);
   const oh = hashOverrides(overrides);
   return crypto.createHash('sha256').update(bh + oh, 'utf8').digest('hex');
+}
+
+function combinedChartIdOverridesHash(chartId: string, overrides: SandboxOverrides): string {
+  const oh = hashOverrides(overrides);
+  return crypto.createHash('sha256').update(`${chartId}|${oh}`, 'utf8').digest('hex');
+}
+
+function slotIdentityForComparisonSeed(r: SandboxSlotResolution): string {
+  if (r.chart_id) {
+    return `chart:${r.chart_id}|ov:${hashOverrides(r.overrides)}`;
+  }
+  return `birth:${hashBirth(r.birth!)}|ov:${hashOverrides(r.overrides)}`;
+}
+
+function buildSandboxGroupSeed(
+  slotIdentityTokensUiOrder: string[],
+  vectorHashesUiOrder: string[],
+  bindingKey?: string
+): string {
+  const groupPart = bindingKey ?? 'sandbox_group';
+  const payload = `${SANDBOX_GROUP_SEED_VERSION}|${groupPart}|${slotIdentityTokensUiOrder.join('\x1e')}|${vectorHashesUiOrder.join('\x1e')}`;
+  return crypto.createHash('sha256').update(payload, 'utf8').digest('hex');
+}
+
+/**
+ * Canonical per-slot resolver: natal → overridden EphemerisSnapshot (LOCK 1–2).
+ */
+export async function resolveSandboxSlotToOverriddenSnapshot(r: SandboxSlotResolution): Promise<EphemerisSnapshot> {
+  const overrides = r.overrides || { planets: {} };
+  let natal: EphemerisSnapshot;
+  if (r.chart_id) {
+    const chart = await getChartById(r.chart_id);
+    if (!chart) {
+      throw Object.assign(new Error(`Chart not found: ${r.chart_id}`), { code: SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND });
+    }
+    natal = await fetchChartSnapshot(chartToChartInput(chart));
+  } else if (r.birth) {
+    natal = await fetchChartSnapshot({
+      date: r.birth.date,
+      time: r.birth.time.length === 5 ? r.birth.time : r.birth.time.slice(0, 5),
+      lat: r.birth.lat,
+      lon: r.birth.lon,
+      timezone: r.birth.tz,
+    });
+  } else {
+    throw new Error('resolveSandboxSlotToOverriddenSnapshot: empty slot resolution');
+  }
+  return generateSnapshotWithOverrides(natal, overrides);
+}
+
+function populatedResolutionsInUiOrder(normalized: NormalizedCompositionSuccess): SandboxSlotResolution[] {
+  const withContent = normalized.slot_resolutions.filter((r) => r.chart_id || r.birth);
+  return [...withContent].sort((a, b) => a.ui_index - b.ui_index);
+}
+
+function isChartNotFoundErr(e: unknown): boolean {
+  return (
+    e instanceof Error &&
+    (e as Error & { code?: string }).code === SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND
+  );
 }
 
 /**
@@ -78,7 +141,6 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
     return { ok: false, code: normalized.code, message: normalized.message, status };
   }
 
-  const n = normalized.slot_resolutions.filter((r) => r.chart_id || r.birth).length;
   const output_kind = normalized.output_kind;
 
   try {
@@ -87,38 +149,18 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
       let composeReq: ComposeRequest;
 
       if (r.chart_id) {
-        const chart = await getChartById(r.chart_id);
-        if (!chart) {
-          return {
-            ok: false,
-            code: SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND,
-            message: `Chart not found: ${r.chart_id}`,
-            status: 404,
-          };
-        }
+        const overridden = await resolveSandboxSlotToOverriddenSnapshot(r);
+        const seedFallback = combinedChartIdOverridesHash(r.chart_id, r.overrides);
         composeReq = {
           mode: 'sandbox',
-          chartData: {
-            date: chart.date,
-            time: chart.time.slice(0, 5),
-            lat: chart.lat,
-            lon: chart.lon,
-          },
+          overriddenSnapshot: overridden,
           controls: normalized.compose_controls as ComposeRequest['controls'],
-          seed: normalized.seed,
+          seed: normalized.seed && normalized.seed.length > 0 ? normalized.seed : seedFallback,
           output_kind,
         };
       } else if (r.birth) {
-        const overrides = r.overrides || { planets: {} };
-        const snap = await fetchChartSnapshot({
-          date: r.birth.date,
-          time: r.birth.time.length === 5 ? r.birth.time : r.birth.time.slice(0, 5),
-          lat: r.birth.lat,
-          lon: r.birth.lon,
-          timezone: r.birth.tz,
-        });
-        const overridden = generateSnapshotWithOverrides(snap, overrides);
-        const ch = combinedBirthOverridesHash(r.birth, overrides);
+        const overridden = await resolveSandboxSlotToOverriddenSnapshot(r);
+        const ch = combinedBirthOverridesHash(r.birth, r.overrides);
         composeReq = {
           mode: 'sandbox',
           overriddenSnapshot: overridden,
@@ -149,6 +191,8 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
 
     if (normalized.composition_mode === 'overlay') {
       const tc = normalized.transit_context!;
+      const populated = populatedResolutionsInUiOrder(normalized);
+      const natalOverridden = await resolveSandboxSlotToOverriddenSnapshot(populated[0]);
       const natalChart = await getChartById(tc.natal_chart_id);
       if (!natalChart) {
         return {
@@ -158,7 +202,6 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
           status: 404,
         };
       }
-      const natalSnap = await fetchChartSnapshot(chartToChartInput(natalChart));
       const natalTz =
         typeof natalChart.timezone === 'string' && natalChart.timezone.trim() ? natalChart.timezone.trim() : undefined;
       const curTz =
@@ -166,9 +209,9 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
       const composeReq: ComposeRequest = {
         mode: 'overlay',
         overlayParams: {
-          natalLatitude: natalSnap.lat,
-          natalLongitude: natalSnap.lon,
-          natalDatetime: natalSnap.ts,
+          natalLatitude: natalOverridden.lat,
+          natalLongitude: natalOverridden.lon,
+          natalDatetime: natalOverridden.ts,
           ...(natalTz ? { natalTimezone: natalTz } : {}),
           currentLatitude: tc.current_latitude,
           currentLongitude: tc.current_longitude,
@@ -192,23 +235,27 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
     }
 
     if (normalized.composition_mode === 'pair_aggregate') {
-      const ids = normalized.canonical_slot_order;
-      const idLow = ids[0];
-      const idHigh = ids[1];
-      const chartLow = await getChartById(idLow);
-      const chartHigh = await getChartById(idHigh);
-      if (!chartLow || !chartHigh) {
-        return {
-          ok: false,
-          code: SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND,
-          message: 'One or both charts not found',
-          status: 404,
-        };
+      const populated = populatedResolutionsInUiOrder(normalized);
+      const rA = populated[0];
+      const rB = populated[1];
+      let snapLow: EphemerisSnapshot;
+      let snapHigh: EphemerisSnapshot;
+      try {
+        ;[snapLow, snapHigh] = await Promise.all([
+          resolveSandboxSlotToOverriddenSnapshot(rA),
+          resolveSandboxSlotToOverriddenSnapshot(rB),
+        ]);
+      } catch (e) {
+        if (isChartNotFoundErr(e)) {
+          return {
+            ok: false,
+            code: SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND,
+            message: e instanceof Error ? e.message : 'Chart not found',
+            status: 404,
+          };
+        }
+        throw e;
       }
-      const [snapLow, snapHigh] = await Promise.all([
-        fetchChartSnapshot(chartToChartInput(chartLow)),
-        fetchChartSnapshot(chartToChartInput(chartHigh)),
-      ]);
 
       const { generateArchitectureFromSnapshot } = await import('../core/architecture-engine');
       const [archLow, archHigh] = await Promise.all([
@@ -226,13 +273,15 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         wA,
         wB,
       });
-      const seed = comparisonSeed(idLow, idHigh, relationshipMode, FUSION_METHOD_BLEND_V1, wA, wB);
+      const idA = slotIdentityForComparisonSeed(rA);
+      const idB = slotIdentityForComparisonSeed(rB);
+      const seed = comparisonSeed(idA, idB, relationshipMode, FUSION_METHOD_BLEND_V1, wA, wB);
       const payload = controlPayloadFromSeed(seed);
 
       const aggregate = await composeAPI.runAggregateComposition({
         kind: 'comparison',
-        chartIdLow: idLow,
-        chartIdHigh: idHigh,
+        chartIdLow: idA,
+        chartIdHigh: idB,
         snapLow,
         snapHigh,
         vecLow: vecLow as FeatureVec,
@@ -255,38 +304,53 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
     }
 
     if (normalized.composition_mode === 'group_aggregate') {
-      const chartIds = normalized.canonical_slot_order;
+      const populated = populatedResolutionsInUiOrder(normalized);
+      let overriddenSnaps: EphemerisSnapshot[];
       try {
-        const ctx = await resolveRelationalConnectionFromChartIds(chartIds, input.binding?.group_id);
-        const anchorSnapshot = ctx.natalSnapshotsOrdered[0];
-        const aggregate = await composeAPI.runAggregateComposition({
-          kind: 'group',
-          anchorSnapshot,
-          snapshotsOrdered: ctx.natalSnapshotsOrdered,
-          composite: ctx.composite as FeatureVec,
-          payload: ctx.payload,
-          output_kind,
-        });
-        return {
-          ok: true,
-          composition_mode: 'group_aggregate',
-          canonical_slot_order: normalized.canonical_slot_order,
-          canonical_input_hash: normalized.canonical_input_hash,
-          canonical_input_hash_version: normalized.canonical_input_hash_version,
-          output_kind,
-          aggregate,
-        };
+        overriddenSnaps = await Promise.all(populated.map((r) => resolveSandboxSlotToOverriddenSnapshot(r)));
       } catch (e) {
-        if (e instanceof MissingVectorsError) {
+        if (isChartNotFoundErr(e)) {
           return {
             ok: false,
-            code: SANDBOX_RESOLVE_ERROR_CODES.MISSING_STORED_VECTORS,
-            message: `missing_stored_vectors: ${(e as MissingVectorsError).message}`,
-            status: 422,
+            code: SANDBOX_RESOLVE_ERROR_CODES.CHART_NOT_FOUND,
+            message: e instanceof Error ? e.message : 'Chart not found',
+            status: 404,
           };
         }
         throw e;
       }
+
+      const { generateArchitectureFromSnapshot } = await import('../core/architecture-engine');
+      const archs = await Promise.all(
+        overriddenSnaps.map((sn) => generateArchitectureFromSnapshot(sn)),
+      );
+      const memberVecs = archs.map((a) => a.features as Float32Array | number[]);
+      const composite = aggregateFeatureVectors(memberVecs, 'mean_normalized') as FeatureVec;
+
+      const slotTokens = populated.map((r) => slotIdentityForComparisonSeed(r));
+      const vectorHashesUi = memberVecs.map((v) => hashVector64(v));
+      const groupSeed = buildSandboxGroupSeed(slotTokens, vectorHashesUi, input.binding?.group_id);
+      const payload = vectorToControlPayload(composite, groupSeed);
+
+      const aggregate = await composeAPI.runAggregateComposition({
+        kind: 'group',
+        anchorSnapshot: overriddenSnaps[0],
+        snapshotsOrdered: overriddenSnaps,
+        memberFeatureVecs: memberVecs as FeatureVec[],
+        composite,
+        payload,
+        output_kind,
+      });
+
+      return {
+        ok: true,
+        composition_mode: 'group_aggregate',
+        canonical_slot_order: normalized.canonical_slot_order,
+        canonical_input_hash: normalized.canonical_input_hash,
+        canonical_input_hash_version: normalized.canonical_input_hash_version,
+        output_kind,
+        aggregate,
+      };
     }
 
     return {

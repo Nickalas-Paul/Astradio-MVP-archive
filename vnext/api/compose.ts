@@ -73,6 +73,8 @@ export type AggregateCompositionInput =
       kind: 'group';
       anchorSnapshot: EphemerisSnapshot;
       snapshotsOrdered: EphemerisSnapshot[];
+      /** When set (Sandbox / composition-faithful group), participants use these features instead of encodeFeatures(snapshot). */
+      memberFeatureVecs?: FeatureVec[];
       composite: FeatureVec;
       payload: ControlSurfacePayload;
       relationalWeather?: RelationalWeatherStateV1;
@@ -677,7 +679,10 @@ export class ComposeAPI {
           ]
         : input.snapshotsOrdered.map((sn, i) => ({
             snapshot: sn,
-            featureVec: encodeFeatures(sn) as FeatureVec,
+            featureVec:
+              input.memberFeatureVecs != null && input.memberFeatureVecs[i] != null
+                ? input.memberFeatureVecs[i]!
+                : (encodeFeatures(sn) as FeatureVec),
             role: (i === 0 ? 'primary' : 'member_i') as 'primary' | 'member_i',
           }));
 

@@ -1,6 +1,9 @@
 /**
  * Sandbox composition normalization — derives composition_mode from slot structure only.
  * No routing or I/O. Fail-closed validation per command-center policy.
+ *
+ * Canonical slot order = ascending populated UI indices (LOCK 5).
+ * Per-slot overrides threaded for chart_id and birth; hash includes full slot identity (LOCK 4).
  */
 
 import * as crypto from 'crypto';
@@ -58,17 +61,34 @@ export type SandboxCompositionInputV1 = {
 
 export type DerivedCompositionMode = 'single' | 'overlay' | 'pair_aggregate' | 'group_aggregate';
 
+function slotOverridesFromInput(s: CompositionSlotInput): SandboxOverrides {
+  if (s.overrides && typeof s.overrides === 'object') {
+    return s.overrides;
+  }
+  return { planets: {} };
+}
+
+export type SandboxSlotResolution = {
+  ui_index: number;
+  chart_id: string | null;
+  birth?: SandboxBirth;
+  /** Always present for populated slots; normalized override patch for hashing + execute. */
+  overrides: SandboxOverrides;
+};
+
 export type NormalizedCompositionSuccess = {
   ok: true;
   composition_mode: DerivedCompositionMode;
-  /** Canonical participant order for identity (lexical chart ids for aggregates; structured for single birth). */
+  /**
+   * One token per populated slot, ascending UI index (LOCK 5).
+   * Format: `{idx}:chart:{chart_id}:ov:{hashOverrides}` or `{idx}:birth:{hashBirth}:ov:{hashOverrides}`
+   */
   canonical_slot_order: string[];
   canonical_input_hash: string;
   canonical_input_hash_version: number;
   output_kind: CompositionOutputKind;
   seed?: string;
-  /** Populated slot indices and resolved chart_id or null for birth slot. */
-  slot_resolutions: Array<{ ui_index: number; chart_id: string | null; birth?: SandboxBirth; overrides?: SandboxOverrides }>;
+  slot_resolutions: SandboxSlotResolution[];
   transit_context?: OverlayTransitContextInput;
   binding?: CompositionBindingInput;
   compose_controls: Record<string, unknown>;
@@ -128,6 +148,17 @@ function isValidTransitContext(tc: OverlayTransitContextInput): boolean {
   return true;
 }
 
+function buildSlotOrderToken(idx: number, r: Pick<SandboxSlotResolution, 'chart_id' | 'birth' | 'overrides'>): string {
+  const oh = hashOverrides(r.overrides || { planets: {} });
+  if (r.chart_id) {
+    return `${idx}:chart:${r.chart_id}:ov:${oh}`;
+  }
+  if (r.birth) {
+    return `${idx}:birth:${hashBirth(r.birth)}:ov:${oh}`;
+  }
+  throw new Error('buildSlotOrderToken: empty resolution');
+}
+
 /**
  * Pure normalization: no chart store, no vectors. Callers run aggregate vector checks after this for group mode.
  */
@@ -173,13 +204,14 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     };
   }
 
-  const n = populatedIndices.length;
-
   for (const i of populatedIndices) {
     const s = input.slots[i];
-    if (slotPopulationKind(s) === 'ephemeris_birth' && s.overrides) {
+    const ov = slotOverridesFromInput(s);
+    const hasOv = ov.planets && Object.keys(ov.planets).length > 0;
+    const hasAngles = ov.angles && (ov.angles.ascDeg !== undefined || ov.angles.mcDeg !== undefined);
+    if (hasOv || hasAngles) {
       try {
-        validateSandboxOverrides(s.overrides);
+        validateSandboxOverrides(ov);
       } catch (e) {
         return {
           ok: false,
@@ -190,44 +222,30 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     }
   }
 
-  if (n >= 2) {
-    for (const i of populatedIndices) {
-      const s = input.slots[i];
-      if (slotPopulationKind(s) === 'ephemeris_birth') {
-        return {
-          ok: false,
-          code: SANDBOX_COMPOSITION_ERROR_CODES.MIXED_AGGREGATE_INPUT,
-          message: 'aggregate compositions require chart_id-only slots; persist birth data to a chart first',
-        };
-      }
-      if (slotPopulationKind(s) !== 'chart_id') {
-        return {
-          ok: false,
-          code: SANDBOX_COMPOSITION_ERROR_CODES.AGGREGATE_REQUIRES_CHART_ID,
-          message: `slot ${i}: chart_id required for multi-slot composition`,
-        };
-      }
-    }
-  }
-
-  const slot_resolutions: NormalizedCompositionSuccess['slot_resolutions'] = [];
+  const slot_resolutions: SandboxSlotResolution[] = [];
   for (let i = 0; i < input.slots.length; i++) {
     const s = input.slots[i];
     const kind = slotPopulationKind(s);
+    const overrides = slotOverridesFromInput(s);
     if (kind === 'empty') {
-      slot_resolutions.push({ ui_index: i, chart_id: null });
+      slot_resolutions.push({ ui_index: i, chart_id: null, overrides: { planets: {} } });
     } else if (kind === 'chart_id') {
-      slot_resolutions.push({ ui_index: i, chart_id: String(s.chart_id).trim() });
+      slot_resolutions.push({
+        ui_index: i,
+        chart_id: String(s.chart_id).trim(),
+        overrides,
+      });
     } else {
       slot_resolutions.push({
         ui_index: i,
         chart_id: null,
         birth: s.ephemeris_birth,
-        overrides: s.overrides || { planets: {} },
+        overrides,
       });
     }
   }
 
+  const n = populatedIndices.length;
   const populatedRes = populatedIndices.map((idx) => slot_resolutions.find((r) => r.ui_index === idx)!);
 
   let composition_mode: DerivedCompositionMode;
@@ -236,47 +254,57 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
 
   if (n === 1) {
     composition_mode = 'single';
-    const r = populatedRes[0];
-    if (r.chart_id) canonical_slot_order = [r.chart_id];
-    else if (r.birth) {
-      const bh = hashBirth(r.birth);
-      const oh = hashOverrides(r.overrides || { planets: {} });
-      canonical_slot_order = [`birth:${bh}`, `overrides:${oh}`];
-    }
+    canonical_slot_order = [buildSlotOrderToken(populatedIndices[0], populatedRes[0])];
   } else if (n === 2) {
-    const id0 = populatedRes[0].chart_id!;
-    const id1 = populatedRes[1].chart_id!;
+    const r0 = populatedRes[0];
+    const r1 = populatedRes[1];
+    const id0 = r0.chart_id ?? '';
+    const id1 = r1.chart_id ?? '';
     const overlayCandidate =
       tc &&
       isValidTransitContext(tc) &&
-      tc.natal_chart_id === id0 &&
-      id0 === id1;
+      id0 &&
+      id1 &&
+      id0 === id1 &&
+      tc.natal_chart_id === id0;
     if (overlayCandidate) {
       composition_mode = 'overlay';
       canonical_slot_order = [
-        `natal:${id0}`,
-        `transit:${stableStringify({
-          dt: tc.current_datetime,
-          lat: tc.current_latitude,
-          lon: tc.current_longitude,
-        })}`,
+        buildSlotOrderToken(populatedIndices[0], r0),
+        buildSlotOrderToken(populatedIndices[1], r1),
       ];
     } else {
       composition_mode = 'pair_aggregate';
-      const lo = id0.localeCompare(id1, 'en') <= 0 ? id0 : id1;
-      const hi = lo === id0 ? id1 : id0;
-      canonical_slot_order = [lo, hi];
+      canonical_slot_order = [
+        buildSlotOrderToken(populatedIndices[0], r0),
+        buildSlotOrderToken(populatedIndices[1], r1),
+      ];
     }
   } else {
     composition_mode = 'group_aggregate';
-    const ids = populatedRes.map((r) => r.chart_id!).sort((a, b) => a.localeCompare(b, 'en'));
-    canonical_slot_order = ids;
+    canonical_slot_order = populatedIndices.map((idx, j) => buildSlotOrderToken(idx, populatedRes[j]));
   }
 
   const hashPayload = {
     v: CANONICAL_INPUT_HASH_VERSION,
     mode: composition_mode,
-    order: canonical_slot_order,
+    populated_slots: populatedIndices.map((idx, j) => {
+      const r = populatedRes[j];
+      if (r.chart_id) {
+        return {
+          i: idx,
+          k: 'chart_id' as const,
+          id: r.chart_id,
+          ov: hashOverrides(r.overrides),
+        };
+      }
+      return {
+        i: idx,
+        k: 'birth' as const,
+        natal: hashBirth(r.birth!),
+        ov: hashOverrides(r.overrides),
+      };
+    }),
     binding: input.binding || null,
     transit:
       composition_mode === 'overlay' && tc
