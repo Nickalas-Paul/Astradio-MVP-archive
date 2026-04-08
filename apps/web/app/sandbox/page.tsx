@@ -6,6 +6,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
+import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
 import type {
   SandboxBirth,
   SandboxOverrides,
@@ -215,6 +216,7 @@ export default function SandboxPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
 
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -974,6 +976,13 @@ export default function SandboxPage() {
                     </button>
                   )}
                 </div>
+                <div className="mb-4">
+                  <PlanetPalette
+                    overrides={overrides}
+                    selectedPlanet={paletteSelectedPlanet}
+                    onSelectPlanet={setPaletteSelectedPlanet}
+                  />
+                </div>
                 <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
                   <WheelCanvasBuilder
                     snapshot={currentSnapshot}
@@ -982,6 +991,7 @@ export default function SandboxPage() {
                     isUpdating={surfaceState === 'syncing_overrides'}
                     constrainToHouse={constrainToHouse}
                     showAspectLines={showAspectLines}
+                    selectedPlanetForPlacement={paletteSelectedPlanet}
                   />
                 </div>
               </div>

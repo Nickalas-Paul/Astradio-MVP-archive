@@ -260,8 +260,8 @@ export function WheelCanvasBuilder({
       }
       svgRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
-    } else if (effectiveFreeBuild) {
-      // Click on wheel: place selected planet (or next unplaced) at click position — wheel is authoritative
+    } else if (effectiveFreeBuild || selectedPlanetForPlacement != null) {
+      // Click on wheel: place explicit palette selection, or (free-build) next unplaced / selected — wheel is authoritative
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
