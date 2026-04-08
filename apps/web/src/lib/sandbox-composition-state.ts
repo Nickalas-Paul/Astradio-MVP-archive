@@ -176,6 +176,13 @@ export type SandboxCompositionAction =
       baseSnapshot?: EphemerisSnapshot;
     }
   | {
+      type: 'import_chart_id_slot0_success';
+      chartId: string;
+      snapshot: EphemerisSnapshot;
+      meta: SandboxSnapshotMeta;
+      baseSnapshot?: EphemerisSnapshot;
+    }
+  | {
       type: 'overrides_changed';
       overrides: SandboxOverrides;
       optimisticSnapshot?: EphemerisSnapshot | null;
@@ -266,7 +273,28 @@ export function sandboxCompositionReducer(
     case 'birth_first_snapshot_success': {
       const slots = [...state.compositionInput.slots];
       const preserved = normalizeSandboxOverrides(slot0(state).overrides ?? { planets: {} });
-      const s0 = { ...slot0(state), ephemeris_birth: action.birth, overrides: preserved };
+      const s0: (typeof slots)[0] = { ephemeris_birth: action.birth, overrides: preserved };
+      slots[0] = s0;
+      const base = action.baseSnapshot ?? action.snapshot;
+      return {
+        ...state,
+        lastResolve: null,
+        compositionInput: { ...state.compositionInput, slots, seed: undefined },
+        preview: {
+          ...state.preview,
+          syncStatus: 'idle',
+          baseSnapshot: base,
+          overriddenSnapshot: action.snapshot,
+          snapshotMeta: action.meta,
+          error: null,
+        },
+      };
+    }
+
+    case 'import_chart_id_slot0_success': {
+      const slots = [...state.compositionInput.slots];
+      const preserved = normalizeSandboxOverrides(slot0(state).overrides ?? { planets: {} });
+      const s0: (typeof slots)[0] = { chart_id: action.chartId.trim(), overrides: preserved };
       slots[0] = s0;
       const base = action.baseSnapshot ?? action.snapshot;
       return {

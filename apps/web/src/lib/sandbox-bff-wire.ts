@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import type { CanonicalLocation } from '../types/location';
+import type { SandboxBirth } from '../types/sandbox';
 
 export const CanonicalLocationSchema = z.object({
   source: z.literal('geofinder'),
@@ -45,6 +46,36 @@ export function wireBirthToEngineBirth(wire: z.infer<typeof SandboxBirthWireSche
     lon: wire.location.lon,
     tz: wire.location.timezone,
     houseSystem: wire.houseSystem ?? 'placidus',
+  };
+}
+
+/**
+ * Map GET /api/charts/:id (engine Chart) into Sandbox birth wire for snapshot preview only.
+ * chart_id remains the canonical slot identity for resolve.
+ */
+export function chartApiRecordToSandboxBirthWire(chart: {
+  date: string;
+  time: string;
+  lat: number;
+  lon: number;
+  timezone?: string;
+  label?: string;
+}): SandboxBirth {
+  const date = String(chart.date).slice(0, 10);
+  const rawTime = String(chart.time);
+  const time = rawTime.length >= 5 ? rawTime.slice(0, 5) : rawTime;
+  return {
+    date,
+    time,
+    location: {
+      source: 'geofinder',
+      label: (chart.label && chart.label.trim()) || 'Imported chart',
+      lat: chart.lat,
+      lon: chart.lon,
+      timezone: (chart.timezone && chart.timezone.trim()) || 'UTC',
+      resolvedAt: new Date().toISOString(),
+    },
+    houseSystem: 'placidus',
   };
 }
 

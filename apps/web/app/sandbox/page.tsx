@@ -30,6 +30,7 @@ import {
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
+import { chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
 
 type SandboxSurfaceState =
   | 'idle'
@@ -72,6 +73,11 @@ function slot0Birth(model: SandboxCompositionModelState): SandboxBirth | undefin
 
 function slot0Overrides(model: SandboxCompositionModelState): SandboxOverrides {
   return model.compositionInput.slots[0]?.overrides ?? { planets: {} };
+}
+
+function slot0ChartId(model: SandboxCompositionModelState): string {
+  const id = model.compositionInput.slots[0]?.chart_id;
+  return typeof id === 'string' ? id.trim() : '';
 }
 
 function buildLastResolveFromLoadedRow(
@@ -217,11 +223,16 @@ export default function SandboxPage() {
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
+  const [chartIdImportInput, setChartIdImportInput] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  /** Birth wire matching the loaded chart (ephemeris or imported); drives /api/sandbox/snapshot when slot uses chart_id. */
+  const resolvePreviewBirthRef = useRef<SandboxBirth | null>(null);
 
   const preview = compositionModel.preview;
   const lastResolve = compositionModel.lastResolve;
@@ -251,6 +262,7 @@ export default function SandboxPage() {
 
   const birth = slot0Birth(compositionModel);
   const overrides = slot0Overrides(compositionModel);
+  const chartIdSlot0 = slot0ChartId(compositionModel);
 
   const slotProjectionRows = useMemo(
     () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
@@ -338,6 +350,7 @@ export default function SandboxPage() {
         meta,
         ...(baseSnapshot ? { baseSnapshot } : {}),
       });
+      resolvePreviewBirthRef.current = b;
       setSurfaceState('ready_builder');
     } catch (err) {
       setSurfaceState('error');
@@ -346,10 +359,81 @@ export default function SandboxPage() {
     }
   }, []);
 
+  const handleImportChartById = useCallback(async () => {
+    const rawId = chartIdImportInput.trim();
+    if (!rawId) {
+      setImportError('Enter a chart ID');
+      return;
+    }
+    setImportLoading(true);
+    setImportError(null);
+    setGenerateError(null);
+    setSurfaceState('loading_base');
+    try {
+      const base = getApiBaseUrl();
+      const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(rawId)}`);
+      const chartData = await chartRes.json().catch(() => ({}));
+      if (!chartRes.ok) {
+        setSurfaceState('ready_builder');
+        setImportError(
+          (typeof chartData?.error === 'string' && chartData.error) ||
+            (typeof chartData?.message === 'string' && chartData.message) ||
+            `Chart request failed (${chartRes.status})`,
+        );
+        return;
+      }
+      const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : rawId;
+      const wire = chartApiRecordToSandboxBirthWire(chartData);
+      resolvePreviewBirthRef.current = wire;
+      const overridesToUse = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
+      const hasPreservedPlanetOverrides = Object.keys(overridesToUse.planets).length > 0;
+      const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ birth: wire, overrides: overridesToUse }),
+      });
+      const snapData = await snapRes.json().catch(() => ({}));
+      if (!snapRes.ok) {
+        setSurfaceState('ready_builder');
+        setImportError((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
+        return;
+      }
+      let baseSnapshot: EphemerisSnapshot | undefined;
+      if (hasPreservedPlanetOverrides) {
+        const baseRes = await fetch(`${base}/api/sandbox/snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birth: wire, overrides: { planets: {} } }),
+        });
+        const baseD = await baseRes.json().catch(() => ({}));
+        if (!baseRes.ok) {
+          setSurfaceState('ready_builder');
+          setImportError((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
+          return;
+        }
+        baseSnapshot = baseD.snapshot as EphemerisSnapshot;
+      }
+      dispatchComposition({
+        type: 'import_chart_id_slot0_success',
+        chartId: chartIdCanonical,
+        snapshot: snapData.snapshot as EphemerisSnapshot,
+        meta: snapData.meta as SandboxSnapshotMeta,
+        ...(baseSnapshot ? { baseSnapshot } : {}),
+      });
+      setChartIdImportInput('');
+      setSurfaceState('ready_builder');
+    } catch (e) {
+      setSurfaceState('ready_builder');
+      setImportError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImportLoading(false);
+    }
+  }, [chartIdImportInput]);
+
   const handleOverrideChange = useCallback(
     (planet: PlanetKey, lonDeg: number | null) => {
       const model = compositionRef.current;
-      const b = slot0Birth(model);
+      const b = slot0Birth(model) ?? resolvePreviewBirthRef.current ?? undefined;
       const prevOverrides = slot0Overrides(model);
       const newOverrides: SandboxOverrides = { ...prevOverrides, planets: { ...prevOverrides.planets } };
       if (lonDeg === null) delete newOverrides.planets[planet];
@@ -358,7 +442,7 @@ export default function SandboxPage() {
 
       let optimistic: EphemerisSnapshot | null = null;
       const snap = model.preview.overriddenSnapshot;
-      if (snap && b) {
+      if (snap && b != null) {
         optimistic = {
           ...snap,
           planets: snap.planets.map((p) =>
@@ -372,7 +456,7 @@ export default function SandboxPage() {
         overrides: normalized,
         optimisticSnapshot: optimistic ?? undefined,
       });
-      if (model.preview.overriddenSnapshot && b) {
+      if (model.preview.overriddenSnapshot && b != null) {
         updateSnapshot(b, normalized);
       }
     },
@@ -380,28 +464,33 @@ export default function SandboxPage() {
   );
 
   const handleResetAllOverrides = useCallback(() => {
-    if (!birth || !preview.baseSnapshot) return;
+    const bReset = birth ?? resolvePreviewBirthRef.current ?? undefined;
+    if (!bReset || !preview.baseSnapshot) return;
     dispatchComposition({ type: 'reset_overrides_to_base' });
-    updateSnapshot(birth, { planets: {} });
+    updateSnapshot(bReset, { planets: {} });
     setSurfaceState('ready_builder');
   }, [birth, preview.baseSnapshot, updateSnapshot]);
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 
+  const hasResolveSource = Boolean(birth || chartIdSlot0);
   const canGenerate = Boolean(
-    birth && (preview.overriddenSnapshot || preview.baseSnapshot) && preview.snapshotMeta?.combinedHash && surfaceState !== 'syncing_overrides'
+    hasResolveSource &&
+      (preview.overriddenSnapshot || preview.baseSnapshot) &&
+      preview.snapshotMeta?.combinedHash &&
+      surfaceState !== 'syncing_overrides'
   );
 
   const generateDisabledReasons: string[] = [];
-  if (!birth) {
+  if (!hasResolveSource) {
     generateDisabledReasons.push(
-      'Add birth date, time, and place so the workspace has natal geometry for resolve. You can use the wheel and degrees first—manual placements are kept when you save birth data.',
+      'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
     );
   }
-  if (!preview.baseSnapshot && !preview.overriddenSnapshot && birth) {
-    generateDisabledReasons.push('Wait for the chart preview to finish loading after birth data.');
+  if (!preview.baseSnapshot && !preview.overriddenSnapshot && hasResolveSource) {
+    generateDisabledReasons.push('Wait for the chart preview to finish loading.');
   }
-  if (!preview.snapshotMeta?.combinedHash && birth) {
+  if (!preview.snapshotMeta?.combinedHash && hasResolveSource) {
     generateDisabledReasons.push('Wait for the preview hash to finish updating after the last edit (required for resolve).');
   }
   if (surfaceState === 'syncing_overrides') {
@@ -415,8 +504,28 @@ export default function SandboxPage() {
   );
 
   const handleGenerate = useCallback(async () => {
-    if (!canGenerate || !birth) return;
-    const overridesNorm = normalizeSandboxOverrides(overrides);
+    if (!canGenerate) return;
+    const modelPre = compositionRef.current;
+    let birthForSnap: SandboxBirth | null = slot0Birth(modelPre) ?? resolvePreviewBirthRef.current ?? null;
+    const cid = slot0ChartId(modelPre);
+    const base = getApiBaseUrl();
+    if (!birthForSnap && cid) {
+      try {
+        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+        const chartData = await chartRes.json().catch(() => ({}));
+        if (!chartRes.ok) {
+          setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
+          return;
+        }
+        birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
+        resolvePreviewBirthRef.current = birthForSnap;
+      } catch (e) {
+        setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
+        return;
+      }
+    }
+    if (!birthForSnap) return;
+    const overridesNorm = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
@@ -430,7 +539,6 @@ export default function SandboxPage() {
       el.pause();
       el.currentTime = 0;
     }
-    const base = getApiBaseUrl();
     if (abortControllerRef.current) abortControllerRef.current.abort();
     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     snapshotSequenceRef.current++;
@@ -439,7 +547,7 @@ export default function SandboxPage() {
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth, overrides: overridesNorm }),
+        body: JSON.stringify({ birth: birthForSnap, overrides: overridesNorm }),
       });
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
@@ -559,7 +667,7 @@ export default function SandboxPage() {
     } finally {
       setGenerateLoading(false);
     }
-  }, [canGenerate, birth, overrides]);
+  }, [canGenerate]);
 
   const handleReplay = useCallback(async () => {
     const lr = compositionModel.lastResolve;
@@ -803,20 +911,62 @@ export default function SandboxPage() {
           lastResolve,
         });
       } else {
-        const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, null);
-        dispatchComposition({
-          type: 'hydrate_from_persistence',
-          compositionInput: parsed.compositionInput,
-          preview: {
-            epoch: 0,
-            syncStatus: 'idle',
-            baseSnapshot: null,
-            overriddenSnapshot: null,
-            snapshotMeta: null,
-            error: null,
-          },
-          lastResolve,
-        });
+        const s0Load = parsed.compositionInput.slots[0];
+        const cidLoad = typeof s0Load?.chart_id === 'string' ? s0Load.chart_id.trim() : '';
+        if (cidLoad) {
+          const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cidLoad)}`);
+          const chartData = await chartRes.json().catch(() => ({}));
+          if (!chartRes.ok) {
+            setSurfaceState('ready_builder');
+            setError((chartData?.error ?? chartData?.message) || 'Chart not found for saved composition');
+            return;
+          }
+          const wire = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthRef.current = wire;
+          const ovLoad = normalizeSandboxOverrides(s0Load?.overrides ?? { planets: {} });
+          const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ birth: wire, overrides: ovLoad }),
+          });
+          const snapData = await snapRes.json().catch(() => ({}));
+          if (!snapRes.ok) {
+            setSurfaceState('ready_builder');
+            setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
+            return;
+          }
+          const snapshot = snapData.snapshot as EphemerisSnapshot;
+          const meta = snapData.meta as SandboxSnapshotMeta;
+          const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, snapshot);
+          dispatchComposition({
+            type: 'hydrate_from_persistence',
+            compositionInput: parsed.compositionInput,
+            preview: {
+              epoch: 0,
+              syncStatus: 'idle',
+              baseSnapshot: snapshot,
+              overriddenSnapshot: snapshot,
+              snapshotMeta: meta,
+              error: null,
+            },
+            lastResolve,
+          });
+        } else {
+          const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, null);
+          dispatchComposition({
+            type: 'hydrate_from_persistence',
+            compositionInput: parsed.compositionInput,
+            preview: {
+              epoch: 0,
+              syncStatus: 'idle',
+              baseSnapshot: null,
+              overriddenSnapshot: null,
+              snapshotMeta: null,
+              error: null,
+            },
+            lastResolve,
+          });
+        }
       }
       setSurfaceState('ready_report');
       setError(null);
@@ -898,6 +1048,7 @@ export default function SandboxPage() {
                 onClick={() => {
                   setSurfaceState('ready_builder');
                   setError(null);
+                  resolvePreviewBirthRef.current = null;
                   dispatchComposition({ type: 'reset_all' });
                 }}
                 className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
@@ -964,6 +1115,37 @@ export default function SandboxPage() {
                   })}
                 </div>
                 <p className="text-xs text-subtext mt-3">These slots match what resolve uses for the current composition.</p>
+                <div className="mt-4 pt-3 border-t border-border/60">
+                  <p className="text-xs font-medium text-text mb-1">Import chart by ID</p>
+                  <p className="text-xs text-subtext mb-2">
+                    Uses the same stored chart as community compatibility (<code className="text-[10px]">GET /api/charts/:id</code>). Slot 0 keeps{' '}
+                    <span className="font-medium text-text">chart_id</span> for resolve; preview and hash use the chart coordinates (same snapshot route
+                    as birth entry).
+                  </p>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input
+                      type="text"
+                      value={chartIdImportInput}
+                      onChange={(e) => {
+                        setChartIdImportInput(e.target.value);
+                        if (importError) setImportError(null);
+                      }}
+                      placeholder="Chart id"
+                      disabled={importLoading}
+                      className="min-w-[12rem] flex-1 px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text font-mono"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleImportChartById()}
+                      disabled={importLoading}
+                      className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text"
+                    >
+                      {importLoading ? 'Importing…' : 'Import'}
+                    </button>
+                  </div>
+                  {importError ? <p className="text-xs text-red-400 mt-2">{importError}</p> : null}
+                </div>
               </div>
 
               <div className="card">
