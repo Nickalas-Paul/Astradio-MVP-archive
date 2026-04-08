@@ -166,7 +166,15 @@ export type SandboxCompositionAction =
   | { type: 'preview_sync_start' }
   | { type: 'preview_sync_success'; snapshot: EphemerisSnapshot; meta: SandboxSnapshotMeta }
   | { type: 'preview_sync_error'; message: string }
-  | { type: 'birth_first_snapshot_success'; birth: SandboxBirth; snapshot: EphemerisSnapshot; meta: SandboxSnapshotMeta }
+  | {
+      type: 'birth_first_snapshot_success';
+      birth: SandboxBirth;
+      /** Effective snapshot (natal + preserved overrides). */
+      snapshot: EphemerisSnapshot;
+      meta: SandboxSnapshotMeta;
+      /** Natal-only snapshot when overrides were preserved; omit when snapshot is already natal-only. */
+      baseSnapshot?: EphemerisSnapshot;
+    }
   | {
       type: 'overrides_changed';
       overrides: SandboxOverrides;
@@ -257,8 +265,10 @@ export function sandboxCompositionReducer(
 
     case 'birth_first_snapshot_success': {
       const slots = [...state.compositionInput.slots];
-      const s0 = { ...slot0(state), ephemeris_birth: action.birth, overrides: { planets: {} } };
+      const preserved = normalizeSandboxOverrides(slot0(state).overrides ?? { planets: {} });
+      const s0 = { ...slot0(state), ephemeris_birth: action.birth, overrides: preserved };
       slots[0] = s0;
+      const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
         lastResolve: null,
@@ -266,7 +276,7 @@ export function sandboxCompositionReducer(
         preview: {
           ...state.preview,
           syncStatus: 'idle',
-          baseSnapshot: action.snapshot,
+          baseSnapshot: base,
           overriddenSnapshot: action.snapshot,
           snapshotMeta: action.meta,
           error: null,

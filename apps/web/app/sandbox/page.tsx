@@ -303,21 +303,40 @@ export default function SandboxPage() {
     setSurfaceState('loading_base');
     setError(null);
     setGenerateError(null);
-    const overridesToUse = { planets: {} };
+    const overridesToUse = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
+    const hasPreservedPlanetOverrides = Object.keys(overridesToUse.planets).length > 0;
     try {
-      const base = getApiBaseUrl();
-      const res = await fetch(`${base}/api/sandbox/snapshot`, {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/sandbox/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ birth: b, overrides: overridesToUse }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data?.error ?? data?.message) || 'Failed to load chart');
+      const effectiveSnapshot = data.snapshot as EphemerisSnapshot;
+      const meta = data.meta as SandboxSnapshotMeta;
+
+      let baseSnapshot: EphemerisSnapshot | undefined;
+      if (hasPreservedPlanetOverrides) {
+        const baseRes = await fetch(`${baseUrl}/api/sandbox/snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birth: b, overrides: { planets: {} } }),
+        });
+        const baseData = await baseRes.json().catch(() => ({}));
+        if (!baseRes.ok) {
+          throw new Error((baseData?.error ?? baseData?.message) || 'Failed to load natal chart for preview base');
+        }
+        baseSnapshot = baseData.snapshot as EphemerisSnapshot;
+      }
+
       dispatchComposition({
         type: 'birth_first_snapshot_success',
         birth: b,
-        snapshot: data.snapshot as EphemerisSnapshot,
-        meta: data.meta as SandboxSnapshotMeta,
+        snapshot: effectiveSnapshot,
+        meta,
+        ...(baseSnapshot ? { baseSnapshot } : {}),
       });
       setSurfaceState('ready_builder');
     } catch (err) {
