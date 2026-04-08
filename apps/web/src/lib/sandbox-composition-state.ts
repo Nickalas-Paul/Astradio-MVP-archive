@@ -50,6 +50,14 @@ function initialCompositionInput(): SandboxCompositionInputState {
   };
 }
 
+/** Clamped active index for composition input (always valid slot subscript when slots non-empty). */
+export function getActiveSlotIndexFromCompositionInput(input: SandboxCompositionInputState): number {
+  const n = input.slots.length;
+  if (n === 0) return 0;
+  const i = input.active_slot_index;
+  return i >= 0 && i < n ? i : 0;
+}
+
 /** First slot with full ephemeris birth (for /api/sandbox/snapshot after load). */
 export function firstEphemerisBirthForSnapshot(input: SandboxCompositionInputState): {
   birth: SandboxBirth;
@@ -165,6 +173,13 @@ export type SandboxCompositionAction =
   | { type: 'bump_preview_epoch' }
   | { type: 'preview_sync_start' }
   | { type: 'preview_sync_success'; snapshot: EphemerisSnapshot; meta: SandboxSnapshotMeta }
+  | {
+      /** Replace preview snapshots without mutating slots (e.g. after switching active slot). */
+      type: 'preview_restore';
+      snapshot: EphemerisSnapshot;
+      meta: SandboxSnapshotMeta;
+      baseSnapshot?: EphemerisSnapshot;
+    }
   | { type: 'preview_sync_error'; message: string }
   | {
       type: 'birth_first_snapshot_success';
@@ -176,7 +191,7 @@ export type SandboxCompositionAction =
       baseSnapshot?: EphemerisSnapshot;
     }
   | {
-      type: 'import_chart_id_slot0_success';
+      type: 'import_chart_id_success';
       chartId: string;
       snapshot: EphemerisSnapshot;
       meta: SandboxSnapshotMeta;
@@ -185,6 +200,8 @@ export type SandboxCompositionAction =
   | {
       type: 'overrides_changed';
       overrides: SandboxOverrides;
+      /** When omitted, uses current active_slot_index. */
+      slotIndex?: number;
       optimisticSnapshot?: EphemerisSnapshot | null;
     }
   | { type: 'reset_overrides_to_base' }
@@ -222,10 +239,22 @@ export type SandboxCompositionAction =
       compositionInput: SandboxCompositionInputState;
       preview: SandboxPreviewSlice;
       lastResolve: SandboxResolvedSession | null;
-    };
+    }
+  | { type: 'set_active_slot'; index: number }
+  | { type: 'add_slot' }
+  | { type: 'remove_slot'; index: number }
+  | { type: 'clear_slot'; index: number }
+  | { type: 'preview_clear' };
 
-function slot0(state: SandboxCompositionModelState) {
-  return state.compositionInput.slots[0] ?? { overrides: { planets: {} } };
+function withSlotsEnsured(
+  slots: SandboxCompositionInputState['slots'],
+  minIndex: number
+): SandboxCompositionInputState['slots'] {
+  const next = [...slots];
+  while (next.length <= minIndex) {
+    next.push({ overrides: { planets: {} } });
+  }
+  return next;
 }
 
 export function sandboxCompositionReducer(
@@ -260,6 +289,21 @@ export function sandboxCompositionReducer(
         },
       };
 
+    case 'preview_restore': {
+      const base = action.baseSnapshot ?? action.snapshot;
+      return {
+        ...state,
+        preview: {
+          ...state.preview,
+          syncStatus: 'idle',
+          baseSnapshot: base,
+          overriddenSnapshot: action.snapshot,
+          snapshotMeta: action.meta,
+          error: null,
+        },
+      };
+    }
+
     case 'preview_sync_error':
       return {
         ...state,
@@ -271,10 +315,11 @@ export function sandboxCompositionReducer(
       };
 
     case 'birth_first_snapshot_success': {
-      const slots = [...state.compositionInput.slots];
-      const preserved = normalizeSandboxOverrides(slot0(state).overrides ?? { planets: {} });
-      const s0: (typeof slots)[0] = { ephemeris_birth: action.birth, overrides: preserved };
-      slots[0] = s0;
+      const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      let slots = withSlotsEnsured(state.compositionInput.slots, idx);
+      const preserved = normalizeSandboxOverrides(slots[idx]?.overrides ?? { planets: {} });
+      slots = [...slots];
+      slots[idx] = { ephemeris_birth: action.birth, overrides: preserved };
       const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
@@ -291,11 +336,12 @@ export function sandboxCompositionReducer(
       };
     }
 
-    case 'import_chart_id_slot0_success': {
-      const slots = [...state.compositionInput.slots];
-      const preserved = normalizeSandboxOverrides(slot0(state).overrides ?? { planets: {} });
-      const s0: (typeof slots)[0] = { chart_id: action.chartId.trim(), overrides: preserved };
-      slots[0] = s0;
+    case 'import_chart_id_success': {
+      const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      let slots = withSlotsEnsured(state.compositionInput.slots, idx);
+      const preserved = normalizeSandboxOverrides(slots[idx]?.overrides ?? { planets: {} });
+      slots = [...slots];
+      slots[idx] = { chart_id: action.chartId.trim(), overrides: preserved };
       const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
@@ -313,9 +359,14 @@ export function sandboxCompositionReducer(
     }
 
     case 'overrides_changed': {
-      const slots = [...state.compositionInput.slots];
-      const s0 = { ...slot0(state), overrides: action.overrides };
-      slots[0] = s0;
+      const idx =
+        action.slotIndex !== undefined
+          ? Math.max(0, Math.min(action.slotIndex, Math.max(0, state.compositionInput.slots.length - 1)))
+          : getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      let slots = withSlotsEnsured(state.compositionInput.slots, idx);
+      const prev = slots[idx] ?? { overrides: { planets: {} } };
+      slots = [...slots];
+      slots[idx] = { ...prev, overrides: action.overrides };
       const preview =
         action.optimisticSnapshot != null
           ? {
@@ -333,9 +384,11 @@ export function sandboxCompositionReducer(
     case 'reset_overrides_to_base': {
       const base = state.preview.baseSnapshot;
       if (!base) return state;
-      const slots = [...state.compositionInput.slots];
-      const s0 = { ...slot0(state), overrides: { planets: {} } };
-      slots[0] = s0;
+      const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      let slots = withSlotsEnsured(state.compositionInput.slots, idx);
+      const prev = slots[idx] ?? { overrides: { planets: {} } };
+      slots = [...slots];
+      slots[idx] = { ...prev, overrides: { planets: {} } };
       return {
         ...state,
         compositionInput: { ...state.compositionInput, slots, seed: undefined },
@@ -345,6 +398,71 @@ export function sandboxCompositionReducer(
         },
       };
     }
+
+    case 'set_active_slot': {
+      const n = state.compositionInput.slots.length;
+      if (n === 0) return state;
+      const idx = Math.max(0, Math.min(action.index, n - 1));
+      return {
+        ...state,
+        compositionInput: { ...state.compositionInput, active_slot_index: idx },
+      };
+    }
+
+    case 'add_slot': {
+      const slots = [...state.compositionInput.slots, { overrides: { planets: {} } }];
+      return {
+        ...state,
+        lastResolve: null,
+        compositionInput: {
+          ...state.compositionInput,
+          slots,
+          active_slot_index: slots.length - 1,
+          seed: undefined,
+        },
+      };
+    }
+
+    case 'remove_slot': {
+      if (state.compositionInput.slots.length <= 1) return state;
+      const index = action.index;
+      if (index < 0 || index >= state.compositionInput.slots.length) return state;
+      const slots = state.compositionInput.slots.filter((_, i) => i !== index);
+      let newActive = state.compositionInput.active_slot_index;
+      if (newActive === index) newActive = Math.max(0, index - 1);
+      else if (newActive > index) newActive -= 1;
+      newActive = Math.max(0, Math.min(newActive, slots.length - 1));
+      return {
+        ...state,
+        lastResolve: null,
+        compositionInput: { ...state.compositionInput, slots, active_slot_index: newActive, seed: undefined },
+      };
+    }
+
+    case 'clear_slot': {
+      const index = action.index;
+      if (index < 0 || index >= state.compositionInput.slots.length) return state;
+      const slots = [...state.compositionInput.slots];
+      slots[index] = { overrides: { planets: {} } };
+      return {
+        ...state,
+        lastResolve: null,
+        compositionInput: { ...state.compositionInput, slots, seed: undefined },
+      };
+    }
+
+    case 'preview_clear':
+      return {
+        ...state,
+        preview: {
+          ...state.preview,
+          syncStatus: 'idle',
+          baseSnapshot: null,
+          overriddenSnapshot: null,
+          snapshotMeta: null,
+          error: null,
+        },
+      };
 
     case 'resolve_success': {
       const live: SandboxLiveResolveSession = {

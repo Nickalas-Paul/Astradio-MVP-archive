@@ -25,7 +25,7 @@ import {
   roundSandboxDegree,
   sandboxCompositionReducer,
   serializeSandboxResolveRequestBody,
-  firstEphemerisBirthForSnapshot,
+  getActiveSlotIndexFromCompositionInput,
   parsePersistedSandboxState,
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
@@ -67,16 +67,19 @@ function ExplainerSections({ explanation }: { explanation: unknown }) {
   );
 }
 
-function slot0Birth(model: SandboxCompositionModelState): SandboxBirth | undefined {
-  return model.compositionInput.slots[0]?.ephemeris_birth;
+function activeSlotBirth(model: SandboxCompositionModelState): SandboxBirth | undefined {
+  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+  return model.compositionInput.slots[i]?.ephemeris_birth;
 }
 
-function slot0Overrides(model: SandboxCompositionModelState): SandboxOverrides {
-  return model.compositionInput.slots[0]?.overrides ?? { planets: {} };
+function activeSlotOverrides(model: SandboxCompositionModelState): SandboxOverrides {
+  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+  return model.compositionInput.slots[i]?.overrides ?? { planets: {} };
 }
 
-function slot0ChartId(model: SandboxCompositionModelState): string {
-  const id = model.compositionInput.slots[0]?.chart_id;
+function activeSlotChartId(model: SandboxCompositionModelState): string {
+  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+  const id = model.compositionInput.slots[i]?.chart_id;
   return typeof id === 'string' ? id.trim() : '';
 }
 
@@ -231,8 +234,9 @@ export default function SandboxPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotSequenceRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  /** Birth wire matching the loaded chart (ephemeris or imported); drives /api/sandbox/snapshot when slot uses chart_id. */
-  const resolvePreviewBirthRef = useRef<SandboxBirth | null>(null);
+  /** Per-slot birth wire when slot uses chart_id (and optional cache for snapshot). */
+  const resolvePreviewBirthBySlotRef = useRef<Map<number, SandboxBirth>>(new Map());
+  const activeSlotPreviewSeqRef = useRef(0);
 
   const preview = compositionModel.preview;
   const lastResolve = compositionModel.lastResolve;
@@ -260,9 +264,9 @@ export default function SandboxPage() {
     }
   }, [exportId]);
 
-  const birth = slot0Birth(compositionModel);
-  const overrides = slot0Overrides(compositionModel);
-  const chartIdSlot0 = slot0ChartId(compositionModel);
+  const birth = activeSlotBirth(compositionModel);
+  const overrides = activeSlotOverrides(compositionModel);
+  const chartIdActive = activeSlotChartId(compositionModel);
 
   const slotProjectionRows = useMemo(
     () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
@@ -311,11 +315,117 @@ export default function SandboxPage() {
     []
   );
 
+  /** Loads wheel preview for the current active slot without mutating slot contents (used on slot switch). */
+  const syncPreviewToActiveSlot = useCallback(async () => {
+    const seq = ++activeSlotPreviewSeqRef.current;
+    const model = compositionRef.current;
+    const input = model.compositionInput;
+    const idx = getActiveSlotIndexFromCompositionInput(input);
+    const slot = input.slots[idx];
+    const baseUrl = getApiBaseUrl();
+
+    const birth = slot?.ephemeris_birth;
+    const cid = typeof slot?.chart_id === 'string' ? slot.chart_id.trim() : '';
+    const overridesToUse = normalizeSandboxOverrides(slot?.overrides ?? { planets: {} });
+
+    const isFullBirth =
+      birth &&
+      typeof birth.date === 'string' &&
+      birth.date.length >= 8 &&
+      typeof birth.time === 'string' &&
+      birth.time.length >= 4;
+
+    if (!isFullBirth && !cid) {
+      if (seq !== activeSlotPreviewSeqRef.current) return;
+      dispatchComposition({ type: 'preview_clear' });
+      return;
+    }
+
+    dispatchComposition({ type: 'preview_sync_start' });
+
+    try {
+      let b: SandboxBirth;
+      if (isFullBirth) {
+        b = birth;
+      } else {
+        const chartRes = await fetch(`${baseUrl}/api/charts/${encodeURIComponent(cid)}`);
+        const chartData = await chartRes.json().catch(() => ({}));
+        if (!chartRes.ok) {
+          if (seq !== activeSlotPreviewSeqRef.current) return;
+          dispatchComposition({
+            type: 'preview_sync_error',
+            message: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}`,
+          });
+          return;
+        }
+        const wire = chartApiRecordToSandboxBirthWire(chartData);
+        resolvePreviewBirthBySlotRef.current.set(idx, wire);
+        b = wire;
+      }
+
+      const hasPreserved = Object.keys(overridesToUse.planets).length > 0;
+      const res = await fetch(`${baseUrl}/api/sandbox/snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ birth: b, overrides: overridesToUse }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (seq !== activeSlotPreviewSeqRef.current) return;
+        dispatchComposition({
+          type: 'preview_sync_error',
+          message: (data?.error ?? data?.message) || `Snapshot failed: ${res.status}`,
+        });
+        return;
+      }
+      const effectiveSnapshot = data.snapshot as EphemerisSnapshot;
+      const meta = data.meta as SandboxSnapshotMeta;
+
+      let baseSnapshot: EphemerisSnapshot | undefined;
+      if (hasPreserved) {
+        const baseRes = await fetch(`${baseUrl}/api/sandbox/snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birth: b, overrides: { planets: {} } }),
+        });
+        const baseData = await baseRes.json().catch(() => ({}));
+        if (!baseRes.ok) {
+          if (seq !== activeSlotPreviewSeqRef.current) return;
+          dispatchComposition({
+            type: 'preview_sync_error',
+            message: (baseData?.error ?? baseData?.message) || 'Failed to load natal chart for preview base',
+          });
+          return;
+        }
+        baseSnapshot = baseData.snapshot as EphemerisSnapshot;
+      }
+
+      if (seq !== activeSlotPreviewSeqRef.current) return;
+      if (isFullBirth) resolvePreviewBirthBySlotRef.current.set(idx, b);
+      dispatchComposition({
+        type: 'preview_restore',
+        snapshot: effectiveSnapshot,
+        meta,
+        ...(baseSnapshot ? { baseSnapshot } : {}),
+      });
+    } catch (e) {
+      if (seq !== activeSlotPreviewSeqRef.current) return;
+      dispatchComposition({
+        type: 'preview_sync_error',
+        message: e instanceof Error ? e.message : 'Preview sync failed',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    void syncPreviewToActiveSlot();
+  }, [compositionModel.compositionInput.active_slot_index, syncPreviewToActiveSlot]);
+
   const handleBirthSubmit = useCallback(async (b: SandboxBirth) => {
     setSurfaceState('loading_base');
     setError(null);
     setGenerateError(null);
-    const overridesToUse = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
+    const overridesToUse = normalizeSandboxOverrides(activeSlotOverrides(compositionRef.current));
     const hasPreservedPlanetOverrides = Object.keys(overridesToUse.planets).length > 0;
     try {
       const baseUrl = getApiBaseUrl();
@@ -350,7 +460,10 @@ export default function SandboxPage() {
         meta,
         ...(baseSnapshot ? { baseSnapshot } : {}),
       });
-      resolvePreviewBirthRef.current = b;
+      resolvePreviewBirthBySlotRef.current.set(
+        getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),
+        b
+      );
       setSurfaceState('ready_builder');
     } catch (err) {
       setSurfaceState('error');
@@ -384,8 +497,11 @@ export default function SandboxPage() {
       }
       const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : rawId;
       const wire = chartApiRecordToSandboxBirthWire(chartData);
-      resolvePreviewBirthRef.current = wire;
-      const overridesToUse = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
+      resolvePreviewBirthBySlotRef.current.set(
+        getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),
+        wire
+      );
+      const overridesToUse = normalizeSandboxOverrides(activeSlotOverrides(compositionRef.current));
       const hasPreservedPlanetOverrides = Object.keys(overridesToUse.planets).length > 0;
       const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
         method: 'POST',
@@ -414,7 +530,7 @@ export default function SandboxPage() {
         baseSnapshot = baseD.snapshot as EphemerisSnapshot;
       }
       dispatchComposition({
-        type: 'import_chart_id_slot0_success',
+        type: 'import_chart_id_success',
         chartId: chartIdCanonical,
         snapshot: snapData.snapshot as EphemerisSnapshot,
         meta: snapData.meta as SandboxSnapshotMeta,
@@ -433,8 +549,10 @@ export default function SandboxPage() {
   const handleOverrideChange = useCallback(
     (planet: PlanetKey, lonDeg: number | null) => {
       const model = compositionRef.current;
-      const b = slot0Birth(model) ?? resolvePreviewBirthRef.current ?? undefined;
-      const prevOverrides = slot0Overrides(model);
+      const idx = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+      const b =
+        model.compositionInput.slots[idx]?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(idx) ?? undefined;
+      const prevOverrides = activeSlotOverrides(model);
       const newOverrides: SandboxOverrides = { ...prevOverrides, planets: { ...prevOverrides.planets } };
       if (lonDeg === null) delete newOverrides.planets[planet];
       else newOverrides.planets[planet] = { lonDeg: roundSandboxDegree(lonDeg) };
@@ -464,16 +582,19 @@ export default function SandboxPage() {
   );
 
   const handleResetAllOverrides = useCallback(() => {
-    const bReset = birth ?? resolvePreviewBirthRef.current ?? undefined;
+    const model = compositionRef.current;
+    const idx = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+    const bReset =
+      model.compositionInput.slots[idx]?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(idx) ?? undefined;
     if (!bReset || !preview.baseSnapshot) return;
     dispatchComposition({ type: 'reset_overrides_to_base' });
     updateSnapshot(bReset, { planets: {} });
     setSurfaceState('ready_builder');
-  }, [birth, preview.baseSnapshot, updateSnapshot]);
+  }, [preview.baseSnapshot, updateSnapshot]);
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 
-  const hasResolveSource = Boolean(birth || chartIdSlot0);
+  const hasResolveSource = Boolean(birth || chartIdActive);
   const canGenerate = Boolean(
     hasResolveSource &&
       (preview.overriddenSnapshot || preview.baseSnapshot) &&
@@ -506,8 +627,15 @@ export default function SandboxPage() {
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
     const modelPre = compositionRef.current;
-    let birthForSnap: SandboxBirth | null = slot0Birth(modelPre) ?? resolvePreviewBirthRef.current ?? null;
-    const cid = slot0ChartId(modelPre);
+    const idxGen = getActiveSlotIndexFromCompositionInput(modelPre.compositionInput);
+    let birthForSnap: SandboxBirth | null =
+      modelPre.compositionInput.slots[idxGen]?.ephemeris_birth ??
+      resolvePreviewBirthBySlotRef.current.get(idxGen) ??
+      null;
+    const cid =
+      typeof modelPre.compositionInput.slots[idxGen]?.chart_id === 'string'
+        ? modelPre.compositionInput.slots[idxGen].chart_id.trim()
+        : '';
     const base = getApiBaseUrl();
     if (!birthForSnap && cid) {
       try {
@@ -518,14 +646,14 @@ export default function SandboxPage() {
           return;
         }
         birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-        resolvePreviewBirthRef.current = birthForSnap;
+        resolvePreviewBirthBySlotRef.current.set(idxGen, birthForSnap);
       } catch (e) {
         setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
         return;
       }
     }
     if (!birthForSnap) return;
-    const overridesNorm = normalizeSandboxOverrides(slot0Overrides(compositionRef.current));
+    const overridesNorm = normalizeSandboxOverrides(activeSlotOverrides(compositionRef.current));
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
@@ -881,7 +1009,25 @@ export default function SandboxPage() {
       setGenerateError(null);
       setSurfaceState('loading_base');
 
-      const ephem = firstEphemerisBirthForSnapshot(parsed.compositionInput);
+      const input = parsed.compositionInput;
+      const activeIdx = getActiveSlotIndexFromCompositionInput(input);
+      const activeSlot = input.slots[activeIdx];
+
+      function ephemFromSlot(s: (typeof input.slots)[number] | undefined) {
+        const b = s?.ephemeris_birth;
+        if (
+          b &&
+          typeof b.date === 'string' &&
+          b.date.length >= 8 &&
+          typeof b.time === 'string' &&
+          b.time.length >= 4
+        ) {
+          return { birth: b, overrides: normalizeSandboxOverrides(s?.overrides ?? { planets: {} }) };
+        }
+        return null;
+      }
+
+      const ephem = ephemFromSlot(activeSlot);
       if (ephem) {
         const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
           method: 'POST',
@@ -911,8 +1057,7 @@ export default function SandboxPage() {
           lastResolve,
         });
       } else {
-        const s0Load = parsed.compositionInput.slots[0];
-        const cidLoad = typeof s0Load?.chart_id === 'string' ? s0Load.chart_id.trim() : '';
+        const cidLoad = typeof activeSlot?.chart_id === 'string' ? activeSlot.chart_id.trim() : '';
         if (cidLoad) {
           const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cidLoad)}`);
           const chartData = await chartRes.json().catch(() => ({}));
@@ -922,8 +1067,8 @@ export default function SandboxPage() {
             return;
           }
           const wire = chartApiRecordToSandboxBirthWire(chartData);
-          resolvePreviewBirthRef.current = wire;
-          const ovLoad = normalizeSandboxOverrides(s0Load?.overrides ?? { planets: {} });
+          resolvePreviewBirthBySlotRef.current.set(activeIdx, wire);
+          const ovLoad = normalizeSandboxOverrides(activeSlot?.overrides ?? { planets: {} });
           const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1048,7 +1193,7 @@ export default function SandboxPage() {
                 onClick={() => {
                   setSurfaceState('ready_builder');
                   setError(null);
-                  resolvePreviewBirthRef.current = null;
+                  resolvePreviewBirthBySlotRef.current.clear();
                   dispatchComposition({ type: 'reset_all' });
                 }}
                 className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
@@ -1093,34 +1238,75 @@ export default function SandboxPage() {
           <div className="grid lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
-                <p className="text-sm font-semibold text-text mb-3">
+                <p className="text-sm font-semibold text-text mb-2">
                   Slots: <span className="font-normal text-subtext">{compositionModel.compositionInput.slots.length}</span> · active:{' '}
                   <span className="font-mono text-text">{compositionModel.compositionInput.active_slot_index}</span>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => dispatchComposition({ type: 'add_slot' })}
+                  className="mb-3 px-2 py-1 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text"
+                >
+                  Add slot
+                </button>
                 <div className="flex flex-wrap gap-2">
                   {slotProjectionRows.map((row) => {
                     const active = row.index === compositionModel.compositionInput.active_slot_index;
+                    const nSlots = compositionModel.compositionInput.slots.length;
                     return (
                       <div
                         key={row.index}
-                        className={`rounded-lg border px-2 py-1.5 text-xs ${
+                        className={`flex flex-wrap items-center gap-1 rounded-lg border px-2 py-1.5 text-xs max-w-full ${
                           active ? 'border-primary bg-primary/10' : 'border-border bg-bgElev/50'
                         }`}
                       >
-                        <span className="font-mono text-subtext">#{row.index}</span>{' '}
-                        <span className="text-text capitalize">{row.kind}</span>
-                        <span className="text-subtext"> · {row.summary}</span>
+                        <button
+                          type="button"
+                          onClick={() => dispatchComposition({ type: 'set_active_slot', index: row.index })}
+                          className="text-left min-w-0 flex-1"
+                        >
+                          <span className="font-mono text-subtext">#{row.index}</span>{' '}
+                          <span className="text-text capitalize">{row.kind}</span>
+                          <span className="text-subtext"> · {row.summary}</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={nSlots <= 1}
+                          onClick={() => {
+                            activeSlotPreviewSeqRef.current += 1;
+                            resolvePreviewBirthBySlotRef.current.clear();
+                            dispatchComposition({ type: 'remove_slot', index: row.index });
+                          }}
+                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-subtext text-[10px]"
+                          title="Remove slot"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            resolvePreviewBirthBySlotRef.current.delete(row.index);
+                            dispatchComposition({ type: 'clear_slot', index: row.index });
+                            if (row.index === compositionModel.compositionInput.active_slot_index) {
+                              void syncPreviewToActiveSlot();
+                            }
+                          }}
+                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-subtext text-[10px]"
+                          title="Clear slot"
+                        >
+                          Clear
+                        </button>
                       </div>
                     );
                   })}
                 </div>
-                <p className="text-xs text-subtext mt-3">These slots match what resolve uses for the current composition.</p>
+                <p className="text-xs text-subtext mt-3">Composition slots and resolve payload stay in sync; the wheel follows the active slot.</p>
                 <div className="mt-4 pt-3 border-t border-border/60">
                   <p className="text-xs font-medium text-text mb-1">Import chart by ID</p>
                   <p className="text-xs text-subtext mb-2">
-                    Uses the same stored chart as community compatibility (<code className="text-[10px]">GET /api/charts/:id</code>). Slot 0 keeps{' '}
-                    <span className="font-medium text-text">chart_id</span> for resolve; preview and hash use the chart coordinates (same snapshot route
-                    as birth entry).
+                    Uses the same stored chart as community compatibility (<code className="text-[10px]">GET /api/charts/:id</code>). The{' '}
+                    <span className="font-medium text-text">active</span> slot stores <span className="font-medium text-text">chart_id</span> for resolve;
+                    preview uses the same snapshot route as birth entry.
                   </p>
                   <div className="flex flex-wrap gap-2 items-center">
                     <input
