@@ -1,6 +1,7 @@
 import type { CampaignBodyId, DomainId, PressureFamily, Phase1AspectType } from './contracts';
 import type { AspectTypeKey } from '../../aspect-engine';
 import { ASPECT_CONFIG } from '../../aspect-engine';
+import { CORE_BODIES } from '../../canonical-bodies';
 
 export const PRESSURE_FAMILY_BY_TRANSIT_BODY: Record<CampaignBodyId, PressureFamily> = {
   sun: 'identity',
@@ -13,9 +14,6 @@ export const PRESSURE_FAMILY_BY_TRANSIT_BODY: Record<CampaignBodyId, PressureFam
   uranus: 'disruption',
   neptune: 'dissolution',
   pluto: 'transformation',
-  chiron: 'wound',
-  north_node: 'directional',
-  south_node: 'recurrence',
 };
 
 export const DOMAIN_ID_BY_HOUSE: Record<number, DomainId> = {
@@ -33,21 +31,11 @@ export const DOMAIN_ID_BY_HOUSE: Record<number, DomainId> = {
   12: 'subconscious',
 };
 
-const CORE_BODY_SET = new Set<string>([
-  'sun',
-  'moon',
-  'mercury',
-  'venus',
-  'mars',
-  'jupiter',
-  'saturn',
-  'uranus',
-  'neptune',
-  'pluto',
-]);
+/** Same membership as `CORE_BODIES` / `computeCrossAspectsForMember` (single source). */
+const PHASE1_GEOMETRY_BODY_SET = new Set<string>(CORE_BODIES.map((b) => b));
 
 export function isPhase1SupportedCrossAspectBody(name: string): name is CampaignBodyId {
-  return CORE_BODY_SET.has(name.toLowerCase());
+  return PHASE1_GEOMETRY_BODY_SET.has(name.toLowerCase());
 }
 
 export function toCampaignBodyId(name: string): CampaignBodyId | null {

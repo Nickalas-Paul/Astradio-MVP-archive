@@ -17,6 +17,9 @@ import type {
 } from '../rpg/types';
 import type { CampaignResolutionSeed, DailyPressureState, PressureEvent, PressureFamily } from './phase1/contracts';
 
+/** Phase 1: interaction/growth for the day is modeled on `DailyPressureState`, not per-event hints. */
+const PHASE1_EVENT_GROWTH_PATH_PLACEHOLDER = 'phase1_growth:not_at_event_layer' as const;
+
 export interface CharacterSheet {
   id: string;
   class_slug: string;
@@ -144,7 +147,6 @@ function natalBodyModifier(body: PressureEvent['natal_body']): NatalBodyModifier
       return 'diffuse';
     case 'pluto':
       return 'depth';
-    case 'chiron':
     default:
       return 'tender';
   }
@@ -240,7 +242,7 @@ function eventToChallengePressure(event: PressureEvent) {
     intensityBand: event.intensity_band,
     lifeArea: domainToLifeArea(event.domain_id),
     likelyShadowPattern: `phase1_shadow:${event.pressure_polarity}`,
-    growthPath: `phase1_growth:${event.interaction_hint}`,
+    growthPath: PHASE1_EVENT_GROWTH_PATH_PLACEHOLDER,
     memberChartId: event.member_chart_id,
     contributingDomains: [
       {
@@ -280,6 +282,11 @@ function choiceToDomainAwarePatch(choice: ChoiceOption, domainId: string): strin
   return `${choiceToOutcomePatch(choice)}_${domainId}`;
 }
 
+/**
+ * Materializes Command-Center daily payload from a resolution seed.
+ * `natalSnapshot` is the character anchor for sheet, semantic, and challenge copy (solo: player chart;
+ * group: route passes primary member’s natal—pressure remains pooled from all members in the seed).
+ */
 export async function materializeCampaignDaily(params: {
   resolution: CampaignResolution;
   state: CampaignState;

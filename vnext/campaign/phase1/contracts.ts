@@ -24,16 +24,18 @@ export type PressurePolarity = 'constructive' | 'frictional' | 'volatile' | 'bin
 
 export type PressureIntensityBand = 'low' | 'moderate' | 'high' | 'critical';
 
-export type PressureInteractionHint =
-  | 'reinforcing_candidate'
-  | 'cross_pressuring_candidate'
-  | 'escalating_candidate'
-  | 'dissolving_candidate'
-  | 'transforming_candidate'
-  | 'none';
+/**
+ * Phase 1 does not assign per-event interaction taxonomy; pooled interaction is
+ * `DailyPressureState.interaction_type`. This field stays a single literal for a stable JSON shape.
+ */
+export type PressureInteractionHint = 'none';
 
 export type Phase1AspectType = 'conjunction' | 'opposition' | 'square' | 'trine' | 'sextile';
 
+/**
+ * Bodies participating in Phase 1 transit×natal cross-aspects (`computeCrossAspectsForMember`).
+ * Matches `CORE_BODIES` in `vnext/canonical-bodies.ts`. Not the full ephemeris or chart body list.
+ */
 export type CampaignBodyId =
   | 'sun'
   | 'moon'
@@ -44,10 +46,7 @@ export type CampaignBodyId =
   | 'saturn'
   | 'uranus'
   | 'neptune'
-  | 'pluto'
-  | 'chiron'
-  | 'north_node'
-  | 'south_node';
+  | 'pluto';
 
 export type DomainId =
   | 'self'

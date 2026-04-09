@@ -174,6 +174,7 @@ export function buildPressureEventsForMember(params: {
       domain_id,
       pressure_family,
       pressure_polarity,
+      // interaction_hint: not used in Phase 1; see DailyPressureState.interaction_type.
       interaction_hint: 'none',
       actual_orb_deg: h.orbDeg,
       allowed_orb_deg: allowedOrbForAspect(aspectType),

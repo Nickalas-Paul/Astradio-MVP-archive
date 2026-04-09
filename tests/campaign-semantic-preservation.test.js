@@ -415,7 +415,7 @@ describe('campaign semantic preservation', () => {
       intensityBand: 'high',
       lifeArea: 'relationships',
       likelyShadowPattern: 'phase1_shadow:frictional',
-      growthPath: 'phase1_growth:none',
+      growthPath: 'phase1_growth:not_at_event_layer',
       contributingDomains: [],
     };
 
@@ -582,7 +582,7 @@ describe('campaign semantic preservation', () => {
           intensityBand: 'high',
           lifeArea: 'relationships',
           likelyShadowPattern: 'phase1_shadow:frictional',
-          growthPath: 'phase1_growth:none',
+          growthPath: 'phase1_growth:not_at_event_layer',
           contributingDomains: [],
         },
         {
@@ -598,7 +598,7 @@ describe('campaign semantic preservation', () => {
           intensityBand: 'high',
           lifeArea: 'community',
           likelyShadowPattern: 'phase1_shadow:constructive',
-          growthPath: 'phase1_growth:none',
+          growthPath: 'phase1_growth:not_at_event_layer',
           contributingDomains: [],
         },
         {
@@ -614,7 +614,7 @@ describe('campaign semantic preservation', () => {
           intensityBand: 'high',
           lifeArea: 'community',
           likelyShadowPattern: 'phase1_shadow:constructive',
-          growthPath: 'phase1_growth:none',
+          growthPath: 'phase1_growth:not_at_event_layer',
           contributingDomains: [],
         },
       ],

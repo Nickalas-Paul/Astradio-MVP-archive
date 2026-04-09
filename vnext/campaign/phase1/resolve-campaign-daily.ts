@@ -1,6 +1,10 @@
 /**
  * Campaign Phase 1 — authoritative daily resolver (read-only CampaignState).
  * Single entry for server routes; does not mutate persistence.
+ *
+ * Group note: pressure events from all members are pooled and ranked together (`mode: 'group'`).
+ * CharacterSheet / challenge natal for Command-Center materialization is chosen separately by the
+ * route layer (primary member’s chart), not an aggregate chart. See `materializeCampaignDaily`.
  */
 
 import type { EphemerisSnapshot } from '../../contracts';
@@ -92,6 +96,7 @@ export function resolveCampaignDaily(input: ResolveCampaignDailyInput): Campaign
     };
   }
 
+  // Pooled cross-aspects: same transit × each member natal; selection is global across members.
   const pressure_events: import('./contracts').PressureEvent[] = [];
   for (let i = 0; i < input.chart_ids_ordered.length; i++) {
     const chartId = input.chart_ids_ordered[i]!;

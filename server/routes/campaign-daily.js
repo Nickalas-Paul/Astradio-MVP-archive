@@ -561,6 +561,8 @@ function createCampaignDailyRouter() {
       }
 
       const fpAnchor = transitContextFingerprint(anchorLocation, date, time);
+      // Group daily pressure is pooled across members in the resolution seed; CharacterSheet / challenge
+      // materialization intentionally uses one natal (primary pressure member, else first chart)—not a blend.
       const primaryChartId =
         seed.daily_pressure_state &&
         seed.daily_pressure_state.group_context &&
