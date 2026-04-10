@@ -1,17 +1,16 @@
 /**
- * Phase D — connection-type structural framing (projection only; not wording-only swaps).
- * Each preface is exactly three sentences (period-terminated) for density validation.
+ * Connection / ensemble preface — private to rule layer; only called from assemble-sections.
  */
-import type { ConnectionMode, ExpansionTier, ProjectedExplanationSection, ProjectionSurface } from './projection-types';
+import type { ConnectionMode, ExpansionTier, ProjectedExplanationSection, ProjectionSurface } from '../projection-types';
 
 function openingForMode(mode: ConnectionMode, seed: string): string | null {
   if (!mode || mode === 'group') return null;
   const variants: Record<string, string[]> = {
     friends: [
-      `Structural framing (friends): cooperative bandwidth and mutual pacing tend to organize this pair readout. The following sections weight repair capacity and shared rhythm when friction signals appear. Emphasis stays descriptive and avoids locking a single relationship myth.`,
+      `Structural framing (friends): cooperative bandwidth and mutual timing tend to organize this pair readout. The following sections weight repair capacity and shared coordination when friction signals appear. Emphasis stays descriptive and avoids locking a single relationship myth.`,
     ],
     lovers: [
-      `Structural framing (lovers): reciprocity and intimacy rhythm tend to organize this pair readout. Polarity may read as attraction tension rather than a verdict on compatibility. The copy below stays observational and does not treat chemistry as a fixed verdict.`,
+      `Structural framing (lovers): reciprocity and intimacy cadence tend to organize this pair readout. Polarity may read as attraction tension rather than a verdict on compatibility. The copy below stays observational and does not treat chemistry as a fixed verdict.`,
     ],
     rivals: [
       `Structural framing (rivals): competitive charge and boundary pressure tend to organize this pair readout. Harmony signals are not treated as the default story unless they dominate the encoded field. Friction language is named without turning it into a moral label.`,
@@ -20,10 +19,10 @@ function openingForMode(mode: ConnectionMode, seed: string): string | null {
       `Structural framing (neutral): low-assumption interface dynamics tend to organize this pair readout. Emphasis stays descriptive and avoids locking a relationship myth. The readout weights what the semantic field encodes rather than a preferred story.`,
     ],
     mentor: [
-      `Structural framing (mentor): asymmetric support pacing tends to organize this pair readout. Emphasis may lean toward guidance bandwidth without implying fixed hierarchy in lived behavior. Both sides of the interface remain visible in the sections below.`,
+      `Structural framing (mentor): asymmetric support timing tends to organize this pair readout. Emphasis may lean toward guidance bandwidth without implying fixed hierarchy in lived behavior. Both sides of the interface remain visible in the sections below.`,
     ],
     collaborator: [
-      `Structural framing (collaborator): task-phase coordination tends to organize this pair readout. Friction may show up around ownership and tempo rather than intimacy chemistry. The following sections keep language situational rather than identity-fixed.`,
+      `Structural framing (collaborator): task-phase coordination tends to organize this pair readout. Friction may show up around ownership and phase alignment rather than intimacy chemistry. The following sections keep language situational rather than identity-fixed.`,
     ],
   };
   const list = variants[mode];
@@ -44,7 +43,6 @@ function groupFieldOpening(participantCount: number, seed: string): string | nul
   return opts[h % opts.length];
 }
 
-/** Insert structural preface as first section (new id) — changes interpretive structure, not adjectives only. */
 export function applyConnectionPreface(
   sections: ProjectedExplanationSection[],
   opts: {

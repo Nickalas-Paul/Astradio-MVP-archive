@@ -1,26 +1,27 @@
 /**
- * Phase D — deterministic projection post-processing (same SemanticCore; no authority rerun).
+ * Step 8 — sole module that constructs ProjectedExplanationSection[] (before tone pass).
+ * See apply-unified-projection for execution order.
  */
-import type { SemanticCore } from '../semantic/semantic-core';
+import type { SemanticCore } from '../../semantic/semantic-core';
 import type {
   ExpansionTier,
   ProjectionOptions,
   ProjectionSurface,
-  ProjectionValidation,
   ProjectedExplanationSection,
-} from './projection-types';
-import { SURFACE_SCHEMAS, expansionKeysFor } from './surface-schemas';
-import { lintSectionBody } from './language-lint';
-import { validateDensity, densityForSurfaceBaseline } from './density-validate';
+} from '../projection-types';
+import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
+import { densityForSurfaceBaseline } from '../density-validate';
 import {
   buildClaimMechanismExpressionParagraph,
   buildTensionIntegrationParagraph,
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
   claimSentencesFromRange,
-} from './claim-beats';
-import { buildAudioExplanationBlock } from './audio-explanation';
-import { applyConnectionPreface } from './connection-framing';
+} from './claim-synthesize';
+import { buildAudioStagingBlock, mapDensity, mapTempo } from './audio-lexicon';
+import { applyConnectionPreface } from './connection-preface';
+import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
+import { densityForSectionId } from './validate-projection';
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -55,11 +56,7 @@ function countSentences(text: string): number {
   return Math.max(chunks.length, 1);
 }
 
-function nextFallbackSentence(
-  seed: string,
-  pool: string[],
-  used?: Set<string>
-): string {
+function nextFallbackSentence(seed: string, pool: string[], used?: Set<string>): string {
   const list = pool.length ? pool : PAD_SENTENCES;
   if (list.length === 0) return '';
   const start = hashSeed(seed) % list.length;
@@ -101,48 +98,12 @@ function splitIntoParagraphs(text: string): string[] {
     .filter(Boolean);
 }
 
-/** Join audio explanation paragraphs into one block (sentence order preserved; no paraphrase). */
 function normalizeAudioExplanationBody(audioText: string): string {
   return audioText
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean)
     .join(' ');
-}
-
-function buildFinalProjectionValidation(
-  tierRequested: ExpansionTier,
-  tierEffective: ExpansionTier,
-  validateResult: { ok: boolean; violations: string[] },
-  priorAttemptViolations?: string[]
-): ProjectionValidation {
-  const downgraded =
-    tierRequested !== 'baseline' &&
-    tierEffective === 'baseline' &&
-    priorAttemptViolations != null &&
-    priorAttemptViolations.length > 0;
-  const out: ProjectionValidation = {
-    ok: validateResult.ok,
-    tierRequested,
-    tierEffective,
-    violations: validateResult.violations,
-  };
-  if (downgraded) {
-    out.downgradedFrom = tierRequested;
-    out.prior_attempt_violations = [...priorAttemptViolations!];
-  }
-  return out;
-}
-
-function densityForSectionId(sectionId: string, defaultD: 'short' | 'medium' | 'long'): 'short' | 'medium' | 'long' {
-  if (
-    /^(audio_|connection_|ensemble_|feed_)/.test(sectionId) ||
-    sectionId === 'audio_thread' ||
-    sectionId.startsWith('depth_panel_')
-  ) {
-    return 'short';
-  }
-  return defaultD;
 }
 
 function tierOpeningClause(surface: ProjectionSurface, tier: ExpansionTier, seed: string): string | null {
@@ -162,22 +123,22 @@ function tierOpeningClause(surface: ProjectionSurface, tier: ExpansionTier, seed
     },
     sandbox: {
       expanded: ['Expanded sandbox pass: this lab read adds additional override-sensitive interpretation threads.'],
-      extended: ['Extended sandbox pass: this lab read adds second-order effects for edge-condition sensitivity.'],
+      extended: ['Expanded sandbox pass: this lab read adds second-order effects for edge-condition sensitivity.'],
     },
     overlay_pair: {
       expanded: ['Expanded overlay pass: this read adds more explicit natal-versus-transit layering detail.'],
-      extended: ['Extended overlay pass: this read adds moderator threads across both time layers.'],
+      extended: ['Expanded overlay pass: this read adds moderator threads across both time layers.'],
     },
     compat_pair: {
       expanded: ['Expanded pair pass: this read adds interaction-mode detail beyond the baseline compatibility frame.'],
-      extended: ['Extended pair pass: this read adds secondary pair moderators and contrast handling.'],
+      extended: ['Expanded pair pass: this read adds secondary pair moderators and contrast handling.'],
     },
     group: {
       expanded: ['Expanded group pass: this read adds field-level distribution detail across participants.'],
-      extended: ['Extended group pass: this read adds subcluster-level moderators in the ensemble field.'],
+      extended: ['Expanded group pass: this read adds subcluster-level moderators in the ensemble field.'],
     },
     campaign: {
-      expanded: ['Expanded campaign pass: this read adds pressure-response detail beyond baseline pacing guidance.'],
+      expanded: ['Expanded campaign pass: this read adds pressure-response detail beyond baseline response guidance.'],
       extended: ['Extended campaign pass: this read adds secondary pressure moderators for turn-level adaptation.'],
     },
     feed: {
@@ -204,56 +165,8 @@ function appendSectionGroupBlock(
     claimIds.push(id);
   }
   if (block.claimIds.length === 0) {
-    // Keep structural blocks even when no explicit claim ids are attached.
     return;
   }
-}
-
-function applyAggregateSurfaceIdentityOverrides(
-  sections: ProjectedExplanationSection[],
-  surface: ProjectionSurface,
-  seed: string,
-  core: SemanticCore,
-  tierEff: ExpansionTier,
-  reportPadUsed: Set<string>
-): ProjectedExplanationSection[] {
-  if (surface !== 'compat_pair' && surface !== 'group') return sections;
-  const out = sections.map((s) => ({ ...s }));
-  const schema = SURFACE_SCHEMAS[surface];
-  const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
-  const d = densityForSectionId('relational_field', defaultD);
-  for (let i = 0; i < out.length; i++) {
-    const s = out[i];
-    if (s.id !== 'relational_field') continue;
-    const baseIdentity =
-      surface === 'compat_pair'
-        ? pickVariant(`${seed}:compat:rel`, [
-            'Pair field framing: this section prioritizes dyadic pacing and mutual regulation loops before broader generalization.',
-            'Pair field framing: this section reads relational activation as two-person interface dynamics, not ensemble diffusion.',
-          ])
-        : pickVariant(`${seed}:group:rel`, [
-            'Group field framing: this section prioritizes ensemble distribution effects before any single dyad is highlighted.',
-            'Group field framing: this section reads activation as a multi-node field with local clusters, not one pair axis.',
-          ]);
-    const claimIdsIn =
-      s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
-        ? [...s.meta.claimIdsReferenced]
-        : core.claims.slice(0, 8).map((c) => c.claim_id);
-    const { text, claimIds } = enrichSectionText(
-      baseIdentity,
-      [],
-      d,
-      `${seed}:${surface === 'compat_pair' ? 'compat' : 'group'}:rel:enrich:${i}`,
-      claimIdsIn,
-      reportPadUsed
-    );
-    out[i] = {
-      ...s,
-      text,
-      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true },
-    };
-  }
-  return out;
 }
 
 function enrichSectionText(
@@ -294,25 +207,83 @@ function enrichSectionText(
     }
   }
   merged = paras.join('\n\n');
-  const linted = lintSectionBody(merged);
-  return { text: linted.text, claimIds };
+  return { text: merged, claimIds };
+}
+
+function applyAggregateSurfaceIdentityOverrides(
+  sections: ProjectedExplanationSection[],
+  surface: ProjectionSurface,
+  seed: string,
+  core: SemanticCore,
+  tierEff: ExpansionTier,
+  reportPadUsed: Set<string>
+): ProjectedExplanationSection[] {
+  if (surface !== 'compat_pair' && surface !== 'group') return sections;
+  const out = sections.map((s) => ({ ...s }));
+  const schema = SURFACE_SCHEMAS[surface];
+  const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
+  const d = densityForSectionId('relational_field', defaultD);
+  for (let i = 0; i < out.length; i++) {
+    const s = out[i];
+    if (s.id !== 'relational_field') continue;
+    const baseIdentity =
+      surface === 'compat_pair'
+        ? pickVariant(`${seed}:compat:rel`, [
+            'Pair field framing: this section prioritizes dyadic timing and mutual regulation loops before broader generalization.',
+            'Pair field framing: this section reads relational activation as two-person interface dynamics, not ensemble diffusion.',
+          ])
+        : pickVariant(`${seed}:group:rel`, [
+            'Group field framing: this section prioritizes ensemble distribution effects before any single dyad is highlighted.',
+            'Group field framing: this section reads activation as a multi-node field with local clusters, not one pair axis.',
+          ]);
+    const claimIdsIn =
+      s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
+        ? [...s.meta.claimIdsReferenced]
+        : core.claims.slice(0, 8).map((c) => c.claim_id);
+    const { text, claimIds } = enrichSectionText(
+      baseIdentity,
+      [],
+      d,
+      `${seed}:${surface === 'compat_pair' ? 'compat' : 'group'}:rel:enrich:${i}`,
+      claimIdsIn,
+      reportPadUsed
+    );
+    out[i] = {
+      ...s,
+      text,
+      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true },
+    };
+  }
+  return out;
+}
+
+export function buildEmphasisRawSections(
+  core: SemanticCore,
+  seed: string,
+  templateCtx: TemplateContext
+): ProjectedExplanationSection[] {
+  const out: ProjectedExplanationSection[] = [];
+  let i = 0;
+  for (const tid of core.text.emphasis_order) {
+    const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`, templateCtx);
+    out.push({
+      id: idMap[tid] ?? tid.toLowerCase(),
+      title,
+      text,
+      bullets,
+    });
+  }
+  return out;
 }
 
 export function buildFeedSections(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
   const claimSlice = claimSentencesFromRange(core, 0, 2, `${seed}:feed:signal`);
   const fallbackUsed = new Set<string>();
-  const t1 = expandSentencesToMin(
-    claimSlice.text,
-    3,
-    `${seed}:feed`,
-    FEED_FALLBACK_SENTENCES,
-    fallbackUsed
-  );
-  const lint1 = lintSectionBody(t1);
+  const t1 = expandSentencesToMin(claimSlice.text, 3, `${seed}:feed`, FEED_FALLBACK_SENTENCES, fallbackUsed);
   const s1: ProjectedExplanationSection = {
     id: 'feed_signal',
     title: 'Signal',
-    text: lint1.text,
+    text: t1,
     meta: { claimIdsReferenced: claimSlice.claimIds.slice(0, 4), phaseD: true },
   };
   const extra = pickVariant(seed + 'feed2', [
@@ -322,31 +293,29 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
   const s2: ProjectedExplanationSection = {
     id: 'feed_context',
     title: 'Scope',
-    text: lintSectionBody(expandSentencesToMin(extra, 3, `${seed}:feed2`, FEED_FALLBACK_SENTENCES, fallbackUsed)).text,
+    text: expandSentencesToMin(extra, 3, `${seed}:feed2`, FEED_FALLBACK_SENTENCES, fallbackUsed),
     meta: { claimIdsReferenced: [], phaseD: true },
   };
   return [s1, s2];
 }
 
-export function applyPhaseDProjection(
-  raw: ProjectedExplanationSection[],
-  core: SemanticCore,
-  seed: string,
-  options: ProjectionOptions,
-  _retryDepth = 0
-): ProjectedExplanationSection[] {
-  const surface = options.surface;
-  const tierMetaRequested: ExpansionTier = options.originalTierRequested ?? options.tier ?? 'baseline';
-  let tierEff: ExpansionTier = options.tier ?? 'baseline';
+export type PhaseDAssemblyParams = {
+  raw: ProjectedExplanationSection[];
+  core: SemanticCore;
+  seed: string;
+  options: ProjectionOptions;
+  tierMetaRequested: ExpansionTier;
+  tierEff: ExpansionTier;
+  surface: ProjectionSurface;
+  temporalBucket: import('./temporal-classify').TemporalVoiceBucket;
+};
+
+export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedExplanationSection[] {
+  const { raw, core, seed, options, tierMetaRequested, tierEff, surface } = params;
   const schema = SURFACE_SCHEMAS[surface];
 
   if (surface === 'feed') {
-    const tierRequested = options.tier ?? 'baseline';
-    const feed = buildFeedSections(core, seed);
-    const vr = validateReportSections(feed, surface, 'baseline', core, tierRequested);
-    const pv = buildFinalProjectionValidation(tierRequested, 'baseline', vr, undefined);
-    feed[feed.length - 1].meta = { ...feed[feed.length - 1].meta, projection_validation: pv };
-    return feed;
+    return buildFeedSections(core, seed);
   }
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
@@ -436,7 +405,7 @@ export function applyPhaseDProjection(
       const syn = [
         pickVariant(seed + ':synb', [
           `Extended synthesis: this pass incorporates lower-ranked moderator claims to map nuance around the headline pattern.`,
-          `Second-pass synthesis: this layer adds moderator claims that can alter pacing without replacing the primary signal.`,
+          `Second-pass synthesis: this layer adds moderator claims that can shift emphasis without replacing the primary signal.`,
         ]),
         synClaim.text,
       ]
@@ -458,10 +427,7 @@ export function applyPhaseDProjection(
       });
     }
     if (key === 'temporal_integration' && surface === 'daily') {
-      const syn = pickVariant(seed + ':temp', [
-        `Temporal integration: today’s activation tends to ride on top of slower baseline patterns; what feels urgent may still be a short spike on a longer curve.`,
-        `Daily integration: if tension shows up in the sky snapshot, it may still move within hours; smaller adjustments often beat global conclusions.`,
-      ]);
+      const syn = temporalIntegrationLine(params.temporalBucket, `${seed}:temp`);
       const { text, claimIds } = enrichSectionText(
         syn,
         [],
@@ -656,7 +622,7 @@ export function applyPhaseDProjection(
     });
   }
 
-  const audio = buildAudioExplanationBlock(core, tierEff, options.narrativePlan ?? null, surface);
+  const audio = buildAudioStagingBlock(core, tierEff, options.narrativePlan ?? null, surface);
   const audioBodyNormalized = normalizeAudioExplanationBody(audio.text);
   if (tierEff === 'baseline') {
     const parts = audioBodyNormalized.split(/(?<=[.!?])\s+/).filter(Boolean);
@@ -688,7 +654,9 @@ export function applyPhaseDProjection(
 
   if (tierEff === 'extended' && extraKeys.includes('audio_thread')) {
     const bridge = pickVariant(seed + ':ath', [
-      `Audio thread: staging is designed to track the same tension curve as the text readout; listen for how pacing and density mirror the encoded claims above.`,
+      `Audio thread: staging tracks the same envelope read as the text; listen for how ${mapTempo(core.audio.tempo_band)} and ${mapDensity(
+        core.audio.density_band
+      )} mirror the encoded field above.`,
     ]);
     const { text } = enrichSectionText(bridge, [], 'short', `${seed}:at`, [], reportPadUsed);
     out.splice(Math.min(2, out.length), 0, {
@@ -708,64 +676,5 @@ export function applyPhaseDProjection(
   });
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
 
-  const validationResult = validateReportSections(framed, surface, tierEff, core, tierEff);
-
-  if (!validationResult.ok && tierEff !== 'baseline' && _retryDepth < 1) {
-    return applyPhaseDProjection(
-      raw,
-      core,
-      seed,
-      {
-        ...options,
-        tier: 'baseline',
-        originalTierRequested: tierMetaRequested,
-        _priorAttemptViolations: [...validationResult.violations],
-      },
-      _retryDepth + 1
-    );
-  }
-
-  const projectionValidation = buildFinalProjectionValidation(
-    tierMetaRequested,
-    tierEff,
-    validationResult,
-    options._priorAttemptViolations
-  );
-
-  framed[framed.length - 1].meta = {
-    ...framed[framed.length - 1].meta,
-    projection_validation: projectionValidation,
-  };
-
   return framed;
-}
-
-function validateReportSections(
-  sections: ProjectedExplanationSection[],
-  surface: ProjectionSurface,
-  tier: ExpansionTier,
-  core: SemanticCore,
-  tierForDensity: ExpansionTier
-): { ok: boolean; violations: string[] } {
-  const schema = SURFACE_SCHEMAS[surface];
-  const violations: string[] = [];
-  if (sections.length < schema.baselineMinSections) {
-    violations.push(`sections:${sections.length}<${schema.baselineMinSections}`);
-  }
-  if (surface === 'feed' && schema.maxSectionsFeed && sections.length > schema.maxSectionsFeed) {
-    violations.push(`feed_sections_overflow`);
-  }
-
-  const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, tierForDensity);
-  for (const sec of sections) {
-    const d = densityForSectionId(sec.id, defaultD);
-    const claims =
-      sec.meta?.claimIdsReferenced && sec.meta.claimIdsReferenced.length > 0
-        ? sec.meta.claimIdsReferenced
-        : core.claims.slice(0, 8).map((c) => c.claim_id);
-    const v = validateDensity(sec.text, d, claims);
-    if (!v.ok) violations.push(`${sec.id}:${v.reasons.join(';')}`);
-  }
-
-  return { ok: violations.length === 0, violations };
 }
