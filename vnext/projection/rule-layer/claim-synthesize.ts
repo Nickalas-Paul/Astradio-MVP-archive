@@ -5,7 +5,7 @@
 import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
 import type { ExpansionTier } from '../projection-types';
-import { pacingPhraseFromCore, rhythmGroovePhraseFromCore } from './audio-lexicon';
+import { lightListenHintFromCore, pacingPhraseFromCore } from './audio-lexicon';
 import { claimWindow } from './claim-select';
 
 function pickVariant(seed: string, variants: string[]): string {
@@ -29,13 +29,13 @@ function campaignLabelForClaimId(id: string): string {
     MOTION_LABEL_INWARD: 'an inward consolidation motion profile',
     MOTION_LABEL_STEADY: 'a steady motion profile',
   };
-  return table[id] ?? 'an encoded motion pattern';
+  return table[id] ?? 'a distinct motion pattern';
 }
 
 function pickGlue(prevId: string, nextId: string, seed: string): string {
   const key = `${prevId}>${nextId}`;
   return pickVariant(`${seed}:glue:${key}`, [
-    'In the same readout,',
+    'In the same picture,',
     'Alongside that signal,',
     'Taken together with the prior emphasis,',
   ]);
@@ -45,7 +45,7 @@ export function sentenceForClaim(c: SemanticClaim, seed: string): string {
   const id = c.claim_id as ClaimId;
   const s = `${seed}:${id}`;
   const strengthNote =
-    c.strength >= 0.66 ? 'with relatively strong encoding in the feature field' : 'with moderate encoding in the feature field';
+    c.strength >= 0.66 ? 'shows up strongly in this view' : 'shows up moderately in this view';
 
   const byId: Partial<Record<ClaimId, string[]>> = {
     ELEMENT_FIRE_DOM: [
@@ -61,31 +61,31 @@ export function sentenceForClaim(c: SemanticClaim, seed: string): string {
       `A water-weighted emphasis ${strengthNote} often correlates with emotional permeability and layered processing before outward commitment.`,
     ],
     TENSION_BAND_HIGH: [
-      `Higher structural tension in the encoded field often shows up as sharper contrasts moment to moment without implying a single crisis label.`,
+      `Higher structural contrast in this view often shows up as sharper differences moment to moment without implying a single crisis label.`,
     ],
     TENSION_BAND_MED: [
-      `Moderate tension in the encoded field often shows up as workable friction: enough edge to move things, without constant crisis signaling.`,
+      `Moderate contrast in this view often shows up as workable friction: enough edge to move things, without constant crisis signaling.`,
     ],
     TENSION_BAND_LOW: [
-      `Lower structural tension in the encoded field often shows up as smoother continuity and fewer abrupt breaks between emphasis beats.`,
+      `Lower contrast in this view often shows up as smoother continuity and fewer abrupt breaks between emphasis beats.`,
     ],
     TONAL_BRIGHT: [
-      `A brighter tonal register in the encoded field often correlates with outward lift and a tendency to emphasize possibility over heaviness.`,
+      `A brighter tonal register in this view often correlates with outward lift and a tendency to emphasize possibility over heaviness.`,
     ],
     TONAL_DARK: [
-      `A darker tonal register in the encoded field often correlates with depth-first processing and a tendency to take tension seriously rather than glossing it.`,
+      `A darker tonal register in this view often correlates with depth-first processing and a tendency to take tension seriously rather than glossing it.`,
     ],
     TONAL_BALANCED: [
-      `A balanced tonal register in the encoded field often correlates with mixed brightness cues that can flex with context rather than locking one mood.`,
+      `A balanced tonal register in this view often correlates with mixed brightness cues that can flex with context rather than locking one mood.`,
     ],
     REL_HARMONY_HIGH: [
-      `High harmony-band signaling in the relational field often correlates with cooperative resonance and easier mutual coordination when activation rises.`,
+      `High harmony-band signaling between people often correlates with cooperative resonance and easier mutual coordination when contact rises.`,
     ],
     REL_FRICTION_HIGH: [
-      `High friction-band signaling in the relational field often correlates with edge-rich contact where misunderstandings can spike if timing is ignored.`,
+      `High friction-band signaling between people often correlates with edge-rich contact where misunderstandings can spike if timing is ignored.`,
     ],
     REL_INTENSITY_HIGH: [
-      `High intensity-band signaling in the relational field often correlates with amplified activation: more signal per interaction, for better or sharper.`,
+      `High intensity-band signaling between people often correlates with amplified contact: more signal per interaction, for better or sharper.`,
     ],
     CROSS_ELEMENT_DRIFT_HIGH: [
       `Strong cross-chart elemental drift often correlates with divergent baseline styles; blending language too quickly may flatten real differences.`,
@@ -97,13 +97,13 @@ export function sentenceForClaim(c: SemanticClaim, seed: string): string {
       `A clustered structural signature often correlates with concentrated emphasis: many threads pulling through the same thematic doorway.`,
     ],
     MOTION_LABEL_SURGING: [
-      `Surging motion labeling often correlates with forward impulse and rapid ramps in how energy is spent.`,
+      `Surging motion often correlates with forward impulse and rapid ramps in how energy is spent.`,
     ],
     MOTION_LABEL_INWARD: [
-      `Inward motion labeling often correlates with consolidation phases where outward visibility lags behind internal processing.`,
+      `Inward motion often correlates with consolidation phases where outward visibility lags behind internal processing.`,
     ],
     GRAVITY_LABEL_ANCHORED: [
-      `Anchored gravity labeling often correlates with weighty emphasis and slower release in how resolution arrives.`,
+      `Anchored gravity often correlates with weighty emphasis and slower release in how resolution arrives.`,
     ],
   };
 
@@ -111,7 +111,7 @@ export function sentenceForClaim(c: SemanticClaim, seed: string): string {
   if (variants?.length) {
     return pickVariant(s, variants);
   }
-  return `This readout carries an additional encoded emphasis ${strengthNote}; it may show up as subtle shifts rather than a single fixed behavioral label.`;
+  return `This picture carries an additional emphasis ${strengthNote}; it may show up as subtle shifts rather than a single fixed behavioral label.`;
 }
 
 export function synthesizeClaimSentences(lines: string[], claimIds: string[], seed: string): string {
@@ -172,8 +172,8 @@ export function buildTensionIntegrationParagraph(
   const cIds = [...constructive.map((c) => c.claim_id), ...challenging.map((c) => c.claim_id)];
   const pace = pacingPhraseFromCore(core);
   const text = pickVariant(seed + ':ti', [
-    `Taken together, constructive and challenging signals both appear in this readout; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring supportive threads where they show up.`,
-    `This readout mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to “win,” and ${pace} alternates between repair and forward motion in how the field reads.`,
+    `Taken together, supportive and challenging signals both appear in this picture; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring care where it shows up.`,
+    `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to “win,” and ${pace} alternates between repair and forward motion in how the contrast lands.`,
   ]);
   return { text, claimIds: cIds };
 }
@@ -195,7 +195,7 @@ export function buildSupplementalPanel(
   const text =
     synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||
     pickVariant(seed, [
-      'This readout includes additional encoded emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
+      'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
     ]);
   return {
     title: `Pattern note ${panelIndex + 1}`,
@@ -212,13 +212,13 @@ export function buildCampaignPressureResponseParagraph(core: SemanticCore, seed:
   if (motion) ids.push(motion.claim_id);
   const tLabel = tension ? campaignLabelForClaimId(tension.claim_id) : null;
   const mLabel = motion ? campaignLabelForClaimId(motion.claim_id) : null;
-  const groove = rhythmGroovePhraseFromCore(core);
+  const groove = lightListenHintFromCore(core);
   const tNote = tLabel
-    ? `Scenario pressure: ${tLabel} in this readout often maps to a shorter feedback loop; the state may ask for steadier breath and smaller steps when activation spikes.`
-    : `Scenario pressure: cues in this readout are distributed; the state may still benefit from shorter loops and explicit checkpoints when intensity rises.`;
+    ? `Scenario pressure: ${tLabel} in this situation often maps to a shorter feedback loop; you may need steadier breath and smaller steps when activation spikes.`
+    : `Scenario pressure: cues in this situation are spread out; you may still benefit from shorter loops and explicit checkpoints when intensity rises.`;
   const mNote = mLabel
-    ? `Response shape: ${mLabel} suggests matching action to the encoded impulse curve (${groove}) rather than forcing the opposite speed.`
-    : `Response shape: without a dominant motion label, alternating consolidation and push tends to be safer than a single fixed speed; use ${groove} as the staging read.`;
+    ? `Response shape: ${mLabel} suggests matching action to the impulse curve (${groove}) rather than forcing the opposite speed.`
+    : `Response shape: without a dominant motion label, alternating consolidation and push tends to be safer than a single fixed speed; let ${groove} guide how you pace moves.`;
   const text = pickVariant(seed + ':camp', [tNote + ' ' + mNote]);
   return { text, claimIds: ids };
 }

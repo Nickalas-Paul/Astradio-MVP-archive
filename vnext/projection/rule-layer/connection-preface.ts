@@ -7,22 +7,22 @@ function openingForMode(mode: ConnectionMode, seed: string): string | null {
   if (!mode || mode === 'group') return null;
   const variants: Record<string, string[]> = {
     friends: [
-      `Structural framing (friends): cooperative bandwidth and mutual timing tend to organize this pair readout. The following sections weight repair capacity and shared coordination when friction signals appear. Emphasis stays descriptive and avoids locking a single relationship myth.`,
+      `For this connection, you, at baseline, start from friendly bandwidth: cooperative timing and repair capacity matter when friction shows. The sections below stay descriptive and avoid locking one relationship story. Many people find this framing helps keep curiosity without forcing a verdict.`,
     ],
     lovers: [
-      `Structural framing (lovers): reciprocity and intimacy cadence tend to organize this pair readout. Polarity may read as attraction tension rather than a verdict on compatibility. The copy below stays observational and does not treat chemistry as a fixed verdict.`,
+      `For this connection, you, at baseline, start from reciprocity and intimacy cadence: polarity can feel like attraction tension, not a final verdict. The copy below stays observational. Many people find this framing helps name heat without turning it into a label.`,
     ],
     rivals: [
-      `Structural framing (rivals): competitive charge and boundary pressure tend to organize this pair readout. Harmony signals are not treated as the default story unless they dominate the encoded field. Friction language is named without turning it into a moral label.`,
+      `For this connection, you, at baseline, start from competitive charge and boundary pressure: harmony is not assumed unless it clearly leads. Friction is named without moral blame. Many people find this framing helps separate charge from character judgment.`,
     ],
     neutral: [
-      `Structural framing (neutral): low-assumption interface dynamics tend to organize this pair readout. Emphasis stays descriptive and avoids locking a relationship myth. The readout weights what the semantic field encodes rather than a preferred story.`,
+      `For this connection, you, at baseline, start from low assumptions: emphasis stays descriptive and avoids locking one relationship myth. The sections weight what the picture shows, not a preferred story. Many people find this framing helps keep options open.`,
     ],
     mentor: [
-      `Structural framing (mentor): asymmetric support timing tends to organize this pair readout. Emphasis may lean toward guidance bandwidth without implying fixed hierarchy in lived behavior. Both sides of the interface remain visible in the sections below.`,
+      `For this connection, you, at baseline, start from asymmetric support timing: guidance bandwidth may lean one way without fixing hierarchy in real life. Both sides stay visible below. Many people find this framing helps honor care without freezing roles.`,
     ],
     collaborator: [
-      `Structural framing (collaborator): task-phase coordination tends to organize this pair readout. Friction may show up around ownership and phase alignment rather than intimacy chemistry. The following sections keep language situational rather than identity-fixed.`,
+      `For this connection, you, at baseline, start from task coordination: friction may sit around ownership and phase fit rather than chemistry. Language stays situational, not identity-fixed. Many people find this framing helps keep tasks human.`,
     ],
   };
   const list = variants[mode];
@@ -37,8 +37,8 @@ function groupFieldOpening(participantCount: number, seed: string): string | nul
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const opts = [
-    `Ensemble framing (${participantCount} charts): field-level signals tend to distribute across members. This readout avoids collapsing the group into a single two-person axis unless slot-level claims explicitly justify a dyadic subcluster. Language stays descriptive of the encoded field rather than assigning fixed roles.`,
-    `Ensemble framing (${participantCount} charts): clustering and diffusion are read as systemic patterns. Pair-style blame or “A vs B” framing is withheld unless claim groupings support a bounded subcluster note. The sections below treat the ensemble as a shared field first.`,
+    `For this group, you, at baseline, hold ${participantCount} voices: emphasis often spreads unevenly, so avoid collapsing everyone into one pair story unless the picture supports it. Many people find this framing helps keep the room fair.`,
+    `For this group, you, at baseline, hear a whole room first: pair-style blame stays off the table unless a smaller cluster clearly shows. The sections treat the ensemble as shared space. Many people find this framing slows rush-to-blame habits.`,
   ];
   return opts[h % opts.length];
 }

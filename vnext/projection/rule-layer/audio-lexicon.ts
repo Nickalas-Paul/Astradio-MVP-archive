@@ -1,6 +1,5 @@
 /**
- * Unified audio lexicon — single source for user-facing pacing, rhythm, density,
- * harmonic tension staging, and arc/change language derived from SemanticCore.audio.
+ * Unified audio lexicon — perceptual, user-facing language from SemanticCore.audio.
  * Projection rule layer only; no semantic authority changes.
  */
 
@@ -9,37 +8,40 @@ import type { CompositionNarrativePlan } from '../../audio/composition-narrative
 import type { ExpansionTier } from '../projection-types';
 import type { ProjectionSurface } from '../projection-types';
 
+/** Single dimension: how motion feels (experiential, not parameter labels). */
 export function mapTempo(code: string): string {
-  if (code === 'TEMPO_HIGH') return 'faster pacing and shorter phrase windows';
-  if (code === 'TEMPO_LOW') return 'slower pacing and longer sustain windows';
-  return 'mid pacing with moderate phrase windows';
+  if (code === 'TEMPO_HIGH') return 'motion feels quick and changeable';
+  if (code === 'TEMPO_LOW') return 'motion feels slow and sustained';
+  return 'motion feels moderate and steady';
 }
 
+/** Space / crowding between moments. */
 export function mapDensity(code: string): string {
-  if (code === 'DENSITY_DENSE') return 'denser layering and less empty space between events';
-  if (code === 'DENSITY_SPARSE') return 'sparser layering with more room between events';
-  return 'balanced density between sparse and full';
+  if (code === 'DENSITY_DENSE') return 'the texture feels tight and crowded';
+  if (code === 'DENSITY_SPARSE') return 'the texture feels open with room between moments';
+  return 'the texture balances open and full';
 }
 
-/** Arc / change bias (disruption and directional motion in the audio envelope). */
+/** How energy moves over time (experiential). */
 export function mapArc(code: string): string {
-  if (code === 'ARC_SURGE_RESOLVE') return 'a surge-then-resolve arc bias with clear directional change';
-  if (code === 'ARC_FALL') return 'a falling or release-leaning arc bias with softening change over time';
-  if (code === 'ARC_RISE') return 'a rising or build-leaning arc bias with accumulating change';
-  return 'a cyclic arc bias with recurring change rather than a single fixed plateau';
+  if (code === 'ARC_SURGE_RESOLVE') return 'energy surges then settles';
+  if (code === 'ARC_FALL') return 'energy softens and releases over time';
+  if (code === 'ARC_RISE') return 'energy builds and gathers';
+  return 'energy circles and shifts rather than locking flat';
 }
 
+/** Listening pressure / harmonic pull (felt). */
 export function mapTensionBias(code: string): string {
-  if (code === 'AUDIO_TENSION_HIGH') return 'higher harmonic tension staging';
-  if (code === 'AUDIO_TENSION_LOW') return 'lower harmonic tension staging';
-  return 'moderate harmonic tension staging';
+  if (code === 'AUDIO_TENSION_HIGH') return 'listening pressure feels heavy';
+  if (code === 'AUDIO_TENSION_LOW') return 'listening pressure feels light';
+  return 'listening pressure feels moderate';
 }
 
 export function mapTexture(code: string): string {
-  if (code === 'REL_TEXTURE_FLUID') return 'fluid relational texture';
-  if (code === 'REL_TEXTURE_CALL_RESPONSE') return 'call-and-response relational texture';
-  if (code === 'REL_TEXTURE_STATIC') return 'static or held relational texture';
-  return 'neutral relational texture';
+  if (code === 'REL_TEXTURE_FLUID') return 'voices weave together smoothly';
+  if (code === 'REL_TEXTURE_CALL_RESPONSE') return 'one voice answers another in turns';
+  if (code === 'REL_TEXTURE_STATIC') return 'the interplay stays steady and held';
+  return 'the interplay feels even and neutral';
 }
 
 export function pacingPhraseFromCore(core: SemanticCore): string {
@@ -58,9 +60,48 @@ export function arcChangePhraseFromCore(core: SemanticCore): string {
   return mapArc(core.audio.arc_bias);
 }
 
-/** Groove / rhythm characterization — must come from audio envelope, not claim tension. */
+/**
+ * One light cue for non-owner sections (avoid repeating the full listen stack).
+ */
+export function lightListenHintFromCore(core: SemanticCore): string {
+  return mapTempo(core.audio.tempo_band);
+}
+
+/**
+ * Full perceptual summary for the audio_staging owner section only.
+ */
+export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string {
+  const a = core.audio;
+  return `${mapTempo(a.tempo_band)}; ${mapDensity(a.density_band)}; ${mapTensionBias(a.tension_bias)}; ${mapArc(
+    a.arc_bias
+  )}; together the atmosphere feels ${mapTexture(a.relational_texture).toLowerCase()}.`;
+}
+
+/** @deprecated for templates — use lightListenHintFromCore or fullPerceptualListenSummaryFromCore on owner. */
 export function rhythmGroovePhraseFromCore(core: SemanticCore): string {
-  return `${mapTempo(core.audio.tempo_band)}, with ${mapDensity(core.audio.density_band)} and ${mapTensionBias(core.audio.tension_bias)}`;
+  return fullPerceptualListenSummaryFromCore(core);
+}
+
+function humanTensionHarmonySentence(core: SemanticCore): string | null {
+  const th = core.tension_harmony;
+  if (!th) return null;
+  const t =
+    th.tension_band === 'TENSION_BUCKET_HIGH'
+      ? 'structure carries noticeable contrast'
+      : th.tension_band === 'TENSION_BUCKET_MED'
+        ? 'structure carries workable contrast'
+        : 'structure carries gentle contrast';
+  const h =
+    th.harmony_band === 'HARMONY_BUCKET_HIGH'
+      ? 'resolution comes a little easier'
+      : th.harmony_band === 'HARMONY_BUCKET_LOW'
+        ? 'resolution asks for more patience'
+        : 'resolution sits in the middle';
+  return `In the listening metaphor, ${t}, and ${h}; this stays descriptive, not a verdict about how life must go.`;
+}
+
+function narrativePlanExperientialNote(plan: CompositionNarrativePlan): string {
+  return `The piece shapes energy in a ${plan.energyCurve} way, moves toward a ${plan.endingStyle} close, and keeps an overall arc that feels ${plan.arcShape.replace(/_/g, ' ')} without naming raw numbers.`;
 }
 
 export function buildAudioStagingBlock(
@@ -70,61 +111,39 @@ export function buildAudioStagingBlock(
   surface?: ProjectionSurface
 ): { title: string; text: string; bullets?: string[]; claimIds: string[] } {
   const a = core.audio;
-  const th = core.tension_harmony;
   const claimIds: string[] = [];
+  const listen = fullPerceptualListenSummaryFromCore(core);
 
   const surfaceLead: Record<ProjectionSurface, string> = {
-    profile: `Profile audio framing: this staging follows enduring trait-level tendencies in the same semantic readout, with ${mapTempo(
-      a.tempo_band
-    )} as the baseline motion.`,
-    daily: `Daily audio framing: this staging emphasizes short-window sky activation and ${mapTempo(a.tempo_band)} in the encoded field.`,
-    sandbox: `Sandbox audio framing: this staging reflects override-sensitive lab conditions with ${mapDensity(a.density_band)} in the encoded field.`,
-    overlay_pair: `Overlay audio framing: this staging keeps natal and transit layers visible as parallel threads, using ${mapArc(a.arc_bias)} as the arc read.`,
-    compat_pair: `Compatibility audio framing: this staging follows pair dynamics using ${mapTexture(a.relational_texture)} together with ${mapTensionBias(
-      a.tension_bias
-    )}.`,
-    group: `Group audio framing: this staging reflects ensemble-level field behavior using ${mapDensity(a.density_band)} before dyadic reduction.`,
-    campaign: `Campaign audio framing: this staging follows pressure-to-response motion using ${mapTempo(a.tempo_band)} in the same semantic profile.`,
-    feed: `Feed audio framing: this staging surfaces a short signal thread using ${mapTensionBias(a.tension_bias)} from the same semantic source.`,
+    profile: `For your profile listen, you keep a baseline feel: ${listen}`,
+    daily: `For today’s listen, you catch what the sky adds on top of your baseline: ${listen}`,
+    sandbox: `In this lab listen, you stress-test how the same picture sounds when conditions shift: ${listen}`,
+    overlay_pair: `In this overlay listen, you hold two time layers side by side: ${listen}`,
+    compat_pair: `For this pair’s listen, you notice how two voices meet: ${listen}`,
+    group: `For this group listen, you hear the whole room before any single pair: ${listen}`,
+    campaign: `For this scenario’s listen, you track pressure and response in sound: ${listen}`,
+    feed: `For this short card, you get one clear listen cue: ${listen}`,
   };
 
-  const baselineSentences = [
-    surface ? surfaceLead[surface] : surfaceLead.profile,
-    `Composition staging tends to align with ${mapTempo(a.tempo_band)}, ${mapDensity(a.density_band)}, and ${mapTensionBias(a.tension_bias)} in the encoded audio envelope.`,
-    `Arc bias in the audio envelope reads as ${mapArc(a.arc_bias)}, while relational texture reads as ${mapTexture(a.relational_texture)}.`,
-  ];
+  const baselineParts = [surface ? surfaceLead[surface] : surfaceLead.profile];
+  const thSent = humanTensionHarmonySentence(core);
+  if (thSent) baselineParts.push(thSent);
 
-  if (th) {
-    baselineSentences.push(
-      `Tension and harmony buckets in the semantic readout are encoded as ${th.tension_band} tension alongside ${th.harmony_band} harmony; this is descriptive staging, not a verdict about outcome.`
-    );
-  }
-
-  let text = baselineSentences.join(' ');
+  let text = baselineParts.join(' ');
   const bullets: string[] = [];
 
   if (tier !== 'baseline' && narrativePlan) {
-    bullets.push(
-      `Narrative plan arc shape: ${narrativePlan.arcShape}; energy curve: ${narrativePlan.energyCurve}; ending style: ${narrativePlan.endingStyle}.`
-    );
-    bullets.push(
-      `Rhythmic drive index (staging): ${narrativePlan.rhythmicDrive.toFixed(3)}; density profile: ${narrativePlan.densityProfile}; peak window: ${narrativePlan.peakWindow}.`
-    );
-    const extra = [
-      `When the same semantic readout is staged for audio, melodic motion often traces the ${narrativePlan.tonalPolarity} tonal polarity while groove follows the encoded tension curve rather than inventing a separate story.`,
-      `Extended read: staging may emphasize ${mapArc(a.arc_bias)} together with ${narrativePlan.energyCurve} energy shaping; this mirrors the narrative plan derived from the same SemanticCore as the text readout.`,
-    ];
-    text = text + '\n\n' + extra.join(' ');
+    bullets.push(narrativePlanExperientialNote(narrativePlan));
+    const extra = `As you listen, melody brightness leans ${narrativePlan.tonalPolarity}, and groove follows the same contrast curve as the words above rather than telling a separate story.`;
+    text = `${text}\n\n${extra}`;
   }
 
   if (tier === 'extended' && narrativePlan) {
-    text +=
-      '\n\n' +
-      `Integrated note: ${mapTempo(a.tempo_band)}, ${mapDensity(a.density_band)}, and ${mapTensionBias(a.tension_bias)} should be read as one thread alongside the interpretive sections above; if text highlights friction claims, audio staging typically preserves tension rather than cancelling it unless contrast is explicitly present in the same semantic sources.`;
+    text = `${text}\n\nIf the words name friction, the sound usually keeps that tension honest instead of smoothing it away, unless contrast is already explicit in the same picture.`;
   }
 
   return {
-    title: 'Audio staging (same SemanticCore)',
+    title: 'How this sounds (listen metaphor)',
     text,
     bullets: tier === 'baseline' ? undefined : bullets.length ? bullets : undefined,
     claimIds,

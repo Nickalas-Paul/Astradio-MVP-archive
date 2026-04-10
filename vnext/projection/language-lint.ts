@@ -4,8 +4,6 @@
 
 const FORBIDDEN: { re: RegExp; replacement: string }[] = [
   { re: /\bthis means\b/gi, replacement: 'this pattern may correlate with' },
-  { re: /\byou are\b/gi, replacement: 'this configuration often associates with tendencies toward' },
-  { re: /\byou're\b/gi, replacement: 'this pattern may correlate with tendencies toward' },
   { re: /\balways\b/gi, replacement: 'often' },
   { re: /\bnever\b/gi, replacement: 'may not always' },
   { re: /\bguaranteed\b/gi, replacement: 'frequently suggested' },

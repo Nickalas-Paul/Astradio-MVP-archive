@@ -37,22 +37,15 @@ export function applyUnifiedProjection(
         }) as ProjectionOptions
       ),
       temporalBucket: classifyTemporalVoice(core),
+      surface,
     };
     return buildEmphasisRawSections(core, seed, ctx);
   }
 
   const norm = normalizeProjectionInput(core, seed, options);
   const temporalBucket = classifyTemporalVoice(core);
-  const templateCtx: TemplateContext = {
-    suppressAstrologyTitles: options.surface === 'campaign',
-    topologyClass: classifyTopology(options),
-    temporalBucket,
-  };
-
-  const raw = options.surface === 'feed' ? [] : buildEmphasisRawSections(core, seed, templateCtx);
 
   let sections = assemblePhaseDSections({
-    raw,
     core,
     seed,
     options,
