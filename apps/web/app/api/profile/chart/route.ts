@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
     const chartId = searchParams.get('chartId') ?? undefined;
     const qs = chartId ? `?chartId=${encodeURIComponent(chartId)}` : '';
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/profile/chart${qs}`);
+    const r = await fetch(`${backend}/api/profile/chart${qs}`, {
+      cache: 'no-store',
+      next: { revalidate: 0 },
+    });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       return NextResponse.json(data, { status: r.status });
