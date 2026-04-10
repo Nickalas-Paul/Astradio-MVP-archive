@@ -31,6 +31,8 @@ export interface ProfileChartResult {
     object_identity_hash: string;
     surface_kind: 'profile_natal';
   };
+  /** Canonical hashes for determinism checks (natal explainer path). */
+  hashes: { plan_sha256: string; object_identity_hash: string };
   personality: import('../astro/personality-profile').PersonalityProfileV1;
   astroProfile: import('../astro/profile-from-snapshot').AstroProfile;
   guidance: import('../astro/guidance').AstroGuidance & {
@@ -76,6 +78,10 @@ export async function getProfileChartExplainer(chartId: string): Promise<Profile
       profile_natal_compose_anchor: bundle.anchor,
       object_identity_hash: bundle.explainer.object_identity_hash,
       surface_kind: 'profile_natal',
+    },
+    hashes: {
+      plan_sha256: bundle.explainer.plan_sha256,
+      object_identity_hash: bundle.explainer.object_identity_hash,
     },
   };
 }

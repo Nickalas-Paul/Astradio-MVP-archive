@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useProfile, useProfileChart, type ProfileChartSection } from '../../core/social/hooks';
+import { useProfile, useProfileChart, useCommunityInventory, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
-import { useCompositionStore, type LastNatalComposeResult } from '../../store';
-import { useHydrateCompositionUrls } from '../../hooks/useHydrateCompositionUrls';
 import { getApiBaseUrl } from '../../core/api-base';
-import type { CompositionJob } from '../../types';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
+import type { CanonicalLocation } from '../../types/location';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -52,78 +50,6 @@ function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
   );
 }
 
-/** Finds the ready natal baseline job for this chart in composition history.
- * Matches by request.chartA first; fallback matches by job id pattern natal_<chartId>_<timestamp>
- * so we find the job even after persist/rehydrate if request shape differs. */
-function useNatalBaselineJob(chartId: string | null) {
-  const { jobHistory } = useCompositionStore();
-  if (!chartId) return null;
-  const job = jobHistory.find((j) => {
-    if (j.status.stage !== 'ready' || !j.id.startsWith('natal_')) return false;
-    if (j.request.chartA === chartId) return true;
-    return j.id.startsWith(`natal_${chartId}_`);
-  });
-  return job ?? null;
-}
-
-function natalTrackLabel(displayName: string | null | undefined): string {
-  return displayName && displayName.trim() ? `My ${displayName.trim()} Soundtrack` : 'My Soundtrack';
-}
-
-function NatalBaselinePlayer({ chartId, displayName }: { chartId: string; displayName?: string | null }) {
-  const job = useNatalBaselineJob(chartId);
-  if (!job || job.status.stage !== 'ready') return null;
-  const url = job.status.stage === 'ready' ? job.status.url : '';
-  if (!url || typeof url !== 'string') return null;
-  const label = natalTrackLabel(displayName);
-  return (
-    <div className="mt-4 rounded-lg border border-border bg-bgElev p-3 space-y-2">
-      <p className="text-sm font-medium text-text">{label}</p>
-      <audio
-        controls
-        src={url}
-        className="w-full h-8 min-h-[32px]"
-        preload="metadata"
-        aria-label={label}
-      />
-    </div>
-  );
-}
-
-/** User-facing message for soundtrack failure (maps technical export_error to readable text). */
-function userFacingSoundtrackMessage(exportError: string | null): string {
-  if (!exportError?.trim()) return 'Your soundtrack could not be generated. You can try again later.';
-  const e = exportError.toLowerCase();
-  if (e.includes('render_failed') || e.includes('recitation') || e.includes('blocked')) return 'Your soundtrack couldn\'t be generated for this chart. You can try again later.';
-  if (e.includes('provider_not_configured') || e.includes('provider')) return 'Audio generation is not configured right now.';
-  if (e.includes('chart') || e.includes('snapshot')) return 'Chart data was unavailable. Try again or check your birth details.';
-  return 'Your soundtrack could not be generated. You can try again later.';
-}
-
-/** Phase 8G: when soundtrack is unavailable — user-facing message and optional retry. */
-function SoundtrackStatusBlock({ chartId, onRetry }: { chartId: string; onRetry?: () => void }) {
-  const lastNatalComposeResult = useCompositionStore((s) => s.lastNatalComposeResult);
-  const job = useNatalBaselineJob(chartId);
-  if (job?.status?.stage === 'ready' && job.status.url) return null;
-  if (!lastNatalComposeResult || lastNatalComposeResult.chartId !== chartId || lastNatalComposeResult.status !== 'failed') return null;
-  const r: LastNatalComposeResult = lastNatalComposeResult;
-  const message = userFacingSoundtrackMessage(r.export_error);
-  return (
-    <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2 text-left">
-      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{message}</p>
-      {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-medium hover:bg-amber-500/30 transition"
-        >
-          Retry soundtrack
-        </button>
-      )}
-    </div>
-  );
-}
-
 function snapshotSafeForWheel(snapshot: unknown): boolean {
   if (!snapshot || typeof snapshot !== 'object') return false;
   const o = snapshot as Record<string, unknown>;
@@ -134,181 +60,39 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
   return hasPlanets || hasHouses;
 }
 
-function setNatalComposeResult(
-  chartId: string,
-  status: 'ok' | 'failed',
-  opts: { provider_used: string | null; export_error: string | null; export_attempted: boolean; has_audio_payload: boolean }
-): void {
-  useCompositionStore.getState().setLastNatalComposeResult({
-    chartId,
-    status,
-    provider_used: opts.provider_used,
-    export_error: opts.export_error,
-    export_attempted: opts.export_attempted,
-    has_audio_payload: opts.has_audio_payload,
-  });
-}
-
-/** After profile creation: fetch chart snapshot, run natal compose, add to composition history so it appears in Saved Tracks. */
-async function triggerNatalComposition(chartId: string): Promise<void> {
-  const base = getApiBaseUrl();
-
-  // Step 1: fetch profile chart snapshot. In very fresh sessions the chart may not be immediately readable;
-  // classify failures explicitly so the profile can show a truthful status instead of silently skipping compose.
-  let snapshot: any = null;
-  let lastChartError: string | null = null;
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const chartRes = await fetch(
-        `${base || ''}/api/profile/chart?chartId=${encodeURIComponent(chartId)}`,
-        { credentials: 'same-origin' }
-      );
-      if (!chartRes.ok) {
-        const body = await chartRes.json().catch(() => ({}));
-        lastChartError = body?.error || `chart_request_failed (${chartRes.status})`;
-      } else {
-        const chartData = await chartRes.json().catch(() => null);
-        const maybeSnapshot = chartData?.snapshot;
-        if (maybeSnapshot && typeof maybeSnapshot === 'object' && Array.isArray(maybeSnapshot.planets) && Array.isArray(maybeSnapshot.houses)) {
-          snapshot = maybeSnapshot;
-          lastChartError = null;
-          break;
-        }
-        lastChartError = 'chart_snapshot_unavailable';
-      }
-    } catch (e) {
-      lastChartError = e instanceof Error ? e.message : 'chart_request_failed';
-    }
-    if (attempt === 1) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
-  }
-
-  if (!snapshot) {
-    setNatalComposeResult(chartId, 'failed', {
-      provider_used: null,
-      export_error: lastChartError || 'chart_snapshot_unavailable',
-      export_attempted: false,
-      has_audio_payload: false,
-    });
-    return;
-  }
-
-  const composeRes = await fetch(`${base || ''}/api/compose`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({
-      mode: 'sandbox',
-      seed: `natal_${chartId}`,
-      overriddenSnapshot: snapshot,
-    }),
-  });
-  if (!composeRes.ok) {
-    const errBody = await composeRes.json().catch(() => ({}));
-    setNatalComposeResult(chartId, 'failed', {
-      provider_used: null,
-      export_error: errBody?.error || `compose_request_failed (${composeRes.status})`,
-      export_attempted: false,
-      has_audio_payload: false,
-    });
-    return;
-  }
-  const composePayload = await composeRes.json().catch(() => null);
-  if (typeof window !== 'undefined' && window.location.search.includes('natal_debug=1')) {
-    const audio = composePayload?.audio;
-    const summary = {
-      hasBase64: typeof audio?.base64 === 'string' && audio.base64.length > 0,
-      base64Length: typeof audio?.base64 === 'string' ? audio.base64.length : 0,
-      export_id: composePayload?.export_id ?? audio?.export_id ?? null,
-      export_error: audio?.export_error ?? null,
-      export_attempted: audio?.export_attempted ?? null,
-      audio_export_available: audio?.audio_export_available ?? null,
-      httpStatus: composeRes.status,
-    };
-    console.log('[NATAL_COMPOSE_RESPONSE]', JSON.stringify(summary));
-  }
-  const providerUsed = composePayload?.audio?.provider_used ?? null;
-  const exportError = composePayload?.audio?.export_error ?? null;
-  const exportAttempted = !!composePayload?.audio?.export_attempted;
-  const base64 = composePayload?.audio?.base64;
-  const hasBase64 = typeof base64 === 'string' && base64.length > 0;
-  const exportId = composePayload?.export_id ?? composePayload?.audio?.export_id ?? null;
-  const hasExportId = typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId);
-  const has_audio_payload = hasBase64 || hasExportId;
-
-  if (!composePayload || typeof composePayload !== 'object') {
-    setNatalComposeResult(chartId, 'failed', {
-      provider_used: null,
-      export_error: 'invalid_response',
-      export_attempted: false,
-      has_audio_payload: false,
-    });
-    return;
-  }
-
-  // Promote based on usable audio, not provider/export flags. Backend may return 200 with audio
-  // but provider_used !== 'lyria' or export_error set (e.g. export_disabled); we still show the track.
-  const addJobToHistory = useCompositionStore.getState().addJobToHistory;
-  const jobId = `natal_${chartId}_${Date.now()}`;
-  let audioUrl = '';
-  if (hasBase64) {
+async function blobUrlFromComposePayload(
+  base: string,
+  composePayload: Record<string, unknown>
+): Promise<string | null> {
+  const audio = composePayload?.audio as Record<string, unknown> | undefined;
+  const base64 = audio?.base64;
+  if (typeof base64 === 'string' && base64.length > 0) {
     try {
       const bin = atob(base64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'audio/wav' });
-      audioUrl = URL.createObjectURL(blob);
-    } catch (_) {}
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
   }
-  if (!audioUrl && hasExportId) {
+  const exportId = (composePayload?.export_id ?? audio?.export_id) as string | undefined;
+  if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
     try {
       const exportRes = await fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' });
       if (exportRes.ok) {
         const ab = await exportRes.arrayBuffer();
         if (ab.byteLength > 0) {
           const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
-          audioUrl = URL.createObjectURL(blob);
+          return URL.createObjectURL(blob);
         }
       }
-    } catch (_) {}
+    } catch {
+      return null;
+    }
   }
-
-  if (!audioUrl) {
-    setNatalComposeResult(chartId, 'failed', {
-      provider_used: providerUsed ?? null,
-      export_error: exportError ?? (providerUsed ? null : 'provider_not_configured'),
-      export_attempted: exportAttempted,
-      has_audio_payload,
-    });
-    return;
-  }
-
-  const job: CompositionJob = {
-    id: jobId,
-    request: { chartA: chartId, genre: 'house', durationSec: 30 },
-    status: {
-      stage: 'ready',
-      id: jobId,
-      url: audioUrl,
-      layers: [
-        { key: 'melody', gain: 0.8 },
-        { key: 'harmony', gain: 0.7 },
-        { key: 'rhythm', gain: 0.75 },
-        { key: 'texture', gain: 0.6 },
-      ],
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    exportId: typeof exportId === 'string' ? exportId : undefined,
-  };
-  addJobToHistory(job);
-  setNatalComposeResult(chartId, 'ok', {
-    provider_used: providerUsed,
-    export_error: null,
-    export_attempted: exportAttempted,
-    has_audio_payload: true,
-  });
+  return null;
 }
 
 export interface ProfilePanelProps {
@@ -319,7 +103,24 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const { user, primaryChart, loading: profileLoading, error: profileError, refresh } = useProfile();
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
-  const { data: chartData, loading: chartLoading, error: chartError } = useProfileChart(chartId);
+  const { data: chartData, loading: chartLoading, error: chartError, refresh: refreshChart } = useProfileChart(chartId);
+  const { data: communityInventory } = useCommunityInventory();
+  const [profileSection, setProfileSection] = useState<'active' | 'identity' | 'library'>('active');
+  const [activeDate, setActiveDate] = useState('');
+  const [activeTime, setActiveTime] = useState('');
+  const [activeLocLabel, setActiveLocLabel] = useState('');
+  const [activeLat, setActiveLat] = useState('');
+  const [activeLon, setActiveLon] = useState('');
+  const [activeTz, setActiveTz] = useState('');
+  const [activeResult, setActiveResult] = useState<Record<string, unknown> | null>(null);
+  const [activeLoading, setActiveLoading] = useState(false);
+  const [activeError, setActiveError] = useState<string | null>(null);
+  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
+  const [identityAudioBusy, setIdentityAudioBusy] = useState(false);
+  const [activeAudioBusy, setActiveAudioBusy] = useState(false);
+  const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createHandle, setCreateHandle] = useState('');
   const [createChartLabel, setCreateChartLabel] = useState('');
@@ -339,11 +140,245 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
-  const [natalComposeInProgress, setNatalComposeInProgress] = useState(false);
   /** Signed-in user: edit existing primary chart birth data (POST /api/profile updates row in place). */
   const [editingChart, setEditingChart] = useState(false);
 
-  useHydrateCompositionUrls();
+  useEffect(() => {
+    const now = new Date();
+    setActiveDate((d) => d || now.toISOString().slice(0, 10));
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    setActiveTime((t) => t || `${hh}:${mm}`);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const resolvedAt = new Date().toISOString();
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        setActiveLocLabel((l) => l || 'Current location');
+        setActiveLat(String(pos.coords.latitude));
+        setActiveLon(String(pos.coords.longitude));
+        setActiveTz((z) => z || browserTz);
+      },
+      () => {},
+      { maximumAge: 600000 }
+    );
+  }, []);
+
+  const refreshLibrary = async () => {
+    const base = getApiBaseUrl();
+    setLibraryLoading(true);
+    try {
+      const r = await fetch(`${base || ''}/api/sandbox/compositions?limit=50`, {
+        credentials: 'same-origin',
+      });
+      const j = await r.json().catch(() => []);
+      setLibraryRows(Array.isArray(j) ? j : []);
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && profileSection === 'library') void refreshLibrary();
+  }, [user, profileSection]);
+
+  const loadActiveStateText = async () => {
+    if (!chartId || !activeDate || !activeTime || !activeTz || activeLat === '' || activeLon === '') {
+      setActiveError('Set date, time, and a resolved location for active state.');
+      return;
+    }
+    const base = getApiBaseUrl();
+    setActiveLoading(true);
+    setActiveError(null);
+    setActiveAudioUrl(null);
+    try {
+      const loc: CanonicalLocation = {
+        source: 'geofinder',
+        label: activeLocLabel.trim() || 'Location',
+        lat: Number(activeLat),
+        lon: Number(activeLon),
+        timezone: activeTz.trim(),
+        resolvedAt: new Date().toISOString(),
+      };
+      const r = await fetch(`${base || ''}/api/profile/active-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          chartId,
+          calendarDate: activeDate,
+          localTime: activeTime.length === 5 ? activeTime : activeTime.slice(0, 5),
+          location: loc,
+          generateAudio: false,
+        }),
+      });
+      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) {
+        setActiveError(typeof j.error === 'string' ? j.error : `Active state failed (${r.status})`);
+        setActiveResult(null);
+        return;
+      }
+      setActiveResult(j);
+    } catch (e) {
+      setActiveError(e instanceof Error ? e.message : 'Active state failed');
+      setActiveResult(null);
+    } finally {
+      setActiveLoading(false);
+    }
+  };
+
+  const generateActiveAudio = async () => {
+    if (!chartId || !activeResult) return;
+    const hashes = activeResult.hashes as { plan_sha256?: string } | undefined;
+    const exp = activeResult.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
+    const plan = hashes?.plan_sha256;
+    const oid = exp?.meta?.canonical_object_hash;
+    if (!plan || !oid) {
+      setActiveError('Load active state text first, then generate audio.');
+      return;
+    }
+    const base = getApiBaseUrl();
+    setActiveAudioBusy(true);
+    setActiveError(null);
+    try {
+      const loc: CanonicalLocation = {
+        source: 'geofinder',
+        label: activeLocLabel.trim() || 'Location',
+        lat: Number(activeLat),
+        lon: Number(activeLon),
+        timezone: activeTz.trim(),
+        resolvedAt: new Date().toISOString(),
+      };
+      const r = await fetch(`${base || ''}/api/profile/active-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          chartId,
+          calendarDate: activeDate,
+          localTime: activeTime.length === 5 ? activeTime : activeTime.slice(0, 5),
+          location: loc,
+          generateAudio: true,
+          expectedPlanSha256: plan,
+          expectedObjectIdentityHash: oid,
+        }),
+      });
+      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) {
+        setActiveError(typeof j.error === 'string' ? j.error : `Audio failed (${r.status})`);
+        return;
+      }
+      const url = await blobUrlFromComposePayload(base, j);
+      if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
+      setActiveAudioUrl(url);
+    } catch (e) {
+      setActiveError(e instanceof Error ? e.message : 'Audio failed');
+    } finally {
+      setActiveAudioBusy(false);
+    }
+  };
+
+  const runIdentityAudio = async () => {
+    if (!chartId || !chartData?.snapshot) return;
+    const base = getApiBaseUrl();
+    setIdentityAudioBusy(true);
+    try {
+      const r1 = await fetch(`${base || ''}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          mode: 'sandbox',
+          seed: `natal_${chartId}`,
+          overriddenSnapshot: chartData.snapshot,
+          generateAudio: false,
+        }),
+      });
+      const p1 = (await r1.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r1.ok) throw new Error(typeof p1.error === 'string' ? p1.error : 'Compose failed');
+      const plan = p1.hashes as { plan_sha256?: string } | undefined;
+      const exp = p1.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
+      const ph = plan?.plan_sha256;
+      const oh = exp?.meta?.canonical_object_hash;
+      if (!ph || !oh) throw new Error('Missing hashes from text compose');
+      const r2 = await fetch(`${base || ''}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          mode: 'sandbox',
+          seed: `natal_${chartId}`,
+          overriddenSnapshot: chartData.snapshot,
+          generateAudio: true,
+          expectedPlanSha256: ph,
+          expectedObjectIdentityHash: oh,
+        }),
+      });
+      const p2 = (await r2.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r2.ok) throw new Error(typeof p2.error === 'string' ? p2.error : 'Audio compose failed');
+      const url = await blobUrlFromComposePayload(base, p2);
+      if (identityAudioUrl) URL.revokeObjectURL(identityAudioUrl);
+      setIdentityAudioUrl(url);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIdentityAudioBusy(false);
+    }
+  };
+
+  const saveActiveToLibrary = async () => {
+    if (!chartId || !activeResult) return;
+    const base = getApiBaseUrl();
+    const h = activeResult.hashes as { plan_sha256?: string } | undefined;
+    const id = activeResult.identity as { object_identity_hash?: string } | undefined;
+    const exp = activeResult.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
+    const exportId = activeResult.export_id as string | null | undefined;
+    const ph = h?.plan_sha256 ?? '';
+    const oid = id?.object_identity_hash ?? exp?.meta?.canonical_object_hash ?? '';
+    if (!ph) return;
+    await fetch(`${base || ''}/api/sandbox/compositions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        sandbox_state: { kind: 'profile_active', chartId },
+        vector_hash: ph,
+        seed: `active_${chartId}`,
+        plan_hash: ph,
+        report: { savedFrom: 'profile_active', at: new Date().toISOString() },
+        export_id: exportId ?? null,
+        source: 'profile_active',
+        composition_type: 'A+B',
+        object_identity_hash: oid || null,
+      }),
+    });
+    await refreshLibrary();
+  };
+
+  const saveIdentityToLibrary = async () => {
+    if (!chartId || !chartData?.hashes?.plan_sha256) return;
+    const base = getApiBaseUrl();
+    await fetch(`${base || ''}/api/sandbox/compositions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        sandbox_state: { kind: 'profile_identity', chartId },
+        vector_hash: chartData.hashes.plan_sha256,
+        seed: `natal_${chartId}`,
+        plan_hash: chartData.hashes.plan_sha256,
+        report: { savedFrom: 'profile_identity', at: new Date().toISOString() },
+        export_id: null,
+        source: 'profile_identity',
+        composition_type: 'A',
+        object_identity_hash: chartData.hashes.object_identity_hash,
+      }),
+    });
+    await refreshLibrary();
+  };
 
   useEffect(() => {
     if (!editingChart || !primaryChart || !realChart || primaryChart.id === DEFAULT_PROFILE_CHART_ID) return;
@@ -616,10 +651,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     setCreateChartTz('');
                     setCreateChartLocationLabel('');
                     await refresh();
-                    if (newChartId) {
-                      setNatalComposeInProgress(true);
-                      triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
-                    }
                   } finally {
                     setCreating(false);
                   }
@@ -683,12 +714,117 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
+        <div className="flex gap-2 border-b border-border pb-2" role="tablist">
+          {(['active', 'identity', 'library'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              className={`px-4 py-2 rounded-t-lg text-sm font-medium ${
+                profileSection === s ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
+              }`}
+              onClick={() => setProfileSection(s)}
+            >
+              {s === 'active' ? 'Active State' : s === 'identity' ? 'Identity' : 'Library'}
+            </button>
+          ))}
+        </div>
+
+        {profileSection === 'active' && (
+          <div className="space-y-4">
+            <p className="text-sm text-subtext">
+              Current transit overlay (text-first). Set where and when, then load. Audio only when you generate it.
+            </p>
+            {!chartId || noRealChart ? (
+              <p className="text-sm text-amber-600">Add a birth chart in Identity to use Active State.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2 max-w-md">
+                  <input
+                    type="date"
+                    className="input w-full"
+                    value={activeDate}
+                    onChange={(e) => setActiveDate(e.target.value)}
+                  />
+                  <input
+                    type="time"
+                    className="input w-full"
+                    value={activeTime}
+                    onChange={(e) => setActiveTime(e.target.value)}
+                  />
+                </div>
+                <div className="max-w-xl">
+                  <LocationFinder
+                    value={activeLocLabel}
+                    onSelect={(r) => {
+                      setActiveLocLabel(r.label);
+                      setActiveLat(String(r.lat));
+                      setActiveLon(String(r.lon));
+                      setActiveTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
+                    }}
+                    onClear={() => {
+                      setActiveLocLabel('');
+                      setActiveLat('');
+                      setActiveLon('');
+                      setActiveTz('');
+                    }}
+                    placeholder="Current location (search)"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium"
+                    disabled={activeLoading}
+                    onClick={() => void loadActiveStateText()}
+                  >
+                    {activeLoading ? 'Loading…' : 'Load active state'}
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border border-border text-sm"
+                    disabled={activeAudioBusy || !activeResult}
+                    onClick={() => void generateActiveAudio()}
+                  >
+                    {activeAudioBusy ? 'Generating…' : 'Generate audio'}
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border border-border text-sm"
+                    disabled={!activeResult}
+                    onClick={() => void saveActiveToLibrary()}
+                  >
+                    Save to library
+                  </button>
+                </div>
+                {activeError && <p className="text-sm text-red-500">{activeError}</p>}
+                {activeResult?.explanation && (
+                  <ExplainerSections
+                    sections={(
+                      (activeResult.explanation as { sections?: Array<Record<string, unknown>> }).sections || []
+                    ).map((x) => ({
+                      id: String(x.sectionId ?? x.id ?? 'signatures'),
+                      title: String(x.title ?? ''),
+                      text: String(x.text ?? ''),
+                      bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
+                    }))}
+                  />
+                )}
+                {activeAudioUrl && (
+                  <audio controls src={activeAudioUrl} className="w-full max-w-md" preload="metadata" />
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {profileSection === 'identity' && (
+          <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
           <div>
             {noRealChart ? (
               <div className="max-w-full space-y-4 rounded-2xl border border-border bg-bgElev p-4">
                 <p className="text-sm font-medium text-text">Add your birth chart</p>
-                <p className="text-xs text-subtext">Required for profile wheel, matches, and soundtrack.</p>
+                <p className="text-xs text-subtext">Required for your natal wheel and Identity text.</p>
                 <input
                   placeholder="Label (e.g. My Natal)"
                   value={createChartLabel}
@@ -775,10 +911,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                       setCreateChartTz('');
                       setCreateChartLocationLabel('');
                       await refresh();
-                      if (newChartId) {
-                        setNatalComposeInProgress(true);
-                        triggerNatalComposition(newChartId).finally(() => setNatalComposeInProgress(false));
-                      }
                     } finally {
                       setCreating(false);
                     }
@@ -809,20 +941,27 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             )}
             {realChart?.id && !noRealChart && (
               <>
-                {natalComposeInProgress && (
-                  <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Generating your soundtrack…</p>
-                    <p className="text-xs text-subtext mt-1">This may take a moment.</p>
-                  </div>
-                )}
-                <NatalBaselinePlayer chartId={realChart.id} displayName={user?.displayName} />
-                <SoundtrackStatusBlock
-                  chartId={realChart.id}
-                  onRetry={() => {
-                    setNatalComposeInProgress(true);
-                    triggerNatalComposition(realChart.id).finally(() => setNatalComposeInProgress(false));
-                  }}
-                />
+                <div className="mt-4 space-y-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border border-border text-sm mr-2"
+                    disabled={identityAudioBusy || !chartData?.snapshot}
+                    onClick={() => void runIdentityAudio()}
+                  >
+                    {identityAudioBusy ? 'Generating…' : 'Generate identity audio'}
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg border border-border text-sm"
+                    disabled={!chartData?.hashes?.plan_sha256}
+                    onClick={() => void saveIdentityToLibrary()}
+                  >
+                    Save Identity to library
+                  </button>
+                  {identityAudioUrl && (
+                    <audio controls src={identityAudioUrl} className="w-full max-w-md block mt-2" preload="metadata" />
+                  )}
+                </div>
                 <div className="mt-4 rounded-2xl border border-border bg-bgElev p-4 space-y-3">
                   <button
                     type="button"
@@ -919,8 +1058,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                             setEditingChart(false);
                             setCreateChartLocationLabel('');
                             await refresh();
-                            setNatalComposeInProgress(true);
-                            triggerNatalComposition(realChart.id).finally(() => setNatalComposeInProgress(false));
+                            await refreshChart();
                           } finally {
                             setCreating(false);
                           }
@@ -951,6 +1089,44 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               <ExplainerSections sections={chartData!.explainer.sections} />
             )}
           </div>
+        </div>
+        )}
+
+        {profileSection === 'library' && (
+          <div className="space-y-3">
+            <p className="text-sm text-subtext">Saved artifacts only.</p>
+            {libraryLoading ? (
+              <p className="text-sm text-subtext">Loading…</p>
+            ) : (
+              <ul className="space-y-2">
+                {libraryRows.map((row) => (
+                  <li key={String(row.id)} className="rounded border border-border p-3 text-sm">
+                    <span className="text-subtext">{String(row.created_at)}</span>
+                    {' · '}
+                    <span>{String(row.source ?? '—')}</span>
+                    {' · '}
+                    <span>{String(row.composition_type ?? '—')}</span>
+                    {row.export_id ? (
+                      <a
+                        className="ml-2 text-emerald hover:underline"
+                        href={`${getApiBaseUrl() || ''}/api/exports/${String(row.export_id)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Export
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+                {libraryRows.length === 0 && <li className="text-subtext">Nothing saved yet.</li>}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4 text-xs text-subtext">
+          Connections (read-only):{' '}
+          {Array.isArray(communityInventory?.pairs) ? communityInventory!.pairs.length : 0} pairs. Manage in Community.
         </div>
 
         {/* Phase 8G: privacy / discoverability — only when backend returns flags */}

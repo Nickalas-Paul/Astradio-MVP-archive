@@ -147,7 +147,10 @@ export interface ComposeRequest {
   skyParams?: {
     latitude: number;
     longitude: number;
+    /** Local calendar wall time as YYYY-MM-DDTHH:mm[:ss] (suffix Z optional; chart-snapshot uses `timezone` when set). */
     datetime: string;
+    /** IANA zone for date+time — same as canonical location / Profile / Campaign transit (explicit → no tzlookup). */
+    timezone?: string;
   };
   overlayParams?: {
     natalLatitude: number;
@@ -167,6 +170,14 @@ export interface ComposeRequest {
   includeMidi?: boolean | number; // Optional: request MIDI artifact in response
   /** Deterministic compose seed (optional). */
   seed?: string;
+  /**
+   * When true, run Lyria/export audio branch. When false or omitted, text/explanation still run; audio/export must not execute.
+   * Omitted defaults to true only for empty-body sandbox fallback in compose (backward compat); callers should set explicitly.
+   */
+  generateAudio?: boolean;
+  /** When generateAudio is true, if set, response must match these hashes (determinism gate for second-step audio). */
+  expectedPlanSha256?: string;
+  expectedObjectIdentityHash?: string;
   /** Sandbox resolve: projection variant only; same canonical pipeline. */
   output_kind?: "full" | "feed_card";
   /** Ephemeris snapshot from sandbox preview (validated server-side). */

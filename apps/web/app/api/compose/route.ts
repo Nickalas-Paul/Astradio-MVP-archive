@@ -68,6 +68,7 @@ export async function POST(req: Request) {
           timezone: location.timezone,
         },
         locationMeta: location as CanonicalLocation,
+        generateAudio: true,
       });
     }
 

@@ -953,10 +953,10 @@ export default function SandboxPage() {
   }, [exportId]);
 
   const fetchSavedList = useCallback(async () => {
-    const base = getApiBaseUrl();
     setListLoading(true);
     try {
-      const r = await fetch(`${base}/api/sandbox/compositions?limit=50`);
+      // Same-origin only: Next proxy injects session userId for engine owner isolation (see app/api/sandbox/[...path]/route.ts).
+      const r = await fetch('/api/sandbox/compositions?limit=50');
       const data = await r.json().catch(() => []);
       if (!r.ok) {
         setSavedList([]);
@@ -972,7 +972,6 @@ export default function SandboxPage() {
 
   const handleSave = useCallback(async () => {
     if (!canSave) return;
-    const base = getApiBaseUrl();
     setSaveLoading(true);
     setSaveError(null);
     try {
@@ -999,7 +998,19 @@ export default function SandboxPage() {
         output_kind:
           (typeof fr?.output_kind === 'string' ? fr.output_kind : compositionModel.compositionInput.output_kind) ?? 'full',
       };
-      const r = await fetch(`${base}/api/sandbox/compositions`, {
+      const composeFr = fr?.compose as { explanation?: { meta?: { canonical_object_hash?: string } } } | undefined;
+      const aggFr = fr?.aggregate as { explanation?: { meta?: { canonical_object_hash?: string } } } | undefined;
+      const object_identity_hash =
+        composeFr?.explanation?.meta?.canonical_object_hash ??
+        aggFr?.explanation?.meta?.canonical_object_hash ??
+        null;
+      const composition_type: 'A' | 'A+B' | 'A+B+N' =
+        composition_mode === 'overlay'
+          ? 'A+B'
+          : composition_mode === 'pair_aggregate' || composition_mode === 'group_aggregate'
+            ? 'A+B+N'
+            : 'A';
+      const r = await fetch('/api/sandbox/compositions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1019,6 +1030,9 @@ export default function SandboxPage() {
           provider: lastComposeProvider ?? null,
           provider_version: null,
           export_id: exportId ?? null,
+          source: 'sandbox',
+          composition_type,
+          object_identity_hash,
         }),
       });
       const data = await r.json().catch(() => ({}));
@@ -1045,9 +1059,9 @@ export default function SandboxPage() {
   ]);
 
   const handleLoad = useCallback(async (id: string) => {
-    const base = getApiBaseUrl();
+    const base = getApiBaseUrl() || '';
     try {
-      const r = await fetch(`${base}/api/sandbox/compositions/${id}`);
+      const r = await fetch(`/api/sandbox/compositions/${id}`);
       const comp = await r.json().catch(() => null);
       if (!r.ok || !comp) {
         setError(comp?.error ?? 'Failed to load composition');

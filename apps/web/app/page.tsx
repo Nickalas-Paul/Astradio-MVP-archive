@@ -134,6 +134,7 @@ export default function HomePage() {
           date: dateStr,
           time: timeStr,
           location,
+          generateAudio: true,
         };
 
         const startTime = performance.now();

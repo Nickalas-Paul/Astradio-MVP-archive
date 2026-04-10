@@ -157,6 +157,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
           controls: normalized.compose_controls as ComposeRequest['controls'],
           seed: normalized.seed && normalized.seed.length > 0 ? normalized.seed : seedFallback,
           output_kind,
+          generateAudio: true,
         };
       } else if (r.birth) {
         const overridden = await resolveSandboxSlotToOverriddenSnapshot(r);
@@ -167,6 +168,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
           controls: normalized.compose_controls as ComposeRequest['controls'],
           seed: normalized.seed && normalized.seed.length > 0 ? normalized.seed : ch,
           output_kind,
+          generateAudio: true,
         };
       } else {
         return {
@@ -221,6 +223,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         controls: normalized.compose_controls as ComposeRequest['controls'],
         seed: normalized.seed,
         output_kind,
+        generateAudio: true,
       };
       const compose = await composeAPI.compose(composeReq);
       return {

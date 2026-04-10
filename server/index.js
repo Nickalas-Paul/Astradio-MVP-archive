@@ -2116,15 +2116,34 @@ if (hasDb) {
       const provider = body.provider ?? null;
       const provider_version = body.provider_version ?? null;
       const export_id = body.export_id ?? null;
+      const source = typeof body.source === "string" ? body.source.trim() || null : null;
+      const composition_type = typeof body.composition_type === "string" ? body.composition_type.trim() || null : null;
+      const object_identity_hash =
+        typeof body.object_identity_hash === "string" ? body.object_identity_hash.trim() || null : null;
       if (!sandbox_state || typeof vector_hash !== "string" || typeof seed !== "string" || typeof plan_hash !== "string") {
         return res.status(400).json({ error: "sandbox_state, vector_hash, seed, plan_hash required" });
       }
       const id = uuid();
       const now = new Date().toISOString();
       await db.query(
-        `INSERT INTO astradio_sandbox_compositions (id, owner_user_id, sandbox_state, vector_hash, seed, plan_hash, report, provider, provider_version, export_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::timestamptz, $11::timestamptz)`,
-        [id, ownerUserId, JSON.stringify(sandbox_state), vector_hash, seed, plan_hash, JSON.stringify(report), provider, provider_version, export_id, now]
+        `INSERT INTO astradio_sandbox_compositions (id, owner_user_id, sandbox_state, vector_hash, seed, plan_hash, report, provider, provider_version, export_id, source, composition_type, object_identity_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::timestamptz, $14::timestamptz)`,
+        [
+          id,
+          ownerUserId,
+          JSON.stringify(sandbox_state),
+          vector_hash,
+          seed,
+          plan_hash,
+          JSON.stringify(report),
+          provider,
+          provider_version,
+          export_id,
+          source,
+          composition_type,
+          object_identity_hash,
+          now,
+        ]
       );
       const row = await db.getRow("SELECT * FROM astradio_sandbox_compositions WHERE id = $1", [id]);
       return res.status(201).json(row);
@@ -2139,7 +2158,7 @@ if (hasDb) {
       if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
       const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
       const rows = await db.getRows(
-        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, created_at FROM astradio_sandbox_compositions WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT $2",
+        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, source, composition_type, object_identity_hash, created_at FROM astradio_sandbox_compositions WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT $2",
         [ownerUserId, limit]
       );
       return res.json(rows);

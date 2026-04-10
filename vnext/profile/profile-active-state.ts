@@ -13,6 +13,7 @@ import { fetchChartSnapshot, type ChartInput } from '../core/architecture-engine
 import { getCanonicalLocationModule } from './load-canonical-location';
 import { buildProfileNatalProjectionFromChartInput, PROFILE_CONTRACT_VERSION } from './profile-natal-projection';
 import { snapshotFingerprint } from '../canonical/stable-json';
+import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 
 export type ProfileActiveStateResult = {
   identity: {
@@ -23,6 +24,8 @@ export type ProfileActiveStateResult = {
     profile_natal_compose_anchor: string;
     transit_context_fingerprint: string;
     transit_snapshot_fingerprint: string;
+    /** Same primitive as Campaign Phase 1 `provenance.transit_snapshot_hash` (hashSnapshot). */
+    transit_snapshot_hash: string;
     object_identity_hash: string;
     compose_seed: string;
   };
@@ -72,11 +75,12 @@ function loadPgStore(): {
 }
 
 function activeCacheKeyHash(natalAnchor: string, transitFp: string): string {
-  return createHash('sha256').update(`active_v1|${natalAnchor}|${transitFp}`, 'utf8').digest('hex');
+  return createHash('sha256').update(`active_v2|${natalAnchor}|${transitFp}`, 'utf8').digest('hex');
 }
 
 /**
  * Build deterministic Profile active projection (overlay compose). Optional Postgres cache (no silent drift: miss → compute).
+ * Text path: generateAudio false (default). Audio: generateAudio true with expected hashes from prior text response.
  */
 export async function buildProfileActiveStateProjection(params: {
   chartId: string;
@@ -85,6 +89,10 @@ export async function buildProfileActiveStateProjection(params: {
   location: Record<string, unknown>;
   userId?: string | null;
   skipCache?: boolean;
+  /** When true, run Lyria/export; requires expectedPlanSha256 + expectedObjectIdentityHash from prior text-only response. */
+  generateAudio?: boolean;
+  expectedPlanSha256?: string;
+  expectedObjectIdentityHash?: string;
 }): Promise<ProfileActiveStateResult> {
   const cl = getCanonicalLocationModule();
   const v = cl.validateCanonicalLocation(params.location);
@@ -126,9 +134,12 @@ export async function buildProfileActiveStateProjection(params: {
   });
   const transitSnapshot = await fetchChartSnapshot(transitInput);
   const transit_snapshot_fingerprint = snapshotFingerprint(transitSnapshot);
+  const transit_snapshot_hash = hashSnapshot(transitSnapshot);
 
-  const cacheKey = activeCacheKeyHash(natalAnchor, transitContextFingerprint);
-  const pg = !params.skipCache ? loadPgStore() : null;
+  const generateAudio = params.generateAudio === true;
+  const cacheKey =
+    activeCacheKeyHash(natalAnchor, transitContextFingerprint) + (generateAudio ? '|ga1' : '|ga0');
+  const pg = !params.skipCache && !generateAudio ? loadPgStore() : null;
   if (pg) {
     const row = await pg.getProfileProjectionCache(cacheKey);
     if (row && row.response_json && typeof row.response_json === 'object') {
@@ -157,6 +168,17 @@ export async function buildProfileActiveStateProjection(params: {
     mode: 'overlay',
     overlayParams,
     seed: composeSeed,
+    generateAudio,
+    ...(generateAudio &&
+    typeof params.expectedPlanSha256 === 'string' &&
+    params.expectedPlanSha256.length > 0 &&
+    typeof params.expectedObjectIdentityHash === 'string' &&
+    params.expectedObjectIdentityHash.length > 0
+      ? {
+          expectedPlanSha256: params.expectedPlanSha256,
+          expectedObjectIdentityHash: params.expectedObjectIdentityHash,
+        }
+      : {}),
   };
 
   const composeResult = (await composeAPI.compose(composeReq)) as unknown as {
@@ -181,6 +203,7 @@ export async function buildProfileActiveStateProjection(params: {
       profile_natal_compose_anchor: natalAnchor,
       transit_context_fingerprint: transitContextFingerprint,
       transit_snapshot_fingerprint,
+      transit_snapshot_hash,
       object_identity_hash,
       compose_seed: composeSeed,
     },
@@ -197,7 +220,7 @@ export async function buildProfileActiveStateProjection(params: {
     fromCache: false,
   };
 
-  if (pg) {
+  if (pg && !generateAudio) {
     await pg.upsertProfileProjectionCache({
       cache_key_hash: cacheKey,
       user_id: params.userId ?? null,

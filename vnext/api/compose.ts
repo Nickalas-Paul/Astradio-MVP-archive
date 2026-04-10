@@ -139,11 +139,11 @@ export class ComposeAPI {
     const startTime = process.hrtime.bigint();
     
     try {
-      // Accept empty body by defaulting to sandbox mode
+      // Accept empty body by defaulting to sandbox mode (generateAudio true for legacy empty-POST only)
       if (!request || !request.mode) {
-        (request as any) = { mode: 'sandbox', controls: {} };
+        (request as any) = { mode: 'sandbox', controls: {}, generateAudio: true };
       }
-      
+
       // Generate idempotency key from request + model version
       const requestKey = this.sha256(JSON.stringify(request) + this.runtimeModel);
       
@@ -306,12 +306,27 @@ export class ComposeAPI {
       };
       const textMetricsMs = 0;
 
-      // Generate audio: shared Lyria/provider path (snapshot + aggregate policy-identical)
+      const generateAudio = (request as ComposeRequest).generateAudio === true;
+
+      // Generate audio: shared Lyria/provider path (only when generateAudio is explicitly true)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
-      const wavBundle = await runLyriaAlignedExportBlock(
-        (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-        { plan, architecture, featureVec, payload, semanticCore }
-      );
+      const wavBundle = generateAudio
+        ? await runLyriaAlignedExportBlock(
+            (buf, sec) => this.validateRenderedWavDuration(buf, sec),
+            { plan, architecture, featureVec, payload, semanticCore }
+          )
+        : {
+            audio: {
+              format: 'wav' as const,
+              base64: '',
+              sha256: this.sha256('compose_audio_branch_skipped_v1'),
+              latency_ms: 0,
+              size_bytes: 0,
+            },
+            audio_export_available: false,
+            export_attempted: false,
+            export_error: 'export_not_attempted' as ExportErrorCode,
+          };
       const audio = wavBundle.audio;
       let audio_export_available = wavBundle.audio_export_available;
       let export_id = wavBundle.export_id;
@@ -410,6 +425,26 @@ export class ComposeAPI {
         explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
         plan_sha256: planHash // Always include plan hash
       };
+
+      const reqGate = request as ComposeRequest;
+      if (
+        generateAudio &&
+        typeof reqGate.expectedPlanSha256 === 'string' &&
+        reqGate.expectedPlanSha256.length > 0 &&
+        typeof reqGate.expectedObjectIdentityHash === 'string' &&
+        reqGate.expectedObjectIdentityHash.length > 0
+      ) {
+        if (
+          planHash !== reqGate.expectedPlanSha256 ||
+          explanationMeta.canonical_object_hash !== reqGate.expectedObjectIdentityHash
+        ) {
+          const err = new Error(
+            'HASH_MISMATCH: audio step did not reproduce canonical text artifact hashes'
+          ) as Error & { code?: string };
+          err.code = 'HASH_MISMATCH';
+          throw err;
+        }
+      }
 
       // Guardrail: log planner/provider for each compose call to prove that a single
       // planner and a single provider were used for this response.
@@ -636,6 +671,7 @@ export class ComposeAPI {
       
     } catch (error: any) {
       if (error?.code === 'ML_INFERENCE_UNAVAILABLE') throw error;
+      if (error?.code === 'HASH_MISMATCH') throw error;
       throw new Error(`Compose API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -802,6 +838,7 @@ export class ComposeAPI {
     spec: string;
     sections: Array<{ id: string; title: string; text: string; bullets?: string[]; meta?: unknown }>;
     object_identity_hash: string;
+    plan_sha256: string;
     surface_kind: 'profile_natal';
     profile_contract_version: number;
     meta: { canonical_object_hash: string };
@@ -832,6 +869,7 @@ export class ComposeAPI {
       aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
     });
     const object_identity_hash = canonicalReport.object_identity_hash;
+    const plan_sha256 = computePlanHash(plan);
     return {
       spec: 'UnifiedSpecV1.1',
       sections: projected.map((s) => ({
@@ -842,6 +880,7 @@ export class ComposeAPI {
         meta: s.meta,
       })),
       object_identity_hash,
+      plan_sha256,
       surface_kind: 'profile_natal',
       profile_contract_version: 1,
       meta: { canonical_object_hash: object_identity_hash },
@@ -1743,6 +1782,14 @@ export async function vnextCompose(req: any, res: any) {
       res.status(503).json({
         error: error?.message || 'ML inference unavailable',
         code: 'ML_INFERENCE_UNAVAILABLE',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+    if (code === 'HASH_MISMATCH') {
+      res.status(422).json({
+        error: error?.message || 'HASH_MISMATCH',
+        code: 'HASH_MISMATCH',
         timestamp: new Date().toISOString(),
       });
       return;

@@ -639,6 +639,9 @@ export function createCompatRouter(): import('express').Router {
         location?: Record<string, unknown>;
         userId?: string;
         skipCache?: boolean;
+        generateAudio?: boolean;
+        expectedPlanSha256?: string;
+        expectedObjectIdentityHash?: string;
       };
       const chartId = typeof body.chartId === 'string' ? body.chartId.trim() : '';
       const calendarDate = typeof body.calendarDate === 'string' ? body.calendarDate.trim() : '';
@@ -648,6 +651,16 @@ export function createCompatRouter(): import('express').Router {
           error: 'chartId, calendarDate, localTime, and location are required',
           code: 'PROFILE_ACTIVE_INVALID_BODY',
         });
+      }
+      if (body.generateAudio === true) {
+        const ep = typeof body.expectedPlanSha256 === 'string' ? body.expectedPlanSha256.trim() : '';
+        const eo = typeof body.expectedObjectIdentityHash === 'string' ? body.expectedObjectIdentityHash.trim() : '';
+        if (!ep || !eo) {
+          return res.status(400).json({
+            error: 'generateAudio requires expectedPlanSha256 and expectedObjectIdentityHash from prior text response',
+            code: 'PROFILE_ACTIVE_AUDIO_EXPECTED_HASHES',
+          });
+        }
       }
       const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
       const userIdForProjection =
@@ -659,6 +672,11 @@ export function createCompatRouter(): import('express').Router {
         location: body.location,
         userId: userIdForProjection,
         skipCache: body.skipCache === true,
+        generateAudio: body.generateAudio === true,
+        expectedPlanSha256:
+          typeof body.expectedPlanSha256 === 'string' ? body.expectedPlanSha256.trim() : undefined,
+        expectedObjectIdentityHash:
+          typeof body.expectedObjectIdentityHash === 'string' ? body.expectedObjectIdentityHash.trim() : undefined,
       });
       return res.status(200).json(result);
     } catch (e: any) {
@@ -671,6 +689,9 @@ export function createCompatRouter(): import('express').Router {
       }
       if (e?.message?.includes('Chart not found')) return res.status(404).json({ error: e.message });
       if ((e as any)?.code === 'ML_INFERENCE_UNAVAILABLE') return res.status(503).json({ error: 'ML inference unavailable' });
+      if ((e as any)?.code === 'HASH_MISMATCH') {
+        return res.status(422).json({ error: e?.message || 'HASH_MISMATCH', code: 'HASH_MISMATCH' });
+      }
       console.error('[compat] POST /profile/active-state', e);
       return res.status(500).json({ error: e?.message || 'Failed to build profile active state' });
     }

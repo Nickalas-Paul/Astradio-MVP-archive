@@ -49,6 +49,7 @@ export default function DevVizPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               mode: 'sandbox',
+              generateAudio: true,
               chartData: {
                 date: FIXED_CHART.date,
                 time: FIXED_CHART.time,

@@ -316,6 +316,7 @@ export interface ProfileChartResponse {
   };
   meta: { encoderVersion?: string; explainerVersion?: string; generatedAt: string };
   identity?: ProfileChartIdentity;
+  hashes?: { plan_sha256: string; object_identity_hash: string };
   personality?: {
     temperament?: { activation?: number; stability?: number; expressiveness?: number };
     emphasis?: Record<string, number>;

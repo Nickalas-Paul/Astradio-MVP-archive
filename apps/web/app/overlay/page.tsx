@@ -101,6 +101,7 @@ export default function OverlayPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'overlay',
+          generateAudio: true,
           overlayParams: {
             natalLatitude: 40.7128,
             natalLongitude: -74.006,
