@@ -138,7 +138,7 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
         )}
 
         <Link
-          href={`/compatibility/intent?groupId=${group.id}`}
+          href={`/community?tab=discovery&groupId=${group.id}`}
           className="inline-block px-4 py-2 rounded-lg border border-border bg-surface-2 text-sm font-medium hover:bg-surface-3"
         >
           Compatibility in this group

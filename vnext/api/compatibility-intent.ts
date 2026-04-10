@@ -9,15 +9,8 @@ import * as compatStorage from '../compat/storage';
 import type { Chart } from '../compat/types';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
+import type { RelationalIntent } from '../compatibility/relational-intent';
 import { getScopedCandidates } from './scope-resolver';
-
-export type IntentType =
-  | 'friendship'
-  | 'dating'
-  | 'collaboration'
-  | 'mentor'
-  | 'roommate'
-  | 'study';
 
 export type ScopeType = 'my_groups' | 'group' | 'global';
 
@@ -25,17 +18,11 @@ export interface CompatibilityIntentRequest {
   seekerChartId?: string;
   /** Inline chart when seekerChartId not provided */
   chart?: ChartInput;
-  intent: IntentType;
+  intent: RelationalIntent;
   limit?: number;
   scope?: ScopeType;
   groupId?: string;
   seekerUserId?: string;
-  facets?: {
-    communication?: number;
-    emotional?: number;
-    growth?: number;
-    creative?: number;
-  };
 }
 
 export type ClusterBand = 'ease' | 'spark' | 'growth' | 'complex';
@@ -57,18 +44,19 @@ export interface IntentCluster {
 }
 
 export interface CompatibilityIntentResponse {
-  intent: IntentType;
+  intent: RelationalIntent;
   clusters: IntentCluster[];
   meta?: { scope: ScopeType; candidateCount: number };
 }
 
-const INTENT_WEIGHTS: Record<IntentType, { cohesion: number; tension: number; transformation: number; stability: number }> = {
-  friendship: { cohesion: 0.4, tension: 0.1, transformation: 0.15, stability: 0.35 },
-  dating: { cohesion: 0.3, tension: 0.1, transformation: 0.4, stability: 0.2 },
-  collaboration: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
-  mentor: { cohesion: 0.25, tension: 0.15, transformation: 0.4, stability: 0.2 },
-  roommate: { cohesion: 0.3, tension: 0.1, transformation: 0.1, stability: 0.5 },
-  study: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
+const INTENT_WEIGHTS: Record<
+  RelationalIntent,
+  { cohesion: number; tension: number; transformation: number; stability: number }
+> = {
+  friend: { cohesion: 0.4, tension: 0.1, transformation: 0.15, stability: 0.35 },
+  lover: { cohesion: 0.3, tension: 0.1, transformation: 0.4, stability: 0.2 },
+  rival: { cohesion: 0.25, tension: 0.35, transformation: 0.25, stability: 0.15 },
+  collaborator: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
 };
 
 function descriptorsFromScore(scoring: RelationalFieldScoreContract): string[] {
@@ -87,7 +75,7 @@ function descriptorsFromScore(scoring: RelationalFieldScoreContract): string[] {
   return out;
 }
 
-function rankForIntent(scoring: RelationalFieldScoreContract, intent: IntentType): number {
+function rankForIntent(scoring: RelationalFieldScoreContract, intent: RelationalIntent): number {
   const weights = INTENT_WEIGHTS[intent];
   return (
     scoring.derived_indices.cohesion_index * weights.cohesion +
@@ -107,11 +95,16 @@ function assignBand(scoring: RelationalFieldScoreContract): ClusterBand {
 /** Label for band. */
 function bandLabel(band: ClusterBand): string {
   switch (band) {
-    case 'ease': return 'Easy conversation';
-    case 'spark': return 'Creative spark';
-    case 'growth': return 'Growth edge';
-    case 'complex': return 'Complex blend';
-    default: return 'Mixed';
+    case 'ease':
+      return 'Easy conversation';
+    case 'spark':
+      return 'Creative spark';
+    case 'growth':
+      return 'Growth edge';
+    case 'complex':
+      return 'Complex blend';
+    default:
+      return 'Mixed';
   }
 }
 
@@ -158,7 +151,7 @@ async function resolveSeekerChartId(seekerChartId?: string, inlineChart?: ChartI
 export async function computeCompatibilityIntent(
   request: CompatibilityIntentRequest
 ): Promise<CompatibilityIntentResponse> {
-  const { seekerChartId, chart: inlineChart, intent, limit = 20, scope = 'global', groupId, seekerUserId, facets: _facets } = request;
+  const { seekerChartId, chart: inlineChart, intent, limit = 20, scope = 'global', groupId, seekerUserId } = request;
 
   if (scope === 'group' && !groupId) {
     throw new Error('groupId required when scope is group');
@@ -208,15 +201,15 @@ export async function computeCompatibilityIntent(
         chartId: s.chartId,
         displayName: s.displayName,
         descriptors: descriptorsFromScore(s.scoring),
-        sharedContext: [s.rationale]
+        sharedContext: [s.rationale],
       })),
-      why: { bullets: whyBullets(band) }
+      why: { bullets: whyBullets(band) },
     };
   });
 
   return {
     intent,
     clusters: clusters.filter((c) => c.members.length > 0),
-    meta: { scope, candidateCount: candidates.length }
+    meta: { scope, candidateCount: candidates.length },
   };
 }

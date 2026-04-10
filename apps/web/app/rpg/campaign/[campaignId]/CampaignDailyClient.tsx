@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { LocationFinder, type GeocodeResult } from '@/components/sandbox/LocationFinder';
 
 type CampaignStateMember = {
@@ -859,6 +860,13 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
   return (
     <main className="min-h-screen bg-bg px-6 py-8 text-text">
       <div className="mx-auto max-w-5xl space-y-6">
+        <p className="text-xs text-subtext rounded-lg border border-border bg-bgElev px-3 py-2">
+          Group coordination uses structured Signals in Community, not chat.{' '}
+          <Link href="/community?tab=connections" className="text-emerald hover:underline">
+            Open Community → Connections
+          </Link>
+          .
+        </p>
         <section className="space-y-2">
           <p className="text-sm text-subtext">{titleCase(campaign.mode)} Campaign</p>
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">

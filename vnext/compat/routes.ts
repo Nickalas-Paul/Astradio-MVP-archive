@@ -8,7 +8,8 @@ import { getChartById, createChart } from './chart-store';
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
-import { getCompatMatches, type CompatMatchMode } from './matches';
+import { getCompatMatches } from './matches';
+import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import { RELATIONSHIP_MODES, type RelationshipMode } from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
@@ -29,8 +30,6 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
     e: string
   ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
 };
-const COMPAT_MODES: CompatMatchMode[] = ['friend', 'lover', 'rival'];
-
 function isChartTimezoneError(e: unknown): e is { message: string; code: string } {
   const c = (e as { code?: string })?.code;
   return c === 'INVALID_CHART_TIMEZONE' || c === 'CHART_TIMEZONE_UNRESOLVABLE';
@@ -45,8 +44,8 @@ function isRelationshipMode(s: string): s is RelationshipMode {
   return RELATIONSHIP_MODES.includes(s as RelationshipMode);
 }
 
-function isCompatMode(s: string): s is CompatMatchMode {
-  return COMPAT_MODES.includes(s as CompatMatchMode);
+function isCompatMode(s: string): s is RelationalIntent {
+  return (RELATIONAL_INTENTS as readonly string[]).includes(s);
 }
 
 function isChartBInline(value: unknown): value is ChartBInline {
@@ -323,7 +322,9 @@ export function createCompatRouter(): import('express').Router {
       if (!chartId) {
         return res.status(400).json({ error: 'chartId is required' });
       }
-      const mode: CompatMatchMode = isCompatMode((req.query.mode as string) || '') ? (req.query.mode as CompatMatchMode) : 'friend';
+      const mode: RelationalIntent = isCompatMode((req.query.mode as string) || '')
+        ? (req.query.mode as RelationalIntent)
+        : 'friend';
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
       const matches = await getCompatMatches(chartId, mode, limit);
       const generatedAt = new Date().toISOString();
@@ -958,13 +959,14 @@ export function createCompatRouter(): import('express').Router {
   router.post('/compatibility/intent', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = (req.body || {}) as CompatibilityIntentRequest;
-      const { seekerChartId, chart, intent, limit, facets, scope, groupId, seekerUserId } = body;
-      if (!intent) {
+      const { seekerChartId, chart, intent: rawIntent, limit, scope, groupId, seekerUserId } = body;
+      if (rawIntent == null || String(rawIntent).trim() === '') {
         return res.status(400).json({ error: 'intent required' });
       }
-      const validIntents = ['friendship', 'dating', 'collaboration', 'mentor', 'roommate', 'study'];
-      if (!validIntents.includes(intent)) {
-        return res.status(400).json({ error: 'Invalid intent', allowed: validIntents });
+      const mapped = mapLegacyIntentToRelational(String(rawIntent));
+      const intent = mapped ?? (isCompatMode(String(rawIntent)) ? (String(rawIntent) as RelationalIntent) : null);
+      if (!intent) {
+        return res.status(400).json({ error: 'Invalid intent', allowed: [...RELATIONAL_INTENTS] });
       }
       if (!seekerChartId && !chart) {
         return res.status(400).json({ error: 'Either seekerChartId or chart must be provided' });
@@ -977,10 +979,9 @@ export function createCompatRouter(): import('express').Router {
         chart,
         intent,
         limit,
-        facets,
         scope,
         groupId,
-        seekerUserId
+        seekerUserId,
       });
       return res.status(200).json(result);
     } catch (e: unknown) {

@@ -60,6 +60,8 @@ function PairWeatherPreview({
 export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props) {
   const { data, loading, error, refresh } = useCommunityInventory();
   const [accepting, setAccepting] = useState<string | null>(null);
+  const [declining, setDeclining] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const [acceptGroup, setAcceptGroup] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,6 +87,40 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     }
   };
 
+  const declineIntent = async (intentId: string) => {
+    setDeclining(intentId);
+    try {
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/connection-intents/${encodeURIComponent(intentId)}/decline`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        console.error('decline failed', j);
+      }
+      await refresh();
+    } finally {
+      setDeclining(null);
+    }
+  };
+
+  const cancelIntent = async (intentId: string) => {
+    setCancelling(intentId);
+    try {
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/connection-intents/${encodeURIComponent(intentId)}/cancel`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        console.error('cancel failed', j);
+      }
+      await refresh();
+    } finally {
+      setCancelling(null);
+    }
+  };
+
   const acceptGroupInvite = async (groupId: string, inviteId: string) => {
     const key = `${groupId}:${inviteId}`;
     setAcceptGroup(key);
@@ -106,7 +142,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
   if (!currentUserId) {
     return (
       <div className="card space-y-2">
-        <h3 className="text-lg font-semibold text-text">Saved connections</h3>
+        <h3 className="text-lg font-semibold text-text">Connections</h3>
         <p className="text-sm text-subtext">Sign in to see your saved connections and requests.</p>
       </div>
     );
@@ -116,9 +152,9 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     <div className="card space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-semibold text-text">Saved connections</h3>
+          <h3 className="text-lg font-semibold text-text">Connections</h3>
           <p className="text-sm text-subtext">
-            Accepted one-to-one links, relational chart groups, and campaigns. Compatibility matches stay in discovery until you request and accept a
+            Accepted one-to-one links, relational chart groups, and campaigns. Discovery matches stay in Discovery until you request and accept a
             connection.
           </p>
         </div>
@@ -147,15 +183,28 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                   >
                     <span className="text-sm text-text">
                       From user <span className="font-mono text-xs">{String(intent.fromUserId).slice(-8)}</span>
+                      {intent.relationshipKind ? (
+                        <span className="ml-2 text-xs text-subtext capitalize">· {String(intent.relationshipKind)}</span>
+                      ) : null}
                     </span>
-                    <button
-                      type="button"
-                      disabled={accepting === intent.id}
-                      onClick={() => acceptIntent(String(intent.id))}
-                      className="px-3 py-1.5 rounded-lg bg-emerald text-bg text-sm disabled:opacity-50"
-                    >
-                      {accepting === intent.id ? 'Accepting…' : 'Accept'}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={accepting === intent.id}
+                        onClick={() => acceptIntent(String(intent.id))}
+                        className="px-3 py-1.5 rounded-lg bg-emerald text-bg text-sm disabled:opacity-50"
+                      >
+                        {accepting === intent.id ? 'Accepting…' : 'Accept'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={declining === intent.id}
+                        onClick={() => declineIntent(String(intent.id))}
+                        className="px-3 py-1.5 rounded-lg border border-border text-sm text-subtext hover:text-text disabled:opacity-50"
+                      >
+                        {declining === intent.id ? '…' : 'Decline'}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -188,6 +237,35 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             </section>
           )}
 
+          {(data as CommunityInventoryV1).pendingOutgoingIntents?.length > 0 && (
+            <section className="space-y-2">
+              <h4 className="text-sm font-semibold text-text">Outgoing requests</h4>
+              <ul className="space-y-2">
+                {(data as CommunityInventoryV1).pendingOutgoingIntents.map((intent: Record<string, unknown>) => (
+                  <li
+                    key={String(intent.id)}
+                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
+                  >
+                    <span className="text-sm text-subtext">
+                      To user <span className="font-mono text-xs">{String(intent.toUserId).slice(-8)}</span>
+                      {intent.relationshipKind ? (
+                        <span className="ml-2 text-xs capitalize">· {String(intent.relationshipKind)}</span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={cancelling === intent.id}
+                      onClick={() => cancelIntent(String(intent.id))}
+                      className="px-3 py-1.5 rounded-lg border border-border text-sm disabled:opacity-50"
+                    >
+                      {cancelling === intent.id ? '…' : 'Cancel'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-text">One-to-one</h4>
             {(data as CommunityInventoryV1).pairs?.length === 0 ? (
@@ -213,7 +291,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-text">Relational groups (charts)</h4>
             {(data as CommunityInventoryV1).relationalGroups?.length === 0 ? (
-              <p className="text-sm text-subtext">None yet. Use Search to create a group from selected people.</p>
+              <p className="text-sm text-subtext">None yet. Use Discovery to create a group from selected people.</p>
             ) : (
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => (

@@ -3,55 +3,43 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  INTENT_OPTIONS,
+  RELATIONAL_INTENT_OPTIONS,
   SCOPE_OPTIONS,
-  CHIP_OPTIONS,
-  MAX_CHIPS,
-  chipsToFacets,
   toBackendScope,
-  type IntentType,
+  type RelationalIntent,
   type ScopeType,
 } from '@/lib/compat-intent';
 
 interface IntentFormProps {
-  defaultIntent?: IntentType;
+  defaultIntent?: RelationalIntent;
   defaultScope?: ScopeType;
   groupId?: string | null;
   seekerChartId?: string | null;
 }
 
 export function IntentForm({
-  defaultIntent = 'friendship',
+  defaultIntent = 'friend',
   defaultScope = 'my_groups',
   groupId = null,
   seekerChartId = null,
 }: IntentFormProps) {
   const router = useRouter();
-  const [intent, setIntent] = useState<IntentType>(defaultIntent);
+  const [intent, setIntent] = useState<RelationalIntent>(defaultIntent);
   const [scope, setScope] = useState<ScopeType>(groupId ? 'this_group' : defaultScope);
-  const [chips, setChips] = useState<string[]>([]);
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const toggleChip = (v: string) => {
-    setChips((prev) =>
-      prev.includes(v) ? prev.filter((c) => c !== v) : prev.length >= 3 ? prev : [...prev, v]
-    );
-  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const facets = chipsToFacets(chips);
       const backendScope = toBackendScope(scope);
       const body: Record<string, unknown> = {
         intent,
         limit: 20,
         scope: backendScope,
-        facets,
       };
       if (seekerChartId) body.seekerChartId = seekerChartId;
       if (backendScope === 'group' && groupId) body.groupId = groupId;
@@ -72,11 +60,13 @@ export function IntentForm({
       }
 
       const params = new URLSearchParams();
+      params.set('tab', 'discovery');
+      params.set('view', 'clusters');
       params.set('intent', intent);
       params.set('scope', scope);
       if (groupId) params.set('groupId', groupId);
       if (keyword.trim()) params.set('keyword', keyword.trim());
-      router.push(`/compatibility/results?${params.toString()}`);
+      router.push(`/community?${params.toString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate clusters');
     } finally {
@@ -89,11 +79,11 @@ export function IntentForm({
       <div>
         <label className="block text-sm font-medium text-text mb-2">Intent (required)</label>
         <div className="flex flex-wrap gap-2">
-          {INTENT_OPTIONS.map((opt) => (
+          {RELATIONAL_INTENT_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
-              onClick={() => setIntent(opt.value as IntentType)}
+              onClick={() => setIntent(opt.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 intent === opt.value ? 'bg-emerald text-bg' : 'bg-surface-2 text-subtext hover:bg-surface-3'
               }`}
@@ -123,27 +113,6 @@ export function IntentForm({
         {scope === 'this_group' && !groupId && (
           <p className="text-xs text-subtext mt-1">Select &quot;This group&quot; when launched from a group page.</p>
         )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-text mb-2">Looking for… (optional, max 3)</label>
-        <div className="flex flex-wrap gap-2">
-          {CHIP_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => toggleChip(opt.value)}
-              disabled={!chips.includes(opt.value) && chips.length >= MAX_CHIPS}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                chips.includes(opt.value)
-                  ? 'bg-emerald/20 text-emerald border border-emerald'
-                  : 'bg-surface-2 text-subtext hover:bg-surface-3 border border-transparent'
-              } disabled:opacity-50`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div>

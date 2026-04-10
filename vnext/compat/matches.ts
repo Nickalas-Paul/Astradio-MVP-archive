@@ -7,8 +7,10 @@ import { getChartById } from './chart-store';
 import * as storage from './storage';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
+import type { RelationalIntent } from '../compatibility/relational-intent';
 
-export type CompatMatchMode = 'friend' | 'lover' | 'rival';
+/** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
+export type CompatMatchMode = RelationalIntent;
 
 export interface CompatMatchResult {
   userId: string;
@@ -25,10 +27,15 @@ function clampScore(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
 
-function scoreForMode(scoring: RelationalFieldScoreContract, mode: CompatMatchMode): number {
+function scoreForMode(scoring: RelationalFieldScoreContract, mode: RelationalIntent): number {
   const { cohesion_index, tension_index, transformation_index, stability_index } = scoring.derived_indices;
   if (mode === 'lover') return clampScore(cohesion_index * 0.35 + transformation_index * 0.35 + stability_index * 0.15 + scoring.scalar_outputs.overall_relational_intensity * 0.15);
   if (mode === 'rival') return clampScore(tension_index * 0.45 + transformation_index * 0.25 + scoring.scalar_outputs.overall_relational_intensity * 0.3);
+  if (mode === 'collaborator') {
+    return clampScore(
+      cohesion_index * 0.35 + tension_index * 0.15 + transformation_index * 0.15 + stability_index * 0.35
+    );
+  }
   return clampScore(cohesion_index * 0.4 + stability_index * 0.3 + scoring.scalar_outputs.overall_relational_intensity * 0.3);
 }
 
@@ -47,7 +54,7 @@ function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchRe
  */
 export async function getCompatMatches(
   chartId: string,
-  mode: CompatMatchMode,
+  mode: RelationalIntent,
   limit: number
 ): Promise<CompatMatchResult[]> {
   const chart = await getChartById(chartId);

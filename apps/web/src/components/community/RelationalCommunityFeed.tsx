@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
 
 interface RelationalCommunityFeedProps {
@@ -53,9 +54,13 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         </button>
       </div>
       <p className="text-xs text-subtext">
-        Ranked by activation and relational intensity for your saved connections at this moment (
+        Ranked by activation and relational intensity for your established connections at this moment (
         <span className="font-mono text-text/80">{data?.sort_tuple_version ?? '—'}</span>
-        ).
+        ). Not discovery.{' '}
+        <Link href="/community?tab=connections" className="text-emerald hover:underline">
+          Open Signals
+        </Link>{' '}
+        for structured actions.
       </p>
       {items.length === 0 ? (
         <p className="text-sm text-subtext">No established connections yet. Use Discovery to request connections or join groups.</p>
@@ -78,6 +83,12 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               <div className="flex flex-wrap gap-3 text-xs text-subtext pt-1">
                 <span>activation: {item.ranking.activation_intensity.toFixed(4)}</span>
                 <span>relational: {item.ranking.overall_relational_intensity.toFixed(4)}</span>
+                <Link
+                  href="/community?tab=connections&signals=1"
+                  className="text-emerald hover:underline"
+                >
+                  Signals
+                </Link>
               </div>
             </li>
           ))}

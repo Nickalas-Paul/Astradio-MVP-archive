@@ -90,7 +90,8 @@ router.post('/community/connect-intent', communityPostLimiter, async (req, res) 
     const toUserId = (body.toUserId && String(body.toUserId).trim()) || '';
     const fromChartId = (body.fromChartId && String(body.fromChartId).trim()) || '';
     const toChartId = (body.toChartId && String(body.toChartId).trim()) || '';
-    const label = (body.label && String(body.label).trim()) || 'Connection';
+    const label = (body.label && String(body.label).trim()) || undefined;
+    const relationshipKind = (body.relationshipKind && String(body.relationshipKind).trim().toLowerCase()) || 'friend';
     if (!fromUserId || !toUserId || !fromChartId || !toChartId) {
       return res.status(400).json({ error: 'fromUserId, toUserId, fromChartId, and toChartId required' });
     }
@@ -106,11 +107,82 @@ router.post('/community/connect-intent', communityPostLimiter, async (req, res) 
       fromChartId,
       toChartId,
       label,
+      relationshipKind,
     });
     return res.status(201).json(intent);
   } catch (e) {
     console.error('[community] POST /community/connect-intent', e);
     return res.status(500).json({ error: e?.message || 'Failed to create connection intent' });
+  }
+});
+
+router.post('/community/connection-intents/:intentId/decline', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const intentId = (req.params.intentId || '').trim();
+    const body = req.body || {};
+    const userId = (body.userId && String(body.userId).trim()) || (await getDevUserId());
+    if (!userId) return res.status(401).json({ error: 'userId required' });
+    const result = await pgStore.declineConnectionIntent(intentId, userId);
+    if (!result.ok) {
+      if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+      return res.status(400).json({ error: result.error || 'decline_failed' });
+    }
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('[community] POST /community/connection-intents/:id/decline', e);
+    return res.status(500).json({ error: e?.message || 'decline failed' });
+  }
+});
+
+router.post('/community/connection-intents/:intentId/cancel', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const intentId = (req.params.intentId || '').trim();
+    const body = req.body || {};
+    const userId = (body.userId && String(body.userId).trim()) || (await getDevUserId());
+    if (!userId) return res.status(401).json({ error: 'userId required' });
+    const result = await pgStore.cancelConnectionIntent(intentId, userId);
+    if (!result.ok) {
+      if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+      return res.status(400).json({ error: result.error || 'cancel_failed' });
+    }
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('[community] POST /community/connection-intents/:id/cancel', e);
+    return res.status(500).json({ error: e?.message || 'cancel failed' });
+  }
+});
+
+router.get('/community/signals', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req) || (await getDevUserId());
+    const items = await pgStore.listSignalsForRecipient(userId);
+    return res.json({ version: 'signals_v1', items });
+  } catch (e) {
+    console.error('[community] GET /community/signals', e);
+    return res.status(500).json({ error: e?.message || 'signals_failed' });
+  }
+});
+
+router.post('/community/signals/:signalId/react', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const signalId = (req.params.signalId || '').trim();
+    const body = req.body || {};
+    const userId = (body.userId && String(body.userId).trim()) || (await getDevUserId());
+    if (!userId) return res.status(401).json({ error: 'userId required' });
+    const result = await pgStore.reactToSignal(signalId, userId);
+    if (!result.ok) {
+      if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+      if (result.error === 'signals_table_missing') return res.status(501).json({ error: 'signals_unavailable' });
+      return res.status(400).json({ error: result.error || 'react_failed' });
+    }
+    return res.status(200).json(result);
+  } catch (e) {
+    console.error('[community] POST /community/signals/:id/react', e);
+    return res.status(500).json({ error: e?.message || 'react failed' });
   }
 });
 

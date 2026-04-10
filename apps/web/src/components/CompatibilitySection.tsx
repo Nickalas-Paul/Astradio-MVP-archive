@@ -6,8 +6,7 @@ import { getApiBaseUrl } from '../core/api-base';
 import { useCompat } from '../core/social/hooks';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
-
-type CompatMode = 'friend' | 'lover' | 'rival';
+import type { RelationalIntent } from '../lib/relational-intent';
 
 interface CompatibilitySectionProps {
   /** When false, show create-profile CTA first. When true, chartId may still be null (profile exists but no real chart). */
@@ -17,18 +16,19 @@ interface CompatibilitySectionProps {
   className?: string;
   onSwitchToProfile?: () => void;
   /** Optional controlled mode (e.g. from Connections intent selector). */
-  mode?: CompatMode;
-  onModeChange?: (mode: CompatMode) => void;
+  mode?: RelationalIntent;
+  onModeChange?: (mode: RelationalIntent) => void;
   /** Phase 8 — session user id for connection requests (not persisted until peer accepts). */
   currentUserId?: string | null;
   /** Called after a connection request is sent successfully. */
   onConnectionRequested?: () => void;
 }
 
-const MODES: { value: CompatMode; label: string }[] = [
+const MODES: { value: RelationalIntent; label: string }[] = [
   { value: 'friend', label: 'Friend' },
   { value: 'lover', label: 'Lover' },
   { value: 'rival', label: 'Rival' },
+  { value: 'collaborator', label: 'Collaborator' },
 ];
 
 export function CompatibilitySection({
@@ -42,7 +42,7 @@ export function CompatibilitySection({
   currentUserId,
   onConnectionRequested,
 }: CompatibilitySectionProps) {
-  const [internalMode, setInternalMode] = useState<CompatMode>('friend');
+  const [internalMode, setInternalMode] = useState<RelationalIntent>('friend');
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
@@ -146,7 +146,7 @@ export function CompatibilitySection({
           toUserId: match.userId,
           fromChartId: chartId,
           toChartId: match.chartId,
-          label: 'Connection',
+          relationshipKind: mode,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -154,7 +154,7 @@ export function CompatibilitySection({
         setRequestMsg(typeof j.error === 'string' ? j.error : `Request failed (${r.status})`);
         return;
       }
-      setRequestMsg('Request sent. They must accept before it appears in Saved connections.');
+      setRequestMsg('Request sent. They must accept before it appears in Connections.');
       onConnectionRequested?.();
     } catch (e) {
       setRequestMsg(e instanceof Error ? e.message : 'Request failed');

@@ -119,7 +119,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
           toUserId: target.userId,
           fromChartId: chartAId,
           toChartId: target.chartId,
-          label: 'Connection',
+          relationshipKind: 'friend',
         }),
       });
       const data = await r.json().catch(() => ({}));
@@ -127,7 +127,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
         setConnMsg(typeof data.error === 'string' ? data.error : `Request failed (${r.status})`);
         return;
       }
-      setConnMsg(`Connection request sent to ${target.displayName}. They must accept before it appears in Saved connections.`);
+      setConnMsg(`Connection request sent to ${target.displayName}. They must accept before it appears in Connections.`);
       onInventoryRefresh?.();
     } catch (e) {
       setConnMsg(e instanceof Error ? e.message : 'Request failed');
@@ -184,7 +184,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
         const ij = await ir.json().catch(() => ({}));
         if (!ir.ok) throw new Error(typeof ij.error === 'string' ? ij.error : `Invite ${ir.status}`);
       }
-      setGroupMsg('Relational group created; invites sent. Others accept under Saved connections.');
+      setGroupMsg('Relational group created; invites sent. Others accept under Connections.');
       setGroupPick({});
       setGroupName('');
       onInventoryRefresh?.();

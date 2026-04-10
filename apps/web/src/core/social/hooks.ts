@@ -3,6 +3,7 @@ import { getApiBaseUrl } from '../api-base';
 import { SocialAPI } from './mock-api';
 import type { User, Circle, LibraryItem, Playlist, Favorite, Session, UserActivity, LibraryStats } from './types';
 import type { CompatMatch } from '../compat/types';
+import type { RelationalIntent } from '../../lib/relational-intent';
 
 export function useFriends() {
   const [friends, setFriends] = useState<User[]>([]);
@@ -457,15 +458,16 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
 }
 
 // Compatibility hooks. Standard params: chartId, mode, limit, cursor. goal/pageSize accepted as backward-compat aliases (goal→mode, pageSize→limit).
-function goalToMode(goal?: string): 'friend' | 'lover' | 'rival' {
+function goalToMode(goal?: string): RelationalIntent {
   if (goal === 'lover' || goal === 'romantic') return 'lover';
   if (goal === 'rival') return 'rival';
+  if (goal === 'collaborator') return 'collaborator';
   return 'friend';
 }
 
 export function useCompat(params: {
   chartId: string | null;
-  mode?: 'friend' | 'lover' | 'rival';
+  mode?: RelationalIntent;
   cursor?: string;
   pageSize?: number;
   limit?: number;
@@ -690,34 +692,12 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
 
 // Social actions hook
 export function useSocialActions() {
-  const connect = useCallback(async (userId: string, goal: string) => {
-    try {
-      const base = getApiBaseUrl();
-      const response = await fetch(`${base || ''}/api/connect/${userId}?goal=${goal}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin'
-      });
-      if (!response.ok) throw new Error('Failed to connect');
-      return await response.json();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Connection failed');
-    }
+  const connect = useCallback(async () => {
+    throw new Error('Deprecated: use Community → Discovery → Request connection (connection-intent flow).');
   }, []);
 
-  const accept = useCallback(async (requestId: string) => {
-    try {
-      const base = getApiBaseUrl();
-      const response = await fetch(`${base || ''}/api/connect/accept/${requestId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin'
-      });
-      if (!response.ok) throw new Error('Failed to accept');
-      return await response.json();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Accept failed');
-    }
+  const accept = useCallback(async () => {
+    throw new Error('Deprecated: use Community → Connections → accept incoming request.');
   }, []);
 
   const saveTrack = useCallback(async (trackId: string) => {

@@ -1,79 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
-import { TrendingSection } from '../../src/components/TrendingSection';
 import { RelationalCommunityFeed } from '../../src/components/community/RelationalCommunityFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import { CompareChartsPanel } from '../../src/components/community/CompareChartsPanel';
-import { ProfilePanel } from '../../src/components/community/ProfilePanel';
 import { UserSearchPanel } from '../../src/components/community/UserSearchPanel';
 import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
-import LibraryPanel from '../../src/components/library/LibraryPanel';
+import { SignalsPanel } from '../../src/components/community/SignalsPanel';
+import { IntentForm } from '../../src/components/compatibility/IntentForm';
+import { DiscoveryClustersBanner } from './DiscoveryClustersBanner';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
-import AtlasSearch from '../../src/components/atlas/AtlasSearch';
-import { useChartsStore, useCompositionStore } from '../../src/store';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
-import { isFeatureEnabled } from '../../src/core/config/flags';
-import { getApiBaseUrl } from '../../src/core/api-base';
-
-const CirclesPanel = dynamic(
-  () => import('../../src/components/social/CirclesPanel').then((m) => m.default),
-  { ssr: false, loading: () => <div className="text-subtext text-sm p-4">Loading…</div> }
-);
-const SessionsPanel = dynamic(
-  () => import('../../src/components/social/SessionsPanel').then((m) => m.default),
-  { ssr: false, loading: () => <div className="text-subtext text-sm p-4">Loading…</div> }
-);
-
-function natalTrackLabel(displayName: string | null | undefined): string {
-  return displayName && displayName.trim() ? `My ${displayName.trim()} Soundtrack` : 'My Soundtrack';
-}
-
-function SavedCompositionsBlock() {
-  const { jobHistory } = useCompositionStore();
-  const { user } = useProfile();
-  const ready = jobHistory.filter((j) => j.status.stage === 'ready');
-  const hasProfile = !!user;
-  if (ready.length === 0 && !hasProfile) return null;
-  return (
-    <section className="card space-y-3">
-      <h3 className="text-lg font-semibold text-text">Saved Tracks</h3>
-      <p className="text-sm text-subtext">Compositions generated from your profile or charts, including your soundtrack.</p>
-      {ready.length === 0 && hasProfile && (
-        <p className="text-sm text-amber-600 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-          No saved tracks yet. Your natal soundtrack is generated after profile creation. If you just created a profile, check the <strong>Profile</strong> tab for status or any error message.
-        </p>
-      )}
-      <ul className="space-y-2">
-        {ready.map((job) => {
-          const url = job.status.stage === 'ready' ? job.status.url : '';
-          const hasPlayableAudio = typeof url === 'string' && url.length > 0;
-          const label = job.request.chartB ? 'Comparison' : (job.id.startsWith('natal_') ? natalTrackLabel(user?.displayName) : job.request.genre);
-          return (
-            <li
-              key={job.id}
-              className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border bg-bgElev"
-            >
-              <span className="font-medium text-text truncate">{label}</span>
-              {hasPlayableAudio ? (
-                <audio controls src={url} className="h-8 max-w-[200px] flex-shrink-0" preload="metadata" />
-              ) : (
-                <span className="text-xs text-amber-600 dark:text-amber-400" title="Audio artifact missing or expired (e.g. after refresh). No placeholder.">Audio unavailable</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
+import { RELATIONAL_INTENT_OPTIONS, type RelationalIntent } from '../../src/lib/relational-intent';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
+
+type CommunityTabId = 'feed' | 'discovery' | 'connections';
 
 function GroupsList({ userId }: { userId: string | null }) {
   const [groups, setGroups] = useState<Array<{ id: string; slug: string; name: string; description: string }>>([]);
@@ -219,7 +166,7 @@ function GroupsList({ userId }: { userId: string | null }) {
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-bgElev p-6 text-center">
           <p className="text-subtext text-sm">No groups match.</p>
-          <p className="text-xs text-subtext mt-1">Relational groups hold member charts for compatibility and forecasts (not a posting surface).</p>
+          <p className="text-xs text-subtext mt-1">Relational groups hold member charts for compatibility and forecasts.</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -240,70 +187,42 @@ function GroupsList({ userId }: { userId: string | null }) {
   );
 }
 
-type CommunityTabId = 'profile' | 'feed' | 'groups' | 'connections' | 'compare' | 'saved' | 'search';
-
-const CONNECTIONS_INTENTS: { id: string; mode: 'friend' | 'lover' | 'rival'; label: string }[] = [
-  { id: 'friendship', mode: 'friend', label: 'Friendship' },
-  { id: 'dating', mode: 'lover', label: 'Dating' },
-  { id: 'creative', mode: 'friend', label: 'Creative collaboration' },
-  { id: 'study', mode: 'friend', label: 'Study partners' },
-  { id: 'shadow', mode: 'rival', label: 'Shadow work partners' },
-  { id: 'campaign', mode: 'friend', label: 'Campaign party' },
-];
-
-export default function CommunityClient() {
-  const [activeTab, setActiveTab] = useState<CommunityTabId>('profile');
-  const [filter, setFilter] = useState<'all' | 'charts' | 'compositions'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [connectionsIntentId, setConnectionsIntentId] = useState<string>('friendship');
+function CommunityClientInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<CommunityTabId>('feed');
+  const [discoveryIntent, setDiscoveryIntent] = useState<RelationalIntent>('friend');
   const [inventoryRefreshSignal, setInventoryRefreshSignal] = useState(0);
   const bumpCommunityInventory = () => setInventoryRefreshSignal((n) => n + 1);
-  const connectionsMode = CONNECTIONS_INTENTS.find((i) => i.id === connectionsIntentId)?.mode ?? 'friend';
-  const { charts } = useChartsStore();
-  const { jobHistory } = useCompositionStore();
   const { user, primaryChart } = useProfile();
 
   useHydrateCompositionUrls();
 
-  const filteredCharts = charts.filter(chart =>
-    chart.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const filteredCompositions = jobHistory.filter(job =>
-    job.request.genre.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getFilteredItems = () => {
-    switch (filter) {
-      case 'charts':
-        return filteredCharts;
-      case 'compositions':
-        return filteredCompositions;
-      default:
-        return [...filteredCharts, ...filteredCompositions];
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'feed' || t === 'discovery' || t === 'connections') {
+      setActiveTab(t);
     }
+  }, [searchParams]);
+
+  const setTab = (t: CommunityTabId) => {
+    setActiveTab(t);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set('tab', t);
+    router.replace(`/community?${next.toString()}`, { scroll: false });
   };
 
-  const items = getFilteredItems();
-
   const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
-    { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'feed', label: 'Feed', icon: '📱' },
-    { id: 'groups', label: 'Groups', icon: '👥' },
-    { id: 'connections', label: 'Discovery & saved', icon: '🔗' },
-    { id: 'compare', label: 'Compare', icon: '⚖️' },
-    { id: 'saved', label: 'Saved Tracks', icon: '💾' },
-    { id: 'search', label: 'Search & groups', icon: '🔍' },
+    { id: 'discovery', label: 'Discovery', icon: '🔭' },
+    { id: 'connections', label: 'Connections', icon: '🔗' },
   ];
 
+  const seekerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
+  const groupIdFromUrl = searchParams.get('groupId');
+
   return (
-    <AppShell showContextRail contextRailContent={
-      isFeatureEnabled('ENABLE_SOCIAL') && activeTab === 'connections' ? (
-        <div className="space-y-6">
-          <CirclesPanel />
-          <SessionsPanel />
-        </div>
-      ) : null
-    }>
+    <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -312,12 +231,15 @@ export default function CommunityClient() {
         >
           <h1 className="text-4xl font-bold text-text">Community</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Connect with fellow astrologers, discover compatible matches,
-            and share your cosmic musical journey.
+            Relational weather, discovery, and connections — chart-based and deterministic.
           </p>
-          <Link href="/compatibility" className="text-emerald-500 hover:underline text-sm">
-            Compatibility (intent-based clusters)
-          </Link>
+          <p className="text-sm text-subtext">
+            Profile and saved tracks live under{' '}
+            <Link href="/profile" className="text-emerald hover:underline">
+              Profile
+            </Link>
+            .
+          </p>
         </motion.div>
 
         <motion.div
@@ -329,7 +251,8 @@ export default function CommunityClient() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              type="button"
+              onClick={() => setTab(tab.id)}
               className={`px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-emerald text-bg shadow-md'
@@ -351,142 +274,109 @@ export default function CommunityClient() {
           transition={{ duration: 0.3 }}
           className="w-full"
         >
-          {activeTab === 'saved' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="card"
-            >
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search charts and compositions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input w-full"
-                  />
+          {activeTab === 'feed' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <RelationalCommunityFeed userId={user?.id ?? null} primaryChart={primaryChart} />
+            </div>
+          )}
+
+          {activeTab === 'discovery' && (
+            <div className="max-w-4xl mx-auto space-y-10">
+              {searchParams.get('view') === 'clusters' && (
+                <DiscoveryClustersBanner
+                  onDismiss={() => {
+                    try {
+                      sessionStorage.removeItem('compat_intent_results');
+                    } catch {
+                      /* ignore */
+                    }
+                    const next = new URLSearchParams(searchParams.toString());
+                    next.delete('view');
+                    router.replace(`/community?${next.toString()}`, { scroll: false });
+                  }}
+                />
+              )}
+              <section className="card space-y-3">
+                <h2 className="text-lg font-semibold text-text">Intent clusters</h2>
+                <p className="text-sm text-subtext">
+                  Ranked clusters use the same canonical compatibility field; intent only changes projection weights.
+                </p>
+                <IntentForm
+                  defaultIntent="friend"
+                  seekerChartId={seekerChartId ?? undefined}
+                  groupId={groupIdFromUrl}
+                  defaultScope={groupIdFromUrl ? 'this_group' : 'my_groups'}
+                />
+              </section>
+
+              <section className="card space-y-3">
+                <h2 className="text-lg font-semibold text-text">Directory search</h2>
+                <p className="text-sm text-subtext">Search by name or handle. Use Evaluate to compare charts before requesting a connection.</p>
+                <UserSearchPanel onInventoryRefresh={bumpCommunityInventory} />
+              </section>
+
+              <section className="card space-y-3">
+                <h2 className="text-lg font-semibold text-text">Evaluate charts</h2>
+                <p className="text-sm text-subtext">One-off comparison for a candidate (not a separate product surface).</p>
+                <CompareChartsPanel onSwitchToGroups={() => setTab('connections')} />
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-text">Compatibility matches</h2>
+                <p className="text-sm text-subtext max-w-2xl">
+                  Ranked from the canonical field. Request connection with the selected intent; the other person must accept before the pair appears in
+                  Connections and Feed.
+                </p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {RELATIONAL_INTENT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDiscoveryIntent(opt.value)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        discoveryIntent === opt.value
+                          ? 'bg-emerald-500 text-white ring-2 ring-emerald-500/50'
+                          : 'bg-bgElev text-subtext hover:text-text border border-border'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setFilter('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'all' ? 'bg-emerald text-bg' : 'bg-bgElev text-subtext hover:text-text'
-                    }`}
-                  >
-                    All ({items.length})
-                  </button>
-                  <button
-                    onClick={() => setFilter('charts')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'charts' ? 'bg-emerald text-bg' : 'bg-bgElev text-subtext hover:text-text'
-                    }`}
-                  >
-                    Charts ({filteredCharts.length})
-                  </button>
-                  <button
-                    onClick={() => setFilter('compositions')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'compositions' ? 'bg-emerald text-bg' : 'bg-bgElev text-subtext hover:text-text'
-                    }`}
-                  >
-                    Compositions ({filteredCompositions.length})
-                  </button>
-                </div>
+                <CompatibilitySection
+                  hasProfile={user !== null}
+                  chartId={seekerChartId}
+                  limit={10}
+                  mode={discoveryIntent}
+                  onModeChange={setDiscoveryIntent}
+                  onSwitchToProfile={() => router.push('/profile')}
+                  currentUserId={user?.id ?? null}
+                  onConnectionRequested={bumpCommunityInventory}
+                />
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'connections' && (
+            <div className="max-w-4xl mx-auto space-y-8">
+              <SignalsPanel currentUserId={user?.id ?? null} />
+              <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
+              <div>
+                <h2 className="text-lg font-semibold text-text mb-2">Relational groups</h2>
+                <GroupsList userId={user?.id ?? null} />
               </div>
-            </motion.div>
+            </div>
           )}
         </motion.div>
-
-        {activeTab === 'profile' && (
-          <ProfilePanel onSwitchToConnections={() => setActiveTab('connections')} />
-        )}
-
-        {activeTab === 'feed' && (
-          <div className="space-y-6 max-w-4xl mx-auto">
-            <RelationalCommunityFeed userId={user?.id ?? null} primaryChart={primaryChart} />
-            <TrendingSection limit={10} />
-          </div>
-        )}
-
-        {activeTab === 'compare' && (
-          <div className="max-w-4xl mx-auto space-y-4">
-            <p className="text-sm text-subtext max-w-xl">
-              Compare two charts by birth data. Use location search and date/time for each chart; coordinates are set from your place selection. Relationship mode shapes the compatibility reading.
-            </p>
-            <CompareChartsPanel onSwitchToGroups={() => setActiveTab('groups')} />
-          </div>
-        )}
-
-        {activeTab === 'connections' && (
-          <div className="max-w-4xl mx-auto space-y-8">
-            <p className="text-sm text-subtext max-w-2xl">
-              <strong className="text-text">Discovery</strong> (compatibility suggestions) does not auto-save. Use <strong className="text-text">Request connection</strong> here or under Search; the other person must accept before a pair appears in{' '}
-              <strong className="text-text">Saved connections</strong> below.
-            </p>
-            <section className="card space-y-3">
-              <h3 className="text-lg font-semibold text-text">What are you looking for?</h3>
-              <div className="flex flex-wrap gap-2">
-                {CONNECTIONS_INTENTS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setConnectionsIntentId(opt.id)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      connectionsIntentId === opt.id
-                        ? 'bg-emerald-500 text-white ring-2 ring-emerald-500/50'
-                        : 'bg-bgElev text-subtext hover:text-text border border-border'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm text-subtext">
-                Selected: <span className="font-medium text-text">{CONNECTIONS_INTENTS.find((i) => i.id === connectionsIntentId)?.label ?? 'Friendship'}</span>
-              </p>
-            </section>
-            <CompatibilitySection
-              hasProfile={user !== null}
-              chartId={hasRealChart(primaryChart) ? primaryChart!.id : null}
-              limit={10}
-              mode={connectionsMode}
-              onModeChange={(m) => {
-                const next = CONNECTIONS_INTENTS.find((i) => i.mode === m);
-                if (next) setConnectionsIntentId(next.id);
-              }}
-              onSwitchToProfile={() => setActiveTab('profile')}
-              currentUserId={user?.id ?? null}
-              onConnectionRequested={bumpCommunityInventory}
-            />
-            <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
-          </div>
-        )}
-
-        {activeTab === 'saved' && (
-          <div className="max-w-4xl mx-auto space-y-8">
-            <SavedCompositionsBlock />
-            <LibraryPanel />
-          </div>
-        )}
-
-        {activeTab === 'search' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <p className="text-sm text-subtext max-w-xl">
-              Directory search by name or handle. Compare is a one-off reading. Request connection or select people and create a relational chart group — invites and acceptances show under{' '}
-              <button type="button" onClick={() => setActiveTab('connections')} className="text-emerald hover:underline">
-                Discovery &amp; saved
-              </button>
-              .
-            </p>
-            <UserSearchPanel onInventoryRefresh={bumpCommunityInventory} />
-            <AtlasSearch />
-          </div>
-        )}
-
-        {activeTab === 'groups' && <GroupsList userId={user?.id ?? null} />}
       </div>
     </AppShell>
+  );
+}
+
+export default function CommunityClient() {
+  return (
+    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-subtext">Loading Community…</div>}>
+      <CommunityClientInner />
+    </Suspense>
   );
 }
