@@ -7,9 +7,10 @@ const RULES: Record<
   DensityClass,
   { minParagraphs: number; minSentencesPerParagraph: number; minClaims: number }
 > = {
-  short: { minParagraphs: 1, minSentencesPerParagraph: 3, minClaims: 1 },
-  medium: { minParagraphs: 2, minSentencesPerParagraph: 3, minClaims: 2 },
-  long: { minParagraphs: 3, minSentencesPerParagraph: 4, minClaims: 3 },
+  /** Phase 2 density contract — aligned with assemble-sections enrichSectionText. */
+  short: { minParagraphs: 1, minSentencesPerParagraph: 1, minClaims: 1 },
+  medium: { minParagraphs: 1, minSentencesPerParagraph: 2, minClaims: 2 },
+  long: { minParagraphs: 2, minSentencesPerParagraph: 2, minClaims: 3 },
 };
 
 export function countParagraphs(text: string): number {
@@ -51,7 +52,8 @@ export function validateDensity(
 }
 
 export function densityForSurfaceBaseline(surfaceDensity: DensityClass, tier: 'baseline' | 'expanded' | 'extended'): DensityClass {
-  if (tier === 'extended' && surfaceDensity === 'medium') return 'long';
+  /** Phase 2: extended tier uses the same density class as expanded for medium-baseline surfaces. */
+  if (tier === 'extended' && surfaceDensity === 'medium') return 'medium';
   if (tier === 'expanded' && surfaceDensity === 'medium') return 'medium';
   return surfaceDensity;
 }

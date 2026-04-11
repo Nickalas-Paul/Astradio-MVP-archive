@@ -19,11 +19,18 @@ import {
   buildSupplementalPanel,
   claimSentencesFromRange,
 } from './claim-synthesize';
-import { buildAudioStagingBlock, densityPhraseFromCore, lightListenHintFromCore } from './audio-lexicon';
+import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
 import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
+import {
+  applyAnchorAndTemporalToSectionBody,
+  assertTemplateHasNoLegacyAnchor,
+  reducedPadPool,
+  repairPhase2ParagraphLoads,
+  validatePhase2Sections,
+} from './phase2-sentence-load';
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -33,17 +40,9 @@ function pickVariant(seed: string, variants: string[]): string {
   return variants[h % variants.length];
 }
 
-const PAD_SENTENCES = [
-  'This pattern tends to be context-sensitive rather than fixed: the same emphasis may read louder under stress and softer under safety.',
-  'Many people with a similar picture describe the feel as more situational than permanent, especially when life load changes week to week.',
-  'Integration often works better as small experiments than as a single decisive relabeling of the self or the relationship.',
-];
+const PAD_SENTENCES = reducedPadPool();
 
-const FEED_FALLBACK_SENTENCES = [
-  'This card stays narrow by design: it highlights one active thread from the same picture.',
-  'Use this card as a short signal check, then open a full report when you need broader synthesis.',
-  'This feed view is intentionally compressed, so it favors one clear observation over full narrative depth.',
-];
+const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
 
 function hashSeed(seed: string): number {
   let h = 0;
@@ -79,13 +78,14 @@ function expandSentencesToMin(
   minSentences: number,
   seed: string,
   fallbackPool: string[] = PAD_SENTENCES,
-  usedFallback?: Set<string>
+  usedFallback?: Set<string>,
+  maxPadIterations = 1
 ): string {
   let t = text.trim();
   if (!t) t = nextFallbackSentence(`${seed}:base`, fallbackPool, usedFallback);
   let n = countSentences(t);
   let i = 0;
-  while (n < minSentences && i < 8) {
+  while (n < minSentences && i < maxPadIterations) {
     t += ' ' + nextFallbackSentence(`${seed}:pad:${i}`, fallbackPool, usedFallback);
     n = countSentences(t);
     i++;
@@ -112,40 +112,36 @@ function tierOpeningClause(surface: ProjectionSurface, tier: ExpansionTier, seed
   if (tier === 'baseline') return null;
   const bySurface: Record<ProjectionSurface, { expanded: string[]; extended: string[] }> = {
     profile: {
-      expanded: [
-        'Expanded pass: you, in this picture, at baseline, add mid-rank threads that often explain how the same pattern shifts across context.',
-      ],
-      extended: [
-        'Extended pass: you, in this picture, at baseline, fold in lower-ranked moderator threads to map nuance, not just the dominant headline.',
-      ],
+      expanded: ['Expanded pass adds mid-rank threads that explain how the same pattern shifts across context.'],
+      extended: ['Extended pass folds in lower-ranked moderator threads to map nuance, not just the dominant headline.'],
     },
     daily: {
-      expanded: ['Expanded daily pass: you, in this picture, at baseline, add near-term timing nuance around the same active sky signal.'],
-      extended: ['Expanded daily pass: you, in this picture, at baseline, add secondary timing modifiers and contrast handling.'],
+      expanded: ['Expanded daily pass adds near-term timing nuance around the same active sky signal.'],
+      extended: ['Expanded daily pass adds secondary timing modifiers and contrast handling.'],
     },
     sandbox: {
-      expanded: ['Expanded sandbox pass: this lab picture adds additional threads that shift when you change lab controls.'],
-      extended: ['Expanded sandbox pass: this lab picture adds second-order effects for edge-condition sensitivity.'],
+      expanded: ['Expanded sandbox pass adds threads that shift when you change lab controls.'],
+      extended: ['Expanded sandbox pass adds second-order effects for edge-condition sensitivity.'],
     },
     overlay_pair: {
-      expanded: ['Expanded overlay pass: you, in this picture, at baseline, add more explicit natal-versus-sky layering detail.'],
-      extended: ['Expanded overlay pass: you, in this picture, at baseline, add moderator threads across both time layers.'],
+      expanded: ['Expanded overlay pass adds explicit natal-versus-sky layering detail.'],
+      extended: ['Expanded overlay pass adds moderator threads across both time layers.'],
     },
     compat_pair: {
-      expanded: ['Expanded pair pass: you, for this connection, at baseline, add interaction-mode detail beyond the baseline compatibility frame.'],
-      extended: ['Expanded pair pass: you, for this connection, at baseline, add secondary pair moderators and contrast handling.'],
+      expanded: ['Expanded pair pass adds interaction-mode detail beyond the baseline compatibility frame.'],
+      extended: ['Expanded pair pass adds secondary pair moderators and contrast handling.'],
     },
     group: {
       expanded: ['Expanded group pass: this picture adds how emphasis spreads across people in the room.'],
       extended: ['Expanded group pass: this picture adds smaller clusters inside the wider group story.'],
     },
     campaign: {
-      expanded: ['Expanded campaign pass: you, in this scenario, at baseline, add pressure-response detail beyond baseline response guidance.'],
-      extended: ['Extended campaign pass: you, in this scenario, at baseline, add secondary pressure moderators for turn-level adaptation.'],
+      expanded: ['Expanded campaign pass adds pressure-response detail beyond baseline response guidance.'],
+      extended: ['Extended campaign pass adds secondary pressure moderators for turn-level adaptation.'],
     },
     feed: {
-      expanded: ['Expanded feed pass: you, on this card, at baseline, add one additional context layer while staying concise.'],
-      extended: ['Extended feed pass: you, on this card, at baseline, add one deeper synthesis hint without turning into a full report.'],
+      expanded: ['Expanded feed pass adds one context layer while staying concise.'],
+      extended: ['Extended feed pass adds one deeper synthesis hint without turning into a full report.'],
     },
   };
   const variants = tier === 'expanded' ? bySurface[surface].expanded : bySurface[surface].extended;
@@ -178,36 +174,52 @@ function enrichSectionText(
   seed: string,
   claimIds: string[],
   usedFallback?: Set<string>,
-  fallbackPool: string[] = PAD_SENTENCES
+  fallbackPool: string[] = PAD_SENTENCES,
+  enrichOpts?: { feed?: boolean; campaignExtendedFill?: boolean }
 ): { text: string; claimIds: string[] } {
   const rules =
     density === 'short'
-      ? { minP: 1, minS: 3 }
+      ? { minP: 1, minS: 1 }
       : density === 'medium'
-        ? { minP: 2, minS: 3 }
-        : { minP: 3, minS: 4 };
+        ? { minP: 1, minS: 2 }
+        : { minP: 2, minS: 2 };
 
-  let p1 = expandSentencesToMin(baseText.trim(), rules.minS, `${seed}:p1`, fallbackPool, usedFallback);
+  const maxPad = enrichOpts?.feed ? 0 : 1;
+  let p1 = expandSentencesToMin(
+    baseText.trim(),
+    rules.minS,
+    `${seed}:p1`,
+    fallbackPool,
+    usedFallback,
+    maxPad
+  );
   const blocks: string[] = [p1];
   for (let e = 0; e < extraParagraphs.length; e++) {
-    blocks.push(expandSentencesToMin(extraParagraphs[e], rules.minS, `${seed}:ex:${e}`, fallbackPool, usedFallback));
+    blocks.push(
+      expandSentencesToMin(extraParagraphs[e], rules.minS, `${seed}:ex:${e}`, fallbackPool, usedFallback, maxPad)
+    );
   }
   let merged = blocks.join('\n\n');
   let paras = splitIntoParagraphs(merged);
-  if (paras.length < rules.minP) {
-    const needed = rules.minP - paras.length;
-    for (let k = 0; k < needed; k++) {
-      paras.push(
-        expandSentencesToMin(
-          nextFallbackSentence(`${seed}:fill:${k}`, fallbackPool, usedFallback),
-          rules.minS,
-          `${seed}:fillS:${k}`,
-          fallbackPool,
-          usedFallback
-        )
-      );
-    }
+  if (paras.length < rules.minP && enrichOpts?.campaignExtendedFill) {
+    paras.push(
+      expandSentencesToMin(
+        nextFallbackSentence(`${seed}:fill:0`, fallbackPool, usedFallback),
+        rules.minS,
+        `${seed}:fillS:0`,
+        fallbackPool,
+        usedFallback,
+        1
+      )
+    );
   }
+  paras = paras.map((para, pi) => {
+    const need = rules.minS;
+    const n = countSentences(para);
+    if (n >= need) return para;
+    const paraPadCap = enrichOpts?.feed ? 0 : Math.min(2, Math.max(1, need));
+    return expandSentencesToMin(para, need, `${seed}:para:${pi}`, fallbackPool, usedFallback, paraPadCap);
+  });
   merged = paras.join('\n\n');
   return { text: merged, claimIds };
 }
@@ -231,12 +243,12 @@ function applyAggregateSurfaceIdentityOverrides(
     const baseIdentity =
       surface === 'compat_pair'
         ? pickVariant(`${seed}:compat:rel`, [
-            'Pair framing: you, for this connection, at baseline, prioritize two-person timing and mutual regulation before wider generalization.',
-            'Pair framing: you, for this connection, at baseline, treat contact as an interface between two people, not a crowd average.',
+            'Two-person timing and mutual regulation stay in view before wider generalization.',
+            'Contact stays an interface between two people, not a crowd average.',
           ])
         : pickVariant(`${seed}:group:rel`, [
-            'Group framing: you, for this group, at baseline, look at how emphasis spreads across everyone before zooming to one pair.',
-            'Group framing: you, for this group, at baseline, treat the room as many voices with local clusters, not a single pair story.',
+            'Emphasis spreads across the room before zooming to one pair.',
+            'The room holds many voices and local clusters; it is not only one pair story.',
           ]);
     const claimIdsIn =
       s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
@@ -292,21 +304,17 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     paragraphNormDeque
   );
   const fallbackUsed = new Set<string>();
-  const t1 = expandSentencesToMin(claimSlice.text, 3, `${seed}:feed`, FEED_FALLBACK_SENTENCES, fallbackUsed);
+  const t1 = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
   const s1: ProjectedExplanationSection = {
     id: 'feed_signal',
     title: 'Signal',
     text: t1,
     meta: { claimIdsReferenced: claimSlice.claimIds.slice(0, 4), phaseD: true },
   };
-  const extra = pickVariant(seed + 'feed2', [
-    'This card is intentionally short and highlights one active thread rather than a full interpretive report.',
-    'Use this card as a quick signal check, then open a full report for broader synthesis.',
-  ]);
   const s2: ProjectedExplanationSection = {
     id: 'feed_context',
     title: 'Scope',
-    text: expandSentencesToMin(extra, 3, `${seed}:feed2`, FEED_FALLBACK_SENTENCES, fallbackUsed),
+    text: FEED_SCOPE_SENTENCE,
     meta: { claimIdsReferenced: [], phaseD: true },
   };
   return [s1, s2];
@@ -338,7 +346,17 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     temporalBucket,
     surface,
   };
-  const raw = buildEmphasisRawSections(core, seed, templateCtx);
+  const rawBuilt = buildEmphasisRawSections(core, seed, templateCtx);
+  const temporalLine =
+    temporalBucket !== 'static' ? temporalIntegrationLine(temporalBucket, `${seed}:anch-temp`) : null;
+  const raw = rawBuilt.map((sec) => {
+    assertTemplateHasNoLegacyAnchor(sec.text, sec.id);
+    const merged = applyAnchorAndTemporalToSectionBody(sec.id, sec.text, templateCtx, seed, temporalLine);
+    return {
+      ...sec,
+      text: repairPhase2ParagraphLoads(merged, 'template', sec.id),
+    };
+  });
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
@@ -365,7 +383,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       if (surface === 'sandbox') {
         extras.push(
           pickVariant(`${seed}:sandbox:lab:${tierEff}`, [
-            'Sandbox framing: this picture reflects lab conditions you changed on purpose; compare against a baseline chart when you need a control.',
+            'Sandbox framing: this picture reflects lab conditions you changed on purpose.',
             'Sandbox framing: this lab pass emphasizes sensitivity to those changes, not fixed life conclusions.',
           ])
         );
@@ -417,13 +435,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       );
       const syn = [
         pickVariant(seed + ':syn', [
-          `Cross-section synthesis: you, in this picture, at baseline, tie together mid-rank threads that moderate the dominant pattern.`,
-          `Synthesis note: you, in this picture, at baseline, add secondary threads that refine where intensity softens or concentrates.`,
+          `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
+          `Synthesis adds secondary threads that refine where intensity softens or concentrates.`,
         ]),
         synClaim.text,
       ]
         .filter(Boolean)
-        .join(' ');
+        .join('\n\n');
       const { text, claimIds } = enrichSectionText(
         syn,
         [],
@@ -454,13 +472,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       );
       const syn = [
         pickVariant(seed + ':synb', [
-          `Extended synthesis: you, in this picture, at baseline, bring in lower-ranked moderator threads to map nuance around the headline pattern.`,
-          `Second-pass synthesis: you, in this picture, at baseline, add moderator threads that can shift emphasis without replacing the primary signal.`,
+          `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
+          `Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.`,
         ]),
         synClaim.text,
       ]
         .filter(Boolean)
-        .join(' ');
+        .join('\n\n');
       const { text, claimIds } = enrichSectionText(
         syn,
         [],
@@ -495,8 +513,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'trait_bridge' && surface === 'profile') {
       const syn = pickVariant(seed + ':trait', [
-        `Trait bridge: you, in this chart, at baseline, often see elemental and tonal signals travel together; changing context can shift which side shows up first.`,
-        `Trait bridge: you, in this chart, at baseline, may notice structure in skills under stress before it shows up in self-description; both tracks can be valid.`,
+        `Trait bridge: elemental and tonal signals often travel together; changing context can shift which side shows up first.`,
+        `Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid.`,
       ]);
       const { text, claimIds } = enrichSectionText(
         syn,
@@ -515,8 +533,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'interaction_map' && surface === 'compat_pair') {
       const syn = pickVariant(seed + ':im', [
-        `Interaction map: you, for this connection, at baseline, may feel alternating seasons when harmony and friction both show, rather than one steady average.`,
-        `Interaction map: you, for this connection, at baseline, may hear different stress languages when divergence shows; naming them often reduces unnecessary fusion.`,
+        `Interaction map: alternating seasons can show when harmony and friction both appear, rather than one steady average.`,
+        `Interaction map: different stress languages can appear when divergence shows; naming them often reduces unnecessary fusion.`,
       ]);
       const { text, claimIds } = enrichSectionText(
         syn,
@@ -535,8 +553,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'field_distribution' && surface === 'group') {
       const syn = pickVariant(seed + ':fd', [
-        `Field distribution: you, for this group, at baseline, often see emphasis concentrate on a few people rather than spreading evenly.`,
-        `Field distribution: you, for this group, at baseline, can treat harmony and friction as room-wide qualities before shrinking them to one pair.`,
+        `Field distribution: emphasis often concentrates on a few people rather than spreading evenly.`,
+        `Field distribution: harmony and friction can read as room-wide qualities before shrinking them to one pair.`,
       ]);
       const { text, claimIds } = enrichSectionText(
         syn,
@@ -572,8 +590,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'layering' && surface === 'overlay_pair') {
       const syn = pickVariant(seed + ':lay', [
-        `Layering: you, in this overlay, at baseline, hold two time layers that can disagree; treat them as two simultaneous pictures rather than one merged verdict.`,
-        `Layering: you, in this overlay, at baseline, may see today spike briefly while the longer personal arc steers the rest; both can be true at different timescales.`,
+        `Layering: two time layers can disagree; treat them as two simultaneous pictures rather than one merged verdict.`,
+        `Layering: a short spike can sit on a longer personal arc; both can be true at different timescales.`,
       ]);
       const { text, claimIds } = enrichSectionText(
         syn,
@@ -592,8 +610,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'delta_emphasis' && surface === 'sandbox') {
       const syn = pickVariant(seed + ':de', [
-        `Sandbox delta: you, in this lab, at baseline, see the picture change when you move controls; compare against a known baseline chart outside the lab when you need a control.`,
-        `Sandbox delta: you, in this lab, at baseline, can treat strong shifts as sensitivity tests for edge configurations, not as fixed life predictions.`,
+        `Sandbox delta: the picture changes when you move controls; compare against a known baseline chart outside the lab when you need a control.`,
+        `Sandbox delta: strong shifts can be sensitivity tests for edge configurations, not fixed life predictions.`,
       ]);
       const { text, claimIds } = enrichSectionText(
         syn,
@@ -617,7 +635,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       tensionBlock.text,
       [
         pickVariant(seed + ':con2', [
-          `Contrast handling: you, in this picture, at baseline, keep both constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
+          `Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
         ]),
       ],
       densityDefault,
@@ -635,7 +653,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   if (tierEff === 'extended' && surface === 'group' && extraKeys.includes('subcluster')) {
     const syn = pickVariant(seed + ':sub', [
-      `Subcluster note: you, for this group, at baseline, may see several threads cluster on the same people; that cluster can act as a local hotspot in the wider room.`,
+      `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot in the wider room.`,
     ]);
     const { text, claimIds } = enrichSectionText(
       syn,
@@ -713,11 +731,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   }
 
   if (tierEff === 'extended' && extraKeys.includes('audio_thread')) {
-    const bridge = pickVariant(seed + ':ath', [
-      `Audio thread: you, in this listen metaphor, at baseline, can notice how ${lightListenHintFromCore(
-        core
-      )} and ${densityPhraseFromCore(core)} mirror the words above without repeating every clause.`,
-    ]);
+    const bridge =
+      'Listen detail lives in “How this sounds (listen metaphor)” below; it mirrors the words above without repeating every clause.';
     const { text } = enrichSectionText(bridge, [], 'short', `${seed}:at`, [], reportPadUsed);
     out.splice(Math.min(2, out.length), 0, {
       id: 'audio_thread',
@@ -735,6 +750,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     seed,
   });
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
+
+  for (const s of framed) {
+    if (s.id === 'audio_staging') continue;
+    const prov = s.id === 'connection_structure' || s.id === 'ensemble_framing' ? 'preface' : 'template';
+    s.text = repairPhase2ParagraphLoads(s.text, prov, s.id);
+  }
 
   return framed;
 }

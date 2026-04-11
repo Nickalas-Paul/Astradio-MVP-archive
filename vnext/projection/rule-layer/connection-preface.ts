@@ -1,46 +1,123 @@
 /**
  * Connection / ensemble preface — private to rule layer; only called from assemble-sections.
+ * Phase 2: fixed sentence bundles only (deterministic); no free-form narrative.
  */
 import type { ConnectionMode, ExpansionTier, ProjectedExplanationSection, ProjectionSurface } from '../projection-types';
 
+const FRIENDS_BUNDLES = [
+  [
+    'This connection emphasizes cooperative timing and repair when friction shows.',
+    'The sections stay descriptive.',
+    'They do not lock one relationship story.',
+  ],
+  [
+    'This connection treats friendly bandwidth as the starting frame.',
+    'Friction is named without identity collapse.',
+    'The sections stay observational.',
+  ],
+];
+
+const LOVERS_BUNDLES = [
+  [
+    'This connection emphasizes reciprocity and intimacy cadence.',
+    'Polarity reads as tension, not a final verdict.',
+    'The sections stay observational.',
+  ],
+  [
+    'This connection names heat without turning it into a label.',
+    'Language stays situational.',
+    'The sections stay descriptive.',
+  ],
+];
+
+const RIVALS_BUNDLES = [
+  [
+    'This connection names competitive charge and boundary pressure.',
+    'Harmony is not assumed unless it clearly leads.',
+    'Framing stays descriptive without moral blame.',
+  ],
+  [
+    'This connection treats rivalry as charge, not character judgment.',
+    'The sections stay observational.',
+    'Avoid single-story collapse.',
+  ],
+];
+
+const NEUTRAL_BUNDLES = [
+  [
+    'This connection keeps assumptions low.',
+    'The picture weights what shows.',
+    'The sections stay descriptive.',
+  ],
+  [
+    'This connection keeps options open.',
+    'It avoids locking one relationship myth.',
+    'The sections stay observational.',
+  ],
+];
+
+const MENTOR_BUNDLES = [
+  [
+    'This connection names asymmetric support timing.',
+    'That does not fix hierarchy in real life.',
+    'Both sides stay visible below.',
+  ],
+  [
+    'This connection names guidance bandwidth without freezing roles.',
+    'The sections stay descriptive.',
+    'Care is honored without identity labels.',
+  ],
+];
+
+const COLLABORATOR_BUNDLES = [
+  [
+    'This connection starts from task coordination.',
+    'Friction may sit around ownership and phase fit.',
+    'Language stays situational.',
+  ],
+  [
+    'This connection does not assume chemistry explains task friction.',
+    'The sections stay descriptive.',
+    'Tasks stay human without identity-fixing.',
+  ],
+];
+
+const MODE_BUNDLES: Record<string, string[][]> = {
+  friends: FRIENDS_BUNDLES,
+  lovers: LOVERS_BUNDLES,
+  rivals: RIVALS_BUNDLES,
+  neutral: NEUTRAL_BUNDLES,
+  mentor: MENTOR_BUNDLES,
+  collaborator: COLLABORATOR_BUNDLES,
+};
+
+const ENSEMBLE_BUNDLES = [
+  [
+    'This group holds multiple voices; emphasis may spread unevenly.',
+    'The sections stay descriptive and avoid a single pair story unless the picture supports it.',
+  ],
+  [
+    'This group treats the room as shared space before zooming to one pair.',
+    'The sections stay descriptive.',
+  ],
+];
+
 function openingForMode(mode: ConnectionMode, seed: string): string | null {
   if (!mode || mode === 'group') return null;
-  const variants: Record<string, string[]> = {
-    friends: [
-      `For this connection, you, at baseline, start from friendly bandwidth: cooperative timing and repair capacity matter when friction shows. The sections below stay descriptive and avoid locking one relationship story. Many people find this framing helps keep curiosity without forcing a verdict.`,
-    ],
-    lovers: [
-      `For this connection, you, at baseline, start from reciprocity and intimacy cadence: polarity can feel like attraction tension, not a final verdict. The copy below stays observational. Many people find this framing helps name heat without turning it into a label.`,
-    ],
-    rivals: [
-      `For this connection, you, at baseline, start from competitive charge and boundary pressure: harmony is not assumed unless it clearly leads. Friction is named without moral blame. Many people find this framing helps separate charge from character judgment.`,
-    ],
-    neutral: [
-      `For this connection, you, at baseline, start from low assumptions: emphasis stays descriptive and avoids locking one relationship myth. The sections weight what the picture shows, not a preferred story. Many people find this framing helps keep options open.`,
-    ],
-    mentor: [
-      `For this connection, you, at baseline, start from asymmetric support timing: guidance bandwidth may lean one way without fixing hierarchy in real life. Both sides stay visible below. Many people find this framing helps honor care without freezing roles.`,
-    ],
-    collaborator: [
-      `For this connection, you, at baseline, start from task coordination: friction may sit around ownership and phase fit rather than chemistry. Language stays situational, not identity-fixed. Many people find this framing helps keep tasks human.`,
-    ],
-  };
-  const list = variants[mode];
-  if (!list) return null;
+  const bundles = MODE_BUNDLES[mode];
+  if (!bundles) return null;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return list[h % list.length];
+  const pick = bundles[h % bundles.length];
+  return pick.join('\n\n');
 }
 
 function groupFieldOpening(participantCount: number, seed: string): string | null {
   if (participantCount <= 2) return null;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const opts = [
-    `For this group, you, at baseline, hold ${participantCount} voices: emphasis often spreads unevenly, so avoid collapsing everyone into one pair story unless the picture supports it. Many people find this framing helps keep the room fair. The writing below stays descriptive and avoids locking one room-wide myth.`,
-    `For this group, you, at baseline, hear a whole room first: pair-style blame stays off the table unless a smaller cluster clearly shows. The sections treat the ensemble as shared space. Many people find this framing slows rush-to-blame habits. The writing below stays descriptive and avoids locking one room-wide myth.`,
-  ];
-  return opts[h % opts.length];
+  const pick = ENSEMBLE_BUNDLES[h % ENSEMBLE_BUNDLES.length];
+  return pick.join('\n\n');
 }
 
 export function applyConnectionPreface(

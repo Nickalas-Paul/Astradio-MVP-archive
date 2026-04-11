@@ -16,6 +16,7 @@ import { buildEmphasisRawSections, assemblePhaseDSections } from './assemble-sec
 import { runTonePassOnSections } from './tone-pass';
 import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
 import { validateReportSections, buildFinalProjectionValidation } from './validate-projection';
+import { validatePhase2Sections } from './phase2-sentence-load';
 
 /**
  * Full projection: Phase D by default; set options.phaseD === false for raw template-only output (no tone/validation).
@@ -69,6 +70,7 @@ export function applyUnifiedProjection(
   });
 
   if (options.surface === 'feed') {
+    validatePhase2Sections(sections, seed);
     const tierRequested = options.tier ?? 'baseline';
     const vr = validateReportSections(sections, 'feed', 'baseline', core, tierRequested);
     const pv = buildFinalProjectionValidation(tierRequested, 'baseline', vr, undefined);
@@ -79,6 +81,8 @@ export function applyUnifiedProjection(
     };
     return sections;
   }
+
+  validatePhase2Sections(sections, seed);
 
   const validationResult = validateReportSections(sections, options.surface, norm.tierEff, core, norm.tierEff);
 

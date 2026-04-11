@@ -72,7 +72,7 @@
     "test:audio-sanity": "npm run vnext:build && node dist/vnext/vnext/scripts/audio-sanity.js",
     "test:audio": "npm run vnext:build && node dist/vnext/vnext/scripts/audio-renderer-determinism.js && node dist/vnext/vnext/scripts/compose-audio-contract-test.js && node dist/vnext/vnext/scripts/audio-sanity.js",
     "test:repetition-collapse": "npm run vnext:build && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js",
-    "test:unified-projection": "npm run vnext:build && node dist/vnext/vnext/scripts/test-unified-projection.js && node dist/vnext/vnext/scripts/gate-a-projection-identity.js && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js && node dist/vnext/vnext/scripts/test-phase1-claim-expression.js",
+    "test:unified-projection": "npm run vnext:build && node dist/vnext/vnext/scripts/test-unified-projection.js && node dist/vnext/vnext/scripts/gate-a-projection-identity.js && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js && node dist/vnext/vnext/scripts/test-phase1-claim-expression.js && node dist/vnext/vnext/scripts/test-phase2-load.js",
     "test:compose-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-determinism-soak.js",
     "test:compose-live-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-live-soak.js",
     "test:compose-golden-run": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-golden-run.js",
