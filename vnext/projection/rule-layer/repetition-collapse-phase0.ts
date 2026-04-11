@@ -185,6 +185,12 @@ const CLAIM_OR_GLUE_GUARD_LITERALS: readonly string[] = (() => {
 
 const PADDING_NORM = new Set(PADDING_LITERALS.map(projectionNormSentence));
 const FEED_PADDING_NORM = new Set(FEED_PADDING_LITERALS.map(projectionNormSentence));
+
+/** Phase 0.1 — fixed union of normalized padding pool literals only (not derived from report text). */
+export const PoolNormSet: ReadonlySet<string> = new Set<string>([
+  ...PADDING_LITERALS.map((lit) => projectionNormSentence(lit)),
+  ...FEED_PADDING_LITERALS.map((lit) => projectionNormSentence(lit)),
+]);
 const GENERIC_FALLBACK_NORM = new Set(GENERIC_FALLBACK_LITERALS.map(projectionNormSentence));
 const TEMPORAL_NORM = new Set(TEMPORAL_LITERALS.map(projectionNormSentence));
 const CLAIM_GUARD_NORM = new Set(CLAIM_OR_GLUE_GUARD_LITERALS.map(projectionNormSentence));
@@ -376,22 +382,77 @@ function normsInParagraph(para: string): Set<string> {
   return s;
 }
 
-/** Returns null if every pool literal already appears in the paragraph (no duplicate padding allowed). */
+/** Phase 0.1 — deterministic full-report scan: pool norms already present (membership in PoolNormSet only). */
+function collectInitialPoolReportPresence(sections: ProjectedExplanationSection[]): Set<string> {
+  const P_report = new Set<string>();
+  for (let si = 0; si < sections.length; si++) {
+    const sec = sections[si]!;
+    const walkBody = (body: string) => {
+      for (const para of splitParas(body)) {
+        for (const raw of splitSents(para)) {
+          const n = projectionNormSentence(raw);
+          if (PoolNormSet.has(n)) P_report.add(n);
+        }
+      }
+    };
+    walkBody(sec.text);
+    const bullets = sec.bullets ?? [];
+    for (let bi = 0; bi < bullets.length; bi++) {
+      walkBody(bullets[bi]!);
+    }
+  }
+  return P_report;
+}
+
+function buildAudioNormBlob(sections: ProjectedExplanationSection[]): string {
+  const audioSec = sections.find((s) => s.id === 'audio_staging');
+  if (!audioSec) return '';
+  const blob = [audioSec.text, ...(audioSec.bullets ?? [])].join(' ');
+  return projectionNormSentence(blob.replace(/\s+/g, ' '));
+}
+
+/** Reject repair if it would duplicate an audio catalog phrase outside audio_staging (same rule as classifySentence). */
+function repairLiteralViolatesAudioSafety(candNorm: string, targetSecId: string, audioNormBlob: string): boolean {
+  if (targetSecId === 'audio_staging') return false;
+  if (!audioNormBlob) return false;
+  for (const p of AUDIO_PHRASE_CATALOG) {
+    const pn = projectionNormSentence(p);
+    if (candNorm === pn && audioNormBlob.includes(pn)) return true;
+  }
+  return false;
+}
+
+/**
+ * Phase 0.1 — returns null if no literal is valid (paragraph + report uniqueness + audio safety).
+ * LOCKED: no fallback when exhausted.
+ */
 function pickRepairLiteral(
   R_ORDERED: readonly string[],
   ctx: { seed: string; surface: ProjectionSurface; tierForDensity: ExpansionTier },
   t: number,
-  paraText: string
+  paraText: string,
+  P_report: ReadonlySet<string>,
+  targetSecId: string,
+  audioNormBlob: string
 ): string | null {
-  const norms = normsInParagraph(paraText);
+  const normsPara = normsInParagraph(paraText);
+  const tryCandidate = (c: string): string | null => {
+    const cn = projectionNormSentence(c);
+    if (normsPara.has(cn)) return null;
+    if (P_report.has(cn)) return null;
+    if (repairLiteralViolatesAudioSafety(cn, targetSecId, audioNormBlob)) return null;
+    return c;
+  };
   for (let tryT = t; tryT < 48; tryT++) {
     const idx = hashSeed(`${ctx.seed}|${ctx.surface}|${ctx.tierForDensity}|repair|${tryT}`) % R_ORDERED.length;
-    const c = R_ORDERED[idx];
-    if (!norms.has(projectionNormSentence(c))) return c;
+    const c = R_ORDERED[idx]!;
+    const ok = tryCandidate(c);
+    if (ok !== null) return ok;
   }
   for (let j = 0; j < R_ORDERED.length; j++) {
-    const c = R_ORDERED[j];
-    if (!norms.has(projectionNormSentence(c))) return c;
+    const c = R_ORDERED[j]!;
+    const ok = tryCandidate(c);
+    if (ok !== null) return ok;
   }
   return null;
 }
@@ -409,6 +470,9 @@ function densityRepair(
   const R_ORDERED = repairPoolLiterals(ctx.surface);
   const schema = SURFACE_SCHEMAS[ctx.surface];
   const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, ctx.tierForDensity);
+  /** Phase 0.1 — report-level pool presence; initial deterministic scan, then incremental after each insert. */
+  const P_report = collectInitialPoolReportPresence(sections);
+  const audioNormBlob = buildAudioNormBlob(sections);
 
   const MAX_REPAIR_STEPS = 400;
   for (let step = 0; step < MAX_REPAIR_STEPS; step++) {
@@ -416,7 +480,7 @@ function densityRepair(
 
     let fixed = false;
     for (let si = 0; si < sections.length; si++) {
-      const sec = sections[si];
+      const sec = sections[si]!;
       const d = densityForSectionId(sec.id, defaultD);
       const claims =
         sec.meta?.claimIdsReferenced && sec.meta.claimIdsReferenced.length > 0
@@ -432,22 +496,24 @@ function densityRepair(
 
       const paraCount = blocks.length || (sec.text.trim() ? 1 : 0);
       if (paraCount < minP) {
-        const cand = pickRepairLiteral(R_ORDERED, ctx, step, '');
+        const cand = pickRepairLiteral(R_ORDERED, ctx, step, '', P_report, sec.id, audioNormBlob);
         if (cand === null) return false;
         sec.text = paras.length ? joinParas([...paras, cand]) : cand;
+        P_report.add(projectionNormSentence(cand));
         fixed = true;
         break;
       }
 
       for (let pi = 0; pi < blocks.length; pi++) {
-        if (countSentences(blocks[pi]) < minS) {
-          const cand = pickRepairLiteral(R_ORDERED, ctx, step, blocks[pi]);
+        if (countSentences(blocks[pi]!) < minS) {
+          const cand = pickRepairLiteral(R_ORDERED, ctx, step, blocks[pi]!, P_report, sec.id, audioNormBlob);
           if (cand === null) return false;
-          const sents = splitSents(blocks[pi]);
+          const sents = splitSents(blocks[pi]!);
           const next = [...sents, cand];
           const nextParas = [...blocks];
           nextParas[pi] = joinSents(next);
           sec.text = joinParas(nextParas);
+          P_report.add(projectionNormSentence(cand));
           fixed = true;
           break;
         }
@@ -490,6 +556,69 @@ function removeSentenceAt(sections: ProjectedExplanationSection[], addr: SentAdd
     bs[addr.bulletIdx!] = newBody;
     sec.bullets = bs;
   }
+}
+
+/**
+ * Phase 0.1 — remove all listed addresses in one trial (descending sentIdx per paragraph block) so indices stay valid.
+ * Returns false if any block would drop below one sentence.
+ */
+function batchRemoveSentenceAddresses(sections: ProjectedExplanationSection[], addrs: SentAddr[]): boolean {
+  if (addrs.length === 0) return false;
+  const byBlock = new Map<string, SentAddr[]>();
+  for (const a of addrs) {
+    const k = `${a.secIdx}|${a.bulletIdx ?? 't'}|${a.paraIdx}`;
+    const arr = byBlock.get(k) ?? [];
+    arr.push(a);
+    byBlock.set(k, arr);
+  }
+  const blockKeys = [...byBlock.keys()].sort((a, b) => a.localeCompare(b));
+  for (const k of blockKeys) {
+    const arr = byBlock.get(k)!;
+    const first = arr[0]!;
+    const got = getSentenceBlock(sections, first);
+    if (!got) return false;
+    const uniq = new Set(arr.map((x) => x.sentIdx));
+    if (got.sents.length - uniq.size < 1) return false;
+  }
+  for (const k of blockKeys) {
+    const arr = byBlock.get(k)!;
+    arr.sort((x, y) => y.sentIdx - x.sentIdx);
+    for (const addr of arr) {
+      removeSentenceAt(sections, addr);
+    }
+  }
+  return true;
+}
+
+/**
+ * Phase 0.1 — drop a whole paragraph when it is a single sentence whose norm is a duplicate pool literal
+ * (removeSet) and the body still has at least one other paragraph. `removeSentenceAt` cannot remove sole sentences.
+ */
+function removeParagraphIfSolePoolDuplicate(
+  sections: ProjectedExplanationSection[],
+  addr: SentAddr,
+  removeSet: ReadonlySet<string>
+): boolean {
+  if (!removeSet.has(addrKey(addr))) return false;
+  const sec = sections[addr.secIdx];
+  const isText = addr.bulletIdx === null;
+  const body = isText ? sec.text : sec.bullets![addr.bulletIdx!];
+  const paras = splitParas(body);
+  if (addr.paraIdx < 0 || addr.paraIdx >= paras.length || paras.length <= 1) return false;
+  const para = paras[addr.paraIdx]!;
+  const sents = splitSents(para);
+  if (sents.length !== 1) return false;
+  const n = projectionNormSentence(sents[0]!);
+  if (!PoolNormSet.has(n)) return false;
+  const nextParas = paras.filter((_, i) => i !== addr.paraIdx);
+  const newBody = joinParas(nextParas);
+  if (isText) sec.text = newBody;
+  else {
+    const bs = [...(sec.bullets ?? [])];
+    bs[addr.bulletIdx!] = newBody;
+    sec.bullets = bs;
+  }
+  return true;
 }
 
 function removalSortKey(addr: SentAddr, cls: RemovableClass, secId: string): [number, number, number, number, number, number] {
@@ -589,7 +718,51 @@ export function collapseRepetitionPhase0(
     }
     candidates.sort((a, b) => cmpRemovalTuple(a.key, b.key));
     let progressed = false;
+    const byNormDup = new Map<string, Classified[]>();
+    for (const x of classifiedNow) {
+      if (x.cls === 'OTHER') continue;
+      const list = byNormDup.get(x.norm) ?? [];
+      list.push(x);
+      byNormDup.set(x.norm, list);
+    }
     for (const c of candidates) {
+      const gn = byNormDup.get(c.norm) ?? [];
+      const dupRemovableGroup = gn.length >= 2 && c.cls !== 'AUDIO_CATALOG_REDUNDANT';
+      const batchAddrs: SentAddr[] = dupRemovableGroup
+        ? gn
+            .filter((g) => removeSet.has(addrKey(g)))
+            .map((g) => ({
+              secIdx: g.secIdx,
+              bulletIdx: g.bulletIdx,
+              paraIdx: g.paraIdx,
+              sentIdx: g.sentIdx,
+            }))
+        : [];
+      const trial = cloneSections(working);
+      let batchOk = false;
+      if (batchAddrs.length > 1) {
+        batchOk = batchRemoveSentenceAddresses(trial, batchAddrs);
+      }
+      if (batchOk) {
+        if (reportSectionsOk(trial, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+          working = trial;
+          progressed = true;
+          break;
+        }
+        const repaired = cloneSections(trial);
+        const repairOk = densityRepair(repaired, {
+          seed: ctx.seed,
+          surface: ctx.surface,
+          validateTier: ctx.validateTier,
+          tierForDensity: ctx.tierForDensity,
+          core: ctx.core,
+        });
+        if (repairOk && reportSectionsOk(repaired, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+          working = repaired;
+          progressed = true;
+          break;
+        }
+      }
       const addr: SentAddr = {
         secIdx: c.secIdx,
         bulletIdx: c.bulletIdx,
@@ -597,21 +770,57 @@ export function collapseRepetitionPhase0(
         sentIdx: c.sentIdx,
       };
       const got = getSentenceBlock(working, addr);
-      if (!got || got.sents.length <= 1) continue;
-      const trial = cloneSections(working);
-      removeSentenceAt(trial, addr);
-      const repaired = cloneSections(trial);
-      const repairOk = densityRepair(repaired, {
-        seed: ctx.seed,
-        surface: ctx.surface,
-        validateTier: ctx.validateTier,
-        tierForDensity: ctx.tierForDensity,
-        core: ctx.core,
-      });
-      if (repairOk && reportSectionsOk(repaired, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
-        working = repaired;
-        progressed = true;
-        break;
+      if (!got) continue;
+
+      if (got.sents.length > 1) {
+        const trialOne = cloneSections(working);
+        removeSentenceAt(trialOne, addr);
+        if (reportSectionsOk(trialOne, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+          working = trialOne;
+          progressed = true;
+          break;
+        }
+        const repairedOne = cloneSections(trialOne);
+        const repairOkOne = densityRepair(repairedOne, {
+          seed: ctx.seed,
+          surface: ctx.surface,
+          validateTier: ctx.validateTier,
+          tierForDensity: ctx.tierForDensity,
+          core: ctx.core,
+        });
+        if (repairOkOne && reportSectionsOk(repairedOne, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+          working = repairedOne;
+          progressed = true;
+          break;
+        }
+      }
+
+      if (got.sents.length === 1 && removeSet.has(addrKey(c))) {
+        const soleNorm = projectionNormSentence(got.sents[0]!);
+        const gSole = byNormDup.get(soleNorm) ?? [];
+        if (gSole.length >= 2 && PoolNormSet.has(soleNorm)) {
+          const trialDrop = cloneSections(working);
+          if (removeParagraphIfSolePoolDuplicate(trialDrop, addr, removeSet)) {
+            if (reportSectionsOk(trialDrop, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+              working = trialDrop;
+              progressed = true;
+              break;
+            }
+            const repairedDrop = cloneSections(trialDrop);
+            const repairOkDrop = densityRepair(repairedDrop, {
+              seed: ctx.seed,
+              surface: ctx.surface,
+              validateTier: ctx.validateTier,
+              tierForDensity: ctx.tierForDensity,
+              core: ctx.core,
+            });
+            if (repairOkDrop && reportSectionsOk(repairedDrop, ctx.surface, ctx.validateTier, ctx.tierForDensity, ctx.core)) {
+              working = repairedDrop;
+              progressed = true;
+              break;
+            }
+          }
+        }
       }
     }
     if (!progressed) break;
@@ -621,4 +830,52 @@ export function collapseRepetitionPhase0(
     return backup;
   }
   return working;
+}
+
+/**
+ * Phase 0.1 — deterministic counts: how often each PoolNormSet member appears on the full report.
+ * For validation: each count must be ≤ 1 after collapse + repair.
+ */
+export function poolNormOccurrenceCountsOnReport(
+  sections: ProjectedExplanationSection[]
+): ReadonlyMap<string, number> {
+  const m = new Map<string, number>();
+  for (const n of PoolNormSet) m.set(n, 0);
+  for (let si = 0; si < sections.length; si++) {
+    const sec = sections[si]!;
+    const walk = (body: string) => {
+      for (const para of splitParas(body)) {
+        for (const raw of splitSents(para)) {
+          const n = projectionNormSentence(raw);
+          if (PoolNormSet.has(n)) m.set(n, (m.get(n) ?? 0) + 1);
+        }
+      }
+    };
+    walk(sec.text);
+    for (const b of sec.bullets ?? []) walk(b);
+  }
+  return m;
+}
+
+/** Phase 0.1 — test hook for repair exhaustion / selection (same logic as densityRepair). */
+export function phase01PickRepairLiteral(
+  surface: ProjectionSurface,
+  ctx: { seed: string; tierForDensity: ExpansionTier },
+  step: number,
+  paraText: string,
+  P_report: ReadonlySet<string>,
+  targetSecId: string,
+  sectionsForAudio: ProjectedExplanationSection[]
+): string | null {
+  const R_ORDERED = repairPoolLiterals(surface);
+  const audioNormBlob = buildAudioNormBlob(sectionsForAudio);
+  return pickRepairLiteral(
+    R_ORDERED,
+    { seed: ctx.seed, surface, tierForDensity: ctx.tierForDensity },
+    step,
+    paraText,
+    P_report,
+    targetSecId,
+    audioNormBlob
+  );
 }

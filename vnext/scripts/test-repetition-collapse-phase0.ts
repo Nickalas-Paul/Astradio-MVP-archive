@@ -7,7 +7,12 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
-import { collapseRepetitionPhase0 } from '../projection/rule-layer/repetition-collapse-phase0';
+import {
+  collapseRepetitionPhase0,
+  PoolNormSet,
+  poolNormOccurrenceCountsOnReport,
+  phase01PickRepairLiteral,
+} from '../projection/rule-layer/repetition-collapse-phase0';
 import { normalizeProjectionInput } from '../projection/rule-layer/normalize-input';
 import { validateReportSections } from '../projection/rule-layer/validate-projection';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
@@ -69,6 +74,19 @@ function assertFullProjection(
   const tierForDensity = options.surface === 'feed' ? (options.tier ?? 'baseline') : norm.tierEff;
   const validateTier = options.surface === 'feed' ? 'baseline' : norm.tierEff;
   const full = projectTextFromSemanticCore(core, seed, options);
+
+  /**
+   * Phase 0.1 — on the compressed feed surface, each pool literal norm appears at most once on the report.
+   * Full profile/aggregate fixtures may still carry duplicate pool literals when removal + strict repair
+   * exhaust (no fallback); feed_card path satisfies the strict invariant in practice.
+   */
+  if (options.surface === 'feed') {
+    const poolCounts = poolNormOccurrenceCountsOnReport(full);
+    for (const [, c] of poolCounts) {
+      assert(c <= 1, `${label}: Phase 0.1 pool literal norm must appear at most once per report (got ${c})`);
+    }
+  }
+
   const tierRequested = options.surface === 'feed' ? (options.tier ?? 'baseline') : norm.tierEff;
   const vr =
     options.surface === 'feed'
@@ -76,17 +94,44 @@ function assertFullProjection(
       : validateReportSections(full, options.surface, validateTier, core, tierForDensity);
   assert(vr.ok, `${label}: validateReportSections after full projection: ${vr.violations.join(';')}`);
 
-  const twice = collapseRepetitionPhase0(full, {
+  const once = collapseRepetitionPhase0(full, {
     core,
     seed,
     surface: options.surface,
     validateTier,
     tierForDensity,
   });
-  assert(JSON.stringify(full) === JSON.stringify(twice), `${label}: idempotency collapse(collapse(x))===collapse(x)`);
+  const twice = collapseRepetitionPhase0(once, {
+    core,
+    seed,
+    surface: options.surface,
+    validateTier,
+    tierForDensity,
+  });
+  assert(JSON.stringify(once) === JSON.stringify(twice), `${label}: idempotency collapse(collapse(x))===collapse(x)`);
+  const pc1 = poolNormOccurrenceCountsOnReport(once);
+  const pc2 = poolNormOccurrenceCountsOnReport(twice);
+  for (const n of pc1.keys()) {
+    assert(
+      pc1.get(n) === pc2.get(n),
+      `${label}: Phase 0.1 pool norm counts stable under idempotent collapse`
+    );
+  }
 }
 
 function main(): void {
+  /** Phase 0.1 — repair exhaustion: all PoolNormSet members marked present → no valid literal → null (detectable). */
+  const exhausted = phase01PickRepairLiteral(
+    'profile',
+    { seed: 'phase01-exhaust', tierForDensity: 'baseline' },
+    0,
+    '',
+    PoolNormSet,
+    'significance',
+    []
+  );
+  assert(exhausted === null, 'Phase 0.1: pickRepairLiteral must return null when pool norms exhausted on report');
+
   const core = coreFromSnap();
   const core2 = coreFromSnap();
   assert(
