@@ -14,6 +14,7 @@ import { classifyTemporalVoice } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
 import { buildEmphasisRawSections, assemblePhaseDSections } from './assemble-sections';
 import { runTonePassOnSections } from './tone-pass';
+import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
 import { validateReportSections, buildFinalProjectionValidation } from './validate-projection';
 
 /**
@@ -56,6 +57,16 @@ export function applyUnifiedProjection(
   });
 
   sections = runTonePassOnSections(sections, core);
+
+  const tierForDensityPhase0 = options.surface === 'feed' ? (options.tier ?? 'baseline') : norm.tierEff;
+  const validateTierPhase0 = options.surface === 'feed' ? 'baseline' : norm.tierEff;
+  sections = collapseRepetitionPhase0(sections, {
+    core,
+    seed,
+    surface: options.surface,
+    validateTier: validateTierPhase0,
+    tierForDensity: tierForDensityPhase0,
+  });
 
   if (options.surface === 'feed') {
     const tierRequested = options.tier ?? 'baseline';

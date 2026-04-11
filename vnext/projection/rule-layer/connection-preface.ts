@@ -37,8 +37,8 @@ function groupFieldOpening(participantCount: number, seed: string): string | nul
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const opts = [
-    `For this group, you, at baseline, hold ${participantCount} voices: emphasis often spreads unevenly, so avoid collapsing everyone into one pair story unless the picture supports it. Many people find this framing helps keep the room fair.`,
-    `For this group, you, at baseline, hear a whole room first: pair-style blame stays off the table unless a smaller cluster clearly shows. The sections treat the ensemble as shared space. Many people find this framing slows rush-to-blame habits.`,
+    `For this group, you, at baseline, hold ${participantCount} voices: emphasis often spreads unevenly, so avoid collapsing everyone into one pair story unless the picture supports it. Many people find this framing helps keep the room fair. The writing below stays descriptive and avoids locking one room-wide myth.`,
+    `For this group, you, at baseline, hear a whole room first: pair-style blame stays off the table unless a smaller cluster clearly shows. The sections treat the ensemble as shared space. Many people find this framing slows rush-to-blame habits. The writing below stays descriptive and avoids locking one room-wide myth.`,
   ];
   return opts[h % opts.length];
 }
