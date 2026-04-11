@@ -1,10 +1,23 @@
 /**
  * Step 5 — claim synthesis (deterministic integration; no new claims).
- * Audio-overlap dimensions are not expressed here — use audio-lexicon at template layer.
+ * Phase 1 — ClaimExpressionBundle rendering; no generic claim fallback.
  */
 import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
-import type { ExpansionTier } from '../projection-types';
+import type { ExpansionTier, ProjectionSurface } from '../projection-types';
+import { projectionNormSentence } from './repetition-collapse-phase0';
+import {
+  applyStrengthInterpolation,
+  CLAIM_OPTIONAL_ROLE_ORDER,
+  type ClaimExpressionBundle,
+  type ClaimOptionalRole,
+  getClaimExpressionBundle,
+  hash32,
+  InvalidClaimExpressionBundleError,
+  rotateArray,
+  surfaceOffset,
+  tierOffset,
+} from './claim-expression-bundles';
 import { lightListenHintFromCore, pacingPhraseFromCore } from './audio-lexicon';
 import { claimWindow } from './claim-select';
 
@@ -41,77 +54,92 @@ function pickGlue(prevId: string, nextId: string, seed: string): string {
   ]);
 }
 
-export function sentenceForClaim(c: SemanticClaim, seed: string): string {
-  const id = c.claim_id as ClaimId;
-  const s = `${seed}:${id}`;
-  const strengthNote =
-    c.strength >= 0.66 ? 'shows up strongly in this view' : 'shows up moderately in this view';
+function pushParagraphNormDeque(dq: string[], norm: string): void {
+  dq.push(norm);
+  while (dq.length > 6) dq.shift();
+}
 
-  const byId: Partial<Record<ClaimId, string[]>> = {
-    ELEMENT_FIRE_DOM: [
-      `A fire-weighted emphasis ${strengthNote} often correlates with quicker initiation and visible expressive heat in how the pattern lands.`,
-    ],
-    ELEMENT_EARTH_DOM: [
-      `An earth-weighted emphasis ${strengthNote} often correlates with stepwise stabilization and a preference for tangible, incremental adjustment.`,
-    ],
-    ELEMENT_AIR_DOM: [
-      `An air-weighted emphasis ${strengthNote} often correlates with conceptual mobility and a tendency to narrate or reframe experience quickly.`,
-    ],
-    ELEMENT_WATER_DOM: [
-      `A water-weighted emphasis ${strengthNote} often correlates with emotional permeability and layered processing before outward commitment.`,
-    ],
-    TENSION_BAND_HIGH: [
-      `Higher structural contrast in this view often shows up as sharper differences moment to moment without implying a single crisis label.`,
-    ],
-    TENSION_BAND_MED: [
-      `Moderate contrast in this view often shows up as workable friction: enough edge to move things, without constant crisis signaling.`,
-    ],
-    TENSION_BAND_LOW: [
-      `Lower contrast in this view often shows up as smoother continuity and fewer abrupt breaks between emphasis beats.`,
-    ],
-    TONAL_BRIGHT: [
-      `A brighter tonal register in this view often correlates with outward lift and a tendency to emphasize possibility over heaviness.`,
-    ],
-    TONAL_DARK: [
-      `A darker tonal register in this view often correlates with depth-first processing and a tendency to take tension seriously rather than glossing it.`,
-    ],
-    TONAL_BALANCED: [
-      `A balanced tonal register in this view often correlates with mixed brightness cues that can flex with context rather than locking one mood.`,
-    ],
-    REL_HARMONY_HIGH: [
-      `High harmony-band signaling between people often correlates with cooperative resonance and easier mutual coordination when contact rises.`,
-    ],
-    REL_FRICTION_HIGH: [
-      `High friction-band signaling between people often correlates with edge-rich contact where misunderstandings can spike if timing is ignored.`,
-    ],
-    REL_INTENSITY_HIGH: [
-      `High intensity-band signaling between people often correlates with amplified contact: more signal per interaction, for better or sharper.`,
-    ],
-    CROSS_ELEMENT_DRIFT_HIGH: [
-      `Strong cross-chart elemental drift often correlates with divergent baseline styles; blending language too quickly may flatten real differences.`,
-    ],
-    CROSS_TENSION_DELTA_HIGH: [
-      `A large tension delta between charts often correlates with alternating stress profiles; a single unified arc may not fit both baselines.`,
-    ],
-    STRUCT_STELLIUM: [
-      `A clustered structural signature often correlates with concentrated emphasis: many threads pulling through the same thematic doorway.`,
-    ],
-    MOTION_LABEL_SURGING: [
-      `Surging motion often correlates with forward impulse and rapid ramps in how energy is spent.`,
-    ],
-    MOTION_LABEL_INWARD: [
-      `Inward motion often correlates with consolidation phases where outward visibility lags behind internal processing.`,
-    ],
-    GRAVITY_LABEL_ANCHORED: [
-      `Anchored gravity often correlates with weighty emphasis and slower release in how resolution arrives.`,
-    ],
-  };
+function pushSectionRoleDeque(dq: ClaimOptionalRole[], role: ClaimOptionalRole): void {
+  dq.push(role);
+  while (dq.length > 4) dq.shift();
+}
 
-  const variants = byId[id];
-  if (variants?.length) {
-    return pickVariant(s, variants);
+function pickSecondarySentence(args: {
+  bundle: ClaimExpressionBundle;
+  id: ClaimId;
+  localIndex: number;
+  seed: string;
+  surface: ProjectionSurface;
+  tier: ExpansionTier;
+  claim: SemanticClaim;
+  sectionRoleDeque: ClaimOptionalRole[];
+  paragraphNormDeque: string[];
+}): { role: ClaimOptionalRole; sentence: string } {
+  const { bundle: b, id, localIndex, seed, surface, tier, claim, sectionRoleDeque, paragraphNormDeque } = args;
+  const candidates: ClaimOptionalRole[] = [];
+  for (const r of CLAIM_OPTIONAL_ROLE_ORDER) {
+    const t = b[r];
+    if (typeof t === 'string' && t.trim().length > 0) candidates.push(r);
   }
-  return `This picture carries an additional emphasis ${strengthNote}; it may show up as subtle shifts rather than a single fixed behavioral label.`;
+  if (candidates.length === 0) {
+    throw new InvalidClaimExpressionBundleError(`${id}: no optional roles`);
+  }
+  const R = hash32(`${seed}|${id}|${localIndex}|${surface}|${tier}`);
+  const k = R % candidates.length;
+  const rotated = rotateArray(candidates, k);
+  const start = (k + surfaceOffset(surface)) % candidates.length;
+  const ordered = rotateArray(rotated, start);
+  const start2 = (start + tierOffset(tier)) % candidates.length;
+  const ordered2 = rotateArray(ordered, start2);
+
+  const sentFor = (role: ClaimOptionalRole) => applyStrengthInterpolation(b[role]!.trim(), claim);
+
+  let chosen: ClaimOptionalRole | null = null;
+  for (const role of ordered2) {
+    const sent = sentFor(role);
+    if (sectionRoleDeque.includes(role)) continue;
+    if (paragraphNormDeque.includes(projectionNormSentence(sent))) continue;
+    chosen = role;
+    break;
+  }
+  if (chosen === null) {
+    chosen = ordered2[0]!;
+  }
+  return { role: chosen, sentence: sentFor(chosen) };
+}
+
+export function renderClaimExpressionBlock(input: {
+  claim: SemanticClaim;
+  localIndex: number;
+  seed: string;
+  surface: ProjectionSurface;
+  tier: ExpansionTier;
+  sectionRoleDeque: ClaimOptionalRole[];
+  paragraphNormDeque: string[];
+}): { text: string; secondaryRole: ClaimOptionalRole; claim_id: string } {
+  const { claim, localIndex, seed, surface, tier, sectionRoleDeque, paragraphNormDeque } = input;
+  const id = claim.claim_id as ClaimId;
+  const bundle = getClaimExpressionBundle(id);
+  const coreSentence = applyStrengthInterpolation(bundle.core, claim);
+  pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(coreSentence));
+
+  const { role, sentence } = pickSecondarySentence({
+    bundle,
+    id,
+    localIndex,
+    seed,
+    surface,
+    tier,
+    claim,
+    sectionRoleDeque,
+    paragraphNormDeque,
+  });
+
+  pushSectionRoleDeque(sectionRoleDeque, role);
+  pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(sentence));
+
+  const text = `${coreSentence} ${sentence}`;
+  return { text, secondaryRole: role, claim_id: id };
 }
 
 export function synthesizeClaimSentences(lines: string[], claimIds: string[], seed: string): string {
@@ -130,15 +158,30 @@ export function claimSentencesFromRange(
   start: number,
   maxCount: number,
   seed: string,
+  surface: ProjectionSurface,
+  tier: ExpansionTier,
+  sectionRoleDeque: ClaimOptionalRole[],
+  paragraphNormDeque: string[],
   excludeClaimIds?: Set<string>
 ): { text: string; claimIds: string[] } {
   const lines: string[] = [];
   const ids: string[] = [];
   const excl = excludeClaimIds ?? new Set<string>();
+  let localIndex = 0;
   for (let i = start; i < core.claims.length && lines.length < maxCount; i++) {
     const c = core.claims[i];
     if (excl.has(c.claim_id)) continue;
-    lines.push(sentenceForClaim(c, `${seed}:rng:${i}`));
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex,
+      seed: `${seed}|${c.claim_id}|slice`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    localIndex++;
+    lines.push(block.text);
     ids.push(c.claim_id);
   }
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:synrng`), claimIds: ids };
@@ -147,7 +190,10 @@ export function claimSentencesFromRange(
 export function buildClaimMechanismExpressionParagraph(
   core: SemanticCore,
   seed: string,
-  tier: ExpansionTier
+  tier: ExpansionTier,
+  surface: ProjectionSurface,
+  sectionRoleDeque: ClaimOptionalRole[],
+  paragraphNormDeque: string[]
 ): { text: string; claimIds: string[] } {
   const n = claimWindow(tier);
   const slice = core.claims.slice(0, n);
@@ -156,7 +202,16 @@ export function buildClaimMechanismExpressionParagraph(
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
   for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
     const c = slice[i];
-    lines.push(sentenceForClaim(c, `${seed}:me:${i}`));
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex: i,
+      seed: `${seed}|${c.claim_id}|mep`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    lines.push(block.text);
     ids.push(c.claim_id);
   }
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
@@ -182,15 +237,28 @@ export function buildSupplementalPanel(
   core: SemanticCore,
   seed: string,
   panelIndex: number,
-  tier: ExpansionTier
+  tier: ExpansionTier,
+  surface: ProjectionSurface,
+  sectionRoleDeque: ClaimOptionalRole[],
+  paragraphNormDeque: string[]
 ): { title: string; text: string; claimIds: string[] } {
   const start = 2 + panelIndex * 3;
   const slice = core.claims.slice(start, start + 3 + (tier === 'extended' ? 2 : 0));
   const lines: string[] = [];
   const ids: string[] = [];
   for (let i = 0; i < slice.length; i++) {
-    lines.push(sentenceForClaim(slice[i], `${seed}:panel:${panelIndex}:${i}`));
-    ids.push(slice[i].claim_id);
+    const c = slice[i];
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex: i,
+      seed: `${seed}|${c.claim_id}|panel:${panelIndex}`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    lines.push(block.text);
+    ids.push(c.claim_id);
   }
   const text =
     synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||

@@ -11,6 +11,7 @@ import type {
 } from '../projection-types';
 import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
 import { densityForSurfaceBaseline } from '../density-validate';
+import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
   buildClaimMechanismExpressionParagraph,
   buildTensionIntegrationParagraph,
@@ -278,7 +279,18 @@ export function buildEmphasisRawSections(
 }
 
 export function buildFeedSections(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
-  const claimSlice = claimSentencesFromRange(core, 0, 2, `${seed}:feed:signal`);
+  const sectionRoleDeque: ClaimOptionalRole[] = [];
+  const paragraphNormDeque: string[] = [];
+  const claimSlice = claimSentencesFromRange(
+    core,
+    0,
+    2,
+    `${seed}:feed:signal`,
+    'feed',
+    'baseline',
+    sectionRoleDeque,
+    paragraphNormDeque
+  );
   const fallbackUsed = new Set<string>();
   const t1 = expandSentencesToMin(claimSlice.text, 3, `${seed}:feed`, FEED_FALLBACK_SENTENCES, fallbackUsed);
   const s1: ProjectedExplanationSection = {
@@ -330,7 +342,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
-  const mep = buildClaimMechanismExpressionParagraph(core, seed, tierEff);
+  const mepSectionRole: ClaimOptionalRole[] = [];
+  const mepParagraphNorm: string[] = [];
+  const mep = buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
   const openingClause = tierOpeningClause(surface, tierEff, seed);
   const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
   const campaignBaselineExtra =
@@ -357,12 +371,16 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         );
       }
     } else if (idx === 1) {
-      const pan = buildSupplementalPanel(core, `${seed}:s1`, 0, tierEff);
+      const sectionRoleDeque: ClaimOptionalRole[] = [];
+      const paragraphNormDeque: string[] = [];
+      const pan = buildSupplementalPanel(core, `${seed}:s1`, 0, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
       appendSectionGroupBlock(extras, cids, usedWithinGroup, pan);
       appendSectionGroupBlock(extras, cids, usedWithinGroup, campaignBaselineExtra);
       appendSectionGroupBlock(extras, cids, usedWithinGroup, campaignExpandedExtra);
     } else {
-      const pan = buildSupplementalPanel(core, `${seed}:sx`, idx, tierEff);
+      const sectionRoleDeque: ClaimOptionalRole[] = [];
+      const paragraphNormDeque: string[] = [];
+      const pan = buildSupplementalPanel(core, `${seed}:sx`, idx, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
       appendSectionGroupBlock(extras, cids, usedWithinGroup, pan);
     }
 
@@ -385,7 +403,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   for (const key of extraKeys) {
     if (key === 'audio_thread') continue;
     if (key === 'synthesis_a') {
-      const synClaim = claimSentencesFromRange(core, 4, 2, `${seed}:synA`);
+      const synSecRole: ClaimOptionalRole[] = [];
+      const synParaNorm: string[] = [];
+      const synClaim = claimSentencesFromRange(
+        core,
+        4,
+        2,
+        `${seed}:synA`,
+        surface,
+        tierEff,
+        synSecRole,
+        synParaNorm
+      );
       const syn = [
         pickVariant(seed + ':syn', [
           `Cross-section synthesis: you, in this picture, at baseline, tie together mid-rank threads that moderate the dominant pattern.`,
@@ -411,7 +440,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       });
     }
     if (key === 'synthesis_b') {
-      const synClaim = claimSentencesFromRange(core, 7, 3, `${seed}:synB`);
+      const synBSecRole: ClaimOptionalRole[] = [];
+      const synBParaNorm: string[] = [];
+      const synClaim = claimSentencesFromRange(
+        core,
+        7,
+        3,
+        `${seed}:synB`,
+        surface,
+        tierEff,
+        synBSecRole,
+        synBParaNorm
+      );
       const syn = [
         pickVariant(seed + ':synb', [
           `Extended synthesis: you, in this picture, at baseline, bring in lower-ranked moderator threads to map nuance around the headline pattern.`,
@@ -615,7 +655,17 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   let panelIdx = 0;
   while (out.length < schema.baselineMinSections - 1) {
-    const pan = buildSupplementalPanel(core, `${seed}:fillpanel`, panelIdx++, tierEff);
+    const fillSecRole: ClaimOptionalRole[] = [];
+    const fillParaNorm: string[] = [];
+    const pan = buildSupplementalPanel(
+      core,
+      `${seed}:fillpanel`,
+      panelIdx++,
+      tierEff,
+      surface,
+      fillSecRole,
+      fillParaNorm
+    );
     const { text, claimIds } = enrichSectionText(
       pan.text,
       [],
