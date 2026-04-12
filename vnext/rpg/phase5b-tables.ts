@@ -2,6 +2,7 @@
  * Phase 5B — finite enumerated RPG line filters (campaign copy only).
  * Wave 1: continuity line emission only (`rpg_continuity_lines_v1`).
  * Wave 2: additional continuity tones + history-direction lines on the same emission (per-line match).
+ * Wave 3: remaining HISTORY_DIRECTION_TEXT literals (four lines).
  */
 export type Phase5BMatch = { kind: 'whole_text'; before: string };
 
@@ -155,5 +156,49 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
     },
     replacement:
       'It also continues a recent pattern of protecting capacity by trimming exposure.',
+  },
+  {
+    rule_id: 'P5B-W3-001-history-contain-limit',
+    emission_id: 'rpg_continuity_lines_v1',
+    match: {
+      kind: 'whole_text',
+      before:
+        'It also continues a recent pattern of narrowing scope to stabilize what matters most.',
+    },
+    replacement:
+      'It also continues a recent pattern of narrowing scope to keep what matters most legible.',
+  },
+  {
+    rule_id: 'P5B-W3-002-history-offer-restore',
+    emission_id: 'rpg_continuity_lines_v1',
+    match: {
+      kind: 'whole_text',
+      before:
+        'It also continues a recent pattern of repair through something concrete.',
+    },
+    replacement:
+      'It also continues a recent pattern of repair through a concrete gesture.',
+  },
+  {
+    rule_id: 'P5B-W3-003-history-reframe-integrate',
+    emission_id: 'rpg_continuity_lines_v1',
+    match: {
+      kind: 'whole_text',
+      before:
+        'It also echoes a recent pattern of changing interpretation before changing the outer move.',
+    },
+    replacement:
+      'It also echoes a recent pattern of changing interpretation before changing the visible move.',
+  },
+  {
+    rule_id: 'P5B-W3-004-history-support-connect',
+    emission_id: 'rpg_continuity_lines_v1',
+    match: {
+      kind: 'whole_text',
+      before:
+        'It also echoes a recent pattern of bringing in connection or perspective.',
+    },
+    replacement:
+      'It also echoes a recent pattern of bringing in connection or outside perspective.',
   },
 ];

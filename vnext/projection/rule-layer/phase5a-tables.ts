@@ -3,7 +3,8 @@
  * Wave 1 (Phase 5C): sandbox lab lines, tier scaffold (profile/sandbox/compat/campaign),
  * feed scope allowlist, one profile glue prefix pair.
  * Wave 2 (Phase 5C): shared preface lines, tier scaffold (daily/overlay/group/feed),
- * glue (compat/campaign/daily/overlay), campaign-only synthesis wrappers. See tests for caps.
+ * glue (compat/campaign/daily), campaign-only synthesis wrappers.
+ * Wave 3 (Phase 5C): preface completion slice, profile trait_bridge, campaign literals, overlay glue.
  */
 import type { ConnectionMode, ProjectionSurface, ProvenanceType } from '../projection-types';
 
@@ -343,6 +344,171 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
     },
     replacement:
       'Expanded overlay pass adds moderator threads across both time layers, with steadier pacing.',
+  },
+  {
+    rule_id: 'P5A-W3-001-glue-overlay-baseline-prefix',
+    surfaces: ['overlay_pair'],
+    provenances: ['assembler_glue'],
+    match: {
+      kind: 'prefix',
+      before_prefix: 'In this chart, you see a baseline ',
+      after_prefix: 'In this chart, you see a steadier ',
+    },
+    replacement: '',
+  },
+  {
+    rule_id: 'P5A-W3-002-preface-collaborator-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['collaborator'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection starts from task coordination.',
+    },
+    replacement:
+      'This connection starts from task coordination, read as practical and bounded to the work at hand.',
+  },
+  {
+    rule_id: 'P5A-W3-003-preface-friends-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['friends'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection emphasizes cooperative timing and repair when friction shows.',
+    },
+    replacement:
+      'This connection emphasizes cooperative timing and repair when friction shows, keeping the frame practical.',
+  },
+  {
+    rule_id: 'P5A-W3-004-preface-group-ensemble-voices',
+    surfaces: ['group'],
+    provenances: ['preface'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This group holds multiple voices; emphasis may spread unevenly.',
+    },
+    replacement:
+      'This group holds multiple voices; emphasis may spread unevenly, read as situational room-wide.',
+  },
+  {
+    rule_id: 'P5A-W3-005-preface-lovers-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['lovers'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection emphasizes reciprocity and intimacy cadence.',
+    },
+    replacement:
+      'This connection emphasizes reciprocity and intimacy cadence, read with steadier, plain language.',
+  },
+  {
+    rule_id: 'P5A-W3-006-preface-mentor-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['mentor'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection names asymmetric support timing.',
+    },
+    replacement:
+      'This connection names asymmetric support timing, honoring both sides without fixing real-world hierarchy.',
+  },
+  {
+    rule_id: 'P5A-W3-007-preface-neutral-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['neutral'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection keeps assumptions low.',
+    },
+    replacement: 'This connection keeps assumptions low, with steady, plain language.',
+  },
+  {
+    rule_id: 'P5A-W3-008-preface-rivals-opener',
+    surfaces: ['compat_pair'],
+    provenances: ['preface'],
+    connection_modes: ['rivals'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'This connection names competitive charge and boundary pressure.',
+    },
+    replacement:
+      'This connection names competitive charge and boundary pressure, read as situational intensity.',
+  },
+  {
+    rule_id: 'P5A-W3-009-synthesis-campaign-contrast-handling',
+    surfaces: ['campaign'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.',
+    },
+    replacement:
+      'Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued by design.',
+  },
+  {
+    rule_id: 'P5A-W3-010-synthesis-campaign-extended-pass',
+    surfaces: ['campaign'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.',
+    },
+    replacement:
+      'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern, read with clearer pacing.',
+  },
+  {
+    rule_id: 'P5A-W3-011-synthesis-campaign-second-pass',
+    surfaces: ['campaign'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.',
+    },
+    replacement:
+      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, read as situational refinement.',
+  },
+  {
+    rule_id: 'P5A-W3-012-synthesis-campaign-tension-together',
+    surfaces: ['campaign'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Taken together, supportive and challenging signals both appear in this picture; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring care where it shows up.',
+    },
+    replacement:
+      'Taken together, supportive and challenging signals both appear in this picture; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring care where it lands most clearly.',
+  },
+  {
+    rule_id: 'P5A-W3-013-synthesis-profile-trait-bridge-a',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Trait bridge: elemental and tonal signals often travel together; changing context can shift which side shows up first.',
+    },
+    replacement:
+      'Trait bridge: elemental and tonal signals often travel together; changing context can shift which side reads first, without forcing one story.',
+  },
+  {
+    rule_id: 'P5A-W3-014-synthesis-profile-trait-bridge-b',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid.',
+    },
+    replacement:
+      'Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid, read as situational.',
   },
 ];
 

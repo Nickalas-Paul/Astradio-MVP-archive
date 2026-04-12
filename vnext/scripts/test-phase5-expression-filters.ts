@@ -267,7 +267,7 @@ function main(): void {
   console.log('[test-phase5-expression-filters] OK');
 }
 
-/** Phase 5C — shipped `phase5a-tables` / `phase5b-tables` invariants (Wave 1 + Wave 2 caps, glue load, feed length, preface dupes). */
+/** Phase 5C — shipped `phase5a-tables` / `phase5b-tables` invariants (Wave 1–3 caps, glue load, feed length, preface, history). */
 function wave1ShippedTablesVerification(): void {
   const wave2a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W2-'));
   const wave2b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W2-'));
@@ -275,8 +275,14 @@ function wave1ShippedTablesVerification(): void {
   assert(wave2b.length === 10, `expected 10 Wave 2 Phase5B rules, got ${wave2b.length}`);
   assert(wave2a.length + wave2b.length <= 28, 'Wave 2 new rule rows must stay within the 28-row cap (5A+5B)');
 
+  const wave3a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W3-'));
+  const wave3b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W3-'));
+  assert(wave3a.length === 14, `expected 14 Wave 3 Phase5A rules, got ${wave3a.length}`);
+  assert(wave3b.length === 4, `expected 4 Wave 3 Phase5B rules, got ${wave3b.length}`);
+  assert(wave3a.length + wave3b.length <= 22, 'Wave 3 new rule rows must stay within the 22-row cap (5A+5B)');
+
   const waveTotal = PHASE5A_RULES.length + PHASE5A_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
-  assert(waveTotal <= 45, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
+  assert(waveTotal <= 62, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
 
   for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
     if (ex.match.kind === 'whole_sentence') {
@@ -288,7 +294,7 @@ function wave1ShippedTablesVerification(): void {
   }
 
   const glueRules = PHASE5A_RULES.filter((r) => r.match.kind === 'prefix');
-  assert(glueRules.length === 4, `expected 4 prefix glue rules (profile + 3 Wave 2 surfaces), got ${glueRules.length}`);
+  assert(glueRules.length === 5, `expected 5 prefix glue rules (profile + Wave 2/3 surfaces), got ${glueRules.length}`);
   const profileGlue = glueRules.find((r) => r.rule_id === 'P5A-W1-001-glue-profile-baseline-prefix');
   assert(profileGlue !== undefined, 'wave1 profile glue rule present');
   assert(
@@ -300,6 +306,7 @@ function wave1ShippedTablesVerification(): void {
     { rule_id: 'P5A-W2-001-glue-campaign-scenario-stable-prefix', full: 'In this scenario, you see a stable story beat.' },
     { rule_id: 'P5A-W2-002-glue-compat-baseline-prefix', full: 'For this connection, you see a baseline contact tone.' },
     { rule_id: 'P5A-W2-003-glue-daily-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
+    { rule_id: 'P5A-W3-001-glue-overlay-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
   ];
   for (const fx of glueFixtures) {
     const gr = glueRules.find((r) => r.rule_id === fx.rule_id);
@@ -327,6 +334,36 @@ function wave1ShippedTablesVerification(): void {
   const histBefore = 'It also echoes a recent pattern of defining the situation rather than leaving it implied.';
   const histOut = applyPhase5BWholeTextWithTables('rpg_continuity_lines_v1', histBefore, { rules: PHASE5B_RULES });
   assert(histOut !== histBefore, 'Wave 2 history-direction line mutates when matched');
+
+  const histSupportBefore =
+    'It also echoes a recent pattern of bringing in connection or perspective.';
+  const histSupportOut = applyPhase5BWholeTextWithTables('rpg_continuity_lines_v1', histSupportBefore, {
+    rules: PHASE5B_RULES,
+  });
+  assert(histSupportOut !== histSupportBefore, 'Wave 3 history support_connect mutates when matched');
+
+  const groupPrefaceTagged: TaggedSectionBody = {
+    paragraphs: [
+      {
+        sentences: [
+          {
+            text: 'This group holds multiple voices; emphasis may spread unevenly.',
+            provenance: 'preface',
+          },
+        ],
+      },
+    ],
+  };
+  const groupPrefOut = applyPhase5AExpressionWithTables([syntheticSection(groupPrefaceTagged)], {
+    surface: 'group',
+    tier: 'baseline',
+    narrativePlan: null,
+    participantCount: 4,
+  }, {
+    rules: PHASE5A_RULES,
+    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  });
+  assert(groupPrefOut[0]!.text.includes('room-wide'), 'Wave 3 group ensemble preface rule applies');
 
   for (const r of PHASE5A_RULES) {
     if (r.surfaces.includes('feed') && r.match.kind === 'whole_sentence') {
@@ -429,9 +466,24 @@ function wave1ShippedTablesVerification(): void {
     .map((s) => s.text)
     .join('\n');
   assert(
-    campSyn.includes('without overwriting it') || campSyn.includes('read as situational'),
-    'Wave 2 campaign-only synthesis wrapper applies'
+    campSyn.includes('without overwriting it') ||
+      campSyn.includes('read as situational') ||
+      campSyn.includes('clearer pacing') ||
+      campSyn.includes('lands most clearly'),
+    'Wave 2–3 campaign-only synthesis rules apply when literals present'
   );
+
+  const profExt = applyPhase5AExpression(
+    projectTextFromSemanticCore(core, 'w3-trait', { phaseD: true, surface: 'profile', tier: 'expanded', narrativePlan: null }),
+    { surface: 'profile', tier: 'expanded', narrativePlan: null }
+  );
+  const traitJoined = profExt.map((s) => s.text).join('\n');
+  if (traitJoined.includes('Trait bridge:')) {
+    assert(
+      traitJoined.includes('without forcing one story') || traitJoined.includes('read as situational'),
+      'Wave 3 profile trait_bridge voice applies when section present'
+    );
+  }
 
   const sbOpts: ProjectionOptions = { phaseD: true, surface: 'sandbox', tier: 'extended', narrativePlan: null };
   const sb1 = projectTextFromSemanticCore(core, 'wave1-det', sbOpts);
