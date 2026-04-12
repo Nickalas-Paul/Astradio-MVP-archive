@@ -1,4 +1,5 @@
 import type { CampaignState, NatalBodyModifier, OutcomeDirection, TransitPressure } from './types';
+import { applyPhase5BLineArray } from './phase5b-engine';
 
 const DOMAIN_LABELS: Record<string, string> = {
   self: 'your sense of self and direction',
@@ -241,7 +242,7 @@ export function continuityLines(state: CampaignState, domain: string): string[] 
     const line = HISTORY_DIRECTION_TEXT[historyMatch[1]];
     if (line) lines.push(line);
   }
-  return lines.slice(0, 2);
+  return applyPhase5BLineArray('rpg_continuity_lines_v1', lines.slice(0, 2));
 }
 
 export function outcomeSentence(direction: OutcomeDirection, domain: string): string {

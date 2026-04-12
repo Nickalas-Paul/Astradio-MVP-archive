@@ -19,6 +19,7 @@ import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
 import { validateReportSections, buildFinalProjectionValidation } from './validate-projection';
 import { validatePhase2Sections } from './phase2-sentence-load';
 import { assertAllSectionsTagged } from '../tagged-text';
+import { applyPhase5AExpression } from './phase5a-engine';
 
 /**
  * Full projection: Phase D by default; set options.phaseD === false for raw template-only output (no tone/validation).
@@ -80,6 +81,8 @@ export function applyUnifiedProjection(
     validateTier: validateTierPhase0,
     tierForDensity: tierForDensityPhase0,
   });
+
+  sections = applyPhase5AExpression(sections, options);
 
   if (options.surface === 'feed') {
     validatePhase2Sections(sections, seed);
