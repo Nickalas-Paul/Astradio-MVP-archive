@@ -10,9 +10,11 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, ProjectionOptions, TaggedSectionBody } from '../projection/projection-types';
 import { assertSectionTaggedInvariant, reconstructTaggedSectionBody, splitSentsForTagged, stripTaggedFromExplanationForHash } from '../projection/tagged-text';
-import { applyPhase5AExpressionWithTables, type Phase5AEngineTables } from '../projection/rule-layer/phase5a-engine';
+import { applyPhase5AExpression, applyPhase5AExpressionWithTables, type Phase5AEngineTables } from '../projection/rule-layer/phase5a-engine';
 import type { Phase5ARule, Phase5ATemplateAllowlistEntry } from '../projection/rule-layer/phase5a-tables';
-import { applyPhase5BLineArrayWithTables, applyPhase5BWholeTextWithTables } from '../rpg/phase5b-engine';
+import { PHASE5A_RULES, PHASE5A_TEMPLATE_ALLOWLIST } from '../projection/rule-layer/phase5a-tables';
+import { PHASE5B_RULES } from '../rpg/phase5b-tables';
+import { applyPhase5BLineArray, applyPhase5BLineArrayWithTables, applyPhase5BWholeTextWithTables } from '../rpg/phase5b-engine';
 import type { Phase5BRule } from '../rpg/phase5b-tables';
 import { countSentenceLoads, totalLoadScore } from '../projection/rule-layer/phase2-sentence-load';
 
@@ -207,7 +209,7 @@ function main(): void {
   const projOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'baseline', narrativePlan: null };
   const projected = projectTextFromSemanticCore(core, 'p5-hash', projOpts);
   const emptyPass = applyPhase5AExpressionWithTables(projected, projOpts, { rules: [], templateAllowlist: [] });
-  assert(JSON.stringify(projected) === JSON.stringify(emptyPass), 'empty shipped tables: projection identity');
+  assert(JSON.stringify(projected) === JSON.stringify(emptyPass), 're-applying empty rule tables is a no-op on current projection');
   const canonical2 = buildCanonicalReportForSnapshotSurface({
     surface_kind: 'profile_natal',
     subject_ids: ['p5'],
@@ -260,7 +262,93 @@ function main(): void {
   }
   assert(threw, '5B rejects sentence-count change');
 
+  wave1ShippedTablesVerification();
+
   console.log('[test-phase5-expression-filters] OK');
+}
+
+/** Phase 5C Wave 1 — shipped `phase5a-tables` / `phase5b-tables` invariants (exact match, counts, glue load, feed length). */
+function wave1ShippedTablesVerification(): void {
+  const waveTotal = PHASE5A_RULES.length + PHASE5A_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
+  assert(waveTotal <= 25, `wave1 total rows ${waveTotal} must be <= 25`);
+
+  for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
+    if (ex.match.kind === 'whole_sentence') {
+      assert(
+        ex.replacement.length <= ex.match.value.length,
+        `feed allowlist ${ex.exception_id}: replacement must be <= original (${ex.replacement.length} vs ${ex.match.value.length})`
+      );
+    }
+  }
+
+  const glueRule = PHASE5A_RULES.find((r) => r.match.kind === 'prefix');
+  assert(glueRule !== undefined, 'wave1 glue rule present');
+  assert(glueRule!.surfaces.length === 1 && glueRule!.surfaces[0] === 'profile', 'wave1 glue is profile-only');
+  const m = glueRule!.match as { kind: 'prefix'; before_prefix: string; after_prefix: string };
+  const fullGlue = 'In this chart, you see a baseline personal picture.';
+  assert(fullGlue.startsWith(m.before_prefix), 'glue fixture matches shipped prefix');
+  const afterGlue = m.after_prefix + fullGlue.slice(m.before_prefix.length);
+  assert(
+    totalLoadScore(countSentenceLoads(fullGlue, 'template')) === totalLoadScore(countSentenceLoads(afterGlue, 'template')),
+    'shipped glue prefix pair is load-neutral on baseline profile anchor sentence'
+  );
+  assert(splitSentsForTagged(fullGlue).length === splitSentsForTagged(afterGlue).length, 'glue swap preserves sentence count');
+
+  for (const br of PHASE5B_RULES) {
+    assert(br.emission_id === 'rpg_continuity_lines_v1', 'wave1 5B only continuity emission');
+    if (br.match.kind === 'whole_text') {
+      const nb = splitSentsForTagged(br.match.before).length;
+      const na = splitSentsForTagged(br.replacement).length;
+      assert(nb === na, `5B ${br.rule_id} sentence count ${nb}->${na}`);
+    }
+  }
+
+  const contBefore =
+    'Recent turns have leaned toward naming things plainly and defining the line more clearly.';
+  const contOut = applyPhase5BLineArray('rpg_continuity_lines_v1', [contBefore]);
+  assert(contOut[0] !== contBefore, 'shipped 5B continuity mutates clarity line');
+  assert(splitSentsForTagged(contBefore).length === splitSentsForTagged(contOut[0]!).length, 'continuity line sentence invariant');
+
+  const n = snap();
+  const fv = encodeFeatures(n) as FeatureVec;
+  const g = guidanceFromFeatures(fv, n, 'w1wave');
+  const canonical = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['w1'],
+    snapshot: n,
+    featureVec: fv,
+    control_surface_hash: 'ctrl',
+    compose_seed: 'seed',
+    guidance: g,
+  });
+  const core = interpretCanonicalReportObject(canonical);
+  const sbOpts: ProjectionOptions = { phaseD: true, surface: 'sandbox', tier: 'extended', narrativePlan: null };
+  const sb1 = projectTextFromSemanticCore(core, 'wave1-det', sbOpts);
+  const sb2 = projectTextFromSemanticCore(core, 'wave1-det', sbOpts);
+  assert(JSON.stringify(sb1) === JSON.stringify(sb2), 'wave1 sandbox extended deterministic');
+  const joined = sb1.map((s) => s.text).join('\n');
+  assert(joined.includes('Lab framing:'), 'wave1 sandbox lab synthesis applied');
+  assert(
+    joined.includes('Expanded sandbox pass adds second-order effects for edge-condition sensitivity in the lab.'),
+    'wave1 sandbox tier scaffold applied'
+  );
+  for (const s of sb1) assertSectionTaggedInvariant(s, 'wave1-sandbox');
+
+  const feedOpts: ProjectionOptions = { phaseD: true, surface: 'feed', tier: 'baseline', narrativePlan: null };
+  const feedSec = projectTextFromSemanticCore(core, 'wave1-feed', feedOpts);
+  const scope = feedSec.find((s) => s.id === 'feed_context')?.text ?? '';
+  assert(scope.includes('This card stays tight by design.'), 'wave1 feed template allowlist applied');
+  assert(!scope.includes('This card stays narrow by design.'), 'wave1 feed original scope line replaced');
+  for (const s of feedSec) assertSectionTaggedInvariant(s, 'wave1-feed');
+
+  const profOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'baseline', narrativePlan: null };
+  const prof = projectTextFromSemanticCore(core, 'wave1-prof', profOpts);
+  const profJoined = prof.map((s) => s.text).join('\n');
+  if (profJoined.includes('In this chart, you see a baseline personal picture.')) {
+    assert(profJoined.includes('steadier'), 'wave1 profile glue prefix applied when baseline anchor present');
+  }
+  const prof2 = applyPhase5AExpression(prof, profOpts);
+  assert(JSON.stringify(prof) === JSON.stringify(prof2), 'applyPhase5AExpression idempotent on shipped rules');
 }
 
 main();
