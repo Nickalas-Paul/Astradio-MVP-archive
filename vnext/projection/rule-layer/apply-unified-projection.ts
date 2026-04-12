@@ -2,7 +2,7 @@
  * Unified projection orchestrator — single authority for execution order:
  * 1. normalize input → 2. topology → 3. temporal → 4. claim selection (in assemble) →
  * 5. synthesis (in assemble) → 6. audio lexicon (templates + staging) → 7. surface modulation →
- * 8. assemble-sections → 9. tone pass → 10. validation.
+ * 8. assemble-sections → 8b. composition-phase4 → 9. tone pass → 10. validation.
  *
  * Do not import this from route handlers; use projectTextFromSemanticCore facade only.
  */
@@ -13,6 +13,7 @@ import { classifyTopology } from './topology-classify';
 import { classifyTemporalVoice } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
 import { buildEmphasisRawSections, assemblePhaseDSections } from './assemble-sections';
+import { applyCompositionPhase4 } from './composition-phase4';
 import { runTonePassOnSections } from './tone-pass';
 import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
 import { validateReportSections, buildFinalProjectionValidation } from './validate-projection';
@@ -57,6 +58,16 @@ export function applyUnifiedProjection(
     surface: options.surface,
     temporalBucket,
   });
+
+  const phase4 = applyCompositionPhase4(sections, options.surface);
+  sections = phase4.sections;
+  if (sections.length > 0) {
+    const s0 = sections[0]!;
+    sections[0] = {
+      ...s0,
+      meta: { ...s0.meta, phase4_composition: phase4.report },
+    };
+  }
 
   sections = runTonePassOnSections(sections, core);
 

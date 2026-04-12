@@ -46,6 +46,19 @@ export type ProjectionOptions = {
   _priorAttemptViolations?: string[];
 };
 
+export type Phase4UnitRef = {
+  sectionId: string;
+  unit: 'paragraph' | 'bullet';
+  paragraphIndex: number;
+  bulletIndex?: number;
+  reason: 'UNIT_INFEASIBLE';
+};
+
+export type Phase4CompositionReport = {
+  unitInfeasible: Phase4UnitRef[];
+  audioThreadRelocated: boolean;
+};
+
 export type ProjectionValidation = {
   ok: boolean;
   tierRequested: ExpansionTier;
@@ -117,5 +130,7 @@ export type ProjectedExplanationSection = {
     projection_validation?: ProjectionValidation;
     /** Phase 3 — excluded from explanation JSON hashing in compose. */
     tagged?: TaggedSectionBody;
+    /** Phase 4 — diagnostic only; stripped for explanation hash. */
+    phase4_composition?: Phase4CompositionReport;
   };
 };
