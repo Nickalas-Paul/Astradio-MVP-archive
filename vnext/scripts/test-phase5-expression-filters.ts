@@ -267,10 +267,16 @@ function main(): void {
   console.log('[test-phase5-expression-filters] OK');
 }
 
-/** Phase 5C Wave 1 — shipped `phase5a-tables` / `phase5b-tables` invariants (exact match, counts, glue load, feed length). */
+/** Phase 5C — shipped `phase5a-tables` / `phase5b-tables` invariants (Wave 1 + Wave 2 caps, glue load, feed length, preface dupes). */
 function wave1ShippedTablesVerification(): void {
+  const wave2a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W2-'));
+  const wave2b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W2-'));
+  assert(wave2a.length === 16, `expected 16 Wave 2 Phase5A rules, got ${wave2a.length}`);
+  assert(wave2b.length === 10, `expected 10 Wave 2 Phase5B rules, got ${wave2b.length}`);
+  assert(wave2a.length + wave2b.length <= 28, 'Wave 2 new rule rows must stay within the 28-row cap (5A+5B)');
+
   const waveTotal = PHASE5A_RULES.length + PHASE5A_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
-  assert(waveTotal <= 25, `wave1 total rows ${waveTotal} must be <= 25`);
+  assert(waveTotal <= 45, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
 
   for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
     if (ex.match.kind === 'whole_sentence') {
@@ -281,27 +287,93 @@ function wave1ShippedTablesVerification(): void {
     }
   }
 
-  const glueRule = PHASE5A_RULES.find((r) => r.match.kind === 'prefix');
-  assert(glueRule !== undefined, 'wave1 glue rule present');
-  assert(glueRule!.surfaces.length === 1 && glueRule!.surfaces[0] === 'profile', 'wave1 glue is profile-only');
-  const m = glueRule!.match as { kind: 'prefix'; before_prefix: string; after_prefix: string };
-  const fullGlue = 'In this chart, you see a baseline personal picture.';
-  assert(fullGlue.startsWith(m.before_prefix), 'glue fixture matches shipped prefix');
-  const afterGlue = m.after_prefix + fullGlue.slice(m.before_prefix.length);
+  const glueRules = PHASE5A_RULES.filter((r) => r.match.kind === 'prefix');
+  assert(glueRules.length === 4, `expected 4 prefix glue rules (profile + 3 Wave 2 surfaces), got ${glueRules.length}`);
+  const profileGlue = glueRules.find((r) => r.rule_id === 'P5A-W1-001-glue-profile-baseline-prefix');
+  assert(profileGlue !== undefined, 'wave1 profile glue rule present');
   assert(
-    totalLoadScore(countSentenceLoads(fullGlue, 'template')) === totalLoadScore(countSentenceLoads(afterGlue, 'template')),
-    'shipped glue prefix pair is load-neutral on baseline profile anchor sentence'
+    profileGlue!.surfaces.length === 1 && profileGlue!.surfaces[0] === 'profile',
+    'wave1 glue remains profile-only'
   );
-  assert(splitSentsForTagged(fullGlue).length === splitSentsForTagged(afterGlue).length, 'glue swap preserves sentence count');
+  const glueFixtures: Array<{ rule_id: string; full: string }> = [
+    { rule_id: 'P5A-W1-001-glue-profile-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
+    { rule_id: 'P5A-W2-001-glue-campaign-scenario-stable-prefix', full: 'In this scenario, you see a stable story beat.' },
+    { rule_id: 'P5A-W2-002-glue-compat-baseline-prefix', full: 'For this connection, you see a baseline contact tone.' },
+    { rule_id: 'P5A-W2-003-glue-daily-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
+  ];
+  for (const fx of glueFixtures) {
+    const gr = glueRules.find((r) => r.rule_id === fx.rule_id);
+    assert(gr !== undefined, `glue rule ${fx.rule_id}`);
+    const m = gr!.match as { kind: 'prefix'; before_prefix: string; after_prefix: string };
+    assert(fx.full.startsWith(m.before_prefix), `glue fixture prefix ${fx.rule_id}`);
+    const afterGlue = m.after_prefix + fx.full.slice(m.before_prefix.length);
+    assert(
+      totalLoadScore(countSentenceLoads(fx.full, 'template')) ===
+        totalLoadScore(countSentenceLoads(afterGlue, 'template')),
+      `glue load neutrality ${fx.rule_id}`
+    );
+    assert(splitSentsForTagged(fx.full).length === splitSentsForTagged(afterGlue).length, `glue sentence count ${fx.rule_id}`);
+  }
 
   for (const br of PHASE5B_RULES) {
-    assert(br.emission_id === 'rpg_continuity_lines_v1', 'wave1 5B only continuity emission');
+    assert(br.emission_id === 'rpg_continuity_lines_v1', '5B rules target continuity line emission');
     if (br.match.kind === 'whole_text') {
       const nb = splitSentsForTagged(br.match.before).length;
       const na = splitSentsForTagged(br.replacement).length;
       assert(nb === na, `5B ${br.rule_id} sentence count ${nb}->${na}`);
     }
   }
+
+  const histBefore = 'It also echoes a recent pattern of defining the situation rather than leaving it implied.';
+  const histOut = applyPhase5BWholeTextWithTables('rpg_continuity_lines_v1', histBefore, { rules: PHASE5B_RULES });
+  assert(histOut !== histBefore, 'Wave 2 history-direction line mutates when matched');
+
+  for (const r of PHASE5A_RULES) {
+    if (r.surfaces.includes('feed') && r.match.kind === 'whole_sentence') {
+      const bef = r.match.before;
+      const rep = r.replacement;
+      assert(rep.length <= bef.length, `feed rule ${r.rule_id} must be non-expanding (${rep.length} vs ${bef.length})`);
+    }
+  }
+
+  const prefaceObsTagged: TaggedSectionBody = {
+    paragraphs: [
+      {
+        sentences: [{ text: 'The sections stay observational.', provenance: 'preface' }],
+      },
+    ],
+  };
+  const prefaceOpts: ProjectionOptions = { surface: 'compat_pair', tier: 'baseline', narrativePlan: null, connectionMode: 'friends' };
+  const prefaceOut = applyPhase5AExpressionWithTables([syntheticSection(prefaceObsTagged)], prefaceOpts, {
+    rules: PHASE5A_RULES,
+    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  });
+  assert(
+    prefaceOut[0]!.text.includes('steady, plain language'),
+    'shared observational preface rule applies on compat_pair friends'
+  );
+
+  const situTagged: TaggedSectionBody = {
+    paragraphs: [{ sentences: [{ text: 'Language stays situational.', provenance: 'preface' }] }],
+  };
+  const situLoversOpts: ProjectionOptions = {
+    surface: 'compat_pair',
+    tier: 'baseline',
+    narrativePlan: null,
+    connectionMode: 'lovers',
+  };
+  const situOut = applyPhase5AExpressionWithTables([syntheticSection(situTagged)], situLoversOpts, {
+    rules: PHASE5A_RULES,
+    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  });
+  assert(situOut[0]!.text.includes('in the moment'), 'situational preface rule applies for lovers');
+
+  const situRivalsOpts: ProjectionOptions = { ...prefaceOpts, connectionMode: 'rivals' };
+  const situRivalsOut = applyPhase5AExpressionWithTables([syntheticSection(situTagged)], situRivalsOpts, {
+    rules: PHASE5A_RULES,
+    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  });
+  assert(situRivalsOut[0]!.text === reconstructTaggedSectionBody(situTagged).trim(), 'situational preface skipped for rivals');
 
   const contBefore =
     'Recent turns have leaned toward naming things plainly and defining the line more clearly.';
@@ -322,6 +394,45 @@ function wave1ShippedTablesVerification(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
+
+  const friendsText =
+    applyPhase5AExpression(
+      projectTextFromSemanticCore(core, 'mode-diff', {
+        phaseD: true,
+        surface: 'compat_pair',
+        tier: 'expanded',
+        connectionMode: 'friends',
+        narrativePlan: null,
+      }),
+      { surface: 'compat_pair', tier: 'expanded', connectionMode: 'friends', narrativePlan: null }
+    )
+      .find((s) => s.id === 'connection_structure')?.text ?? '';
+  const loversText =
+    applyPhase5AExpression(
+      projectTextFromSemanticCore(core, 'mode-diff', {
+        phaseD: true,
+        surface: 'compat_pair',
+        tier: 'expanded',
+        connectionMode: 'lovers',
+        narrativePlan: null,
+      }),
+      { surface: 'compat_pair', tier: 'expanded', connectionMode: 'lovers', narrativePlan: null }
+    )
+      .find((s) => s.id === 'connection_structure')?.text ?? '';
+  assert(friendsText.length > 0 && loversText.length > 0, 'compat_pair connection_structure present for intent test');
+  assert(friendsText !== loversText, 'compat intent differentiation: friends vs lovers preface differs');
+
+  const campSyn = applyPhase5AExpression(
+    projectTextFromSemanticCore(core, 'camp-syn', { phaseD: true, surface: 'campaign', tier: 'expanded', narrativePlan: null }),
+    { surface: 'campaign', tier: 'expanded', narrativePlan: null }
+  )
+    .map((s) => s.text)
+    .join('\n');
+  assert(
+    campSyn.includes('without overwriting it') || campSyn.includes('read as situational'),
+    'Wave 2 campaign-only synthesis wrapper applies'
+  );
+
   const sbOpts: ProjectionOptions = { phaseD: true, surface: 'sandbox', tier: 'extended', narrativePlan: null };
   const sb1 = projectTextFromSemanticCore(core, 'wave1-det', sbOpts);
   const sb2 = projectTextFromSemanticCore(core, 'wave1-det', sbOpts);
