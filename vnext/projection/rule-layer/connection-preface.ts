@@ -3,6 +3,7 @@
  * Phase 2: fixed sentence bundles only (deterministic); no free-form narrative.
  */
 import type { ConnectionMode, ExpansionTier, ProjectedExplanationSection, ProjectionSurface } from '../projection-types';
+import { taggedSectionBodyFromText } from '../tagged-text';
 
 const FRIENDS_BUNDLES = [
   [
@@ -139,7 +140,7 @@ export function applyConnectionPreface(
         id: 'connection_structure',
         title: 'Connection framing',
         text,
-        meta: { claimIdsReferenced: [], phaseD: true },
+        meta: { claimIdsReferenced: [], phaseD: true, tagged: taggedSectionBodyFromText(text, 'preface') },
       });
     }
   }
@@ -150,7 +151,7 @@ export function applyConnectionPreface(
         id: 'ensemble_framing',
         title: 'Ensemble field',
         text: g,
-        meta: { claimIdsReferenced: [], phaseD: true },
+        meta: { claimIdsReferenced: [], phaseD: true, tagged: taggedSectionBodyFromText(g, 'preface') },
       });
     }
   }

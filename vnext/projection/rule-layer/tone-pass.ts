@@ -1,10 +1,12 @@
 /**
  * Step 9 — centralized tone pass (language-lint + forbidden_tone_flags + cross-section discipline).
  * Only invoked from apply-unified-projection after section assembly.
+ * Phase 3 — mirrors all text transforms on `meta.tagged` (no string inference).
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
-import type { ProjectedExplanationSection } from '../projection-types';
-import { lintSectionBody } from '../language-lint';
+import type { ProjectedExplanationSection, TaggedParagraph, TaggedSectionBody, TaggedSentence } from '../projection-types';
+import { lintParagraph, lintSectionBody } from '../language-lint';
+import { cloneTaggedSectionBody, reconstructTaggedSectionBody, splitSentsForTagged } from '../tagged-text';
 
 /** Lower wins duplicate sentences (section collapse). */
 const SECTION_RANK: Record<string, number> = {
@@ -57,8 +59,9 @@ function normalizeSentence(s: string): string {
 
 function splitSentences(text: string): string[] {
   const t = text.trim();
-   if (!t) return [];
-  return t.split(/(?<=[.!?])\s+/)
+  if (!t) return [];
+  return t
+    .split(/(?<=[.!?])\s+/)
     .map((x) => x.trim())
     .filter(Boolean);
 }
@@ -107,16 +110,75 @@ function filterParagraphsByWinners(text: string, sectionId: string, winners: Map
   return kept.join('\n\n');
 }
 
+function cloneSent(s: TaggedSentence): TaggedSentence {
+  return {
+    text: s.text,
+    provenance: s.provenance,
+    ...(s.contentProvenance !== undefined ? { contentProvenance: s.contentProvenance } : {}),
+  };
+}
+
+function filterTaggedParagraphByWinners(tp: TaggedParagraph, sectionId: string, winners: Map<string, Winner>): TaggedParagraph {
+  const sents = tp.sentences.map((r) => r.text);
+  const keptRows = tp.sentences.filter((row, idx) => {
+    const norm = normalizeSentence(sents[idx]!);
+    if (norm.length < 12) return true;
+    const w = winners.get(norm);
+    return !w || w.sectionId === sectionId;
+  });
+  const keptSents = keptRows.map((r) => r.text);
+  if (keptSents.length !== sents.length && sents.length > 0) {
+    return { sentences: tp.sentences.map(cloneSent) };
+  }
+  if (keptSents.length > 0) {
+    return { sentences: keptRows.map(cloneSent) };
+  }
+  return { sentences: [] };
+}
+
+function filterTaggedSectionBodyByWinners(tagged: TaggedSectionBody, sectionId: string, winners: Map<string, Winner>): TaggedSectionBody {
+  return {
+    paragraphs: tagged.paragraphs.map((tp) => filterTaggedParagraphByWinners(tp, sectionId, winners)),
+    bulletBlocks: tagged.bulletBlocks?.map((bb) => filterTaggedSectionBodyByWinners(bb, sectionId, winners)),
+  };
+}
+
 function applyCrossSectionDiscipline(sections: ProjectedExplanationSection[]): ProjectedExplanationSection[] {
   if (sections.length === 0) return sections;
   const winners = computeSentenceWinners(sections);
   return sections.map((sec) => {
     const text = filterParagraphsByWinners(sec.text, sec.id, winners);
     const bullets = sec.bullets?.map((b) => filterParagraphsByWinners(b, sec.id, winners)).filter((b) => b.trim().length > 0);
+    let tagged = sec.meta?.tagged ? filterTaggedSectionBodyByWinners(sec.meta.tagged, sec.id, winners) : undefined;
+    if (tagged && sec.meta?.tagged?.bulletBlocks?.length && bullets?.length) {
+      tagged = {
+        ...tagged,
+        bulletBlocks: sec.meta.tagged.bulletBlocks.map((bb) => filterTaggedSectionBodyByWinners(bb, sec.id, winners)),
+      };
+    }
+    if (tagged && reconstructTaggedSectionBody(tagged) !== text) {
+      throw new Error(`[Phase3] cross-section tagged drift ${sec.id}`);
+    }
+    if (tagged?.bulletBlocks && bullets?.length) {
+      if (tagged.bulletBlocks.length !== bullets.length) {
+        throw new Error(`[Phase3] cross-section bullet tagged ${sec.id}`);
+      }
+      for (let i = 0; i < bullets.length; i++) {
+        if (reconstructTaggedSectionBody(tagged.bulletBlocks[i]!) !== bullets[i]) {
+          throw new Error(`[Phase3] cross-section bullet reconstruct ${sec.id}[${i}]`);
+        }
+      }
+    }
     return {
       ...sec,
       text,
       bullets: bullets?.length ? bullets : undefined,
+      meta: sec.meta
+        ? {
+            ...sec.meta,
+            ...(tagged ? { tagged } : {}),
+          }
+        : undefined,
     };
   });
 }
@@ -130,15 +192,144 @@ function applyForbiddenToneFlags(text: string, core: SemanticCore): string {
   return t;
 }
 
+function mirrorForbiddenTaggedParagraph(tp: TaggedParagraph, core: SemanticCore): TaggedParagraph {
+  const joined = tp.sentences.map((s) => s.text).join(' ');
+  const after = applyForbiddenToneFlags(joined, core);
+  if (after === joined) {
+    return { sentences: tp.sentences.map(cloneSent) };
+  }
+  const newSents = splitSentences(after);
+  const oldSents = splitSentences(joined);
+  if (newSents.length === oldSents.length) {
+    return { sentences: newSents.map((t, i) => ({ ...tp.sentences[i]!, text: t })) };
+  }
+  return {
+    sentences: newSents.map((t, i) => {
+      const src = tp.sentences[Math.min(i, tp.sentences.length - 1)]!;
+      return {
+        text: t,
+        provenance: src.provenance,
+        ...(src.contentProvenance !== undefined ? { contentProvenance: src.contentProvenance } : {}),
+      };
+    }),
+  };
+}
+
+function mirrorLintTaggedParagraph(tp: TaggedParagraph): TaggedParagraph {
+  const joined = tp.sentences.map((s) => s.text).join(' ');
+  const r = lintParagraph(joined.trim());
+  const newSents = splitSentences(r.text);
+  const oldSents = splitSentences(joined.trim());
+  if (r.violations.includes('missing_hedge')) {
+    return {
+      sentences: newSents.map((t, idx) => {
+        if (idx === 0) {
+          return {
+            text: t,
+            provenance: 'padding',
+            contentProvenance: tp.sentences[0]?.provenance ?? 'template',
+          };
+        }
+        return {
+          text: t,
+          provenance: tp.sentences[idx]?.provenance ?? tp.sentences[tp.sentences.length - 1]!.provenance,
+        };
+      }),
+    };
+  }
+  if (newSents.length === oldSents.length) {
+    return { sentences: newSents.map((t, i) => ({ ...tp.sentences[i]!, text: t })) };
+  }
+  return {
+    sentences: newSents.map((t, i) => ({
+      text: t,
+      provenance: tp.sentences[Math.min(i, tp.sentences.length - 1)]!.provenance,
+    })),
+  };
+}
+
+function mirrorToneTaggedBody(
+  tagged: TaggedSectionBody,
+  secTextBefore: string,
+  secTextAfterLint: string,
+  core: SemanticCore
+): TaggedSectionBody {
+  const parasBefore = secTextBefore.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  const parasAfterLint = secTextAfterLint.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  if (parasBefore.length !== parasAfterLint.length || parasBefore.length !== tagged.paragraphs.length) {
+    throw new Error('[Phase3] tone pass paragraph count mismatch');
+  }
+  const paragraphs: TaggedParagraph[] = tagged.paragraphs.map((tp, i) => {
+    const beforeP = parasBefore[i]!;
+    const joined = tp.sentences.map((s) => s.text).join(' ');
+    if (joined.trim() !== beforeP) {
+      throw new Error(`[Phase3] tone tagged para ${i} join mismatch`);
+    }
+    const fp = mirrorForbiddenTaggedParagraph(tp, core);
+    const joinedF = fp.sentences.map((s) => s.text).join(' ');
+    const midExpected = applyForbiddenToneFlags(beforeP, core);
+    if (joinedF.trim() !== midExpected.trim()) {
+      throw new Error(`[Phase3] tone forbidden para ${i} mismatch`);
+    }
+    const litP = mirrorLintTaggedParagraph(fp);
+    const got = litP.sentences.map((s) => s.text).join(' ');
+    if (got !== parasAfterLint[i]) {
+      throw new Error(`[Phase3] tone lint para ${i} mismatch`);
+    }
+    return litP;
+  });
+  const out: TaggedSectionBody = { paragraphs };
+  if (reconstructTaggedSectionBody(out) !== secTextAfterLint) {
+    throw new Error('[Phase3] tone tagged body reconstruct mismatch');
+  }
+  return out;
+}
+
+function mirrorToneTaggedBullets(
+  bulletBlocks: TaggedSectionBody[],
+  bulletsBefore: string[],
+  bulletsAfter: string[],
+  core: SemanticCore
+): TaggedSectionBody[] {
+  return bulletBlocks.map((bb, i) => mirrorToneTaggedBody(bb, bulletsBefore[i]!, bulletsAfter[i]!, core));
+}
+
 export function runTonePassOnSections(sections: ProjectedExplanationSection[], core: SemanticCore): ProjectedExplanationSection[] {
   const linted = sections.map((sec) => {
     const afterFlag = applyForbiddenToneFlags(sec.text, core);
     const body = lintSectionBody(afterFlag);
-    const bullets = sec.bullets?.map((b) => lintSectionBody(applyForbiddenToneFlags(b, core)).text);
+    const bulletsBefore = sec.bullets ?? [];
+    const bulletsAfter = bulletsBefore.map((b) => lintSectionBody(applyForbiddenToneFlags(b, core)).text);
+    let tagged: TaggedSectionBody | undefined;
+    if (sec.meta?.tagged) {
+      tagged = mirrorToneTaggedBody(cloneTaggedSectionBody(sec.meta.tagged), sec.text, body.text, core);
+      if (sec.meta.tagged.bulletBlocks?.length) {
+        tagged = {
+          ...tagged,
+          bulletBlocks: mirrorToneTaggedBullets(sec.meta.tagged.bulletBlocks, bulletsBefore, bulletsAfter, core),
+        };
+      }
+      if (reconstructTaggedSectionBody(tagged) !== body.text) {
+        throw new Error(`[Phase3] tone section ${sec.id} text/tagged mismatch`);
+      }
+      if (bulletsAfter.length && tagged.bulletBlocks) {
+        for (let i = 0; i < bulletsAfter.length; i++) {
+          if (reconstructTaggedSectionBody(tagged.bulletBlocks[i]!) !== bulletsAfter[i]) {
+            throw new Error(`[Phase3] tone bullet ${sec.id}[${i}]`);
+          }
+        }
+      }
+    }
     return {
       ...sec,
       text: body.text,
-      bullets,
+      bullets: bulletsAfter.length ? bulletsAfter : undefined,
+      meta: sec.meta
+        ? {
+            ...sec.meta,
+            ...(tagged ? { tagged } : {}),
+          }
+        : undefined,
     };
   });
   return applyCrossSectionDiscipline(linted);

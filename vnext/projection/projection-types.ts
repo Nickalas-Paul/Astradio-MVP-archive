@@ -73,6 +73,39 @@ export type SurfaceSchemaDefinition = {
   expansionSectionKeys: { expanded: string[]; extended: string[] };
 };
 
+/** Phase 3 — provenance union (assigned at source, propagated only). */
+export type ProvenanceType =
+  | 'claim_body'
+  | 'template'
+  | 'preface'
+  | 'audio_staging'
+  | 'audio_thread'
+  | 'tier_scaffold'
+  | 'synthesis_wrapper'
+  | 'padding'
+  | 'assembler_glue';
+
+export type TaggedSentence = {
+  text: string;
+  provenance: ProvenanceType;
+  /**
+   * When tone-pass applied missing_hedge, the first row may be `padding` for the full linted
+   * first sentence while `contentProvenance` records the inner sentences' provenance for
+   * collapse lint-strip (removes hedge prefix bytes-identical to repetition-collapse).
+   */
+  contentProvenance?: ProvenanceType;
+};
+
+export type TaggedParagraph = {
+  sentences: TaggedSentence[];
+};
+
+export type TaggedSectionBody = {
+  paragraphs: TaggedParagraph[];
+  /** One entry per `bullets[i]` when bullets exist. */
+  bulletBlocks?: TaggedSectionBody[];
+};
+
 export type ProjectedExplanationSection = {
   id: string;
   title: string;
@@ -82,5 +115,7 @@ export type ProjectedExplanationSection = {
     claimIdsReferenced?: string[];
     phaseD?: boolean;
     projection_validation?: ProjectionValidation;
+    /** Phase 3 — excluded from explanation JSON hashing in compose. */
+    tagged?: TaggedSectionBody;
   };
 };

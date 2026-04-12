@@ -4,6 +4,8 @@
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type { ExpansionTier, ProjectionSurface, ProjectedExplanationSection } from '../projection-types';
+import { stripLintHedgeFromParagraph } from '../language-lint';
+import { cloneTaggedSectionBody, splitSentsForTagged, stripTaggedLintFromSectionBody } from '../tagged-text';
 import { SURFACE_SCHEMAS } from '../surface-schemas';
 import { validateDensity, densityForSurfaceBaseline, countSentences } from '../density-validate';
 import { densityForSectionId, validateReportSections } from './validate-projection';
@@ -64,8 +66,6 @@ function sectionRank(id: string): number {
   if (id.startsWith('depth_panel_')) return 55;
   return 200;
 }
-
-const LINT_PREFIX = 'In many cases, this pattern tends to show related tendencies: ';
 
 const PADDING_LITERALS = [
   'This pattern tends to be context-sensitive rather than fixed: the same emphasis may read louder under stress and softer under safety.',
@@ -247,28 +247,21 @@ function joinSents(sents: string[]): string {
   return sents.join(' ');
 }
 
-function stripLintParagraph(paragraph: string): string {
-  const sents = splitSents(paragraph);
-  if (sents.length === 0) return paragraph;
-  const first = sents[0];
-  if (first.startsWith(LINT_PREFIX)) {
-    const rest = first.slice(LINT_PREFIX.length).trimStart();
-    if (rest.length === 0) return paragraph;
-    sents[0] = rest;
-  }
-  return joinSents(sents);
-}
-
 function applyLintStripToBody(body: string): string {
   const paras = splitParas(body);
   if (paras.length === 0) return body.trim();
-  return joinParas(paras.map(stripLintParagraph));
+  return joinParas(paras.map(stripLintHedgeFromParagraph));
 }
 
 function cloneSections(sections: ProjectedExplanationSection[]): ProjectedExplanationSection[] {
   return sections.map((s) => ({
     ...s,
-    meta: s.meta ? { ...s.meta } : undefined,
+    meta: s.meta
+      ? {
+          ...s.meta,
+          ...(s.meta.tagged ? { tagged: cloneTaggedSectionBody(s.meta.tagged) } : {}),
+        }
+      : undefined,
     bullets: s.bullets ? [...s.bullets] : undefined,
   }));
 }
@@ -457,6 +450,26 @@ function pickRepairLiteral(
   return null;
 }
 
+function densityRepairMirrorAppendParagraph(sec: ProjectedExplanationSection, cand: string, hadParas: boolean): void {
+  if (!sec.meta?.tagged) return;
+  const sents = splitSentsForTagged(cand);
+  const block = { sentences: sents.map((t) => ({ text: t, provenance: 'padding' as const })) };
+  if (!hadParas) {
+    sec.meta.tagged = { paragraphs: [block], bulletBlocks: sec.meta.tagged.bulletBlocks };
+    return;
+  }
+  sec.meta.tagged.paragraphs.push(block);
+}
+
+function densityRepairMirrorAppendSentence(sec: ProjectedExplanationSection, paraIdx: number, cand: string): void {
+  if (!sec.meta?.tagged) return;
+  const tp = sec.meta.tagged.paragraphs[paraIdx];
+  if (!tp) return;
+  for (const t of splitSentsForTagged(cand)) {
+    tp.sentences.push({ text: t, provenance: 'padding' });
+  }
+}
+
 function densityRepair(
   sections: ProjectedExplanationSection[],
   ctx: {
@@ -499,6 +512,7 @@ function densityRepair(
         const cand = pickRepairLiteral(R_ORDERED, ctx, step, '', P_report, sec.id, audioNormBlob);
         if (cand === null) return false;
         sec.text = paras.length ? joinParas([...paras, cand]) : cand;
+        densityRepairMirrorAppendParagraph(sec, cand, paras.length > 0);
         P_report.add(projectionNormSentence(cand));
         fixed = true;
         break;
@@ -513,6 +527,7 @@ function densityRepair(
           const nextParas = [...blocks];
           nextParas[pi] = joinSents(next);
           sec.text = joinParas(nextParas);
+          densityRepairMirrorAppendSentence(sec, pi, cand);
           P_report.add(projectionNormSentence(cand));
           fixed = true;
           break;
@@ -540,6 +555,23 @@ function getSentenceBlock(
   return { paras, sents: splitSents(para) };
 }
 
+function removeTaggedSentenceMirror(sec: ProjectedExplanationSection, addr: SentAddr): void {
+  const m = sec.meta;
+  if (!m?.tagged) return;
+  const tb = m.tagged;
+  if (addr.bulletIdx === null) {
+    const tp = tb.paragraphs[addr.paraIdx];
+    if (!tp || addr.sentIdx >= tp.sentences.length) return;
+    tp.sentences.splice(addr.sentIdx, 1);
+  } else {
+    const bb = tb.bulletBlocks?.[addr.bulletIdx!];
+    if (!bb) return;
+    const tp = bb.paragraphs[addr.paraIdx];
+    if (!tp || addr.sentIdx >= tp.sentences.length) return;
+    tp.sentences.splice(addr.sentIdx, 1);
+  }
+}
+
 function removeSentenceAt(sections: ProjectedExplanationSection[], addr: SentAddr): void {
   const sec = sections[addr.secIdx];
   const isText = addr.bulletIdx === null;
@@ -556,6 +588,7 @@ function removeSentenceAt(sections: ProjectedExplanationSection[], addr: SentAdd
     bs[addr.bulletIdx!] = newBody;
     sec.bullets = bs;
   }
+  removeTaggedSentenceMirror(sec, addr);
 }
 
 /**
@@ -618,6 +651,14 @@ function removeParagraphIfSolePoolDuplicate(
     bs[addr.bulletIdx!] = newBody;
     sec.bullets = bs;
   }
+  if (sec.meta?.tagged) {
+    if (addr.bulletIdx === null) {
+      sec.meta.tagged.paragraphs.splice(addr.paraIdx, 1);
+    } else {
+      const bb = sec.meta.tagged.bulletBlocks?.[addr.bulletIdx!];
+      if (bb) bb.paragraphs.splice(addr.paraIdx, 1);
+    }
+  }
   return true;
 }
 
@@ -654,8 +695,14 @@ export function collapseRepetitionPhase0(
   for (let si = 0; si < working.length; si++) {
     const s = working[si];
     s.text = applyLintStripToBody(s.text);
+    if (s.meta?.tagged) {
+      s.meta = { ...s.meta, tagged: stripTaggedLintFromSectionBody(s.meta.tagged) };
+    }
     if (s.bullets) {
       s.bullets = s.bullets.map((b) => applyLintStripToBody(b));
+      if (s.meta?.tagged?.bulletBlocks) {
+        s.meta.tagged.bulletBlocks = s.meta.tagged.bulletBlocks.map((bb) => stripTaggedLintFromSectionBody(bb));
+      }
     }
   }
 

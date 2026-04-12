@@ -3,7 +3,12 @@
  * Priority order is fixed; do not reorder without spec update.
  */
 
-import type { ProjectedExplanationSection } from '../projection-types';
+import type { ProjectedExplanationSection, TaggedParagraph, TaggedSectionBody, TaggedSentence } from '../projection-types';
+import {
+  mergeTaggedSectionBodiesVertical,
+  reconstructTaggedSectionBody,
+  taggedSectionBodyFromText,
+} from '../tagged-text';
 import type { ProjectionSurface } from '../projection-types';
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
@@ -262,6 +267,83 @@ export function enforceSentenceLoadCap(
   return parts.join(' ');
 }
 
+/**
+ * Same end state as `enforceSentenceLoadCap` but returns fragment strings (space-join == cap result).
+ * Used for Phase 3 provenance propagation through Phase 2 repair.
+ */
+export function enforceSentenceLoadCapAsParts(
+  sentence: string,
+  provenance: LoadProvenance,
+  context: string
+): string[] {
+  if (provenance === 'claim_body') return [sentence];
+  let parts = [sentence.trim()].filter(Boolean);
+  let guard = 0;
+  while (guard++ < 12) {
+    const next: string[] = [];
+    let changed = false;
+    for (const p of parts) {
+      const t = totalLoadScore(countSentenceLoads(p, provenance));
+      if (t <= 2) {
+        next.push(p);
+        continue;
+      }
+      const split = splitSentenceForPhase2(p);
+      if (split.length === 1 && split[0] === p) {
+        if (process.env.CI === 'true') {
+          throw new Phase2AssemblyError(
+            `[Phase2] split failed for sentence (load>2): ${context} :: ${p.slice(0, 200)}`
+          );
+        }
+        next.push(p);
+        continue;
+      }
+      changed = true;
+      next.push(...split);
+    }
+    parts = next;
+    if (!changed) break;
+    const allOk = parts.every((p) => totalLoadScore(countSentenceLoads(p, provenance)) <= 2);
+    if (allOk) return parts;
+  }
+  const bad = parts.find((p) => totalLoadScore(countSentenceLoads(p, provenance)) > 2);
+  if (bad && process.env.CI === 'true') {
+    throw new Phase2AssemblyError(`[Phase2] could not reduce loads: ${context} :: ${bad.slice(0, 200)}`);
+  }
+  return parts;
+}
+
+function cloneSent(s: TaggedSentence): TaggedSentence {
+  return {
+    text: s.text,
+    provenance: s.provenance,
+    ...(s.contentProvenance !== undefined ? { contentProvenance: s.contentProvenance } : {}),
+  };
+}
+
+/** Mirror `repairPhase2ParagraphLoads` on tagged structure (no string inference). */
+export function repairTaggedPhase2ParagraphLoads(
+  tagged: TaggedSectionBody,
+  provenance: LoadProvenance,
+  label: string
+): TaggedSectionBody {
+  const paragraphs: TaggedParagraph[] = tagged.paragraphs.map((tp, pi) => {
+    const outSents: TaggedSentence[] = [];
+    for (let si = 0; si < tp.sentences.length; si++) {
+      const row = tp.sentences[si]!;
+      const frags = enforceSentenceLoadCapAsParts(row.text, provenance, `${label}:p${pi}:s${si}`);
+      for (const frag of frags) {
+        outSents.push(cloneSent({ ...row, text: frag }));
+      }
+    }
+    return { sentences: outSents };
+  });
+  const bulletBlocks = tagged.bulletBlocks?.map((bb, bi) =>
+    repairTaggedPhase2ParagraphLoads(bb, provenance, `${label}:b${bi}`)
+  );
+  return { paragraphs, bulletBlocks };
+}
+
 /** No claim glue in the same sentence as anchor stems (FINAL LOCK: template/claim boundary). */
 export function assertNoClaimAnchorSameSentence(fullText: string, context: string): void {
   const sentences = fullText
@@ -351,6 +433,29 @@ export function applyAnchorAndTemporalToSectionBody(
   const anchor = injectAnchorPrefix(ctx);
   const parts = [anchor, temporalLine?.trim() || '', templateBody.trim()].filter(Boolean);
   return parts.join('\n\n');
+}
+
+/** Phase 3 — mirror `applyAnchorAndTemporalToSectionBody` on tagged template body. */
+export function applyAnchorAndTemporalToTaggedSection(
+  sectionId: string,
+  templateTagged: TaggedSectionBody,
+  ctx: TemplateContext,
+  temporalLine: string | null
+): TaggedSectionBody {
+  assertTemplateHasNoLegacyAnchor(reconstructTaggedSectionBody(templateTagged), sectionId);
+  if (!PHASE2_ANCHORED_SECTION_IDS.has(sectionId)) {
+    return templateTagged;
+  }
+  const anchor = injectAnchorPrefix(ctx);
+  let acc = taggedSectionBodyFromText(anchor, 'assembler_glue');
+  if (temporalLine?.trim()) {
+    acc = mergeTaggedSectionBodiesVertical(acc, taggedSectionBodyFromText(temporalLine.trim(), 'template'));
+  }
+  const bodyTrim = reconstructTaggedSectionBody(templateTagged).trim();
+  if (bodyTrim.length) {
+    acc = mergeTaggedSectionBodiesVertical(acc, templateTagged);
+  }
+  return acc;
 }
 
 /** Sections whose first paragraph may be claim-only (glue allowed). */

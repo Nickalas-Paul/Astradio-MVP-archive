@@ -12,6 +12,35 @@ const FORBIDDEN: { re: RegExp; replacement: string }[] = [
 
 const HEDGE_RE = /\b(may|tends to|tend to|often|frequently|can show up|sometimes|many cases|this configuration|this pattern)\b/i;
 
+/** Exported for Phase 3 collapse mirror + repetition-collapse (byte-identical to prior inline constant). */
+export const LINT_HEDGE_PREFIX = 'In many cases, this pattern tends to show related tendencies: ';
+
+function splitSentsLint(para: string): string[] {
+  const t = para.trim();
+  if (!t) return [];
+  return t
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function joinSentsLint(sents: string[]): string {
+  return sents.join(' ');
+}
+
+/** Mirror repetition-collapse `stripLintParagraph` (plan audio / Phase 0 strip). */
+export function stripLintHedgeFromParagraph(paragraph: string): string {
+  const sents = splitSentsLint(paragraph);
+  if (sents.length === 0) return paragraph;
+  const first = sents[0];
+  if (first.startsWith(LINT_HEDGE_PREFIX)) {
+    const rest = first.slice(LINT_HEDGE_PREFIX.length).trimStart();
+    if (rest.length === 0) return paragraph;
+    sents[0] = rest;
+  }
+  return joinSentsLint(sents);
+}
+
 export function lintParagraph(text: string): { text: string; violations: string[] } {
   const violations: string[] = [];
   let t = text.trim();
@@ -26,7 +55,7 @@ export function lintParagraph(text: string): { text: string; violations: string[
 
   if (!HEDGE_RE.test(t)) {
     violations.push('missing_hedge');
-    t = `In many cases, this pattern tends to show related tendencies: ${t}`;
+    t = `${LINT_HEDGE_PREFIX}${t}`;
   }
 
   return { text: t, violations };

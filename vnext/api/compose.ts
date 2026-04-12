@@ -19,6 +19,7 @@ import {
   type ArchitectureOutput,
 } from '../core/architecture-engine';
 import { computePlanHash } from '../plan-hash';
+import { stripTaggedFromExplanationForHash } from '../projection/tagged-text';
 import { planToMidiBase64 } from '../midi/plan-to-midi';
 import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
@@ -422,7 +423,8 @@ export class ComposeAPI {
       const hashes = {
         control: controlHash,
         audio: audio.sha256, // Use actual audio SHA256 from renderer
-        explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
+        explanation:
+          'sha256:' + this.sha256(JSON.stringify(stripTaggedFromExplanationForHash(explanation as Record<string, unknown>))),
         plan_sha256: planHash // Always include plan hash
       };
 
@@ -805,7 +807,8 @@ export class ComposeAPI {
     const hashes = {
       control: 'sha256:' + this.sha256(JSON.stringify(payload)),
       audio: wavBundle.audio.sha256,
-      explanation: 'sha256:' + this.sha256(JSON.stringify(explanation)),
+      explanation:
+        'sha256:' + this.sha256(JSON.stringify(stripTaggedFromExplanationForHash(explanation as Record<string, unknown>))),
       plan_sha256: planHash,
     };
 

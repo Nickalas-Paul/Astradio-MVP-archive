@@ -8,6 +8,7 @@ import type {
   ProjectionOptions,
   ProjectionSurface,
   ProjectedExplanationSection,
+  TaggedSectionBody,
 } from '../projection-types';
 import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
 import { densityForSurfaceBaseline } from '../density-validate';
@@ -26,11 +27,22 @@ import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
 import {
   applyAnchorAndTemporalToSectionBody,
+  applyAnchorAndTemporalToTaggedSection,
   assertTemplateHasNoLegacyAnchor,
   reducedPadPool,
   repairPhase2ParagraphLoads,
+  repairTaggedPhase2ParagraphLoads,
   validatePhase2Sections,
 } from './phase2-sentence-load';
+import { enrichSectionTextWithTagged } from './assemble-section-tagged';
+import {
+  reconstructTaggedSectionBody,
+  splitParasForTagged,
+  splitSentsForTagged,
+  taggedSectionBodyFromBlocks,
+  taggedSectionBodyFromText,
+  taggedSectionFromTemplateLine,
+} from '../tagged-text';
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -167,61 +179,26 @@ function appendSectionGroupBlock(
   }
 }
 
-function enrichSectionText(
-  baseText: string,
-  extraParagraphs: string[],
-  density: 'short' | 'medium' | 'long',
-  seed: string,
+function appendSectionGroupTagged(
+  extras: string[],
+  extrasTagged: TaggedSectionBody[],
   claimIds: string[],
-  usedFallback?: Set<string>,
-  fallbackPool: string[] = PAD_SENTENCES,
-  enrichOpts?: { feed?: boolean; campaignExtendedFill?: boolean }
-): { text: string; claimIds: string[] } {
-  const rules =
-    density === 'short'
-      ? { minP: 1, minS: 1 }
-      : density === 'medium'
-        ? { minP: 1, minS: 2 }
-        : { minP: 2, minS: 2 };
-
-  const maxPad = enrichOpts?.feed ? 0 : 1;
-  let p1 = expandSentencesToMin(
-    baseText.trim(),
-    rules.minS,
-    `${seed}:p1`,
-    fallbackPool,
-    usedFallback,
-    maxPad
-  );
-  const blocks: string[] = [p1];
-  for (let e = 0; e < extraParagraphs.length; e++) {
-    blocks.push(
-      expandSentencesToMin(extraParagraphs[e], rules.minS, `${seed}:ex:${e}`, fallbackPool, usedFallback, maxPad)
-    );
+  usedWithinGroup: Set<string>,
+  block: { text: string; claimIds: string[] } | null,
+  provenance: import('../projection-types').ProvenanceType
+): void {
+  if (!block) return;
+  const fresh = block.claimIds.filter((id) => !usedWithinGroup.has(id));
+  if (fresh.length === 0 && block.claimIds.length > 0) return;
+  extras.push(block.text);
+  extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
+  for (const id of fresh) {
+    usedWithinGroup.add(id);
+    claimIds.push(id);
   }
-  let merged = blocks.join('\n\n');
-  let paras = splitIntoParagraphs(merged);
-  if (paras.length < rules.minP && enrichOpts?.campaignExtendedFill) {
-    paras.push(
-      expandSentencesToMin(
-        nextFallbackSentence(`${seed}:fill:0`, fallbackPool, usedFallback),
-        rules.minS,
-        `${seed}:fillS:0`,
-        fallbackPool,
-        usedFallback,
-        1
-      )
-    );
+  if (block.claimIds.length === 0) {
+    return;
   }
-  paras = paras.map((para, pi) => {
-    const need = rules.minS;
-    const n = countSentences(para);
-    if (n >= need) return para;
-    const paraPadCap = enrichOpts?.feed ? 0 : Math.min(2, Math.max(1, need));
-    return expandSentencesToMin(para, need, `${seed}:para:${pi}`, fallbackPool, usedFallback, paraPadCap);
-  });
-  merged = paras.join('\n\n');
-  return { text: merged, claimIds };
 }
 
 function applyAggregateSurfaceIdentityOverrides(
@@ -254,18 +231,22 @@ function applyAggregateSurfaceIdentityOverrides(
       s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
         ? [...s.meta.claimIdsReferenced]
         : core.claims.slice(0, 8).map((c) => c.claim_id);
-    const { text, claimIds } = enrichSectionText(
+    const idTagged = taggedSectionBodyFromText(baseIdentity, 'synthesis_wrapper');
+    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       baseIdentity,
+      idTagged,
+      [],
       [],
       d,
       `${seed}:${surface === 'compat_pair' ? 'compat' : 'group'}:rel:enrich:${i}`,
       claimIdsIn,
-      reportPadUsed
+      reportPadUsed,
+      PAD_SENTENCES
     );
     out[i] = {
       ...s,
       text,
-      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true },
+      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true, tagged },
     };
   }
   return out;
@@ -285,9 +266,22 @@ export function buildEmphasisRawSections(
       title,
       text,
       bullets,
+      meta: { tagged: taggedSectionFromTemplateLine(text, bullets) },
     });
   }
   return out;
+}
+
+function taggedFeedSignalBody(fullText: string): TaggedSectionBody {
+  const paras = splitParasForTagged(fullText);
+  return {
+    paragraphs: paras.map((p) => ({
+      sentences: splitSentsForTagged(p).map((t) => ({
+        text: t,
+        provenance: t === FEED_SCOPE_SENTENCE ? ('template' as const) : ('claim_body' as const),
+      })),
+    })),
+  };
 }
 
 export function buildFeedSections(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
@@ -309,13 +303,21 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     id: 'feed_signal',
     title: 'Signal',
     text: t1,
-    meta: { claimIdsReferenced: claimSlice.claimIds.slice(0, 4), phaseD: true },
+    meta: {
+      claimIdsReferenced: claimSlice.claimIds.slice(0, 4),
+      phaseD: true,
+      tagged: taggedFeedSignalBody(t1),
+    },
   };
   const s2: ProjectedExplanationSection = {
     id: 'feed_context',
     title: 'Scope',
     text: FEED_SCOPE_SENTENCE,
-    meta: { claimIdsReferenced: [], phaseD: true },
+    meta: {
+      claimIdsReferenced: [],
+      phaseD: true,
+      tagged: taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template'),
+    },
   };
   return [s1, s2];
 }
@@ -352,9 +354,22 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const raw = rawBuilt.map((sec) => {
     assertTemplateHasNoLegacyAnchor(sec.text, sec.id);
     const merged = applyAnchorAndTemporalToSectionBody(sec.id, sec.text, templateCtx, seed, temporalLine);
+    const mergedTagged = applyAnchorAndTemporalToTaggedSection(
+      sec.id,
+      sec.meta!.tagged!,
+      templateCtx,
+      temporalLine
+    );
+    if (merged !== reconstructTaggedSectionBody(mergedTagged)) {
+      throw new Error(`[Phase3] anchor/temporal text mismatch ${sec.id}`);
+    }
     return {
       ...sec,
       text: repairPhase2ParagraphLoads(merged, 'template', sec.id),
+      meta: {
+        ...sec.meta,
+        tagged: repairTaggedPhase2ParagraphLoads(mergedTagged, 'template', sec.id),
+      },
     };
   });
 
@@ -373,47 +388,54 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
     const d = densityForSectionId(sec.id, densityDefault);
     const extras: string[] = [];
+    const extrasTagged: TaggedSectionBody[] = [];
     let cids = [...mep.claimIds];
     const usedWithinGroup = new Set<string>(mep.claimIds);
 
     if (idx === 0) {
-      if (openingClause) extras.push(openingClause);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, mep);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, tensionBlock);
+      if (openingClause) {
+        extras.push(openingClause);
+        extrasTagged.push(taggedSectionBodyFromText(openingClause, 'tier_scaffold'));
+      }
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, mep, 'claim_body');
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, tensionBlock, 'synthesis_wrapper');
       if (surface === 'sandbox') {
-        extras.push(
-          pickVariant(`${seed}:sandbox:lab:${tierEff}`, [
-            'Sandbox framing: this picture reflects lab conditions you changed on purpose.',
-            'Sandbox framing: this lab pass emphasizes sensitivity to those changes, not fixed life conclusions.',
-          ])
-        );
+        const lab = pickVariant(`${seed}:sandbox:lab:${tierEff}`, [
+          'Sandbox framing: this picture reflects lab conditions you changed on purpose.',
+          'Sandbox framing: this lab pass emphasizes sensitivity to those changes, not fixed life conclusions.',
+        ]);
+        extras.push(lab);
+        extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
       }
     } else if (idx === 1) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
       const pan = buildSupplementalPanel(core, `${seed}:s1`, 0, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, pan);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, campaignBaselineExtra);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, campaignExpandedExtra);
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, pan, 'claim_body');
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, campaignBaselineExtra, 'claim_body');
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, campaignExpandedExtra, 'claim_body');
     } else {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
       const pan = buildSupplementalPanel(core, `${seed}:sx`, idx, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
-      appendSectionGroupBlock(extras, cids, usedWithinGroup, pan);
+      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, pan, 'claim_body');
     }
 
-    const { text, claimIds } = enrichSectionText(
+    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
+      sec.meta!.tagged!,
       extras,
+      extrasTagged,
       d,
       `${seed}:en:${sec.id}:${idx}`,
       cids,
-      reportPadUsed
+      reportPadUsed,
+      PAD_SENTENCES
     );
     return {
       ...sec,
       text,
-      meta: { claimIdsReferenced: [...new Set(claimIds)], phaseD: true },
+      meta: { ...sec.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true, tagged },
     };
   });
 
@@ -433,28 +455,34 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         synSecRole,
         synParaNorm
       );
-      const syn = [
-        pickVariant(seed + ':syn', [
-          `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
-          `Synthesis adds secondary threads that refine where intensity softens or concentrates.`,
-        ]),
-        synClaim.text,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      const { text, claimIds } = enrichSectionText(
+      const wrap = pickVariant(seed + ':syn', [
+        `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
+        `Synthesis adds secondary threads that refine where intensity softens or concentrates.`,
+      ]);
+      const syn = [wrap, synClaim.text].filter(Boolean).join('\n\n');
+      const synTagged =
+        synClaim.text.trim().length > 0
+          ? taggedSectionBodyFromBlocks([
+              { text: wrap, provenance: 'synthesis_wrapper' },
+              { text: synClaim.text, provenance: 'claim_body' },
+            ])
+          : taggedSectionBodyFromText(wrap, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityForSectionId('synthesis_a', densityDefault),
         `${seed}:synbody`,
         [...new Set([...mep.claimIds.slice(0, 6), ...synClaim.claimIds])],
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'synthesis_a',
         title: 'Synthesis',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'synthesis_b') {
@@ -470,45 +498,55 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         synBSecRole,
         synBParaNorm
       );
-      const syn = [
-        pickVariant(seed + ':synb', [
-          `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
-          `Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.`,
-        ]),
-        synClaim.text,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      const { text, claimIds } = enrichSectionText(
+      const wrapB = pickVariant(seed + ':synb', [
+        `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
+        `Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.`,
+      ]);
+      const syn = [wrapB, synClaim.text].filter(Boolean).join('\n\n');
+      const synTagged =
+        synClaim.text.trim().length > 0
+          ? taggedSectionBodyFromBlocks([
+              { text: wrapB, provenance: 'synthesis_wrapper' },
+              { text: synClaim.text, provenance: 'claim_body' },
+            ])
+          : taggedSectionBodyFromText(wrapB, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:synb`,
         [...new Set([...mep.claimIds.slice(0, 10), ...synClaim.claimIds])],
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'synthesis_b',
         title: 'Extended synthesis',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'temporal_integration' && surface === 'daily') {
       const syn = temporalIntegrationLine(params.temporalBucket, `${seed}:temp`);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'template');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:ti`,
         mep.claimIds.slice(0, 4),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'temporal_integration',
         title: 'Temporal integration',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'trait_bridge' && surface === 'profile') {
@@ -516,19 +554,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Trait bridge: elemental and tonal signals often travel together; changing context can shift which side shows up first.`,
         `Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid.`,
       ]);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:tb`,
         mep.claimIds.slice(0, 5),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'trait_bridge',
         title: 'Trait bridge',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'interaction_map' && surface === 'compat_pair') {
@@ -536,19 +578,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Interaction map: alternating seasons can show when harmony and friction both appear, rather than one steady average.`,
         `Interaction map: different stress languages can appear when divergence shows; naming them often reduces unnecessary fusion.`,
       ]);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:im`,
         mep.claimIds.slice(0, 6),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'interaction_map',
         title: 'Interaction map',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'field_distribution' && surface === 'group') {
@@ -556,36 +602,44 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Field distribution: emphasis often concentrates on a few people rather than spreading evenly.`,
         `Field distribution: harmony and friction can read as room-wide qualities before shrinking them to one pair.`,
       ]);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:fd`,
         mep.claimIds.slice(0, 6),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'field_distribution',
         title: 'Field distribution',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'pressure_response' && surface === 'campaign') {
       const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr');
-      const { text, claimIds } = enrichSectionText(
+      const prTagged = taggedSectionBodyFromText(pr.text, 'claim_body');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         pr.text,
+        prTagged,
+        [],
         [],
         densityDefault,
         `${seed}:pr`,
         pr.claimIds,
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'pressure_response',
         title: 'Pressure → response',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'layering' && surface === 'overlay_pair') {
@@ -593,19 +647,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Layering: two time layers can disagree; treat them as two simultaneous pictures rather than one merged verdict.`,
         `Layering: a short spike can sit on a longer personal arc; both can be true at different timescales.`,
       ]);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:lay`,
         mep.claimIds.slice(0, 5),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'layering',
         title: 'Layering (natal / sky)',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
     if (key === 'delta_emphasis' && surface === 'sandbox') {
@@ -613,41 +671,49 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Sandbox delta: the picture changes when you move controls; compare against a known baseline chart outside the lab when you need a control.`,
         `Sandbox delta: strong shifts can be sensitivity tests for edge configurations, not fixed life predictions.`,
       ]);
-      const { text, claimIds } = enrichSectionText(
+      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
+        synTagged,
+        [],
         [],
         densityDefault,
         `${seed}:de`,
         mep.claimIds.slice(0, 4),
-        reportPadUsed
+        reportPadUsed,
+        PAD_SENTENCES
       );
       out.push({
         id: 'delta_emphasis',
         title: 'Sandbox note',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true },
+        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
       });
     }
   }
 
   if (tierEff === 'extended' && extraKeys.includes('contradiction') && tensionBlock) {
-    const { text, claimIds } = enrichSectionText(
+    const con2 = pickVariant(seed + ':con2', [
+      `Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
+    ]);
+    const baseTagged = taggedSectionBodyFromText(tensionBlock.text, 'synthesis_wrapper');
+    const extraTagged = taggedSectionBodyFromText(con2, 'synthesis_wrapper');
+    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       tensionBlock.text,
-      [
-        pickVariant(seed + ':con2', [
-          `Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
-        ]),
-      ],
+      baseTagged,
+      [con2],
+      [extraTagged],
       densityDefault,
       `${seed}:con`,
       tensionBlock.claimIds,
-      reportPadUsed
+      reportPadUsed,
+      PAD_SENTENCES
     );
     out.push({
       id: 'contradiction_map',
       title: 'Contrast map',
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true },
+      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
     });
   }
 
@@ -655,19 +721,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const syn = pickVariant(seed + ':sub', [
       `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot in the wider room.`,
     ]);
-    const { text, claimIds } = enrichSectionText(
+    const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
+    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       syn,
+      synTagged,
+      [],
       [],
       densityDefault,
       `${seed}:sub`,
       mep.claimIds.slice(0, 8),
-      reportPadUsed
+      reportPadUsed,
+      PAD_SENTENCES
     );
     out.push({
       id: 'subcluster',
       title: 'Subcluster',
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true },
+      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
     });
   }
 
@@ -684,19 +754,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       fillSecRole,
       fillParaNorm
     );
-    const { text, claimIds } = enrichSectionText(
+    const panTagged = taggedSectionBodyFromText(pan.text, 'claim_body');
+    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       pan.text,
+      panTagged,
+      [],
       [],
       densityForSectionId('depth_panel_x', 'short'),
       `${seed}:dp:${panelIdx}`,
       pan.claimIds,
-      reportPadUsed
+      reportPadUsed,
+      PAD_SENTENCES
     );
     out.push({
       id: `depth_panel_${panelIdx}`,
       title: pan.title,
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true },
+      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
     });
   }
 
@@ -705,40 +779,70 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   if (tierEff === 'baseline') {
     const parts = audioBodyNormalized.split(/(?<=[.!?])\s+/).filter(Boolean);
     const shortAudio = parts.slice(0, 2).join(' ');
-    const { text } = enrichSectionText(shortAudio, [], 'short', `${seed}:aud`, [], reportPadUsed);
-    out.push({
-      id: 'audio_staging',
-      title: audio.title,
-      text,
-      meta: { claimIdsReferenced: [], phaseD: true },
-    });
-  } else {
-    const { text } = enrichSectionText(
-      audioBodyNormalized,
+    const shortTagged = taggedSectionBodyFromText(shortAudio, 'audio_staging');
+    const { text, tagged } = enrichSectionTextWithTagged(
+      shortAudio,
+      shortTagged,
       [],
-      densityForSectionId('audio_staging', 'short'),
-      `${seed}:audf`,
       [],
-      reportPadUsed
+      'short',
+      `${seed}:aud`,
+      [],
+      reportPadUsed,
+      PAD_SENTENCES
     );
     out.push({
       id: 'audio_staging',
       title: audio.title,
       text,
+      meta: { claimIdsReferenced: [], phaseD: true, tagged },
+    });
+  } else {
+    const fullTagged = taggedSectionBodyFromText(audioBodyNormalized, 'audio_staging');
+    const bulletBlocks = audio.bullets?.map((b) => taggedSectionBodyFromText(b, 'audio_staging'));
+    const { text, tagged } = enrichSectionTextWithTagged(
+      audioBodyNormalized,
+      fullTagged,
+      [],
+      [],
+      densityForSectionId('audio_staging', 'short'),
+      `${seed}:audf`,
+      [],
+      reportPadUsed,
+      PAD_SENTENCES
+    );
+    if (bulletBlocks?.length) {
+      tagged.bulletBlocks = bulletBlocks;
+    }
+    out.push({
+      id: 'audio_staging',
+      title: audio.title,
+      text,
       bullets: audio.bullets,
-      meta: { claimIdsReferenced: [], phaseD: true },
+      meta: { claimIdsReferenced: [], phaseD: true, tagged },
     });
   }
 
   if (tierEff === 'extended' && extraKeys.includes('audio_thread')) {
     const bridge =
       'Listen detail lives in “How this sounds (listen metaphor)” below; it mirrors the words above without repeating every clause.';
-    const { text } = enrichSectionText(bridge, [], 'short', `${seed}:at`, [], reportPadUsed);
+    const bridgeTagged = taggedSectionBodyFromText(bridge, 'audio_thread');
+    const { text, tagged } = enrichSectionTextWithTagged(
+      bridge,
+      bridgeTagged,
+      [],
+      [],
+      'short',
+      `${seed}:at`,
+      [],
+      reportPadUsed,
+      PAD_SENTENCES
+    );
     out.splice(Math.min(2, out.length), 0, {
       id: 'audio_thread',
       title: 'Audio thread',
       text,
-      meta: { claimIdsReferenced: [], phaseD: true },
+      meta: { claimIdsReferenced: [], phaseD: true, tagged },
     });
   }
 
@@ -755,6 +859,17 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     if (s.id === 'audio_staging') continue;
     const prov = s.id === 'connection_structure' || s.id === 'ensemble_framing' ? 'preface' : 'template';
     s.text = repairPhase2ParagraphLoads(s.text, prov, s.id);
+    if (s.meta?.tagged) {
+      const tagged = repairTaggedPhase2ParagraphLoads(s.meta.tagged, prov, s.id);
+      s.meta = {
+        ...s.meta,
+        tagged,
+      };
+      const bb = tagged.bulletBlocks;
+      if (bb?.length && s.bullets?.length === bb.length) {
+        s.bullets = bb.map((b) => reconstructTaggedSectionBody(b));
+      }
+    }
   }
 
   return framed;
