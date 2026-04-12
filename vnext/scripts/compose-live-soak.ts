@@ -4,7 +4,8 @@
  * The npm script runs vnext:build first so this script has type safety and parity with the repo; the soak itself hits the live backend.
  *
  * Preflight: GET /health then one POST /api/compose; prints rate limit headers, audio_export_available, audio.size_bytes/sha256, soak_bypass_active.
- * Fails fast if audio export disabled (set ENABLE_WAV_EXPORT=1 on Render) or limiter too low without SOAK_TOKEN.
+ * Fails fast if audio export disabled (set ENABLE_WAV_EXPORT=1 on Render), request omits `generateAudio: true`,
+ * or limiter too low without SOAK_TOKEN.
  *
  * Default runs: 8 (fits 10/15min limit); when SOAK_TOKEN is set, 30 runs and X-Soak-Token header sent (soak bypass).
  * HTTP 429: waits (retryAfter+250 ms from JSON body, or LIVE_SOAK_DELAY_MS or 1000), retries same run without counting;
@@ -42,6 +43,8 @@ function parseRetryAfterMs(text: string): number | undefined {
 function liveSoakRequestBody(debugAudio: boolean): Record<string, unknown> {
   return {
     mode: 'sandbox',
+    /** Required for WAV path: compose only runs export when this is true (`vnext/api/compose.ts`). */
+    generateAudio: true,
     chartData: { date: FIXED_DATE, time: FIXED_TIME, lat: FIXED_LAT, lon: FIXED_LON },
     controls: {
       arc_shape: 0.45,
