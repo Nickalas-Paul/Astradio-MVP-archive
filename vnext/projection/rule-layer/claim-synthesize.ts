@@ -18,7 +18,7 @@ import {
   surfaceOffset,
   tierOffset,
 } from './claim-expression-bundles';
-import { lightListenHintFromCore, pacingPhraseFromCore } from './audio-lexicon';
+import { mapTempo, mapTempoLeadClauseForEmbed, withTerminalPeriod } from './audio-lexicon';
 import { claimWindow } from './claim-select';
 
 function pickVariant(seed: string, variants: string[]): string {
@@ -225,10 +225,9 @@ export function buildTensionIntegrationParagraph(
   const constructive = core.claims.filter((c) => c.polarity === 'constructive').slice(0, 4);
   if (challenging.length === 0 || constructive.length === 0) return null;
   const cIds = [...constructive.map((c) => c.claim_id), ...challenging.map((c) => c.claim_id)];
-  const pace = pacingPhraseFromCore(core);
   const text = pickVariant(seed + ':ti', [
     `Taken together, supportive and challenging signals both appear in this picture; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring care where it shows up.`,
-    `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to “win,” and ${pace} alternates between repair and forward motion in how the contrast lands.`,
+    `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to "win." ${withTerminalPeriod(mapTempo(core.audio.tempo_band))} That shapes how repair and forward motion take turns as the contrast lands.`,
   ]);
   return { text, claimIds: cIds };
 }
@@ -280,13 +279,14 @@ export function buildCampaignPressureResponseParagraph(core: SemanticCore, seed:
   if (motion) ids.push(motion.claim_id);
   const tLabel = tension ? campaignLabelForClaimId(tension.claim_id) : null;
   const mLabel = motion ? campaignLabelForClaimId(motion.claim_id) : null;
-  const groove = lightListenHintFromCore(core);
+  const tc = mapTempoLeadClauseForEmbed(core.audio.tempo_band);
+  const tempoCue = tc.charAt(0).toLowerCase() + tc.slice(1);
   const tNote = tLabel
     ? `Scenario pressure: ${tLabel}; treat activation as something that returns quickly, and keep steps small enough to steer when it spikes.`
     : `Scenario pressure: structural cues read diffuse here; still use short loops and named checkpoints when intensity climbs so the day does not blur.`;
   const mNote = mLabel
-    ? `Response shape: ${mLabel} asks you to match action to the impulse curve (${groove}) instead of fighting the body of the motion.`
-    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; let ${groove} set the pacing dial.`;
+    ? `Response shape: ${mLabel} asks you to match action to the impulse curve (${tempoCue}) instead of fighting the body of the motion.`
+    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; let ${tempoCue} set the pacing dial.`;
   const text = pickVariant(seed + ':camp', [tNote + ' ' + mNote]);
   return { text, claimIds: ids };
 }

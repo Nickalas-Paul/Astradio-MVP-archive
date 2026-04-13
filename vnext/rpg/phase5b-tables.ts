@@ -111,7 +111,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward limits, steadier pacing, and preserving structure.',
     },
     replacement:
-      'Recent turns leaned toward limits, steadier pacing, and preserving workable structure.',
+      'Recent turns leaned toward limits, steadier pacing (a steady mid-gear feel), and preserving workable structure.',
   },
   {
     rule_id: 'P5B-W2-007-history-assert-define',

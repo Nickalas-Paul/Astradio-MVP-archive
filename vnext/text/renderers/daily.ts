@@ -1,6 +1,7 @@
 import type { TextAnalysisIntermediate, ToneSpec, AnalysisTension, AnalysisTheme, AnalysisOpportunity } from '../contracts';
 import * as fs from 'fs';
 import * as path from 'path';
+import { genericScoreListenTranslationFallback } from '../../projection/rule-layer/audio-lexicon';
 import { stableSortByNodeWeight } from './shared';
 
 export interface DailySection {
@@ -232,23 +233,21 @@ function buildMusicTranslation(
 ): string {
   const traits = analysis.music_mapping?.traits;
   if (!traits) {
-    const generic =
-      'In the score, the pattern is translated into tempo, density, register, and harmonic posture so that the music carries the same structure the chart describes.';
-    return generic;
+    return genericScoreListenTranslationFallback();
   }
 
   const parts: string[] = [];
   if (traits.tempo) {
-    parts.push(`Tempo is chosen so that it often describes ${traits.tempo}.`);
+    parts.push(`Pulse and pacing in the read tend to land as: ${traits.tempo}.`);
   }
   if (traits.density) {
-    parts.push(`Density can show up as ${traits.density}.`);
+    parts.push(`Spacing and layering in the read tend to land as: ${traits.density}.`);
   }
   if (traits.register) {
-    parts.push(`Register placement often describes ${traits.register}.`);
+    parts.push(`Register placement in the spec describes ${traits.register}.`);
   }
   if (traits.harmonicPosture) {
-    parts.push(`Harmonic posture is set so that many people experience it as ${traits.harmonicPosture}.`);
+    parts.push(`Harmonic posture in the spec reads as ${traits.harmonicPosture}.`);
   }
 
   return parts.join(' ');

@@ -165,7 +165,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Sandbox framing: this lab pass emphasizes sensitivity to those changes, not fixed life conclusions.',
     },
     replacement:
-      'Lab framing: this pass emphasizes sensitivity to your tweaks, not fixed life conclusions.',
+      'Lab framing: this pass tracks how small input shifts change the read, not fixed life conclusions.',
   },
   {
     rule_id: 'P5A-W2-001-glue-campaign-scenario-stable-prefix',

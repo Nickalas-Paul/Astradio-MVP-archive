@@ -15,6 +15,13 @@ import type {
   MusicFacts
 } from '../spec-contracts';
 import type { AstroProfile } from '../../astro/profile-from-snapshot';
+import {
+  densityBandCodeFromExplainerBucket,
+  mapDensity,
+  mapTempo,
+  tempoBandCodeFromExplainerBpm,
+  withTerminalPeriod,
+} from '../../projection/rule-layer/audio-lexicon';
 
 /**
  * Render ExplainSpec to explanation sections.
@@ -391,7 +398,14 @@ function buildMusicalNarrative(
     const aspectTone = profile.aspects?.some(a => a.type === 'square' || a.type === 'opposition') ? 'tension' : 'support';
     sentences.push(emitSentence(musicCausalLead(topEl, topMod, aspectTone), emitted));
   } else {
-    sentences.push(emitSentence('Element balance and aspect geometry translate into a musical posture of density, articulation, and motion.', emitted));
+    sentences.push(
+      emitSentence(
+        `Element balance and aspect geometry align with this density read: ${withTerminalPeriod(
+          mapDensity(densityBandCodeFromExplainerBucket(music.densityBucket))
+        )}`,
+        emitted
+      )
+    );
   }
 
   sentences.push(
@@ -420,13 +434,16 @@ function buildMusicalNarrative(
 
   const paragraph = dedupeSentences(sentences.filter(Boolean).join(' '));
 
-  const densityLabel =
-    music.densityBucket === 'high' ? 'layered texture' : music.densityBucket === 'low' ? 'open texture' : 'balanced texture';
   const bullets: string[] = [];
-  bullets.push(`Notice how the steady ${music.bpm} BPM pulse keeps time even when harmony changes color.`);
+  bullets.push(`${music.bpm} BPM anchors the chart in the spec.`);
+  bullets.push(
+    withTerminalPeriod(mapTempo(tempoBandCodeFromExplainerBpm(music.bpm)))
+  );
   bullets.push(`Listen for stepwise contour when motion is ${music.motionBucket}, and expect larger interval jumps when it is high.`);
   bullets.push(`Track where melodies sit most often; a ${music.registerBias} bias changes how weight and brightness feel.`);
-  bullets.push(`Count layers entering and leaving; ${densityLabel} should feel intentional rather than constant.`);
+  bullets.push(
+    `${withTerminalPeriod(mapDensity(densityBandCodeFromExplainerBucket(music.densityBucket)))} (spec density bucket: ${music.densityBucket}.)`
+  );
   if (music.planSummary?.avgMelodicInterval != null) {
     bullets.push(
       `When the melody moves, compare steps to leaps; the average interval hovers around ${music.planSummary.avgMelodicInterval.toFixed(0)} semitones.`

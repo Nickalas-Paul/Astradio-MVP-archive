@@ -8,44 +8,73 @@ import type { CompositionNarrativePlan } from '../../audio/composition-narrative
 import type { ExpansionTier } from '../projection-types';
 import type { ProjectionSurface } from '../projection-types';
 
-/** Single dimension: how motion feels (experiential, not parameter labels). */
+/** Single dimension: pulse / motion (one listen clause per call; maps `SemanticCore.audio.tempo_band` only). No trailing period. */
 export function mapTempo(code: string): string {
-  if (code === 'TEMPO_HIGH') return 'motion feels quick and changeable';
-  if (code === 'TEMPO_LOW') return 'motion feels slow and sustained';
-  return 'motion feels moderate and steady';
+  if (code === 'TEMPO_HIGH') return 'The pulse runs light and quick, so phrases turn on short notice';
+  if (code === 'TEMPO_LOW') return 'The pulse lengthens, letting each phrase finish before the next';
+  return 'The pulse sits in a steady mid-gear';
 }
 
-/** Space / crowding between moments. */
+/** Space / crowding between entries (one listen clause per call; `density_band` only). No trailing period. */
 export function mapDensity(code: string): string {
-  if (code === 'DENSITY_DENSE') return 'the texture feels tight and crowded';
-  if (code === 'DENSITY_SPARSE') return 'the texture feels open with room between moments';
-  return 'the texture balances open and full';
+  if (code === 'DENSITY_DENSE') return 'Entries stack close, with little air between them';
+  if (code === 'DENSITY_SPARSE') return 'Rests stay wide enough to hear each entry clearly';
+  return 'Spacing alternates tight and open in a workable balance';
 }
 
-/** How energy moves over time (experiential). */
+/** Energy arc over time (one listen clause per call; `arc_bias` only). No trailing period. */
 export function mapArc(code: string): string {
-  if (code === 'ARC_SURGE_RESOLVE') return 'energy surges then settles';
-  if (code === 'ARC_FALL') return 'energy softens and releases over time';
-  if (code === 'ARC_RISE') return 'energy builds and gathers';
-  return 'energy circles and shifts rather than locking flat';
+  if (code === 'ARC_SURGE_RESOLVE') return 'Energy lifts sharply, then finds a clear landing';
+  if (code === 'ARC_FALL') return 'Energy thins and releases toward the close';
+  if (code === 'ARC_RISE') return 'Energy climbs and thickens as the section goes on';
+  return 'Energy keeps shifting rather than parking on one plateau';
 }
 
-/** Listening pressure / harmonic pull (felt). */
+/** Listening pressure (one listen clause per call; `tension_bias` only). No trailing period. */
 export function mapTensionBias(code: string): string {
-  if (code === 'AUDIO_TENSION_HIGH') return 'listening pressure feels heavy';
-  if (code === 'AUDIO_TENSION_LOW') return 'listening pressure feels light';
-  return 'listening pressure feels moderate';
+  if (code === 'AUDIO_TENSION_HIGH') return 'Listening pressure stays high, so resolutions defer';
+  if (code === 'AUDIO_TENSION_LOW') return 'Listening pressure eases earlier in each gesture';
+  return 'Listening pressure sits halfway between ease and strain';
 }
 
+/** Voicing / interplay (one listen clause per call; `relational_texture` only). No trailing period. */
 export function mapTexture(code: string): string {
-  if (code === 'REL_TEXTURE_FLUID') return 'voices weave together smoothly';
-  if (code === 'REL_TEXTURE_CALL_RESPONSE') return 'one voice answers another in turns';
-  if (code === 'REL_TEXTURE_STATIC') return 'the interplay stays steady and held';
-  return 'the interplay feels even and neutral';
+  if (code === 'REL_TEXTURE_FLUID') return 'Voices overlap in sustained blend';
+  if (code === 'REL_TEXTURE_CALL_RESPONSE') return 'Figures trade in clear answer phrases';
+  if (code === 'REL_TEXTURE_STATIC') return 'Layers hold a steady stack with little handoff';
+  return 'Voicing stays even, without a strong call-and-response pull';
+}
+
+/** Deterministic bridge from ExplainSpec BPM to canonical tempo band codes (expression only). */
+export function tempoBandCodeFromExplainerBpm(bpm: number): 'TEMPO_HIGH' | 'TEMPO_MED' | 'TEMPO_LOW' {
+  if (bpm >= 118) return 'TEMPO_HIGH';
+  if (bpm <= 82) return 'TEMPO_LOW';
+  return 'TEMPO_MED';
+}
+
+/** Deterministic bridge from ExplainSpec density bucket to canonical density codes (expression only). */
+export function densityBandCodeFromExplainerBucket(
+  bucket: 'low' | 'med' | 'high'
+): 'DENSITY_SPARSE' | 'DENSITY_BALANCED' | 'DENSITY_DENSE' {
+  if (bucket === 'high') return 'DENSITY_DENSE';
+  if (bucket === 'low') return 'DENSITY_SPARSE';
+  return 'DENSITY_BALANCED';
+}
+
+/** Generic daily / explainer fallback: names the five listen axes without inventing new ones. */
+export function genericScoreListenTranslationFallback(): string {
+  return 'The score maps the chart into the same five listen dimensions as the main read (pulse, spacing, arc, listening pressure, and voicing) without inventing a second story.';
+}
+
+/** First tempo clause only, for mid-sentence glue (same lexicon as `mapTempo`). */
+export function mapTempoLeadClauseForEmbed(code: string): string {
+  const t = mapTempo(code);
+  const comma = t.indexOf(',');
+  return comma > 0 ? t.slice(0, comma) : t;
 }
 
 export function pacingPhraseFromCore(core: SemanticCore): string {
-  return mapTempo(core.audio.tempo_band);
+  return withTerminalPeriod(mapTempo(core.audio.tempo_band));
 }
 
 export function densityPhraseFromCore(core: SemanticCore): string {
@@ -64,17 +93,24 @@ export function arcChangePhraseFromCore(core: SemanticCore): string {
  * One light cue for non-owner sections (avoid repeating the full listen stack).
  */
 export function lightListenHintFromCore(core: SemanticCore): string {
-  return mapTempo(core.audio.tempo_band);
+  return withTerminalPeriod(mapTempoLeadClauseForEmbed(core.audio.tempo_band));
 }
 
 /**
  * Full perceptual summary for the audio_staging owner section only.
  */
+export function withTerminalPeriod(s: string): string {
+  const t = s.trim();
+  if (t.endsWith('.')) return t;
+  return `${t}.`;
+}
+
 export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string {
   const a = core.audio;
+  /** Single tagged sentence for `audio_staging` grammar; clauses are one field each, separated by `;`. */
   return `${mapTempo(a.tempo_band)}; ${mapDensity(a.density_band)}; ${mapTensionBias(a.tension_bias)}; ${mapArc(
     a.arc_bias
-  )}; together the atmosphere feels ${mapTexture(a.relational_texture).toLowerCase()}.`;
+  )}; ${mapTexture(a.relational_texture)}.`;
 }
 
 /** @deprecated for templates — use lightListenHintFromCore or fullPerceptualListenSummaryFromCore on owner. */
@@ -97,11 +133,13 @@ function humanTensionHarmonySentence(core: SemanticCore): string | null {
       : th.harmony_band === 'HARMONY_BUCKET_LOW'
         ? 'resolution asks for more patience'
         : 'resolution sits in the middle';
-  return `In the listening metaphor, ${t}, and ${h}; this stays descriptive, not a verdict about how life must go.`;
+  const tSent = t.charAt(0).toUpperCase() + t.slice(1);
+  const hSent = h.charAt(0).toLowerCase() + h.slice(1);
+  return `${tSent}, and ${hSent}.`;
 }
 
 function narrativePlanExperientialNote(plan: CompositionNarrativePlan): string {
-  return `The piece shapes energy in a ${plan.energyCurve} way, moves toward a ${plan.endingStyle} close, and keeps an overall arc that feels ${plan.arcShape.replace(/_/g, ' ')} without naming raw numbers.`;
+  return `The narrative plan traces ${plan.energyCurve} energy toward a ${plan.endingStyle} ending; overall shape reads ${plan.arcShape.replace(/_/g, ' ')}.`;
 }
 
 export function buildAudioStagingBlock(
@@ -134,7 +172,7 @@ export function buildAudioStagingBlock(
 
   if (tier !== 'baseline' && narrativePlan) {
     bullets.push(narrativePlanExperientialNote(narrativePlan));
-    const extra = `As you listen, melody brightness leans ${narrativePlan.tonalPolarity}, and groove follows the same contrast curve as the words above rather than telling a separate story.`;
+    const extra = `Groove and brightness track the plan’s ${narrativePlan.energyCurve} curve toward a ${narrativePlan.endingStyle} close, aligned with the words above.`;
     text = `${text}\n\n${extra}`;
   }
 
