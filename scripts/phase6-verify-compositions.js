@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase 6: Verify sandbox compositions table and read/write.
+ * **Product:Phase-6** — verify sandbox compositions table and read/write (includes **Acct:Stage-6** owner column when applied).
  * When POSTGRES_URL is set: ensure migration 006 applied, insert one row, list, get by id.
  * When not set: skip (exit 0).
  */

@@ -1,11 +1,12 @@
 /**
- * Phase 5A — finite enumerated expression rules (voice only).
- * Wave 1 (Phase 5C): sandbox lab lines, tier scaffold (profile/sandbox/compat/campaign),
+ * **Proj:** Phase 5A — finite enumerated expression rules (voice only; legacy module name).
+ * Wave 1 (Product delivery tag Phase 5C): sandbox lab lines, tier scaffold (profile/sandbox/compat/campaign),
  * feed scope allowlist, one profile glue prefix pair.
  * Wave 2 (Phase 5C): shared preface lines, tier scaffold (daily/overlay/group/feed),
  * glue (compat/campaign/daily), campaign-only synthesis wrappers.
  * Wave 3 (Phase 5C): preface completion slice, profile trait_bridge, campaign literals, overlay glue.
- * Phase 6B: neutral group glue prefix; shared compat/group tier voice; group synthesis_wrapper refinements (P6B-* cap).
+ * **Proj:** aggregate expression wave (legacy “Phase 6B”): neutral group glue prefix; shared compat/group tier voice;
+ * group synthesis_wrapper refinements (`P6B-` `rule_id` prefix cap — frozen identifiers, not Product:Phase-6).
  */
 import type { ConnectionMode, ProjectionSurface, ProvenanceType } from '../projection-types';
 

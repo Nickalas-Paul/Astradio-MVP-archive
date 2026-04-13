@@ -1,5 +1,5 @@
 /**
- * Campaign Phase 1 — authoritative daily resolver (read-only CampaignState).
+ * **Campaign:** `phase1` authoritative daily resolver (read-only CampaignState) — not **Product:Phase-1**.
  * Single entry for server routes; does not mutate persistence.
  *
  * Group note: pressure events from all members are pooled and ranked together (`mode: 'group'`).

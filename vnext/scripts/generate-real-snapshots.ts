@@ -384,21 +384,21 @@ function generateChartHash(snapshot: EphemerisSnapshot): string {
 async function generateRealSnapshots(targetCount: number = 1000): Promise<SnapshotRecord[]> {
   console.log(`🔄 Generating ${targetCount} real ephemeris snapshots...`);
   
-  // Stage counters
+  // **DataGen:Step-N** — internal ML/snapshot batch counters only (not Acct:Stage-N, not Verify:P8-Slice-*).
   const discover_candidates = targetCount * 2; // Generate more candidates than needed
-  console.log(`📊 Stage 1: Discover candidates: ${discover_candidates}`);
+  console.log(`📊 DataGen:Step-1 — Discover candidates: ${discover_candidates}`);
   
   // Generate location candidates
   const candidates = generateLocationCandidates(discover_candidates);
   const after_schema = candidates.length;
-  console.log(`📊 Stage 2: After schema validation: ${after_schema}`);
+  console.log(`📊 DataGen:Step-2 — After schema validation: ${after_schema}`);
   
   if (after_schema < targetCount) {
     throw new Error(`EVAL_ABORT: Need ${targetCount} candidates, found ${after_schema}`);
   }
   
   // Generate ephemeris data
-  console.log(`📊 Stage 3: Generating ephemeris data...`);
+  console.log(`📊 DataGen:Step-3 — Generating ephemeris data...`);
   const snapshots: EphemerisSnapshot[] = [];
   const malformed: number[] = [];
   
@@ -417,14 +417,14 @@ async function generateRealSnapshots(targetCount: number = 1000): Promise<Snapsh
   }
   
   const after_ephemeris = snapshots.length;
-  console.log(`📊 Stage 3: After ephemeris calculation: ${after_ephemeris}`);
+  console.log(`📊 DataGen:Step-3 — After ephemeris calculation: ${after_ephemeris}`);
   
   if (after_ephemeris < targetCount) {
     throw new Error(`EVAL_ABORT: Need ${targetCount} snapshots, generated ${after_ephemeris}`);
   }
   
   // Dedupe by chart hash
-  console.log(`📊 Stage 4: Deduplicating by chart hash...`);
+  console.log(`📊 DataGen:Step-4 — Deduplicating by chart hash...`);
   const dedupeMap = new Map<string, EphemerisSnapshot>();
   for (const snap of snapshots) {
     const hash = generateChartHash(snap);
@@ -434,20 +434,20 @@ async function generateRealSnapshots(targetCount: number = 1000): Promise<Snapsh
   }
   const after_dedupe_list = Array.from(dedupeMap.values());
   const after_dedupe = after_dedupe_list.length;
-  console.log(`📊 Stage 4: After deduplication: ${after_dedupe}`);
+  console.log(`📊 DataGen:Step-4 — After deduplication: ${after_dedupe}`);
   
   if (after_dedupe < targetCount) {
     throw new Error(`EVAL_ABORT: Need ${targetCount} unique snapshots, found ${after_dedupe}`);
   }
   
   // Balance selection for diversity
-  console.log(`📊 Stage 5: Balancing for diversity...`);
+  console.log(`📊 DataGen:Step-5 — Balancing for diversity...`);
   const selectedSnapshots = after_dedupe_list.slice(0, targetCount);
   const after_balance = selectedSnapshots.length;
-  console.log(`📊 Stage 5: After balance selection: ${after_balance}`);
+  console.log(`📊 DataGen:Step-5 — After balance selection: ${after_balance}`);
   
   // Generate final records with features
-  console.log(`📊 Stage 6: Encoding features...`);
+  console.log(`📊 DataGen:Step-6 — Encoding features...`);
   const records: SnapshotRecord[] = [];
   
   for (let i = 0; i < selectedSnapshots.length; i++) {
@@ -463,7 +463,7 @@ async function generateRealSnapshots(targetCount: number = 1000): Promise<Snapsh
   }
   
   const realized_N = records.length;
-  console.log(`📊 Stage 6: Final realized count: ${realized_N}`);
+  console.log(`📊 DataGen:Step-6 — Final realized count: ${realized_N}`);
   
   if (realized_N !== targetCount) {
     throw new Error(`EVAL_ABORT: Expected ${targetCount}, realized ${realized_N}`);

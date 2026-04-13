@@ -286,7 +286,10 @@ function wave1ShippedTablesVerification(): void {
   assert(waveTotal <= 62, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
 
   const wave6b = PHASE5A_RULES.filter((r) => r.rule_id.startsWith('P6B-'));
-  assert(wave6b.length <= 18, `Phase 6B Phase5A rule cap: expected at most 18 P6B rules, got ${wave6b.length}`);
+  assert(
+    wave6b.length <= 18,
+    `Proj aggregate-expression wave (legacy Phase 6B) Phase5A rule cap: expected at most 18 P6B rules, got ${wave6b.length}`
+  );
   assert(wave6b.length === 3, `expected 3 shipped P6B Phase5A rules, got ${wave6b.length}`);
 
   for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
@@ -522,7 +525,10 @@ function wave1ShippedTablesVerification(): void {
   phase6bAggregateExpressionInvariants();
 }
 
-/** Phase 6B — aggregate redundancy, pair vs group clarity, determinism, tagged reconstruction (substring checks only). */
+/**
+ * **Proj:** aggregate expression wave invariants (legacy “Phase 6B”; `P6B-` rule_id family) —
+ * aggregate redundancy, pair vs group clarity, determinism, tagged reconstruction (substring checks only).
+ */
 function phase6bAggregateExpressionInvariants(): void {
   const p6Snap = (d: number): EphemerisSnapshot => ({
     ts: '2000-01-01T12:00:00Z',

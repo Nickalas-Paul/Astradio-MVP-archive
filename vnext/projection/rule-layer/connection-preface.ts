@@ -1,6 +1,6 @@
 /**
  * Connection / ensemble preface — private to rule layer; only called from assemble-sections.
- * Phase 2: fixed sentence bundles only (deterministic); no free-form narrative.
+ * **Proj:** sentence-bundle step (legacy “Phase 2” wording in older notes) — fixed bundles only (deterministic); not Product:Phase-2.
  */
 import type { ConnectionMode, ExpansionTier, ProjectedExplanationSection, ProjectionSurface } from '../projection-types';
 import { taggedSectionBodyFromText } from '../tagged-text';

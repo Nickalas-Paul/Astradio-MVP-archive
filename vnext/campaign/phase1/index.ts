@@ -1,5 +1,5 @@
 /**
- * Campaign Phase 1 — daily pressure resolver (Command-Center).
+ * **Campaign:** daily pressure resolver (Command-Center). Folder `phase1` is an internal pipeline slice — not **Product:Phase-1**.
  *
  * Synthetic traits (eligibility_trait_phase1_v1:*) are NOT canonical CharacterSheet truth.
  * Remove when real trait engine supplies activated_trait_ids for all supported cases.
@@ -14,7 +14,7 @@ export { TRAIT_DERIVATION_MODE_PHASE1 } from './synthetic-trait';
 import { hashCanonicalJson } from '../../rpg/hash/json-hash';
 import type { CampaignResolutionSeed } from './contracts';
 
-/** Fingerprint for daily cache / idempotency auditing (Phase 1). */
+/** Fingerprint for daily cache / idempotency auditing (campaign `phase1` slice; not Product:Phase-1). */
 export function campaignPhase1DerivationFingerprint(seed: CampaignResolutionSeed): string {
   return hashCanonicalJson({
     v: 'campaign_phase1_derivation_v1',

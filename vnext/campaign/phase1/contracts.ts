@@ -1,5 +1,5 @@
 /**
- * Campaign Phase 1 — contract types (Command-Center v1).
+ * **Campaign:** `phase1` contract types (Command-Center v1) — not **Product:Phase-1**.
  * Synthetic traits are eligibility-only; see synthetic-trait.ts and resolve-campaign-daily.ts.
  */
 
@@ -25,7 +25,7 @@ export type PressurePolarity = 'constructive' | 'frictional' | 'volatile' | 'bin
 export type PressureIntensityBand = 'low' | 'moderate' | 'high' | 'critical';
 
 /**
- * Phase 1 does not assign per-event interaction taxonomy; pooled interaction is
+ * Campaign `phase1` slice does not assign per-event interaction taxonomy; pooled interaction is
  * `DailyPressureState.interaction_type`. This field stays a single literal for a stable JSON shape.
  */
 export type PressureInteractionHint = 'none';
@@ -33,7 +33,7 @@ export type PressureInteractionHint = 'none';
 export type Phase1AspectType = 'conjunction' | 'opposition' | 'square' | 'trine' | 'sextile';
 
 /**
- * Bodies participating in Phase 1 transit×natal cross-aspects (`computeCrossAspectsForMember`).
+ * Bodies participating in campaign `phase1` transit×natal cross-aspects (`computeCrossAspectsForMember`).
  * Matches `CORE_BODIES` in `vnext/canonical-bodies.ts`. Not the full ephemeris or chart body list.
  */
 export type CampaignBodyId =

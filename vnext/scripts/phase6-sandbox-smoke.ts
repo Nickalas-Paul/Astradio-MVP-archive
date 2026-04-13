@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase 6 — Sandbox end-to-end smoke.
+ * **Product:Phase-6** — sandbox composition end-to-end smoke (not Proj “Phase 6B”).
  *
  * This hits the real engine HTTP surface when available:
  *  - POST /api/sandbox/snapshot
@@ -196,7 +196,7 @@ async function main(): Promise<void> {
   }
   log('[3] Determinism OK (plan_sha256 match).');
 
-  // 4) Optional DB-backed compositions (Stage 6: caller required; use test userId)
+  // 4) Optional DB-backed compositions (**Acct:Stage-6** owner isolation: caller required; use test userId)
   log('[4] Optional DB-backed /api/sandbox/compositions');
   const compositionsUserId = 'phase6_smoke_user';
   try {
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
     if (saveRes.status === 503) {
       log('[4] SKIP compositions: database unavailable (503).');
     } else if (saveRes.status === 401) {
-      log('[4] SKIP compositions: caller required (401). Engine may require userId for Stage 6 isolation.');
+      log('[4] SKIP compositions: caller required (401). Engine may require userId for Acct:Stage-6 isolation.');
     } else if (saveRes.status >= 400) {
       fail(`compositions POST status=${saveRes.status} body=${JSON.stringify(saveRes.json)}`);
     } else {

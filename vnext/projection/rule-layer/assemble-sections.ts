@@ -1,6 +1,6 @@
 /**
- * Step 8 — sole module that constructs ProjectedExplanationSection[] (before tone pass).
- * See apply-unified-projection for execution order.
+ * **Proj:** Step 8 — sole module that constructs ProjectedExplanationSection[] (before tone pass).
+ * Pipeline ordinal only (not Product phase, not Acct:Stage-*). See apply-unified-projection for execution order.
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type {

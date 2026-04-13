@@ -1,5 +1,5 @@
 /**
- * Phase 1 synthetic eligibility traits ONLY.
+ * **Campaign:** `phase1` synthetic eligibility traits ONLY (not **Product:Phase-1**).
  *
  * REMOVE when: (1) real trait engine populates activated_trait_ids from placements
  * for all supported body/house cases in solo and group, AND (2) PressureEvent

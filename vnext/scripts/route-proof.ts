@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Route proof validation for D-series v2.4
- * Phase 6 of D-series v2.4 engine upgrade
+ * **Train:** D-series v2.4 step 6 (ML / routing proof — not Product:Phase-6, not Acct:Stage-6).
  */
 
 import * as fs from 'fs';

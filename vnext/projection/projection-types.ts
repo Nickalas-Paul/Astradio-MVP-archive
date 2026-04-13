@@ -1,5 +1,5 @@
 /**
- * Phase D — projection-layer options and validation (no semantic authority).
+ * **Proj:** Phase D — projection-layer options and validation (no semantic authority; legacy `phaseD` flag — not Product:Phase-*).
  */
 
 import type { RelationshipMode } from '../compat/types';
@@ -22,7 +22,7 @@ export type ConnectionMode = RelationshipMode | 'group' | undefined;
 export type DensityClass = 'short' | 'medium' | 'long';
 
 export type ProjectionOptions = {
-  /** When false or omitted with no third argument legacy entrypoint, skip Phase D post-process. */
+  /** When false or omitted with no third argument legacy entrypoint, skip **Proj:** Phase D post-process (not a product phase). */
   phaseD?: boolean;
   surface: ProjectionSurface;
   tier?: ExpansionTier;

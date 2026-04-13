@@ -1,5 +1,5 @@
 /**
- * Phase 4 — Composition rules engine (deterministic reorder only).
+ * **Proj:** composition layer “phase4” (deterministic reorder only) — not **Product:Phase-4**.
  * Spec: provenance-only; no contentProvenance; no text/padding mutation;
  * intra-TaggedParagraph reorder only; audio_thread relocation only cross-section move.
  *

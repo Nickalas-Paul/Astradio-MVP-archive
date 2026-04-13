@@ -1,6 +1,6 @@
 /**
- * Phase 5A — deterministic surface expression filters (projection only).
- * After composition + tone + collapse; before validation. No shared execution with Phase 5B.
+ * **Proj:** Phase 5A — deterministic surface expression filters (projection only; legacy module name `phase5a-*`).
+ * After composition + tone + collapse; before validation. No shared execution with Phase 5B (see `phase5b-*` in RPG).
  */
 import type {
   ConnectionMode,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase 8 Stage 6 — Sandbox & Export Validation Smoke Suite
+ * **Product:Phase-8** smoke exercising **Acct:Stage-6** sandbox/export invariants (legacy script name `phase8-stage6-smoke`).
  *
  * 1. export_id determinism: same compose request twice → same plan_sha256, same export_id
  * 2. Audio stability: WAV structure (RIFF/WAVE), byte_rate, data_chunk_size, duration ±0.1s of 30, body ≥ 2.4MB
@@ -8,7 +8,7 @@
  * 4. Cross-path determinism: same chart via chartData vs overriddenSnapshot → same plan_sha256, export_id
  * 5. Sandbox snapshot determinism: same body twice → same meta.combinedHash
  * 6. Overlay consistency: pair/group (lightweight; existing systems only)
- * 7. Regression: health + chart-snapshot (Stage 1–5 run separately)
+ * 7. Regression: health + chart-snapshot (other Verify / smoke scripts run separately)
  *
  * Run: API_BASE_URL=http://localhost:4000 npx ts-node --project vnext/tsconfig.json vnext/scripts/phase8-stage6-smoke.ts
  * Or: node dist/vnext/vnext/scripts/phase8-stage6-smoke.js
@@ -103,7 +103,7 @@ function parseWavDuration(buffer: ArrayBuffer): { ok: boolean; duration_s: numbe
 }
 
 async function main(): Promise<void> {
-  console.log('Stage 6 — Sandbox & Export Validation Smoke');
+  console.log('Acct:Stage-6 — Sandbox & Export Validation Smoke (Product:Phase-8 harness)');
   console.log(`BASE: ${BASE}`);
   console.log('---');
 

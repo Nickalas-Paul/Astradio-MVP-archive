@@ -1,5 +1,5 @@
 /**
- * Phase 5B — finite enumerated RPG line filters (campaign copy only).
+ * **Proj:** Phase 5B — finite enumerated RPG line filters (campaign copy only; legacy module name).
  * Wave 1: continuity line emission only (`rpg_continuity_lines_v1`).
  * Wave 2: additional continuity tones + history-direction lines on the same emission (per-line match).
  * Wave 3: remaining HISTORY_DIRECTION_TEXT literals (four lines).

@@ -4,6 +4,8 @@
  * 5. synthesis (in assemble) → 6. audio lexicon (templates + staging) → 7. surface modulation →
  * 8. assemble-sections → 8b. composition-phase4 → 9. tone pass → 10. validation.
  *
+ * Axis: **Proj:** pipeline only (not Product:Phase-N). Ordinal steps here are projection-internal.
+ *
  * Do not import this from route handlers; use projectTextFromSemanticCore facade only.
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
@@ -22,7 +24,8 @@ import { assertAllSectionsTagged } from '../tagged-text';
 import { applyPhase5AExpression } from './phase5a-engine';
 
 /**
- * Full projection: Phase D by default; set options.phaseD === false for raw template-only output (no tone/validation).
+ * Full projection: **Proj:** Phase D (legacy `phaseD` flag) by default — full post-template pipeline, not a product phase.
+ * Set options.phaseD === false for raw template-only output (no tone/validation).
  */
 export function applyUnifiedProjection(
   core: SemanticCore,

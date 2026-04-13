@@ -1,5 +1,5 @@
 /**
- * Phase 6: Verify sandbox compose path with overriddenSnapshot.
+ * **Product:Phase-6** — verify sandbox compose path with overriddenSnapshot (not Acct:Stage-6 / not Proj P6B).
  * Ensures compose uses generateArchitectureFromSnapshot when overriddenSnapshot is provided.
  * Run after vnext build: node dist/vnext/scripts/verify-sandbox-compose-override.js
  */

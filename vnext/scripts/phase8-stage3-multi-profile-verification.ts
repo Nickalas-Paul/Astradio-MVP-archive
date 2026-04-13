@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase 8 — Stage 3 Multi-Profile Interaction Expansion
+ * **Product:Phase-8** — **Verify:P8-Slice-03** multi-profile interaction expansion (legacy filename `phase8-stage3-*`).
  *
  * Lanes:
  * - Lane A: Multi-user identity isolation (3+ users, distinct charts, no anon fallback).
@@ -621,7 +621,7 @@ async function laneC_listingIsolation(
         if (createdByUser[c.id]) {
           anonOk = false;
           anonDetails.push(
-            `anonymous listing exposes comparison id=${c.id} created in Stage 3 run`,
+            `anonymous listing exposes comparison id=${c.id} created in Verify:P8-Slice-03 run`,
           );
         }
       }
@@ -729,7 +729,7 @@ async function laneD_composeBoundary(
     record(results, 'laneD-compose-sandbox-with-extra-fields', ok, details);
   }
 
-  // 3) Post-compose, ensure /api/comparisons listings did not gain new Stage 3-owned comparisons
+  // 3) Post-compose, ensure /api/comparisons listings did not gain new Verify:P8-Slice-03-owned comparisons
   const users = ['U1', 'U2', 'U3'];
   for (let i = 0; i < cookies.length; i++) {
     const userLabel = users[i];
@@ -768,7 +768,7 @@ async function laneD_composeBoundary(
     record(results, `laneD-post-compose-list-${userLabel}`, ok, details);
   }
 
-  // Anonymous listing must also not gain new Stage 3-owned comparisons
+  // Anonymous listing must also not gain new Verify:P8-Slice-03-owned comparisons
   {
     const { status, json, text, url } = await httpRequest('/api/comparisons', {
       method: 'GET',
@@ -785,7 +785,7 @@ async function laneD_composeBoundary(
           if (!before.has(c.id) && createdByUser[c.id]) {
             ok = false;
             details.push(
-              `anonymous listing gained Stage 3-owned comparison id=${c.id} between baseline and post-compose`,
+              `anonymous listing gained Verify:P8-Slice-03-owned comparison id=${c.id} between baseline and post-compose`,
             );
           }
         }
@@ -806,7 +806,7 @@ async function laneD_composeBoundary(
 async function main(): Promise<void> {
   const results: CheckResult[] = [];
 
-  console.log('Stage 3 — Multi-Profile Interaction Expansion (Phase 8)');
+  console.log('Verify:P8-Slice-03 — Multi-Profile Interaction Expansion (Product:Phase-8)');
   console.log(`BASE: ${BASE}`);
 
   const laneA = await laneA_multiUserIsolation(results);
@@ -821,7 +821,7 @@ async function main(): Promise<void> {
     laneC.baselineAnonListing,
   );
 
-  console.log('\nStage 3 Check Matrix:');
+  console.log('\nVerify:P8-Slice-03 Check Matrix:');
   let allOk = true;
   for (const r of results) {
     const prefix = r.status === 'pass' ? '✔' : '✖';
@@ -839,7 +839,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('Stage 3 Multi-Profile Interaction Expansion — unexpected error:', err);
+  console.error('Verify:P8-Slice-03 Multi-Profile Interaction Expansion — unexpected error:', err);
   console.log('\nResult: FAIL');
   process.exit(1);
 });

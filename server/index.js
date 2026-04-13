@@ -2082,7 +2082,7 @@ if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
 }
 
-// Phase 6 — Sandbox compositions (save/list/reload). Stage 6: owner isolation.
+// **Product:Phase-6** — sandbox compositions (save/list/reload). **Acct:Stage-6** — owner isolation.
 // Use absolute path — see optionalRequire note above (relative "../lib/database" resolves to lib/lib/database and fails silently).
 const db = optionalRequire(path.join(__dirname, "..", "lib", "database"));
 const hasDb = db && typeof db.query === "function";

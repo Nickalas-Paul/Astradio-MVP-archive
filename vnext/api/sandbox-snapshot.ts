@@ -1,7 +1,7 @@
 /**
- * Phase 4A / 8H — Sandbox snapshot with overrides.
+ * **Product:** sandbox snapshot with overrides (delivery tags Phase 4A / 8H in historical docs).
  * Produces a REAL EphemerisSnapshot from birth data + planet overrides.
- * Recalculates aspects (Phase 8H aspect engine) and dominantElements deterministically.
+ * Recalculates aspects (8H aspect engine) and dominantElements deterministically — **Proj:** / engine only, not Acct:Stage-*.
  */
 
 import type { EphemerisSnapshot, SandboxBirth, SandboxOverrides, PlanetKey } from '../contracts';

@@ -132,7 +132,8 @@
     "phase8:text:smoke": "npm run vnext:build && node dist/vnext/vnext/text/tests/phase8-text-tests.js",
     "phase8:identity:test": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-identity-verification.js",
     "phase8:stage8:verify": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-stage8-campaign-system-entry-verification.js",
-    "phase8:stage9:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-stage9-system-smoke.js"
+    "phase8:stage9:smoke": "npm run vnext:build && node dist/vnext/vnext/scripts/phase8-stage9-system-smoke.js",
+    "naming:taxonomy": "node scripts/naming-taxonomy-advisory.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.14.0",
