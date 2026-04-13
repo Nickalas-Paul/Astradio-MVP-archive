@@ -79,8 +79,10 @@ function main(): void {
     .map((s) => [s.text, ...(s.bullets ?? [])].join('\n'))
     .join('\n');
   const fam = audioDuplicationFamilies(sansAudio, true);
-  const sum = fam.tempo + fam.density + fam.tension + fam.arc;
-  assert(sum <= 8, `unexpected audio duplication aggregate: ${JSON.stringify(fam)}`);
+  assert(fam.tempo <= 1, `tempo family repeats outside audio_staging: ${fam.tempo}`);
+  assert(fam.density <= 1, `density family repeats outside audio_staging: ${fam.density}`);
+  assert(fam.tension <= 1, `tension family repeats outside audio_staging: ${fam.tension}`);
+  assert(fam.arc <= 1, `arc family repeats outside audio_staging: ${fam.arc}`);
 
   const { avgWords, longRatio } = sentenceLengthStats(text);
   assert(avgWords <= 28, `avg words too high: ${avgWords}`);

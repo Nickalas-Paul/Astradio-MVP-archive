@@ -19,6 +19,7 @@ import {
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
   claimSentencesFromRange,
+  capToMaxSentences,
 } from './claim-synthesize';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
@@ -302,7 +303,8 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     paragraphNormDeque
   );
   const fallbackUsed = new Set<string>();
-  const t1 = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
+  const t1Raw = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
+  const t1 = capToMaxSentences(t1Raw, 2);
   const s1: ProjectedExplanationSection = {
     id: 'feed_signal',
     title: 'Signal',
@@ -463,12 +465,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
         `Synthesis adds secondary threads that refine where intensity softens or concentrates.`,
       ]);
-      const syn = [wrap, synClaim.text].filter(Boolean).join('\n\n');
+      const synBody = capToMaxSentences(synClaim.text, 3);
+      const syn = [wrap, synBody].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
-        synClaim.text.trim().length > 0
+        synBody.trim().length > 0
           ? taggedSectionBodyFromBlocks([
               { text: wrap, provenance: 'synthesis_wrapper' },
-              { text: synClaim.text, provenance: 'claim_body' },
+              { text: synBody, provenance: 'claim_body' },
             ])
           : taggedSectionBodyFromText(wrap, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
@@ -476,11 +479,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         synTagged,
         [],
         [],
-        densityForSectionId('synthesis_a', densityDefault),
+        'short',
         `${seed}:synbody`,
         [...new Set([...mep.claimIds.slice(0, 6), ...synClaim.claimIds])],
         reportPadUsed,
-        PAD_SENTENCES
+        PAD_SENTENCES,
+        { feed: true }
       );
       out.push({
         id: 'synthesis_a',
@@ -506,12 +510,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
         `Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.`,
       ]);
-      const syn = [wrapB, synClaim.text].filter(Boolean).join('\n\n');
+      const synBodyB = capToMaxSentences(synClaim.text, 3);
+      const syn = [wrapB, synBodyB].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
-        synClaim.text.trim().length > 0
+        synBodyB.trim().length > 0
           ? taggedSectionBodyFromBlocks([
               { text: wrapB, provenance: 'synthesis_wrapper' },
-              { text: synClaim.text, provenance: 'claim_body' },
+              { text: synBodyB, provenance: 'claim_body' },
             ])
           : taggedSectionBodyFromText(wrapB, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
@@ -519,11 +524,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         synTagged,
         [],
         [],
-        densityDefault,
+        'short',
         `${seed}:synb`,
         [...new Set([...mep.claimIds.slice(0, 10), ...synClaim.claimIds])],
         reportPadUsed,
-        PAD_SENTENCES
+        PAD_SENTENCES,
+        { feed: true }
       );
       out.push({
         id: 'synthesis_b',
@@ -768,7 +774,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       `${seed}:dp:${panelIdx}`,
       pan.claimIds,
       reportPadUsed,
-      PAD_SENTENCES
+      PAD_SENTENCES,
+      { feed: true }
     );
     out.push({
       id: `depth_panel_${panelIdx}`,

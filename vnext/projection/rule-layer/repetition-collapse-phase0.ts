@@ -9,6 +9,7 @@ import { cloneTaggedSectionBody, splitSentsForTagged, stripTaggedLintFromSection
 import { SURFACE_SCHEMAS } from '../surface-schemas';
 import { validateDensity, densityForSurfaceBaseline, countSentences } from '../density-validate';
 import { densityForSectionId, validateReportSections } from './validate-projection';
+import { AUDIO_LEXICON_CLAUSE_STRINGS } from './audio-lexicon';
 
 /** Mirror `tone-pass.ts` `normalizeSentence` — must stay byte-identical for NORM. */
 export function projectionNormSentence(s: string): string {
@@ -93,25 +94,13 @@ const TEMPORAL_LITERALS = [
   'Near-term and long-haul signals both show; context usually decides which one speaks loudest.',
 ] as const;
 
-const AUDIO_PHRASE_CATALOG = [
-  'motion feels quick and changeable',
-  'motion feels slow and sustained',
-  'motion feels moderate and steady',
-  'the texture feels tight and crowded',
-  'the texture feels open with room between moments',
-  'the texture balances open and full',
-  'energy surges then settles',
-  'energy softens and releases over time',
-  'energy builds and gathers',
-  'energy circles and shifts rather than locking flat',
-  'listening pressure feels heavy',
-  'listening pressure feels light',
-  'listening pressure feels moderate',
-  'voices weave together smoothly',
-  'one voice answers another in turns',
-  'the interplay stays steady and held',
-  'the interplay feels even and neutral',
-] as const;
+/** Phase 0 catalog phrases — must match `AUDIO_LEXICON_CLAUSE_STRINGS` (listen lexicon only). */
+const AUDIO_PHRASE_CATALOG: readonly string[] = AUDIO_LEXICON_CLAUSE_STRINGS;
+
+/** Deterministic test hook: Phase 0 audio catalog is the lexicon clause table. */
+export function phase0AudioCatalogClauseRef(): readonly string[] {
+  return AUDIO_PHRASE_CATALOG;
+}
 
 const GLUE_LITERALS = [
   'In the same picture,',

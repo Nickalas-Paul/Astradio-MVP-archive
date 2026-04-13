@@ -7,12 +7,6 @@ import type { SemanticCore } from '../../semantic/semantic-core';
 import type { SectionTemplateId } from '../../semantic/ontology-codes';
 import type { ClaimId } from '../../semantic/ontology-codes';
 import type { RelationalBandCode } from '../../semantic/ontology-codes';
-import {
-  arcChangePhraseFromCore,
-  densityPhraseFromCore,
-  harmonicTensionPhraseFromCore,
-  pacingPhraseFromCore,
-} from './audio-lexicon';
 import type { TopologyClass } from './topology-classify';
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { ProjectionSurface } from '../projection-types';
@@ -118,10 +112,6 @@ export function lineForTemplate(
 ): { title: string; text: string; bullets?: string[] } {
   const el = primaryElementLabel(core);
   const tonal = tonalLabel(core);
-  const audioP = pacingPhraseFromCore(core);
-  const audioD = densityPhraseFromCore(core);
-  const audioH = harmonicTensionPhraseFromCore(core);
-  const audioA = arcChangePhraseFromCore(core);
 
   switch (templateId) {
     case 'SECTION_SIGNATURES':
@@ -137,8 +127,8 @@ export function lineForTemplate(
       return {
         title: signaturesTitle(ctx),
         text: pickVariant(seed, [
-          `The primary emphasis is ${el} coloring with a ${tonal} mood.\n\n${audioP.charAt(0).toUpperCase() + audioP.slice(1)}.`,
-          `Elemental weight centers on ${el} with ${tonal} shading.\n\n${audioP.charAt(0).toUpperCase() + audioP.slice(1)}.`,
+          `The primary emphasis is ${el} coloring with a ${tonal} mood.\n\n${LISTEN_POINTER}`,
+          `Elemental weight centers on ${el} with ${tonal} shading.\n\n${LISTEN_POINTER}`,
         ]),
       };
     case 'SECTION_SIGNIFICANCE':
@@ -153,12 +143,12 @@ export function lineForTemplate(
       return {
         title: ctx.suppressAstrologyTitles ? 'Listen metaphor' : 'Musical Identity and Flow',
         text: pickVariant(seed, [
-          `Keep ${el} as timbre and ${tonal} as brightness.\n\n${audioA.charAt(0).toUpperCase() + audioA.slice(1)}.`,
+          `Keep ${el} as timbre and ${tonal} as brightness.\n\n${LISTEN_POINTER}`,
         ]),
         bullets: [
           `Color: ${el}-weighted palette.`,
           `Contour: ${tonal} brightness.`,
-          `Motion and pressure: ${audioP}; ${audioD}.`,
+          `Motion and pressure cues route through the listen section below.`,
         ],
       };
     case 'SECTION_SKY_SUMMARY':
@@ -169,12 +159,12 @@ export function lineForTemplate(
     case 'SECTION_PERSONAL_EMPHASIS':
       return {
         title: 'Personal Emphasis',
-        text: `You carry ${el} emphasis with ${tonal} shading.\n\n${audioH.charAt(0).toUpperCase() + audioH.slice(1)}.`,
+        text: `You carry ${el} emphasis with ${tonal} shading.\n\n${LISTEN_POINTER}`,
       };
     case 'SECTION_LIKELY_EXPRESSIONS':
       return {
         title: 'Likely Expressions',
-        text: `Outward style leans ${el} in a ${tonal} register.\n\n${audioD.charAt(0).toUpperCase() + audioD.slice(1)}.`,
+        text: `Outward style leans ${el} in a ${tonal} register.\n\n${LISTEN_POINTER}`,
       };
     case 'SECTION_WATCH_FORS':
       return {
@@ -189,7 +179,7 @@ export function lineForTemplate(
     case 'SECTION_MUSIC_TRANSLATION':
       return {
         title: 'Music Translation',
-        text: `Harmony leans ${el}; melody traces ${tonal} brightness.\n\n${audioP.charAt(0).toUpperCase() + audioP.slice(1)} steers how change arrives.`,
+        text: `Harmony leans ${el}; melody traces ${tonal} brightness.\n\n${LISTEN_POINTER}`,
       };
     case 'SECTION_COMPARISON_SIGNATURES':
       return {

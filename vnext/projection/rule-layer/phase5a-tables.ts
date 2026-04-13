@@ -62,7 +62,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Expanded campaign pass adds pressure-response detail beyond baseline response guidance.',
     },
     replacement:
-      'Expanded campaign pass adds pressure-response detail beyond baseline guidance, with clearer pacing.',
+      'Expanded campaign pass adds pressure-response detail beyond baseline guidance, with tighter pacing.',
   },
   {
     rule_id: 'P5A-W1-003-tier-campaign-extended',

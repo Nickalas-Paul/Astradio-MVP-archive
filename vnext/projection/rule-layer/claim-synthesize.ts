@@ -18,7 +18,6 @@ import {
   surfaceOffset,
   tierOffset,
 } from './claim-expression-bundles';
-import { mapTempo, mapTempoLeadClauseForEmbed, withTerminalPeriod } from './audio-lexicon';
 import { claimWindow } from './claim-select';
 
 function pickVariant(seed: string, variants: string[]): string {
@@ -142,6 +141,14 @@ export function renderClaimExpressionBlock(input: {
   return { text, secondaryRole: role, claim_id: id };
 }
 
+export function capToMaxSentences(body: string, maxSentences: number): string {
+  const t = body.trim();
+  if (!t) return t;
+  const parts = t.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length <= maxSentences) return t;
+  return parts.slice(0, maxSentences).join(' ');
+}
+
 export function synthesizeClaimSentences(lines: string[], claimIds: string[], seed: string): string {
   if (lines.length === 0) return '';
   if (lines.length === 1) return lines[0];
@@ -227,7 +234,7 @@ export function buildTensionIntegrationParagraph(
   const cIds = [...constructive.map((c) => c.claim_id), ...challenging.map((c) => c.claim_id)];
   const text = pickVariant(seed + ':ti', [
     `Taken together, supportive and challenging signals both appear in this picture; this configuration tends to benefit from naming friction without treating it as the whole story, while still honoring care where it shows up.`,
-    `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to "win." ${withTerminalPeriod(mapTempo(core.audio.tempo_band))} That shapes how repair and forward motion take turns as the contrast lands.`,
+    `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to "win." Keep pacing cues tied to the main listen read below. That shapes how repair and forward motion take turns as the contrast lands.`,
   ]);
   return { text, claimIds: cIds };
 }
@@ -259,11 +266,12 @@ export function buildSupplementalPanel(
     lines.push(block.text);
     ids.push(c.claim_id);
   }
-  const text =
+  const raw =
     synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||
     pickVariant(seed, [
       'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
     ]);
+  const text = capToMaxSentences(raw, 2);
   return {
     title: `Pattern note ${panelIndex + 1}`,
     text,
@@ -279,14 +287,12 @@ export function buildCampaignPressureResponseParagraph(core: SemanticCore, seed:
   if (motion) ids.push(motion.claim_id);
   const tLabel = tension ? campaignLabelForClaimId(tension.claim_id) : null;
   const mLabel = motion ? campaignLabelForClaimId(motion.claim_id) : null;
-  const tc = mapTempoLeadClauseForEmbed(core.audio.tempo_band);
-  const tempoCue = tc.charAt(0).toLowerCase() + tc.slice(1);
   const tNote = tLabel
     ? `Scenario pressure: ${tLabel}; treat activation as something that returns quickly, and keep steps small enough to steer when it spikes.`
     : `Scenario pressure: structural cues read diffuse here; still use short loops and named checkpoints when intensity climbs so the day does not blur.`;
   const mNote = mLabel
-    ? `Response shape: ${mLabel} asks you to match action to the impulse curve (${tempoCue}) instead of fighting the body of the motion.`
-    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; let ${tempoCue} set the pacing dial.`;
+    ? `Response shape: ${mLabel} asks you to match action to the impulse curve you already mapped instead of forcing a mismatched cadence.`
+    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; keep cadence checks short and named.`;
   const text = pickVariant(seed + ':camp', [tNote + ' ' + mNote]);
   return { text, claimIds: ids };
 }

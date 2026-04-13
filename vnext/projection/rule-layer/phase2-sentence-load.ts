@@ -12,6 +12,7 @@ import {
 import type { ProjectionSurface } from '../projection-types';
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
+import { audioListenFamilyHit, countAudioListenFamilyMatches } from './audio-lexicon';
 
 export class Phase2AssemblyError extends Error {
   constructor(message: string) {
@@ -66,11 +67,9 @@ const TEMPORAL_RES: RegExp[] = [
   /\b(seasoning|baseline remains|both count)\b/i,
 ];
 
-const AUDIO_TEMPO = /motion feels (quick and changeable|slow and sustained|moderate and steady)/;
-const AUDIO_DENSITY = /the texture feels (tight and crowded|open with room between moments|balances open and full)/;
-const AUDIO_TENSION = /listening pressure feels (heavy|light|moderate)/;
-const AUDIO_ARC =
-  /energy (surges then settles|softens and releases over time|builds and gathers|circles and shifts rather than locking flat)/;
+/** Positive lookahead for fused listen lines: clause starts after `; ` (aligned to `audio-lexicon` stems). */
+const AUDIO_SEMICOLON_SPLIT_LOOKAHEAD =
+  '; (?=The pulse|Entries stack|Rests stay|Spacing alternates|Energy |Listening pressure|Voices overlap|Figures trade|Layers hold|Voicing stays)';
 
 const RELATIONAL_RES: RegExp[] = [
   /\bThis connection\b/,
@@ -147,10 +146,10 @@ export function countSentenceLoads(sentence: string, provenance: LoadProvenance)
   }
 
   // Priority 3 — audio families (each family at most once; scan original sentence)
-  if (AUDIO_TEMPO.test(orig)) out.audioFamilies.add('tempo');
-  if (AUDIO_DENSITY.test(orig)) out.audioFamilies.add('density');
-  if (AUDIO_TENSION.test(orig)) out.audioFamilies.add('tension');
-  if (AUDIO_ARC.test(orig)) out.audioFamilies.add('arc');
+  if (audioListenFamilyHit('tempo', orig)) out.audioFamilies.add('tempo');
+  if (audioListenFamilyHit('density', orig)) out.audioFamilies.add('density');
+  if (audioListenFamilyHit('tension', orig)) out.audioFamilies.add('tension');
+  if (audioListenFamilyHit('arc', orig)) out.audioFamilies.add('arc');
 
   // Priority 4 — relational (FINAL LOCK: "This connection" is relational only, not anchor)
   for (const p of RELATIONAL_RES) {
@@ -206,7 +205,7 @@ export function splitSentenceForPhase2(sentence: string): string[] {
     const b = s.slice(m.index + 1).trim();
     return [a.endsWith('.') ? a : `${a}.`, b.endsWith('.') ? b : `${b}.`];
   }
-  const audioSplit = s.split(/; (?=motion feels|the texture feels|listening pressure|energy )/);
+  const audioSplit = s.split(new RegExp(AUDIO_SEMICOLON_SPLIT_LOOKAHEAD));
   if (audioSplit.length > 1) {
     return audioSplit.map((p) => p.trim()).filter(Boolean).map((p) => (p.match(/[.!?]$/) ? p : `${p}.`));
   }
@@ -365,8 +364,8 @@ export function assertNoClaimAnchorSameSentence(fullText: string, context: strin
 
 const REDUCED_PAD = [
   'The same emphasis may read louder under stress and softer under safety.',
-  'The feel is often situational when life load changes week to week.',
-  'Small experiments usually beat a single decisive relabeling.',
+  'The feel is often situational when life load shifts week to week.',
+  'Small experiments usually beat one decisive relabeling.',
 ];
 
 export function reducedPadPool(): string[] {
@@ -505,15 +504,13 @@ export function wrapperRepetitionMetric(text: string): number {
 }
 
 export function audioDuplicationFamilies(text: string, excludeAudioStaging: boolean): Record<string, number> {
-  if (excludeAudioStaging) {
-    // caller strips audio_staging sections
-  }
-  const fams: Record<string, number> = { tempo: 0, density: 0, tension: 0, arc: 0 };
-  if (AUDIO_TEMPO.test(text)) fams.tempo++;
-  if (AUDIO_DENSITY.test(text)) fams.density++;
-  if (AUDIO_TENSION.test(text)) fams.tension++;
-  if (AUDIO_ARC.test(text)) fams.arc++;
-  return fams;
+  void excludeAudioStaging;
+  return {
+    tempo: countAudioListenFamilyMatches('tempo', text),
+    density: countAudioListenFamilyMatches('density', text),
+    tension: countAudioListenFamilyMatches('tension', text),
+    arc: countAudioListenFamilyMatches('arc', text),
+  };
 }
 
 export function repairPhase2ParagraphLoads(

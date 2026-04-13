@@ -45,6 +45,60 @@ export function mapTexture(code: string): string {
   return 'Voicing stays even, without a strong call-and-response pull';
 }
 
+/**
+ * Every clause string emitted by `mapTempo` / `mapDensity` / `mapArc` / `mapTensionBias` / `mapTexture`
+ * for each ontology code branch. Phase 0 catalog + Phase 2 audio families must stay aligned to this list.
+ */
+export const AUDIO_LEXICON_CLAUSE_STRINGS: readonly string[] = [
+  mapTempo('TEMPO_HIGH'),
+  mapTempo('TEMPO_LOW'),
+  mapTempo('TEMPO_MED'),
+  mapDensity('DENSITY_DENSE'),
+  mapDensity('DENSITY_SPARSE'),
+  mapDensity('DENSITY_BALANCED'),
+  mapArc('ARC_SURGE_RESOLVE'),
+  mapArc('ARC_FALL'),
+  mapArc('ARC_RISE'),
+  mapArc('ARC_CYCLIC'),
+  mapTensionBias('AUDIO_TENSION_HIGH'),
+  mapTensionBias('AUDIO_TENSION_LOW'),
+  mapTensionBias('AUDIO_TENSION_MED'),
+  mapTexture('REL_TEXTURE_FLUID'),
+  mapTexture('REL_TEXTURE_CALL_RESPONSE'),
+  mapTexture('REL_TEXTURE_STATIC'),
+  mapTexture('REL_TEXTURE_NEUTRAL'),
+];
+
+function escapeAudioLexiconReFragment(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Tempo / density / arc / tension clause families (texture is voicing, not an R3 counter). */
+export type AudioListenFamilyKind = 'tempo' | 'density' | 'tension' | 'arc';
+
+export function audioListenFamilyUnionRegex(kind: AudioListenFamilyKind, flags: string): RegExp {
+  const lex = AUDIO_LEXICON_CLAUSE_STRINGS;
+  const ranges: Record<AudioListenFamilyKind, readonly [number, number]> = {
+    tempo: [0, 2],
+    density: [3, 5],
+    arc: [6, 9],
+    tension: [10, 12],
+  };
+  const [lo, hi] = ranges[kind];
+  const parts = lex.slice(lo, hi + 1);
+  return new RegExp(`(?:${parts.map(escapeAudioLexiconReFragment).join('|')})`, flags);
+}
+
+export function countAudioListenFamilyMatches(kind: AudioListenFamilyKind, text: string): number {
+  const re = audioListenFamilyUnionRegex(kind, 'g');
+  return text.match(re)?.length ?? 0;
+}
+
+export function audioListenFamilyHit(kind: AudioListenFamilyKind, text: string): boolean {
+  const re = audioListenFamilyUnionRegex(kind, '');
+  return re.test(text);
+}
+
 /** Deterministic bridge from ExplainSpec BPM to canonical tempo band codes (expression only). */
 export function tempoBandCodeFromExplainerBpm(bpm: number): 'TEMPO_HIGH' | 'TEMPO_MED' | 'TEMPO_LOW' {
   if (bpm >= 118) return 'TEMPO_HIGH';

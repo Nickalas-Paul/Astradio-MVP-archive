@@ -478,6 +478,7 @@ function wave1ShippedTablesVerification(): void {
     campSyn.includes('without overwriting it') ||
       campSyn.includes('read as situational') ||
       campSyn.includes('clearer pacing') ||
+      campSyn.includes('tighter pacing') ||
       campSyn.includes('lands most clearly'),
     'Wave 2–3 campaign-only synthesis rules apply when literals present'
   );
