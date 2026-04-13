@@ -207,6 +207,20 @@ export function validateReportSections(
   return { ok: hard.length === 0, violations: [...hard, ...soft] };
 }
 
+/**
+ * Test-harness / client-context hints only — never treated as structural violations and do not affect `ok`.
+ * Use when classifying HTTP 401/429 around projection fetch without failing deterministic projection checks.
+ */
+export const AUTH_CONTEXT_REQUIRED = 'AUTH_CONTEXT_REQUIRED';
+export const RATE_LIMIT_CONTEXT = 'RATE_LIMIT_CONTEXT';
+
+export function appendHttpContextHints(violations: string[], httpStatus?: number): string[] {
+  const out = [...violations];
+  if (httpStatus === 401) out.push(AUTH_CONTEXT_REQUIRED);
+  if (httpStatus === 429) out.push(RATE_LIMIT_CONTEXT);
+  return out;
+}
+
 export function buildFinalProjectionValidation(
   tierRequested: ExpansionTier,
   tierEffective: ExpansionTier,

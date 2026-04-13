@@ -74,6 +74,20 @@ function assertNoBlacklist(text: string, label: string): void {
   }
 }
 
+function allReferencedClaimIds(sections: ProjectedExplanationSection[]): Set<string> {
+  const out = new Set<string>();
+  for (const s of sections) {
+    for (const id of s.meta?.claimIdsReferenced ?? []) out.add(id);
+  }
+  return out;
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const x of a) if (!b.has(x)) return false;
+  return true;
+}
+
 function main(): void {
   const n = snap();
   const fv = encodeFeatures(n) as FeatureVec;
@@ -102,6 +116,24 @@ function main(): void {
     narrativePlan: null,
   });
   assert(JSON.stringify(a) === JSON.stringify(b), 'determinism: two runs must match');
+
+  const refsSeedA = allReferencedClaimIds(
+    projectTextFromSemanticCore(core, 'vary-seed-a', {
+      phaseD: true,
+      surface: 'profile',
+      tier: 'extended',
+      narrativePlan: null,
+    })
+  );
+  const refsSeedB = allReferencedClaimIds(
+    projectTextFromSemanticCore(core, 'vary-seed-b', {
+      phaseD: true,
+      surface: 'profile',
+      tier: 'extended',
+      narrativePlan: null,
+    })
+  );
+  assert(setsEqual(refsSeedA, refsSeedB), 'different projection seeds must not add/remove referenced claims');
 
   assertNoBlacklist(allVisibleText(a), 'profile baseline');
 
