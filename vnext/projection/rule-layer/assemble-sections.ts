@@ -140,12 +140,12 @@ function tierOpeningClause(surface: ProjectionSurface, tier: ExpansionTier, seed
       extended: ['Expanded overlay pass adds moderator threads across both time layers.'],
     },
     compat_pair: {
-      expanded: ['Expanded pair pass adds interaction-mode detail beyond the baseline compatibility frame.'],
-      extended: ['Expanded pair pass adds secondary pair moderators and contrast handling.'],
+      expanded: ['Expanded pass adds mid-level threads beyond the baseline framing.'],
+      extended: ['Extended pass adds secondary moderators and contrast handling.'],
     },
     group: {
-      expanded: ['Expanded group pass: this picture adds how emphasis spreads across people in the room.'],
-      extended: ['Expanded group pass: this picture adds smaller clusters inside the wider group story.'],
+      expanded: ['Expanded pass adds mid-level threads beyond the baseline framing.'],
+      extended: ['Extended pass adds secondary moderators and contrast handling.'],
     },
     campaign: {
       expanded: ['Expanded campaign pass adds pressure-response detail beyond baseline response guidance.'],
@@ -222,10 +222,14 @@ function applyAggregateSurfaceIdentityOverrides(
         ? pickVariant(`${seed}:compat:rel`, [
             'Two-person timing and mutual regulation stay in view before wider generalization.',
             'Contact stays an interface between two people, not a crowd average.',
+            'Dyad framing keeps both people visible as separate centers before blend reads.',
+            'The baseline picture weights what both charts show together, not a solo verdict.',
           ])
         : pickVariant(`${seed}:group:rel`, [
             'Emphasis spreads across the room before zooming to one pair.',
             'The room holds many voices and local clusters; it is not only one pair story.',
+            'A wider field shows before any single dyad line carries the whole meaning.',
+            'Several centers stay visible; the blend is not reducible to one corner of the room.',
           ]);
     const claimIdsIn =
       s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
@@ -600,7 +604,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     if (key === 'field_distribution' && surface === 'group') {
       const syn = pickVariant(seed + ':fd', [
         `Field distribution: emphasis often concentrates on a few people rather than spreading evenly.`,
-        `Field distribution: harmony and friction can read as room-wide qualities before shrinking them to one pair.`,
+        `Field distribution: harmony and friction can read as uneven spread before local detail tightens.`,
       ]);
       const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
@@ -719,7 +723,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   if (tierEff === 'extended' && surface === 'group' && extraKeys.includes('subcluster')) {
     const syn = pickVariant(seed + ':sub', [
-      `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot in the wider room.`,
+      `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot before the spread picture tightens.`,
     ]);
     const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(

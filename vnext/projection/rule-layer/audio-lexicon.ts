@@ -120,7 +120,7 @@ export function buildAudioStagingBlock(
     sandbox: `In this lab listen, you stress-test how the same picture sounds when conditions shift: ${listen}`,
     overlay_pair: `In this overlay listen, you hold two time layers side by side: ${listen}`,
     compat_pair: `For this pair’s listen, you notice how two voices meet: ${listen}`,
-    group: `For this group listen, you hear the whole room before any single pair: ${listen}`,
+    group: `Here, listen spans blended emphasis first, then detail tightens: ${listen}`,
     campaign: `For this scenario’s listen, you track pressure and response in sound: ${listen}`,
     feed: `For this short card, you get one clear listen cue: ${listen}`,
   };

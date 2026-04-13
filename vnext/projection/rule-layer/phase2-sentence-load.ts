@@ -381,9 +381,11 @@ export function injectAnchorPrefix(ctx: TemplateContext): string {
     return 'In this scenario, you see a stable story beat.';
   }
   if (surf === 'group') {
-    if (ctx.temporalBucket === 'activated') return 'For this group, you see an activated moment.';
-    if (ctx.temporalBucket === 'mixed') return 'For this group, you see mixed steady and active layers today.';
-    return 'For this group, you see a baseline room.';
+    if (ctx.temporalBucket === 'activated')
+      return 'Here, you see a baseline framing with an activated read right now.';
+    if (ctx.temporalBucket === 'mixed')
+      return 'Here, you see a baseline framing with mixed steady and active layers today.';
+    return 'Here, you see a baseline framing.';
   }
   if (surf === 'compat_pair') {
     if (ctx.temporalBucket === 'activated') return 'For this connection, you see heightened contact right now.';

@@ -4,7 +4,8 @@
  */
 import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
-import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { buildCanonicalReportForAggregate, buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { mergeFeatureVectors } from '../compat/fusion';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
@@ -271,7 +272,7 @@ function main(): void {
 function wave1ShippedTablesVerification(): void {
   const wave2a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W2-'));
   const wave2b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W2-'));
-  assert(wave2a.length === 16, `expected 16 Wave 2 Phase5A rules, got ${wave2a.length}`);
+  assert(wave2a.length === 14, `expected 14 Wave 2 Phase5A rules, got ${wave2a.length}`);
   assert(wave2b.length === 10, `expected 10 Wave 2 Phase5B rules, got ${wave2b.length}`);
   assert(wave2a.length + wave2b.length <= 28, 'Wave 2 new rule rows must stay within the 28-row cap (5A+5B)');
 
@@ -284,6 +285,10 @@ function wave1ShippedTablesVerification(): void {
   const waveTotal = PHASE5A_RULES.length + PHASE5A_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
   assert(waveTotal <= 62, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
 
+  const wave6b = PHASE5A_RULES.filter((r) => r.rule_id.startsWith('P6B-'));
+  assert(wave6b.length <= 18, `Phase 6B Phase5A rule cap: expected at most 18 P6B rules, got ${wave6b.length}`);
+  assert(wave6b.length === 3, `expected 3 shipped P6B Phase5A rules, got ${wave6b.length}`);
+
   for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
     if (ex.match.kind === 'whole_sentence') {
       assert(
@@ -294,7 +299,7 @@ function wave1ShippedTablesVerification(): void {
   }
 
   const glueRules = PHASE5A_RULES.filter((r) => r.match.kind === 'prefix');
-  assert(glueRules.length === 5, `expected 5 prefix glue rules (profile + Wave 2/3 surfaces), got ${glueRules.length}`);
+  assert(glueRules.length === 6, `expected 6 prefix glue rules (profile + group + Wave 2/3 surfaces), got ${glueRules.length}`);
   const profileGlue = glueRules.find((r) => r.rule_id === 'P5A-W1-001-glue-profile-baseline-prefix');
   assert(profileGlue !== undefined, 'wave1 profile glue rule present');
   assert(
@@ -307,6 +312,7 @@ function wave1ShippedTablesVerification(): void {
     { rule_id: 'P5A-W2-002-glue-compat-baseline-prefix', full: 'For this connection, you see a baseline contact tone.' },
     { rule_id: 'P5A-W2-003-glue-daily-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
     { rule_id: 'P5A-W3-001-glue-overlay-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
+    { rule_id: 'P6B-001-glue-group-baseline-prefix', full: 'Here, you see a baseline framing.' },
   ];
   for (const fx of glueFixtures) {
     const gr = glueRules.find((r) => r.rule_id === fx.rule_id);
@@ -512,6 +518,142 @@ function wave1ShippedTablesVerification(): void {
   }
   const prof2 = applyPhase5AExpression(prof, profOpts);
   assert(JSON.stringify(prof) === JSON.stringify(prof2), 'applyPhase5AExpression idempotent on shipped rules');
+
+  phase6bAggregateExpressionInvariants();
+}
+
+/** Phase 6B — aggregate redundancy, pair vs group clarity, determinism, tagged reconstruction (substring checks only). */
+function phase6bAggregateExpressionInvariants(): void {
+  const p6Snap = (d: number): EphemerisSnapshot => ({
+    ts: '2000-01-01T12:00:00Z',
+    tz: 'UTC',
+    lat: 40.7128 + d,
+    lon: -74.006 + d,
+    houseSystem: 'placidus',
+    planets: [
+      { name: 'Sun', lon: 15 + d },
+      { name: 'Moon', lon: 45 + d },
+      { name: 'Mercury', lon: 60 + d },
+      { name: 'Venus', lon: 75 + d },
+      { name: 'Mars', lon: 90 + d },
+      { name: 'Jupiter', lon: 105 + d },
+      { name: 'Saturn', lon: 120 + d },
+      { name: 'Uranus', lon: 135 + d },
+      { name: 'Neptune', lon: 150 + d },
+      { name: 'Pluto', lon: 165 + d },
+    ],
+    houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
+    aspects: [],
+    moonPhase: 0.5,
+    dominantElements: { fire: 1, earth: 0, air: 0, water: 0 },
+  });
+  const na = p6Snap(0);
+  const nb = p6Snap(5);
+  const nc = p6Snap(11);
+  const fv = encodeFeatures(na) as FeatureVec;
+  const fv2 = encodeFeatures(nb) as FeatureVec;
+  const fv3 = encodeFeatures(nc) as FeatureVec;
+  const g = guidanceFromFeatures(fv, na, 'p6b');
+  const m12 = mergeFeatureVectors(fv, fv2, { relationshipMode: 'neutral', wA: 0.5, wB: 0.5 });
+  const merged3 = mergeFeatureVectors(m12, fv3, { relationshipMode: 'neutral', wA: 0.67, wB: 0.33 });
+  const coreGroup = interpretCanonicalReportObject(
+    buildCanonicalReportForAggregate({
+      kind: 'group',
+      subject_ids: ['p6b'],
+      participants: [
+        { snapshot: na, featureVec: fv, role: 'primary' },
+        { snapshot: nb, featureVec: fv2, role: 'member_i' },
+        { snapshot: nc, featureVec: fv3, role: 'member_i' },
+      ],
+      composite: merged3 as FeatureVec,
+      anchorIndex: 0,
+      control_surface_hash: 'p6b',
+      compose_seed: 'p6b',
+      guidance: g,
+      relationalWeather: null,
+    })
+  );
+  const groupOpts: ProjectionOptions = {
+    phaseD: true,
+    surface: 'group',
+    tier: 'extended',
+    narrativePlan: null,
+    participantCount: 3,
+  };
+  const g1 = applyPhase5AExpression(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
+  const g2 = applyPhase5AExpression(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
+  assert(JSON.stringify(g1) === JSON.stringify(g2), 'phase6b group aggregate projection deterministic');
+
+  const prefaceJoined = g1.filter((s) => s.id === 'ensemble_framing').map((s) => s.text).join('\n');
+  assert(prefaceJoined.includes('This group'), 'phase6b ensemble preface owns This group topology');
+
+  for (const s of g1) {
+    if (s.id !== 'ensemble_framing' && s.text.includes('This group')) {
+      throw new Error(`[test-phase5-expression-filters] This group outside preface (${s.id})`);
+    }
+  }
+
+  const thesisOutsideRel = g1
+    .filter((s) => s.id !== 'relational_field')
+    .map((s) => [s.text, ...(s.bullets ?? [])].join('\n'))
+    .join('\n');
+  const bannedThesis = ['not only one pair', 'zooming to one pair', 'one pair story'];
+  for (const needle of bannedThesis) {
+    assert(
+      !thesisOutsideRel.includes(needle),
+      `phase6b aggregate thesis phrase "${needle}" must stay in relational_field only`
+    );
+  }
+
+  const rel = g1.find((x) => x.id === 'relational_field')?.text ?? '';
+  assert(
+    rel.length > 0 && (rel.includes('pair') || rel.includes('room') || rel.includes('dyad') || rel.includes('centers')),
+    'phase6b relational_field retains aggregate thesis content'
+  );
+
+  const tierCarrier = g1.find((s) => s.id === 'signatures')?.text ?? '';
+  assert(!tierCarrier.includes('Expanded group pass'), 'phase6b tier scaffold stays neutral (no group pass idiom)');
+  assert(!tierCarrier.includes('Expanded pair pass'), 'phase6b tier scaffold stays neutral (no pair pass idiom)');
+  assert(!tierCarrier.includes('people in the room'), 'phase6b tier scaffold has no room roster idiom');
+
+  const glueCarrier = g1.find((s) => s.id === 'signatures')?.text ?? '';
+  assert(!glueCarrier.includes('For this group'), 'phase6b glue stays neutral on group (no For this group)');
+
+  for (const s of g1) assertSectionTaggedInvariant(s, 'phase6b-group');
+
+  const coreCompat = interpretCanonicalReportObject(
+    buildCanonicalReportForAggregate({
+      kind: 'comparison',
+      subject_ids: ['p6bc'],
+      participants: [
+        { snapshot: na, featureVec: fv, role: 'primary' },
+        { snapshot: nb, featureVec: fv2, role: 'member_i' },
+      ],
+      composite: m12 as FeatureVec,
+      anchorIndex: 0,
+      control_surface_hash: 'p6bc',
+      compose_seed: 'p6bc',
+      guidance: g,
+      relationalWeather: null,
+    })
+  );
+  const compatOpts: ProjectionOptions = {
+    phaseD: true,
+    surface: 'compat_pair',
+    tier: 'expanded',
+    narrativePlan: null,
+    connectionMode: 'friends',
+  };
+  const c1 = applyPhase5AExpression(projectTextFromSemanticCore(coreCompat, 'p6b-c', compatOpts), compatOpts);
+  const pre = c1.find((x) => x.id === 'connection_structure')?.text ?? '';
+  assert(pre.includes('This connection'), 'phase6b compat preface uses connection topology');
+  assert(!pre.includes('This group'), 'phase6b compat preface does not use group topology');
+  const glueC = c1.find((s) => s.id === 'signatures')?.text ?? '';
+  assert(glueC.includes('For this connection'), 'phase6b compat glue names connection');
+  const joinedC = c1.map((s) => s.text).join('\n');
+  assert(!joinedC.includes('This group'), 'phase6b compat output has no group topology phrase');
+
+  for (const s of c1) assertSectionTaggedInvariant(s, 'phase6b-compat');
 }
 
 main();

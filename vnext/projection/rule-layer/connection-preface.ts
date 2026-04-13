@@ -95,10 +95,10 @@ const MODE_BUNDLES: Record<string, string[][]> = {
 const ENSEMBLE_BUNDLES = [
   [
     'This group holds multiple voices; emphasis may spread unevenly.',
-    'The sections stay descriptive and avoid a single pair story unless the picture supports it.',
+    'The sections stay descriptive and keep emphasis legible at shared scale without collapsing to private detail.',
   ],
   [
-    'This group treats the room as shared space before zooming to one pair.',
+    'This group treats the room as shared space; local emphasis still varies person to person.',
     'The sections stay descriptive.',
   ],
 ];

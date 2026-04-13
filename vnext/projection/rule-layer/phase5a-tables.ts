@@ -5,6 +5,7 @@
  * Wave 2 (Phase 5C): shared preface lines, tier scaffold (daily/overlay/group/feed),
  * glue (compat/campaign/daily), campaign-only synthesis wrappers.
  * Wave 3 (Phase 5C): preface completion slice, profile trait_bridge, campaign literals, overlay glue.
+ * Phase 6B: neutral group glue prefix; shared compat/group tier voice; group synthesis_wrapper refinements (P6B-* cap).
  */
 import type { ConnectionMode, ProjectionSurface, ProvenanceType } from '../projection-types';
 
@@ -76,26 +77,24 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
   },
   {
     rule_id: 'P5A-W1-004-tier-compat-expanded',
-    surfaces: ['compat_pair'],
+    surfaces: ['compat_pair', 'group'],
     provenances: ['tier_scaffold'],
     match: {
       kind: 'whole_sentence',
-      before:
-        'Expanded pair pass adds interaction-mode detail beyond the baseline compatibility frame.',
+      before: 'Expanded pass adds mid-level threads beyond the baseline framing.',
     },
     replacement:
-      'Expanded pair pass adds interaction-mode detail beyond the baseline frame, with steadier wording.',
+      'Expanded pass adds mid-level threads beyond the baseline framing, with steadier wording.',
   },
   {
     rule_id: 'P5A-W1-005-tier-compat-extended',
-    surfaces: ['compat_pair'],
+    surfaces: ['compat_pair', 'group'],
     provenances: ['tier_scaffold'],
     match: {
       kind: 'whole_sentence',
-      before: 'Extended pair pass adds secondary pair moderators and contrast handling.',
+      before: 'Extended pass adds secondary moderators and contrast handling.',
     },
-    replacement:
-      'Extended pair pass adds secondary pair moderators and contrast handling, read as situational.',
+    replacement: 'Extended pass adds secondary moderators and contrast handling, read as situational.',
   },
   {
     rule_id: 'P5A-W1-006-tier-profile-expanded',
@@ -300,30 +299,6 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
     replacement: 'Extended feed pass adds a second read without becoming a full report.',
   },
   {
-    rule_id: 'P5A-W2-013-tier-group-expanded',
-    surfaces: ['group'],
-    provenances: ['tier_scaffold'],
-    match: {
-      kind: 'whole_sentence',
-      before:
-        'Expanded group pass: this picture adds how emphasis spreads across people in the room.',
-    },
-    replacement:
-      'Expanded group pass: this picture adds how emphasis spreads across people in the room, read as situational.',
-  },
-  {
-    rule_id: 'P5A-W2-014-tier-group-extended',
-    surfaces: ['group'],
-    provenances: ['tier_scaffold'],
-    match: {
-      kind: 'whole_sentence',
-      before:
-        'Expanded group pass: this picture adds smaller clusters inside the wider group story.',
-    },
-    replacement:
-      'Expanded group pass: this picture adds smaller clusters inside the wider group story, with steadier pacing.',
-  },
-  {
     rule_id: 'P5A-W2-015-tier-overlay-expanded',
     surfaces: ['overlay_pair'],
     provenances: ['tier_scaffold'],
@@ -509,6 +484,41 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
     },
     replacement:
       'Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid, read as situational.',
+  },
+  {
+    rule_id: 'P6B-001-glue-group-baseline-prefix',
+    surfaces: ['group'],
+    provenances: ['assembler_glue'],
+    match: {
+      kind: 'prefix',
+      before_prefix: 'Here, you see a baseline ',
+      after_prefix: 'Here, you see a steadier ',
+    },
+    replacement: '',
+  },
+  {
+    rule_id: 'P6B-002-synthesis-group-field-distribution-a',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Field distribution: emphasis often concentrates on a few people rather than spreading evenly.',
+    },
+    replacement:
+      'Field distribution: emphasis often concentrates on a few people rather than spreading evenly, read as situational.',
+  },
+  {
+    rule_id: 'P6B-003-synthesis-group-field-distribution-b',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Field distribution: harmony and friction can read as uneven spread before local detail tightens.',
+    },
+    replacement:
+      'Field distribution: harmony and friction can read as uneven spread before local detail tightens, with steadier pacing.',
   },
 ];
 
