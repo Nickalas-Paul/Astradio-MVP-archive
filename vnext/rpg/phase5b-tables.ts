@@ -23,7 +23,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward naming things plainly and defining the line more clearly.',
     },
     replacement:
-      'Recent turns have favored plain naming and sharper lines without adding extra drama.',
+      'Recent turns favored plain naming and sharper lines without inflating the drama.',
   },
   {
     rule_id: 'P5B-W1-002-continuity-momentum',
@@ -34,7 +34,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward movement, follow-through, and keeping things in motion.',
     },
     replacement:
-      'Recent turns have leaned toward movement, follow-through, and keeping momentum readable.',
+      'Recent turns leaned toward movement, follow-through, and keeping momentum readable in the room.',
   },
   {
     rule_id: 'P5B-W1-003-continuity-strain',
@@ -45,7 +45,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have carried extra strain, so narrower moves may read more clearly than sweeping ones.',
     },
     replacement:
-      'Recent turns have carried extra strain, so smaller moves may read more clearly than sweeping ones.',
+      'Recent turns carried extra strain, so smaller moves read more clearly than sweeping ones.',
   },
   {
     rule_id: 'P5B-W2-001-continuity-ambiguity',
@@ -56,7 +56,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward holding space without forcing quick resolution.',
     },
     replacement:
-      'Recent turns have leaned toward holding space without forcing a premature resolution.',
+      'Recent turns held space without forcing a premature resolution.',
   },
   {
     rule_id: 'P5B-W2-002-continuity-cohesion',
@@ -67,7 +67,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward connection, trust, and relational steadiness.',
     },
     replacement:
-      'Recent turns have leaned toward connection, trust, and steadier relational pacing.',
+      'Recent turns leaned toward connection, trust, and steadier relational pacing.',
   },
   {
     rule_id: 'P5B-W2-003-continuity-containment',
@@ -78,7 +78,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward protecting capacity and reducing unnecessary exposure.',
     },
     replacement:
-      'Recent turns have leaned toward protecting capacity and trimming unnecessary exposure.',
+      'Recent turns protected capacity and trimmed unnecessary exposure.',
   },
   {
     rule_id: 'P5B-W2-004-continuity-integration',
@@ -89,7 +89,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward making a more coherent story out of mixed signals.',
     },
     replacement:
-      'Recent turns have leaned toward making a clearer story out of mixed signals.',
+      'Recent turns worked a clearer story out of mixed signals.',
   },
   {
     rule_id: 'P5B-W2-005-continuity-repair',
@@ -100,7 +100,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward repair, reciprocity, and small acts that restore trust.',
     },
     replacement:
-      'Recent turns have leaned toward repair, reciprocity, and small acts that rebuild trust.',
+      'Recent turns leaned toward repair, reciprocity, and small acts that rebuild trust.',
   },
   {
     rule_id: 'P5B-W2-006-continuity-stability',
@@ -111,7 +111,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'Recent turns have leaned toward limits, steadier pacing, and preserving structure.',
     },
     replacement:
-      'Recent turns have leaned toward limits, steadier pacing, and preserving workable structure.',
+      'Recent turns leaned toward limits, steadier pacing, and preserving workable structure.',
   },
   {
     rule_id: 'P5B-W2-007-history-assert-define',
@@ -122,7 +122,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also echoes a recent pattern of defining the situation rather than leaving it implied.',
     },
     replacement:
-      'It also echoes a recent pattern of defining the situation rather than leaving it unstated.',
+      'It also echoes a recent pattern of defining the situation instead of leaving it unstated.',
   },
   {
     rule_id: 'P5B-W2-008-history-engage-advance',
@@ -133,7 +133,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also continues a recent pattern of moving things forward through action.',
     },
     replacement:
-      'It also continues a recent pattern of moving things forward through concrete action.',
+      'It also continues a recent pattern of moving things forward with concrete action.',
   },
   {
     rule_id: 'P5B-W2-009-history-observe-hold',
@@ -144,7 +144,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also echoes a recent pattern of leaving room before forcing an answer.',
     },
     replacement:
-      'It also echoes a recent pattern of leaving room before forcing a final answer.',
+      'It also echoes a recent pattern of leaving room before forcing a final read on the situation.',
   },
   {
     rule_id: 'P5B-W2-010-history-withdraw-protect',
@@ -155,7 +155,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also continues a recent pattern of protecting capacity by reducing exposure.',
     },
     replacement:
-      'It also continues a recent pattern of protecting capacity by trimming exposure.',
+      'It also continues a recent pattern of protecting capacity by trimming visible exposure.',
   },
   {
     rule_id: 'P5B-W3-001-history-contain-limit',
@@ -166,7 +166,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also continues a recent pattern of narrowing scope to stabilize what matters most.',
     },
     replacement:
-      'It also continues a recent pattern of narrowing scope to keep what matters most legible.',
+      'It also continues a recent pattern of narrowing scope so what matters most stays legible.',
   },
   {
     rule_id: 'P5B-W3-002-history-offer-restore',
@@ -188,7 +188,7 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also echoes a recent pattern of changing interpretation before changing the outer move.',
     },
     replacement:
-      'It also echoes a recent pattern of changing interpretation before changing the visible move.',
+      'It also echoes a recent pattern of changing interpretation before changing the outward move.',
   },
   {
     rule_id: 'P5B-W3-004-history-support-connect',
@@ -199,6 +199,6 @@ export const PHASE5B_RULES: readonly Phase5BRule[] = [
         'It also echoes a recent pattern of bringing in connection or perspective.',
     },
     replacement:
-      'It also echoes a recent pattern of bringing in connection or outside perspective.',
+      'It also echoes a recent pattern of bringing in connection or outside perspective on purpose.',
   },
 ];

@@ -214,45 +214,45 @@ function topTrackEntry(track?: Record<string, number>) {
 function describeTone(toneKey?: string) {
   switch (toneKey) {
     case 'clarity':
-      return 'The campaign climate is leaning toward clearer lines and sharper definition.';
+      return '[tone_track] Weight on clarity — lines are reading sharper in aggregate.';
     case 'momentum':
-      return 'The campaign climate is leaning toward motion, follow-through, and forward pressure.';
+      return '[tone_track] Weight on momentum — follow-through is carrying the trend.';
     case 'ambiguity':
-      return 'The campaign climate is holding uncertainty open instead of forcing a quick answer.';
+      return '[tone_track] Weight on ambiguity — resolution is intentionally deferred in aggregate.';
     case 'containment':
-      return 'The campaign climate is prioritizing capacity, boundaries, and measured exposure.';
+      return '[tone_track] Weight on containment — boundaries and exposure caps dominate the trend.';
     case 'cohesion':
-      return 'The campaign climate is leaning toward connection, steadiness, and trust.';
+      return '[tone_track] Weight on cohesion — connection and steadiness lead the aggregate.';
     case 'repair':
-      return 'The campaign climate is leaning toward repair and restoring what can still hold.';
+      return '[tone_track] Weight on repair — reciprocity signals are elevated in aggregate.';
     case 'integration':
-      return 'The campaign climate is leaning toward reframing and making mixed signals cohere.';
+      return '[tone_track] Weight on integration — reframing is doing more work than closure in aggregate.';
     case 'stability':
-      return 'The campaign climate is leaning toward limits, pacing, and preserving structure.';
+      return '[tone_track] Weight on stability — limits and pacing dominate the aggregate trend.';
     case 'strain':
-      return 'The campaign climate is carrying strain, so smaller and clearer moves matter more.';
+      return '[tone_track] Strain flagged — smaller, legible moves are overrepresented in recent resolutions.';
     default:
-      return 'The campaign climate is still gathering shape from recent choices.';
+      return '[tone_track] Insufficient signal yet — trend still forming from recent resolutions.';
   }
 }
 
 function describeDomain(domainKey?: string) {
-  if (!domainKey) return 'Pressure is still distributing across the campaign rather than concentrating in one area.';
-  return `Carry-forward pressure is concentrating around ${titleCase(domainKey)}.`;
+  if (!domainKey) return '[domain_track] No single domain is leading the aggregate weight yet.';
+  return `[domain_track] Aggregate weight is leaning on ${titleCase(domainKey)}.`;
 }
 
 function describeTrace(state: CampaignState, mode: CampaignRecord['mode']) {
   const memberCount = Object.keys(state.members || {}).length;
   if (mode !== 'solo' && memberCount > 0) {
-    return `Member traces are accumulating across ${memberCount} resolved ${memberCount === 1 ? 'member' : 'members'}.`;
+    return `[state] ${memberCount} resolved ${memberCount === 1 ? 'member' : 'members'} contributing to pooled trace counters.`;
   }
   const history = Array.isArray(state.history) ? state.history : [];
   if (history.length > 0) {
-    return 'Your recent trace is carrying forward into the next challenge.';
+    return `[state] History buffer non-empty — prior resolutions are feeding forward into the next daily hash.`;
   }
   return mode === 'solo'
-    ? 'Your next decision will establish the first visible trace for this campaign.'
-    : 'Group traces will become clearer as more shared resolutions complete.';
+    ? '[state] No history rows yet — first resolution will initialize the visible trace buffer.'
+    : '[state] Group trace counters unlock as shared resolutions complete.';
 }
 
 function describeTradeoff(choice: ResponseChoice) {
@@ -427,7 +427,8 @@ function ControlPanel(props: {
 function ContinuityPanel({ lines }: { lines: string[] }) {
   return (
     <section className="rounded border border-white/10 bg-white/[0.03] p-4">
-      <h2 className="text-lg font-semibold">Continuity</h2>
+      <h2 className="text-lg font-semibold">Campaign status</h2>
+      <p className="mt-1 text-xs uppercase tracking-wide text-subtext">System read · not the daily narrative</p>
       <div className="mt-3 space-y-2 text-sm text-subtext">
         {lines.slice(0, 3).map((line, index) => (
           <p key={`${index}:${line}`}>{line}</p>

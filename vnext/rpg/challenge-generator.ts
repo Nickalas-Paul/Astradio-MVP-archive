@@ -114,22 +114,22 @@ function semanticReadingLine(core: SemanticCore, seed: string): string {
 }
 
 const ARCHETYPE_FRAMING: Record<ArchetypeId, string> = {
-  identity_test: 'a test of identity under pressure',
-  identity_definition: 'a moment of clearer self-definition',
-  resource_strain: 'a strain around value, effort, or material footing',
-  resource_opportunity: 'an opening around value or tangible support',
-  signal_friction: 'a communication knot that benefits from cleaner phrasing',
-  signal_reframe: 'a chance to reinterpret what is being signaled',
-  foundation_pressure: 'pressure on foundations, rest, or private steadiness',
-  foundation_repair: 'a chance to repair or steady the base layer',
-  creative_risk: 'a risk around expression, desire, or visibility',
-  creative_devotion: 'a steadier invitation into expression or care',
-  duty_pressure: 'a pressure point around duty, role, or responsibility',
-  duty_alignment: 'a chance to align effort with the role you want to hold',
-  bond_friction: 'a strain in contact that asks for cleaner exchange',
-  bond_repair: 'an opening for repair, care, or reconnection',
-  threshold_reckoning: 'a reckoning with trust, stakes, or deeper exchange',
-  horizon_reorientation: 'a reorientation in meaning, direction, or worldview',
+  identity_test: 'a live test of who you are when something pushes back',
+  identity_definition: 'a beat where self-definition stops being theoretical',
+  resource_strain: 'value, effort, or footing tightening in plain sight',
+  resource_opportunity: 'a workable opening around value or tangible support',
+  signal_friction: 'a communication knot that needs cleaner phrasing now',
+  signal_reframe: 'a chance to reread what is being signaled before you answer',
+  foundation_pressure: 'foundations, rest, or private steadiness under strain',
+  foundation_repair: 'a repair window for the base layer you stand on',
+  creative_risk: 'expression, desire, or visibility with real exposure',
+  creative_devotion: 'a steadier invitation into expression or care you can hold',
+  duty_pressure: 'duty, role, or responsibility pressing in the open',
+  duty_alignment: 'a chance to line effort up with the role you want to carry',
+  bond_friction: 'contact strain that needs cleaner exchange today',
+  bond_repair: 'an opening for repair, care, or reconnection you can act on',
+  threshold_reckoning: 'trust, stakes, or deeper exchange asking for honesty',
+  horizon_reorientation: 'meaning, direction, or worldview shifting under you',
 };
 
 function challengeFramingLine(
@@ -141,8 +141,8 @@ function challengeFramingLine(
   const archetypeFrame = ARCHETYPE_FRAMING[archetypeId] ?? ARCHETYPE_FRAMING.identity_test;
   const domain = challengeContext?.primaryDomain ?? pressure.domain;
   const variants = [
-    `Today's challenge centers on ${domainLabel(domain)}, with ${archetypeFrame}.`,
-    `The active challenge sits in ${domainLabel(domain)}, where this reads as ${archetypeFrame}.`,
+    `What you are in today lands hardest on ${domainLabel(domain)}: ${archetypeFrame}.`,
+    `The scene in front of you asks you to meet ${domainLabel(domain)} as ${archetypeFrame}.`,
   ];
   return stableVariant(
     `${pressure.id}:${archetypeId}:${state.chapter}:challenge-frame`,
@@ -162,11 +162,11 @@ function supportingPressureLine(
   const supportTone = polarityImplication(supportPolarity);
   const interaction = challengeContext?.interactionType;
   const variants = [
-    `Supporting pressure in ${supportDomain} ${supportAspect} and ${supportTone}.`,
-    `A secondary layer in ${supportDomain} ${supportAspect}, which ${supportTone}.`,
+    `A second pressure in ${supportDomain} ${supportAspect}, coloring the room as ${supportTone}.`,
+    `Alongside that, ${supportDomain} ${supportAspect}, so the situation also carries ${supportTone}.`,
   ];
   if (interaction && interaction !== 'none') {
-    return `${stableVariant(`${firstSupport.id}:${interaction}:support`, variants)} Together, the pressures read as ${interaction.replace(/_/g, ' ')} rather than isolated.`;
+    return `${stableVariant(`${firstSupport.id}:${interaction}:support`, variants)} Together the field reads as ${interaction.replace(/_/g, ' ')}, not a single isolated spike.`;
   }
   return stableVariant(`${firstSupport.id}:support`, variants);
 }
@@ -203,11 +203,11 @@ function pressureInterpretationLine(
   const house = houseLanguage(pressure.natalHouse);
   const toneKey = dominantToneKey(state);
   const variants = [
-    `The pressure is ${intensityUrgency(intensityBand)} and ${polarityTone(polarity)}: it ${aspect} around ${domain}, with extra emphasis on ${house} and ${modifier}.`,
-    `This reads as ${intensityUrgency(intensityBand)} pressure that ${aspect} around ${domain}, carrying a ${modifier} emphasis through ${house}.`,
+    `What is live in the room is ${intensityUrgency(intensityBand)} and ${polarityTone(polarity)}: it ${aspect} around ${domain}, with extra weight through ${house} and ${modifier}.`,
+    `You are standing in ${intensityUrgency(intensityBand)} pressure that ${aspect} around ${domain}, with a ${modifier} emphasis showing through ${house}.`,
   ];
   const base = stableVariant(`${pressure.id}:${polarity}:${intensityBand}:${toneKey}:pressure`, variants);
-  return `${base} The tradeoff is that ${polarityTradeoff(polarity)}.`;
+  return `${base} What the field rewards here is ${polarityImplication(polarity)}, while ${polarityTradeoff(polarity)} still sets the guardrails.`;
 }
 
 function sceneSettingFromTone(
@@ -502,26 +502,25 @@ function postureRiskProfile(
   pressure: TransitPressure,
   challengeContext: ChallengeContext | undefined,
 ): string {
-  const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
   const intensityWord = intensityQualifier(intensityBand);
   switch (posture) {
     case 'observe':
-      return `This protects clarity before commitment, but ${polarityTradeoff(polarity)} and may preserve ambiguity ${intensityWord} longer.`;
+      return `This stance buys read-time before you lock a move; with pressure ${intensityUrgency(intensityBand)}, the pause can read as a longer open window ${intensityWord} from the outside.`;
     case 'assert':
-      return `This increases definition quickly, but ${polarityTradeoff(polarity)} and can raise direct friction when the pressure is already ${intensityUrgency(intensityBand)}.`;
+      return `This stance puts a hard line in the room; when the field is already ${intensityUrgency(intensityBand)}, definition lands hot and contact can spike before the temperature drops.`;
     case 'engage':
-      return `This creates momentum quickly, but ${polarityTradeoff(polarity)} and can amplify strain if the conditions are still unstable.`;
+      return `This stance converts pressure into motion; when conditions are still ${intensityUrgency(intensityBand)}, a wide step can carry more strain than the window was built for.`;
     case 'withdraw':
-      return `This reduces immediate exposure, but ${polarityTradeoff(polarity)} and can prolong uncertainty if the retreat becomes indefinite.`;
+      return `This stance pulls contact back on purpose; with pressure ${intensityUrgency(intensityBand)}, distance can read as a slower clock for anyone waiting on a visible answer.`;
     case 'support':
-      return `This builds connection and perspective, but ${polarityTradeoff(polarity)} and may slow solitary momentum while the larger picture comes into view.`;
+      return `This stance pulls counsel and witness into the move; while the field stays ${intensityUrgency(intensityBand)}, coordinating with others can slow purely solo tempo until alignment catches up.`;
     case 'offer':
-      return `This supports repair and reciprocity, but ${polarityTradeoff(polarity)} and can overextend you if the other side cannot meet it.`;
+      return `This stance answers pressure with a concrete gesture; even a small move carries real cost if the room cannot echo it back with care.`;
     case 'reframe':
-      return `This supports flexibility and integration, but ${polarityTradeoff(polarity)} and may under-act if interpretation replaces contact.`;
+      return `This stance works the meaning layer first; with pressure ${intensityUrgency(intensityBand)}, interpretation can postpone the outward move others are already clocking.`;
     case 'contain':
-      return `This protects capacity and steadiness, but ${polarityTradeoff(polarity)} and can harden distance if the limit lands too rigidly.`;
+      return `This stance draws a smaller perimeter around what you will carry; when pressure is ${intensityUrgency(intensityBand)}, a tight edge can read as cool distance if it lands sharp.`;
   }
 }
 

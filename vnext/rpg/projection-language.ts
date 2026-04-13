@@ -123,25 +123,25 @@ const HISTORY_DIRECTION_TEXT: Record<string, string> = {
 };
 
 const OUTCOME_EFFECTS: Record<OutcomeDirection, string> = {
-  assert_define: 'strengthen clarity and definition',
-  engage_advance: 'increase movement and agency',
-  observe_hold: 'preserve optionality while delaying commitment',
-  withdraw_protect: 'reduce exposure and protect capacity',
-  support_connect: 'strengthen trust, perspective, or alliance',
-  offer_restore: 'support repair and reciprocity',
-  reframe_integrate: 'increase coherence and flexibility',
-  contain_limit: 'stabilize capacity by narrowing scope',
+  assert_define: 'pull clarity and definition forward in how you meet the moment',
+  engage_advance: 'put motion and agency ahead of waiting the pressure out',
+  observe_hold: 'keep the window open before you lock a commitment',
+  withdraw_protect: 'pull exposure back so capacity stays guarded',
+  support_connect: 'bring trust, perspective, or alliance into the move',
+  offer_restore: 'feed repair and reciprocity through what you put on the table',
+  reframe_integrate: 'widen coherence and workable flexibility in the frame you use',
+  contain_limit: 'shrink the scope you carry so steadiness can hold',
 };
 
 const OUTCOME_TRADEOFFS: Record<OutcomeDirection, string> = {
-  assert_define: 'it can raise friction before the situation settles',
-  engage_advance: 'it can outrun the conditions if momentum becomes the only priority',
-  observe_hold: 'it may leave uncertainty in place for longer',
-  withdraw_protect: 'it may slow contact or visible progress',
-  support_connect: 'it may reduce solitary momentum while perspective catches up',
-  offer_restore: 'it may overextend you if reciprocity is not actually available',
-  reframe_integrate: 'it may delay action if interpretation becomes a substitute for movement',
-  contain_limit: 'it may create distance if the limit lands too rigidly',
+  assert_define: 'the line can land hot before the room has cooled',
+  engage_advance: 'speed can overshoot what the conditions can absorb today',
+  observe_hold: 'the open window can stay ambiguous longer on the outside',
+  withdraw_protect: 'less contact can read as slower visible motion to others',
+  support_connect: 'shared sense-making can slow purely solo tempo for a beat',
+  offer_restore: 'cost lands on you if the return side cannot meet the gesture',
+  reframe_integrate: 'meaning-work can defer the move people are clocking on the outside',
+  contain_limit: 'a tight edge can read as distance if it lands without warmth',
 };
 
 export function stableVariant(seed: string, variants: string[]): string {
@@ -233,7 +233,7 @@ export function continuityLines(state: CampaignState, domain: string): string[] 
   const toneLine = TONE_CONTINUITY[toneKey];
   if (toneLine) lines.push(toneLine);
   if (domainKey === domain) {
-    lines.push(`This continues a recent concentration around ${domainLabel(domain)}.`);
+    lines.push(`Recent beats kept returning weight to ${domainLabel(domain)}.`);
   }
   const history = Array.isArray(state.history) ? state.history : [];
   const latest = history[history.length - 1];

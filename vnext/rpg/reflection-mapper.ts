@@ -68,7 +68,7 @@ function symbolicMeaningFor(
     return `${base} It shifts the story from reacting inside the pressure to witnessing it, which often opens more grounded options.`;
   }
   if (patternTag === 'name_truth') {
-    return `${base} It treats clarity and honest language as the medicine for this transit, even if nothing changes immediately.`;
+    return `${base} It treats clarity and honest language as the lever here, even if the outer scene does not move on the first beat.`;
   }
   if (patternTag === 'seek_counsel') {
     return `${base} It frames connection and shared reflection as the growth path, instead of carrying the whole pattern alone.`;
@@ -80,7 +80,7 @@ function symbolicMeaningFor(
     return `${base} It converts tension into a chance to participate, give, or repair in a small, concrete way.`;
   }
   if (patternTag === 'push_forward') {
-    return `${base} It leans into action and momentum, asking you to track whether forward motion is clarifying or amplifying the strain.`;
+    return `${base} It leans into action and momentum, asking you to notice whether forward motion clarifies the strain or feeds it.`;
   }
   if (patternTag === 'delay_action') {
     return `${base} It honors timing as part of the work, treating conscious delay as different from avoidance.`;
@@ -136,7 +136,7 @@ export function buildChallengeOutcome(params: BuildOutcomeParams): ChallengeOutc
   const { scene, choice, natalSnapshot, transitSnapshot } = params;
   const pressure: TransitPressure = scene.primaryPressure;
   const domain = domainLabel(pressure.domain);
-  const narrative = `${responseSummary(choice.patternTag)} ${outcomeSentence(choice.outcomeDirection, pressure.domain)} The pressure remains active around ${domain}, and this posture changes what gets strengthened first.`;
+  const narrative = `${responseSummary(choice.patternTag)} ${outcomeSentence(choice.outcomeDirection, pressure.domain)} Pressure stays live around ${domain}; this response shifts what strengthens first in the arc.`;
 
   const symbolicMeaning = symbolicMeaningFor(pressure, choice.patternTag);
   const realWorldReflection = realWorldReflectionFor(pressure, choice.patternTag);

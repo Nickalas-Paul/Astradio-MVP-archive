@@ -33,16 +33,16 @@ function pickVariant(seed: string, variants: string[]): string {
 /** Human-readable labels for campaign copy (no raw ontology ids in user text). */
 function campaignLabelForClaimId(id: string): string {
   const table: Record<string, string> = {
-    TENSION_BAND_HIGH: 'a high structural tension band',
-    TENSION_BAND_MED: 'a moderate structural tension band',
-    TENSION_BAND_LOW: 'a low structural tension band',
-    MOTION_LABEL_SURGING: 'a surging motion profile',
-    MOTION_LABEL_RESTLESS: 'a restless motion profile',
-    MOTION_LABEL_QUIET_FLOW: 'a quiet-flow motion profile',
-    MOTION_LABEL_INWARD: 'an inward consolidation motion profile',
-    MOTION_LABEL_STEADY: 'a steady motion profile',
+    TENSION_BAND_HIGH: 'a high structural tension band (feedback comes back fast)',
+    TENSION_BAND_MED: 'a moderate structural tension band (feedback steadies but does not vanish)',
+    TENSION_BAND_LOW: 'a low structural tension band (feedback stretches and softens)',
+    MOTION_LABEL_SURGING: 'a surging motion profile (impulse spikes quickly)',
+    MOTION_LABEL_RESTLESS: 'a restless motion profile (starts and stops in quick loops)',
+    MOTION_LABEL_QUIET_FLOW: 'a quiet-flow motion profile (movement stays low and continuous)',
+    MOTION_LABEL_INWARD: 'an inward consolidation motion profile (energy pulls back before it returns)',
+    MOTION_LABEL_STEADY: 'a steady motion profile (pace holds even when load rises)',
   };
-  return table[id] ?? 'a distinct motion pattern';
+  return table[id] ?? 'a distinct motion pattern in the field';
 }
 
 function pickGlue(prevId: string, nextId: string, seed: string): string {
@@ -282,11 +282,11 @@ export function buildCampaignPressureResponseParagraph(core: SemanticCore, seed:
   const mLabel = motion ? campaignLabelForClaimId(motion.claim_id) : null;
   const groove = lightListenHintFromCore(core);
   const tNote = tLabel
-    ? `Scenario pressure: ${tLabel} in this situation often maps to a shorter feedback loop; you may need steadier breath and smaller steps when activation spikes.`
-    : `Scenario pressure: cues in this situation are spread out; you may still benefit from shorter loops and explicit checkpoints when intensity rises.`;
+    ? `Scenario pressure: ${tLabel}; treat activation as something that returns quickly, and keep steps small enough to steer when it spikes.`
+    : `Scenario pressure: structural cues read diffuse here; still use short loops and named checkpoints when intensity climbs so the day does not blur.`;
   const mNote = mLabel
-    ? `Response shape: ${mLabel} suggests matching action to the impulse curve (${groove}) rather than forcing the opposite speed.`
-    : `Response shape: without a dominant motion label, alternating consolidation and push tends to be safer than a single fixed speed; let ${groove} guide how you pace moves.`;
+    ? `Response shape: ${mLabel} asks you to match action to the impulse curve (${groove}) instead of fighting the body of the motion.`
+    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; let ${groove} set the pacing dial.`;
   const text = pickVariant(seed + ':camp', [tNote + ' ' + mNote]);
   return { text, claimIds: ids };
 }

@@ -242,7 +242,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.',
     },
     replacement:
-      'Cross-section synthesis ties together mid-rank threads that moderate the headline without overwriting it.',
+      'Cross-section synthesis threads mid-rank moderators with the headline so situational nuance stays legible without overwriting the main read.',
   },
   {
     rule_id: 'P5A-W2-008-synthesis-campaign-secondary-refine',
@@ -254,7 +254,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Synthesis adds secondary threads that refine where intensity softens or concentrates.',
     },
     replacement:
-      'Synthesis adds secondary threads that refine where intensity softens or concentrates, read as situational.',
+      'Synthesis adds secondary threads that show where intensity softens or tightens on the same situational beat.',
   },
   {
     rule_id: 'P5A-W2-009-tier-daily-expanded',
@@ -436,7 +436,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.',
     },
     replacement:
-      'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern, read with clearer pacing.',
+      'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern with pacing you can steer.',
   },
   {
     rule_id: 'P5A-W3-011-synthesis-campaign-second-pass',
@@ -448,7 +448,7 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
         'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.',
     },
     replacement:
-      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, read as situational refinement.',
+      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, kept situational and bounded.',
   },
   {
     rule_id: 'P5A-W3-012-synthesis-campaign-tension-together',
