@@ -111,7 +111,10 @@ async function main() {
   results.C.engine_profile_copy = { raw_claim_ids_in_text: badIds, pass: !badIds };
 
   // --- D: perceptual listen hints (humanized path: motion/pressure/space, not internal "envelope") ---
-  const hasPerceptual = /motion feels|listening pressure|texture feels|How this sounds|listen metaphor/i.test(a1.joined);
+  const hasPerceptual =
+    /How this sounds|listen metaphor|The pulse runs|Listening pressure|Entries stack|Energy lifts|Energy thins|Voices overlap|Figures trade|Layers hold|Voicing stays|motion feels|texture feels/i.test(
+      a1.joined
+    );
   results.D.perceptual_listen_hints = { present: hasPerceptual };
 
   // --- E: Vercel parity (sections non-empty) ---
