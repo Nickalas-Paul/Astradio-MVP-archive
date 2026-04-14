@@ -6,12 +6,13 @@ import { CLAIM_IDS, type ClaimId } from '../../semantic/ontology-codes';
 
 export type ClaimOptionalRole = 'mechanism' | 'experience' | 'variation' | 'implication';
 
+/** Canonical binding always uses `core[0]`; optional `core[1]` for modulation fallback only. */
 export type ClaimExpressionBundle = {
-  readonly core: string;
-  readonly mechanism?: string;
-  readonly experience?: string;
-  readonly variation?: string;
-  readonly implication?: string;
+  readonly core: readonly string[];
+  readonly mechanism?: readonly string[];
+  readonly experience?: readonly string[];
+  readonly variation?: readonly string[];
+  readonly implication?: readonly string[];
 };
 
 /** Substrings forbidden in bundle copy (layer separation). Case-insensitive scan. */
@@ -85,6 +86,51 @@ function interpolateStrength(s: string, strong: boolean): string {
   return s.replace(/\{strength_clause\}/g, strength_clause).replace(/\{strength\}/g, strength);
 }
 
+const MECH_PREFIX = 'Mechanistically, the label ';
+const EXP_PREFIX = 'Many people notice this thread as ';
+
+function expandMechanismTriple(source: string, claimLabel: string): readonly [string, string, string] {
+  const v0 = source.trim();
+  if (!v0.startsWith(MECH_PREFIX)) {
+    throw new Error(`[claim-expression-bundles] ${claimLabel}: mechanism must start with "Mechanistically, the label "`);
+  }
+  const rest = v0.slice(MECH_PREFIX.length);
+  const v1 = `In structural terms, the label maps ${rest}`;
+  const v2 = `At the mechanism layer, this reading encodes ${rest}`;
+  if (v0 === v1 || v0 === v2 || v1 === v2) {
+    throw new Error(`[claim-expression-bundles] ${claimLabel}: mechanism variant expansion collapsed`);
+  }
+  return [v0, v1, v2];
+}
+
+function expandExperienceTriple(source: string, claimLabel: string): readonly [string, string, string] {
+  const v0 = source.trim();
+  if (!v0.startsWith(EXP_PREFIX)) {
+    throw new Error(`[claim-expression-bundles] ${claimLabel}: experience must start with standard experience prefix`);
+  }
+  const rest = v0.slice(EXP_PREFIX.length);
+  const v1 = `Listeners often register this thread as ${rest}`;
+  const v2 = `In practice, this reads as ${rest}`;
+  if (v0 === v1 || v0 === v2 || v1 === v2) {
+    throw new Error(`[claim-expression-bundles] ${claimLabel}: experience variant expansion collapsed`);
+  }
+  return [v0, v1, v2];
+}
+
+function expandVariationTriple(source: string, claimLabel: string): readonly [string, string, string] {
+  const v0 = source.trim();
+  if (v0.startsWith(MECH_PREFIX)) return expandMechanismTriple(v0, `${claimLabel}.variation`);
+  if (v0.startsWith(EXP_PREFIX)) return expandExperienceTriple(v0, `${claimLabel}.variation`);
+  throw new Error(
+    `[claim-expression-bundles] ${claimLabel}: variation must use the same mechanistic or experience opening as other roles`
+  );
+}
+
+function implicationVariants(source: string): readonly [string] | readonly [string, string] {
+  const t = source.trim();
+  return [t];
+}
+
 function bundle(
   id: string,
   core: string,
@@ -97,13 +143,16 @@ function bundle(
   if (optCount < 1 || optCount > 3) {
     throw new Error(`[claim-expression-bundles] ${id}: optional slot count must be 1–3, got ${optCount}`);
   }
-  const b: ClaimExpressionBundle = { core: core.trim(), mechanism: mechanism.trim(), experience: experience.trim() };
+  const coreArr: readonly [string] = [core.trim()];
+  const mech = expandMechanismTriple(mechanism, id);
+  const exp = expandExperienceTriple(experience, id);
+  const b: ClaimExpressionBundle = { core: coreArr, mechanism: mech, experience: exp };
   const out = variation?.trim()
-    ? ({ ...b, variation: variation.trim() } as ClaimExpressionBundle)
-    : ({ ...b } as ClaimExpressionBundle);
+    ? ({ ...b, variation: expandVariationTriple(variation, id) } as ClaimExpressionBundle)
+    : (b as ClaimExpressionBundle);
   const withImp =
     implication?.trim() != null && implication!.trim().length > 0
-      ? ({ ...out, implication: implication!.trim() } as ClaimExpressionBundle)
+      ? ({ ...out, implication: implicationVariants(implication!) } as ClaimExpressionBundle)
       : out;
   return withImp;
 }
@@ -116,12 +165,44 @@ function validateInterpolatedBundle(id: ClaimId, b: ClaimExpressionBundle): void
       assertPunctuation(t, `${id}.${label}`);
       assertNoForbidden(t, `${id}.${label}`);
     };
-    walk(b.core, 'core');
-    walk(b.mechanism, 'mechanism');
-    walk(b.experience, 'experience');
-    walk(b.variation, 'variation');
-    walk(b.implication, 'implication');
+    for (let i = 0; i < b.core.length; i++) walk(b.core[i], `core[${i}]`);
+    if (b.mechanism) for (let i = 0; i < b.mechanism.length; i++) walk(b.mechanism[i], `mechanism[${i}]`);
+    if (b.experience) for (let i = 0; i < b.experience.length; i++) walk(b.experience[i], `experience[${i}]`);
+    if (b.variation) for (let i = 0; i < b.variation.length; i++) walk(b.variation[i], `variation[${i}]`);
+    if (b.implication) for (let i = 0; i < b.implication.length; i++) walk(b.implication[i], `implication[${i}]`);
   }
+}
+
+function assertNoDuplicateWithinRole(id: ClaimId, role: string, arr: readonly string[]): void {
+  const seen = new Set<string>();
+  for (const s of arr) {
+    const k = s.trim();
+    if (seen.has(k)) throw new InvalidClaimExpressionBundleError(`${id}: duplicate within ${role}`);
+    seen.add(k);
+  }
+}
+
+function assertNoCrossRoleStringReuse(id: ClaimId, b: ClaimExpressionBundle): void {
+  const seen = new Map<string, ClaimOptionalRole | 'core'>();
+  const reg = (s: string, role: ClaimOptionalRole | 'core'): void => {
+    const k = s.trim();
+    if (!k) return;
+    const prev = seen.get(k);
+    if (prev !== undefined && prev !== role) {
+      throw new InvalidClaimExpressionBundleError(`${id}: duplicate string across roles (${prev} vs ${role})`);
+    }
+    seen.set(k, role);
+  };
+  assertNoDuplicateWithinRole(id, 'core', b.core);
+  if (b.mechanism) assertNoDuplicateWithinRole(id, 'mechanism', b.mechanism);
+  if (b.experience) assertNoDuplicateWithinRole(id, 'experience', b.experience);
+  if (b.variation) assertNoDuplicateWithinRole(id, 'variation', b.variation);
+  if (b.implication) assertNoDuplicateWithinRole(id, 'implication', b.implication);
+  for (const s of b.core) reg(s, 'core');
+  if (b.mechanism) for (const s of b.mechanism) reg(s, 'mechanism');
+  if (b.experience) for (const s of b.experience) reg(s, 'experience');
+  if (b.variation) for (const s of b.variation) reg(s, 'variation');
+  if (b.implication) for (const s of b.implication) reg(s, 'implication');
 }
 
 export class MissingClaimExpressionBundleError extends Error {
@@ -468,18 +549,33 @@ const CLAIM_EXPRESSION_BUNDLES_RAW: Readonly<Record<ClaimId, ClaimExpressionBund
   ),
 };
 
+function validateRoleArrayLen(role: string, arr: readonly string[] | undefined, min: number, max: number): void {
+  if (arr === undefined) return;
+  if (arr.length < min || arr.length > max) {
+    throw new InvalidClaimExpressionBundleError(`${role}: expected length ${min}–${max}, got ${arr.length}`);
+  }
+}
+
 function validateAllBundlesAtLoad(): void {
   for (const id of CLAIM_IDS) {
     const b = CLAIM_EXPRESSION_BUNDLES_RAW[id];
     if (!b) throw new MissingClaimExpressionBundleError(id);
-    if (!b.core?.trim()) throw new InvalidClaimExpressionBundleError(`${id}: missing core`);
+    if (!b.core?.length || !b.core[0]?.trim()) throw new InvalidClaimExpressionBundleError(`${id}: missing core`);
+    if (b.core.length < 1 || b.core.length > 2) {
+      throw new InvalidClaimExpressionBundleError(`${id}: core must have 1–2 entries, got ${b.core.length}`);
+    }
+    validateRoleArrayLen(`${id}.mechanism`, b.mechanism, 2, 3);
+    validateRoleArrayLen(`${id}.experience`, b.experience, 2, 3);
+    validateRoleArrayLen(`${id}.variation`, b.variation, 2, 3);
+    validateRoleArrayLen(`${id}.implication`, b.implication, 1, 2);
     const optKeys: ClaimOptionalRole[] = ['mechanism', 'experience', 'variation', 'implication'];
     let n = 0;
     for (const k of optKeys) {
       const v = b[k];
-      if (typeof v === 'string' && v.trim().length > 0) n++;
+      if (v !== undefined && v.length > 0) n++;
     }
     if (n < 1 || n > 3) throw new InvalidClaimExpressionBundleError(`${id}: optional count ${n}`);
+    assertNoCrossRoleStringReuse(id, b);
     validateInterpolatedBundle(id, b);
   }
 }

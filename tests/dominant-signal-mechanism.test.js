@@ -19,6 +19,7 @@ const {
   buildClaimMechanismExpressionParagraph,
   buildControlledMechanismExpressionParagraph,
   renderClaimExpressionBlock,
+  renderMechanismArcBlock,
 } = require('../dist/vnext/vnext/projection/rule-layer/claim-synthesize.js');
 
 /** @returns {import('../dist/vnext/vnext/semantic/semantic-core').SemanticCore} */
@@ -233,14 +234,13 @@ test('stable localIndex: rendering uses slice index not visit order', () => {
   const p1 = [];
   const d2 = [];
   const p2 = [];
-  const expectedFirst = renderClaimExpressionBlock({
+  const expectedFirstArc = renderMechanismArcBlock({
     claim: slice[1],
-    localIndex: 1,
-    seed: 'seed|ELEMENT_FIRE_DOM|mep',
-    surface: 'profile',
-    tier: 'baseline',
+    index: 0,
+    n: 2,
     sectionRoleDeque: d1,
     paragraphNormDeque: p1,
+    seed: 'seed|ELEMENT_FIRE_DOM|mep',
   });
   const mep = buildControlledMechanismExpressionParagraph(
     core,
@@ -251,7 +251,17 @@ test('stable localIndex: rendering uses slice index not visit order', () => {
     p2,
     domIds
   );
-  assert.ok(mep.text.startsWith(expectedFirst.text));
+  assert.ok(mep.text.startsWith(expectedFirstArc.text));
+  const block = renderClaimExpressionBlock({
+    claim: slice[1],
+    localIndex: 1,
+    seed: 'seed|ELEMENT_FIRE_DOM|mep',
+    surface: 'profile',
+    tier: 'baseline',
+    sectionRoleDeque: [],
+    paragraphNormDeque: [],
+  });
+  assert.ok(block.text.length > 0, 'renderClaimExpressionBlock still emits body');
 });
 
 test('flag-off parity: legacy mep equals controlled with empty dominant list', () => {

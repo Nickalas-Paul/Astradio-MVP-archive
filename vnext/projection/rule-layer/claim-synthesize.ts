@@ -16,9 +16,8 @@ import {
   hash32,
   InvalidClaimExpressionBundleError,
   rotateArray,
-  surfaceOffset,
-  tierOffset,
 } from './claim-expression-bundles';
+import { pickInterClaimGlue } from './claim-inter-claim-glue';
 import { claimWindow } from './claim-select';
 import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
 
@@ -46,15 +45,6 @@ function campaignLabelForClaimId(id: string): string {
   return table[id] ?? 'a distinct motion pattern in the field';
 }
 
-function pickGlue(prevId: string, nextId: string, seed: string): string {
-  const key = `${prevId}>${nextId}`;
-  return pickVariant(`${seed}:glue:${key}`, [
-    'In the same picture,',
-    'Alongside that signal,',
-    'Taken together with the prior emphasis,',
-  ]);
-}
-
 function pushParagraphNormDeque(dq: string[], norm: string): void {
   dq.push(norm);
   while (dq.length > 6) dq.shift();
@@ -65,24 +55,47 @@ function pushSectionRoleDeque(dq: ClaimOptionalRole[], role: ClaimOptionalRole):
   while (dq.length > 4) dq.shift();
 }
 
-function trimBundleField(s: string | undefined): string | null {
-  if (s === undefined) return null;
-  const t = s.trim();
-  return t.length > 0 ? t : null;
+function trimVariantArray(arr: readonly string[] | undefined): readonly string[] | null {
+  if (!arr || arr.length === 0) return null;
+  return arr;
+}
+
+function selectPhraseFromRoleVariants(input: {
+  variants: readonly string[];
+  claimId: string;
+  role: ClaimOptionalRole | 'core';
+  slotKind: string;
+  seed: string;
+  claim: SemanticClaim;
+  paragraphNormDeque: string[];
+}): string {
+  const { variants, claimId, role, slotKind, seed, claim, paragraphNormDeque } = input;
+  const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
+  const N = variants.length;
+  if (N === 0) throw new InvalidClaimExpressionBundleError(`${claimId}: empty variant list for ${role}`);
+  const start = hash32(`${seed}|${claimId}|${role}|${slotKind}`) % N;
+  for (let k = 0; k < N; k++) {
+    const raw = variants[(start + k) % N]!;
+    const sent = interp(raw);
+    if (!paragraphNormDeque.includes(projectionNormSentence(sent))) return sent;
+  }
+  return interp(variants[0]!);
 }
 
 /**
  * Mechanism-expression (`mep`) only: deterministic arc slots (binding → elaboration → modulation → integration).
  * Intra-block sentences joined with a single space. Inter-claim glue unchanged (`synthesizeClaimSentences`).
  */
-function renderMechanismArcBlock(input: {
+/** Exported for tests — first `mep` blocks use arc rendering, not `renderClaimExpressionBlock`. */
+export function renderMechanismArcBlock(input: {
   claim: SemanticClaim;
   index: number;
   n: number;
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
+  seed: string;
 }): { text: string; claim_id: string } {
-  const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque } = input;
+  const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque, seed } = input;
   const id = claim.claim_id as ClaimId;
   const bundle = getClaimExpressionBundle(id);
   const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
@@ -95,45 +108,101 @@ function renderMechanismArcBlock(input: {
   const sentences: string[] = [];
 
   if (n === 1) {
-    const coreSent = interp(bundle.core);
+    const coreSent = interp(bundle.core[0]!);
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
-    const mech = trimBundleField(bundle.mechanism);
-    const exp = trimBundleField(bundle.experience);
-    const elaboration = mech !== null ? interp(mech) : exp !== null ? interp(exp) : null;
-    if (elaboration !== null) {
+    const mechArr = trimVariantArray(bundle.mechanism);
+    const expArr = trimVariantArray(bundle.experience);
+    if (mechArr) {
+      const elaboration = selectPhraseFromRoleVariants({
+        variants: mechArr,
+        claimId: id,
+        role: 'mechanism',
+        slotKind: 'mep_elaboration_mechanism',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
       sentences.push(elaboration);
-      pushDequeForSentence(elaboration, mech !== null ? 'mechanism' : 'experience');
+      pushDequeForSentence(elaboration, 'mechanism');
+    } else if (expArr) {
+      const elaboration = selectPhraseFromRoleVariants({
+        variants: expArr,
+        claimId: id,
+        role: 'experience',
+        slotKind: 'mep_elaboration_experience',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
+      sentences.push(elaboration);
+      pushDequeForSentence(elaboration, 'experience');
     }
-    const impl = trimBundleField(bundle.implication);
-    if (impl !== null) {
-      const implSent = interp(impl);
+    const implArr = trimVariantArray(bundle.implication);
+    if (implArr) {
+      const implSent = selectPhraseFromRoleVariants({
+        variants: implArr,
+        claimId: id,
+        role: 'implication',
+        slotKind: 'mep_implication',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
       sentences.push(implSent);
       pushDequeForSentence(implSent, 'implication');
     }
   } else if (i === 0) {
-    const coreSent = interp(bundle.core);
+    const coreSent = interp(bundle.core[0]!);
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
-    const mech = trimBundleField(bundle.mechanism);
-    const exp = trimBundleField(bundle.experience);
-    const elaboration = mech !== null ? interp(mech) : exp !== null ? interp(exp) : null;
-    if (elaboration !== null) {
+    const mechArr = trimVariantArray(bundle.mechanism);
+    const expArr = trimVariantArray(bundle.experience);
+    if (mechArr) {
+      const elaboration = selectPhraseFromRoleVariants({
+        variants: mechArr,
+        claimId: id,
+        role: 'mechanism',
+        slotKind: 'mep_elaboration_mechanism',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
       sentences.push(elaboration);
-      pushDequeForSentence(elaboration, mech !== null ? 'mechanism' : 'experience');
+      pushDequeForSentence(elaboration, 'mechanism');
+    } else if (expArr) {
+      const elaboration = selectPhraseFromRoleVariants({
+        variants: expArr,
+        claimId: id,
+        role: 'experience',
+        slotKind: 'mep_elaboration_experience',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
+      sentences.push(elaboration);
+      pushDequeForSentence(elaboration, 'experience');
     }
   } else if (i === n - 1) {
-    const mod = modulationMaterial(bundle, claim);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
-    const impl = trimBundleField(bundle.implication);
-    if (impl !== null) {
-      const implSent = interp(impl);
+    const implArr = trimVariantArray(bundle.implication);
+    if (implArr) {
+      const implSent = selectPhraseFromRoleVariants({
+        variants: implArr,
+        claimId: id,
+        role: 'implication',
+        slotKind: 'mep_implication',
+        seed,
+        claim,
+        paragraphNormDeque,
+      });
       sentences.push(implSent);
       pushDequeForSentence(implSent, 'implication');
     }
   } else {
-    const mod = modulationMaterial(bundle, claim);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
   }
@@ -143,16 +212,68 @@ function renderMechanismArcBlock(input: {
 
 function modulationMaterial(
   bundle: ClaimExpressionBundle,
-  claim: SemanticClaim
+  claim: SemanticClaim,
+  claimId: string,
+  seed: string,
+  paragraphNormDeque: string[]
 ): { sentence: string; dequeRole: ClaimOptionalRole | null } {
-  const interpInner = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
-  const v = trimBundleField(bundle.variation);
-  if (v !== null) return { sentence: interpInner(v), dequeRole: 'variation' };
-  const e = trimBundleField(bundle.experience);
-  if (e !== null) return { sentence: interpInner(e), dequeRole: 'experience' };
-  const m = trimBundleField(bundle.mechanism);
-  if (m !== null) return { sentence: interpInner(m), dequeRole: 'mechanism' };
-  return { sentence: interpInner(bundle.core), dequeRole: null };
+  const varr = trimVariantArray(bundle.variation);
+  if (varr) {
+    return {
+      sentence: selectPhraseFromRoleVariants({
+        variants: varr,
+        claimId,
+        role: 'variation',
+        slotKind: 'mep_modulation_variation',
+        seed,
+        claim,
+        paragraphNormDeque,
+      }),
+      dequeRole: 'variation',
+    };
+  }
+  const earr = trimVariantArray(bundle.experience);
+  if (earr) {
+    return {
+      sentence: selectPhraseFromRoleVariants({
+        variants: earr,
+        claimId,
+        role: 'experience',
+        slotKind: 'mep_modulation_experience',
+        seed,
+        claim,
+        paragraphNormDeque,
+      }),
+      dequeRole: 'experience',
+    };
+  }
+  const marr = trimVariantArray(bundle.mechanism);
+  if (marr) {
+    return {
+      sentence: selectPhraseFromRoleVariants({
+        variants: marr,
+        claimId,
+        role: 'mechanism',
+        slotKind: 'mep_modulation_mechanism',
+        seed,
+        claim,
+        paragraphNormDeque,
+      }),
+      dequeRole: 'mechanism',
+    };
+  }
+  return {
+    sentence: selectPhraseFromRoleVariants({
+      variants: bundle.core,
+      claimId,
+      role: 'core',
+      slotKind: 'mep_modulation_fallback_core',
+      seed,
+      claim,
+      paragraphNormDeque,
+    }),
+    dequeRole: null,
+  };
 }
 
 function pickSecondarySentence(args: {
@@ -166,29 +287,31 @@ function pickSecondarySentence(args: {
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
 }): { role: ClaimOptionalRole; sentence: string } {
-  const { bundle: b, id, localIndex, seed, surface, tier, claim, sectionRoleDeque, paragraphNormDeque } = args;
+  const { bundle: b, id, seed, claim, sectionRoleDeque, paragraphNormDeque } = args;
   const candidates: ClaimOptionalRole[] = [];
   for (const r of CLAIM_OPTIONAL_ROLE_ORDER) {
     const t = b[r];
-    if (typeof t === 'string' && t.trim().length > 0) candidates.push(r);
+    if (Array.isArray(t) && t.length > 0) candidates.push(r);
   }
   if (candidates.length === 0) {
     throw new InvalidClaimExpressionBundleError(`${id}: no optional roles`);
   }
-  const R = hash32(`${seed}|${id}|${localIndex}|${surface}|${tier}`);
+  const R = hash32(`${seed}|${id}|secondary_role_ring`);
   const k = R % candidates.length;
-  const rotated = rotateArray(candidates, k);
-  const start = (k + surfaceOffset(surface)) % candidates.length;
-  const ordered = rotateArray(rotated, start);
-  const start2 = (start + tierOffset(tier)) % candidates.length;
-  const ordered2 = rotateArray(ordered, start2);
-
-  const sentFor = (role: ClaimOptionalRole) => applyStrengthInterpolation(b[role]!.trim(), claim);
+  const ordered2 = rotateArray(candidates, k);
 
   let chosen: ClaimOptionalRole | null = null;
   for (const role of ordered2) {
-    const sent = sentFor(role);
     if (sectionRoleDeque.includes(role)) continue;
+    const sent = selectPhraseFromRoleVariants({
+      variants: b[role]!,
+      claimId: id,
+      role,
+      slotKind: 'secondary',
+      seed,
+      claim,
+      paragraphNormDeque,
+    });
     if (paragraphNormDeque.includes(projectionNormSentence(sent))) continue;
     chosen = role;
     break;
@@ -196,7 +319,16 @@ function pickSecondarySentence(args: {
   if (chosen === null) {
     chosen = ordered2[0]!;
   }
-  return { role: chosen, sentence: sentFor(chosen) };
+  const sentence = selectPhraseFromRoleVariants({
+    variants: b[chosen]!,
+    claimId: id,
+    role: chosen,
+    slotKind: 'secondary',
+    seed,
+    claim,
+    paragraphNormDeque,
+  });
+  return { role: chosen, sentence };
 }
 
 export function renderClaimExpressionBlock(input: {
@@ -211,7 +343,7 @@ export function renderClaimExpressionBlock(input: {
   const { claim, localIndex, seed, surface, tier, sectionRoleDeque, paragraphNormDeque } = input;
   const id = claim.claim_id as ClaimId;
   const bundle = getClaimExpressionBundle(id);
-  const coreSentence = applyStrengthInterpolation(bundle.core, claim);
+  const coreSentence = applyStrengthInterpolation(bundle.core[0]!.trim(), claim);
   pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(coreSentence));
 
   const { role, sentence } = pickSecondarySentence({
@@ -246,7 +378,9 @@ export function synthesizeClaimSentences(lines: string[], claimIds: string[], se
   if (lines.length === 1) return lines[0];
   const parts: string[] = [lines[0]];
   for (let i = 1; i < lines.length; i++) {
-    parts.push(pickGlue(claimIds[i - 1] ?? '', claimIds[i] ?? '', `${seed}:${i}`));
+    parts.push(
+      pickInterClaimGlue(claimIds[i - 1] ?? '', claimIds[i] ?? '', `${seed}:${i}`, i)
+    );
     parts.push(lines[i]);
   }
   return parts.join(' ');
@@ -374,6 +508,7 @@ export function buildClaimMechanismExpressionParagraph(
       n: blockCount,
       sectionRoleDeque,
       paragraphNormDeque,
+      seed: `${seed}|${ordered[i]!.claim_id}|mep`,
     });
     lines.push(block.text);
     ids.push(block.claim_id);
@@ -459,6 +594,7 @@ export function buildControlledMechanismExpressionParagraph(
       n: blockCount,
       sectionRoleDeque,
       paragraphNormDeque,
+      seed: `${seed}|${c.claim_id}|mep`,
     });
     lines.push(block.text);
     ids.push(block.claim_id);

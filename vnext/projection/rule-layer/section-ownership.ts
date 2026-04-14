@@ -3,9 +3,9 @@
  * No delivery-order naming; projection-local only.
  */
 
-/** Same glue literals as `claim-synthesize` `pickGlue` (mechanism / panel synthesis). */
-const MEP_GLUE_SPLIT =
-  /\s+(?:In the same picture,|Alongside that signal,|Taken together with the prior emphasis,)\s+/;
+import { INTER_CLAIM_GLUE_SPLIT_REGEX } from './claim-inter-claim-glue';
+
+const MEP_GLUE_SPLIT = INTER_CLAIM_GLUE_SPLIT_REGEX;
 
 /**
  * Split `mep.text` into one tagged paragraph per claim when glue matches `mep.claimIds.length`.

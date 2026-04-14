@@ -135,11 +135,15 @@ function main(): void {
     const b = getClaimExpressionBundle(id);
     assert(b === CLAIM_EXPRESSION_BUNDLES[id], `bundle ref ${id}`);
     for (const k of ['core', 'mechanism', 'experience', 'variation', 'implication'] as const) {
-      const s = b[k];
-      if (typeof s !== 'string') continue;
-      const lower = s.toLowerCase();
-      for (const f of CLAIM_BUNDLE_FORBIDDEN_SUBSTRINGS) {
-        assert(!lower.includes(f.toLowerCase()), `${id}.${k} must not contain forbidden: ${f}`);
+      const arr = b[k];
+      if (!arr) continue;
+      for (let i = 0; i < arr.length; i++) {
+        const s = arr[i];
+        if (typeof s !== 'string') continue;
+        const lower = s.toLowerCase();
+        for (const f of CLAIM_BUNDLE_FORBIDDEN_SUBSTRINGS) {
+          assert(!lower.includes(f.toLowerCase()), `${id}.${k}[${i}] must not contain forbidden: ${f}`);
+        }
       }
     }
   }
