@@ -757,7 +757,17 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
           const longitude = Number(lon);
           const hasLocationOverride = Number.isFinite(latitude) && Number.isFinite(longitude) && timezone.trim();
           if (hasLocationOverride) {
-            const location = { lat: latitude, lon: longitude, timezone: timezone.trim() };
+            const label =
+              locationSearchLabel.trim() ||
+              `${latitude.toFixed(4)}, ${longitude.toFixed(4)} (${timezone.trim()})`;
+            const location = {
+              source: 'geofinder' as const,
+              label,
+              lat: latitude,
+              lon: longitude,
+              timezone: timezone.trim(),
+              resolvedAt: new Date().toISOString(),
+            };
             body.location = location;
             const putRes = await fetch('/api/users/me/transit-context', {
               method: 'PUT',
@@ -806,7 +816,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
         }
       }
     },
-    [campaign, campaignId, date, time, lat, lon, timezone]
+    [campaign, campaignId, date, time, lat, lon, timezone, locationSearchLabel]
   );
 
   const kickoffDailyRequest = useCallback(
