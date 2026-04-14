@@ -44,6 +44,11 @@ export type ProjectionOptions = {
    * @internal Gate A — violations from the failed higher-tier attempt (copied before retry).
    */
   _priorAttemptViolations?: string[];
+  /**
+   * When true, mechanism-expression (`mep`) uses dominant-signal ordering and tail relatedness rules.
+   * Omitted or false preserves legacy `mep` construction.
+   */
+  mechanismExpressionDominantSignals?: boolean;
 };
 
 export type Phase4UnitRef = {

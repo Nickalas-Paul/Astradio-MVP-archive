@@ -19,6 +19,7 @@ import {
   tierOffset,
 } from './claim-expression-bundles';
 import { claimWindow } from './claim-select';
+import { claimMechanismRelatedToDominants } from './dominant-signal-relatedness';
 
 function pickVariant(seed: string, variants: string[]): string {
   if (variants.length === 0) return '';
@@ -221,6 +222,107 @@ export function buildClaimMechanismExpressionParagraph(
     lines.push(block.text);
     ids.push(c.claim_id);
   }
+  return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
+}
+
+function mechanismSliceIndexOfClaimId(slice: readonly SemanticClaim[], claimId: string): number {
+  return slice.findIndex((c) => c.claim_id === claimId);
+}
+
+/**
+ * Controlled mechanism-expression paragraph: dominant prefix, related tail before unrelated fallback.
+ * `localIndex` for rendering always equals the claim's index within `core.claims.slice(0, claimWindow(tier))`.
+ */
+export function buildControlledMechanismExpressionParagraph(
+  core: SemanticCore,
+  seed: string,
+  tier: ExpansionTier,
+  surface: ProjectionSurface,
+  sectionRoleDeque: ClaimOptionalRole[],
+  paragraphNormDeque: string[],
+  dominantClaimIds: readonly string[]
+): { text: string; claimIds: string[] } {
+  const n = claimWindow(tier);
+  const slice = core.claims.slice(0, n);
+  const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
+
+  const dominantOrdered: SemanticClaim[] = [];
+  const seenDomId = new Set<string>();
+  for (const id of dominantClaimIds) {
+    if (seenDomId.has(id)) continue;
+    const ix = mechanismSliceIndexOfClaimId(slice, id);
+    if (ix < 0) continue;
+    seenDomId.add(id);
+    dominantOrdered.push(slice[ix]!);
+  }
+
+  const dominantClaimsUnique: SemanticClaim[] = [];
+  const seenRel = new Set<string>();
+  for (const id of dominantClaimIds) {
+    const ix = mechanismSliceIndexOfClaimId(slice, id);
+    if (ix < 0 || seenRel.has(id)) continue;
+    seenRel.add(id);
+    dominantClaimsUnique.push(slice[ix]!);
+  }
+
+  const R_prefix = Math.min(dominantOrdered.length, maxLines);
+  const used = new Set<string>();
+  const lines: string[] = [];
+  const ids: string[] = [];
+
+  for (let p = 0; p < R_prefix; p++) {
+    const c = dominantOrdered[p]!;
+    const origIdx = mechanismSliceIndexOfClaimId(slice, c.claim_id);
+    used.add(c.claim_id);
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex: origIdx,
+      seed: `${seed}|${c.claim_id}|mep`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    lines.push(block.text);
+    ids.push(c.claim_id);
+  }
+
+  for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
+    const c = slice[i]!;
+    if (used.has(c.claim_id)) continue;
+    if (!claimMechanismRelatedToDominants(c, dominantClaimsUnique, core)) continue;
+    used.add(c.claim_id);
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex: i,
+      seed: `${seed}|${c.claim_id}|mep`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    lines.push(block.text);
+    ids.push(c.claim_id);
+  }
+
+  for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
+    const c = slice[i]!;
+    if (used.has(c.claim_id)) continue;
+    if (claimMechanismRelatedToDominants(c, dominantClaimsUnique, core)) continue;
+    used.add(c.claim_id);
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex: i,
+      seed: `${seed}|${c.claim_id}|mep`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    lines.push(block.text);
+    ids.push(c.claim_id);
+  }
+
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
 }
 

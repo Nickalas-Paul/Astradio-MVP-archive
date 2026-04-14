@@ -15,12 +15,15 @@ import { densityForSurfaceBaseline } from '../density-validate';
 import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
   buildClaimMechanismExpressionParagraph,
+  buildControlledMechanismExpressionParagraph,
   buildTensionIntegrationParagraph,
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
   claimSentencesFromRange,
   capToMaxSentences,
 } from './claim-synthesize';
+import { claimWindow } from './claim-select';
+import { selectDominantMechanismSignals } from './dominant-signal-selection';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
@@ -383,7 +386,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const reportPadUsed = new Set<string>();
   const mepSectionRole: ClaimOptionalRole[] = [];
   const mepParagraphNorm: string[] = [];
-  const mep = buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
+  const mep =
+    options.mechanismExpressionDominantSignals === true
+      ? buildControlledMechanismExpressionParagraph(
+          core,
+          seed,
+          tierEff,
+          surface,
+          mepSectionRole,
+          mepParagraphNorm,
+          selectDominantMechanismSignals(core.claims.slice(0, claimWindow(tierEff)), tierEff)
+        )
+      : buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
   const openingClause = tierOpeningClause(surface, tierEff, seed);
   const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
   const campaignBaselineExtra =
