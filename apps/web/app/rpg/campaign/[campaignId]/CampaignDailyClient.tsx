@@ -277,7 +277,7 @@ function describeChoice(choice: ResponseChoice) {
 function mapErrorState(error: string | null): SurfaceErrorState | null {
   if (!error) return null;
   const message = error.toLowerCase();
-  if (message.includes('not signed in')) {
+  if (message.includes('not signed in') || message.includes('unauthorized')) {
     return {
       title: 'Access required',
       description: 'Sign in again to open this Campaign surface.',
@@ -319,6 +319,30 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
       title: 'Location still needed',
       description: 'Search and select a valid place below, or ensure your saved location is set in Profile, before running this solo daily.',
       tone: 'warning',
+    };
+  }
+  const httpMatch = /^HTTP (\d{3}):\s*(.*)$/i.exec(error);
+  if (httpMatch) {
+    const statusCode = Number(httpMatch[1]);
+    const detail = (httpMatch[2] || '').trim();
+    if (statusCode === 502) {
+      return {
+        title: 'Engine unavailable',
+        description: detail || error,
+        tone: 'danger',
+      };
+    }
+  }
+  if (
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('load failed') ||
+    message.includes('econnrefused')
+  ) {
+    return {
+      title: 'Engine unavailable',
+      description: error,
+      tone: 'danger',
     };
   }
   return {
@@ -636,16 +660,31 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
         const response = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}`, {
           headers: { Accept: 'application/json' },
         });
-        const data = await response.json().catch(() => ({}));
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
         if (!response.ok) {
-          throw new Error(data?.error || 'Failed to load campaign');
+          const detail =
+            (typeof data.error === 'string' && data.error) ||
+            (typeof data.message === 'string' && data.message) ||
+            'Failed to load campaign';
+          const errMsg = `HTTP ${response.status}: ${detail}`;
+          console.warn('[campaign-bootstrap]', {
+            campaignId,
+            status: response.status,
+            message: errMsg,
+          });
+          throw new Error(errMsg);
         }
         if (!cancelled) {
           setCampaign(data as CampaignRecord);
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : String(loadError));
+          const msg = loadError instanceof Error ? loadError.message : String(loadError);
+          console.warn('[campaign-bootstrap]', { campaignId, status: null, message: msg });
+          setError(msg);
         }
       } finally {
         if (!cancelled) {
@@ -850,6 +889,19 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
 
   if (isLoadingCampaign) {
     return <main className="min-h-screen flex items-center justify-center">Loading campaign...</main>;
+  }
+
+  if (error && !campaign) {
+    const bootstrapError = mapErrorState(error);
+    if (bootstrapError) {
+      return (
+        <main className="min-h-screen bg-bg px-6 py-8 text-text flex items-center justify-center">
+          <div className="w-full max-w-lg">
+            <ErrorPanel state={bootstrapError} />
+          </div>
+        </main>
+      );
+    }
   }
 
   if (!campaign) {
