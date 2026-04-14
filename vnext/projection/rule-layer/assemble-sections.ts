@@ -11,7 +11,7 @@ import type {
   TaggedSectionBody,
 } from '../projection-types';
 import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
-import { densityForSurfaceBaseline } from '../density-validate';
+import { densityForSurfaceBaseline, minClaimBodiesForDensity } from '../density-validate';
 import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
   buildClaimMechanismExpressionParagraph,
@@ -39,6 +39,7 @@ import {
   validatePhase2Sections,
 } from './phase2-sentence-load';
 import { enrichSectionTextWithTagged } from './assemble-section-tagged';
+import { sortUniqueClaimIds, splitMepBodyForTaggedParagraphs } from './section-ownership';
 import {
   reconstructTaggedSectionBody,
   splitParasForTagged,
@@ -183,26 +184,33 @@ function appendSectionGroupBlock(
   }
 }
 
+/**
+ * Appends a block to section extras. Only `provenance === 'claim_body'` ids are recorded in
+ * `bodyClaimIdsOut` (actual `renderClaimExpressionBlock` usage — mep and supplemental panels).
+ * Non-claim_body blocks always append when non-null (synthesis_wrapper, tier_scaffold, padding).
+ */
 function appendSectionGroupTagged(
   extras: string[],
   extrasTagged: TaggedSectionBody[],
-  claimIds: string[],
   usedWithinGroup: Set<string>,
   block: { text: string; claimIds: string[] } | null,
-  provenance: import('../projection-types').ProvenanceType
+  provenance: import('../projection-types').ProvenanceType,
+  bodyClaimIdsOut: string[]
 ): void {
   if (!block) return;
-  const fresh = block.claimIds.filter((id) => !usedWithinGroup.has(id));
-  if (fresh.length === 0 && block.claimIds.length > 0) return;
-  extras.push(block.text);
-  extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
-  for (const id of fresh) {
-    usedWithinGroup.add(id);
-    claimIds.push(id);
-  }
-  if (block.claimIds.length === 0) {
+  if (provenance === 'claim_body') {
+    const fresh = block.claimIds.filter((id) => !usedWithinGroup.has(id));
+    if (fresh.length === 0 && block.claimIds.length > 0) return;
+    extras.push(block.text);
+    extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
+    for (const id of fresh) {
+      usedWithinGroup.add(id);
+      bodyClaimIdsOut.push(id);
+    }
     return;
   }
+  extras.push(block.text);
+  extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
 }
 
 function applyAggregateSurfaceIdentityOverrides(
@@ -235,10 +243,6 @@ function applyAggregateSurfaceIdentityOverrides(
             'A wider field shows before any single dyad line carries the whole meaning.',
             'Several centers stay visible; the blend is not reducible to one corner of the room.',
           ]);
-    const claimIdsIn =
-      s.meta?.claimIdsReferenced && s.meta.claimIdsReferenced.length > 0
-        ? [...s.meta.claimIdsReferenced]
-        : core.claims.slice(0, 8).map((c) => c.claim_id);
     const idTagged = taggedSectionBodyFromText(baseIdentity, 'synthesis_wrapper');
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       baseIdentity,
@@ -247,14 +251,14 @@ function applyAggregateSurfaceIdentityOverrides(
       [],
       d,
       `${seed}:${surface === 'compat_pair' ? 'compat' : 'group'}:rel:enrich:${i}`,
-      claimIdsIn,
+      [],
       reportPadUsed,
       PAD_SENTENCES
     );
     out[i] = {
       ...s,
       text,
-      meta: { ...s.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true, tagged },
+      meta: { ...s.meta, claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged, enrichDensity: d },
     };
   }
   return out;
@@ -313,7 +317,8 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     title: 'Signal',
     text: t1,
     meta: {
-      claimIdsReferenced: claimSlice.claimIds.slice(0, 4),
+      enrichDensity: 'short',
+      claimIdsReferenced: sortUniqueClaimIds(claimSlice.claimIds),
       phaseD: true,
       tagged: taggedFeedSignalBody(t1),
     },
@@ -323,6 +328,7 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     title: 'Scope',
     text: FEED_SCOPE_SENTENCE,
     meta: {
+      enrichDensity: 'short',
       claimIdsReferenced: [],
       phaseD: true,
       tagged: taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template'),
@@ -405,20 +411,24 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const campaignExpandedExtra =
     surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp') : null;
 
+  const globalExclusiveBodyClaimIds = new Set<string>();
+
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
     const d = densityForSectionId(sec.id, densityDefault);
     const extras: string[] = [];
     const extrasTagged: TaggedSectionBody[] = [];
-    let cids = [...mep.claimIds];
-    const usedWithinGroup = new Set<string>(mep.claimIds);
+    const bodyClaimIdsOut: string[] = [];
+    const usedWithinGroup = new Set<string>();
 
     if (idx === 0) {
       if (openingClause) {
         extras.push(openingClause);
         extrasTagged.push(taggedSectionBodyFromText(openingClause, 'tier_scaffold'));
       }
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, mep, 'claim_body');
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, tensionBlock, 'synthesis_wrapper');
+      for (const mepBlock of splitMepBodyForTaggedParagraphs(mep.text, mep.claimIds)) {
+        appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, mepBlock, 'claim_body', bodyClaimIdsOut);
+      }
+      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, tensionBlock, 'synthesis_wrapper', bodyClaimIdsOut);
       if (surface === 'sandbox') {
         const lab = pickVariant(`${seed}:sandbox:lab:${tierEff}`, [
           'Sandbox framing: this picture reflects lab conditions you changed on purpose.',
@@ -430,32 +440,83 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     } else if (idx === 1) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
-      const pan = buildSupplementalPanel(core, `${seed}:s1`, 0, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, pan, 'claim_body');
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, campaignBaselineExtra, 'claim_body');
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, campaignExpandedExtra, 'claim_body');
+      const pan = buildSupplementalPanel(
+        core,
+        `${seed}:s1`,
+        0,
+        tierEff,
+        surface,
+        sectionRoleDeque,
+        paragraphNormDeque,
+        globalExclusiveBodyClaimIds,
+        d
+      );
+      const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
+      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
+      appendSectionGroupTagged(
+        extras,
+        extrasTagged,
+        usedWithinGroup,
+        campaignBaselineExtra,
+        'synthesis_wrapper',
+        bodyClaimIdsOut
+      );
+      appendSectionGroupTagged(
+        extras,
+        extrasTagged,
+        usedWithinGroup,
+        campaignExpandedExtra,
+        'synthesis_wrapper',
+        bodyClaimIdsOut
+      );
     } else {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
-      const pan = buildSupplementalPanel(core, `${seed}:sx`, idx, tierEff, surface, sectionRoleDeque, paragraphNormDeque);
-      appendSectionGroupTagged(extras, extrasTagged, cids, usedWithinGroup, pan, 'claim_body');
+      const pan = buildSupplementalPanel(
+        core,
+        `${seed}:sx`,
+        idx,
+        tierEff,
+        surface,
+        sectionRoleDeque,
+        paragraphNormDeque,
+        globalExclusiveBodyClaimIds,
+        d
+      );
+      const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
+      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
     }
+
+    const bodyMeta = sortUniqueClaimIds(bodyClaimIdsOut);
+    for (const id of bodyMeta) {
+      globalExclusiveBodyClaimIds.add(id);
+    }
+
+    const minNeed = minClaimBodiesForDensity(d);
+    const effectiveDensity =
+      bodyMeta.length > 0 && bodyMeta.length < minNeed ? ('short' as const) : d;
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
       sec.meta!.tagged!,
       extras,
       extrasTagged,
-      d,
+      effectiveDensity,
       `${seed}:en:${sec.id}:${idx}`,
-      cids,
+      bodyMeta,
       reportPadUsed,
       PAD_SENTENCES
     );
     return {
       ...sec,
       text,
-      meta: { ...sec.meta, claimIdsReferenced: [...new Set(claimIds)], phaseD: true, tagged },
+      meta: {
+        ...sec.meta,
+        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        phaseD: true,
+        tagged,
+        enrichDensity: effectiveDensity,
+      },
     };
   });
 
@@ -473,7 +534,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         surface,
         tierEff,
         synSecRole,
-        synParaNorm
+        synParaNorm,
+        globalExclusiveBodyClaimIds
       );
       const wrap = pickVariant(seed + ':syn', [
         `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
@@ -488,6 +550,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
               { text: synBody, provenance: 'claim_body' },
             ])
           : taggedSectionBodyFromText(wrap, 'synthesis_wrapper');
+      const synBodyMeta = sortUniqueClaimIds(synClaim.claimIds);
+      for (const id of synBodyMeta) {
+        globalExclusiveBodyClaimIds.add(id);
+      }
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
         synTagged,
@@ -495,7 +561,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         'short',
         `${seed}:synbody`,
-        [...new Set([...mep.claimIds.slice(0, 6), ...synClaim.claimIds])],
+        synBodyMeta,
         reportPadUsed,
         PAD_SENTENCES,
         { feed: true }
@@ -504,7 +570,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'synthesis_a',
         title: 'Synthesis',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
     if (key === 'synthesis_b') {
@@ -518,7 +584,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         surface,
         tierEff,
         synBSecRole,
-        synBParaNorm
+        synBParaNorm,
+        globalExclusiveBodyClaimIds
       );
       const wrapB = pickVariant(seed + ':synb', [
         `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
@@ -533,6 +600,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
               { text: synBodyB, provenance: 'claim_body' },
             ])
           : taggedSectionBodyFromText(wrapB, 'synthesis_wrapper');
+      const synBodyMetaB = sortUniqueClaimIds(synClaim.claimIds);
+      for (const id of synBodyMetaB) {
+        globalExclusiveBodyClaimIds.add(id);
+      }
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
         synTagged,
@@ -540,7 +611,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         'short',
         `${seed}:synb`,
-        [...new Set([...mep.claimIds.slice(0, 10), ...synClaim.claimIds])],
+        synBodyMetaB,
         reportPadUsed,
         PAD_SENTENCES,
         { feed: true }
@@ -549,7 +620,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'synthesis_b',
         title: 'Extended synthesis',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
     if (key === 'temporal_integration' && surface === 'daily') {
@@ -562,7 +633,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:ti`,
-        mep.claimIds.slice(0, 4),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -570,7 +641,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'temporal_integration',
         title: 'Temporal integration',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'trait_bridge' && surface === 'profile') {
@@ -586,7 +662,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:tb`,
-        mep.claimIds.slice(0, 5),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -594,7 +670,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'trait_bridge',
         title: 'Trait bridge',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'interaction_map' && surface === 'compat_pair') {
@@ -610,7 +691,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:im`,
-        mep.claimIds.slice(0, 6),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -618,7 +699,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'interaction_map',
         title: 'Interaction map',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'field_distribution' && surface === 'group') {
@@ -634,7 +720,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:fd`,
-        mep.claimIds.slice(0, 6),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -642,12 +728,17 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'field_distribution',
         title: 'Field distribution',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'pressure_response' && surface === 'campaign') {
       const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr');
-      const prTagged = taggedSectionBodyFromText(pr.text, 'claim_body');
+      const prTagged = taggedSectionBodyFromText(pr.text, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         pr.text,
         prTagged,
@@ -655,7 +746,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:pr`,
-        pr.claimIds,
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -663,7 +754,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'pressure_response',
         title: 'Pressure → response',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'layering' && surface === 'overlay_pair') {
@@ -679,7 +775,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:lay`,
-        mep.claimIds.slice(0, 5),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -687,7 +783,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'layering',
         title: 'Layering (natal / sky)',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
     if (key === 'delta_emphasis' && surface === 'sandbox') {
@@ -703,7 +804,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         [],
         densityDefault,
         `${seed}:de`,
-        mep.claimIds.slice(0, 4),
+        [],
         reportPadUsed,
         PAD_SENTENCES
       );
@@ -711,7 +812,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         id: 'delta_emphasis',
         title: 'Sandbox note',
         text,
-        meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+        meta: {
+          enrichDensity: densityDefault,
+          claimIdsReferenced: sortUniqueClaimIds(claimIds),
+          phaseD: true,
+          tagged,
+        },
       });
     }
   }
@@ -729,7 +835,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       [extraTagged],
       densityDefault,
       `${seed}:con`,
-      tensionBlock.claimIds,
+      [],
       reportPadUsed,
       PAD_SENTENCES
     );
@@ -737,7 +843,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       id: 'contradiction_map',
       title: 'Contrast map',
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+      meta: {
+        enrichDensity: densityDefault,
+        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        phaseD: true,
+        tagged,
+      },
     });
   }
 
@@ -753,7 +864,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       [],
       densityDefault,
       `${seed}:sub`,
-      mep.claimIds.slice(0, 8),
+      [],
       reportPadUsed,
       PAD_SENTENCES
     );
@@ -761,7 +872,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       id: 'subcluster',
       title: 'Subcluster',
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+      meta: {
+        enrichDensity: densityDefault,
+        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        phaseD: true,
+        tagged,
+      },
     });
   }
 
@@ -776,9 +892,16 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       tierEff,
       surface,
       fillSecRole,
-      fillParaNorm
+      fillParaNorm,
+      globalExclusiveBodyClaimIds,
+      densityForSectionId('depth_panel_x', 'short')
     );
-    const panTagged = taggedSectionBodyFromText(pan.text, 'claim_body');
+    const panProvFill = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
+    const panTagged = taggedSectionBodyFromText(pan.text, panProvFill);
+    const fillBodyMeta = sortUniqueClaimIds(pan.claimIds);
+    for (const id of fillBodyMeta) {
+      globalExclusiveBodyClaimIds.add(id);
+    }
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       pan.text,
       panTagged,
@@ -786,7 +909,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       [],
       densityForSectionId('depth_panel_x', 'short'),
       `${seed}:dp:${panelIdx}`,
-      pan.claimIds,
+      fillBodyMeta,
       reportPadUsed,
       PAD_SENTENCES,
       { feed: true }
@@ -795,7 +918,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       id: `depth_panel_${panelIdx}`,
       title: pan.title,
       text,
-      meta: { claimIdsReferenced: claimIds, phaseD: true, tagged },
+      meta: {
+        enrichDensity: densityForSectionId('depth_panel_x', 'short'),
+        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        phaseD: true,
+        tagged,
+      },
     });
   }
 
@@ -820,7 +948,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       id: 'audio_staging',
       title: audio.title,
       text,
-      meta: { claimIdsReferenced: [], phaseD: true, tagged },
+      meta: { enrichDensity: 'short', claimIdsReferenced: [], phaseD: true, tagged },
     });
   } else {
     const fullTagged = taggedSectionBodyFromText(audioBodyNormalized, 'audio_staging');
@@ -844,7 +972,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       title: audio.title,
       text,
       bullets: audio.bullets,
-      meta: { claimIdsReferenced: [], phaseD: true, tagged },
+      meta: {
+        enrichDensity: densityForSectionId('audio_staging', 'short'),
+        claimIdsReferenced: [],
+        phaseD: true,
+        tagged,
+      },
     });
   }
 
@@ -867,7 +1000,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       id: 'audio_thread',
       title: 'Audio thread',
       text,
-      meta: { claimIdsReferenced: [], phaseD: true, tagged },
+      meta: { enrichDensity: 'short', claimIdsReferenced: [], phaseD: true, tagged },
     });
   }
 

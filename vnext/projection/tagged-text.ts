@@ -143,7 +143,7 @@ export function assertAllSectionsTagged(sections: ProjectedExplanationSection[],
 /** Deep strip `meta.tagged` for JSON hashing (explanation hash stability). */
 export function stripTaggedFromMeta(meta: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!meta) return undefined;
-  const { tagged: _t, phase4_composition: _p4, ...rest } = meta;
+  const { tagged: _t, phase4_composition: _p4, enrichDensity: _ed, ...rest } = meta;
   return Object.keys(rest).length ? rest : undefined;
 }
 

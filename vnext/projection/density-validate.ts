@@ -3,7 +3,7 @@
  */
 import type { DensityClass } from './projection-types';
 
-const RULES: Record<
+export const DENSITY_RULES: Record<
   DensityClass,
   { minParagraphs: number; minSentencesPerParagraph: number; minClaims: number }
 > = {
@@ -25,12 +25,17 @@ export function countSentences(text: string): number {
   return Math.max(chunks.length, 1);
 }
 
+export function minClaimBodiesForDensity(density: DensityClass): number {
+  return DENSITY_RULES[density].minClaims;
+}
+
 export function validateDensity(
   text: string,
   density: DensityClass,
-  claimIdsReferenced: string[]
+  claimIdsReferenced: string[],
+  opts?: { minClaimsOverride?: number }
 ): { ok: boolean; reasons: string[] } {
-  const r = RULES[density];
+  const r = DENSITY_RULES[density];
   const reasons: string[] = [];
   const paras = text.split(/\n\n+/).map((s) => s.trim()).filter(Boolean);
   const paraCount = paras.length || (text.trim() ? 1 : 0);
@@ -45,8 +50,9 @@ export function validateDensity(
     }
   }
   const uniq = new Set(claimIdsReferenced.filter(Boolean));
-  if (uniq.size < r.minClaims) {
-    reasons.push(`claims:${uniq.size}<${r.minClaims}`);
+  const minClaims = opts?.minClaimsOverride ?? r.minClaims;
+  if (uniq.size < minClaims) {
+    reasons.push(`claims:${uniq.size}<${minClaims}`);
   }
   return { ok: reasons.length === 0, reasons };
 }

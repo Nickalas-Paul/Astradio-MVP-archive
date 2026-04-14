@@ -151,12 +151,14 @@ export function validateReportSections(
 
   const defaultD = densityForSurfaceBaseline(schema.baselineDensityDefault, tierForDensity);
   for (const sec of sections) {
-    const d = densityForSectionId(sec.id, defaultD);
+    const d =
+      sec.meta?.enrichDensity !== undefined ? sec.meta.enrichDensity : densityForSectionId(sec.id, defaultD);
     const claims =
       sec.meta?.claimIdsReferenced && sec.meta.claimIdsReferenced.length > 0
-        ? sec.meta.claimIdsReferenced
-        : core.claims.slice(0, 8).map((c) => c.claim_id);
-    const v = validateDensity(sec.text, d, claims);
+        ? [...sec.meta.claimIdsReferenced]
+        : [];
+    const minClaimsOverride = claims.length === 0 ? 0 : undefined;
+    const v = validateDensity(sec.text, d, claims, { minClaimsOverride });
     if (!v.ok) hard.push(`${sec.id}:${v.reasons.join(';')}`);
 
     const sentCap = sectionSentenceCap(sec.id);

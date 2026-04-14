@@ -4,7 +4,8 @@
  */
 import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
-import type { ExpansionTier, ProjectionSurface } from '../projection-types';
+import type { DensityClass, ExpansionTier, ProjectionSurface } from '../projection-types';
+import { minClaimBodiesForDensity } from '../density-validate';
 import { projectionNormSentence } from './repetition-collapse-phase0';
 import {
   applyStrengthInterpolation,
@@ -341,6 +342,8 @@ export function buildTensionIntegrationParagraph(
   return { text, claimIds: cIds };
 }
 
+const PANEL_WINDOW_MAX_ATTEMPTS = 200;
+
 export function buildSupplementalPanel(
   core: SemanticCore,
   seed: string,
@@ -348,36 +351,94 @@ export function buildSupplementalPanel(
   tier: ExpansionTier,
   surface: ProjectionSurface,
   sectionRoleDeque: ClaimOptionalRole[],
-  paragraphNormDeque: string[]
+  paragraphNormDeque: string[],
+  excludeClaimIds: ReadonlySet<string>,
+  sectionDensity: DensityClass
 ): { title: string; text: string; claimIds: string[] } {
-  const start = 2 + panelIndex * 3;
-  const slice = core.claims.slice(start, start + 3 + (tier === 'extended' ? 2 : 0));
+  const width = 3 + (tier === 'extended' ? 2 : 0);
+  const baseStart = 2 + panelIndex * 3;
+  let start = baseStart;
+  let stride = 1;
+  const minBodyClaims = minClaimBodiesForDensity(sectionDensity);
   const lines: string[] = [];
   const ids: string[] = [];
-  for (let i = 0; i < slice.length; i++) {
-    const c = slice[i];
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex: i,
-      seed: `${seed}|${c.claim_id}|panel:${panelIndex}`,
-      surface,
-      tier,
-      sectionRoleDeque,
-      paragraphNormDeque,
-    });
-    lines.push(block.text);
-    ids.push(c.claim_id);
+  const seenClaim = new Set<string>();
+
+  for (let attempt = 0; attempt < PANEL_WINDOW_MAX_ATTEMPTS; attempt++) {
+    if (start >= core.claims.length) {
+      break;
+    }
+    const slice = core.claims.slice(start, start + width);
+    for (let i = 0; i < slice.length; i++) {
+      const c = slice[i]!;
+      if (excludeClaimIds.has(c.claim_id) || seenClaim.has(c.claim_id)) {
+        continue;
+      }
+      const block = renderClaimExpressionBlock({
+        claim: c,
+        localIndex: lines.length,
+        seed: `${seed}|${c.claim_id}|panel:${panelIndex}|${lines.length}`,
+        surface,
+        tier,
+        sectionRoleDeque,
+        paragraphNormDeque,
+      });
+      lines.push(block.text);
+      ids.push(c.claim_id);
+      seenClaim.add(c.claim_id);
+      if (ids.length >= minBodyClaims) {
+        break;
+      }
+    }
+    if (ids.length >= minBodyClaims) {
+      break;
+    }
+    start += stride;
+    stride += 1;
   }
-  const raw =
-    synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||
-    pickVariant(seed, [
-      'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
-    ]);
-  const text = capToMaxSentences(raw, 2);
+
+  if (lines.length > 0 && ids.length < minBodyClaims) {
+    for (let j = 0; j < core.claims.length && ids.length < minBodyClaims; j++) {
+      const c = core.claims[j]!;
+      if (excludeClaimIds.has(c.claim_id) || seenClaim.has(c.claim_id)) {
+        continue;
+      }
+      const block = renderClaimExpressionBlock({
+        claim: c,
+        localIndex: lines.length,
+        seed: `${seed}|${c.claim_id}|panel:${panelIndex}:fill|${lines.length}`,
+        surface,
+        tier,
+        sectionRoleDeque,
+        paragraphNormDeque,
+      });
+      lines.push(block.text);
+      ids.push(c.claim_id);
+      seenClaim.add(c.claim_id);
+    }
+  }
+
+  if (lines.length > 0) {
+    const raw =
+      synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||
+      pickVariant(seed, [
+        'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
+      ]);
+    const text = capToMaxSentences(raw, 2);
+    return {
+      title: `Pattern note ${panelIndex + 1}`,
+      text,
+      claimIds: ids,
+    };
+  }
+
+  const text = pickVariant(`${seed}:pan:pad:${panelIndex}`, [
+    'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
+  ]);
   return {
     title: `Pattern note ${panelIndex + 1}`,
-    text,
-    claimIds: ids,
+    text: capToMaxSentences(text, 2),
+    claimIds: [],
   };
 }
 

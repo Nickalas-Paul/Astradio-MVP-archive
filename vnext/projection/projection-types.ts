@@ -130,6 +130,8 @@ export type ProjectedExplanationSection = {
   text: string;
   bullets?: string[];
   meta?: {
+    /** Density passed to `enrichSectionTextWithTagged` for this section (validation uses this when set). */
+    enrichDensity?: DensityClass;
     claimIdsReferenced?: string[];
     phaseD?: boolean;
     projection_validation?: ProjectionValidation;

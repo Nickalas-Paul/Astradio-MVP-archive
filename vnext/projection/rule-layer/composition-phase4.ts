@@ -186,9 +186,17 @@ function acceptsTemporal(s: ProvenanceType[]): boolean {
 }
 
 function acceptsPressure(s: ProvenanceType[]): boolean {
-  if (!onlySymbols(s, new Set<ProvenanceType>(['claim_body', 'padding']))) return false;
+  if (!onlySymbols(s, new Set<ProvenanceType>(['claim_body', 'synthesis_wrapper', 'padding']))) return false;
+  if (
+    matchesBlocks(s, [
+      { sym: 'claim_body', min: 1, max: -1 },
+      { sym: 'padding', min: 0, max: -1 },
+    ])
+  ) {
+    return true;
+  }
   return matchesBlocks(s, [
-    { sym: 'claim_body', min: 1, max: -1 },
+    { sym: 'synthesis_wrapper', min: 1, max: -1 },
     { sym: 'padding', min: 0, max: -1 },
   ]);
 }

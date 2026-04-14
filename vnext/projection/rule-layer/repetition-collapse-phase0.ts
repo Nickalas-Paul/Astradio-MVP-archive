@@ -483,12 +483,14 @@ function densityRepair(
     let fixed = false;
     for (let si = 0; si < sections.length; si++) {
       const sec = sections[si]!;
-      const d = densityForSectionId(sec.id, defaultD);
+      const d =
+        sec.meta?.enrichDensity !== undefined ? sec.meta.enrichDensity : densityForSectionId(sec.id, defaultD);
       const claims =
         sec.meta?.claimIdsReferenced && sec.meta.claimIdsReferenced.length > 0
-          ? sec.meta.claimIdsReferenced
-          : ctx.core.claims.slice(0, 8).map((c) => c.claim_id);
-      const v = validateDensity(sec.text, d, claims);
+          ? [...sec.meta.claimIdsReferenced]
+          : [];
+      const minClaimsOverride = claims.length === 0 ? 0 : undefined;
+      const v = validateDensity(sec.text, d, claims, { minClaimsOverride });
       if (v.ok) continue;
 
       const paras = splitParas(sec.text);
