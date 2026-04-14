@@ -65,6 +65,96 @@ function pushSectionRoleDeque(dq: ClaimOptionalRole[], role: ClaimOptionalRole):
   while (dq.length > 4) dq.shift();
 }
 
+function trimBundleField(s: string | undefined): string | null {
+  if (s === undefined) return null;
+  const t = s.trim();
+  return t.length > 0 ? t : null;
+}
+
+/**
+ * Mechanism-expression (`mep`) only: deterministic arc slots (binding → elaboration → modulation → integration).
+ * Intra-block sentences joined with a single space. Inter-claim glue unchanged (`synthesizeClaimSentences`).
+ */
+function renderMechanismArcBlock(input: {
+  claim: SemanticClaim;
+  index: number;
+  n: number;
+  sectionRoleDeque: ClaimOptionalRole[];
+  paragraphNormDeque: string[];
+}): { text: string; claim_id: string } {
+  const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque } = input;
+  const id = claim.claim_id as ClaimId;
+  const bundle = getClaimExpressionBundle(id);
+  const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
+
+  const pushDequeForSentence = (sentence: string, role: ClaimOptionalRole | null): void => {
+    pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(sentence));
+    if (role !== null) pushSectionRoleDeque(sectionRoleDeque, role);
+  };
+
+  const sentences: string[] = [];
+
+  if (n === 1) {
+    const coreSent = interp(bundle.core);
+    sentences.push(coreSent);
+    pushDequeForSentence(coreSent, null);
+    const mech = trimBundleField(bundle.mechanism);
+    const exp = trimBundleField(bundle.experience);
+    const elaboration = mech !== null ? interp(mech) : exp !== null ? interp(exp) : null;
+    if (elaboration !== null) {
+      sentences.push(elaboration);
+      pushDequeForSentence(elaboration, mech !== null ? 'mechanism' : 'experience');
+    }
+    const impl = trimBundleField(bundle.implication);
+    if (impl !== null) {
+      const implSent = interp(impl);
+      sentences.push(implSent);
+      pushDequeForSentence(implSent, 'implication');
+    }
+  } else if (i === 0) {
+    const coreSent = interp(bundle.core);
+    sentences.push(coreSent);
+    pushDequeForSentence(coreSent, null);
+    const mech = trimBundleField(bundle.mechanism);
+    const exp = trimBundleField(bundle.experience);
+    const elaboration = mech !== null ? interp(mech) : exp !== null ? interp(exp) : null;
+    if (elaboration !== null) {
+      sentences.push(elaboration);
+      pushDequeForSentence(elaboration, mech !== null ? 'mechanism' : 'experience');
+    }
+  } else if (i === n - 1) {
+    const mod = modulationMaterial(bundle, claim);
+    sentences.push(mod.sentence);
+    pushDequeForSentence(mod.sentence, mod.dequeRole);
+    const impl = trimBundleField(bundle.implication);
+    if (impl !== null) {
+      const implSent = interp(impl);
+      sentences.push(implSent);
+      pushDequeForSentence(implSent, 'implication');
+    }
+  } else {
+    const mod = modulationMaterial(bundle, claim);
+    sentences.push(mod.sentence);
+    pushDequeForSentence(mod.sentence, mod.dequeRole);
+  }
+
+  return { text: sentences.join(' '), claim_id: id };
+}
+
+function modulationMaterial(
+  bundle: ClaimExpressionBundle,
+  claim: SemanticClaim
+): { sentence: string; dequeRole: ClaimOptionalRole | null } {
+  const interpInner = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
+  const v = trimBundleField(bundle.variation);
+  if (v !== null) return { sentence: interpInner(v), dequeRole: 'variation' };
+  const e = trimBundleField(bundle.experience);
+  if (e !== null) return { sentence: interpInner(e), dequeRole: 'experience' };
+  const m = trimBundleField(bundle.mechanism);
+  if (m !== null) return { sentence: interpInner(m), dequeRole: 'mechanism' };
+  return { sentence: interpInner(bundle.core), dequeRole: null };
+}
+
 function pickSecondarySentence(args: {
   bundle: ClaimExpressionBundle;
   id: ClaimId;
@@ -267,24 +357,26 @@ export function buildClaimMechanismExpressionParagraph(
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[]
 ): { text: string; claimIds: string[] } {
-  const n = claimWindow(tier);
-  const slice = core.claims.slice(0, n);
+  const window = claimWindow(tier);
+  const slice = core.claims.slice(0, window);
   const lines: string[] = [];
   const ids: string[] = [];
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
-  for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
-    const c = slice[i];
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex: i,
-      seed: `${seed}|${c.claim_id}|mep`,
-      surface,
-      tier,
+  const ordered: SemanticClaim[] = [];
+  for (let i = 0; i < slice.length && ordered.length < maxLines; i++) {
+    ordered.push(slice[i]!);
+  }
+  const blockCount = ordered.length;
+  for (let i = 0; i < ordered.length; i++) {
+    const block = renderMechanismArcBlock({
+      claim: ordered[i]!,
+      index: i,
+      n: blockCount,
       sectionRoleDeque,
       paragraphNormDeque,
     });
     lines.push(block.text);
-    ids.push(c.claim_id);
+    ids.push(block.claim_id);
   }
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
 }
@@ -309,8 +401,8 @@ export function buildControlledMechanismExpressionParagraph(
   if (dominantClaimIds.length === 0) {
     return buildClaimMechanismExpressionParagraph(core, seed, tier, surface, sectionRoleDeque, paragraphNormDeque);
   }
-  const n = claimWindow(tier);
-  const slice = core.claims.slice(0, n);
+  const window = claimWindow(tier);
+  const slice = core.claims.slice(0, window);
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
 
   const dominantOrdered: SemanticClaim[] = [];
@@ -334,24 +426,12 @@ export function buildControlledMechanismExpressionParagraph(
 
   const R_prefix = Math.min(dominantOrdered.length, maxLines);
   const used = new Set<string>();
-  const lines: string[] = [];
-  const ids: string[] = [];
+  const ordered: SemanticClaim[] = [];
 
   for (let p = 0; p < R_prefix; p++) {
     const c = dominantOrdered[p]!;
-    const origIdx = mechanismSliceIndexOfClaimId(slice, c.claim_id);
     used.add(c.claim_id);
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex: origIdx,
-      seed: `${seed}|${c.claim_id}|mep`,
-      surface,
-      tier,
-      sectionRoleDeque,
-      paragraphNormDeque,
-    });
-    lines.push(block.text);
-    ids.push(c.claim_id);
+    ordered.push(c);
   }
 
   const tailPool: SemanticClaim[] = [];
@@ -363,20 +443,25 @@ export function buildControlledMechanismExpressionParagraph(
   }
   const tailSorted = sortClaimsDeterministic(tailPool);
   for (const c of tailSorted) {
-    if (lines.length >= maxLines) break;
-    const origIdx = mechanismSliceIndexOfClaimId(slice, c.claim_id);
+    if (ordered.length >= maxLines) break;
     used.add(c.claim_id);
-    const block = renderClaimExpressionBlock({
+    ordered.push(c);
+  }
+
+  const blockCount = ordered.length;
+  const lines: string[] = [];
+  const ids: string[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const c = ordered[i]!;
+    const block = renderMechanismArcBlock({
       claim: c,
-      localIndex: origIdx,
-      seed: `${seed}|${c.claim_id}|mep`,
-      surface,
-      tier,
+      index: i,
+      n: blockCount,
       sectionRoleDeque,
       paragraphNormDeque,
     });
     lines.push(block.text);
-    ids.push(c.claim_id);
+    ids.push(block.claim_id);
   }
 
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
