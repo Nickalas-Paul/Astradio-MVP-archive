@@ -17,6 +17,7 @@ import {
   InvalidClaimExpressionBundleError,
   rotateArray,
 } from './claim-expression-bundles';
+import { listenVariantsForArcRole } from './claim-listen-variants';
 import { pickInterClaimGlue } from './claim-inter-claim-glue';
 import { claimWindow } from './claim-select';
 import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
@@ -82,6 +83,9 @@ function selectPhraseFromRoleVariants(input: {
   return interp(variants[0]!);
 }
 
+/** Arc register: mechanism-register copy vs listen-register realization (same arc slots). */
+export type ArcRegister = 'mechanism' | 'listen';
+
 /**
  * Mechanism-expression (`mep`) only: deterministic arc slots (binding → elaboration → modulation → integration).
  * Intra-block sentences joined with a single space. Inter-claim glue unchanged (`synthesizeClaimSentences`).
@@ -94,8 +98,10 @@ export function renderMechanismArcBlock(input: {
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
   seed: string;
+  register?: ArcRegister;
 }): { text: string; claim_id: string } {
   const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque, seed } = input;
+  const register = input.register ?? 'mechanism';
   const id = claim.claim_id as ClaimId;
   const bundle = getClaimExpressionBundle(id);
   const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
@@ -105,14 +111,15 @@ export function renderMechanismArcBlock(input: {
     if (role !== null) pushSectionRoleDeque(sectionRoleDeque, role);
   };
 
+  const coreVariants = listenVariantsForArcRole(id, bundle, 'core', register);
   const sentences: string[] = [];
 
   if (n === 1) {
-    const coreSent = interp(bundle.core[0]!);
+    const coreSent = interp(coreVariants[0]!);
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
-    const mechArr = trimVariantArray(bundle.mechanism);
-    const expArr = trimVariantArray(bundle.experience);
+    const mechArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'mechanism', register));
+    const expArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'experience', register));
     if (mechArr) {
       const elaboration = selectPhraseFromRoleVariants({
         variants: mechArr,
@@ -138,7 +145,7 @@ export function renderMechanismArcBlock(input: {
       sentences.push(elaboration);
       pushDequeForSentence(elaboration, 'experience');
     }
-    const implArr = trimVariantArray(bundle.implication);
+    const implArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'implication', register));
     if (implArr) {
       const implSent = selectPhraseFromRoleVariants({
         variants: implArr,
@@ -153,11 +160,11 @@ export function renderMechanismArcBlock(input: {
       pushDequeForSentence(implSent, 'implication');
     }
   } else if (i === 0) {
-    const coreSent = interp(bundle.core[0]!);
+    const coreSent = interp(coreVariants[0]!);
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
-    const mechArr = trimVariantArray(bundle.mechanism);
-    const expArr = trimVariantArray(bundle.experience);
+    const mechArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'mechanism', register));
+    const expArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'experience', register));
     if (mechArr) {
       const elaboration = selectPhraseFromRoleVariants({
         variants: mechArr,
@@ -184,10 +191,10 @@ export function renderMechanismArcBlock(input: {
       pushDequeForSentence(elaboration, 'experience');
     }
   } else if (i === n - 1) {
-    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
-    const implArr = trimVariantArray(bundle.implication);
+    const implArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'implication', register));
     if (implArr) {
       const implSent = selectPhraseFromRoleVariants({
         variants: implArr,
@@ -202,7 +209,7 @@ export function renderMechanismArcBlock(input: {
       pushDequeForSentence(implSent, 'implication');
     }
   } else {
-    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
   }
@@ -215,9 +222,11 @@ function modulationMaterial(
   claim: SemanticClaim,
   claimId: string,
   seed: string,
-  paragraphNormDeque: string[]
+  paragraphNormDeque: string[],
+  register: ArcRegister
 ): { sentence: string; dequeRole: ClaimOptionalRole | null } {
-  const varr = trimVariantArray(bundle.variation);
+  const id = claimId as ClaimId;
+  const varr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'variation', register));
   if (varr) {
     return {
       sentence: selectPhraseFromRoleVariants({
@@ -232,7 +241,7 @@ function modulationMaterial(
       dequeRole: 'variation',
     };
   }
-  const earr = trimVariantArray(bundle.experience);
+  const earr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'experience', register));
   if (earr) {
     return {
       sentence: selectPhraseFromRoleVariants({
@@ -247,7 +256,7 @@ function modulationMaterial(
       dequeRole: 'experience',
     };
   }
-  const marr = trimVariantArray(bundle.mechanism);
+  const marr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'mechanism', register));
   if (marr) {
     return {
       sentence: selectPhraseFromRoleVariants({
@@ -262,9 +271,10 @@ function modulationMaterial(
       dequeRole: 'mechanism',
     };
   }
+  const coreListen = listenVariantsForArcRole(id, bundle, 'core', register);
   return {
     sentence: selectPhraseFromRoleVariants({
-      variants: bundle.core,
+      variants: coreListen,
       claimId,
       role: 'core',
       slotKind: 'mep_modulation_fallback_core',
@@ -490,7 +500,7 @@ export function buildClaimMechanismExpressionParagraph(
   surface: ProjectionSurface,
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[]
-): { text: string; claimIds: string[] } {
+): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
   const window = claimWindow(tier);
   const slice = core.claims.slice(0, window);
   const lines: string[] = [];
@@ -513,7 +523,11 @@ export function buildClaimMechanismExpressionParagraph(
     lines.push(block.text);
     ids.push(block.claim_id);
   }
-  return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
+  return {
+    text: synthesizeClaimSentences(lines, ids, `${seed}:mep`),
+    claimIds: ids,
+    orderedClaims: ordered,
+  };
 }
 
 function mechanismSliceIndexOfClaimId(slice: readonly SemanticClaim[], claimId: string): number {
@@ -532,7 +546,7 @@ export function buildControlledMechanismExpressionParagraph(
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
   dominantClaimIds: readonly string[]
-): { text: string; claimIds: string[] } {
+): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
   if (dominantClaimIds.length === 0) {
     return buildClaimMechanismExpressionParagraph(core, seed, tier, surface, sectionRoleDeque, paragraphNormDeque);
   }
@@ -600,7 +614,11 @@ export function buildControlledMechanismExpressionParagraph(
     ids.push(block.claim_id);
   }
 
-  return { text: synthesizeClaimSentences(lines, ids, `${seed}:mep`), claimIds: ids };
+  return {
+    text: synthesizeClaimSentences(lines, ids, `${seed}:mep`),
+    claimIds: ids,
+    orderedClaims: ordered,
+  };
 }
 
 export function buildTensionIntegrationParagraph(

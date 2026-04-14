@@ -22,6 +22,8 @@ import {
   buildDisciplinedSynthesisClaimBodies,
   claimSentencesFromRange,
   capToMaxSentences,
+  synthesizeClaimSentences,
+  renderMechanismArcBlock,
 } from './claim-synthesize';
 import { claimWindow } from './claim-select';
 import { selectDominantMechanismSignals } from './dominant-signal-selection';
@@ -412,6 +414,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           dominantIdsDiscipline
         )
       : buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
+  const mepOrdered = mep.orderedClaims;
   const openingClause = tierOpeningClause(surface, tierEff, seed);
   const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
   const campaignBaselineExtra =
@@ -427,6 +430,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const extrasTagged: TaggedSectionBody[] = [];
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
+    const isMusicalSection = sec.id === 'musical' || sec.id === 'music_translation';
 
     if (idx === 0) {
       if (openingClause) {
@@ -444,6 +448,29 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         ]);
         extras.push(lab);
         extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
+      }
+    } else if (isMusicalSection) {
+      const musRole: ClaimOptionalRole[] = [];
+      const musNorm: string[] = [];
+      const n = mepOrdered.length;
+      const musLines: string[] = [];
+      for (let mi = 0; mi < n; mi++) {
+        const c = mepOrdered[mi]!;
+        const block = renderMechanismArcBlock({
+          claim: c,
+          index: mi,
+          n,
+          sectionRoleDeque: musRole,
+          paragraphNormDeque: musNorm,
+          seed: `${seed}|${c.claim_id}|listen`,
+          register: 'listen',
+        });
+        musLines.push(block.text);
+      }
+      const musicalJoined =
+        musLines.length > 0 ? synthesizeClaimSentences(musLines, mep.claimIds, `${seed}:mep`) : '';
+      for (const musBlock of splitMepBodyForTaggedParagraphs(musicalJoined, mep.claimIds)) {
+        appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, musBlock, 'claim_body', bodyClaimIdsOut);
       }
     } else if (idx === 1) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
@@ -503,7 +530,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
 
     const minNeed = minClaimBodiesForDensity(d);
-    const effectiveDensity = bodyMeta.length < minNeed ? ('short' as const) : d;
+    let effectiveDensity: 'short' | 'medium' | 'long' =
+      bodyMeta.length < minNeed ? ('short' as const) : d;
+    if (isMusicalSection) {
+      effectiveDensity = 'short';
+    }
+
+    const claimIdsForEnrich = isMusicalSection ? [...mep.claimIds] : bodyMeta;
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
@@ -512,16 +545,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       extrasTagged,
       effectiveDensity,
       `${seed}:en:${sec.id}:${idx}`,
-      bodyMeta,
+      claimIdsForEnrich,
       reportPadUsed,
       PAD_SENTENCES
     );
+    const claimIdsReferenced = isMusicalSection ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
     return {
       ...sec,
       text,
+      ...(isMusicalSection ? { bullets: undefined } : {}),
       meta: {
         ...sec.meta,
-        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        claimIdsReferenced,
         phaseD: true,
         tagged,
         enrichDensity: effectiveDensity,
@@ -894,6 +929,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   while (out.length < schema.baselineMinSections - 1) {
     const fillSecRole: ClaimOptionalRole[] = [];
     const fillParaNorm: string[] = [];
+    // Depth filler must retain at least one `claim_body` sentence (composition DEPTH grammar).
+    // Do not reuse `globalExclusiveBodyClaimIds` here — main sections can exhaust the slice otherwise.
     const pan = buildSupplementalPanel(
       core,
       `${seed}:fillpanel`,
@@ -902,7 +939,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       surface,
       fillSecRole,
       fillParaNorm,
-      globalExclusiveBodyClaimIds,
+      new Set<string>(),
       densityForSectionId('depth_panel_x', 'short'),
       dominantClaimsForDiscipline
     );

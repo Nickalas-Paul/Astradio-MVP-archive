@@ -142,14 +142,7 @@ export function lineForTemplate(
     case 'SECTION_MUSICAL':
       return {
         title: ctx.suppressAstrologyTitles ? 'Listen metaphor' : 'Musical Identity and Flow',
-        text: pickVariant(seed, [
-          `Keep ${el} as timbre and ${tonal} as brightness.\n\n${LISTEN_POINTER}`,
-        ]),
-        bullets: [
-          `Color: ${el}-weighted palette.`,
-          `Contour: ${tonal} brightness.`,
-          `Motion and pressure cues route through the listen section below.`,
-        ],
+        text: '',
       };
     case 'SECTION_SKY_SUMMARY':
       return {
@@ -179,7 +172,7 @@ export function lineForTemplate(
     case 'SECTION_MUSIC_TRANSLATION':
       return {
         title: 'Music Translation',
-        text: `Harmony leans ${el}; melody traces ${tonal} brightness.\n\n${LISTEN_POINTER}`,
+        text: '',
       };
     case 'SECTION_COMPARISON_SIGNATURES':
       return {
