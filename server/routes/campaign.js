@@ -52,6 +52,24 @@ function unprocessable(res, msg) {
   return res.status(422).json({ error: 'unprocessable', message: msg || 'Unprocessable' });
 }
 
+/** Same birth-field contract as `campaign-daily.js` for natal snapshot input. */
+function chartRowToNatalInput(chart) {
+  if (!chart || !chart.timezone || !String(chart.timezone).trim()) {
+    const err = new Error('NATAL_TIMEZONE_REQUIRED');
+    err.code = 'NATAL_TIMEZONE_REQUIRED';
+    throw err;
+  }
+  const t = chart.time;
+  const timeNorm = typeof t === 'string' && t.length >= 5 ? t.slice(0, 5) : String(t || '12:00').slice(0, 5);
+  return {
+    date: chart.date,
+    time: timeNorm,
+    lat: chart.lat,
+    lon: chart.lon,
+    timezone: chart.timezone,
+  };
+}
+
 function createCampaignRouter() {
   const router = express.Router({ mergeParams: true });
 
@@ -67,20 +85,44 @@ function createCampaignRouter() {
       unprocessable(res, 'No primary chart for owner');
       return null;
     }
-    const natalSnapshot = body.natalSnapshot;
+
+    let snapshotForProfile = body.natalSnapshot;
+    if (!snapshotForProfile) {
+      try {
+        const getChartById = requireCampaignRuntimeModule('compat/chart-store').getChartById;
+        const fetchChartSnapshot = requireCampaignRuntimeModule('core/architecture-engine').fetchChartSnapshot;
+        const chart = await getChartById(chartId);
+        if (!chart) {
+          unprocessable(res, 'natal chart not found');
+          return null;
+        }
+        let natalInput;
+        try {
+          natalInput = chartRowToNatalInput(chart);
+        } catch (e) {
+          if (e && e.code === 'NATAL_TIMEZONE_REQUIRED') {
+            res.status(422).json({ error: 'unprocessable', code: 'NATAL_TIMEZONE_REQUIRED' });
+            return null;
+          }
+          unprocessable(res, e?.message || 'Invalid chart birth data');
+          return null;
+        }
+        snapshotForProfile = await fetchChartSnapshot(natalInput);
+      } catch (e) {
+        unprocessable(res, e?.message || 'Failed to build natal snapshot from primary chart');
+        return null;
+      }
+    }
+
     let profile;
     try {
       const rpgStore = requireCampaignRuntimeModule('rpg/store/rpg-store');
       profile = await rpgStore.getOrCreateRpgProfileForChart({
         userId: ownerUserId,
         chartId,
-        snapshot: natalSnapshot || { ts: '', tz: 'UTC', lat: 0, lon: 0, houseSystem: 'placidus', planets: [], houses: [], aspects: [], moonPhase: 0.5, dominantElements: { fire: 0.25, earth: 0.25, air: 0.25, water: 0.25 } },
+        snapshot: snapshotForProfile,
       });
     } catch (e) {
-      if (!natalSnapshot) {
-        unprocessable(res, 'natalSnapshot required to create profile');
-        return null;
-      }
       unprocessable(res, e?.message || 'Profile resolution failed');
       return null;
     }
