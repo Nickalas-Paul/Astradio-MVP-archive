@@ -77,6 +77,11 @@ export function mechanismSignalGroupKey(claim: SemanticClaim): string {
   return `${claim.derivation_code}${SEP}${fam}`;
 }
 
+/** Mechanism family token for a claim (same table as `mechanismSignalGroupKey`). */
+export function mechanismFamilyToken(claim: SemanticClaim): string {
+  return CLAIM_MECHANISM_SIGNAL_FAMILY[claim.claim_id as ClaimId];
+}
+
 /**
  * Full partition key: same `mechanismSignalGroupKey` and same `polarity` iff same group.
  * No exceptions.

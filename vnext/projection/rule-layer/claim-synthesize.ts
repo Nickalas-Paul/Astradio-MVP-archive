@@ -20,7 +20,7 @@ import {
   tierOffset,
 } from './claim-expression-bundles';
 import { claimWindow } from './claim-select';
-import { claimMechanismRelatedToDominants } from './dominant-signal-relatedness';
+import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
 
 function pickVariant(seed: string, variants: string[]): string {
   if (variants.length === 0) return '';
@@ -196,6 +196,69 @@ export function claimSentencesFromRange(
   return { text: synthesizeClaimSentences(lines, ids, `${seed}:synrng`), claimIds: ids };
 }
 
+function pickSupportingFromMechanismSlice(
+  core: SemanticCore,
+  tier: ExpansionTier,
+  dominantClaims: readonly SemanticClaim[],
+  excludeClaimIds: ReadonlySet<string>,
+  maxSupportingTier: 2 | 3 | 4,
+  need: number
+): SemanticClaim[] {
+  const S = core.claims.slice(0, claimWindow(tier));
+  const acc: SemanticClaim[] = [];
+  for (const c of S) {
+    if (excludeClaimIds.has(c.claim_id)) continue;
+    const t = reinforcementTier(c, dominantClaims, core);
+    if (t === null || t > maxSupportingTier) continue;
+    acc.push(c);
+  }
+  return sortClaimsDeterministic(acc).slice(0, need);
+}
+
+/**
+ * Synthesis claim bodies: tier ladder on the mechanism slice only; no drift `claim_body`.
+ */
+export function buildDisciplinedSynthesisClaimBodies(
+  core: SemanticCore,
+  dominantClaims: readonly SemanticClaim[],
+  maxCount: number,
+  seed: string,
+  surface: ProjectionSurface,
+  tier: ExpansionTier,
+  sectionRoleDeque: ClaimOptionalRole[],
+  paragraphNormDeque: string[],
+  excludeClaimIds: ReadonlySet<string>
+): { text: string; claimIds: string[] } {
+  const excl = excludeClaimIds;
+  let chosen: SemanticClaim[] = [];
+  for (const maxT of [2, 3, 4] as const) {
+    const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excl, maxT, maxCount);
+    if (batch.length >= maxCount) {
+      chosen = batch;
+      break;
+    }
+    if (batch.length > chosen.length) chosen = batch;
+  }
+  const lines: string[] = [];
+  const ids: string[] = [];
+  let localIndex = 0;
+  for (const c of chosen) {
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex,
+      seed: `${seed}|${c.claim_id}|syn`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    localIndex++;
+    lines.push(block.text);
+    ids.push(c.claim_id);
+  }
+  return { text: synthesizeClaimSentences(lines, ids, `${seed}:synrng`), claimIds: ids };
+}
+
 export function buildClaimMechanismExpressionParagraph(
   core: SemanticCore,
   seed: string,
@@ -231,7 +294,7 @@ function mechanismSliceIndexOfClaimId(slice: readonly SemanticClaim[], claimId: 
 }
 
 /**
- * Controlled mechanism-expression paragraph: dominant prefix, related tail before unrelated fallback.
+ * Controlled mechanism-expression paragraph: dominant prefix, then Tier 1–2 supporting tail only.
  * `localIndex` for rendering always equals the claim's index within `core.claims.slice(0, claimWindow(tier))`.
  */
 export function buildControlledMechanismExpressionParagraph(
@@ -243,6 +306,9 @@ export function buildControlledMechanismExpressionParagraph(
   paragraphNormDeque: string[],
   dominantClaimIds: readonly string[]
 ): { text: string; claimIds: string[] } {
+  if (dominantClaimIds.length === 0) {
+    return buildClaimMechanismExpressionParagraph(core, seed, tier, surface, sectionRoleDeque, paragraphNormDeque);
+  }
   const n = claimWindow(tier);
   const slice = core.claims.slice(0, n);
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
@@ -288,32 +354,21 @@ export function buildControlledMechanismExpressionParagraph(
     ids.push(c.claim_id);
   }
 
-  for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
-    const c = slice[i]!;
+  const tailPool: SemanticClaim[] = [];
+  for (const c of slice) {
     if (used.has(c.claim_id)) continue;
-    if (!claimMechanismRelatedToDominants(c, dominantClaimsUnique, core)) continue;
-    used.add(c.claim_id);
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex: i,
-      seed: `${seed}|${c.claim_id}|mep`,
-      surface,
-      tier,
-      sectionRoleDeque,
-      paragraphNormDeque,
-    });
-    lines.push(block.text);
-    ids.push(c.claim_id);
+    const t = reinforcementTier(c, dominantClaimsUnique, core);
+    if (t === null || t > 2) continue;
+    tailPool.push(c);
   }
-
-  for (let i = 0; i < slice.length && lines.length < maxLines; i++) {
-    const c = slice[i]!;
-    if (used.has(c.claim_id)) continue;
-    if (claimMechanismRelatedToDominants(c, dominantClaimsUnique, core)) continue;
+  const tailSorted = sortClaimsDeterministic(tailPool);
+  for (const c of tailSorted) {
+    if (lines.length >= maxLines) break;
+    const origIdx = mechanismSliceIndexOfClaimId(slice, c.claim_id);
     used.add(c.claim_id);
     const block = renderClaimExpressionBlock({
       claim: c,
-      localIndex: i,
+      localIndex: origIdx,
       seed: `${seed}|${c.claim_id}|mep`,
       surface,
       tier,
@@ -342,8 +397,6 @@ export function buildTensionIntegrationParagraph(
   return { text, claimIds: cIds };
 }
 
-const PANEL_WINDOW_MAX_ATTEMPTS = 200;
-
 export function buildSupplementalPanel(
   core: SemanticCore,
   seed: string,
@@ -353,69 +406,49 @@ export function buildSupplementalPanel(
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
   excludeClaimIds: ReadonlySet<string>,
-  sectionDensity: DensityClass
+  sectionDensity: DensityClass,
+  dominantClaims: readonly SemanticClaim[]
 ): { title: string; text: string; claimIds: string[] } {
-  const width = 3 + (tier === 'extended' ? 2 : 0);
-  const baseStart = 2 + panelIndex * 3;
-  let start = baseStart;
-  let stride = 1;
-  const minBodyClaims = minClaimBodiesForDensity(sectionDensity);
-  const lines: string[] = [];
-  const ids: string[] = [];
-  const seenClaim = new Set<string>();
+  const minOrig = minClaimBodiesForDensity(sectionDensity);
+  const minShort = minClaimBodiesForDensity('short');
 
-  for (let attempt = 0; attempt < PANEL_WINDOW_MAX_ATTEMPTS; attempt++) {
-    if (start >= core.claims.length) {
+  let chosen: SemanticClaim[] | null = null;
+  for (const maxT of [2, 3, 4] as const) {
+    const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, maxT, minOrig);
+    if (batch.length >= minOrig) {
+      chosen = batch;
       break;
     }
-    const slice = core.claims.slice(start, start + width);
-    for (let i = 0; i < slice.length; i++) {
-      const c = slice[i]!;
-      if (excludeClaimIds.has(c.claim_id) || seenClaim.has(c.claim_id)) {
-        continue;
-      }
-      const block = renderClaimExpressionBlock({
-        claim: c,
-        localIndex: lines.length,
-        seed: `${seed}|${c.claim_id}|panel:${panelIndex}|${lines.length}`,
-        surface,
-        tier,
-        sectionRoleDeque,
-        paragraphNormDeque,
-      });
-      lines.push(block.text);
-      ids.push(c.claim_id);
-      seenClaim.add(c.claim_id);
-      if (ids.length >= minBodyClaims) {
+  }
+  if (!chosen) {
+    for (const maxT of [2, 3, 4] as const) {
+      const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, maxT, minShort);
+      if (batch.length >= minShort) {
+        chosen = batch;
         break;
       }
     }
-    if (ids.length >= minBodyClaims) {
-      break;
-    }
-    start += stride;
-    stride += 1;
+  }
+  if (!chosen) {
+    chosen = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, 4, minShort);
   }
 
-  if (lines.length > 0 && ids.length < minBodyClaims) {
-    for (let j = 0; j < core.claims.length && ids.length < minBodyClaims; j++) {
-      const c = core.claims[j]!;
-      if (excludeClaimIds.has(c.claim_id) || seenClaim.has(c.claim_id)) {
-        continue;
-      }
-      const block = renderClaimExpressionBlock({
-        claim: c,
-        localIndex: lines.length,
-        seed: `${seed}|${c.claim_id}|panel:${panelIndex}:fill|${lines.length}`,
-        surface,
-        tier,
-        sectionRoleDeque,
-        paragraphNormDeque,
-      });
-      lines.push(block.text);
-      ids.push(c.claim_id);
-      seenClaim.add(c.claim_id);
-    }
+  const lines: string[] = [];
+  const ids: string[] = [];
+  let localIndex = 0;
+  for (const c of chosen) {
+    const block = renderClaimExpressionBlock({
+      claim: c,
+      localIndex,
+      seed: `${seed}|${c.claim_id}|panel:${panelIndex}|${localIndex}`,
+      surface,
+      tier,
+      sectionRoleDeque,
+      paragraphNormDeque,
+    });
+    localIndex++;
+    lines.push(block.text);
+    ids.push(c.claim_id);
   }
 
   if (lines.length > 0) {

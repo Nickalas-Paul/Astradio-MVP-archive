@@ -2,7 +2,7 @@
  * **Proj:** Step 8 — sole module that constructs ProjectedExplanationSection[] (before tone pass).
  * Pipeline ordinal only (not Product phase, not Acct:Stage-*). See apply-unified-projection for execution order.
  */
-import type { SemanticCore } from '../../semantic/semantic-core';
+import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
   ExpansionTier,
   ProjectionOptions,
@@ -19,6 +19,7 @@ import {
   buildTensionIntegrationParagraph,
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
+  buildDisciplinedSynthesisClaimBodies,
   claimSentencesFromRange,
   capToMaxSentences,
 } from './claim-synthesize';
@@ -390,6 +391,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
+  const mechanismSlice = core.claims.slice(0, claimWindow(tierEff));
+  const dominantIdsDiscipline = selectDominantMechanismSignals(mechanismSlice, tierEff);
+  const dominantClaimsForDiscipline: SemanticClaim[] = [];
+  for (const id of dominantIdsDiscipline) {
+    const found = mechanismSlice.find((c) => c.claim_id === id);
+    if (found) dominantClaimsForDiscipline.push(found);
+  }
   const mepSectionRole: ClaimOptionalRole[] = [];
   const mepParagraphNorm: string[] = [];
   const mep =
@@ -401,7 +409,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           surface,
           mepSectionRole,
           mepParagraphNorm,
-          selectDominantMechanismSignals(core.claims.slice(0, claimWindow(tierEff)), tierEff)
+          dominantIdsDiscipline
         )
       : buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
   const openingClause = tierOpeningClause(surface, tierEff, seed);
@@ -449,7 +457,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         sectionRoleDeque,
         paragraphNormDeque,
         globalExclusiveBodyClaimIds,
-        d
+        d,
+        dominantClaimsForDiscipline
       );
       const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
       appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
@@ -481,7 +490,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         sectionRoleDeque,
         paragraphNormDeque,
         globalExclusiveBodyClaimIds,
-        d
+        d,
+        dominantClaimsForDiscipline
       );
       const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
       appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
@@ -493,8 +503,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
 
     const minNeed = minClaimBodiesForDensity(d);
-    const effectiveDensity =
-      bodyMeta.length > 0 && bodyMeta.length < minNeed ? ('short' as const) : d;
+    const effectiveDensity = bodyMeta.length < minNeed ? ('short' as const) : d;
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
@@ -526,9 +535,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     if (key === 'synthesis_a') {
       const synSecRole: ClaimOptionalRole[] = [];
       const synParaNorm: string[] = [];
-      const synClaim = claimSentencesFromRange(
+      const synClaim = buildDisciplinedSynthesisClaimBodies(
         core,
-        4,
+        dominantClaimsForDiscipline,
         2,
         `${seed}:synA`,
         surface,
@@ -576,9 +585,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     if (key === 'synthesis_b') {
       const synBSecRole: ClaimOptionalRole[] = [];
       const synBParaNorm: string[] = [];
-      const synClaim = claimSentencesFromRange(
+      const synClaim = buildDisciplinedSynthesisClaimBodies(
         core,
-        7,
+        dominantClaimsForDiscipline,
         3,
         `${seed}:synB`,
         surface,
@@ -894,7 +903,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       fillSecRole,
       fillParaNorm,
       globalExclusiveBodyClaimIds,
-      densityForSectionId('depth_panel_x', 'short')
+      densityForSectionId('depth_panel_x', 'short'),
+      dominantClaimsForDiscipline
     );
     const panProvFill = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
     const panTagged = taggedSectionBodyFromText(pan.text, panProvFill);

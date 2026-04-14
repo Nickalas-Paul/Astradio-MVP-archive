@@ -166,7 +166,7 @@ test('locked K: baseline 2, expanded 3 when enough groups', () => {
   assert.equal(e.length, 3);
 });
 
-test('relatedness: unrelated tail only after related exhausted', () => {
+test('controlled mep: tail is Tier 1–2 only; no unrelated third pass', () => {
   const dominant = {
     claim_id: 'ELEMENT_FIRE_DOM',
     priority_rank: 0,
@@ -202,7 +202,9 @@ test('relatedness: unrelated tail only after related exhausted', () => {
     [],
     domIds
   );
-  assert.deepEqual(mep.claimIds, ['ELEMENT_FIRE_DOM', 'ELEMENT_EARTH_DOM', 'TONAL_BRIGHT']);
+  assert.deepEqual(mep.claimIds, ['ELEMENT_FIRE_DOM']);
+  assert.ok(!mep.claimIds.includes('TONAL_BRIGHT'));
+  assert.ok(!mep.claimIds.includes('ELEMENT_EARTH_DOM'));
 });
 
 test('stable localIndex: rendering uses slice index not visit order', () => {
