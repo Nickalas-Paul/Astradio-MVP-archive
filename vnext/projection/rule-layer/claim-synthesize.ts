@@ -4,7 +4,8 @@
  */
 import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
-import type { DensityClass, ExpansionTier, ProjectionSurface } from '../projection-types';
+import type { DensityClass, ExpansionTier, ProjectionOptions, ProjectionSurface } from '../projection-types';
+import { campaignExpressionDigestFromOptions } from '../campaign-expression-digest-guard';
 import { minClaimBodiesForDensity } from '../density-validate';
 import { projectionNormSentence } from './repetition-collapse-phase0';
 import {
@@ -714,7 +715,12 @@ export function buildSupplementalPanel(
   };
 }
 
-export function buildCampaignPressureResponseParagraph(core: SemanticCore, seed: string): { text: string; claimIds: string[] } {
+export function buildCampaignPressureResponseParagraph(
+  core: SemanticCore,
+  seed: string,
+  options?: ProjectionOptions
+): { text: string; claimIds: string[] } {
+  void campaignExpressionDigestFromOptions(options);
   const tension = core.claims.find((c) => c.claim_id.startsWith('TENSION_BAND'));
   const motion = core.claims.find((c) => c.claim_id.startsWith('MOTION_LABEL'));
   const ids: string[] = [];

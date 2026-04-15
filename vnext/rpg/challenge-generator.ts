@@ -11,6 +11,7 @@
 
 import type { EphemerisSnapshot } from '../contracts';
 import type { SemanticCore } from '../semantic/semantic-core';
+import type { CampaignExpressionDigest } from '../projection/projection-types';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
 import { hashSnapshot } from './hash/snapshot-hash';
 import type { CampaignIdentityTone } from './semantic-adapter';
@@ -101,13 +102,14 @@ function supportingBiasPostures(
 }
 
 /** Primary reading line from canonical semantic pipeline only (Phase D campaign surface). */
-function semanticReadingLine(core: SemanticCore, seed: string): string {
+function semanticReadingLine(core: SemanticCore, seed: string, campaignExpressionDigest?: CampaignExpressionDigest): string {
   const sections = projectTextFromSemanticCore(core, seed, {
     phaseD: true,
     surface: 'campaign',
     tier: 'baseline',
     narrativePlan: null,
     aspectTension: null,
+    campaignExpressionDigest,
   });
   const sig = sections.find((s) => s.id === 'signatures' || s.id === 'sky_summary');
   return (sig?.text ?? sections[0]?.text ?? '').trim();
@@ -177,9 +179,10 @@ function challengeThemeFromSemantic(
   pressure: TransitPressure,
   supporting: TransitPressure[],
   state: CampaignState,
-  challengeContext?: ChallengeContext
+  challengeContext: ChallengeContext | undefined,
+  campaignExpressionDigest: CampaignExpressionDigest | undefined
 ): string {
-  const line = firstSentence(semanticReadingLine(core, hashSnapshot(natalSnapshot)));
+  const line = firstSentence(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest));
   const frame = challengeFramingLine(pressure, challengeContext, state);
   const support = supportingPressureLine(supporting, challengeContext);
   const continuity = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);
@@ -687,6 +690,8 @@ export interface BuildChallengeParams {
   semanticCore: SemanticCore;
   natalSnapshot: EphemerisSnapshot;
   transitSnapshot: EphemerisSnapshot;
+  /** Optional read-only digest from Command Center materialization for campaign projection only. */
+  campaignExpressionDigest?: CampaignExpressionDigest;
   challengeContext?: ChallengeContext;
 }
 
@@ -702,7 +707,8 @@ export interface BuildChallengeParams {
  * same (state, transit snapshot, character) must be passed for idempotent scene identity.
  */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
-  const { character, pressures, state, semanticCore, transitSnapshot, natalSnapshot, challengeContext } = params;
+  const { character, pressures, state, semanticCore, transitSnapshot, natalSnapshot, challengeContext, campaignExpressionDigest } =
+    params;
   if (!pressures.length) return null;
 
   const tone = deriveCampaignIdentityToneFromSemanticCore(semanticCore);
@@ -710,7 +716,15 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   if (!primary) return null;
 
   const supporting = pressures.slice(1, 4);
-  const theme = challengeThemeFromSemantic(semanticCore, natalSnapshot, primary, supporting, state, challengeContext);
+  const theme = challengeThemeFromSemantic(
+    semanticCore,
+    natalSnapshot,
+    primary,
+    supporting,
+    state,
+    challengeContext,
+    campaignExpressionDigest
+  );
   const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
   const obstacle = sceneObstacleGame(primary, character, challengeContext, state);
 

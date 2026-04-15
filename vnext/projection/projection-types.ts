@@ -21,6 +21,46 @@ export type ConnectionMode = RelationshipMode | 'group' | undefined;
 
 export type DensityClass = 'short' | 'medium' | 'long';
 
+/**
+ * Read-only, bounded facts already resolved by Campaign Command Center for campaign-surface
+ * expression only. Non-authoritative: must not drive claim creation or canonical meaning.
+ */
+export type CampaignExpressionDigest = {
+  readonly identity: {
+    readonly class_slug: string;
+    readonly subclass_slug: string;
+    readonly rising_modifier_slug: string;
+    readonly top_domain_slug: string;
+    readonly identity_modifier_ids: readonly string[];
+  };
+  readonly pressure: {
+    readonly primary_domain_id: string;
+    readonly primary_intensity_band: string;
+    readonly primary_pressure_family: string;
+    readonly primary_pressure_polarity: string;
+    readonly interaction_type: string;
+    readonly primary_transit_body: string;
+    readonly primary_natal_body: string;
+    readonly primary_natal_house: number;
+    readonly primary_aspect_type: string;
+    readonly supporting_count: number;
+  };
+  readonly continuity: {
+    readonly chapter: number;
+    readonly dominant_tone_key: string;
+    readonly top_domain_key: string | null;
+    readonly last_outcome_direction?:
+      | 'assert_define'
+      | 'engage_advance'
+      | 'observe_hold'
+      | 'withdraw_protect'
+      | 'support_connect'
+      | 'offer_restore'
+      | 'reframe_integrate'
+      | 'contain_limit';
+  };
+};
+
 export type ProjectionOptions = {
   /** When false or omitted with no third argument legacy entrypoint, skip **Proj:** Phase D post-process (not a product phase). */
   phaseD?: boolean;
@@ -49,6 +89,11 @@ export type ProjectionOptions = {
    * Omitted or false preserves legacy `mep` construction.
    */
   mechanismExpressionDominantSignals?: boolean;
+  /**
+   * Optional read-only digest of already-computed Campaign daily facts for `surface: 'campaign'`
+   * expression wiring only. Invalid on other surfaces (enforced in apply-unified-projection).
+   */
+  campaignExpressionDigest?: CampaignExpressionDigest;
 };
 
 export type Phase4UnitRef = {

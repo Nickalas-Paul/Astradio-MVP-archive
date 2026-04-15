@@ -6,6 +6,7 @@ import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-sn
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildChallengeScene } from '../rpg/challenge-generator';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
+import { buildCampaignExpressionDigest } from './build-campaign-expression-digest';
 import { hashCanonicalJson } from '../rpg/hash/json-hash';
 import type {
   ArchetypeId,
@@ -331,6 +332,13 @@ export async function materializeCampaignDaily(params: {
   });
   const archetypeId = buildArchetypeId(primary, supporting);
 
+  const characterSheet = buildCharacterSheet(natalSnapshot);
+  const campaignExpressionDigest = buildCampaignExpressionDigest({
+    dailyState,
+    state,
+    characterSheet,
+  });
+
   const scene = buildChallengeScene({
     character,
     pressures: [eventToChallengePressure(primary), ...supporting.map(eventToChallengePressure)],
@@ -338,6 +346,7 @@ export async function materializeCampaignDaily(params: {
     semanticCore,
     natalSnapshot,
     transitSnapshot,
+    campaignExpressionDigest,
     challengeContext: {
       archetypeCategory: archetypeId,
       archetypeId,
@@ -408,7 +417,7 @@ export async function materializeCampaignDaily(params: {
   });
 
   return {
-    character_sheet: buildCharacterSheet(natalSnapshot),
+    character_sheet: characterSheet,
     challenge_archetype: challengeArchetype,
     challenge: scene,
     response_paths: responsePaths,

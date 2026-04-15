@@ -74,7 +74,7 @@
     "test:dominant-mechanism": "npm run vnext:build && node --test tests/dominant-signal-mechanism.test.js tests/claim-discipline.test.js tests/music-translation-refinement.test.js",
     "test:repetition-collapse": "npm run vnext:build && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js",
     "test:cross-surface-consistency": "npm run vnext:build && node dist/vnext/vnext/scripts/test-cross-surface-consistency.js",
-    "test:campaign-projection-boundaries": "npm run vnext:build && node dist/vnext/vnext/scripts/test-campaign-projection-boundaries.js",
+    "test:campaign-projection-boundaries": "npm run vnext:build && node dist/vnext/vnext/scripts/test-campaign-projection-boundaries.js && node dist/vnext/vnext/scripts/test-campaign-expression-digest-boundary.js",
     "test:unified-projection": "npm run vnext:build && node dist/vnext/vnext/scripts/test-unified-projection.js && node dist/vnext/vnext/scripts/gate-a-projection-identity.js && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js && node dist/vnext/vnext/scripts/test-phase1-claim-expression.js && node dist/vnext/vnext/scripts/test-phase2-load.js && node dist/vnext/vnext/scripts/test-phase3-tagged-provenance.js && node dist/vnext/vnext/scripts/test-composition-phase4.js && node dist/vnext/vnext/scripts/test-phase5-expression-filters.js",
     "test:compose-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-determinism-soak.js",
     "test:compose-live-soak": "npm run vnext:build && node dist/vnext/vnext/scripts/compose-live-soak.js",

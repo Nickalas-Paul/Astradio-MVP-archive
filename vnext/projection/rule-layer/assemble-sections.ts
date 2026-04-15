@@ -418,9 +418,11 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const openingClause = tierOpeningClause(surface, tierEff, seed);
   const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
   const campaignBaselineExtra =
-    surface === 'campaign' && tierEff === 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp:base') : null;
+    surface === 'campaign' && tierEff === 'baseline'
+      ? buildCampaignPressureResponseParagraph(core, seed + ':camp:base', options)
+      : null;
   const campaignExpandedExtra =
-    surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp') : null;
+    surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp', options) : null;
 
   const globalExclusiveBodyClaimIds = new Set<string>();
 
@@ -781,7 +783,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       });
     }
     if (key === 'pressure_response' && surface === 'campaign') {
-      const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr');
+      const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr', options);
       const prTagged = taggedSectionBodyFromText(pr.text, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         pr.text,

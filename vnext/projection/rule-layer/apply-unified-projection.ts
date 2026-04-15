@@ -33,6 +33,10 @@ export function applyUnifiedProjection(
   options?: ProjectionOptions,
   _retryDepth = 0
 ): ProjectedExplanationSection[] {
+  if (options?.campaignExpressionDigest !== undefined && options.surface !== 'campaign') {
+    throw new Error('[projection] campaignExpressionDigest may only be set when surface is "campaign"');
+  }
+
   if (!options || options.phaseD === false) {
     const surface = options?.surface ?? 'profile';
     const ctx: TemplateContext = {
