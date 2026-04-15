@@ -130,6 +130,34 @@ function surfaceExpressionClaimBodyAndVoiceInvariants(
     );
   }
 
+  const matrixSurfaces: Array<{ surface: 'profile' | 'sandbox' | 'group' | 'campaign'; participantCount?: number }> = [
+    { surface: 'profile' },
+    { surface: 'sandbox' },
+    { surface: 'group', participantCount: 3 },
+    { surface: 'campaign' },
+  ];
+  for (const domFlag of [false, true] as const) {
+    for (const spec of matrixSurfaces) {
+      const surfaceOpts: ProjectionOptions = {
+        phaseD: true,
+        surface: spec.surface,
+        tier: 'extended',
+        narrativePlan: null,
+        mechanismExpressionDominantSignals: domFlag,
+        ...(spec.participantCount ? { participantCount: spec.participantCount } : {}),
+      };
+      const beforeSurface = projectTextFromSemanticCore(core, `expr-cb-${spec.surface}-${String(domFlag)}`, surfaceOpts);
+      const afterSurface = applySurfaceExpressionRules(
+        JSON.parse(JSON.stringify(beforeSurface)) as ProjectedExplanationSection[],
+        surfaceOpts
+      );
+      assert(
+        JSON.stringify(collectClaimBodyTexts(beforeSurface)) === JSON.stringify(collectClaimBodyTexts(afterSurface)),
+        `claim_body immutable for surface=${spec.surface} dominant=${String(domFlag)}`
+      );
+    }
+  }
+
   const pOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'expanded', narrativePlan: null };
   const sOpts: ProjectionOptions = { phaseD: true, surface: 'sandbox', tier: 'expanded', narrativePlan: null };
   const pSyn =

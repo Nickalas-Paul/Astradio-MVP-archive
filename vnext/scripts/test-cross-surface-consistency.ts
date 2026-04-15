@@ -4,7 +4,8 @@
  */
 import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
-import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { buildCanonicalReportForAggregate, buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
+import { mergeFeatureVectors } from '../compat/fusion';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectFeedCardFromSemanticCore, projectTextFromSemanticCore } from '../projection/text-projection';
 import {
@@ -17,7 +18,7 @@ import {
 } from '../projection/rule-layer/audio-lexicon';
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
-import type { ProjectedExplanationSection } from '../projection/projection-types';
+import type { ProjectedExplanationSection, ProjectionOptions, ProjectionSurface } from '../projection/projection-types';
 
 const TOP_N = 7;
 
@@ -51,6 +52,16 @@ function snap(): EphemerisSnapshot {
   };
 }
 
+function snapWithOffset(delta: number): EphemerisSnapshot {
+  const n = snap();
+  return {
+    ...n,
+    lat: n.lat + delta,
+    lon: n.lon + delta,
+    planets: n.planets.map((p, i) => ({ ...p, lon: p.lon + delta * (i + 1) })),
+  };
+}
+
 function collectReferencedClaimIds(sections: ProjectedExplanationSection[]): Set<string> {
   const out = new Set<string>();
   for (const s of sections) {
@@ -63,6 +74,18 @@ function audioStagingBody(surface: string, sections: ProjectedExplanationSection
   const a = sections.find((s) => s.id === 'audio_staging');
   assert(!!a, `${surface}: audio_staging missing`);
   return [a!.text, ...(a!.bullets ?? [])].join('\n');
+}
+
+function assertDeterministicProjectionRun(
+  core: SemanticCore,
+  seed: string,
+  options: ProjectionOptions,
+  label: string
+): ProjectedExplanationSection[] {
+  const run1 = projectTextFromSemanticCore(core, seed, options);
+  const run2 = projectTextFromSemanticCore(core, seed, options);
+  assert(JSON.stringify(run1) === JSON.stringify(run2), `${label}: deterministic projection`);
+  return run1;
 }
 
 /** Feed cards omit `audio_staging`; forbid alternate-band listen phrases that would contradict `core.audio`. */
@@ -172,14 +195,87 @@ function main(): void {
     assert(claimHits[0]!.has(id) && claimHits[1]!.has(id) && claimHits[2]!.has(id), `claim ${id} must appear on profile/daily/sandbox`);
   }
 
+  const na = snap();
+  const nb = snapWithOffset(3.5);
+  const nc = snapWithOffset(8.25);
+  const fva = encodeFeatures(na) as FeatureVec;
+  const fvb = encodeFeatures(nb) as FeatureVec;
+  const fvc = encodeFeatures(nc) as FeatureVec;
+  const gg = guidanceFromFeatures(fva, na, 'xscs-group');
+  const m12 = mergeFeatureVectors(fva, fvb, { relationshipMode: 'neutral', wA: 0.5, wB: 0.5 });
+  const merged3 = mergeFeatureVectors(m12, fvc, { relationshipMode: 'neutral', wA: 0.67, wB: 0.33 });
+  const canonicalAgg = buildCanonicalReportForAggregate({
+    kind: 'group',
+    subject_ids: ['xscs-group'],
+    participants: [
+      { snapshot: na, featureVec: fva, role: 'primary' },
+      { snapshot: nb, featureVec: fvb, role: 'member_i' },
+      { snapshot: nc, featureVec: fvc, role: 'member_i' },
+    ],
+    composite: merged3 as FeatureVec,
+    anchorIndex: 0,
+    control_surface_hash: 'xscs-group',
+    compose_seed: 'xscs-group',
+    guidance: gg,
+    relationalWeather: null,
+  });
+  const coreAgg = interpretCanonicalReportObject(canonicalAgg);
+  const coreAgg2 = interpretCanonicalReportObject(canonicalAgg);
+  assert(JSON.stringify(coreAgg.claims) === JSON.stringify(coreAgg2.claims), 'same canonical aggregate -> identical SemanticCore claims');
+  assert(
+    coreAgg.claims.every((c, i) => c.priority_rank === coreAgg2.claims[i]?.priority_rank),
+    'same canonical aggregate -> identical claim priority ordering'
+  );
+
+  const matrixSurfaces: ProjectionSurface[] = ['profile', 'sandbox', 'group', 'campaign'];
+  const matrixSeed = 'xscs-cross-surface-matrix';
+  for (const dominantFlag of [false, true] as const) {
+    const surfaceClaimHits = new Map<ProjectionSurface, Set<string>>();
+    for (const surface of matrixSurfaces) {
+      const options: ProjectionOptions = {
+        phaseD: true,
+        surface,
+        tier: 'extended',
+        narrativePlan: null,
+        mechanismExpressionDominantSignals: dominantFlag,
+        ...(surface === 'group' ? { participantCount: 3 } : {}),
+      };
+      const sections = assertDeterministicProjectionRun(
+        coreAgg,
+        `${matrixSeed}:${surface}:${String(dominantFlag)}`,
+        options,
+        `${surface}:dom=${String(dominantFlag)}`
+      );
+      const pv = sections[sections.length - 1]?.meta?.projection_validation;
+      assert(!!pv && pv.ok === true, `${surface}:dom=${String(dominantFlag)} validation ok`);
+      const refs = collectReferencedClaimIds(sections);
+      const aggHead = coreAgg.claims.slice(0, TOP_N).map((c) => c.claim_id);
+      const topHitCount = aggHead.filter((id) => refs.has(id)).length;
+      assert(topHitCount >= 1, `${surface}:dom=${String(dominantFlag)} must reference at least one TOP_N claim`);
+      assert(refs.has(aggHead[0]!), `${surface}:dom=${String(dominantFlag)} must reference top claim ${aggHead[0]}`);
+      if (surface !== 'campaign') {
+        const audio = audioStagingBody(surface, sections);
+        assert(audio.length > 0, `${surface}:dom=${String(dominantFlag)} audio staging non-empty`);
+      }
+      surfaceClaimHits.set(surface, new Set(aggHead.filter((id) => refs.has(id))));
+    }
+    const profileHits = surfaceClaimHits.get('profile')!;
+    for (const s of matrixSurfaces) {
+      const hits = surfaceClaimHits.get(s)!;
+      assert(hits.size >= 1, `${s}:dom=${String(dominantFlag)} has non-empty TOP_N coverage`);
+      assert(profileHits.size >= 1, `profile:dom=${String(dominantFlag)} has non-empty TOP_N coverage`);
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.log(
     JSON.stringify(
       {
         ok: true,
         canonical_hash: canonical.object_identity_hash,
+        canonical_aggregate_hash: canonicalAgg.object_identity_hash,
         top_claim_ids: topIds,
-        surfaces: specs.map((s) => s.surface),
+        surfaces: [...specs.map((s) => s.surface), 'profile', 'sandbox', 'group', 'campaign'],
       },
       null,
       2
