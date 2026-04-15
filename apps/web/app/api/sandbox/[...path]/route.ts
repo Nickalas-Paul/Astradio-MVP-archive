@@ -1,8 +1,13 @@
 /**
- * Proxy to engine for Phase 4A/6 sandbox routes.
+ * Proxy to engine for sandbox API routes (compose lab).
  * POST -> /api/sandbox/{path}. GET -> /api/sandbox/compositions (list) or /api/sandbox/compositions/:id.
- * **Acct:Stage-6** — for compositions routes only, forward session userId so engine can enforce owner isolation (not Product:Phase-6).
+ * For compositions routes only, forwards session userId so the engine can enforce per-owner persistence isolation.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 import { getSessionUserId } from '@/lib/session';

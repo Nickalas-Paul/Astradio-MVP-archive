@@ -18,7 +18,11 @@ import type {
 } from '../rpg/types';
 import type { CampaignResolutionSeed, DailyPressureState, PressureEvent, PressureFamily } from './phase1/contracts';
 
-/** Phase 1: interaction/growth for the day is modeled on `DailyPressureState`, not per-event hints. */
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
+/** Interaction/growth for the day is modeled on `DailyPressureState` (campaign daily-pressure slice), not per-event hints. */
 const PHASE1_EVENT_GROWTH_PATH_PLACEHOLDER = 'phase1_growth:not_at_event_layer' as const;
 
 export interface CharacterSheet {

@@ -2,6 +2,10 @@
  * DailyPressureState — deterministic assembly from PressureEvent[].
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import { hashCanonicalJson } from '../../rpg/hash/json-hash';
 import type {
   DailyPressureState,

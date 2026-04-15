@@ -8,6 +8,11 @@
  *
  * Do not import this from route handlers; use projectTextFromSemanticCore facade only.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type { ProjectionOptions, ProjectedExplanationSection } from '../projection-types';
 import { normalizeProjectionInput } from './normalize-input';

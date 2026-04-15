@@ -1,6 +1,8 @@
 // vnext/rpg/transit/signal-detection.ts
-// QUARANTINED as primary Campaign pressure source (Phase 1+). Use cross-aspects / phase1 resolver.
-// Layer 1: Deterministic transit signal detection.
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+// Layer 1: Deterministic transit signal detection. (Not the primary Command-Center pressure path; prefer cross-aspects / daily-pressure resolver.)
 
 import type { EphemerisSnapshot } from '../../contracts';
 import { lonToHouse } from '../../astro/profile-from-snapshot';

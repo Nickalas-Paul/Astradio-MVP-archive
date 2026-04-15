@@ -1,8 +1,11 @@
 /**
- * **Product:** sandbox snapshot with overrides (delivery tags Phase 4A / 8H in historical docs).
- * Produces a REAL EphemerisSnapshot from birth data + planet overrides.
- * Recalculates aspects (8H aspect engine) and dominantElements deterministically — **Proj:** / engine only, not Acct:Stage-*.
+ * Sandbox snapshot with overrides: produces a deterministic EphemerisSnapshot from birth data + planet overrides.
+ * Recalculates aspects and dominantElements on the engine path only (no account/persistence layer).
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
 
 import type { EphemerisSnapshot, SandboxBirth, SandboxOverrides, PlanetKey } from '../contracts';
 import { BODY_DISPLAY_ORDER } from '../canonical-bodies';
@@ -112,7 +115,7 @@ export function generateSnapshotWithOverrides(
     positions[planet.name] = planet.lon;
   }
   
-  // Recalculate aspects using Phase 8H aspect engine (dynamics, strength, exactness, priorityBase)
+  // Recalculate aspects (deterministic engine: dynamics, strength, exactness, priorityBase)
   const aspects = toSnapshotAspects(computeAspects(positions));
   
   // Recalculate dominant elements

@@ -2,6 +2,11 @@
  * Phase 0 — repetition collapse (approved spec only).
  * Post tone-pass, pre validation. Deterministic; no semantic similarity.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type { ExpansionTier, ProjectionSurface, ProjectedExplanationSection } from '../projection-types';
 import { stripLintHedgeFromParagraph } from '../language-lint';

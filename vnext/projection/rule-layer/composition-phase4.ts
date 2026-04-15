@@ -9,6 +9,11 @@
  * — Non-`audio_staging` bullet blocks inherit parent section grammar; `audio_staging` bullets stay `(AS)+ (PD)*`.
  * — `ANCHORED` / `PLAIN_TEMPLATE` units with sentence count > MAX_BRUTE_M: no factorial search; run-length only + validation grammar skip.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type {
   Phase4CompositionReport,
   Phase4UnitRef,

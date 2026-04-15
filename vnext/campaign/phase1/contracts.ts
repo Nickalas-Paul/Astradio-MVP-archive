@@ -3,6 +3,10 @@
  * Synthetic traits are eligibility-only; see synthetic-trait.ts and resolve-campaign-daily.ts.
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 export type PressureSourceMode = 'solo' | 'group_member';
 
 export type PressureFamily =

@@ -5,6 +5,10 @@
  * Remove when real trait engine supplies activated_trait_ids for all supported cases.
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 export * from './contracts';
 export * from './resolve-campaign-daily';
 export * from './build-pressure-events';

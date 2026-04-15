@@ -4,6 +4,10 @@
  * chart_id is stored on astradio_relational_group_members (source of truth).
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 // Path from dist/vnext/vnext/relational/groups/ -> repo root lib
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const relationalStore = require('../../../../../lib/relational-store');

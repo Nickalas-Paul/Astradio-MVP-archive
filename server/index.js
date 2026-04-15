@@ -2077,12 +2077,13 @@ app.use("/api", createUserTransitContextRouter());
 const { createCampaignDailyRouter } = require("./routes/campaign-daily");
 app.use("/api", createCampaignDailyRouter());
 
-// Phase 4A — Sandbox (birth-data-first + drag-and-drop degree placements; compose-free reports)
+// Sandbox: birth-data-first + drag-and-drop degree placements; compose-free reports
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
 }
 
-// **Product:Phase-6** — sandbox compositions (save/list/reload). **Acct:Stage-6** — owner isolation.
+// Sandbox compositions (save/list/reload) with per-owner DB isolation when enabled.
+// NOTE: Historical "phase/stage" tags in docs are delivery-order labels only, not product/runtime layers.
 // Use absolute path — see optionalRequire note above (relative "../lib/database" resolves to lib/lib/database and fails silently).
 const db = optionalRequire(path.join(__dirname, "..", "lib", "database"));
 const hasDb = db && typeof db.query === "function";

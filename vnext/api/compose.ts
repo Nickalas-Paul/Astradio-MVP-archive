@@ -1365,7 +1365,7 @@ export class ComposeAPI {
   }
 
   /**
-   * **Product:Phase-6** sandbox: validate overriddenSnapshot shape (EphemerisSnapshot from POST /api/sandbox/snapshot).
+   * Sandbox lab: validate overriddenSnapshot shape (EphemerisSnapshot from POST /api/sandbox/snapshot).
    * Fail closed with explicit error if invalid.
    */
   private validateOverriddenSnapshot(raw: unknown): EphemerisSnapshot {

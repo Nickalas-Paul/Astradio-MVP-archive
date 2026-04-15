@@ -2,6 +2,11 @@
  * Profile active state: A + C(t) via existing overlay compose (comparison_pair canonical surface).
  * No home_daily. Transit context uses repo-root lib/canonical-location (same fingerprint as Campaign solo).
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import path from 'path';
 import { createHash } from 'crypto';
 import type { ComposeRequest } from '../explainer/contracts';
@@ -24,7 +29,7 @@ export type ProfileActiveStateResult = {
     profile_natal_compose_anchor: string;
     transit_context_fingerprint: string;
     transit_snapshot_fingerprint: string;
-    /** Same primitive as Campaign Phase 1 `provenance.transit_snapshot_hash` (hashSnapshot). */
+    /** Same primitive as campaign daily-pressure provenance `transit_snapshot_hash` (hashSnapshot). */
     transit_snapshot_hash: string;
     object_identity_hash: string;
     compose_seed: string;

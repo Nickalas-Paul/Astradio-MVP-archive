@@ -1,6 +1,11 @@
 /**
  * Phase 3 — mirrors enrichSectionText / expandSentencesToMin on TaggedSectionBody (source propagation).
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { TaggedParagraph, TaggedSectionBody } from '../projection-types';
 import {
   cloneTaggedSectionBody,

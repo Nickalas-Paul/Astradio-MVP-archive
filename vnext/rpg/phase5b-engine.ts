@@ -2,6 +2,11 @@
  * **Proj:** Phase 5B — deterministic RPG expression filters (campaign copy only; legacy module name `phase5b-*`).
  * No imports from projection `surface-expression-engine`; no shared execution path with that pass.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import { splitSentsForTagged } from '../projection/tagged-text';
 import type { Phase5BRule } from './phase5b-tables';
 import { PHASE5B_RULES } from './phase5b-tables';

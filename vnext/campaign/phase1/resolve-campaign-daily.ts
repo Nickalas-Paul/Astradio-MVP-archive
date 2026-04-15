@@ -7,6 +7,10 @@
  * route layer (primary member’s chart), not an aggregate chart. See `materializeCampaignDaily`.
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { EphemerisSnapshot } from '../../contracts';
 import { hashSnapshot } from '../../rpg/hash/snapshot-hash';
 import { computeRelationalWeatherV1 } from '../../relational/weather/compute-relational-weather-v1';

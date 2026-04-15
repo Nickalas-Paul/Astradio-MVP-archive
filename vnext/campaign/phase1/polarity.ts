@@ -1,3 +1,7 @@
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { CampaignBodyId, PressurePolarity, Phase1AspectType } from './contracts';
 
 const VOLATILE_CONJ = new Set<CampaignBodyId>(['mars', 'uranus', 'pluto', 'neptune']);

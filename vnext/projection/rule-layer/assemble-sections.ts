@@ -2,6 +2,11 @@
  * **Proj:** Step 8 — sole module that constructs ProjectedExplanationSection[] (before tone pass).
  * Pipeline ordinal only (not Product phase, not Acct:Stage-*). See apply-unified-projection for execution order.
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
   ExpansionTier,

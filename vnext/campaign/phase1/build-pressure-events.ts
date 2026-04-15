@@ -2,6 +2,10 @@
  * PressureEvent builder: transit × natal via computeCrossAspectsForMember.
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { EphemerisSnapshot } from '../../contracts';
 import { lonToHouse } from '../../astro/profile-from-snapshot';
 import { computeCrossAspectsForMember } from '../../relational/weather/cross-aspects-v1';

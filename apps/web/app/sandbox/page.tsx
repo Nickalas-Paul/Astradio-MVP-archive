@@ -1306,7 +1306,7 @@ export default function SandboxPage() {
 
         {(surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') && currentSnapshot && (
           <details className="card mt-4">
-            <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Phase 8H verification</summary>
+            <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Snapshot verification</summary>
             <div className="mt-3 text-xs font-mono text-subtext space-y-1">
               <p>
                 <strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})

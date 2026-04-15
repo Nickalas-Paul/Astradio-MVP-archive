@@ -2,6 +2,10 @@
  * **Proj:** Phase D — projection-layer options and validation (no semantic authority; legacy `phaseD` flag — not Product:Phase-*).
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { RelationshipMode } from '../compat/types';
 
 export type ExpansionTier = 'baseline' | 'expanded' | 'extended';

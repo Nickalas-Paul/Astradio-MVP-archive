@@ -6,6 +6,10 @@
  * Indices 27–30. May or may not sum to 1 (encoder outputs clamp01 per element).
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 export const FEATURE_ELEMENT_INDICES = [27, 28, 29, 30] as const;
 export const FEATURE_ELEMENT_COUNT = 4;
 export const FEATURE_TENSION_INDEX = 32;

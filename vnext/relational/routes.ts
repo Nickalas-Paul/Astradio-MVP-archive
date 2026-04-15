@@ -5,6 +5,10 @@
  * NODE_ENV=development AND ALLOW_DEV_USER_FALLBACK=true.
  */
 
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 import type { Request, Response } from 'express';
 
 // Path from dist/vnext/vnext/relational/ -> repo root lib

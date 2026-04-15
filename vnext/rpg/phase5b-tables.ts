@@ -4,6 +4,11 @@
  * Wave 2: additional continuity tones + history-direction lines on the same emission (per-line match).
  * Wave 3: remaining HISTORY_DIRECTION_TEXT literals (four lines).
  */
+
+// NOTE: "phase/stage" naming here is a historical delivery label only.
+// It is not a product concept, runtime layer, or Campaign feature.
+// Do not use this terminology in new implementation, planning, or design work.
+
 export type Phase5BMatch = { kind: 'whole_text'; before: string };
 
 export type Phase5BRule = {
