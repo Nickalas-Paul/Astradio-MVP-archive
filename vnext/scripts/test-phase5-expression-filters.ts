@@ -1,5 +1,5 @@
 /**
- * Phase 5A / 5B — surface expression filters (local CI).
+ * Projection surface expression rules and RPG line filters (local CI).
  * Sentence invariants, template allowlist, glue load neutrality, feed length, determinism, tagged reconstruct, hash contracts.
  */
 import { encodeFeatures } from '../feature-encode';
@@ -11,9 +11,16 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, ProjectionOptions, TaggedSectionBody } from '../projection/projection-types';
 import { assertSectionTaggedInvariant, reconstructTaggedSectionBody, splitSentsForTagged, stripTaggedFromExplanationForHash } from '../projection/tagged-text';
-import { applyPhase5AExpression, applyPhase5AExpressionWithTables, type Phase5AEngineTables } from '../projection/rule-layer/phase5a-engine';
-import type { Phase5ARule, Phase5ATemplateAllowlistEntry } from '../projection/rule-layer/phase5a-tables';
-import { PHASE5A_RULES, PHASE5A_TEMPLATE_ALLOWLIST } from '../projection/rule-layer/phase5a-tables';
+import {
+  applySurfaceExpressionRules,
+  applySurfaceExpressionRulesWithTables,
+  type SurfaceExpressionEngineTables,
+} from '../projection/rule-layer/surface-expression-engine';
+import type { SurfaceExpressionRule, SurfaceExpressionTemplateAllowlistEntry } from '../projection/rule-layer/surface-expression-tables';
+import {
+  SHIPPED_SURFACE_EXPRESSION_RULES,
+  SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
+} from '../projection/rule-layer/surface-expression-tables';
 import { PHASE5B_RULES } from '../rpg/phase5b-tables';
 import { applyPhase5BLineArray, applyPhase5BLineArrayWithTables, applyPhase5BWholeTextWithTables } from '../rpg/phase5b-engine';
 import type { Phase5BRule } from '../rpg/phase5b-tables';
@@ -51,7 +58,7 @@ function snap(): EphemerisSnapshot {
 
 function syntheticSection(tagged: TaggedSectionBody): ProjectedExplanationSection {
   return {
-    id: 'phase5_synthetic',
+    id: 'expr_synthetic_section',
     title: 'Synthetic',
     text: reconstructTaggedSectionBody(tagged),
     meta: { claimIdsReferenced: [], phaseD: true, tagged },
@@ -81,18 +88,81 @@ function splitParas(text: string): string[] {
     .filter(Boolean);
 }
 
+function collectClaimBodyTexts(sections: ProjectedExplanationSection[]): string[] {
+  const acc: string[] = [];
+  function walk(body: TaggedSectionBody | undefined): void {
+    if (!body) return;
+    for (const para of body.paragraphs) {
+      for (const row of para.sentences) {
+        if (row.provenance === 'claim_body') acc.push(row.text);
+      }
+    }
+    if (body.bulletBlocks) {
+      for (const bb of body.bulletBlocks) walk(bb);
+    }
+  }
+  for (const sec of sections) walk(sec.meta?.tagged);
+  return [...acc].sort((a, b) => a.localeCompare(b));
+}
+
+function surfaceExpressionClaimBodyAndVoiceInvariants(
+  core: ReturnType<typeof interpretCanonicalReportObject>
+): void {
+  const opts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'extended', narrativePlan: null };
+  const projected = projectTextFromSemanticCore(core, 'expr-cb-inv', opts);
+  const before = collectClaimBodyTexts(projected);
+  const afterProj = applySurfaceExpressionRules(
+    JSON.parse(JSON.stringify(projected)) as ProjectedExplanationSection[],
+    opts
+  );
+  assert(
+    JSON.stringify(before) === JSON.stringify(collectClaimBodyTexts(afterProj)),
+    'claim_body untouched by surface expression pass'
+  );
+
+  for (const domFlag of [false, true] as const) {
+    const o: ProjectionOptions = { ...opts, mechanismExpressionDominantSignals: domFlag };
+    const p0 = projectTextFromSemanticCore(core, `expr-dom-${String(domFlag)}`, o);
+    const p1 = applySurfaceExpressionRules(JSON.parse(JSON.stringify(p0)) as ProjectedExplanationSection[], o);
+    assert(
+      JSON.stringify(collectClaimBodyTexts(p0)) === JSON.stringify(collectClaimBodyTexts(p1)),
+      `claim_body stable with mechanismExpressionDominantSignals=${String(domFlag)}`
+    );
+  }
+
+  const pOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'expanded', narrativePlan: null };
+  const sOpts: ProjectionOptions = { phaseD: true, surface: 'sandbox', tier: 'expanded', narrativePlan: null };
+  const pSyn =
+    applySurfaceExpressionRules(projectTextFromSemanticCore(core, 'surf-p', pOpts), pOpts).find((s) => s.id === 'synthesis_a')
+      ?.text ?? '';
+  const sSyn =
+    applySurfaceExpressionRules(projectTextFromSemanticCore(core, 'surf-s', sOpts), sOpts).find((s) => s.id === 'synthesis_a')
+      ?.text ?? '';
+  if (pSyn.length > 0 && sSyn.length > 0) {
+    assert(pSyn !== sSyn, 'profile vs sandbox synthesis_a text differs');
+    assert(
+      pSyn.includes('personal nuance') || pSyn.includes('same personal picture'),
+      'profile synthesis_a carries profile-scoped voice'
+    );
+    assert(
+      sSyn.includes('lab snapshot') || sSyn.includes('inputs you set'),
+      'sandbox synthesis_a carries sandbox-scoped voice'
+    );
+  }
+}
+
 function main(): void {
-  const tables5a: Phase5AEngineTables = {
+  const tables5a: SurfaceExpressionEngineTables = {
     rules: [
       {
-        rule_id: 'P5A-z-second',
+        rule_id: 'expr-lex-second',
         surfaces: ['*'],
         provenances: ['synthesis_wrapper'],
         match: { kind: 'whole_sentence', before: 'second line.' },
         replacement: 'second LINE.',
       },
       {
-        rule_id: 'P5A-a-first',
+        rule_id: 'expr-lex-first',
         surfaces: ['*'],
         provenances: ['synthesis_wrapper'],
         match: { kind: 'whole_sentence', before: 'first line.' },
@@ -117,19 +187,19 @@ function main(): void {
 
   const sec = syntheticSection(tagged);
   const opts: ProjectionOptions = { surface: 'profile', tier: 'baseline', narrativePlan: null };
-  const out = applyPhase5AExpressionWithTables([sec], opts, tables5a);
+  const out = applySurfaceExpressionRulesWithTables([sec], opts, tables5a);
 
-  assert(out[0]!.text.includes('first LINE.'), 'lexicographic rule order: P5A-a-first before P5A-z-second');
+  assert(out[0]!.text.includes('first LINE.'), 'lexicographic rule order: expr-lex-first before expr-lex-second');
   assert(out[0]!.text.includes('second LINE.'), 'second rule applied');
   assert(out[0]!.text.includes('claim stays.'), 'claim_body immutable');
   assert(out[0]!.text.includes('template stays.'), 'template immutable without allowlist');
-  assertSectionTaggedInvariant(out[0]!, 'phase5-synthetic');
+  assertSectionTaggedInvariant(out[0]!, 'expr-synthetic');
 
   const scBefore = sentenceCountsInText(sec.text);
   const scAfter = sentenceCountsInText(out[0]!.text);
   assert(JSON.stringify(scBefore) === JSON.stringify(scAfter), 'sentence count per paragraph invariant');
 
-  const tplAllow: Phase5ATemplateAllowlistEntry[] = [
+  const tplAllow: SurfaceExpressionTemplateAllowlistEntry[] = [
     {
       exception_id: 'TE-0001',
       surface: '*',
@@ -137,7 +207,7 @@ function main(): void {
       replacement: 'template KEPT.',
     },
   ];
-  const out2 = applyPhase5AExpressionWithTables([sec], opts, { rules: [], templateAllowlist: tplAllow });
+  const out2 = applySurfaceExpressionRulesWithTables([sec], opts, { rules: [], templateAllowlist: tplAllow });
   assert(out2[0]!.text.includes('template KEPT.'), 'template allowlist applies');
   assert(!out2[0]!.text.includes('template stays.'), 'template replaced');
 
@@ -150,16 +220,16 @@ function main(): void {
   const glueTagged: TaggedSectionBody = {
     paragraphs: [{ sentences: [{ text: glueSentence, provenance: 'assembler_glue' }] }],
   };
-  const glueRules: Phase5ARule[] = [
+  const glueRules: SurfaceExpressionRule[] = [
     {
-      rule_id: 'P5A-glue',
+      rule_id: 'expr-glue',
       surfaces: ['*'],
       provenances: ['assembler_glue'],
       match: { kind: 'prefix', before_prefix: 'ZZZ', after_prefix: 'AAA' },
       replacement: '',
     },
   ];
-  const outGlue = applyPhase5AExpressionWithTables([syntheticSection(glueTagged)], opts, {
+  const outGlue = applySurfaceExpressionRulesWithTables([syntheticSection(glueTagged)], opts, {
     rules: glueRules,
     templateAllowlist: [],
   });
@@ -167,16 +237,16 @@ function main(): void {
   assertSectionTaggedInvariant(outGlue[0]!, 'glue');
 
   const feedOpts: ProjectionOptions = { surface: 'feed', tier: 'baseline', narrativePlan: null };
-  const feedRules: Phase5ARule[] = [
+  const feedRules: SurfaceExpressionRule[] = [
     {
-      rule_id: 'P5A-feed-long',
+      rule_id: 'expr-feed-long',
       surfaces: ['feed'],
       provenances: ['synthesis_wrapper'],
       match: { kind: 'whole_sentence', before: 'short.' },
       replacement: 'this is far too long to apply on feed.',
     },
     {
-      rule_id: 'P5A-feed-ok',
+      rule_id: 'expr-feed-ok',
       surfaces: ['feed'],
       provenances: ['synthesis_wrapper'],
       match: { kind: 'whole_sentence', before: 'short.' },
@@ -186,7 +256,7 @@ function main(): void {
   const feedTagged: TaggedSectionBody = {
     paragraphs: [{ sentences: [{ text: 'short.', provenance: 'synthesis_wrapper' }] }],
   };
-  const outFeed = applyPhase5AExpressionWithTables([syntheticSection(feedTagged)], feedOpts, {
+  const outFeed = applySurfaceExpressionRulesWithTables([syntheticSection(feedTagged)], feedOpts, {
     rules: feedRules,
     templateAllowlist: [],
   });
@@ -209,7 +279,7 @@ function main(): void {
   const core = interpretCanonicalReportObject(canonical);
   const projOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'baseline', narrativePlan: null };
   const projected = projectTextFromSemanticCore(core, 'p5-hash', projOpts);
-  const emptyPass = applyPhase5AExpressionWithTables(projected, projOpts, { rules: [], templateAllowlist: [] });
+  const emptyPass = applySurfaceExpressionRulesWithTables(projected, projOpts, { rules: [], templateAllowlist: [] });
   assert(JSON.stringify(projected) === JSON.stringify(emptyPass), 're-applying empty rule tables is a no-op on current projection');
   const canonical2 = buildCanonicalReportForSnapshotSurface({
     surface_kind: 'profile_natal',
@@ -268,31 +338,32 @@ function main(): void {
   console.log('[test-phase5-expression-filters] OK');
 }
 
-/** Phase 5C — shipped `phase5a-tables` / `phase5b-tables` invariants (Wave 1–3 caps, glue load, feed length, preface, history). */
+/** Shipped projection expression tables and RPG line tables: wave caps, glue load, feed length, preface, history. */
 function wave1ShippedTablesVerification(): void {
-  const wave2a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W2-'));
+  const wave2a = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.rule_id.includes('-W2-'));
   const wave2b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W2-'));
-  assert(wave2a.length === 14, `expected 14 Wave 2 Phase5A rules, got ${wave2a.length}`);
+  assert(wave2a.length === 14, `expected 14 shipped -W2- projection expression rules, got ${wave2a.length}`);
   assert(wave2b.length === 10, `expected 10 Wave 2 Phase5B rules, got ${wave2b.length}`);
   assert(wave2a.length + wave2b.length <= 28, 'Wave 2 new rule rows must stay within the 28-row cap (5A+5B)');
 
-  const wave3a = PHASE5A_RULES.filter((r) => r.rule_id.includes('-W3-'));
+  const wave3a = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.rule_id.includes('-W3-'));
   const wave3b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W3-'));
-  assert(wave3a.length === 14, `expected 14 Wave 3 Phase5A rules, got ${wave3a.length}`);
+  assert(wave3a.length === 14, `expected 14 shipped -W3- projection expression rules, got ${wave3a.length}`);
   assert(wave3b.length === 4, `expected 4 Wave 3 Phase5B rules, got ${wave3b.length}`);
   assert(wave3a.length + wave3b.length <= 22, 'Wave 3 new rule rows must stay within the 22-row cap (5A+5B)');
 
-  const waveTotal = PHASE5A_RULES.length + PHASE5A_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
-  assert(waveTotal <= 62, `cumulative Phase5 rows ${waveTotal} must stay controlled`);
+  const waveTotal =
+    SHIPPED_SURFACE_EXPRESSION_RULES.length + SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST.length + PHASE5B_RULES.length;
+  assert(waveTotal <= 80, `cumulative shipped expression + RPG line rows ${waveTotal} must stay bounded`);
 
-  const wave6b = PHASE5A_RULES.filter((r) => r.rule_id.startsWith('P6B-'));
+  const wave6b = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.rule_id.startsWith('P6B-'));
   assert(
     wave6b.length <= 18,
-    `Proj aggregate-expression wave (legacy Phase 6B) Phase5A rule cap: expected at most 18 P6B rules, got ${wave6b.length}`
+    `aggregate P6B- family rule cap: expected at most 18 rules, got ${wave6b.length}`
   );
-  assert(wave6b.length === 3, `expected 3 shipped P6B Phase5A rules, got ${wave6b.length}`);
+  assert(wave6b.length === 3, `expected 3 shipped P6B- projection expression rules, got ${wave6b.length}`);
 
-  for (const ex of PHASE5A_TEMPLATE_ALLOWLIST) {
+  for (const ex of SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST) {
     if (ex.match.kind === 'whole_sentence') {
       assert(
         ex.replacement.length <= ex.match.value.length,
@@ -301,7 +372,7 @@ function wave1ShippedTablesVerification(): void {
     }
   }
 
-  const glueRules = PHASE5A_RULES.filter((r) => r.match.kind === 'prefix');
+  const glueRules = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.match.kind === 'prefix');
   assert(glueRules.length === 6, `expected 6 prefix glue rules (profile + group + Wave 2/3 surfaces), got ${glueRules.length}`);
   const profileGlue = glueRules.find((r) => r.rule_id === 'P5A-W1-001-glue-profile-baseline-prefix');
   assert(profileGlue !== undefined, 'wave1 profile glue rule present');
@@ -363,18 +434,18 @@ function wave1ShippedTablesVerification(): void {
       },
     ],
   };
-  const groupPrefOut = applyPhase5AExpressionWithTables([syntheticSection(groupPrefaceTagged)], {
+  const groupPrefOut = applySurfaceExpressionRulesWithTables([syntheticSection(groupPrefaceTagged)], {
     surface: 'group',
     tier: 'baseline',
     narrativePlan: null,
     participantCount: 4,
   }, {
-    rules: PHASE5A_RULES,
-    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+    rules: SHIPPED_SURFACE_EXPRESSION_RULES,
+    templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
   assert(groupPrefOut[0]!.text.includes('room-wide'), 'Wave 3 group ensemble preface rule applies');
 
-  for (const r of PHASE5A_RULES) {
+  for (const r of SHIPPED_SURFACE_EXPRESSION_RULES) {
     if (r.surfaces.includes('feed') && r.match.kind === 'whole_sentence') {
       const bef = r.match.before;
       const rep = r.replacement;
@@ -390,9 +461,9 @@ function wave1ShippedTablesVerification(): void {
     ],
   };
   const prefaceOpts: ProjectionOptions = { surface: 'compat_pair', tier: 'baseline', narrativePlan: null, connectionMode: 'friends' };
-  const prefaceOut = applyPhase5AExpressionWithTables([syntheticSection(prefaceObsTagged)], prefaceOpts, {
-    rules: PHASE5A_RULES,
-    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  const prefaceOut = applySurfaceExpressionRulesWithTables([syntheticSection(prefaceObsTagged)], prefaceOpts, {
+    rules: SHIPPED_SURFACE_EXPRESSION_RULES,
+    templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
   assert(
     prefaceOut[0]!.text.includes('steady, plain language'),
@@ -408,16 +479,16 @@ function wave1ShippedTablesVerification(): void {
     narrativePlan: null,
     connectionMode: 'lovers',
   };
-  const situOut = applyPhase5AExpressionWithTables([syntheticSection(situTagged)], situLoversOpts, {
-    rules: PHASE5A_RULES,
-    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  const situOut = applySurfaceExpressionRulesWithTables([syntheticSection(situTagged)], situLoversOpts, {
+    rules: SHIPPED_SURFACE_EXPRESSION_RULES,
+    templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
   assert(situOut[0]!.text.includes('in the moment'), 'situational preface rule applies for lovers');
 
   const situRivalsOpts: ProjectionOptions = { ...prefaceOpts, connectionMode: 'rivals' };
-  const situRivalsOut = applyPhase5AExpressionWithTables([syntheticSection(situTagged)], situRivalsOpts, {
-    rules: PHASE5A_RULES,
-    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  const situRivalsOut = applySurfaceExpressionRulesWithTables([syntheticSection(situTagged)], situRivalsOpts, {
+    rules: SHIPPED_SURFACE_EXPRESSION_RULES,
+    templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
   assert(situRivalsOut[0]!.text === reconstructTaggedSectionBody(situTagged).trim(), 'situational preface skipped for rivals');
 
@@ -442,7 +513,7 @@ function wave1ShippedTablesVerification(): void {
   const core = interpretCanonicalReportObject(canonical);
 
   const friendsText =
-    applyPhase5AExpression(
+    applySurfaceExpressionRules(
       projectTextFromSemanticCore(core, 'mode-diff', {
         phaseD: true,
         surface: 'compat_pair',
@@ -454,7 +525,7 @@ function wave1ShippedTablesVerification(): void {
     )
       .find((s) => s.id === 'connection_structure')?.text ?? '';
   const loversText =
-    applyPhase5AExpression(
+    applySurfaceExpressionRules(
       projectTextFromSemanticCore(core, 'mode-diff', {
         phaseD: true,
         surface: 'compat_pair',
@@ -468,7 +539,7 @@ function wave1ShippedTablesVerification(): void {
   assert(friendsText.length > 0 && loversText.length > 0, 'compat_pair connection_structure present for intent test');
   assert(friendsText !== loversText, 'compat intent differentiation: friends vs lovers preface differs');
 
-  const campSyn = applyPhase5AExpression(
+  const campSyn = applySurfaceExpressionRules(
     projectTextFromSemanticCore(core, 'camp-syn', { phaseD: true, surface: 'campaign', tier: 'expanded', narrativePlan: null }),
     { surface: 'campaign', tier: 'expanded', narrativePlan: null }
   )
@@ -483,7 +554,7 @@ function wave1ShippedTablesVerification(): void {
     'Wave 2–3 campaign-only synthesis rules apply when literals present'
   );
 
-  const profExt = applyPhase5AExpression(
+  const profExt = applySurfaceExpressionRules(
     projectTextFromSemanticCore(core, 'w3-trait', { phaseD: true, surface: 'profile', tier: 'expanded', narrativePlan: null }),
     { surface: 'profile', tier: 'expanded', narrativePlan: null }
   );
@@ -520,8 +591,10 @@ function wave1ShippedTablesVerification(): void {
   if (profJoined.includes('In this chart, you see a baseline personal picture.')) {
     assert(profJoined.includes('steadier'), 'wave1 profile glue prefix applied when baseline anchor present');
   }
-  const prof2 = applyPhase5AExpression(prof, profOpts);
-  assert(JSON.stringify(prof) === JSON.stringify(prof2), 'applyPhase5AExpression idempotent on shipped rules');
+  const prof2 = applySurfaceExpressionRules(prof, profOpts);
+  assert(JSON.stringify(prof) === JSON.stringify(prof2), 'applySurfaceExpressionRules idempotent on shipped rules');
+
+  surfaceExpressionClaimBodyAndVoiceInvariants(core);
 
   phase6bAggregateExpressionInvariants();
 }
@@ -587,8 +660,8 @@ function phase6bAggregateExpressionInvariants(): void {
     narrativePlan: null,
     participantCount: 3,
   };
-  const g1 = applyPhase5AExpression(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
-  const g2 = applyPhase5AExpression(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
+  const g1 = applySurfaceExpressionRules(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
+  const g2 = applySurfaceExpressionRules(projectTextFromSemanticCore(coreGroup, 'p6b-g', groupOpts), groupOpts);
   assert(JSON.stringify(g1) === JSON.stringify(g2), 'phase6b group aggregate projection deterministic');
 
   const prefaceJoined = g1.filter((s) => s.id === 'ensemble_framing').map((s) => s.text).join('\n');
@@ -651,7 +724,7 @@ function phase6bAggregateExpressionInvariants(): void {
     narrativePlan: null,
     connectionMode: 'friends',
   };
-  const c1 = applyPhase5AExpression(projectTextFromSemanticCore(coreCompat, 'p6b-c', compatOpts), compatOpts);
+  const c1 = applySurfaceExpressionRules(projectTextFromSemanticCore(coreCompat, 'p6b-c', compatOpts), compatOpts);
   const pre = c1.find((x) => x.id === 'connection_structure')?.text ?? '';
   assert(pre.includes('This connection'), 'phase6b compat preface uses connection topology');
   assert(!pre.includes('This group'), 'phase6b compat preface does not use group topology');

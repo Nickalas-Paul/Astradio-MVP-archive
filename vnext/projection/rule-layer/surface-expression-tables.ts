@@ -1,38 +1,32 @@
 /**
- * **Proj:** Phase 5A — finite enumerated expression rules (voice only; legacy module name).
- * Wave 1 (Product delivery tag Phase 5C): sandbox lab lines, tier scaffold (profile/sandbox/compat/campaign),
- * feed scope allowlist, one profile glue prefix pair.
- * Wave 2 (Phase 5C): shared preface lines, tier scaffold (daily/overlay/group/feed),
- * glue (compat/campaign/daily), campaign-only synthesis wrappers.
- * Wave 3 (Phase 5C): preface completion slice, profile trait_bridge, campaign literals, overlay glue.
- * **Proj:** aggregate expression wave (legacy “Phase 6B”): neutral group glue prefix; shared compat/group tier voice;
- * group synthesis_wrapper refinements (`P6B-` `rule_id` prefix cap — frozen identifiers, not Product:Phase-6).
+ * Deterministic surface expression rules: enumerated replacements on tagged provenance rows.
+ * Shipped rule_id strings prefixed `P5A-` / `P6B-` are frozen identifiers for regression filters.
  */
 import type { ConnectionMode, ProjectionSurface, ProvenanceType } from '../projection-types';
 
-export type Phase5ARuleMatch =
+export type SurfaceExpressionRuleMatch =
   | { kind: 'whole_sentence'; before: string }
   | { kind: 'prefix'; before_prefix: string; after_prefix: string };
 
-export type Phase5ARule = {
+export type SurfaceExpressionRule = {
   rule_id: string;
   surfaces: readonly (ProjectionSurface | '*')[];
   provenances: readonly ProvenanceType[];
   /** When set, rule applies only if `connectionMode` is listed (excludes undefined). */
   connection_modes?: readonly ConnectionMode[];
-  match: Phase5ARuleMatch;
+  match: SurfaceExpressionRuleMatch;
   /** Used for `whole_sentence` only; ignored for `prefix` (uses `after_prefix`). */
   replacement: string;
 };
 
-export type Phase5ATemplateMatch =
+export type SurfaceExpressionTemplateMatch =
   | { kind: 'whole_sentence'; value: string }
   | { kind: 'exact_substring'; value: string };
 
-export type Phase5ATemplateAllowlistEntry = {
+export type SurfaceExpressionTemplateAllowlistEntry = {
   exception_id: string;
   surface: ProjectionSurface | '*';
-  match: Phase5ATemplateMatch;
+  match: SurfaceExpressionTemplateMatch;
   replacement: string;
   section_ids?: readonly string[];
 };
@@ -40,7 +34,7 @@ export type Phase5ATemplateAllowlistEntry = {
 const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
 
 /** Lexicographically sorted by rule_id at runtime; keep source sorted for diffs. */
-export const PHASE5A_RULES: readonly Phase5ARule[] = [
+export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] = [
   {
     rule_id: 'P5A-W1-001-glue-profile-baseline-prefix',
     surfaces: ['profile'],
@@ -521,10 +515,151 @@ export const PHASE5A_RULES: readonly Phase5ARule[] = [
     replacement:
       'Field distribution: harmony and friction can read as uneven spread before local detail tightens, with steadier pacing.',
   },
+  {
+    rule_id: 'surface-group-synthesis-wrap-cross-threads',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.',
+    },
+    replacement:
+      'Cross-section synthesis ties mid-rank threads to the headline while keeping many voices legible in the shared field.',
+  },
+  {
+    rule_id: 'surface-group-synthesis-wrap-secondary-refine',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'Synthesis adds secondary threads that refine where intensity softens or concentrates.',
+    },
+    replacement:
+      'Synthesis adds secondary threads that show where intensity softens or tightens before local detail tightens across the room.',
+  },
+  {
+    rule_id: 'surface-group-synthesis-b-extended',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.',
+    },
+    replacement:
+      'Extended synthesis brings lower-ranked moderator threads to map nuance around the headline pattern while keeping the field-wide frame explicit.',
+  },
+  {
+    rule_id: 'surface-group-synthesis-b-second',
+    surfaces: ['group'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.',
+    },
+    replacement:
+      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, read as room-scale and bounded.',
+  },
+  {
+    rule_id: 'surface-profile-synthesis-wrap-cross-threads',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.',
+    },
+    replacement:
+      'Cross-section synthesis ties mid-rank threads to your headline pattern so personal nuance stays legible without overwriting the main read.',
+  },
+  {
+    rule_id: 'surface-profile-synthesis-wrap-secondary-refine',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'Synthesis adds secondary threads that refine where intensity softens or concentrates.',
+    },
+    replacement:
+      'Synthesis adds secondary threads that show where intensity softens or tightens in the same personal picture.',
+  },
+  {
+    rule_id: 'surface-profile-synthesis-b-extended',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.',
+    },
+    replacement:
+      'Extended synthesis brings lower-ranked moderator threads to map nuance around the headline pattern with steadier personal pacing.',
+  },
+  {
+    rule_id: 'surface-profile-synthesis-b-second',
+    surfaces: ['profile'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.',
+    },
+    replacement:
+      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, kept personal and bounded.',
+  },
+  {
+    rule_id: 'surface-sandbox-synthesis-wrap-cross-threads',
+    surfaces: ['sandbox'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.',
+    },
+    replacement:
+      'Cross-section synthesis ties mid-rank threads to the lab snapshot so controlled shifts stay easy to compare run to run.',
+  },
+  {
+    rule_id: 'surface-sandbox-synthesis-wrap-secondary-refine',
+    surfaces: ['sandbox'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before: 'Synthesis adds secondary threads that refine where intensity softens or concentrates.',
+    },
+    replacement:
+      'Synthesis adds secondary threads that show where intensity softens or tightens under the inputs you set for this pass.',
+  },
+  {
+    rule_id: 'surface-sandbox-synthesis-b-extended',
+    surfaces: ['sandbox'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.',
+    },
+    replacement:
+      'Extended synthesis brings lower-ranked moderator threads to map nuance around the headline pattern while keeping conclusions provisional.',
+  },
+  {
+    rule_id: 'surface-sandbox-synthesis-b-second',
+    surfaces: ['sandbox'],
+    provenances: ['synthesis_wrapper'],
+    match: {
+      kind: 'whole_sentence',
+      before:
+        'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.',
+    },
+    replacement:
+      'Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal, read as lab-bounded and reversible.',
+  },
 ];
 
 /** Lexicographically sorted by exception_id at runtime. */
-export const PHASE5A_TEMPLATE_ALLOWLIST: readonly Phase5ATemplateAllowlistEntry[] = [
+export const SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST: readonly SurfaceExpressionTemplateAllowlistEntry[] = [
   {
     exception_id: 'P5A-W1-FEED-001-scope',
     surface: 'feed',

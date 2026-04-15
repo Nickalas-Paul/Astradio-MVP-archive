@@ -1,6 +1,6 @@
 /**
- * **Proj:** Phase 5A — deterministic surface expression filters (projection only; legacy module name `phase5a-*`).
- * After composition + tone + collapse; before validation. No shared execution with Phase 5B (see `phase5b-*` in RPG).
+ * Deterministic surface expression pass: tagged provenance rows only, after tone and repetition collapse.
+ * RPG campaign copy uses a separate engine under `vnext/rpg/`; no shared execution path with this module.
  */
 import type {
   ConnectionMode,
@@ -20,24 +20,33 @@ import {
   splitSentsForTagged,
 } from '../tagged-text';
 import { countSentenceLoads, totalLoadScore } from './phase2-sentence-load';
-import type { Phase5ARule, Phase5ATemplateAllowlistEntry } from './phase5a-tables';
-import { PHASE5A_RULES, PHASE5A_TEMPLATE_ALLOWLIST } from './phase5a-tables';
+import type { SurfaceExpressionRule, SurfaceExpressionTemplateAllowlistEntry } from './surface-expression-tables';
+import {
+  SHIPPED_SURFACE_EXPRESSION_RULES,
+  SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
+} from './surface-expression-tables';
 
-export type Phase5AEngineTables = {
-  rules: readonly Phase5ARule[];
-  templateAllowlist: readonly Phase5ATemplateAllowlistEntry[];
+export type SurfaceExpressionEngineTables = {
+  rules: readonly SurfaceExpressionRule[];
+  templateAllowlist: readonly SurfaceExpressionTemplateAllowlistEntry[];
 };
 
-function validateShippedPhase5ARules(rules: readonly Phase5ARule[]): void {
+function validateShippedSurfaceExpressionRules(rules: readonly SurfaceExpressionRule[]): void {
   for (const r of rules) {
     if (r.provenances.includes('template')) {
-      throw new Error(`[Phase5A] rule ${r.rule_id} must not target template (use phase5a-template-allowlist)`);
+      throw new Error(
+        `[surface-expression] rule ${r.rule_id} must not target template (use template allowlist entries)`
+      );
     }
     if (r.provenances.includes('claim_body')) {
-      throw new Error(`[Phase5A] rule ${r.rule_id} must not target claim_body`);
+      throw new Error(`[surface-expression] rule ${r.rule_id} must not target claim_body`);
     }
-    if (r.provenances.includes('padding') || r.provenances.includes('audio_staging') || r.provenances.includes('audio_thread')) {
-      throw new Error(`[Phase5A] rule ${r.rule_id} targets immutable provenance`);
+    if (
+      r.provenances.includes('padding') ||
+      r.provenances.includes('audio_staging') ||
+      r.provenances.includes('audio_thread')
+    ) {
+      throw new Error(`[surface-expression] rule ${r.rule_id} targets immutable provenance`);
     }
   }
 }
@@ -58,7 +67,7 @@ function surfaceMatches(ruleSurfaces: readonly (ProjectionSurface | '*')[], surf
   return ruleSurfaces.includes('*') || ruleSurfaces.includes(surf);
 }
 
-function connectionGate(rule: Phase5ARule, mode: ConnectionMode | undefined): boolean {
+function connectionGate(rule: SurfaceExpressionRule, mode: ConnectionMode | undefined): boolean {
   const cm = rule.connection_modes;
   if (!cm || cm.length === 0) return true;
   return mode !== undefined && (cm as readonly ConnectionMode[]).includes(mode);
@@ -71,7 +80,7 @@ function loadTotal(sentence: string): number {
 function assertSingleSentenceSlot(text: string, where: string): void {
   const n = splitSentsForTagged(text).length;
   if (n !== 1) {
-    throw new Error(`[Phase5A] expected single sentence in tagged row @ ${where}, got ${n}: ${JSON.stringify(text)}`);
+    throw new Error(`[surface-expression] expected single sentence in tagged row @ ${where}, got ${n}: ${JSON.stringify(text)}`);
   }
 }
 
@@ -86,7 +95,7 @@ function tryApplyNonTemplateRule(
   surf: ProjectionSurface,
   mode: ConnectionMode | undefined,
   glueConsumed: { value: boolean },
-  sortedRules: Phase5ARule[]
+  sortedRules: SurfaceExpressionRule[]
 ): boolean {
   const text = row.text;
   if (eff === 'template') return false;
@@ -113,7 +122,7 @@ function tryApplyNonTemplateRule(
       const next = after_prefix + text.slice(before_prefix.length);
       if (!feedNonExpanding(surf, text, next)) continue;
       if (loadTotal(text) !== loadTotal(next)) continue;
-      assertSingleSentenceSlot(next, 'phase5a:prefix-result');
+      assertSingleSentenceSlot(next, 'surface-expression:prefix-result');
       row.text = next;
       glueConsumed.value = true;
       return true;
@@ -127,7 +136,7 @@ function tryApplyTemplateAllowlist(
   eff: ProvenanceType,
   surf: ProjectionSurface,
   sectionId: string,
-  sortedTpl: Phase5ATemplateAllowlistEntry[]
+  sortedTpl: SurfaceExpressionTemplateAllowlistEntry[]
 ): boolean {
   if (eff !== 'template') return false;
   let text = row.text;
@@ -167,13 +176,13 @@ function paragraphSentenceCounts(tp: TaggedParagraph): number[] {
 
 function assertParagraphInvariant(before: TaggedParagraph, after: TaggedParagraph, where: string): void {
   if (before.sentences.length !== after.sentences.length) {
-    throw new Error(`[Phase5A] sentence row count changed @ ${where}`);
+    throw new Error(`[surface-expression] sentence row count changed @ ${where}`);
   }
   const cb = paragraphSentenceCounts(before);
   const ca = paragraphSentenceCounts(after);
   for (let i = 0; i < cb.length; i++) {
     if (cb[i] !== ca[i]) {
-      throw new Error(`[Phase5A] linguistic sentence count per row changed @ ${where} idx ${i}`);
+      throw new Error(`[surface-expression] linguistic sentence count per row changed @ ${where} idx ${i}`);
     }
   }
 }
@@ -183,8 +192,8 @@ function transformParagraph(
   surf: ProjectionSurface,
   mode: ConnectionMode | undefined,
   sectionId: string,
-  sortedRules: Phase5ARule[],
-  sortedTpl: Phase5ATemplateAllowlistEntry[],
+  sortedRules: SurfaceExpressionRule[],
+  sortedTpl: SurfaceExpressionTemplateAllowlistEntry[],
   glueConsumed: { value: boolean },
   where: string
 ): TaggedParagraph {
@@ -208,8 +217,8 @@ function transformTaggedSectionBody(
   surf: ProjectionSurface,
   mode: ConnectionMode | undefined,
   sectionId: string,
-  sortedRules: Phase5ARule[],
-  sortedTpl: Phase5ATemplateAllowlistEntry[],
+  sortedRules: SurfaceExpressionRule[],
+  sortedTpl: SurfaceExpressionTemplateAllowlistEntry[],
   where: string
 ): TaggedSectionBody {
   const glueConsumed = { value: false };
@@ -222,10 +231,10 @@ function transformTaggedSectionBody(
   return { paragraphs, ...(bulletBlocks ? { bulletBlocks } : {}) };
 }
 
-export function applyPhase5AExpressionWithTables(
+export function applySurfaceExpressionRulesWithTables(
   sections: ProjectedExplanationSection[],
   options: ProjectionOptions,
-  tables: Phase5AEngineTables
+  tables: SurfaceExpressionEngineTables
 ): ProjectedExplanationSection[] {
   const sortedRules = [...tables.rules].sort((a, b) => a.rule_id.localeCompare(b.rule_id));
   const sortedTpl = [...tables.templateAllowlist].sort((a, b) => a.exception_id.localeCompare(b.exception_id));
@@ -242,7 +251,7 @@ export function applyPhase5AExpressionWithTables(
       sec.id,
       sortedRules,
       sortedTpl,
-      `phase5a:${sec.id}`
+      `surface-expression:${sec.id}`
     );
 
     const text = reconstructTaggedSectionBody(tagged);
@@ -250,7 +259,7 @@ export function applyPhase5AExpressionWithTables(
     const bulletBlocks = tagged.bulletBlocks;
     if (sec.bullets?.length && bulletBlocks?.length) {
       if (bulletBlocks.length !== sec.bullets.length) {
-        throw new Error(`[Phase5A] bullet block count mismatch ${sec.id}`);
+        throw new Error(`[surface-expression] bullet block count mismatch ${sec.id}`);
       }
       bullets = sec.bullets.map((_, i) => reconstructTaggedSectionBody(bulletBlocks[i]!));
     }
@@ -261,18 +270,18 @@ export function applyPhase5AExpressionWithTables(
       bullets: bullets?.length ? bullets : undefined,
       meta: sec.meta ? { ...sec.meta, tagged } : undefined,
     };
-    assertSectionTaggedInvariant(next, 'phase5a');
+    assertSectionTaggedInvariant(next, 'surface-expression');
     return next;
   });
 }
 
-export function applyPhase5AExpression(
+export function applySurfaceExpressionRules(
   sections: ProjectedExplanationSection[],
   options: ProjectionOptions
 ): ProjectedExplanationSection[] {
-  validateShippedPhase5ARules(PHASE5A_RULES);
-  return applyPhase5AExpressionWithTables(sections, options, {
-    rules: PHASE5A_RULES,
-    templateAllowlist: PHASE5A_TEMPLATE_ALLOWLIST,
+  validateShippedSurfaceExpressionRules(SHIPPED_SURFACE_EXPRESSION_RULES);
+  return applySurfaceExpressionRulesWithTables(sections, options, {
+    rules: SHIPPED_SURFACE_EXPRESSION_RULES,
+    templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
 }

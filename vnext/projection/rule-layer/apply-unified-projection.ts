@@ -21,7 +21,7 @@ import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
 import { validateReportSections, buildFinalProjectionValidation } from './validate-projection';
 import { validatePhase2Sections } from './phase2-sentence-load';
 import { assertAllSectionsTagged } from '../tagged-text';
-import { applyPhase5AExpression } from './phase5a-engine';
+import { applySurfaceExpressionRules } from './surface-expression-engine';
 
 /**
  * Full projection: **Proj:** Phase D (legacy `phaseD` flag) by default — full post-template pipeline, not a product phase.
@@ -85,7 +85,7 @@ export function applyUnifiedProjection(
     tierForDensity: tierForDensityPhase0,
   });
 
-  sections = applyPhase5AExpression(sections, options);
+  sections = applySurfaceExpressionRules(sections, options);
 
   if (options.surface === 'feed') {
     validatePhase2Sections(sections, seed);
