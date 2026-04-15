@@ -149,12 +149,30 @@ function main(): void {
     narrativePlan: null,
     aspectTension: null,
   };
-  const withoutDigest = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', baseOpts);
-  const withDigest = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', {
+  const withDigestA = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', {
     ...baseOpts,
     campaignExpressionDigest: digest,
   });
-  assert(JSON.stringify(withoutDigest) === JSON.stringify(withDigest), 'campaign projection output unchanged with digest');
+  const withDigestB = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', {
+    ...baseOpts,
+    campaignExpressionDigest: digest,
+  });
+  assert(JSON.stringify(withDigestA) === JSON.stringify(withDigestB), 'campaign projection deterministic with digest');
+
+  const withoutDigestA = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', baseOpts);
+  const withoutDigestB = projectTextFromSemanticCore(semanticCore, 'digest-seed-a', baseOpts);
+  assert(JSON.stringify(withoutDigestA) === JSON.stringify(withoutDigestB), 'campaign projection deterministic without digest');
+
+  const joinedWith = withDigestA.map((s) => s.text).join('\n').toLowerCase();
+  assert(joinedWith.includes('mars'), 'digest-driven moment includes transit body');
+  assert(joinedWith.includes('venus'), 'digest-driven moment includes natal body');
+  assert(joinedWith.includes('square'), 'digest-driven moment includes aspect');
+  assert(joinedWith.includes('house 7'), 'digest-driven moment includes house');
+  assert(!joinedWith.includes('scenario pressure'), 'forbidden coaching label absent');
+  assert(!joinedWith.includes('response shape'), 'forbidden coaching label absent');
+
+  const joinedDefault = withoutDigestA.map((s) => s.text).join('\n').toLowerCase();
+  assert(joinedDefault.includes('saturn') && joinedDefault.includes('sun'), 'default digest moment uses fallback bodies');
 
   assert(campaignExpressionDigestFromOptions(undefined) === undefined, 'guard undefined options');
   assert(campaignExpressionDigestFromOptions({ ...baseOpts, surface: 'profile' }) === undefined, 'guard non-campaign surface');

@@ -1,10 +1,16 @@
 /**
  * Step 5 — claim synthesis (deterministic integration; no new claims).
- * Phase 1 — ClaimExpressionBundle rendering; no generic claim fallback.
+ * ClaimExpressionBundle rendering; no generic claim fallback.
  */
 import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
-import type { DensityClass, ExpansionTier, ProjectionOptions, ProjectionSurface } from '../projection-types';
+import type {
+  CampaignExpressionDigest,
+  DensityClass,
+  ExpansionTier,
+  ProjectionOptions,
+  ProjectionSurface,
+} from '../projection-types';
 import { campaignExpressionDigestFromOptions } from '../campaign-expression-digest-guard';
 import { minClaimBodiesForDensity } from '../density-validate';
 import { projectionNormSentence } from './repetition-collapse-phase0';
@@ -30,21 +36,6 @@ function pickVariant(seed: string, variants: string[]): string {
     h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   }
   return variants[h % variants.length];
-}
-
-/** Human-readable labels for campaign copy (no raw ontology ids in user text). */
-function campaignLabelForClaimId(id: string): string {
-  const table: Record<string, string> = {
-    TENSION_BAND_HIGH: 'a high structural tension band (feedback comes back fast)',
-    TENSION_BAND_MED: 'a moderate structural tension band (feedback steadies but does not vanish)',
-    TENSION_BAND_LOW: 'a low structural tension band (feedback stretches and softens)',
-    MOTION_LABEL_SURGING: 'a surging motion profile (impulse spikes quickly)',
-    MOTION_LABEL_RESTLESS: 'a restless motion profile (starts and stops in quick loops)',
-    MOTION_LABEL_QUIET_FLOW: 'a quiet-flow motion profile (movement stays low and continuous)',
-    MOTION_LABEL_INWARD: 'an inward consolidation motion profile (energy pulls back before it returns)',
-    MOTION_LABEL_STEADY: 'a steady motion profile (pace holds even when load rises)',
-  };
-  return table[id] ?? 'a distinct motion pattern in the field';
 }
 
 function pushParagraphNormDeque(dq: string[], norm: string): void {
@@ -715,25 +706,309 @@ export function buildSupplementalPanel(
   };
 }
 
+/** Campaign moment copy: digest-driven field (A), vector (B), tension (T); identity modulates stance + verbs only. */
+const CAMPAIGN_MOMENT_FORBIDDEN = [
+  'Scenario pressure',
+  'Response shape',
+  'your chart',
+  'natal promise',
+  'self-care',
+  'remember to',
+  'journey',
+  'TENSION_BAND_',
+  'MOTION_LABEL_',
+] as const;
+
+const STANCE_KEYS = ['ground', 'probe', 'edge', 'hold', 'weave', 'strike', 'shelter', 'scan'] as const;
+
+const STANCE_S1_OPEN: Record<(typeof STANCE_KEYS)[number], readonly string[]> = {
+  ground: ['Right now, ', 'In this pass, ', 'On the field today, '],
+  probe: ['Right now, ', 'In this pass, ', 'At this beat, '],
+  edge: ['Right now, ', 'In this pass, ', 'At this edge, '],
+  hold: ['Right now, ', 'In this pass, ', 'In this window, '],
+  weave: ['Right now, ', 'In this pass, ', 'Across this weave, '],
+  strike: ['Right now, ', 'In this pass, ', 'At this strike, '],
+  shelter: ['Right now, ', 'In this pass, ', 'Inside this shelter, '],
+  scan: ['Right now, ', 'In this pass, ', 'Across this scan, '],
+};
+
+const VERB_CLASSES: readonly (readonly string[])[] = [
+  ['name', 'mark', 'signal', 'trace'],
+  ['steady', 'hold', 'even', 'brace'],
+  ['tighten', 'narrow', 'trim', 'clip'],
+  ['widen', 'open', 'stretch', 'ease'],
+  ['pace', 'meter', 'clock', 'time'],
+] as const;
+
+const DOMAIN_FIELD: Record<string, string> = {
+  self: 'identity stance',
+  assets: 'resources and footing',
+  communication: 'signals and exchanges',
+  home: 'roots and private ground',
+  creativity: 'expression and risk',
+  work: 'duty and daily systems',
+  partnership: 'contact and reciprocity',
+  transformation: 'stakes and exchange',
+  belief: 'horizon and meaning',
+  career: 'visibility and role',
+  community: 'belonging and contribution',
+  subconscious: 'undercurrent and inner weather',
+};
+
+const INTENSITY_FIELD: Record<string, string> = {
+  low: 'stays low but present',
+  moderate: 'shows clear and steady',
+  high: 'runs hot and close',
+  critical: 'demands attention now',
+};
+
+const INTERACTION_FIELD: Record<string, string> = {
+  none: 'a single clear vector shapes the room',
+  reinforcing: 'vectors reinforce the same pressure line',
+  cross_pressuring: 'vectors pull in different directions at once',
+  escalating: 'the field stacks and escalates quickly',
+  dissolving: 'the field loosens and spreads',
+  transforming: 'the field shifts shape mid-pass',
+};
+
+const FAMILY_TENSION: Record<string, readonly string[]> = {
+  identity: [
+    'The identity line asks for a clean read, not a borrowed story.',
+    'The identity line wants a straight answer you can stand behind.',
+  ],
+  emotional: [
+    'The emotional line asks you to keep contact honest without flooding the room.',
+    'The emotional line wants signal before volume.',
+  ],
+  cognitive: [
+    'The cognitive line asks for a sharper frame before you move.',
+    'The cognitive line wants naming before speed.',
+  ],
+  value: [
+    'The value line asks what cost you are willing to show.',
+    'The value line wants a visible exchange, not a hidden drain.',
+  ],
+  conflict: [
+    'The conflict line asks you to hold the edge without turning it into a spectacle.',
+    'The conflict line wants a bounded move, not an endless contest.',
+  ],
+  expansion: [
+    'The expansion line asks how wide you open before you lose the edge.',
+    'The expansion line wants scale you can still steer.',
+  ],
+  constraint: [
+    'The constraint line asks where the limit earns respect.',
+    'The constraint line wants a line that holds under load.',
+  ],
+  disruption: [
+    'The disruption line asks what you stabilize first when the pattern breaks.',
+    'The disruption line wants a reset you can repeat.',
+  ],
+  dissolution: [
+    'The dissolution line asks what you let go without losing the center.',
+    'The dissolution line wants a softer edge with a firm floor.',
+  ],
+  transformation: [
+    'The transformation line asks what you trade only on purpose.',
+    'The transformation line wants consent to depth, not drift into it.',
+  ],
+  wound: [
+    'The wound line asks for careful contact around what is tender.',
+    'The wound line wants a smaller step with cleaner witness.',
+  ],
+  directional: [
+    'The directional line asks which bearing you commit to for this pass.',
+    'The directional line wants a heading you can defend.',
+  ],
+  recurrence: [
+    'The recurrence line asks what returns until it is met differently.',
+    'The recurrence line wants a new handle on an old loop.',
+  ],
+};
+
+const POLARITY_EDGE: Record<string, readonly string[]> = {
+  constructive: [
+    'The edge still asks for a clean finish, not an open-ended drift.',
+    'The edge still wants follow-through that does not scatter.',
+  ],
+  frictional: [
+    'The edge asks for adjustment before force.',
+    'The edge wants friction named before it hardens.',
+  ],
+  volatile: [
+    'The edge asks for pacing before amplification.',
+    'The edge wants a short loop, not a wide swing.',
+  ],
+  binding: [
+    'The edge asks for patience with a tight hold.',
+    'The edge wants a narrow move that still respects the bind.',
+  ],
+};
+
+const ASPECT_PHRASE: Record<string, string> = {
+  conjunction: 'conjunction',
+  opposition: 'opposition',
+  square: 'square',
+  trine: 'trine',
+  sextile: 'sextile',
+};
+
+const BODY_LABEL: Record<string, string> = {
+  sun: 'Sun',
+  moon: 'Moon',
+  mercury: 'Mercury',
+  venus: 'Venus',
+  mars: 'Mars',
+  jupiter: 'Jupiter',
+  saturn: 'Saturn',
+  uranus: 'Uranus',
+  neptune: 'Neptune',
+  pluto: 'Pluto',
+};
+
+const CLASS_READ: Record<string, string> = {
+  neutral: 'neutral cadence',
+  scout: 'scout cadence',
+  guardian: 'guardian cadence',
+  catalyst: 'catalyst cadence',
+  weaver: 'weaver cadence',
+  anchor: 'anchor cadence',
+};
+
+function defaultCampaignExpressionDigest(): CampaignExpressionDigest {
+  return {
+    identity: {
+      class_slug: 'neutral',
+      subclass_slug: 'neutral',
+      rising_modifier_slug: 'neutral',
+      top_domain_slug: 'self',
+      identity_modifier_ids: [],
+    },
+    pressure: {
+      primary_domain_id: 'self',
+      primary_intensity_band: 'moderate',
+      primary_pressure_family: 'constraint',
+      primary_pressure_polarity: 'frictional',
+      interaction_type: 'none',
+      primary_transit_body: 'saturn',
+      primary_natal_body: 'sun',
+      primary_natal_house: 1,
+      primary_aspect_type: 'square',
+      supporting_count: 0,
+    },
+    continuity: { chapter: 1, dominant_tone_key: 'neutral', top_domain_key: null },
+  };
+}
+
+function resolveCampaignDigest(options?: ProjectionOptions): CampaignExpressionDigest {
+  const d = campaignExpressionDigestFromOptions(options);
+  return d ?? defaultCampaignExpressionDigest();
+}
+
+function supportBinLabel(count: number): 'zero' | 'one' | 'many' {
+  if (count <= 0) return 'zero';
+  if (count === 1) return 'one';
+  return 'many';
+}
+
+function stanceKey(seed: string, digest: CampaignExpressionDigest): (typeof STANCE_KEYS)[number] {
+  let h =
+    hash32(`${seed}|stance|${digest.identity.class_slug}|${digest.identity.rising_modifier_slug}|${digest.identity.subclass_slug}`) %
+    STANCE_KEYS.length;
+  if (digest.identity.top_domain_slug === digest.pressure.primary_domain_id) {
+    h = (h + 1) % STANCE_KEYS.length;
+  }
+  if (digest.identity.identity_modifier_ids.length > 0) {
+    const joined = [...digest.identity.identity_modifier_ids].sort().join('|');
+    h = (h + (hash32(`${seed}|im|${joined}`) % 3)) % STANCE_KEYS.length;
+  }
+  return STANCE_KEYS[h]!;
+}
+
+function verbFromClass(seed: string, stance: (typeof STANCE_KEYS)[number], polarity: string, verbClassIndex: number): string {
+  const classes = VERB_CLASSES[verbClassIndex % VERB_CLASSES.length]!;
+  const idx = hash32(`${seed}|verb|${stance}|${polarity}|${verbClassIndex}`) % classes.length;
+  return classes[idx]!;
+}
+
+function bodyLabel(slug: string): string {
+  const k = slug.toLowerCase();
+  return BODY_LABEL[k] ?? k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+function campaignMomentForbiddenHit(text: string): boolean {
+  const lower = text.toLowerCase();
+  for (const f of CAMPAIGN_MOMENT_FORBIDDEN) {
+    if (lower.includes(f.toLowerCase())) return true;
+  }
+  return false;
+}
+
+function buildCampaignMomentThreeSentences(seed: string, digest: CampaignExpressionDigest): string {
+  const p = digest.pressure;
+  const id = digest.identity;
+  const domain = DOMAIN_FIELD[p.primary_domain_id] ?? 'the active field';
+  const intensity = INTENSITY_FIELD[p.primary_intensity_band] ?? 'reads steady';
+  const inter = INTERACTION_FIELD[p.interaction_type] ?? INTERACTION_FIELD.none;
+  const bin = supportBinLabel(p.supporting_count);
+  const stance = stanceKey(seed, digest);
+
+  const s1Open = pickVariant(`${seed}|S1open|${stance}`, [...STANCE_S1_OPEN[stance]]);
+  const supportNote =
+    bin === 'zero'
+      ? 'one vector leads the pass.'
+      : bin === 'one'
+        ? 'two vectors share the pass.'
+        : 'several vectors stack in the same pass.';
+  const classSlot =
+    CLASS_READ[id.class_slug.toLowerCase()] !== undefined
+      ? ` Your stance reads as ${CLASS_READ[id.class_slug.toLowerCase()]!}.`
+      : '';
+  const s1 = `${s1Open}the ${domain} field ${intensity}, and ${inter}; ${supportNote}${classSlot}`.replace(/\s+/g, ' ').trim();
+  const s1c = s1.endsWith('.') ? s1 : `${s1}.`;
+
+  const transit = bodyLabel(p.primary_transit_body);
+  const natal = bodyLabel(p.primary_natal_body);
+  const asp = ASPECT_PHRASE[p.primary_aspect_type] ?? p.primary_aspect_type;
+  const house = String(p.primary_natal_house);
+  const s2Variants = [
+    `${transit} meets ${natal} through a ${asp}, with house ${house} carrying the contact.`,
+    `${transit} presses ${natal} along a ${asp}, and house ${house} holds the contact.`,
+    `${transit} crosses ${natal} on a ${asp}, focused through house ${house}.`,
+    `${transit} works ${natal} in a ${asp}, with house ${house} showing the contact.`,
+  ];
+  const s2 = pickVariant(`${seed}|S2|${transit}|${natal}|${asp}|${house}`, [...s2Variants]);
+
+  const familyKey = p.primary_pressure_family.toLowerCase();
+  const famLines = FAMILY_TENSION[familyKey] ?? FAMILY_TENSION.constraint!;
+  const famPick = pickVariant(`${seed}|S3fam|${familyKey}|${stance}`, [...famLines]);
+  const polLines = POLARITY_EDGE[p.primary_pressure_polarity] ?? POLARITY_EDGE.frictional!;
+  const polPick = pickVariant(`${seed}|S3pol|${p.primary_pressure_polarity}|${stance}`, [...polLines]);
+  const verbClass =
+    hash32(`${seed}|vc|${stance}|${p.primary_pressure_polarity}|${p.primary_intensity_band}`) % VERB_CLASSES.length;
+  const verb = verbFromClass(seed, stance, p.primary_pressure_polarity, verbClass);
+  const s3 = `${famPick} ${polPick} You ${verb} the tradeoff in this pass.`.replace(/\s+/g, ' ').trim();
+  const s3c = s3.endsWith('.') ? s3 : `${s3}.`;
+
+  let out = `${s1c} ${s2} ${s3c}`.replace(/\s+/g, ' ').trim();
+  if (campaignMomentForbiddenHit(out)) {
+    out =
+      'Right now, the field reads steady and present. Saturn meets Sun through a square, with house 1 carrying the contact. The constraint line asks for adjustment before you force the move, and you name the tradeoff in this pass.';
+  }
+  return out;
+}
+
 export function buildCampaignPressureResponseParagraph(
   core: SemanticCore,
   seed: string,
   options?: ProjectionOptions
 ): { text: string; claimIds: string[] } {
-  void campaignExpressionDigestFromOptions(options);
+  const digest = resolveCampaignDigest(options);
   const tension = core.claims.find((c) => c.claim_id.startsWith('TENSION_BAND'));
   const motion = core.claims.find((c) => c.claim_id.startsWith('MOTION_LABEL'));
   const ids: string[] = [];
   if (tension) ids.push(tension.claim_id);
   if (motion) ids.push(motion.claim_id);
-  const tLabel = tension ? campaignLabelForClaimId(tension.claim_id) : null;
-  const mLabel = motion ? campaignLabelForClaimId(motion.claim_id) : null;
-  const tNote = tLabel
-    ? `Scenario pressure: ${tLabel}; treat activation as something that returns quickly, and keep steps small enough to steer when it spikes.`
-    : `Scenario pressure: structural cues read diffuse here; still use short loops and named checkpoints when intensity climbs so the day does not blur.`;
-  const mNote = mLabel
-    ? `Response shape: ${mLabel} asks you to match action to the impulse curve you already mapped instead of forcing a mismatched cadence.`
-    : `Response shape: without a dominant motion label, alternate consolidation and push rather than locking one speed; keep cadence checks short and named.`;
-  const text = pickVariant(seed + ':camp', [tNote + ' ' + mNote]);
+  const text = buildCampaignMomentThreeSentences(seed, digest);
   return { text, claimIds: ids };
 }
