@@ -337,6 +337,7 @@ export async function materializeCampaignDaily(params: {
     dailyState,
     state,
     characterSheet,
+    characterProfile: character,
   });
 
   const scene = buildChallengeScene({

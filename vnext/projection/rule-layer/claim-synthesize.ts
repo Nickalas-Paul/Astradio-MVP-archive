@@ -11,6 +11,7 @@ import type {
   ProjectionOptions,
   ProjectionSurface,
 } from '../projection-types';
+import { campaignContinuityFromDigest } from '../campaign-lens-contract';
 import { campaignExpressionDigestFromOptions } from '../campaign-expression-digest-guard';
 import { minClaimBodiesForDensity } from '../density-validate';
 import { projectionNormSentence } from './repetition-collapse-phase0';
@@ -876,13 +877,35 @@ const CLASS_READ: Record<string, string> = {
 };
 
 function defaultCampaignExpressionDigest(): CampaignExpressionDigest {
+  const neutralTemperament = {
+    will: 0,
+    insight: 0,
+    attunement: 0,
+    courage: 0,
+    discipline: 0,
+    adaptability: 0,
+    bond: 0,
+    shadowCapacity: 0,
+    radiance: 0,
+  } as const;
   return {
     identity: {
+      profile_id: 'neutral_profile',
       class_slug: 'neutral',
       subclass_slug: 'neutral',
       rising_modifier_slug: 'neutral',
       top_domain_slug: 'self',
-      identity_modifier_ids: [],
+      primary_element: 'earth',
+      tonal_polarity: 'balanced',
+      luminary_weight: 'balanced',
+      motion_profile: 'neutral',
+      gravity_profile: 'neutral',
+      dominant_planets: [],
+      angular_emphasis: { first: false, fourth: false, seventh: false, tenth: false },
+      temperament: neutralTemperament,
+      top_domains_ranked: [{ domain: 'self', score: 0 }],
+      signature_domains_ranked: [{ domain: 'self', weight: 0 }],
+      pressure_contact_modifier_ids: [],
     },
     pressure: {
       primary_domain_id: 'self',
@@ -897,12 +920,18 @@ function defaultCampaignExpressionDigest(): CampaignExpressionDigest {
       supporting_count: 0,
     },
     continuity: { chapter: 1, dominant_tone_key: 'neutral', top_domain_key: null },
+    campaign_mode: 'solo',
+    group_member_count: 0,
+    group_contributing_member_chart_ids: [],
+    group_primary_member_chart_ids: [],
   };
 }
 
 function resolveCampaignDigest(options?: ProjectionOptions): CampaignExpressionDigest {
   const d = campaignExpressionDigestFromOptions(options);
-  return d ?? defaultCampaignExpressionDigest();
+  const digest = d ?? defaultCampaignExpressionDigest();
+  void campaignContinuityFromDigest(digest);
+  return digest;
 }
 
 function supportBinLabel(count: number): 'zero' | 'one' | 'many' {
@@ -918,8 +947,8 @@ function stanceKey(seed: string, digest: CampaignExpressionDigest): (typeof STAN
   if (digest.identity.top_domain_slug === digest.pressure.primary_domain_id) {
     h = (h + 1) % STANCE_KEYS.length;
   }
-  if (digest.identity.identity_modifier_ids.length > 0) {
-    const joined = [...digest.identity.identity_modifier_ids].sort().join('|');
+  if (digest.identity.pressure_contact_modifier_ids.length > 0) {
+    const joined = [...digest.identity.pressure_contact_modifier_ids].sort().join('|');
     h = (h + (hash32(`${seed}|im|${joined}`) % 3)) % STANCE_KEYS.length;
   }
   return STANCE_KEYS[h]!;

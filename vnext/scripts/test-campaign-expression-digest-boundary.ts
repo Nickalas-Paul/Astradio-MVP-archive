@@ -112,22 +112,6 @@ function minimalDailyState(): DailyPressureState {
 
 function main(): void {
   const dailyState = minimalDailyState();
-  const bundle = buildRpgEffectsBundleFromSnapshot(snapshotWithTransitAspects().natal);
-  const state = initialCampaignState(bundle);
-  const sheetLike = {
-    class_slug: 'test_class',
-    subclass_slug: 'test_sub',
-    rising_modifier_slug: 'test_rise',
-    top_domains: [{ domain: 'work', score: 0.9 }],
-  };
-  const digest = buildCampaignExpressionDigest({ dailyState, state, characterSheet: sheetLike });
-
-  assert(digest.identity.class_slug === 'test_class', 'digest identity.class_slug');
-  assert(digest.pressure.primary_domain_id === 'partnership', 'digest pressure.primary_domain_id');
-  assert(digest.pressure.supporting_count === 0, 'digest supporting_count');
-  assert(digest.continuity.chapter === 1, 'digest chapter');
-  assert(typeof digest.continuity.dominant_tone_key === 'string', 'digest dominant_tone_key');
-
   const { natal, transit } = snapshotWithTransitAspects();
   const featureVec = encodeFeatures(natal) as FeatureVec;
   const guidance = guidanceFromFeatures(featureVec, natal, 'digest-boundary');
@@ -141,6 +125,33 @@ function main(): void {
     guidance,
   });
   const semanticCore = interpretCanonicalReportObject(canonical);
+  const bundle = buildRpgEffectsBundleFromSnapshot(natal);
+  const state = initialCampaignState(bundle);
+  const sheetLike = {
+    class_slug: 'test_class',
+    subclass_slug: 'test_sub',
+    rising_modifier_slug: 'test_rise',
+    top_domains: [{ domain: 'work', score: 0.9 }],
+  };
+  const character = buildCharacterProfile({
+    natalSnapshot: natal,
+    featureVec,
+    semanticCore,
+    dominantPlanetNames: canonical.participants[0].dominant_planet_names,
+    effectsBundle: bundle,
+  });
+  const digest = buildCampaignExpressionDigest({ dailyState, state, characterSheet: sheetLike, characterProfile: character });
+
+  assert(digest.identity.class_slug === 'test_class', 'digest identity.class_slug');
+  assert(digest.identity.profile_id === character.id, 'digest identity.profile_id');
+  assert(digest.identity.pressure_contact_modifier_ids.join('|') === 'im_a|im_b', 'digest pressure_contact_modifier_ids');
+  assert(digest.pressure.primary_domain_id === 'partnership', 'digest pressure.primary_domain_id');
+  assert(digest.pressure.supporting_count === 0, 'digest supporting_count');
+  assert(digest.continuity.chapter === 1, 'digest chapter');
+  assert(typeof digest.continuity.dominant_tone_key === 'string', 'digest dominant_tone_key');
+  assert(digest.campaign_mode === 'solo', 'digest campaign_mode');
+  assert(digest.group_member_count === 0, 'digest group mirror solo');
+  assert(digest.identity.top_domains_ranked.length === 1 && digest.identity.top_domains_ranked[0]!.domain === 'work', 'top_domains_ranked');
 
   const baseOpts = {
     phaseD: true as const,
@@ -195,13 +206,6 @@ function main(): void {
   }
   assert(threw, 'digest on profile surface must throw');
 
-  const character = buildCharacterProfile({
-    natalSnapshot: natal,
-    featureVec,
-    semanticCore,
-    dominantPlanetNames: canonical.participants[0].dominant_planet_names,
-    effectsBundle: bundle,
-  });
   const pressures = buildTransitPressureMap({ natalSnapshot: natal, transitSnapshot: transit });
   const sceneNoDigest = buildChallengeScene({
     character,

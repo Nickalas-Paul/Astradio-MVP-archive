@@ -21,17 +21,63 @@ export type ConnectionMode = RelationshipMode | 'group' | undefined;
 
 export type DensityClass = 'short' | 'medium' | 'long';
 
+/** Temperament axes mirrored from CharacterProfile (deterministic copy only). */
+export type CampaignLensTemperament = {
+  readonly will: number;
+  readonly insight: number;
+  readonly attunement: number;
+  readonly courage: number;
+  readonly discipline: number;
+  readonly adaptability: number;
+  readonly bond: number;
+  readonly shadowCapacity: number;
+  readonly radiance: number;
+};
+
+export type CampaignLensAngularEmphasis = {
+  readonly first: boolean;
+  readonly fourth: boolean;
+  readonly seventh: boolean;
+  readonly tenth: boolean;
+};
+
+export type CampaignLensDomainScoreEntry = {
+  readonly domain: string;
+  readonly score: number;
+};
+
+export type CampaignLensSignatureDomainEntry = {
+  readonly domain: string;
+  readonly weight: number;
+};
+
 /**
  * Read-only, bounded facts already resolved by Campaign Command Center for campaign-surface
  * expression only. Non-authoritative: must not drive claim creation or canonical meaning.
+ *
+ * **Character Lens (Level 1):** this object is the single source of lens + progression snapshot
+ * for `surface: 'campaign'`. Pressure is authoritative; identity mirrors shape expression only;
+ * `continuity` is the only progression slice projection may use (never raw CampaignState).
  */
 export type CampaignExpressionDigest = {
   readonly identity: {
+    readonly profile_id: string;
     readonly class_slug: string;
     readonly subclass_slug: string;
     readonly rising_modifier_slug: string;
     readonly top_domain_slug: string;
-    readonly identity_modifier_ids: readonly string[];
+    readonly primary_element: 'fire' | 'earth' | 'air' | 'water';
+    readonly tonal_polarity: 'bright' | 'balanced' | 'dark';
+    readonly luminary_weight: 'sun' | 'moon' | 'balanced';
+    readonly motion_profile: string;
+    readonly gravity_profile: string;
+    readonly dominant_planets: readonly string[];
+    readonly angular_emphasis: CampaignLensAngularEmphasis;
+    readonly temperament: CampaignLensTemperament;
+    readonly top_domains_ranked: readonly CampaignLensDomainScoreEntry[];
+    readonly signature_domains_ranked: readonly CampaignLensSignatureDomainEntry[];
+    /** Pooled pressure-contact tags from DailyPressureState (not core identity). */
+    readonly pressure_contact_modifier_ids: readonly string[];
   };
   readonly pressure: {
     readonly primary_domain_id: string;
@@ -59,6 +105,14 @@ export type CampaignExpressionDigest = {
       | 'reframe_integrate'
       | 'contain_limit';
   };
+  /** Mirror of DailyPressureState.mode — no aggregation. */
+  readonly campaign_mode: 'solo' | 'group';
+  /** Mirror of group_context.member_count when present; 0 when solo or absent. */
+  readonly group_member_count: number;
+  /** Sorted copy of group_context.contributing_member_chart_ids; empty when N/A. */
+  readonly group_contributing_member_chart_ids: readonly string[];
+  /** Sorted copy of group_context.primary_member_chart_ids; empty when N/A. */
+  readonly group_primary_member_chart_ids: readonly string[];
 };
 
 export type ProjectionOptions = {

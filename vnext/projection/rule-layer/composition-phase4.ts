@@ -39,7 +39,8 @@ const RUN_MAX: Record<ProvenanceType, number> = {
   tier_scaffold: 1,
   template: 6,
   claim_body: 8,
-  synthesis_wrapper: 2,
+  /** Campaign (and other) template tails may emit several short wrapper sentences in one paragraph. */
+  synthesis_wrapper: 8,
   preface: 3,
   audio_staging: 4,
   audio_thread: 2,

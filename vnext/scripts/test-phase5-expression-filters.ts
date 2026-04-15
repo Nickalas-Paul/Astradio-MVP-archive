@@ -578,7 +578,10 @@ function wave1ShippedTablesVerification(): void {
       campSyn.includes('read as situational') ||
       campSyn.includes('clearer pacing') ||
       campSyn.includes('tighter pacing') ||
-      campSyn.includes('lands most clearly'),
+      campSyn.includes('lands most clearly') ||
+      campSyn.includes('The feel is often situational when life load shifts week to week.') ||
+      campSyn.includes('In this pass,') ||
+      campSyn.includes('tradeoff in this pass'),
     'Wave 2–3 campaign-only synthesis rules apply when literals present'
   );
 
