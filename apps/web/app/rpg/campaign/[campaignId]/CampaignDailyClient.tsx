@@ -183,7 +183,11 @@ type SurfaceErrorState = {
 };
 
 function initialDate() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function initialTime() {
@@ -812,12 +816,14 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
               'Failed to generate campaign daily'
           );
         }
+        if (dailyLoadGenRef.current !== gen) return;
         setDaily(data as DailyResponse);
         lastLoadedContextKeyRef.current = contextKey;
       } catch (loadError: unknown) {
         if (signal.aborted) return;
         const err = loadError as { name?: string };
         if (err && err.name === 'AbortError') return;
+        if (dailyLoadGenRef.current !== gen) return;
         setError(loadError instanceof Error ? loadError.message : String(loadError));
       } finally {
         if (dailyLoadGenRef.current === gen) {

@@ -9,7 +9,7 @@ const path = require('path');
 
 const DIST_VNEXT_ROOT = path.join(__dirname, '..', '..', 'dist', 'vnext', 'vnext');
 const SOURCE_VNEXT_ROOT = path.join(__dirname, '..', '..', 'vnext');
-const CAMPAIGN_DAILY_ENGINE_VERSION = 'campaign_daily_phase1_v1';
+const CAMPAIGN_DAILY_ENGINE_VERSION = 'campaign_daily_phase1_v2';
 
 const ACTIVE_CAMPAIGN_RUNTIME_FILES = [
   ['campaign/phase1/index.js', 'campaign/phase1/index.ts'],
