@@ -144,6 +144,15 @@ function main(): void {
     narrativePlan: null,
   });
   const campText = camp.map((s) => `${s.title}\n${s.text}`).join('\n');
+  assert(
+    !campText.includes('In this scenario, you see a stable'),
+    'campaign baseline: no legacy stable scenario opener'
+  );
+  assert(
+    !campText.includes('In this scenario, you see a calmer'),
+    'campaign baseline: no legacy calmer scenario opener'
+  );
+  assert(!campText.includes('story beat'), 'campaign baseline: no legacy story-beat opener fragment');
   assert(!campText.includes('TENSION_BAND_'), 'campaign: no raw tension band ids in visible text');
   assert(!campText.includes('MOTION_LABEL_'), 'campaign: no raw motion label ids in visible text');
   const astroTitles = camp.filter((s) => /astrological/i.test(s.title));

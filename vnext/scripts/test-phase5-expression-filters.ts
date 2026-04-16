@@ -370,7 +370,7 @@ function main(): void {
 function wave1ShippedTablesVerification(): void {
   const wave2a = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.rule_id.includes('-W2-'));
   const wave2b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W2-'));
-  assert(wave2a.length === 14, `expected 14 shipped -W2- projection expression rules, got ${wave2a.length}`);
+  assert(wave2a.length === 13, `expected 13 shipped -W2- projection expression rules, got ${wave2a.length}`);
   assert(wave2b.length === 10, `expected 10 Wave 2 Phase5B rules, got ${wave2b.length}`);
   assert(wave2a.length + wave2b.length <= 28, 'Wave 2 new rule rows must stay within the 28-row cap (5A+5B)');
 
@@ -401,7 +401,7 @@ function wave1ShippedTablesVerification(): void {
   }
 
   const glueRules = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.match.kind === 'prefix');
-  assert(glueRules.length === 6, `expected 6 prefix glue rules (profile + group + Wave 2/3 surfaces), got ${glueRules.length}`);
+  assert(glueRules.length === 5, `expected 5 prefix glue rules (profile + group + Wave 2/3 surfaces), got ${glueRules.length}`);
   const profileGlue = glueRules.find((r) => r.rule_id === 'P5A-W1-001-glue-profile-baseline-prefix');
   assert(profileGlue !== undefined, 'wave1 profile glue rule present');
   assert(
@@ -410,7 +410,6 @@ function wave1ShippedTablesVerification(): void {
   );
   const glueFixtures: Array<{ rule_id: string; full: string }> = [
     { rule_id: 'P5A-W1-001-glue-profile-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
-    { rule_id: 'P5A-W2-001-glue-campaign-scenario-stable-prefix', full: 'In this scenario, you see a stable story beat.' },
     { rule_id: 'P5A-W2-002-glue-compat-baseline-prefix', full: 'For this connection, you see a baseline contact tone.' },
     { rule_id: 'P5A-W2-003-glue-daily-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
     { rule_id: 'P5A-W3-001-glue-overlay-baseline-prefix', full: 'In this chart, you see a baseline personal picture.' },
@@ -539,6 +538,27 @@ function wave1ShippedTablesVerification(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
+
+  const campBaselineJoined = projectTextFromSemanticCore(core, 'camp-baseline-no-legacy-glue', {
+    phaseD: true,
+    surface: 'campaign',
+    tier: 'baseline',
+    narrativePlan: null,
+  })
+    .map((s) => s.text)
+    .join('\n');
+  assert(
+    !campBaselineJoined.includes('In this scenario, you see a stable'),
+    'campaign baseline projection must not contain legacy stable scenario opener'
+  );
+  assert(
+    !campBaselineJoined.includes('In this scenario, you see a calmer'),
+    'campaign baseline projection must not contain legacy calmer scenario opener'
+  );
+  assert(
+    !campBaselineJoined.includes('story beat'),
+    'campaign baseline projection must not contain legacy story-beat opener fragment'
+  );
 
   const friendsText =
     applySurfaceExpressionRules(

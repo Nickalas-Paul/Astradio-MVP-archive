@@ -16,7 +16,6 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import { hashSnapshot } from './hash/snapshot-hash';
 import type { CampaignIdentityTone } from './semantic-adapter';
 import { deriveCampaignIdentityToneFromSemanticCore } from './identity-from-semantic-core';
-import { applyPhase5BWholeText } from './phase5b-engine';
 import {
   aspectPressure,
   compactText,
@@ -190,7 +189,7 @@ function challengeThemeFromSemantic(
     .map(compactText)
     .filter(Boolean)
     .join(' ');
-  return applyPhase5BWholeText('rpg_challenge_theme_compose_v1', raw);
+  return raw;
 }
 
 function pressureInterpretationLine(

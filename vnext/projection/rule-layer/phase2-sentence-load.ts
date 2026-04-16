@@ -3,13 +3,18 @@
  * Priority order is fixed; do not reorder without spec update.
  */
 
-import type { ProjectedExplanationSection, TaggedParagraph, TaggedSectionBody, TaggedSentence } from '../projection-types';
+import type {
+  ProjectedExplanationSection,
+  ProjectionSurface,
+  TaggedParagraph,
+  TaggedSectionBody,
+  TaggedSentence,
+} from '../projection-types';
 import {
   mergeTaggedSectionBodiesVertical,
   reconstructTaggedSectionBody,
   taggedSectionBodyFromText,
 } from '../tagged-text';
-import type { ProjectionSurface } from '../projection-types';
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
 import { audioListenFamilyHit, countAudioListenFamilyMatches } from './audio-lexicon';
@@ -375,9 +380,9 @@ export function reducedPadPool(): string[] {
 export function injectAnchorPrefix(ctx: TemplateContext): string {
   const surf: ProjectionSurface = ctx.surface ?? 'profile';
   if (ctx.suppressAstrologyTitles) {
-    if (ctx.temporalBucket === 'activated') return 'In this scenario, you see fresh pressure right now.';
-    if (ctx.temporalBucket === 'mixed') return 'In this scenario, you see steady and shifting layers in this beat.';
-    return 'In this scenario, you see a stable story beat.';
+    // Campaign surface (`suppressAstrologyTitles`): omit assembler scenario glue so narrative
+    // begins from template-backed projection rows only (Command Center daily theme path).
+    return '';
   }
   if (surf === 'group') {
     if (ctx.temporalBucket === 'activated')
@@ -448,9 +453,16 @@ export function applyAnchorAndTemporalToTaggedSection(
     return templateTagged;
   }
   const anchor = injectAnchorPrefix(ctx);
-  let acc = taggedSectionBodyFromText(anchor, 'assembler_glue');
-  if (temporalLine?.trim()) {
-    acc = mergeTaggedSectionBodiesVertical(acc, taggedSectionBodyFromText(temporalLine.trim(), 'template'));
+  let acc: TaggedSectionBody;
+  if (anchor.trim()) {
+    acc = taggedSectionBodyFromText(anchor, 'assembler_glue');
+    if (temporalLine?.trim()) {
+      acc = mergeTaggedSectionBodiesVertical(acc, taggedSectionBodyFromText(temporalLine.trim(), 'template'));
+    }
+  } else if (temporalLine?.trim()) {
+    acc = taggedSectionBodyFromText(temporalLine.trim(), 'template');
+  } else {
+    acc = { paragraphs: [] };
   }
   const bodyTrim = reconstructTaggedSectionBody(templateTagged).trim();
   if (bodyTrim.length) {

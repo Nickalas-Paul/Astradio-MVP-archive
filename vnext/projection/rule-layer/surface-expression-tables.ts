@@ -162,17 +162,6 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
       'Lab framing: this pass tracks how small input shifts change the read, not fixed life conclusions.',
   },
   {
-    rule_id: 'P5A-W2-001-glue-campaign-scenario-stable-prefix',
-    surfaces: ['campaign'],
-    provenances: ['assembler_glue'],
-    match: {
-      kind: 'prefix',
-      before_prefix: 'In this scenario, you see a stable ',
-      after_prefix: 'In this scenario, you see a calmer ',
-    },
-    replacement: '',
-  },
-  {
     rule_id: 'P5A-W2-002-glue-compat-baseline-prefix',
     surfaces: ['compat_pair'],
     provenances: ['assembler_glue'],

@@ -91,7 +91,11 @@ function expandTaggedBodySentencesToMin(
   }
   const pads = afterSents.slice(beforeSents.length);
   if (pads.length === 0) return out;
-  const lastPara = out.paragraphs[out.paragraphs.length - 1]!;
+  let lastPara = out.paragraphs[out.paragraphs.length - 1];
+  if (!lastPara) {
+    lastPara = { sentences: [] };
+    out.paragraphs.push(lastPara);
+  }
   for (const p of pads) {
     lastPara.sentences.push({ text: p, provenance: 'padding' });
   }

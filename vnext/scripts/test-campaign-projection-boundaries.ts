@@ -129,6 +129,17 @@ function main(): void {
   assert(sceneA !== null, 'RPG challenge scene should be present');
   const sceneObj = sceneA as unknown as Record<string, unknown>;
 
+  const theme = typeof sceneObj.theme === 'string' ? sceneObj.theme : '';
+  assert(
+    !theme.includes('In this scenario, you see a stable'),
+    'challenge.theme must not use legacy stable scenario opener'
+  );
+  assert(
+    !theme.includes('In this scenario, you see a calmer'),
+    'challenge.theme must not use legacy calmer scenario opener'
+  );
+  assert(!theme.includes('story beat'), 'challenge.theme must not use legacy story-beat opener fragment');
+
   assert(Array.isArray(projectionA), 'unified campaign projection returns section array');
   assert(!Array.isArray(sceneA), 'RPG challenge scene is not projection section array');
   assert(
