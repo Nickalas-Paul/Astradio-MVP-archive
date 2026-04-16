@@ -206,7 +206,7 @@ function supportingPressureLine(
     `Alongside that, ${supportDomain} ${supportAspect}, so the situation also carries ${supportTone}.`,
   ];
   if (interaction && interaction !== 'none') {
-    return `${stableVariant(`${firstSupport.id}:${interaction}:support`, variants)} Together the field reads as ${interaction.replace(/_/g, ' ')}, not a single isolated spike.`;
+    return `${stableVariant(`${firstSupport.id}:${interaction}:support`, variants)} Those threads stay ${interaction.replace(/_/g, ' ')}, not a single isolated spike.`;
   }
   return stableVariant(`${firstSupport.id}:support`, variants);
 }
@@ -219,18 +219,21 @@ function challengeThemeFromSemantic(
   state: CampaignState,
   challengeContext: ChallengeContext | undefined,
   campaignExpressionDigest: CampaignExpressionDigest | undefined,
-  campaignDailyPressureNarration?: CampaignDailyPressureNarration
+  campaignDailyPressureNarration?: CampaignDailyPressureNarration,
+  themeIdentitySlugs?: Pick<CampaignIdentitySlugs, 'class_slug' | 'rising_modifier_slug'>,
 ): string {
+  const frame = challengeFramingLine(pressure, challengeContext, state);
   const line = campaignDailyPressureNarration
     ? buildCampaignDailyThemeLead({
         narration: campaignDailyPressureNarration,
         seed: `${campaignDailyPressureNarration.dailyState.daily_pressure_state_id}|${campaignDailyPressureNarration.dailyState.date}|ch${state.chapter ?? 1}`,
+        themeIdentity: themeIdentitySlugs,
       })
     : firstSentencesUpTo(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest), 4);
-  const frame = challengeFramingLine(pressure, challengeContext, state);
   const support = campaignDailyPressureNarration ? '' : supportingPressureLine(supporting, challengeContext);
-  const continuity = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);
-  const raw = [line, frame, support, ...continuity]
+  const continuityRaw = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);
+  const continuity = continuityRaw.slice(0, 1);
+  const raw = [frame, line, support, ...continuity]
     .map(compactText)
     .filter(Boolean)
     .join(' ');
@@ -254,7 +257,7 @@ function pressureInterpretationLine(
     `You are standing in ${intensityUrgency(intensityBand)} pressure that ${aspect} around ${domain}, with a ${modifier} emphasis showing through ${house}.`,
   ];
   const base = stableVariant(`${pressure.id}:${polarity}:${intensityBand}:${toneKey}:pressure`, variants);
-  return `${base} What the field rewards here is ${polarityImplication(polarity)}, while ${polarityTradeoff(polarity)} still sets the guardrails.`;
+  return `${base} What earns traction here is ${polarityImplication(polarity)}, while ${polarityTradeoff(polarity)} still sets the guardrails.`;
 }
 
 function sceneSettingFromTone(
@@ -291,15 +294,15 @@ function sceneSettingFromTone(
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
   const toneKey = dominantToneKey(state);
   if (tone.narrativeMood === 'somber' || toneKey === 'strain') {
-    return `${base}, with a steadier and more serious tone while the pressure stays ${intensityUrgency(intensityBand)}`;
+    return `${base}, with a steadier and more serious tone while the moment stays ${intensityUrgency(intensityBand)}`;
   }
   if (tone.narrativeMood === 'bright' && polarity === 'constructive') {
-    return `${base}, with some light available because the pressure remains ${polarityTone(polarity)}`;
+    return `${base}, with some light available because the situation stays ${polarityTone(polarity)}`;
   }
   if (toneKey === 'clarity' || toneKey === 'stability') {
     return `${base}, with cleaner edges and a more deliberate pace`;
   }
-  return `${base}, with a reflective pace that keeps the pressure readable`;
+  return `${base}, with a reflective pace that keeps the situation easy to read`;
 }
 
 /** Game-layer obstacle copy only (no chart interpretation beyond SemanticCore-backed theme). */
@@ -451,7 +454,10 @@ function postureGesture(
   challengeContext: ChallengeContext | undefined,
   state: CampaignState,
 ): string {
-  const domain = domainContext(challengeContext?.primaryDomain ?? pressure.domain);
+  const domKey = challengeContext?.primaryDomain ?? pressure.domain;
+  const lab = domainLabel(domKey);
+  const ctx = domainContext(domKey);
+  const contact = `${pressure.transitBody} to ${pressure.natalBody} (${pressure.aspectType})`;
   const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
   const toneKey = dominantToneKey(state);
@@ -460,64 +466,64 @@ function postureGesture(
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `Clarify what is actually happening around ${domain} before you commit to a move, especially while the pressure remains ${intensityUrgency(intensityBand)}.`,
-          `Slow the first reaction long enough to read what is really happening around ${domain}, rather than answering the first spike of pressure.`,
+          `With ${contact} pressing ${lab}, slow down long enough to see what ${ctx} is actually doing before you answer, while the moment stays ${intensityUrgency(intensityBand)}.`,
+          `${contact} in ${lab} is loud; let ${ctx} declare itself before you lock a move, especially with ${intensityUrgency(intensityBand)} heat still running.`,
         ],
       );
     case 'assert':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `State one clear line about ${domain} so the situation is less implied and more directly named.`,
-          `Define what is true for you in ${domain} with one clean sentence rather than letting the tension speak for you.`,
+          `Under ${contact} in ${lab}, say one clean sentence about ${ctx} so the situation cannot stay implied.`,
+          `Name what is true where ${contact} meets ${lab}, so ${ctx} is spoken plainly under ${polarityTone(polarity)} light.`,
         ],
       );
     case 'engage':
       return stableVariant(
         `${pressure.id}:${posture}:${intensityBand}`,
         [
-          `Take one deliberate step in ${domain} that moves the situation without pretending conditions are perfect.`,
-          `Use the pressure to create motion in ${domain} through a bounded action that you can actually follow through on today.`,
+          `Take one bounded step that answers ${contact} in ${lab} without pretending ${ctx} has cooled past ${intensityUrgency(intensityBand)}.`,
+          `Move ${ctx} forward against ${contact} in ${lab} with a deliberate action you can finish today.`,
         ],
       );
     case 'withdraw':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `Reduce exposure in ${domain} on purpose and choose a later return point, rather than disappearing into drift.`,
-          `Step back from direct contact in ${domain} long enough to regain timing control, then revisit it deliberately.`,
+          `Ease exposure where ${contact} hits ${lab} so ${ctx} can cool, then return on purpose rather than drifting.`,
+          `Step off the hottest part of ${contact} in ${lab} until timing returns; ${ctx} can wait without you vanishing.`,
         ],
       );
     case 'support':
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `Bring this part of ${domain} to someone trustworthy so perspective becomes part of the response instead of staying solitary.`,
-          `Use relationship as a stabilizer for ${domain} by asking for reflection, witness, or grounded feedback.`,
+          `Bring ${contact} in ${lab} to someone you trust so ${ctx} is not carried alone.`,
+          `Ask for witness on ${ctx} while ${contact} works ${lab}; a second mind steadies the swing.`,
         ],
       );
     case 'offer':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `Contribute one concrete gesture in ${domain} that reflects care, reciprocity, or follow-through.`,
-          `Respond through a small real offering in ${domain} so the pressure is met with participation rather than theory alone.`,
+          `Answer ${contact} in ${lab} with a tangible gesture toward ${ctx}, not a speech.`,
+          `Put something real on the table for ${ctx} where ${contact} crosses ${lab}.`,
         ],
       );
     case 'reframe':
       return stableVariant(
         `${pressure.id}:${posture}:${intensityBand}`,
         [
-          `Change the interpretation around ${domain} so your next move comes from a different frame instead of the loudest first story.`,
-          `Rename what this moment means in ${domain} so you can meet it with more flexibility and less automatic compression.`,
+          `Shift the story you tell about ${ctx} under ${contact} in ${lab} so your next move is not locked to the loudest first read.`,
+          `Rename what ${contact} means for ${lab} so ${ctx} can move without the old verdict steering everything.`,
         ],
       );
     case 'contain':
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `Narrow the scope of ${domain} to what you can actually carry, protect, or decide right now.`,
-          `Set a cleaner limit around ${domain} so the pressure has edges instead of spreading into everything else.`,
+          `Cap what you will carry for ${ctx} while ${contact} runs ${lab}; keep the perimeter survivable.`,
+          `Draw a smaller circle around ${ctx} where ${contact} meets ${lab} so the strain cannot flood every room.`,
         ],
       );
   }
@@ -551,23 +557,25 @@ function postureRiskProfile(
 ): string {
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
   const intensityWord = intensityQualifier(intensityBand);
+  const lab = domainLabel(challengeContext?.primaryDomain ?? pressure.domain);
+  const contact = `${pressure.transitBody} to ${pressure.natalBody} (${pressure.aspectType})`;
   switch (posture) {
     case 'observe':
-      return `This stance buys read-time before you lock a move; with pressure ${intensityUrgency(intensityBand)}, the pause can read as a longer open window ${intensityWord} from the outside.`;
+      return `This stance buys read-time before you lock a move; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, the pause can read as a longer open window ${intensityWord} from the outside.`;
     case 'assert':
-      return `This stance puts a hard line in the room; when the field is already ${intensityUrgency(intensityBand)}, definition lands hot and contact can spike before the temperature drops.`;
+      return `This stance puts a hard line in the room; with ${contact} in ${lab} already ${intensityUrgency(intensityBand)}, definition lands hot and contact can spike before the temperature drops.`;
     case 'engage':
-      return `This stance converts pressure into motion; when conditions are still ${intensityUrgency(intensityBand)}, a wide step can carry more strain than the window was built for.`;
+      return `This stance converts heat into motion; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, a wide step can carry more strain than the window was built for.`;
     case 'withdraw':
-      return `This stance pulls contact back on purpose; with pressure ${intensityUrgency(intensityBand)}, distance can read as a slower clock for anyone waiting on a visible answer.`;
+      return `This stance pulls contact back on purpose; with ${contact} in ${lab} at ${intensityUrgency(intensityBand)}, distance can read as a slower clock for anyone waiting on a visible answer.`;
     case 'support':
-      return `This stance pulls counsel and witness into the move; while the field stays ${intensityUrgency(intensityBand)}, coordinating with others can slow purely solo tempo until alignment catches up.`;
+      return `This stance pulls counsel and witness into the move; while ${contact} keeps ${lab} at ${intensityUrgency(intensityBand)}, coordinating with others can slow solo tempo until alignment catches up.`;
     case 'offer':
-      return `This stance answers pressure with a concrete gesture; even a small move carries real cost if the room cannot echo it back with care.`;
+      return `This stance answers the moment with a concrete gesture; even a small move carries real cost if the room cannot echo it back with care.`;
     case 'reframe':
-      return `This stance works the meaning layer first; with pressure ${intensityUrgency(intensityBand)}, interpretation can postpone the outward move others are already clocking.`;
+      return `This stance works the meaning layer first; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, interpretation can postpone the outward move others are already clocking.`;
     case 'contain':
-      return `This stance draws a smaller perimeter around what you will carry; when pressure is ${intensityUrgency(intensityBand)}, a tight edge can read as cool distance if it lands sharp.`;
+      return `This stance draws a smaller perimeter around what you will carry; with ${contact} in ${lab} at ${intensityUrgency(intensityBand)}, a tight edge can read as cool distance if it lands sharp.`;
   }
 }
 
@@ -909,7 +917,13 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
     state,
     challengeContext,
     campaignExpressionDigest,
-    campaignDailyPressureNarration
+    campaignDailyPressureNarration,
+    campaignIdentitySlugs
+      ? {
+          class_slug: campaignIdentitySlugs.class_slug,
+          rising_modifier_slug: campaignIdentitySlugs.rising_modifier_slug,
+        }
+      : undefined,
   );
   const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
   const obstacle = sceneObstacleGame(primary, character, challengeContext, state);

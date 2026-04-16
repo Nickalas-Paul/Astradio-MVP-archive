@@ -5,10 +5,7 @@
 import type { CampaignExpressionDigest } from '../projection/projection-types';
 import type { ArchetypeId, ChallengeScene, ChoiceOption, ResponsePosture, TransitPressure } from '../rpg/types';
 import {
-  aspectPressure,
-  domainContext,
   domainLabel,
-  houseLanguage,
   intensityUrgency,
   polarityImplication,
   polarityTone,
@@ -20,23 +17,6 @@ export type CampaignSurfaceSlugs = {
   readonly class_slug: string;
   readonly subclass_slug: string;
   readonly rising_modifier_slug: string;
-};
-
-const PLANET_NAMES = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'sun', 'moon'] as const;
-
-const ASPECT_TERMS = ['conjunction', 'opposition', 'square', 'trine', 'sextile'] as const;
-
-const BODY_EPITHET: Record<string, readonly string[]> = {
-  mercury: ['a messenger’s angle', 'the quicksilver thread', 'the courier line'],
-  venus: ['the bond-thread', 'the reciprocity line', 'the warmth vector'],
-  mars: ['the strike vector', 'the push line', 'the heat trace'],
-  jupiter: ['the scale swell', 'the widening arc', 'the horizon swell'],
-  saturn: ['the gate line', 'the limit rail', 'the binding edge'],
-  uranus: ['the sudden hinge', 'the break spark', 'the snap vector'],
-  neptune: ['the mist veil', 'the dissolve haze', 'the porous edge'],
-  pluto: ['the deep hinge', 'the buried lever', 'the threshold rivet'],
-  sun: ['the visible pivot', 'the center lamp', 'the daylight hinge'],
-  moon: ['the felt tide', 'the inner tide', 'the mood seam'],
 };
 
 function coerceIntensityBand(raw: string): TransitPressure['intensityBand'] {
@@ -53,33 +33,9 @@ function hash32(seed: string): number {
   return h >>> 0;
 }
 
-function scrubAstroMechanics(text: string, seed: string, digest: CampaignExpressionDigest): string {
-  let t = text;
-  const p = digest.pressure;
-  const arena = houseLanguage(p.primary_natal_house);
-  const aspectPhrase = aspectPressure(p.primary_aspect_type);
-
-  for (const name of PLANET_NAMES) {
-    const re = new RegExp(`\\b${name}\\b`, 'gi');
-    t = t.replace(re, (m) => {
-      const key = m.toLowerCase();
-      const list = BODY_EPITHET[key] ?? ['a sky vector', 'a pressure line', 'a moving signal'];
-      return stableVariant(`${seed}|body|${key}|${m}`, [...list]);
-    });
-  }
-
-  for (const asp of ASPECT_TERMS) {
-    const re = new RegExp(`\\b${asp}\\b`, 'gi');
-    t = t.replace(re, () => stableVariant(`${seed}|asp|${asp}`, [aspectPhrase, 'a sharp geometry', 'a crossing load']));
-  }
-
-  t = t.replace(/\bhouse\s*(\d{1,2})\b/gi, () => arena);
-  t = t.replace(/\bhouse\s+(\d{1,2})\b/gi, () => arena);
-  t = t.replace(/\bphase1_shadow:/gi, '');
-  t = t.replace(/\bnatal\b/gi, 'inner');
-  t = t.replace(/\bchart\b/gi, 'field');
-
-  return t.replace(/\s+/g, ' ').trim();
+/** Minimal cleanup only: strip internal tags, normalize whitespace. No planet/aspect metaphor substitution. */
+function scrubAstroMechanics(text: string, _seed: string, _digest: CampaignExpressionDigest): string {
+  return text.replace(/\bphase1_shadow:/gi, '').replace(/\s+/g, ' ').trim();
 }
 
 function classBucket(classSlug: string): number {
@@ -91,7 +47,7 @@ const LABEL_BY_POSTURE: Record<
   readonly [readonly string[], readonly string[], readonly string[]]
 > = {
   observe: [
-    ['Hold the line of sight', 'Mark the field calmly', 'Read the room before steel enters'],
+    ['Hold the line of sight', 'Mark the moment calmly', 'Read the room before steel enters'],
     ['Stand watch without flinch', 'Let the scene declare itself', 'Keep the aperture open'],
     ['Survey before you swear', 'Name nothing yet; see all', 'Let silence do reconnaissance'],
   ],
@@ -118,7 +74,7 @@ const LABEL_BY_POSTURE: Record<
   offer: [
     ['Lay a concrete gift', 'Offer what can be held', 'Put something real on the table'],
     ['Make repair tangible', 'Trade gesture for steadiness', 'Feed the bond with deed'],
-    ['Give the small costly thing', 'Answer pressure with offering', 'Let care take material form'],
+    ['Give the small costly thing', 'Answer the moment with offering', 'Let care take material form'],
   ],
   reframe: [
     ['Rename the pattern', 'Turn the story’s hinge', 'Shift the frame without flight'],
@@ -126,7 +82,7 @@ const LABEL_BY_POSTURE: Record<
     ['Open a second reading', 'Loosen the old verdict', 'Let a new angle breathe'],
   ],
   contain: [
-    ['Draw the smaller circle', 'Cap what you will carry', 'Fence the load you accept'],
+    ['Draw the smaller circle', 'Cap what you will carry', 'Fence what you accept'],
     ['Bound the spill', 'Tighten scope to survive', 'Keep the fire in the hearth'],
     ['Limit the bleed', 'Choose the edge you defend', 'Shrink the battlefield'],
   ],
@@ -138,6 +94,25 @@ function realizedLabel(posture: ResponsePosture, classSlug: string, seed: string
   return stableVariant(`${seed}|lbl|${posture}|${classSlug}`, [...variants]);
 }
 
+function primaryContactPhrase(digest: CampaignExpressionDigest): string {
+  const p = digest.pressure;
+  return `${p.primary_transit_body} to ${p.primary_natal_body} (${p.primary_aspect_type})`;
+}
+
+/** Short execution bias from identity mirrors — no sign names, no cadence footer. */
+function identityExecutionHint(digest: CampaignExpressionDigest, seed: string): string {
+  const key = `${seed}|id_hint|${digest.identity.class_slug}|${digest.identity.rising_modifier_slug}`;
+  const hints = [
+    'You answer cleaner when the move stays small and repeatable.',
+    'You steady once the truth is spoken, not while it stays implied.',
+    'You buy room by pacing the answer instead of rushing the performance.',
+    'You trust the day more when someone else can see the same facts you see.',
+    'You tighten scope before you tighten tone.',
+    'You recover faster when the gesture is concrete, not symbolic.',
+  ];
+  return stableVariant(key, [...hints]).trim();
+}
+
 function realizedGesture(
   posture: ResponsePosture,
   domain: string,
@@ -146,47 +121,49 @@ function realizedGesture(
   seed: string,
   digest: CampaignExpressionDigest,
 ): string {
-  const ctx = domainContext(domain);
+  const p = digest.pressure;
   const lab = domainLabel(domain);
-  const pol = digest.pressure.primary_pressure_polarity;
-  const inten = coerceIntensityBand(digest.pressure.primary_intensity_band);
+  const contact = primaryContactPhrase(digest);
+  const pol = p.primary_pressure_polarity;
+  const inten = coerceIntensityBand(p.primary_intensity_band);
   const polT = polarityTone(pol);
   const urg = intensityUrgency(inten);
-  const sub = risingSlug.replace(/^rising_/, '').slice(0, 12);
+  const idHint = identityExecutionHint(digest, `${seed}|idh`);
   const variants: Record<ResponsePosture, string[]> = {
     observe: [
-      `In ${lab}, you keep ${ctx} readable while the field stays ${urg}: let ${polT} show its shape before you answer.`,
-      `Hold ${ctx} in ${lab} open just long enough to see the real tradeoff under ${polT} pressure.`,
+      `With ${contact} pressing ${lab}, wait until the real tradeoff shows under ${polT} light while the moment stays ${urg}. ${idHint}`,
+      `${contact} in ${lab} is still ${urg}; let ${polT} show its shape before you answer. ${idHint}`,
     ],
     assert: [
-      `In ${lab}, speak one clean line so ${ctx} cannot stay implied while conditions read ${urg}.`,
-      `Name what is true in ${lab} with a single decisive sentence; ${polT} light still sets the tempo.`,
+      `Under ${contact} in ${lab}, speak one clean line so nothing stays implied while the situation reads ${urg}. ${idHint}`,
+      `Name what is true where ${contact} crosses ${lab}; ${polT} light still sets the tempo at ${urg}. ${idHint}`,
     ],
     engage: [
-      `Take one bounded advance in ${lab} that honors ${ctx} without pretending the room is cooler than ${urg}.`,
-      `Move ${ctx} in ${lab} with a deliberate step sized for ${polT} pressure still running ${urg}.`,
+      `Take one bounded advance that answers ${contact} in ${lab} without pretending ${polT} heat has cooled from ${urg}. ${idHint}`,
+      `Move on ${contact} in ${lab} with a deliberate step sized for ${polT} conditions still running ${urg}. ${idHint}`,
     ],
     withdraw: [
-      `Reduce exposure in ${lab} on purpose so ${ctx} can cool while the situation stays ${urg}.`,
-      `Step back from the hottest contact in ${lab} until timing returns; ${polT} does not vanish, you choose distance.`,
+      `Ease off the hottest edge of ${contact} in ${lab} on purpose until timing returns; ${polT} does not vanish, you choose distance at ${urg}. ${idHint}`,
+      `Step back from ${contact} in ${lab} so ${polT} can settle without you vanishing; the moment stays ${urg}. ${idHint}`,
     ],
     support: [
-      `Bring a trusted second mind into ${lab} so ${ctx} is not carried alone while pressure stays ${urg}.`,
-      `Let counsel steady ${ctx} in ${lab}; ${polT} reads softer when witness joins the frame.`,
+      `Bring ${contact} in ${lab} to someone you trust so the swing is not solo under ${urg}. ${idHint}`,
+      `Let a second mind see ${contact} in ${lab}; ${polT} reads softer when witness joins at ${urg}. ${idHint}`,
     ],
     offer: [
-      `Answer ${ctx} in ${lab} with a tangible gesture that matches ${polT} pressure without empty theater.`,
-      `Put something real on the table for ${lab}; ${ctx} needs weight, not another abstraction.`,
+      `Answer ${contact} in ${lab} with something tangible that matches ${polT} heat without empty theater at ${urg}. ${idHint}`,
+      `Put a real gesture on the table for ${lab} where ${contact} is live; ${polT} needs weight, not abstraction. ${idHint}`,
     ],
     reframe: [
-      `Shift the story you tell about ${lab} so ${ctx} can meet ${polT} pressure with more room to breathe.`,
-      `Rename the frame around ${ctx} in ${lab}; interpretation moves first while intensity stays ${urg}.`,
+      `Shift the story you tell about ${contact} in ${lab} so ${polT} can meet ${urg} with more room to breathe. ${idHint}`,
+      `Rename the frame around ${contact} in ${lab}; interpretation moves first while intensity stays ${urg}. ${idHint}`,
     ],
     contain: [
-      `Tighten what you will carry for ${lab} so ${ctx} stays inside a survivable edge while the field reads ${urg}.`,
-      `Bound ${ctx} in ${lab} with a clear limit; ${polT} pressure respects smaller perimeters.`,
+      `Tighten what you will carry where ${contact} hits ${lab} so ${polT} stays inside a survivable edge at ${urg}. ${idHint}`,
+      `Bound ${contact} in ${lab} with a clear limit; ${polT} respects smaller perimeters at ${urg}. ${idHint}`,
     ],
   };
+  const sub = risingSlug.replace(/^rising_/, '').slice(0, 12);
   const pool = variants[posture] ?? variants.observe;
   return stableVariant(`${seed}|gst|${posture}|${classSlug}|${sub}`, pool);
 }
@@ -203,37 +180,29 @@ function realizedRisk(
   const trade = polarityTradeoff(pol);
   const urg = intensityUrgency(inten);
   const lab = domainLabel(domain);
+  const contact = primaryContactPhrase(digest);
   return stableVariant(`${seed}|risk|${posture}`, [
-    `This stance favors ${impl} in ${lab} while the field stays ${urg}; ${trade} still sets the guardrail.`,
-    `You buy ${impl} here under ${urg} pacing in ${lab}; the cost is that ${trade} remains in play.`,
+    `This stance favors ${impl} under ${contact} in ${lab} while the moment stays ${urg}; ${trade} still sets the guardrail.`,
+    `You buy ${impl} here with ${contact} in ${lab} at ${urg}; the cost is that ${trade} remains in play.`,
   ]);
 }
 
 function realizeThemeLead(
   theme: string,
   digest: CampaignExpressionDigest,
-  archetypeId: ArchetypeId,
+  _archetypeId: ArchetypeId,
   seed: string,
-  slugs: CampaignSurfaceSlugs,
+  _slugs: CampaignSurfaceSlugs,
 ): string {
-  const scrubbed = scrubAstroMechanics(theme, `${seed}|theme`, digest);
-  const domain = digest.pressure.primary_domain_id;
-  const lab = domainLabel(domain);
-  const order = slugs.class_slug.replace(/^class_/, '').slice(0, 10);
-  const exec = slugs.rising_modifier_slug.replace(/^rising_/, '').slice(0, 10);
-  const frame = stableVariant(`${seed}|frame|${archetypeId}`, [
-    `Your path (${order}, ${exec} cadence) meets ${lab} as a living beat, not a lecture.`,
-    `The day asks ${lab} through your usual ${exec} stride while ${order} instincts stay in play.`,
-  ]);
-  return `${scrubbed} ${frame}`.replace(/\s+/g, ' ').trim();
+  return scrubAstroMechanics(theme, `${seed}|theme`, digest);
 }
 
 function realizeObstacle(obstacle: string, digest: CampaignExpressionDigest, seed: string, slugs: CampaignSurfaceSlugs): string {
   const base = scrubAstroMechanics(obstacle, `${seed}|obs`, digest);
   const sub = slugs.subclass_slug.replace(/^subclass_/, '').slice(0, 12);
   const tail = stableVariant(`${seed}|obsTail`, [
-    `The inner cadence (${sub}) keeps your private tradeoff thread visible under the same pressure.`,
-    `Let the ${sub} undertone stay honest while you answer what the field is asking.`,
+    `The inner cadence (${sub}) keeps your private tradeoff thread visible under the same strain.`,
+    `Let the ${sub} undertone stay honest while you answer what this situation keeps asking.`,
   ]);
   return `${base} ${tail}`.replace(/\s+/g, ' ').trim();
 }
