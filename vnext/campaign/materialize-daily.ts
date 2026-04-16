@@ -361,6 +361,11 @@ export async function materializeCampaignDaily(params: {
     natalSnapshot,
     transitSnapshot,
     campaignExpressionDigest,
+    campaignDailyPressureNarration: {
+      dailyState,
+      primaryEvent: primary,
+      supportingEvents: supporting,
+    },
     challengeContext: {
       archetypeCategory: archetypeId,
       archetypeId,

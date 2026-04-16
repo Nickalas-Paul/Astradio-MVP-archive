@@ -6,8 +6,8 @@
 // campaign versioned state path (rpg_map_version, rpg_algo_version). There is no
 // separately passed generator version parameter; behavior is fixed by code path.
 //
-// Phase C containment: astrological wording for theme comes only from TextProjection(SemanticCore).
-// Pressure/type strings are game-layer mechanics, not a second interpreter.
+// Campaign daily theme: when `campaignDailyPressureNarration` is set (Command-Center materialization),
+// the theme lead is built from DailyPressureState + PressureEvent rows, not from natal SemanticCore projection text.
 
 import type { EphemerisSnapshot } from '../contracts';
 import type { SemanticCore } from '../semantic/semantic-core';
@@ -34,6 +34,10 @@ import {
   stableVariant,
 } from './projection-language';
 import type { CampaignSlateContinuity } from '../campaign/campaign-slate-continuity';
+import type { CampaignDailyPressureNarration } from '../campaign/campaign-daily-theme-lead';
+import { buildCampaignDailyThemeLead } from '../campaign/campaign-daily-theme-lead';
+
+export type { CampaignDailyPressureNarration } from '../campaign/campaign-daily-theme-lead';
 import type {
   ArchetypeId,
   CampaignState,
@@ -214,11 +218,17 @@ function challengeThemeFromSemantic(
   supporting: TransitPressure[],
   state: CampaignState,
   challengeContext: ChallengeContext | undefined,
-  campaignExpressionDigest: CampaignExpressionDigest | undefined
+  campaignExpressionDigest: CampaignExpressionDigest | undefined,
+  campaignDailyPressureNarration?: CampaignDailyPressureNarration
 ): string {
-  const line = firstSentencesUpTo(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest), 4);
+  const line = campaignDailyPressureNarration
+    ? buildCampaignDailyThemeLead({
+        narration: campaignDailyPressureNarration,
+        seed: `${campaignDailyPressureNarration.dailyState.daily_pressure_state_id}|${campaignDailyPressureNarration.dailyState.date}|ch${state.chapter ?? 1}`,
+      })
+    : firstSentencesUpTo(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest), 4);
   const frame = challengeFramingLine(pressure, challengeContext, state);
-  const support = supportingPressureLine(supporting, challengeContext);
+  const support = campaignDailyPressureNarration ? '' : supportingPressureLine(supporting, challengeContext);
   const continuity = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);
   const raw = [line, frame, support, ...continuity]
     .map(compactText)
@@ -855,6 +865,8 @@ export interface BuildChallengeParams {
   /** When set with `slateContinuity`, response postures are shaped by identity + bounded state traces. */
   campaignIdentitySlugs?: CampaignIdentitySlugs;
   slateContinuity?: CampaignSlateContinuity;
+  /** When set, theme lead is built from daily pressure truth (Command-Center daily), not natal projection text. */
+  campaignDailyPressureNarration?: CampaignDailyPressureNarration;
 }
 
 /**
@@ -880,6 +892,7 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
     campaignExpressionDigest,
     campaignIdentitySlugs,
     slateContinuity,
+    campaignDailyPressureNarration,
   } = params;
   if (!pressures.length) return null;
 
@@ -895,7 +908,8 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
     supporting,
     state,
     challengeContext,
-    campaignExpressionDigest
+    campaignExpressionDigest,
+    campaignDailyPressureNarration
   );
   const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
   const obstacle = sceneObstacleGame(primary, character, challengeContext, state);
