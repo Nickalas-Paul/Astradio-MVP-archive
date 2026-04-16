@@ -100,6 +100,29 @@ function supportingBiasPostures(
     .slice(0, 2);
 }
 
+/**
+ * Baseline campaign projection appends the digest-driven moment after prior paragraphs on `significance`
+ * (`assemble-sections` merges supplemental + `buildCampaignPressureResponseParagraph` there).
+ * Use the last non-empty double-newline-separated block so the theme lead reads that moment, not `signatures`.
+ */
+function campaignSignificanceLeadParagraph(significanceText: string): string {
+  const paras = significanceText
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paras.length === 0) return '';
+  if (paras.length === 1) return paras[0]!;
+  return paras[paras.length - 1]!;
+}
+
+/** Same sentence boundary idea as `firstSentence`, but keeps up to `max` sentences for digest geometry that appears after the opening clause. */
+function firstSentencesUpTo(text: string, max: number): string {
+  const compact = compactText(text);
+  if (!compact) return '';
+  const chunks = compact.split(/(?<=[.!?])\s+/).map((c) => c.trim()).filter(Boolean);
+  return chunks.slice(0, Math.max(1, max)).join(' ').trim();
+}
+
 /** Primary reading line from canonical semantic pipeline only (Phase D campaign surface). */
 function semanticReadingLine(core: SemanticCore, seed: string, campaignExpressionDigest?: CampaignExpressionDigest): string {
   const sections = projectTextFromSemanticCore(core, seed, {
@@ -110,8 +133,13 @@ function semanticReadingLine(core: SemanticCore, seed: string, campaignExpressio
     aspectTension: null,
     campaignExpressionDigest,
   });
-  const sig = sections.find((s) => s.id === 'signatures' || s.id === 'sky_summary');
-  return (sig?.text ?? sections[0]?.text ?? '').trim();
+  const significance = sections.find((s) => s.id === 'significance');
+  const significanceText = (significance?.text ?? '').trim();
+  if (significanceText) {
+    return campaignSignificanceLeadParagraph(significanceText);
+  }
+  const legacy = sections.find((s) => s.id === 'signatures' || s.id === 'sky_summary');
+  return (legacy?.text ?? sections[0]?.text ?? '').trim();
 }
 
 const ARCHETYPE_FRAMING: Record<ArchetypeId, string> = {
@@ -181,7 +209,7 @@ function challengeThemeFromSemantic(
   challengeContext: ChallengeContext | undefined,
   campaignExpressionDigest: CampaignExpressionDigest | undefined
 ): string {
-  const line = firstSentence(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest));
+  const line = firstSentencesUpTo(semanticReadingLine(core, hashSnapshot(natalSnapshot), campaignExpressionDigest), 4);
   const frame = challengeFramingLine(pressure, challengeContext, state);
   const support = supportingPressureLine(supporting, challengeContext);
   const continuity = continuityLines(state, challengeContext?.primaryDomain ?? pressure.domain);

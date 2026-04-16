@@ -224,7 +224,26 @@ function main(): void {
     transitSnapshot: transit,
     campaignExpressionDigest: digest,
   });
-  assert(JSON.stringify(sceneNoDigest) === JSON.stringify(sceneWithDigest), 'challenge scene unchanged with digest');
+  if (!sceneNoDigest || !sceneWithDigest) {
+    throw new Error('[test-campaign-expression-digest-boundary] challenge scenes missing');
+  }
+  assert(sceneNoDigest.theme !== sceneWithDigest.theme, 'digest must affect challenge.theme via projection wiring');
+  const themeWith = sceneWithDigest.theme.toLowerCase();
+  assert(themeWith.includes('mars'), 'challenge.theme includes digest transit body');
+  assert(themeWith.includes('venus'), 'challenge.theme includes digest natal body');
+  const sceneWithDigestB = buildChallengeScene({
+    character,
+    pressures,
+    state,
+    semanticCore,
+    natalSnapshot: natal,
+    transitSnapshot: transit,
+    campaignExpressionDigest: digest,
+  });
+  if (!sceneWithDigestB) {
+    throw new Error('[test-campaign-expression-digest-boundary] challenge scene B missing');
+  }
+  assert(sceneWithDigest.theme === sceneWithDigestB.theme, 'challenge theme deterministic with digest');
 
   const sandboxA = applyUnifiedProjection(semanticCore, 'digest-seed-c', {
     phaseD: true,
