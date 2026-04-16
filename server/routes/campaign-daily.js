@@ -851,6 +851,8 @@ function createCampaignDailyRouter() {
             aspect_type: daily.challenge && daily.challenge.primaryPressure && daily.challenge.primaryPressure.aspectType
               ? String(daily.challenge.primaryPressure.aspectType)
               : undefined,
+            response_posture: orderedChoice.posture,
+            response_pattern_tag: orderedChoice.patternTag,
           });
           const outcome = vn.buildChallengeOutcome({
             scene: daily.challenge,

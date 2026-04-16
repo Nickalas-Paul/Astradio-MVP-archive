@@ -3,7 +3,7 @@
 
 import type { RPGEffectsBundle, RPGDomainScore } from '../contracts';
 import { canonicalize } from '../hash/json-hash';
-import type { ArchetypeId } from '../types';
+import type { ArchetypeId, ResponsePosture } from '../types';
 
 export interface RPGCampaignState {
   tone_track: Record<string, number>;
@@ -35,6 +35,9 @@ export interface RpgOutcome {
   natal_body?: string;
   natal_house?: number;
   aspect_type?: string;
+  /** Response posture chosen at resolve time; feeds bounded future slate shaping. */
+  response_posture?: ResponsePosture;
+  response_pattern_tag?: string;
 }
 
 type PatchDirection =
@@ -178,6 +181,9 @@ function applyHistoryMutation(
     const house = typeof outcome.natal_house === 'number' ? String(outcome.natal_house) : 'unknown';
     const aspect = outcome.aspect_type ?? 'unknown';
     target.history.push(memberScoped ? `hmb:${natal}:${aspect}` : `hs:${transit}:${natal}:${house}:${aspect}`);
+  }
+  if (outcome.response_posture) {
+    target.history.push(memberScoped ? `hmp:${outcome.response_posture}` : `hp:${outcome.response_posture}`);
   }
   while (target.history.length > maxEntries) {
     target.history.shift();

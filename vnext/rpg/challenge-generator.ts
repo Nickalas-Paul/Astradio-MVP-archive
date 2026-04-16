@@ -33,6 +33,7 @@ import {
   polarityTradeoff,
   stableVariant,
 } from './projection-language';
+import type { CampaignSlateContinuity } from '../campaign/campaign-slate-continuity';
 import type {
   ArchetypeId,
   CampaignState,
@@ -45,6 +46,13 @@ import type {
   ResponsePosture,
   TransitPressure,
 } from './types';
+
+/** Identity slugs for Campaign response slate shaping (natal-derived, deterministic). */
+export type CampaignIdentitySlugs = {
+  class_slug: string;
+  subclass_slug: string;
+  rising_modifier_slug: string;
+};
 
 type ChallengeContext = {
   archetypeCategory?: string;
@@ -650,6 +658,126 @@ function postureFromSupport(
   return polarity === 'constructive' ? 'engage' : 'observe';
 }
 
+function hash32seed(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function risingExecutionSign(slug: string): string {
+  const m = /^rising_([a-z]+)$/.exec(slug.toLowerCase());
+  return m?.[1] ?? 'unknown';
+}
+
+function executionElement(sign: string): 'fire' | 'water' | 'air' | 'earth' | 'unknown' {
+  const s = sign.toLowerCase();
+  if (['aries', 'leo', 'sagittarius'].includes(s)) return 'fire';
+  if (['cancer', 'scorpio', 'pisces'].includes(s)) return 'water';
+  if (['gemini', 'libra', 'aquarius'].includes(s)) return 'air';
+  if (['taurus', 'virgo', 'capricorn'].includes(s)) return 'earth';
+  return 'unknown';
+}
+
+function refillPostureSlate(slate: ResponsePosture[], archetypeId: ArchetypeId, domain: string): ResponsePosture[] {
+  let u = [...new Set(slate)];
+  const base = BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test;
+  const pool = [...base, ...POSTURE_PRIORITY];
+  for (const p of pool) {
+    if (u.length >= 5) break;
+    if (!u.includes(p)) u.push(p);
+  }
+  const anchor = requiredDomainAnchor(domain);
+  u = enforceDomainConstraints(u, u, domain);
+  if (!hasRegulatingPosture(u)) u = replaceLowestPriority(u, u, 'observe', new Set([anchor]));
+  if (!hasDirectionalPosture(u)) u = replaceLowestPriority(u, u, 'assert', new Set([anchor]));
+  return u.slice(0, 5);
+}
+
+function applyCampaignSlateShaping(
+  slate: ResponsePosture[],
+  pressure: TransitPressure,
+  challengeContext: ChallengeContext | undefined,
+  archetypeId: ArchetypeId,
+  shaping: { identity: CampaignIdentitySlugs; continuity: CampaignSlateContinuity },
+): ResponsePosture[] {
+  let next = [...slate];
+  const pol =
+    challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
+  const band = challengeContext?.intensityBand ?? pressure.intensityBand;
+  const domain = pressure.domain;
+  const elem = executionElement(risingExecutionSign(shaping.identity.rising_modifier_slug));
+  const classSalt = shaping.identity.class_slug;
+
+  if (elem === 'fire' && band !== 'critical' && pol !== 'volatile') {
+    const wi = next.indexOf('withdraw');
+    if (wi >= 0) {
+      const injectOrder: ResponsePosture[] = ['engage', 'offer', 'reframe', 'support'];
+      const pick = injectOrder.find((p) => !next.includes(p));
+      if (pick) next[wi] = pick;
+    }
+  }
+  if (elem === 'water' && (domain === 'partnership' || domain === 'home')) {
+    const ai = next.indexOf('assert');
+    if (ai >= 0 && !next.includes('support')) next[ai] = 'support';
+  }
+  if (elem === 'air' && (band === 'low' || band === 'moderate')) {
+    const ci = next.indexOf('contain');
+    if (ci >= 0 && !next.includes('reframe')) next[ci] = 'reframe';
+  }
+  if (elem === 'earth' && (band === 'high' || band === 'critical')) {
+    const ei = next.indexOf('engage');
+    if (ei >= 0 && !next.includes('contain')) next[ei] = 'contain';
+  }
+
+  const lastDir = shaping.continuity.recentOutcomeDirections[0];
+  if (lastDir === 'withdraw_protect') {
+    const oi = next.indexOf('observe');
+    if (oi >= 0 && !next.includes('engage') && hash32seed(shaping.continuity.sessionKey) % 2 === 0) {
+      next[oi] = 'engage';
+    }
+  } else if (lastDir === 'engage_advance') {
+    const oi = next.indexOf('assert');
+    if (oi >= 0 && !next.includes('observe')) next[oi] = 'observe';
+  }
+
+  if (hash32seed(`${shaping.continuity.sessionKey}|${classSalt}|cls`) % 3 !== 0 && next.length >= 2) {
+    const i =
+      hash32seed(`${shaping.continuity.sessionKey}|${shaping.identity.rising_modifier_slug}|sw`) %
+      Math.max(1, next.length - 1);
+    const a = next[i]!;
+    const b = next[i + 1]!;
+    next[i] = b;
+    next[i + 1] = a;
+  }
+
+  const bias = shaping.continuity.domainPressureBias;
+  if (bias > 2) {
+    const anchor = requiredDomainAnchor(domain);
+    const rep = replaceLowestPriority(next, next, anchor, new Set());
+    if (rep.join('|') !== next.join('|')) next = rep;
+  }
+
+  next = Array.from(new Set(next));
+  /** Rising + session keyed rotation so execution style always differentiates menus when multiset is unchanged. */
+  if (next.length >= 2) {
+    const rot =
+      hash32seed(`${shaping.identity.rising_modifier_slug}|${shaping.continuity.sessionKey}|rot`) % next.length;
+    if (rot > 0) {
+      next = [...next.slice(rot), ...next.slice(0, rot)];
+    }
+  }
+  if (next.length < 5) {
+    next = refillPostureSlate(next, archetypeId, domain);
+  }
+  next = enforceDomainConstraints(next, next, domain);
+  const anch = requiredDomainAnchor(domain);
+  if (!hasRegulatingPosture(next)) next = replaceLowestPriority(next, next, 'observe', new Set([anch]));
+  if (!hasDirectionalPosture(next)) next = replaceLowestPriority(next, next, 'assert', new Set([anch]));
+  return next.slice(0, 5);
+}
+
 function buildChoice(
   posture: ResponsePosture,
   pressure: TransitPressure,
@@ -673,7 +801,8 @@ function baseChoices(
   pressure: TransitPressure,
   supporting: TransitPressure[],
   state: CampaignState,
-  challengeContext?: ChallengeContext
+  challengeContext: ChallengeContext | undefined,
+  shaping: { identity: CampaignIdentitySlugs; continuity: CampaignSlateContinuity } | undefined,
 ): ChoiceOption[] {
   const archetypeId = challengeContext?.archetypeId ?? 'identity_test';
   const baseSlate = [...(BASE_POSTURE_SLATES[archetypeId] ?? BASE_POSTURE_SLATES.identity_test)];
@@ -701,7 +830,11 @@ function baseChoices(
   slate = enforceDomainConstraints(slate, slate, pressure.domain);
   if (!hasRegulatingPosture(slate)) slate = replaceLowestPriority(slate, slate, 'observe', new Set([anchor]));
   if (!hasDirectionalPosture(slate)) slate = replaceLowestPriority(slate, slate, 'assert', new Set([anchor]));
-  return slate.slice(0, 5).map((posture) => buildChoice(posture, pressure, state, challengeContext));
+  let finalSlate = slate.slice(0, 5);
+  if (shaping) {
+    finalSlate = applyCampaignSlateShaping(finalSlate, pressure, challengeContext, archetypeId, shaping);
+  }
+  return finalSlate.map((posture) => buildChoice(posture, pressure, state, challengeContext));
 }
 
 /**
@@ -719,6 +852,9 @@ export interface BuildChallengeParams {
   /** Optional read-only digest from Command Center materialization for campaign projection only. */
   campaignExpressionDigest?: CampaignExpressionDigest;
   challengeContext?: ChallengeContext;
+  /** When set with `slateContinuity`, response postures are shaped by identity + bounded state traces. */
+  campaignIdentitySlugs?: CampaignIdentitySlugs;
+  slateContinuity?: CampaignSlateContinuity;
 }
 
 /**
@@ -733,8 +869,18 @@ export interface BuildChallengeParams {
  * same (state, transit snapshot, character) must be passed for idempotent scene identity.
  */
 export function buildChallengeScene(params: BuildChallengeParams): ChallengeScene | null {
-  const { character, pressures, state, semanticCore, transitSnapshot, natalSnapshot, challengeContext, campaignExpressionDigest } =
-    params;
+  const {
+    character,
+    pressures,
+    state,
+    semanticCore,
+    transitSnapshot,
+    natalSnapshot,
+    challengeContext,
+    campaignExpressionDigest,
+    campaignIdentitySlugs,
+    slateContinuity,
+  } = params;
   if (!pressures.length) return null;
 
   const tone = deriveCampaignIdentityToneFromSemanticCore(semanticCore);
@@ -754,7 +900,9 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
   const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
   const obstacle = sceneObstacleGame(primary, character, challengeContext, state);
 
-  const choices = baseChoices(primary, supporting, state, challengeContext);
+  const shaping =
+    campaignIdentitySlugs && slateContinuity ? { identity: campaignIdentitySlugs, continuity: slateContinuity } : undefined;
+  const choices = baseChoices(primary, supporting, state, challengeContext, shaping);
 
   const transitKey = transitSnapshot?.ts ?? '';
   const id = [

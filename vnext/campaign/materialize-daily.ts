@@ -5,6 +5,8 @@ import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { buildRpgEffectsBundleFromSnapshot } from '../rpg/effects/bundle-from-snapshot';
 import { buildCharacterProfile } from '../rpg/character-builder';
 import { buildChallengeScene } from '../rpg/challenge-generator';
+import { buildCampaignSlateContinuity } from './campaign-slate-continuity';
+import { realizeCampaignSurfaceCopy } from './campaign-surface-realization';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 import { buildCampaignExpressionDigest } from './build-campaign-expression-digest';
 import { hashCanonicalJson } from '../rpg/hash/json-hash';
@@ -344,7 +346,14 @@ export async function materializeCampaignDaily(params: {
     characterProfile: character,
   });
 
-  const scene = buildChallengeScene({
+  const sessionKey = `${resolution.date}|${dailyState.daily_pressure_state_id}|${characterSheet.rising_modifier_slug}`;
+  const slateContinuity = buildCampaignSlateContinuity({
+    state,
+    primaryDomain: dailyState.primary_domain_id,
+    sessionKey,
+  });
+
+  const sceneRaw = buildChallengeScene({
     character,
     pressures: [eventToChallengePressure(primary), ...supporting.map(eventToChallengePressure)],
     state,
@@ -363,10 +372,28 @@ export async function materializeCampaignDaily(params: {
       supportingNatalBodyModifiers: supporting.map((event) => natalBodyModifier(event.natal_body)),
       mechanicTags: dailyState.mechanic_tags,
     },
+    campaignIdentitySlugs: {
+      class_slug: characterSheet.class_slug,
+      subclass_slug: characterSheet.subclass_slug,
+      rising_modifier_slug: characterSheet.rising_modifier_slug,
+    },
+    slateContinuity,
   });
-  if (!scene) {
+  if (!sceneRaw) {
     throw new Error('challenge unavailable');
   }
+
+  const scene = realizeCampaignSurfaceCopy({
+    scene: sceneRaw,
+    digest: campaignExpressionDigest,
+    archetypeId,
+    slugs: {
+      class_slug: characterSheet.class_slug,
+      subclass_slug: characterSheet.subclass_slug,
+      rising_modifier_slug: characterSheet.rising_modifier_slug,
+    },
+    sessionKey,
+  });
 
   const challengeArchetype: ChallengeArchetype = {
     id: `challenge_${dailyState.daily_pressure_state_id}`,
