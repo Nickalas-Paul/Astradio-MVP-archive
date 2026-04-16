@@ -23,7 +23,6 @@ import {
   domainContext,
   domainLabel,
   dominantToneKey,
-  firstSentence,
   houseLanguage,
   intensityQualifier,
   intensityUrgency,
