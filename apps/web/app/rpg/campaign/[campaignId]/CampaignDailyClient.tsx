@@ -291,6 +291,14 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
       tone: 'neutral',
     };
   }
+  if (message.includes('transit_context_mismatch')) {
+    return {
+      title: 'Daily already set for this day',
+      description:
+        'This calendar day already has a Campaign daily. If you still see this after an update, refresh the page or try again.',
+      tone: 'warning',
+    };
+  }
   if (
     message.includes('challenge_mismatch') ||
     message.includes('state_hash_mismatch') ||
@@ -745,7 +753,8 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
       const gen = ++dailyLoadGenRef.current;
       const solo = campaign.mode === 'solo';
       const geoPart = solo ? `${lat}|${lon}|${timezone}` : '';
-      const contextKey = `${campaignId}|${date}|${time}|${geoPart}`;
+      /* Solo daily identity is day-canonical; omit clock time from dedupe key to avoid redundant refetches. */
+      const contextKey = solo ? `${campaignId}|${date}|${geoPart}` : `${campaignId}|${date}|${time}|${geoPart}`;
 
       if (clearResolveResult) setResolveResult(null);
       setError(null);
@@ -833,7 +842,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
     if (!campaign || isLoadingCampaign) return;
     const solo = campaign.mode === 'solo';
     const geoPart = solo ? `${lat}|${lon}|${timezone}` : '';
-    const contextKey = `${campaignId}|${date}|${time}|${geoPart}`;
+    const contextKey = solo ? `${campaignId}|${date}|${geoPart}` : `${campaignId}|${date}|${time}|${geoPart}`;
     if (dailyRef.current !== null && lastLoadedContextKeyRef.current === contextKey) {
       return;
     }

@@ -5,7 +5,8 @@
 const express = require('express');
 
 const pgStore = require('../../lib/pg-store');
-const { validateCanonicalLocation, transitContextFingerprint, canonicalJson, sha256 } = require('../lib/canonical-location');
+const { validateCanonicalLocation, canonicalJson, sha256 } = require('../lib/canonical-location');
+const { campaignDailyTransitContextFingerprint } = require('../lib/campaign-daily-transit-fingerprint');
 const { anchorFallbackOrder } = require('../lib/campaign-daily-anchor');
 const {
   acceptMemberResponse,
@@ -308,28 +309,17 @@ function createCampaignDailyRouter() {
           });
         }
       }
-      if (mode === 'solo') {
-        const locVal = await resolveSoloTransitContext({
-          req,
-          body,
-          callerUserId,
-          existing,
-        });
-        if (!locVal.ok) {
-          return res.status(400).json({ error: locVal.error, code: locVal.code || 'LOCATION_INVALID' });
-        }
-        const fpReq = transitContextFingerprint(locVal.location, date, time);
-        if (fpReq !== existing.transitContextFingerprint) {
-          return res.status(409).json({ error: 'TRANSIT_CONTEXT_MISMATCH', code: 'TRANSIT_CONTEXT_MISMATCH' });
-        }
-      }
-      if (
+
+      const isCompleteCachedDaily =
         existingDailyStateJson &&
         existingDailyStateJson.daily &&
+        typeof existingDailyStateJson.daily === 'object' &&
         existingDailyStateJson.daily.campaign_resolution &&
         existingDailyStateJson.daily.challenge &&
-        existingDailyStateJson.daily.challenge_fingerprint
-      ) {
+        existingDailyStateJson.daily.challenge_fingerprint;
+
+      /* Option A: one canonical daily per (campaign_id, calendar_date, engine_version) — first success owns the day. */
+      if (isCompleteCachedDaily) {
         return res.status(200).json({
           campaignId,
           calendarDate: date,
@@ -340,6 +330,22 @@ function createCampaignDailyRouter() {
           transitContextFingerprint: existing.transitContextFingerprint,
           daily: existingDailyStateJson,
         });
+      }
+
+      if (mode === 'solo') {
+        const locVal = await resolveSoloTransitContext({
+          req,
+          body,
+          callerUserId,
+          existing,
+        });
+        if (!locVal.ok) {
+          return res.status(400).json({ error: locVal.error, code: locVal.code || 'LOCATION_INVALID' });
+        }
+        const fpReq = campaignDailyTransitContextFingerprint(locVal.location, date);
+        if (fpReq !== existing.transitContextFingerprint) {
+          return res.status(409).json({ error: 'TRANSIT_CONTEXT_MISMATCH', code: 'TRANSIT_CONTEXT_MISMATCH' });
+        }
       }
     }
 
@@ -355,7 +361,7 @@ function createCampaignDailyRouter() {
           return res.status(400).json({ error: locVal.error, code: locVal.code || 'LOCATION_INVALID' });
         }
         const location = locVal.location;
-        const fpReq = transitContextFingerprint(location, date, time);
+        const fpReq = campaignDailyTransitContextFingerprint(location, date);
 
         const charts = campaign.participantChartIds || [];
         if (charts.length !== 1) {
@@ -560,7 +566,7 @@ function createCampaignDailyRouter() {
         });
       }
 
-      const fpAnchor = transitContextFingerprint(anchorLocation, date, time);
+      const fpAnchor = campaignDailyTransitContextFingerprint(anchorLocation, date);
       // Group daily pressure is pooled across members in the resolution seed; CharacterSheet / challenge
       // materialization intentionally uses one natal (primary pressure member, else first chart)—not a blend.
       const primaryChartId =
