@@ -257,6 +257,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     if (user && profileSection === 'library') void refreshLibrary();
   }, [user, profileSection]);
 
+  // Refetch profile chart when entering Identity so identity_export_id reflects async backend persistence.
+  useEffect(() => {
+    if (profileSection !== 'identity' || !user || !chartId) return;
+    void refreshChart();
+  }, [profileSection, user, chartId, refreshChart]);
+
   useEffect(() => {
     let cancelled = false;
     const base = getApiBaseUrl();
