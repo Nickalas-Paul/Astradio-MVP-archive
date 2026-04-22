@@ -3,9 +3,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
+import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
 
 export default function SettingsPage() {
+  const { user, primaryChart, refresh } = useProfile();
+  const chartId = primaryChart?.id ?? null;
+  const { refresh: refreshChart } = useProfileChart(chartId);
   const { settings, updateSettings, resetSettings } = useSettingsStore();
   const { theme, setTheme } = useUIStore();
   const [isResetting, setIsResetting] = useState(false);
@@ -34,6 +39,20 @@ export default function SettingsPage() {
             Customize your Astradio experience with personalized preferences and audio settings.
           </p>
         </motion.div>
+
+        <div id="birth-chart" className="card scroll-mt-8">
+          <h2 className="text-lg font-semibold text-text mb-4">Birth chart</h2>
+          {!user ? (
+            <p className="text-sm text-subtext">Sign in to manage your birth chart.</p>
+          ) : (
+            <BirthChartSection
+              variant="manage"
+              refresh={refresh}
+              refreshChart={refreshChart}
+              primaryChart={primaryChart}
+            />
+          )}
+        </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column */}

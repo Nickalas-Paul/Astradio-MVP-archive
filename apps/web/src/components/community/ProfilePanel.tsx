@@ -7,9 +7,72 @@ import Link from 'next/link';
 import { useProfile, useProfileChart, useCommunityInventory, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
+import { BirthChartSection } from '../profile/BirthChartSection';
 import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
+
+const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
+
+function normalizeLocalTime(t: string): string {
+  return t.length === 5 ? t : t.slice(0, 5);
+}
+
+function parseSandboxState(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw);
+      return typeof p === 'object' && p !== null && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {
+  const exp = explanation as { sections?: Array<Record<string, unknown>> } | undefined;
+  return (exp?.sections || []).map((x) => ({
+    id: String(x.sectionId ?? x.id ?? 'signatures'),
+    title: String(x.title ?? ''),
+    text: String(x.text ?? ''),
+    bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
+  }));
+}
+
+function isValidTransitLocationSource(s: unknown): s is CanonicalLocation['source'] {
+  return s === 'browser_geo' || s === 'geofinder';
+}
+
+function sandboxStateCompleteForTransit(
+  s: Record<string, unknown>,
+): s is {
+  kind: string;
+  chartId: string;
+  calendarDate: string;
+  localTime: string;
+  location: CanonicalLocation;
+} {
+  if (s.kind !== 'profile_active' || typeof s.chartId !== 'string') return false;
+  if (typeof s.calendarDate !== 'string' || typeof s.localTime !== 'string') return false;
+  const loc = s.location;
+  if (!loc || typeof loc !== 'object') return false;
+  const L = loc as Record<string, unknown>;
+  return (
+    isValidTransitLocationSource(L.source) &&
+    typeof L.label === 'string' &&
+    typeof L.lat === 'number' &&
+    Number.isFinite(L.lat) &&
+    typeof L.lon === 'number' &&
+    Number.isFinite(L.lon) &&
+    typeof L.timezone === 'string' &&
+    L.timezone.length > 0 &&
+    typeof L.resolvedAt === 'string' &&
+    L.resolvedAt.length > 0
+  );
+}
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -118,8 +181,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState<string | null>(null);
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
-  const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
-  const [identityAudioBusy, setIdentityAudioBusy] = useState(false);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
   const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -143,8 +204,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
-  /** Signed-in user: edit existing primary chart birth data (POST /api/profile updates row in place). */
-  const [editingChart, setEditingChart] = useState(false);
+  const [libraryOpenId, setLibraryOpenId] = useState<string | null>(null);
+  const [libraryDetailLoading, setLibraryDetailLoading] = useState(false);
+  const [libraryDetailRow, setLibraryDetailRow] = useState<Record<string, unknown> | null>(null);
+  const [libraryReconstructLoading, setLibraryReconstructLoading] = useState(false);
+  const [libraryReconstructResult, setLibraryReconstructResult] = useState<Record<string, unknown> | null>(null);
+  const [libraryReconstructError, setLibraryReconstructError] = useState<string | null>(null);
+  const [libraryDetailAudioUrl, setLibraryDetailAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -200,7 +266,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       activeLat === '' ||
       activeLon === ''
     ) {
-      setActiveError('Set date, time, and a resolved location with a valid timezone for active state.');
+      setActiveError('Set date, time, and a resolved location with a valid timezone for current transit.');
       return;
     }
     const base = getApiBaseUrl();
@@ -250,7 +316,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     const plan = hashes?.plan_sha256;
     const oid = exp?.meta?.canonical_object_hash;
     if (!plan || !oid) {
-      setActiveError('Load active state text first, then generate audio.');
+      setActiveError('Generate transit report first, then generate audio.');
       return;
     }
     if (!isPersistableChartTimezone(activeTz) || !activeTransitResolvedAt) {
@@ -288,6 +354,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         setActiveError(typeof j.error === 'string' ? j.error : `Audio failed (${r.status})`);
         return;
       }
+      setActiveResult(j);
       const url = await blobUrlFromComposePayload(base, j);
       if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
       setActiveAudioUrl(url);
@@ -298,67 +365,97 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     }
   };
 
-  const runIdentityAudio = async () => {
-    if (!chartId || !chartData?.identity?.profile_natal_compose_anchor || !chartData?.hashes?.plan_sha256) return;
-    const sourceChart = chartData.chart ?? realChart;
-    if (!sourceChart) return;
+  const canSaveCurrentTransit = () => {
+    if (!chartId || !activeResult) return false;
+    const h = activeResult.hashes as { plan_sha256?: string } | undefined;
+    if (!h?.plan_sha256) return false;
+    if (!activeDate || !activeTime || !activeTransitResolvedAt) return false;
+    if (activeLat === '' || activeLon === '') return false;
+    if (!isPersistableChartTimezone(activeTz)) return false;
+    if (!isValidTransitLocationSource(activeLocSource)) return false;
+    if (!Number.isFinite(Number(activeLat)) || !Number.isFinite(Number(activeLon))) return false;
+    return true;
+  };
+
+  const openLibraryRow = async (id: string) => {
+    setLibraryOpenId(id);
+    setLibraryDetailRow(null);
+    setLibraryReconstructResult(null);
+    setLibraryReconstructError(null);
+    if (libraryDetailAudioUrl) {
+      URL.revokeObjectURL(libraryDetailAudioUrl);
+      setLibraryDetailAudioUrl(null);
+    }
+    setLibraryDetailLoading(true);
+    setLibraryReconstructLoading(false);
     const base = getApiBaseUrl();
-    setIdentityAudioBusy(true);
     try {
-      const composeBase = {
-        mode: 'sandbox' as const,
-        seed: chartData.identity.profile_natal_compose_anchor,
-        chartData: {
-          date: sourceChart.date,
-          time: sourceChart.time,
-          lat: Number(sourceChart.lat),
-          lon: Number(sourceChart.lon),
-          timezone:
-            typeof sourceChart.timezone === 'string' && sourceChart.timezone.trim()
-              ? sourceChart.timezone.trim()
-              : undefined,
-        },
-      };
-      const r1 = await fetch(`${base || ''}/api/compose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`${base || ''}/api/sandbox/compositions/${encodeURIComponent(id)}`, {
         credentials: 'same-origin',
-        body: JSON.stringify({
-          ...composeBase,
-          generateAudio: false,
-        }),
       });
-      const p1 = (await r1.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!r1.ok) throw new Error(typeof p1.error === 'string' ? p1.error : 'Compose failed');
-      const ph = chartData.hashes.plan_sha256;
-      const oh = chartData.hashes.object_identity_hash;
-      if (!ph || !oh) throw new Error('Missing hashes from text compose');
-      const r2 = await fetch(`${base || ''}/api/compose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          ...composeBase,
-          generateAudio: true,
-          expectedPlanSha256: ph,
-          expectedObjectIdentityHash: oh,
-        }),
-      });
-      const p2 = (await r2.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!r2.ok) throw new Error(typeof p2.error === 'string' ? p2.error : 'Audio compose failed');
-      const url = await blobUrlFromComposePayload(base, p2);
-      if (identityAudioUrl) URL.revokeObjectURL(identityAudioUrl);
-      setIdentityAudioUrl(url);
+      const row = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) {
+        setLibraryReconstructError(
+          typeof row.error === 'string' ? row.error : `Failed to load composition (${r.status})`,
+        );
+        return;
+      }
+      setLibraryDetailRow(row);
+      const source = row.source;
+      const ps = parseSandboxState(row.sandbox_state);
+      if (source === 'profile_identity' || ps?.kind === 'profile_identity') {
+        setLibraryDetailLoading(false);
+        return;
+      }
+      if (source === 'profile_active' || ps?.kind === 'profile_active') {
+        if (!ps || !sandboxStateCompleteForTransit(ps)) {
+          setLibraryReconstructError(
+            'This bookmark was saved before transit details were stored. Generate a new report from Current Transit and save again.',
+          );
+          return;
+        }
+        setLibraryReconstructLoading(true);
+        const st = ps;
+        const r2 = await fetch(`${base || ''}/api/profile/active-state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            chartId: st.chartId,
+            calendarDate: st.calendarDate,
+            localTime: normalizeLocalTime(st.localTime),
+            location: st.location,
+            generateAudio: false,
+          }),
+        });
+        const j = (await r2.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!r2.ok) {
+          setLibraryReconstructError(
+            typeof j.error === 'string' ? j.error : `Reconstruction failed (${r2.status})`,
+          );
+          return;
+        }
+        setLibraryReconstructResult(j);
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+          if (url) setLibraryDetailAudioUrl(url);
+        }
+      }
     } catch (e) {
-      console.error(e);
+      setLibraryReconstructError(e instanceof Error ? e.message : 'Failed to open');
     } finally {
-      setIdentityAudioBusy(false);
+      setLibraryDetailLoading(false);
+      setLibraryReconstructLoading(false);
     }
   };
 
   const saveActiveToLibrary = async () => {
     if (!chartId || !activeResult) return;
-    const base = getApiBaseUrl();
+    if (!canSaveCurrentTransit()) {
+      setLibraryError('Cannot save: date, time, and resolved location with a valid timezone are required.');
+      return;
+    }
     const h = activeResult.hashes as { plan_sha256?: string } | undefined;
     const id = activeResult.identity as { object_identity_hash?: string } | undefined;
     const exp = activeResult.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
@@ -366,13 +463,39 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     const ph = h?.plan_sha256 ?? '';
     const oid = id?.object_identity_hash ?? exp?.meta?.canonical_object_hash ?? '';
     if (!ph) return;
+    const loc: CanonicalLocation = {
+      source: activeLocSource,
+      label: activeLocLabel.trim() || 'Location',
+      lat: Number(activeLat),
+      lon: Number(activeLon),
+      timezone: activeTz.trim(),
+      resolvedAt: activeTransitResolvedAt,
+    };
+    const timeNorm = normalizeLocalTime(activeTime);
+    const resolvedAt = loc.resolvedAt;
+    const dupKey = `${SAVE_DUP_PREFIX}${chartId}|${ph}|${activeDate}|${timeNorm}|${resolvedAt}`;
+    if (sessionStorage.getItem(dupKey)) {
+      if (
+        !window.confirm('You already saved this transit snapshot this session. Save another copy?')
+      ) {
+        return;
+      }
+    }
     setLibraryError(null);
+    const base = getApiBaseUrl();
+    const sandbox_state = {
+      kind: 'profile_active' as const,
+      chartId,
+      calendarDate: activeDate,
+      localTime: timeNorm,
+      location: loc,
+    };
     const r = await fetch(`${base || ''}/api/sandbox/compositions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({
-        sandbox_state: { kind: 'profile_active', chartId },
+        sandbox_state,
         vector_hash: ph,
         seed: `active_${chartId}`,
         plan_hash: ph,
@@ -388,51 +511,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       setLibraryError(j.error || `Failed to save active artifact (${r.status})`);
       return;
     }
+    sessionStorage.setItem(dupKey, dupKey);
     await refreshLibrary();
   };
-
-  const saveIdentityToLibrary = async () => {
-    if (!chartId || !chartData?.hashes?.plan_sha256) return;
-    const base = getApiBaseUrl();
-    setLibraryError(null);
-    const r = await fetch(`${base || ''}/api/sandbox/compositions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        sandbox_state: { kind: 'profile_identity', chartId },
-        vector_hash: chartData.hashes.plan_sha256,
-        seed: `natal_${chartId}`,
-        plan_hash: chartData.hashes.plan_sha256,
-        report: { savedFrom: 'profile_identity', at: new Date().toISOString() },
-        export_id: null,
-        source: 'profile_identity',
-        composition_type: 'A',
-        object_identity_hash: chartData.hashes.object_identity_hash,
-      }),
-    });
-    if (!r.ok) {
-      const j = (await r.json().catch(() => ({}))) as { error?: string };
-      setLibraryError(j.error || `Failed to save identity artifact (${r.status})`);
-      return;
-    }
-    await refreshLibrary();
-  };
-
-  useEffect(() => {
-    if (!editingChart || !primaryChart || !realChart || primaryChart.id === DEFAULT_PROFILE_CHART_ID) return;
-    setCreateChartLabel(primaryChart.label);
-    setCreateChartDate(primaryChart.date);
-    setCreateChartTime(primaryChart.time);
-    setCreateChartLat(String(primaryChart.lat));
-    setCreateChartLon(String(primaryChart.lon));
-    setCreateChartTz(
-      primaryChart.timezone && isPersistableChartTimezone(primaryChart.timezone)
-        ? primaryChart.timezone
-        : '',
-    );
-    setCreateChartLocationLabel('');
-  }, [editingChart, primaryChart, realChart]);
 
   if (profileLoading) {
     return (
@@ -764,7 +845,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               }`}
               onClick={() => setProfileSection(s)}
             >
-              {s === 'active' ? 'Active State' : s === 'identity' ? 'Identity' : 'Library'}
+              {s === 'active' ? 'Current Transit' : s === 'identity' ? 'Identity' : 'Library'}
             </button>
           ))}
         </div>
@@ -772,10 +853,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         {profileSection === 'active' && (
           <div className="space-y-4">
             <p className="text-sm text-subtext">
-              Current transit overlay (text-first). Set where and when, then load. Audio only when you generate it.
+              Transit report uses <code className="text-xs">POST /api/profile/active-state</code> with{' '}
+              <code className="text-xs">generateAudio: false</code>. Generate transit audio is a separate optional step (
+              <code className="text-xs">generateAudio: true</code>). Save to Library stores the current transit bookmark
+              (text and optional export).
             </p>
             {!chartId || noRealChart ? (
-              <p className="text-sm text-amber-600">Add a birth chart in Identity to use Active State.</p>
+              <p className="text-sm text-amber-600">Add a birth chart (Identity or Settings) to use Current Transit.</p>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2 max-w-md">
@@ -822,7 +906,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     disabled={activeLoading}
                     onClick={() => void loadActiveStateText()}
                   >
-                    {activeLoading ? 'Loading…' : 'Load active state'}
+                    {activeLoading ? 'Loading…' : 'Generate transit report'}
                   </button>
                   <button
                     type="button"
@@ -830,30 +914,21 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     disabled={activeAudioBusy || !activeResult}
                     onClick={() => void generateActiveAudio()}
                   >
-                    {activeAudioBusy ? 'Generating…' : 'Generate audio'}
+                    {activeAudioBusy ? 'Generating…' : 'Generate transit audio'}
                   </button>
                   <button
                     type="button"
                     className="px-4 py-2 rounded-lg border border-border text-sm"
-                    disabled={!activeResult}
+                    disabled={!canSaveCurrentTransit()}
                     onClick={() => void saveActiveToLibrary()}
                   >
-                    Save to library
+                    Save to Library
                   </button>
                 </div>
                 {libraryError && <p className="text-sm text-red-500">{libraryError}</p>}
                 {activeError && <p className="text-sm text-red-500">{activeError}</p>}
                 {activeResult?.explanation && (
-                  <ExplainerSections
-                    sections={(
-                      (activeResult.explanation as { sections?: Array<Record<string, unknown>> }).sections || []
-                    ).map((x) => ({
-                      id: String(x.sectionId ?? x.id ?? 'signatures'),
-                      title: String(x.title ?? ''),
-                      text: String(x.text ?? ''),
-                      bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
-                    }))}
-                  />
+                  <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
                 )}
                 {activeAudioUrl && (
                   <audio controls src={activeAudioUrl} className="w-full max-w-md" preload="metadata" />
@@ -867,106 +942,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
           <div>
             {noRealChart ? (
-              <div className="max-w-full space-y-4 rounded-2xl border border-border bg-bgElev p-4">
-                <p className="text-sm font-medium text-text">Add your birth chart</p>
-                <p className="text-xs text-subtext">Required for your natal wheel and Identity text.</p>
-                <input
-                  placeholder="Label (e.g. My Natal)"
-                  value={createChartLabel}
-                  onChange={(e) => setCreateChartLabel(e.target.value)}
-                  className="input w-full"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={createChartDate}
-                    onChange={(e) => setCreateChartDate(e.target.value)}
-                    className="input w-full"
-                  />
-                  <input
-                    type="time"
-                    value={createChartTime}
-                    onChange={(e) => setCreateChartTime(e.target.value)}
-                    className="input w-full"
-                  />
-                </div>
-                <LocationFinder
-                  value={createChartLocationLabel}
-                  onSelect={(r) => {
-                    setCreateChartLocationLabel(r.label);
-                    setCreateChartLat(String(r.lat));
-                    setCreateChartLon(String(r.lon));
-                    setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
-                  }}
-                  onClear={() => {
-                    setCreateChartLocationLabel('');
-                    setCreateChartLat('');
-                    setCreateChartLon('');
-                    setCreateChartTz('');
-                  }}
-                  placeholder="Birth place (city, region, or address)"
-                />
-                {createError && <p className="text-red-500 text-xs">{createError}</p>}
-                <button
-                  type="button"
-                  disabled={creating}
-                  className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
-                  onClick={async () => {
-                    setCreating(true);
-                    setCreateError(null);
-                    try {
-                      if (!isPersistableChartTimezone(createChartTz)) {
-                        setCreateError(
-                          'Choose a birth place from search results so a valid local timezone is set (UTC alone is not accepted).',
-                        );
-                        return;
-                      }
-                      const body = {
-                        chart: {
-                          label: createChartLabel.trim() || 'My Natal',
-                          date: createChartDate,
-                          time: createChartTime,
-                          location: {
-                            source: 'geofinder',
-                            label: createChartLocationLabel,
-                            lat: Number(createChartLat),
-                            lon: Number(createChartLon),
-                            timezone: createChartTz.trim(),
-                            resolvedAt: new Date().toISOString(),
-                          },
-                        },
-                      };
-                      const r = await fetch('/api/profile', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'same-origin',
-                        body: JSON.stringify(body),
-                      });
-                      const data = await r.json().catch(() => ({}));
-                      if (!r.ok) {
-                        setCreateError(typeof data.error === 'string' ? data.error : 'Failed to save chart');
-                        return;
-                      }
-                      const newChartId = data?.primaryChart?.id ?? null;
-                      setCreateChartLabel('');
-                      setCreateChartDate('');
-                      setCreateChartTime('12:00');
-                      setCreateChartLat('');
-                      setCreateChartLon('');
-                      setCreateChartTz('');
-                      setCreateChartLocationLabel('');
-                      await refresh();
-                    } finally {
-                      setCreating(false);
-                    }
-                  }}
-                >
-                  {creating ? 'Saving…' : 'Save birth chart'}
-                </button>
-                <Link href="/sandbox" className="block text-sm text-emerald hover:underline">
-                  Open Sandbox
-                </Link>
-              </div>
+              <BirthChartSection
+                variant="profile_onboarding"
+                refresh={refresh}
+                refreshChart={refreshChart}
+                primaryChart={primaryChart}
+              />
             ) : loading ? (
               <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
             ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
@@ -984,138 +965,14 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                 {error || 'No chart data'}
               </div>
             )}
-            {realChart?.id && !noRealChart && (
-              <>
-                <div className="mt-4 space-y-2">
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded-lg border border-border text-sm mr-2"
-                    disabled={identityAudioBusy || !chartData?.snapshot}
-                    onClick={() => void runIdentityAudio()}
-                  >
-                    {identityAudioBusy ? 'Generating…' : 'Generate identity audio'}
-                  </button>
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded-lg border border-border text-sm"
-                    disabled={!chartData?.hashes?.plan_sha256}
-                    onClick={() => void saveIdentityToLibrary()}
-                  >
-                    Save Identity to library
-                  </button>
-                  {libraryError && <p className="text-sm text-red-500">{libraryError}</p>}
-                  {identityAudioUrl && (
-                    <audio controls src={identityAudioUrl} className="w-full max-w-md block mt-2" preload="metadata" />
-                  )}
-                </div>
-                <div className="mt-4 rounded-2xl border border-border bg-bgElev p-4 space-y-3">
-                  <button
-                    type="button"
-                    className="text-sm text-emerald hover:underline"
-                    onClick={() => {
-                      setEditingChart((v) => !v);
-                      setCreateError(null);
-                    }}
-                  >
-                    {editingChart ? 'Cancel editing birth chart' : 'Update birth chart'}
-                  </button>
-                  {editingChart && (
-                    <div className="space-y-3 pt-2 border-t border-border">
-                      <p className="text-xs text-subtext">
-                        Search for your birth place again if the timezone was wrong (e.g. showed UTC). Saving updates this chart in place.
-                      </p>
-                      <input
-                        placeholder="Label (e.g. My Natal)"
-                        value={createChartLabel}
-                        onChange={(e) => setCreateChartLabel(e.target.value)}
-                        className="input w-full"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="date"
-                          value={createChartDate}
-                          onChange={(e) => setCreateChartDate(e.target.value)}
-                          className="input w-full"
-                        />
-                        <input
-                          type="time"
-                          value={createChartTime}
-                          onChange={(e) => setCreateChartTime(e.target.value)}
-                          className="input w-full"
-                        />
-                      </div>
-                      <LocationFinder
-                        value={createChartLocationLabel}
-                        onSelect={(r) => {
-                          setCreateChartLocationLabel(r.label);
-                          setCreateChartLat(String(r.lat));
-                          setCreateChartLon(String(r.lon));
-                          setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
-                        }}
-                        onClear={() => {
-                          setCreateChartLocationLabel('');
-                          setCreateChartLat('');
-                          setCreateChartLon('');
-                          setCreateChartTz('');
-                        }}
-                        placeholder="Birth place (search to set timezone)"
-                      />
-                      {createError && <p className="text-red-500 text-xs">{createError}</p>}
-                      <button
-                        type="button"
-                        disabled={creating}
-                        className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
-                        onClick={async () => {
-                          setCreating(true);
-                          setCreateError(null);
-                          try {
-                            if (!isPersistableChartTimezone(createChartTz)) {
-                              setCreateError(
-                                'Choose a birth place from search results so a valid local timezone is set (UTC alone is not accepted).',
-                              );
-                              return;
-                            }
-                            const body = {
-                              chart: {
-                                label: createChartLabel.trim() || 'My Natal',
-                                date: createChartDate,
-                                time: createChartTime,
-                                location: {
-                                  source: 'geofinder' as const,
-                                  label: createChartLocationLabel,
-                                  lat: Number(createChartLat),
-                                  lon: Number(createChartLon),
-                                  timezone: createChartTz.trim(),
-                                  resolvedAt: new Date().toISOString(),
-                                },
-                              },
-                            };
-                            const r = await fetch('/api/profile', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              credentials: 'same-origin',
-                              body: JSON.stringify(body),
-                            });
-                            const data = await r.json().catch(() => ({}));
-                            if (!r.ok) {
-                              setCreateError(typeof data.error === 'string' ? data.error : 'Failed to update chart');
-                              return;
-                            }
-                            setEditingChart(false);
-                            setCreateChartLocationLabel('');
-                            await refresh();
-                            await refreshChart();
-                          } finally {
-                            setCreating(false);
-                          }
-                        }}
-                      >
-                        {creating ? 'Saving…' : 'Save updated birth chart'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
+            {!noRealChart && (
+              <p className="mt-4 text-xs text-subtext">
+                Birth chart data can be updated in{' '}
+                <Link href="/settings#birth-chart" className="text-emerald hover:underline">
+                  Settings
+                </Link>
+                .
+              </p>
             )}
           </div>
           <div className="min-w-0">
@@ -1140,32 +997,79 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
         {profileSection === 'library' && (
           <div className="space-y-3">
-            <p className="text-sm text-subtext">Saved artifacts only.</p>
+            <p className="text-sm text-subtext">Saved transit bookmarks (text reconstructed from stored inputs; audio when exported).</p>
             {libraryLoading ? (
               <p className="text-sm text-subtext">Loading…</p>
             ) : (
-              <ul className="space-y-2">
-                {libraryRows.map((row) => (
-                  <li key={String(row.id)} className="rounded border border-border p-3 text-sm">
-                    <span className="text-subtext">{String(row.created_at)}</span>
-                    {' · '}
-                    <span>{String(row.source ?? '—')}</span>
-                    {' · '}
-                    <span>{String(row.composition_type ?? '—')}</span>
-                    {row.export_id ? (
-                      <a
-                        className="ml-2 text-emerald hover:underline"
-                        href={`${getApiBaseUrl() || ''}/api/exports/${String(row.export_id)}`}
-                        target="_blank"
-                        rel="noreferrer"
+              <>
+                <ul className="space-y-2">
+                  {libraryRows.map((row) => (
+                    <li key={String(row.id)} className="rounded border border-border p-3 text-sm flex flex-wrap items-center gap-2 justify-between">
+                      <span>
+                        <span className="text-subtext">{String(row.created_at)}</span>
+                        {' · '}
+                        <span>{String(row.source ?? '—')}</span>
+                        {' · '}
+                        <span>{String(row.composition_type ?? '—')}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="px-3 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev"
+                        onClick={() => void openLibraryRow(String(row.id))}
                       >
-                        Export
-                      </a>
-                    ) : null}
-                  </li>
-                ))}
-                {libraryRows.length === 0 && <li className="text-subtext">Nothing saved yet.</li>}
-              </ul>
+                        View
+                      </button>
+                    </li>
+                  ))}
+                  {libraryRows.length === 0 && <li className="text-subtext">Nothing saved yet.</li>}
+                </ul>
+                {libraryOpenId && (
+                  <div className="rounded border border-border bg-bgElev p-4 space-y-3 mt-4">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-sm font-medium text-text">Saved artifact</p>
+                      <button
+                        type="button"
+                        className="text-xs text-subtext hover:text-text"
+                        onClick={() => {
+                          setLibraryOpenId(null);
+                          setLibraryDetailRow(null);
+                          setLibraryReconstructResult(null);
+                          setLibraryReconstructError(null);
+                          if (libraryDetailAudioUrl) {
+                            URL.revokeObjectURL(libraryDetailAudioUrl);
+                            setLibraryDetailAudioUrl(null);
+                          }
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                    {libraryDetailLoading && <p className="text-sm text-subtext">Loading…</p>}
+                    {libraryReconstructError && (
+                      <p className="text-sm text-red-500">{libraryReconstructError}</p>
+                    )}
+                    {libraryDetailRow != null &&
+                      (libraryDetailRow.source === 'profile_identity' ||
+                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') ? (
+                        <p className="text-sm text-subtext">
+                          Identity comes from your birth chart. Open the Identity tab to view it.
+                        </p>
+                      ) : null}
+                    {libraryReconstructLoading && (
+                      <p className="text-sm text-subtext">Loading report…</p>
+                    )}
+                    {libraryReconstructResult != null &&
+                      libraryReconstructResult.explanation != null && (
+                      <ExplainerSections
+                        sections={mapExplanationToSections(libraryReconstructResult.explanation)}
+                      />
+                    )}
+                    {libraryDetailAudioUrl && (
+                      <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
