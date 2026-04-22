@@ -30,6 +30,7 @@ import { buildHomeCanonicalInput } from '../adapters/home-compose-adapter';
 import { buildProfileNatalCanonicalInput } from '../adapters/profile-natal-compose-adapter';
 import { buildSandboxCanonicalInput } from '../adapters/sandbox-compose-adapter';
 import { buildOverlayCanonicalInput } from '../adapters/overlay-compose-adapter';
+import { controlPayloadFromSeed } from '../compat/payload-from-seed';
 import { buildComparisonPlanChartContext, buildGroupPlanChartContext } from './plan-chart-context-reduction';
 import { buildArchitectureForAggregate } from './aggregate-architecture';
 import { runLyriaAlignedExportBlock, type ExportErrorCode } from './run-lyria-export-block';
@@ -933,7 +934,16 @@ export class ComposeAPI {
     }
 
     if (req.mode === 'sandbox') {
-      const payload = await this.generateSandboxPayload(request.controls || {});
+      const seedRaw = typeof req.seed === 'string' ? req.seed.trim() : '';
+      const seedLooksCanonicalAnchor = /^[a-f0-9]{64}$/.test(seedRaw);
+      const useSeedPayload =
+        req.overriddenSnapshot == null &&
+        !!req.chartData &&
+        seedLooksCanonicalAnchor &&
+        (request.controls == null || Object.keys(request.controls).length === 0);
+      const payload = useSeedPayload
+        ? controlPayloadFromSeed(seedRaw)
+        : await this.generateSandboxPayload(request.controls || {});
       if (req.overriddenSnapshot != null) {
         const snapshot = this.validateOverriddenSnapshot(req.overriddenSnapshot);
         return buildSandboxCanonicalInput({
@@ -1021,6 +1031,10 @@ export class ComposeAPI {
     if (req.chartData && typeof req.chartData.date === 'string' && typeof req.chartData.time === 'string') {
       const lat = req.chartData.lat;
       const lon = req.chartData.lon;
+      const tz =
+        typeof req.chartData.timezone === 'string' && req.chartData.timezone.trim()
+          ? req.chartData.timezone.trim()
+          : undefined;
       if (typeof lat !== 'number' || typeof lon !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lon)) {
         throw new Error('Invalid chartData: lat and lon must be provided as finite numbers');
       }
@@ -1029,6 +1043,7 @@ export class ComposeAPI {
         time: String(req.chartData.time).slice(0, 5),
         lat,
         lon,
+        ...(tz ? { timezone: tz } : {}),
       };
     }
 

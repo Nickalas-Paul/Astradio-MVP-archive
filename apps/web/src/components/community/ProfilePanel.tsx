@@ -112,6 +112,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [activeLat, setActiveLat] = useState('');
   const [activeLon, setActiveLon] = useState('');
   const [activeTz, setActiveTz] = useState('');
+  const [activeTransitResolvedAt, setActiveTransitResolvedAt] = useState('');
+  const [activeLocSource, setActiveLocSource] = useState<'browser_geo' | 'geofinder'>('geofinder');
   const [activeResult, setActiveResult] = useState<Record<string, unknown> | null>(null);
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
   const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   const [createName, setCreateName] = useState('');
   const [createHandle, setCreateHandle] = useState('');
   const [createChartLabel, setCreateChartLabel] = useState('');
@@ -161,6 +164,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         setActiveLat(String(pos.coords.latitude));
         setActiveLon(String(pos.coords.longitude));
         setActiveTz((z) => z || browserTz);
+        setActiveTransitResolvedAt(resolvedAt);
+        setActiveLocSource('browser_geo');
       },
       () => {},
       { maximumAge: 600000 }
@@ -186,8 +191,16 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   }, [user, profileSection]);
 
   const loadActiveStateText = async () => {
-    if (!chartId || !activeDate || !activeTime || !activeTz || activeLat === '' || activeLon === '') {
-      setActiveError('Set date, time, and a resolved location for active state.');
+    if (
+      !chartId ||
+      !activeDate ||
+      !activeTime ||
+      !isPersistableChartTimezone(activeTz) ||
+      !activeTransitResolvedAt ||
+      activeLat === '' ||
+      activeLon === ''
+    ) {
+      setActiveError('Set date, time, and a resolved location with a valid timezone for active state.');
       return;
     }
     const base = getApiBaseUrl();
@@ -196,12 +209,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     setActiveAudioUrl(null);
     try {
       const loc: CanonicalLocation = {
-        source: 'geofinder',
+        source: activeLocSource,
         label: activeLocLabel.trim() || 'Location',
         lat: Number(activeLat),
         lon: Number(activeLon),
         timezone: activeTz.trim(),
-        resolvedAt: new Date().toISOString(),
+        resolvedAt: activeTransitResolvedAt,
       };
       const r = await fetch(`${base || ''}/api/profile/active-state`, {
         method: 'POST',
@@ -240,17 +253,21 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       setActiveError('Load active state text first, then generate audio.');
       return;
     }
+    if (!isPersistableChartTimezone(activeTz) || !activeTransitResolvedAt) {
+      setActiveError('Resolve location with a valid timezone before generating audio.');
+      return;
+    }
     const base = getApiBaseUrl();
     setActiveAudioBusy(true);
     setActiveError(null);
     try {
       const loc: CanonicalLocation = {
-        source: 'geofinder',
+        source: activeLocSource,
         label: activeLocLabel.trim() || 'Location',
         lat: Number(activeLat),
         lon: Number(activeLon),
         timezone: activeTz.trim(),
-        resolvedAt: new Date().toISOString(),
+        resolvedAt: activeTransitResolvedAt,
       };
       const r = await fetch(`${base || ''}/api/profile/active-state`, {
         method: 'POST',
@@ -282,36 +299,46 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   };
 
   const runIdentityAudio = async () => {
-    if (!chartId || !chartData?.snapshot) return;
+    if (!chartId || !chartData?.identity?.profile_natal_compose_anchor || !chartData?.hashes?.plan_sha256) return;
+    const sourceChart = chartData.chart ?? realChart;
+    if (!sourceChart) return;
     const base = getApiBaseUrl();
     setIdentityAudioBusy(true);
     try {
+      const composeBase = {
+        mode: 'sandbox' as const,
+        seed: chartData.identity.profile_natal_compose_anchor,
+        chartData: {
+          date: sourceChart.date,
+          time: sourceChart.time,
+          lat: Number(sourceChart.lat),
+          lon: Number(sourceChart.lon),
+          timezone:
+            typeof sourceChart.timezone === 'string' && sourceChart.timezone.trim()
+              ? sourceChart.timezone.trim()
+              : undefined,
+        },
+      };
       const r1 = await fetch(`${base || ''}/api/compose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
-          mode: 'sandbox',
-          seed: `natal_${chartId}`,
-          overriddenSnapshot: chartData.snapshot,
+          ...composeBase,
           generateAudio: false,
         }),
       });
       const p1 = (await r1.json().catch(() => ({}))) as Record<string, unknown>;
       if (!r1.ok) throw new Error(typeof p1.error === 'string' ? p1.error : 'Compose failed');
-      const plan = p1.hashes as { plan_sha256?: string } | undefined;
-      const exp = p1.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
-      const ph = plan?.plan_sha256;
-      const oh = exp?.meta?.canonical_object_hash;
+      const ph = chartData.hashes.plan_sha256;
+      const oh = chartData.hashes.object_identity_hash;
       if (!ph || !oh) throw new Error('Missing hashes from text compose');
       const r2 = await fetch(`${base || ''}/api/compose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
-          mode: 'sandbox',
-          seed: `natal_${chartId}`,
-          overriddenSnapshot: chartData.snapshot,
+          ...composeBase,
           generateAudio: true,
           expectedPlanSha256: ph,
           expectedObjectIdentityHash: oh,
@@ -339,7 +366,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     const ph = h?.plan_sha256 ?? '';
     const oid = id?.object_identity_hash ?? exp?.meta?.canonical_object_hash ?? '';
     if (!ph) return;
-    await fetch(`${base || ''}/api/sandbox/compositions`, {
+    setLibraryError(null);
+    const r = await fetch(`${base || ''}/api/sandbox/compositions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -355,13 +383,19 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         object_identity_hash: oid || null,
       }),
     });
+    if (!r.ok) {
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      setLibraryError(j.error || `Failed to save active artifact (${r.status})`);
+      return;
+    }
     await refreshLibrary();
   };
 
   const saveIdentityToLibrary = async () => {
     if (!chartId || !chartData?.hashes?.plan_sha256) return;
     const base = getApiBaseUrl();
-    await fetch(`${base || ''}/api/sandbox/compositions`, {
+    setLibraryError(null);
+    const r = await fetch(`${base || ''}/api/sandbox/compositions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -377,6 +411,11 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         object_identity_hash: chartData.hashes.object_identity_hash,
       }),
     });
+    if (!r.ok) {
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      setLibraryError(j.error || `Failed to save identity artifact (${r.status})`);
+      return;
+    }
     await refreshLibrary();
   };
 
@@ -757,16 +796,21 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   <LocationFinder
                     value={activeLocLabel}
                     onSelect={(r) => {
+                      const resolvedAt = new Date().toISOString();
                       setActiveLocLabel(r.label);
                       setActiveLat(String(r.lat));
                       setActiveLon(String(r.lon));
                       setActiveTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
+                      setActiveTransitResolvedAt(resolvedAt);
+                      setActiveLocSource('geofinder');
                     }}
                     onClear={() => {
                       setActiveLocLabel('');
                       setActiveLat('');
                       setActiveLon('');
                       setActiveTz('');
+                      setActiveTransitResolvedAt('');
+                      setActiveLocSource('geofinder');
                     }}
                     placeholder="Current location (search)"
                   />
@@ -797,6 +841,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     Save to library
                   </button>
                 </div>
+                {libraryError && <p className="text-sm text-red-500">{libraryError}</p>}
                 {activeError && <p className="text-sm text-red-500">{activeError}</p>}
                 {activeResult?.explanation && (
                   <ExplainerSections
@@ -958,6 +1003,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   >
                     Save Identity to library
                   </button>
+                  {libraryError && <p className="text-sm text-red-500">{libraryError}</p>}
                   {identityAudioUrl && (
                     <audio controls src={identityAudioUrl} className="w-full max-w-md block mt-2" preload="metadata" />
                   )}

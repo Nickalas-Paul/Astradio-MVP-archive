@@ -69,16 +69,25 @@ export function LocationFinder({
     try {
       const base = getApiBaseUrl() || '';
       const res = await fetch(`${base}/api/geocode?q=${encodeURIComponent(q.trim())}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error ?? `Geocoding failed (${res.status})`;
+        const msg =
+          res.status === 503
+            ? 'Geocoding service temporarily unavailable.'
+            : res.status === 504
+              ? 'Geocoding request timed out.'
+              : (data as { error?: string })?.error ?? `Geocoding failed (${res.status})`;
         setGeocodeError(msg);
         setSuggestions([]);
         return;
       }
       const items = Array.isArray(data) ? data : [];
       setSuggestions(items);
-      setGeocodeError(null);
+      if (items.length === 0) {
+        setGeocodeError('No results with a valid timezone. Try a more specific location.');
+      } else {
+        setGeocodeError(null);
+      }
     } catch (e) {
       setGeocodeError(e instanceof Error ? e.message : 'Geocoding unavailable');
       setSuggestions([]);

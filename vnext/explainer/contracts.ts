@@ -183,7 +183,7 @@ export interface ComposeRequest {
   /** Ephemeris snapshot from sandbox preview (validated server-side). */
   overriddenSnapshot?: import("../contracts").EphemerisSnapshot;
   /** Birth chart input when no overriddenSnapshot. */
-  chartData?: { date: string; time: string; lat: number; lon: number };
+  chartData?: { date: string; time: string; lat: number; lon: number; timezone?: string };
   testOverride?: {
     forceFail?: string;
     calibrated?: boolean;
