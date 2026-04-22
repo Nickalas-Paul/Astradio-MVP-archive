@@ -111,6 +111,9 @@ router.post('/community/connect-intent', communityPostLimiter, async (req, res) 
     });
     return res.status(201).json(intent);
   } catch (e) {
+    if (e && e.code === 'mirror_pending') {
+      return res.status(409).json({ error: 'mirror_pending' });
+    }
     console.error('[community] POST /community/connect-intent', e);
     return res.status(500).json({ error: e?.message || 'Failed to create connection intent' });
   }

@@ -58,6 +58,10 @@ export function comparisonSeed(
   wA: number,
   wB: number
 ): string {
-  const payload = `${chartAId}|${chartBId}|${relationshipMode}|${fusionMethod}|${wA}|${wB}`;
+  const a = String(chartAId || '').trim();
+  const b = String(chartBId || '').trim();
+  const low = a.localeCompare(b, 'en') <= 0 ? a : b;
+  const high = a.localeCompare(b, 'en') <= 0 ? b : a;
+  const payload = `${low}|${high}|${relationshipMode}|${fusionMethod}|${wA}|${wB}`;
   return crypto.createHash('sha256').update(payload, 'utf8').digest('hex');
 }
