@@ -175,6 +175,11 @@ export interface ComposeRequest {
    * Omitted defaults to true only for empty-body sandbox fallback in compose (backward compat); callers should set explicitly.
    */
   generateAudio?: boolean;
+  /**
+   * Server-only: profile natal identity audio from `vnext/compat/identity-audio` when true.
+   * Selects identity-only Lyria render seed variation; not used by clients or public APIs.
+   */
+  lyriaProfileNatalIdentityAudio?: boolean;
   /** When generateAudio is true, if set, response must match these hashes (determinism gate for second-step audio). */
   expectedPlanSha256?: string;
   expectedObjectIdentityHash?: string;

@@ -21,6 +21,9 @@ import { computePlanHash } from '../plan-hash';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import { applyEndingPolish } from '../audio/ending-polish';
 
+/** Fixed suffix for identity-only Lyria seed; must stay literal for determinism. */
+const LYRIA_SEED_IDENTITY_PROFILE_MARKER = ':profile_identity:phase3';
+
 export type ExportErrorCode =
   | 'export_disabled'
   | 'export_not_attempted'
@@ -77,9 +80,11 @@ export async function runLyriaAlignedExportBlock(
     featureVec: FeatureVec;
     payload: ControlSurfacePayload;
     semanticCore: SemanticCore;
+    /** When set, Lyria integer seed is derived with server object_identity_hash (profile natal identity audio only). */
+    lyriaProfileNatalIdentity?: { objectIdentityHash: string };
   }
 ): Promise<LyriaExportBundle> {
-  const { plan, architecture, featureVec, payload, semanticCore } = params;
+  const { plan, architecture, featureVec, payload, semanticCore, lyriaProfileNatalIdentity } = params;
   const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
 
   const stubAudio: LyriaExportAudio = {
@@ -116,7 +121,28 @@ export async function runLyriaAlignedExportBlock(
       const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
       prompt = buildLyriaPrompt(payload, plan, narrativePlan);
       promptHash = hashPrompt(prompt);
-      lyriaSeed = planHash + ':phase3';
+      if (
+        lyriaProfileNatalIdentity &&
+        typeof lyriaProfileNatalIdentity.objectIdentityHash === 'string' &&
+        lyriaProfileNatalIdentity.objectIdentityHash.length > 0
+      ) {
+        const oid = lyriaProfileNatalIdentity.objectIdentityHash.trim();
+        lyriaSeed = planHash + ':' + oid + LYRIA_SEED_IDENTITY_PROFILE_MARKER;
+        try {
+          console.log(
+            '[LYRIA_IDENTITY_SEED]',
+            JSON.stringify({
+              seed_mode: 'profile_natal',
+              plan_sha256_prefix: planHash.slice(0, 12),
+              object_identity_hash_prefix: oid.slice(0, 12),
+            })
+          );
+        } catch {
+          /* logging must not break export */
+        }
+      } else {
+        lyriaSeed = planHash + ':phase3';
+      }
       exportStep = 'provider';
       const provider = getProvider();
       console.log('[COMPOSE_EXPORT] provider=', provider.name);
@@ -338,11 +364,13 @@ export async function runLyriaAlignedExportBlock(
         }
         const failureClass = exportStep === 'store' ? 'C' : 'B';
         const errReason = (err as Error & { reason?: string }).reason;
+        const errStatus = (err as Error & { statusCode?: number }).statusCode;
         const catchDebug: Record<string, unknown> = {
           export_failure: failureClass,
           step: exportStep,
           message: err.message,
           ...(code ? { code } : {}),
+          ...(typeof errStatus === 'number' ? { lyria_status_code: errStatus } : {}),
           ...(code === 'INCOMPLETE_WAV_PAYLOAD'
             ? { reason: typeof errReason === 'string' && errReason ? errReason : 'provider_payload_truncated' }
             : {}),
@@ -370,6 +398,29 @@ export async function runLyriaAlignedExportBlock(
     if (!(global as any).__wav_export_unavailable_logged) {
       console.warn('[COMPOSE] WAV export disabled (set ENABLE_WAV_EXPORT=1 to enable)');
       (global as any).__wav_export_unavailable_logged = true;
+    }
+  }
+
+  if (lyriaProfileNatalIdentity) {
+    try {
+      const ad = audioDebug;
+      const ly400 =
+        (ad &&
+          typeof ad === 'object' &&
+          (ad as { lyria_status_code?: number }).lyria_status_code === 400) ||
+        (ad && typeof ad === 'object' && /Lyria API error:\s*400/i.test(String((ad as { message?: string }).message || '')));
+      console.log(
+        '[LYRIA_IDENTITY_EXPORT]',
+        JSON.stringify({
+          seed_mode: 'profile_natal',
+          export_id: export_id ?? null,
+          audio_export_available,
+          export_error: export_error ?? null,
+          lyria_http_400: Boolean(ly400),
+        })
+      );
+    } catch {
+      /* logging must not break export */
     }
   }
 

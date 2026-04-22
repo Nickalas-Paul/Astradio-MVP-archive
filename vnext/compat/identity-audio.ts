@@ -71,6 +71,7 @@ export async function persistProfileIdentityAudioAfterPrimaryAttach(
     },
     seed: bundle.anchor,
     generateAudio: true,
+    lyriaProfileNatalIdentityAudio: true,
   };
 
   try {

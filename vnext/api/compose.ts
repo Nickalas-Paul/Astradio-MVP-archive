@@ -309,13 +309,39 @@ export class ComposeAPI {
       const textMetricsMs = 0;
 
       const generateAudio = (request as ComposeRequest).generateAudio === true;
+      const rCompose = request as ComposeRequest;
+      const useLyriaProfileNatalIdentitySeed =
+        generateAudio &&
+        rCompose.mode === 'sandbox' &&
+        !hasOverlayContext &&
+        rCompose.lyriaProfileNatalIdentityAudio === true;
+
+      if (useLyriaProfileNatalIdentitySeed) {
+        try {
+          console.log(
+            '[COMPOSE_IDENTITY_NATAL_AUDIO]',
+            JSON.stringify({ path: 'sandbox_no_overlay', phase: 'runLyriaExportBlock' })
+          );
+        } catch {
+          /* ignore */
+        }
+      }
 
       // Generate audio: shared Lyria/provider path (only when generateAudio is explicitly true)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
       const wavBundle = generateAudio
         ? await runLyriaAlignedExportBlock(
             (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-            { plan, architecture, featureVec, payload, semanticCore }
+            {
+              plan,
+              architecture,
+              featureVec,
+              payload,
+              semanticCore,
+              ...(useLyriaProfileNatalIdentitySeed
+                ? { lyriaProfileNatalIdentity: { objectIdentityHash: canonicalReport.object_identity_hash } }
+                : {}),
+            }
           )
         : {
             audio: {
