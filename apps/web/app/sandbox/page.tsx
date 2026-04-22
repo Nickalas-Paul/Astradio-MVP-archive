@@ -28,6 +28,7 @@ import {
   getActiveSlotIndexFromCompositionInput,
   getPopulatedSlotIndicesFromCompositionInput,
   compositionHasInvalidSlotWire,
+  compositionHasIncompleteBirthSlot,
   populatedSlotsAreAggregateEligible,
   slotWirePopulationKind,
   parsePersistedSandboxState,
@@ -35,6 +36,11 @@ import {
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 import { chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
+import {
+  fingerprintCompositionInputExcludingSeed,
+  fingerprintResolveBodyExcludingSeed,
+} from '../../src/lib/sandbox-resolve-fingerprint';
+import { classifySandboxPersistedState } from '../../src/lib/sandbox-persisted-classify';
 
 type SandboxSurfaceState =
   | 'idle'
@@ -227,6 +233,12 @@ export default function SandboxPage() {
   const [chartIdImportInput, setChartIdImportInput] = useState('');
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  /** Last successful Generate: which slot supplied the preflight snapshot seed (first populated index). */
+  const [lastResolveSeedSlotIndex, setLastResolveSeedSlotIndex] = useState<number | null>(null);
+  /** Combined hash from that snapshot (matches POST body `seed`). */
+  const [lastResolveSeedCombinedHash, setLastResolveSeedCombinedHash] = useState<string | null>(null);
+  /** Fingerprint of resolve input (excluding seed) when seed display was valid — cleared when composition diverges. */
+  const [compositionFingerprintAtLastSeed, setCompositionFingerprintAtLastSeed] = useState<string | null>(null);
 
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -325,14 +337,11 @@ export default function SandboxPage() {
     const cid = typeof slot?.chart_id === 'string' ? slot.chart_id.trim() : '';
     const overridesToUse = normalizeSandboxOverrides(slot?.overrides ?? { planets: {} });
 
-    const isFullBirth =
-      birth &&
-      typeof birth.date === 'string' &&
-      birth.date.length >= 8 &&
-      typeof birth.time === 'string' &&
-      birth.time.length >= 4;
+    const popKind = slot ? slotWirePopulationKind(slot) : 'empty';
+    const isResolvableBirth = popKind === 'ephemeris_birth';
+    const isChartSlot = popKind === 'chart_id';
 
-    if (!isFullBirth && !cid) {
+    if (!isResolvableBirth && !isChartSlot) {
       if (seq !== activeSlotPreviewSeqRef.current) return;
       dispatchComposition({ type: 'preview_clear' });
       return;
@@ -342,7 +351,7 @@ export default function SandboxPage() {
 
     try {
       let b: SandboxBirth;
-      if (isFullBirth) {
+      if (isResolvableBirth && birth) {
         b = birth;
       } else {
         const chartRes = await fetch(`${baseUrl}/api/charts/${encodeURIComponent(cid)}`);
@@ -398,7 +407,7 @@ export default function SandboxPage() {
       }
 
       if (seq !== activeSlotPreviewSeqRef.current) return;
-      if (isFullBirth) resolvePreviewBirthBySlotRef.current.set(idx, b);
+      if (isResolvableBirth) resolvePreviewBirthBySlotRef.current.set(idx, b);
       dispatchComposition({
         type: 'preview_restore',
         snapshot: effectiveSnapshot,
@@ -612,6 +621,11 @@ export default function SandboxPage() {
   if (hasInvalidSlotWire) {
     generateDisabledReasons.push('A slot has both chart ID and birth data—clear one or split them so each slot is either a stored chart or ephemeris birth.');
   }
+  if (compositionHasIncompleteBirthSlot(compositionModel.compositionInput)) {
+    generateDisabledReasons.push(
+      'A slot has date/time but no coordinates—select a full location (lat/lon) for each birth slot before resolve.',
+    );
+  }
     if (!hasResolveSource && !hasInvalidSlotWire) {
       if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
         generateDisabledReasons.push(
@@ -642,12 +656,35 @@ export default function SandboxPage() {
       lastResolveCombinedHash !== previewCombinedHash,
   );
 
+  const resolveDocumentStaleVsLastResolve = useMemo(() => {
+    const lr = compositionModel.lastResolve;
+    if (!lr || lr.source !== 'live_resolve' || !lr.lastSubmittedResolveBody) return false;
+    const fpLast = fingerprintResolveBodyExcludingSeed(lr.lastSubmittedResolveBody);
+    const fpNow = fingerprintCompositionInputExcludingSeed(compositionModel.compositionInput);
+    if (!fpLast || !fpNow) return false;
+    return fpLast !== fpNow;
+  }, [compositionModel.lastResolve, compositionModel.compositionInput]);
+
+  useEffect(() => {
+    if (compositionFingerprintAtLastSeed == null) return;
+    const now = fingerprintCompositionInputExcludingSeed(compositionModel.compositionInput);
+    if (now !== compositionFingerprintAtLastSeed) {
+      setCompositionFingerprintAtLastSeed(null);
+      setLastResolveSeedSlotIndex(null);
+      setLastResolveSeedCombinedHash(null);
+    }
+  }, [compositionModel.compositionInput, compositionFingerprintAtLastSeed]);
+
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
     const modelPre = compositionRef.current;
     const input = modelPre.compositionInput;
     const populated = getPopulatedSlotIndicesFromCompositionInput(input);
     if (populated.length === 0) return;
+
+    setLastResolveSeedSlotIndex(null);
+    setLastResolveSeedCombinedHash(null);
+    setCompositionFingerprintAtLastSeed(null);
 
     const base = getApiBaseUrl();
     let birthForSnap: SandboxBirth | null = null;
@@ -832,6 +869,13 @@ export default function SandboxPage() {
       const lastComposeProviderNext: string | null = null;
 
       const planSha256 = resolved.planSha256;
+
+      const fpAtResolve = fingerprintResolveBodyExcludingSeed(resolveBody as Record<string, unknown>);
+      if (fpAtResolve) {
+        setCompositionFingerprintAtLastSeed(fpAtResolve);
+      }
+      setLastResolveSeedSlotIndex(populated[0]);
+      setLastResolveSeedCombinedHash(combinedHashUsed);
 
       dispatchComposition({
         type: 'resolve_success',
@@ -1069,19 +1113,17 @@ export default function SandboxPage() {
       }
       const compRec = comp as Record<string, unknown>;
       const rowState = compRec.sandbox_state;
-      const parsed = parsePersistedSandboxState(rowState);
-      const hasNewComposition =
-        rowState && typeof rowState === 'object' && 'composition_input' in (rowState as object);
-      if (!hasNewComposition) {
-        const slot0 = parsed.compositionInput.slots[0];
-        const b = slot0?.ephemeris_birth;
-        if (!b || !b.date || !b.time) {
-          setError('Invalid saved composition: missing birth data');
-          return;
-        }
+      const classified = classifySandboxPersistedState(rowState);
+      if (classified.kind === 'unsupported') {
+        setError(classified.reason);
+        return;
       }
+      const parsed = parsePersistedSandboxState(rowState);
 
       resolvePreviewBirthBySlotRef.current.clear();
+      setLastResolveSeedSlotIndex(null);
+      setLastResolveSeedCombinedHash(null);
+      setCompositionFingerprintAtLastSeed(null);
 
       setHasGenerated(true);
       setGenerateError(null);
@@ -1106,15 +1148,8 @@ export default function SandboxPage() {
       const activeSlot = input.slots[activeIdx];
 
       function ephemFromSlot(s: (typeof input.slots)[number] | undefined) {
-        const b = s?.ephemeris_birth;
-        if (
-          b &&
-          typeof b.date === 'string' &&
-          b.date.length >= 8 &&
-          typeof b.time === 'string' &&
-          b.time.length >= 4
-        ) {
-          return { birth: b, overrides: normalizeSandboxOverrides(s?.overrides ?? { planets: {} }) };
+        if (s && slotWirePopulationKind(s) === 'ephemeris_birth' && s.ephemeris_birth) {
+          return { birth: s.ephemeris_birth, overrides: normalizeSandboxOverrides(s?.overrides ?? { planets: {} }) };
         }
         return null;
       }
@@ -1294,6 +1329,9 @@ export default function SandboxPage() {
                   setSurfaceState('ready_builder');
                   setError(null);
                   resolvePreviewBirthBySlotRef.current.clear();
+                  setLastResolveSeedSlotIndex(null);
+                  setLastResolveSeedCombinedHash(null);
+                  setCompositionFingerprintAtLastSeed(null);
                   dispatchComposition({ type: 'reset_all' });
                 }}
                 className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
@@ -1583,9 +1621,33 @@ export default function SandboxPage() {
                       From the last successful resolve. If you edited the wheel afterward, use <span className="font-medium text-text">Generate from current composition</span>{' '}
                       above—do not rely on this block as the live composition.
                     </p>
-                    {resolveOutputStaleVsPreview && (
-                      <p className="text-xs text-amber-500/90">Output does not reflect current preview.</p>
+                    {(resolveOutputStaleVsPreview || resolveDocumentStaleVsLastResolve) && (
+                      <p className="text-xs text-amber-500/90">
+                        {resolveDocumentStaleVsLastResolve
+                          ? 'Composition document changed since last resolve—Generate again before trusting this output.'
+                          : 'Output does not reflect current preview.'}
+                      </p>
                     )}
+                    {compositionFingerprintAtLastSeed != null &&
+                      lastResolveSeedSlotIndex != null &&
+                      lastResolveSeedCombinedHash != null && (
+                        <div className="mt-2 rounded border border-border/60 bg-bgElev/40 p-2 font-mono text-[11px] text-subtext space-y-1">
+                          <p>
+                            <span className="font-medium text-text">Resolve seed snapshot</span> used slot{' '}
+                            <span className="text-text">{lastResolveSeedSlotIndex}</span>
+                            {compositionModel.compositionInput.active_slot_index !== lastResolveSeedSlotIndex ? (
+                              <span className="text-amber-400/90">
+                                {' '}
+                                (active slot is {compositionModel.compositionInput.active_slot_index}; wheel preview follows active slot.)
+                              </span>
+                            ) : null}
+                          </p>
+                          <p>
+                            <span className="font-medium text-text">Seed combined hash:</span>{' '}
+                            <code className="break-all text-[10px]">{lastResolveSeedCombinedHash}</code>
+                          </p>
+                        </div>
+                      )}
                   </div>
                 )}
                 {displayReport && (

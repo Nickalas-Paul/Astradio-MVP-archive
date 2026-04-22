@@ -58,22 +58,51 @@ export function getActiveSlotIndexFromCompositionInput(input: SandboxComposition
   return i >= 0 && i < n ? i : 0;
 }
 
-/** Mirrors engine `sandbox-composition-normalize` slot population (chart_id vs wire ephemeris_birth are exclusive). */
-export function slotWirePopulationKind(
-  slot: SandboxCompositionInputState['slots'][number]
-): 'chart_id' | 'ephemeris_birth' | 'empty' | 'invalid' {
+/**
+ * True when ephemeris birth has coordinates the engine accepts (top-level lat/lon or nested location).
+ * Aligns with `vnext/api/sandbox-composition-normalize` populated-slot rules post–BFF flatten.
+ */
+export function ephemerisBirthHasEngineCoordinates(b: SandboxBirth | undefined): boolean {
+  if (!b || typeof b.date !== 'string' || typeof b.time !== 'string') return false;
+  const flat = b as unknown as { lat?: unknown; lon?: unknown };
+  const lat =
+    typeof flat.lat === 'number' && Number.isFinite(flat.lat)
+      ? flat.lat
+      : b.location && typeof b.location.lat === 'number' && Number.isFinite(b.location.lat)
+        ? b.location.lat
+        : null;
+  const lon =
+    typeof flat.lon === 'number' && Number.isFinite(flat.lon)
+      ? flat.lon
+      : b.location && typeof b.location.lon === 'number' && Number.isFinite(b.location.lon)
+        ? b.location.lon
+        : null;
+  return lat != null && lon != null;
+}
+
+export type SlotWirePopulationKind =
+  | 'chart_id'
+  | 'ephemeris_birth'
+  | 'birth_incomplete'
+  | 'empty'
+  | 'invalid';
+
+/** Mirrors engine slot population (chart_id vs ephemeris_birth exclusive; birth needs engine-grade coordinates). */
+export function slotWirePopulationKind(slot: SandboxCompositionInputState['slots'][number]): SlotWirePopulationKind {
   const hasChart = typeof slot.chart_id === 'string' && slot.chart_id.trim().length > 0;
   const b = slot.ephemeris_birth;
-  const hasBirth = !!(
+  const hasDateTime = !!(
     b &&
     typeof b.date === 'string' &&
     b.date.length >= 8 &&
     typeof b.time === 'string' &&
     b.time.length >= 4
   );
-  if (hasChart && hasBirth) return 'invalid';
+  if (hasChart && hasDateTime) return 'invalid';
   if (hasChart) return 'chart_id';
-  if (hasBirth) return 'ephemeris_birth';
+  if (hasDateTime) {
+    return ephemerisBirthHasEngineCoordinates(b) ? 'ephemeris_birth' : 'birth_incomplete';
+  }
   return 'empty';
 }
 
@@ -82,7 +111,7 @@ export function getPopulatedSlotIndicesFromCompositionInput(input: SandboxCompos
   const indices: number[] = [];
   for (let i = 0; i < input.slots.length; i++) {
     const k = slotWirePopulationKind(input.slots[i]);
-    if (k === 'empty' || k === 'invalid') continue;
+    if (k === 'empty' || k === 'invalid' || k === 'birth_incomplete') continue;
     indices.push(i);
   }
   return indices;
@@ -90,6 +119,11 @@ export function getPopulatedSlotIndicesFromCompositionInput(input: SandboxCompos
 
 export function compositionHasInvalidSlotWire(input: SandboxCompositionInputState): boolean {
   return input.slots.some((s) => slotWirePopulationKind(s) === 'invalid');
+}
+
+/** True if any slot has date/time but missing coordinates (cannot resolve). */
+export function compositionHasIncompleteBirthSlot(input: SandboxCompositionInputState): boolean {
+  return input.slots.some((s) => slotWirePopulationKind(s) === 'birth_incomplete');
 }
 
 /**
@@ -106,14 +140,14 @@ export function populatedSlotsAreAggregateEligible(
   });
 }
 
-/** First slot with full ephemeris birth (for /api/sandbox/snapshot after load). */
+/** First slot with engine-resolvable ephemeris birth (for /api/sandbox/snapshot after load). */
 export function firstEphemerisBirthForSnapshot(input: SandboxCompositionInputState): {
   birth: SandboxBirth;
   overrides: SandboxOverrides;
 } | null {
   for (const slot of input.slots) {
     const b = slot.ephemeris_birth;
-    if (b && typeof b.date === 'string' && b.date.length >= 8 && typeof b.time === 'string' && b.time.length >= 4) {
+    if (b && slotWirePopulationKind(slot) === 'ephemeris_birth') {
       return { birth: b, overrides: normalizeSandboxOverrides(slot.overrides ?? { planets: {} }) };
     }
   }
