@@ -308,6 +308,7 @@ export interface ProfileChartIdentity {
 
 export interface ProfileChartResponse {
   chart: ProfilePrimaryChart & { createdAt?: string; updatedAt?: string };
+  identity_export_id?: string | null;
   snapshot: Record<string, unknown>;
   explainer: {
     spec: string;

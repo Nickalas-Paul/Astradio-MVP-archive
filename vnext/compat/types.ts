@@ -32,6 +32,8 @@ export interface Chart {
   lon: number;
   timezone?: string;
   snapshotHash?: string;
+  /** Persisted WAV export id for Profile natal identity audio (Lyria/export pipeline). */
+  identityExportId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

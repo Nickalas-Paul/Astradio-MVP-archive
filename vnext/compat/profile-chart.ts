@@ -15,6 +15,8 @@ function chartToChartInput(chart: Chart): ChartInput {
 
 export interface ProfileChartResult {
   chart: Chart;
+  /** Nullable persisted Lyria/export id for natal identity audio (same chart row). */
+  identity_export_id: string | null;
   snapshot: import('../contracts').EphemerisSnapshot;
   explainer: {
     spec: string;
@@ -57,6 +59,7 @@ export async function getProfileChartExplainer(chartId: string): Promise<Profile
 
   return {
     chart,
+    identity_export_id: chart.identityExportId ?? null,
     snapshot: bundle.snapshot,
     explainer: {
       spec: bundle.explainer.spec,

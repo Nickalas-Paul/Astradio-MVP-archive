@@ -33,6 +33,8 @@ export type StorageAdapter = {
     ownerId: string,
     input: { label: string; date: string; time: string; lat: number; lon: number; timezone?: string; tz?: string }
   ) => Promise<Chart | undefined>;
+  /** Persist Profile identity audio export id on chart row (optional; pg + memory adapters). */
+  setChartIdentityExportId?: (chartId: string, exportId: string | null) => Promise<void>;
   getChart: (id: string) => Promise<Chart | undefined>;
   listChartsByOwner: (ownerId: string) => Promise<Chart[]>;
   createComparison: (input: Omit<Comparison, 'id' | 'createdAt'>) => Promise<Comparison>;
@@ -85,6 +87,12 @@ export async function updateChartBirthFields(
     return adapter.updateChartBirthFields(chartId, ownerId, input);
   }
   return undefined;
+}
+
+export async function setChartIdentityExportId(chartId: string, exportId: string | null): Promise<void> {
+  if (adapter.setChartIdentityExportId) {
+    await adapter.setChartIdentityExportId(chartId, exportId);
+  }
 }
 
 export async function getChart(id: string): Promise<Chart | undefined> {

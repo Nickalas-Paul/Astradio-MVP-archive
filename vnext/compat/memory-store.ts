@@ -94,6 +94,7 @@ export async function createChart(input: {
   timezone?: string;
   tz?: string;
   snapshotHash?: string;
+  identityExportId?: string | null;
 }): Promise<Chart> {
   const id = input.id || `chart_${nanoid()}`;
   const resolvedTimezone = resolveChartTimezoneForChartInsert({
@@ -112,6 +113,7 @@ export async function createChart(input: {
     lon: input.lon,
     timezone: resolvedTimezone,
     snapshotHash: input.snapshotHash,
+    identityExportId: input.identityExportId ?? null,
     createdAt: now(),
     updatedAt: now(),
   };
@@ -161,10 +163,17 @@ export async function updateChartBirthFields(
     lon: input.lon,
     timezone: resolvedTimezone,
     snapshotHash: undefined,
+    identityExportId: c.identityExportId ?? null,
     updatedAt: now(),
   };
   charts.set(chartId, updated);
   return updated;
+}
+
+export async function setChartIdentityExportId(chartId: string, exportId: string | null): Promise<void> {
+  const c = charts.get(chartId);
+  if (!c) return;
+  charts.set(chartId, { ...c, identityExportId: exportId, updatedAt: now() });
 }
 
 export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt'>): Promise<Comparison> {

@@ -181,6 +181,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState<string | null>(null);
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
   const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -255,6 +256,42 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   useEffect(() => {
     if (user && profileSection === 'library') void refreshLibrary();
   }, [user, profileSection]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const base = getApiBaseUrl();
+    const eid = chartData?.identity_export_id;
+
+    setIdentityAudioUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+
+    if (!eid || typeof eid !== 'string' || !/^[a-f0-9]{64}$/.test(eid)) {
+      return undefined;
+    }
+
+    void (async () => {
+      try {
+        const url = await blobUrlFromComposePayload(base, { export_id: eid });
+        if (cancelled) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        setIdentityAudioUrl(url);
+      } catch {
+        /* Playback unavailable — Identity text still shown */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setIdentityAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [chartData?.identity_export_id]);
 
   const loadActiveStateText = async () => {
     if (
@@ -852,12 +889,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
         {profileSection === 'active' && (
           <div className="space-y-4">
-            <p className="text-sm text-subtext">
-              Transit report uses <code className="text-xs">POST /api/profile/active-state</code> with{' '}
-              <code className="text-xs">generateAudio: false</code>. Generate transit audio is a separate optional step (
-              <code className="text-xs">generateAudio: true</code>). Save to Library stores the current transit bookmark
-              (text and optional export).
-            </p>
             {!chartId || noRealChart ? (
               <p className="text-sm text-amber-600">Add a birth chart (Identity or Settings) to use Current Transit.</p>
             ) : (
@@ -990,6 +1021,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             )}
             {hasExplainer && (
               <ExplainerSections sections={chartData!.explainer.sections} />
+            )}
+            {identityAudioUrl && (
+              <audio controls src={identityAudioUrl} className="w-full max-w-md mt-6" preload="metadata" />
             )}
           </div>
         </div>

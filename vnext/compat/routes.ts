@@ -16,6 +16,10 @@ import { createGroupProfile, type GroupsProfileRequest } from '../api/community-
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
 import { ensureSeedCandidateVectors } from './seed-vectors';
+import {
+  natalSnapshotFingerprintForChart,
+  persistProfileIdentityAudioAfterPrimaryAttach,
+} from './identity-audio';
 import type { ChartBInline, Comparison } from './types';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 import path from 'path';
@@ -136,6 +140,8 @@ async function attachPrimaryChartForNewUser(
   chartInput: ProfileChartBody | null | undefined
 ): Promise<import('./types').Chart | null> {
   let primaryChart: import('./types').Chart | null = null;
+  /** Prior natal fingerprint when updating an existing primary chart; null = new chart / no fingerprint / fallback. */
+  let priorNatalFingerprintForIdentityAudio: string | null = null;
   if (chartInput != null && typeof chartInput === 'object') {
     const { label, date, time, lat, lon, timezone: tzField, tz: tzAlt } = chartInput;
     const clientTzRaw =
@@ -161,6 +167,7 @@ async function attachPrimaryChartForNewUser(
     ) {
       const existingRow = await storage.getChart(existingPrimaryId);
       if (existingRow && existingRow.ownerId === userId) {
+        priorNatalFingerprintForIdentityAudio = await natalSnapshotFingerprintForChart(existingRow);
         primaryChart = (await storage.updateChartBirthFields(existingPrimaryId, userId, birthPayload)) ?? null;
         if (primaryChart) {
           await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
@@ -173,6 +180,7 @@ async function attachPrimaryChartForNewUser(
       }
     }
     if (!primaryChart) {
+      priorNatalFingerprintForIdentityAudio = null;
       primaryChart = await storage.createChart({
         ownerId: userId,
         ...birthPayload,
@@ -201,6 +209,13 @@ async function attachPrimaryChartForNewUser(
         console.warn('[compat] vector populate after chart create:', err?.message);
       });
     }
+  }
+  if (primaryChart) {
+    void persistProfileIdentityAudioAfterPrimaryAttach(primaryChart, priorNatalFingerprintForIdentityAudio).catch(
+      (err: unknown) => {
+        console.warn('[compat] identity audio attach hook:', err instanceof Error ? err.message : err);
+      }
+    );
   }
   return primaryChart;
 }
