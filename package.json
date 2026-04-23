@@ -102,6 +102,8 @@
     "lint:web:safety": "node scripts/check-no-browser-globals-top-level.js",
     "worker:export": "node workers/export-worker.js",
     "seed:phantoms": "node scripts/seed-phantom-users.js",
+    "db:qa-compat-seed": "npm run vnext:build && node scripts/qa-compat-seed.js",
+    "smoke:qa-compat": "node scripts/qa-compat-smoke.js",
     "phase1:smoke": "node scripts/phase1-smoke.js",
     "phase5:guard": "npm run vnext:build && node dist/vnext/vnext/scripts/phase5-guard.js",
     "phase5:verify-intent": "npm run vnext:build && node dist/vnext/vnext/scripts/verify-intent-profiles.js",
