@@ -118,6 +118,7 @@ export async function runLyriaAlignedExportBlock(
     let lyriaSeed = '';
     try {
       const planHash = computePlanHash(plan);
+      const useIdentitySeedOverride = process.env.LYRIA_IDENTITY_SEED_OVERRIDE === '1';
       const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
       prompt = buildLyriaPrompt(payload, plan, narrativePlan);
       promptHash = hashPrompt(prompt);
@@ -127,7 +128,11 @@ export async function runLyriaAlignedExportBlock(
         lyriaProfileNatalIdentity.objectIdentityHash.length > 0
       ) {
         const oid = lyriaProfileNatalIdentity.objectIdentityHash.trim();
-        lyriaSeed = planHash + ':' + oid + LYRIA_SEED_IDENTITY_PROFILE_MARKER;
+        if (useIdentitySeedOverride) {
+          lyriaSeed = planHash + ':phase3';
+        } else {
+          lyriaSeed = planHash + ':' + oid + LYRIA_SEED_IDENTITY_PROFILE_MARKER;
+        }
         try {
           console.log(
             '[LYRIA_IDENTITY_SEED]',
@@ -182,6 +187,24 @@ export async function runLyriaAlignedExportBlock(
         console.log('[COMPOSE_EXPORT] cache_hit exportKey=', exportKey.slice(0, 16) + '...');
       } else {
         exportStep = 'render';
+        if (lyriaProfileNatalIdentity) {
+          const oid =
+            typeof lyriaProfileNatalIdentity.objectIdentityHash === 'string'
+              ? lyriaProfileNatalIdentity.objectIdentityHash.trim()
+              : '';
+          try {
+            console.log(
+              '[LYRIA_SEED_MODE]',
+              JSON.stringify({
+                mode: useIdentitySeedOverride ? 'override_plan_only' : 'identity_full',
+                planHash: planHash.slice(0, 12),
+                objectIdentityHash: oid ? oid.slice(0, 12) : null,
+              })
+            );
+          } catch {
+            /* logging must not break export */
+          }
+        }
         const result = await renderWithProvider({
           prompt,
           seed: lyriaSeed,
