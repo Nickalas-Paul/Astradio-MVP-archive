@@ -247,14 +247,9 @@ export async function runLyriaAlignedExportBlock(
           modelVersion: (result.provider_meta.modelVersion as string) ?? modelVersion,
           duration_s: DEFAULT_DURATION_S,
         };
-        export_meta = {
-          provider: integrity.provider,
-          modelVersion: integrity.modelVersion,
-          promptHash: integrity.promptHash,
-          payload_hash: integrity.payload_hash,
-          duration_s: integrity.duration_s,
-          sha256: integrity.sha256,
-        };
+        // Inline audio may be present before store write; do NOT set export_id / export_meta
+        // / audio_export_available until store.put or writeExport completes successfully
+        // (strict write contract — no ghost export ids for identity / GET /api/exports/:id).
         audio = {
           format: 'wav',
           base64: wavToStore.toString('base64'),
@@ -262,8 +257,6 @@ export async function runLyriaAlignedExportBlock(
           latency_ms: Number((process.hrtime.bigint() - audioStartTime) / BigInt(1_000_000)),
           size_bytes: sizeBytesToUse,
         };
-        export_id = exportKey;
-        audio_export_available = true;
         exportStep = 'store';
         try {
           if (store?.put) {
@@ -273,11 +266,22 @@ export async function runLyriaAlignedExportBlock(
             writeExport(exportKey, wavToStore, integrity);
             console.log('[COMPOSE_EXPORT] writeExport_ok exportKey=', exportKey.slice(0, 16) + '...');
           }
+          export_id = exportKey;
+          export_meta = {
+            provider: integrity.provider,
+            modelVersion: integrity.modelVersion,
+            promptHash: integrity.promptHash,
+            payload_hash: integrity.payload_hash,
+            duration_s: integrity.duration_s,
+            sha256: integrity.sha256,
+          };
+          audio_export_available = true;
         } catch (storeErr) {
           console.warn(
-            '[COMPOSE_EXPORT] store/write failed (returning inline audio):',
+            '[COMPOSE_EXPORT] store/write failed (no durable export_id; returning inline audio only):',
             storeErr instanceof Error ? storeErr.message : String(storeErr)
           );
+          export_error = 'storage_unavailable';
         }
       }
     } catch (audioError) {

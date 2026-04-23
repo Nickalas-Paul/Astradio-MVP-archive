@@ -53,6 +53,7 @@
     "ci:quality": "npm run ci:vnext && npm run test:pipeline && npm run ci-path-guard && npm run enforce-thresholds",
     "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval",
     "test:contract": "jest tests/engine-adapter.contract.test.ts",
+    "test:identity-export-contract": "npx jest --config tests/jest.identity-export.config.cjs",
     "test:sandbox-surface": "jest --config tests/jest.sandbox.config.cjs --no-coverage",
     "test:e2e": "playwright test tests/e2e.smoke.spec.ts",
     "test:campaign-daily": "npm run vnext:build && node --test tests/campaign-daily-anchor.test.js tests/campaign-daily-canonical-location.test.js tests/campaign-daily-day-fingerprint.test.js tests/campaign-daily-theme-source.test.js tests/campaign-group-resolve.test.js tests/campaign-state-machine.test.js tests/campaign-narrative-surface.test.js",
