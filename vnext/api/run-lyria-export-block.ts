@@ -3,6 +3,7 @@
  * Single implementation so aggregate export policy cannot diverge from snapshot.
  */
 
+import { createHash } from 'crypto';
 import type { Plan, FeatureVec } from '../contracts';
 import type { ControlSurfacePayload } from '../explainer/contracts';
 import type { ArchitectureOutput } from '../core/architecture-engine';
@@ -20,9 +21,6 @@ import {
 import { computePlanHash } from '../plan-hash';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import { applyEndingPolish } from '../audio/ending-polish';
-
-/** Fixed suffix for identity-only Lyria seed; must stay literal for determinism. */
-const LYRIA_SEED_IDENTITY_PROFILE_MARKER = ':profile_identity:phase3';
 
 export type ExportErrorCode =
   | 'export_disabled'
@@ -118,7 +116,6 @@ export async function runLyriaAlignedExportBlock(
     let lyriaSeed = '';
     try {
       const planHash = computePlanHash(plan);
-      const useIdentitySeedOverride = process.env.LYRIA_IDENTITY_SEED_OVERRIDE === '1';
       const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
       prompt = buildLyriaPrompt(payload, plan, narrativePlan);
       promptHash = hashPrompt(prompt);
@@ -127,24 +124,9 @@ export async function runLyriaAlignedExportBlock(
         typeof lyriaProfileNatalIdentity.objectIdentityHash === 'string' &&
         lyriaProfileNatalIdentity.objectIdentityHash.length > 0
       ) {
-        const oid = lyriaProfileNatalIdentity.objectIdentityHash.trim();
-        if (useIdentitySeedOverride) {
-          lyriaSeed = planHash + ':phase3';
-        } else {
-          lyriaSeed = planHash + ':' + oid + LYRIA_SEED_IDENTITY_PROFILE_MARKER;
-        }
-        try {
-          console.log(
-            '[LYRIA_IDENTITY_SEED]',
-            JSON.stringify({
-              seed_mode: 'profile_natal',
-              plan_sha256_prefix: planHash.slice(0, 12),
-              object_identity_hash_prefix: oid.slice(0, 12),
-            })
-          );
-        } catch {
-          /* logging must not break export */
-        }
+        const objectIdentityHash = lyriaProfileNatalIdentity.objectIdentityHash.trim();
+        const seedPreimage = [planHash, objectIdentityHash, 'lyria_profile_identity_v2'].join('\n');
+        lyriaSeed = createHash('sha256').update(Buffer.from(seedPreimage, 'utf8')).digest('hex');
       } else {
         lyriaSeed = planHash + ':phase3';
       }
@@ -187,18 +169,19 @@ export async function runLyriaAlignedExportBlock(
         console.log('[COMPOSE_EXPORT] cache_hit exportKey=', exportKey.slice(0, 16) + '...');
       } else {
         exportStep = 'render';
-        if (lyriaProfileNatalIdentity) {
-          const oid =
-            typeof lyriaProfileNatalIdentity.objectIdentityHash === 'string'
-              ? lyriaProfileNatalIdentity.objectIdentityHash.trim()
-              : '';
+        if (
+          lyriaProfileNatalIdentity &&
+          typeof lyriaProfileNatalIdentity.objectIdentityHash === 'string' &&
+          lyriaProfileNatalIdentity.objectIdentityHash.trim().length > 0
+        ) {
+          const objectIdentityHash = lyriaProfileNatalIdentity.objectIdentityHash.trim();
           try {
             console.log(
               '[LYRIA_SEED_MODE]',
               JSON.stringify({
-                mode: useIdentitySeedOverride ? 'override_plan_only' : 'identity_full',
+                mode: 'identity_v2',
                 planHash: planHash.slice(0, 12),
-                objectIdentityHash: oid ? oid.slice(0, 12) : null,
+                objectIdentityHash: objectIdentityHash.slice(0, 12),
               })
             );
           } catch {
