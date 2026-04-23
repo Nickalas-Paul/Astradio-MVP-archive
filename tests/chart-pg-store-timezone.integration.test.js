@@ -45,11 +45,95 @@ describe(
       }
     });
 
+    it('updateChartBirthFields clears identity_export_id when time changes (natal key)', async () => {
+      const pgStore = require('../lib/pg-store');
+      const { pool } = require('../lib/database');
+      const ownerId = `usr_idexp_${Date.now()}`;
+      await pgStore.createUser({
+        id: ownerId,
+        handle: ownerId,
+        displayName: 'ID exp',
+        email: `${ownerId}@test.invalid`,
+      });
+      const chart = await pgStore.createChart({
+        ownerId,
+        label: 'idexp',
+        date: '2001-06-15',
+        time: '12:32',
+        lat: 40.7128,
+        lon: -74.006,
+        timezone: 'America/New_York',
+      });
+      const fakeId = 'a'.repeat(64);
+      try {
+        await pool.query('UPDATE astradio_charts SET identity_export_id = $1 WHERE id = $2', [fakeId, chart.id]);
+        const withId = await pgStore.getChart(chart.id);
+        assert.strictEqual(withId?.identityExportId, fakeId);
+
+        const updated = await pgStore.updateChartBirthFields(chart.id, ownerId, {
+          label: 'idexp',
+          date: '2001-06-15',
+          time: '12:33',
+          lat: 40.7128,
+          lon: -74.006,
+          timezone: 'America/New_York',
+        });
+        assert.strictEqual(updated?.identityExportId, null, 'stale export id must clear on natal change');
+        const again = await pgStore.getChart(chart.id);
+        assert.strictEqual(again?.identityExportId, null);
+      } finally {
+        await pgStore.deleteChart(chart.id);
+        await pool.query('DELETE FROM astradio_users WHERE id = $1', [ownerId]);
+      }
+    });
+
+    it('updateChartBirthFields preserves identity_export_id on label-only change', async () => {
+      const pgStore = require('../lib/pg-store');
+      const { pool } = require('../lib/database');
+      const ownerId = `usr_idlab_${Date.now()}`;
+      await pgStore.createUser({
+        id: ownerId,
+        handle: ownerId,
+        displayName: 'Label only',
+        email: `${ownerId}@test.invalid`,
+      });
+      const chart = await pgStore.createChart({
+        ownerId,
+        label: 'old',
+        date: '2001-06-15',
+        time: '12:32',
+        lat: 40.7128,
+        lon: -74.006,
+        timezone: 'America/New_York',
+      });
+      const fakeId = 'b'.repeat(64);
+      try {
+        await pool.query('UPDATE astradio_charts SET identity_export_id = $1 WHERE id = $2', [fakeId, chart.id]);
+        const updated = await pgStore.updateChartBirthFields(chart.id, ownerId, {
+          label: 'renamed only',
+          date: '2001-06-15',
+          time: '12:32',
+          lat: 40.7128,
+          lon: -74.006,
+          timezone: 'America/New_York',
+        });
+        assert.strictEqual(updated?.identityExportId, fakeId, 'label-only update must not clear identity export');
+      } finally {
+        await pgStore.deleteChart(chart.id);
+        await pool.query('DELETE FROM astradio_users WHERE id = $1', [ownerId]);
+      }
+    });
+
     it('updateChartBirthFields resolves UTC placeholder and clears snapshot_hash', async () => {
       const pgStore = require('../lib/pg-store');
       const { pool } = require('../lib/database');
       const ownerId = `usr_tz_upd_${Date.now()}`;
-      await pgStore.createUser({ id: ownerId, handle: ownerId, email: `${ownerId}@test.invalid` });
+      await pgStore.createUser({
+        id: ownerId,
+        handle: ownerId,
+        displayName: 'TZ upd',
+        email: `${ownerId}@test.invalid`,
+      });
       const chart = await pgStore.createChart({
         ownerId,
         label: 'upd_tz',

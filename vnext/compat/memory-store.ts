@@ -10,6 +10,7 @@ import type { User, Chart, Comparison } from './types';
 (exports as any).__compatName = 'memory';
 
 import { resolveChartTimezoneForChartInsert } from './chart-timezone-resolve';
+import { natalBirthKeyChanged } from './natal-identity-birth-compare';
 
 const nanoid = () =>
   require('crypto').randomBytes(8).toString('hex');
@@ -154,6 +155,8 @@ export async function updateChartBirthFields(
     lat: input.lat,
     lon: input.lon,
   });
+  const before = { date: c.date, time: c.time, lat: c.lat, lon: c.lon, timezone: c.timezone };
+  const clearIdentityExport = natalBirthKeyChanged(before, input, resolvedTimezone);
   const updated: Chart = {
     ...c,
     label: input.label,
@@ -163,7 +166,7 @@ export async function updateChartBirthFields(
     lon: input.lon,
     timezone: resolvedTimezone,
     snapshotHash: undefined,
-    identityExportId: c.identityExportId ?? null,
+    identityExportId: clearIdentityExport ? null : (c.identityExportId ?? null),
     updatedAt: now(),
   };
   charts.set(chartId, updated);
