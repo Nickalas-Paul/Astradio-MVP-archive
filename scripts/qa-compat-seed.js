@@ -182,6 +182,10 @@ async function main() {
     console.error('[qa-compat-seed] POSTGRES_URL or DATABASE_URL is required.');
     process.exit(1);
   }
+  // lib/database.js and pg-store read POSTGRES_URL only; align with migrate.js / Render DATABASE_URL.
+  if (!process.env.POSTGRES_URL) {
+    process.env.POSTGRES_URL = pgUrl;
+  }
 
   assertBuildArtifacts();
   // pg-store loads natal compare — require after assert
