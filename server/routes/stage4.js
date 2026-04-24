@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 
 const pgStore = require('../../lib/pg-store');
+const relationshipArtifacts = require('../../lib/relationship-artifacts');
 const groupComposeAdapter = require('../../dist/vnext/vnext/relational/composition/group-compose-adapter');
 const { transitParamsToChartInput } = require('../../dist/vnext/vnext/relational/weather/transit-chart-input');
 const { fetchChartSnapshot } = require('../../dist/vnext/vnext/core/architecture-engine');
@@ -302,6 +303,21 @@ function createStage4Router() {
     }
   });
 
+  router.post('/relationships/:id/materialize', async (req, res) => {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const out = await relationshipArtifacts.materializeRelationshipArtifact(req.params.id, ownerUserId);
+      return res.status(200).json({ ok: true, ...out });
+    } catch (e) {
+      if (e && e.code === 'NOT_FOUND') return res.status(404).json({ error: 'not_found' });
+      if (String(e?.message || '').includes('missing vectors')) {
+        return res.status(422).json({ error: 'missing_vectors' });
+      }
+      return res.status(500).json({ error: e?.message || 'materialize_failed' });
+    }
+  });
+
   router.get('/relationships/:id/forecast', async (req, res) => {
     const ownerUserId = requireOwner(req, res);
     if (!ownerUserId) return;
@@ -431,6 +447,8 @@ function createStage4Router() {
       };
       const artifactHash = artifactHashFromPayload(artifactPayload);
       let artifact = await pgStore.getCompositeArtifactByHash(ownerUserId, 'group', artifactHash);
+      const readingSnapshot = composed.text ? { text: composed.text } : null;
+      const exportJobIdFromCompose = composed.audio && composed.audio.export_id ? String(composed.audio.export_id) : null;
       if (!artifact) {
         artifact = await pgStore.createCompositeArtifact({
           ownerUserId,
@@ -443,7 +461,17 @@ function createStage4Router() {
           planHash: composed.planHash,
           compositionId: composed.compositionId,
           artifactHash,
+          readingSnapshot,
+          exportJobId: exportJobIdFromCompose,
         });
+      } else if (readingSnapshot || exportJobIdFromCompose) {
+        await pgStore.updateCompositeArtifactReadingSnapshot({
+          artifactId: artifact.id,
+          ownerUserId,
+          readingSnapshot,
+          exportJobId: exportJobIdFromCompose,
+        });
+        artifact = await pgStore.getCompositeArtifactById(artifact.id);
       }
       return res.status(200).json({
         groupId: req.params.id,

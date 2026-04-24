@@ -900,6 +900,9 @@ export function createCompatRouter(): import('express').Router {
       if (result.explanation) {
         (response as any).explanation = result.explanation;
       }
+      if (result.exportId) {
+        (response as any).exportJobId = result.exportId;
+      }
       return res.status(201).json(response);
     } catch (e: any) {
       console.error('[compat] POST /comparisons', e);

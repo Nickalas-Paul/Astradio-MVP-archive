@@ -158,11 +158,6 @@ export function CompatibilitySection({
     );
   }
 
-  const handlePlayCompatibility = async (_targetChartId: string, _score: number) => {
-    trackFeatureUse('compatibility', 'play_mix_attempt_blocked_stage2');
-    console.warn('[CompatibilitySection] Play Mix is disabled in Stage 2; use /api/comparisons-only flow for compatibility.');
-  };
-
   const handleViewRationale = (targetChartId: string) => {
     trackFeatureUse('compatibility', 'view_rationale');
     console.log('Viewing rationale for chart:', targetChartId);
@@ -265,7 +260,6 @@ export function CompatibilitySection({
       <p className="text-sm text-text mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">
         <span className="font-medium">Results ranked for:</span>{' '}
         {rankModeLabel}
-        <span className="text-subtext font-mono text-xs ml-2">(API mode: {responseMode})</span>
       </p>
     ) : null;
 
@@ -409,13 +403,6 @@ export function CompatibilitySection({
                   className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-sm font-medium hover:bg-emerald/30 disabled:opacity-50"
                 >
                   {connLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePlayCompatibility(match.chartId, match.score)}
-                  className="flex-1 min-w-[120px] btn-primary text-sm py-2"
-                >
-                  Play Mix
                 </button>
                 <button
                   type="button"

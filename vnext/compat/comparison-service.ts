@@ -48,6 +48,8 @@ export interface CreateComparisonResult {
   comparison: Comparison;
   planHash: string;
   compositionId: string;
+  /** Lyria/export store key when aggregate compose produced a durable WAV (same contract as GET /api/exports/:id). */
+  exportId?: string | null;
   audioBase64?: string;
   explanation?: {
     spec: string;
@@ -195,6 +197,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     comparison,
     planHash: result.planHash,
     compositionId: result.planHash,
+    exportId: result.export_id ?? null,
     audioBase64: result.audio?.base64 || undefined,
     explanation: result.explanation,
     semantic_reading_available: true,

@@ -63,6 +63,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
   const [declining, setDeclining] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [acceptGroup, setAcceptGroup] = useState<string | null>(null);
+  const [materializingId, setMaterializingId] = useState<string | null>(null);
+  const [artifactMsg, setArtifactMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (refreshSignal != null && refreshSignal > 0) {
@@ -121,6 +123,41 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     }
   };
 
+  const openConnectionArtifacts = async (p: Record<string, unknown>) => {
+    const relId = String(p.id || '');
+    if (!relId || !currentUserId) return;
+    setArtifactMsg(null);
+    const status = String(p.artifactStatus || 'not_generated');
+    const comparisonIdKnown = (p.comparisonId as string | undefined) || (p.comparison_id as string | undefined);
+    try {
+      if (status === 'available' && comparisonIdKnown) {
+        window.open(`/api/comparisons/${encodeURIComponent(comparisonIdKnown)}`, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      setMaterializingId(relId);
+      const r = await fetch(
+        `${getApiBaseUrl() || ''}/api/relationships/${encodeURIComponent(relId)}/materialize?userId=${encodeURIComponent(currentUserId)}`,
+        { method: 'POST', credentials: 'same-origin' }
+      );
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setArtifactMsg(typeof j.error === 'string' ? j.error : `Materialize failed (${r.status})`);
+        return;
+      }
+      await refresh();
+      const cmp = typeof j.comparisonId === 'string' ? j.comparisonId : comparisonIdKnown;
+      if (cmp) {
+        window.open(`/api/comparisons/${encodeURIComponent(cmp)}`, '_blank', 'noopener,noreferrer');
+      }
+      const ex = typeof j.exportJobId === 'string' && j.exportJobId ? j.exportJobId : null;
+      if (ex) {
+        window.open(`/api/exports/${encodeURIComponent(ex)}`, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      setMaterializingId(null);
+    }
+  };
+
   const acceptGroupInvite = async (groupId: string, inviteId: string) => {
     const key = `${groupId}:${inviteId}`;
     setAcceptGroup(key);
@@ -169,6 +206,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
 
       {loading && <p className="text-sm text-subtext">Loading inventory…</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
+      {artifactMsg && <p className="text-sm text-amber-600 dark:text-amber-400">{artifactMsg}</p>}
 
       {data && (
         <>
@@ -281,6 +319,24 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       ) : null}
                     </div>
                     <p className="text-xs text-subtext">Label: {String(p.label || '')}</p>
+                    <p className="text-xs text-subtext">
+                      Artifacts:{' '}
+                      {p.artifactStatus === 'available' ? (
+                        <span className="text-emerald">Available</span>
+                      ) : (
+                        <span>Not generated</span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={materializingId === String(p.id)}
+                        onClick={() => openConnectionArtifacts(p)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30 disabled:opacity-50"
+                      >
+                        {materializingId === String(p.id) ? 'Preparing…' : 'Open connection'}
+                      </button>
+                    </div>
                     {currentUserId && <PairWeatherPreview relationshipId={String(p.id)} userId={currentUserId} />}
                   </li>
                 ))}

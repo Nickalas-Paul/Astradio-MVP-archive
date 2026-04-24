@@ -275,9 +275,9 @@ function CommunityClientInner() {
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-10">
               <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Option A — Search people</h2>
+                <h2 className="text-lg font-semibold text-text">Search by username</h2>
                 <p className="text-sm text-subtext">
-                  Search the directory by name or handle. Connection requests use the intent you select under Option B.
+                  Search the directory by name or handle. Connection requests use the intent you select under Intentional Matching.
                 </p>
                 <UserSearchPanel
                   onInventoryRefresh={bumpCommunityInventory}
@@ -286,7 +286,7 @@ function CommunityClientInner() {
               </section>
 
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text mb-1">Option B — Find matches by intent</h2>
+                <h2 className="text-lg font-semibold text-text mb-1">Intentional Matching</h2>
                 <p className="text-sm text-subtext max-w-2xl mb-2">
                   Choose an intent, then find matches. Results load only after you click Find matches and appear directly below.
                 </p>

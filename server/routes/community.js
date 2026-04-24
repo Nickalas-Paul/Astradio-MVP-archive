@@ -241,12 +241,29 @@ async function enrichRelationshipForViewer(rel, viewerUserId) {
     peerDisplayName = u?.displayName;
     peerHandle = u?.handle;
   }
+  let hasCompositeArtifact = false;
+  try {
+    if (pgStore.listCompositeArtifactsByBinding) {
+      const rows = await pgStore.listCompositeArtifactsByBinding({
+        ownerUserId: viewerUserId,
+        kind: 'pair',
+        relationshipId: rel.id,
+      });
+      hasCompositeArtifact = Array.isArray(rows) && rows.length > 0;
+    }
+  } catch (_) {
+    hasCompositeArtifact = false;
+  }
+  const artifactStatus =
+    rel.comparisonId && hasCompositeArtifact ? 'available' : 'not_generated';
   return {
     ...rel,
     peerUserId,
     peerChartId,
     peerDisplayName,
     peerHandle,
+    artifactStatus,
+    hasCompositeArtifact,
   };
 }
 
