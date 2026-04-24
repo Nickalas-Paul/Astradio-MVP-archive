@@ -220,7 +220,35 @@ router.get('/community/connection-intents/incoming', async (req, res) => {
   }
 });
 
-async function enrichRelationshipForViewer(rel, viewerUserId) {
+/**
+ * Picks one group composite row: prefer reading_snapshot NOT NULL, then latest created_at.
+ * @param {Array<{ group_id: string, reading_snapshot: unknown, export_job_id: unknown, created_at: string, id: string }>} rows
+ * @param {string} groupId
+ */
+function selectGroupCompositeForInventory(rows, groupId) {
+  const g = String(groupId);
+  const forG = rows.filter((r) => r && String(r.group_id) === g && r.reading_snapshot != null);
+  if (forG.length === 0) return null;
+  forG.sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    return tb - ta;
+  });
+  return forG[0];
+}
+
+function groupArtifactStatusFromRow(row) {
+  if (!row) {
+    return { artifactStatus: 'not_generated', exportJobId: null, compositeArtifactId: null };
+  }
+  const ex = row.export_job_id != null && String(row.export_job_id).trim() ? String(row.export_job_id) : null;
+  if (ex) {
+    return { artifactStatus: 'audio_available', exportJobId: ex, compositeArtifactId: String(row.id) };
+  }
+  return { artifactStatus: 'text_available', exportJobId: null, compositeArtifactId: String(row.id) };
+}
+
+async function enrichRelationshipForViewer(rel, viewerUserId, exportByComparisonId) {
   const cLo = await pgStore.getChart(rel.chartIdLow);
   const cHi = await pgStore.getChart(rel.chartIdHigh);
   let peerUserId = null;
@@ -241,29 +269,21 @@ async function enrichRelationshipForViewer(rel, viewerUserId) {
     peerDisplayName = u?.displayName;
     peerHandle = u?.handle;
   }
-  let hasCompositeArtifact = false;
-  try {
-    if (pgStore.listCompositeArtifactsByBinding) {
-      const rows = await pgStore.listCompositeArtifactsByBinding({
-        ownerUserId: viewerUserId,
-        kind: 'pair',
-        relationshipId: rel.id,
-      });
-      hasCompositeArtifact = Array.isArray(rows) && rows.length > 0;
-    }
-  } catch (_) {
-    hasCompositeArtifact = false;
+  const cmpKey = rel.comparisonId ? String(rel.comparisonId).trim() : '';
+  const fromMap = cmpKey && exportByComparisonId ? exportByComparisonId.get(cmpKey) : null;
+  const exportJobId = fromMap && String(fromMap).trim() ? String(fromMap) : null;
+  let artifactStatus = 'not_generated';
+  if (rel.comparisonId) {
+    artifactStatus = exportJobId ? 'audio_available' : 'text_available';
   }
-  const artifactStatus =
-    rel.comparisonId && hasCompositeArtifact ? 'available' : 'not_generated';
   return {
     ...rel,
     peerUserId,
     peerChartId,
     peerDisplayName,
     peerHandle,
+    exportJobId,
     artifactStatus,
-    hasCompositeArtifact,
   };
 }
 
@@ -272,12 +292,26 @@ router.get('/community/inventory', async (req, res) => {
     if (!pgStore) return res.status(501).json({ error: 'inventory requires postgres' });
     const userId = queryUserId(req) || (await getDevUserId());
     const relationshipsRaw = await pgStore.listRelationshipsByOwner(userId);
+    const compIds = relationshipsRaw.map((r) => r.comparisonId).filter((id) => id && String(id).trim());
+    const exportByComparisonId = await pgStore.getExportJobIdsForComparisonIds(compIds);
     const pairs = [];
     for (const rel of relationshipsRaw) {
       // eslint-disable-next-line no-await-in-loop
-      pairs.push(await enrichRelationshipForViewer(rel, userId));
+      pairs.push(await enrichRelationshipForViewer(rel, userId, exportByComparisonId));
     }
-    const relationalGroups = await pgStore.listRelationalGroupsAccessibleToUser(userId);
+    const relationalGroupsBase = await pgStore.listRelationalGroupsAccessibleToUser(userId);
+    const ownerGroupPairs = relationalGroupsBase.map((g) => ({ ownerId: g.ownerId, groupId: g.id }));
+    const groupCompRows = await pgStore.getGroupCompositeRowsForGroupOwnerPairs(ownerGroupPairs);
+    const relationalGroups = relationalGroupsBase.map((g) => {
+      const row = selectGroupCompositeForInventory(groupCompRows, g.id);
+      const st = groupArtifactStatusFromRow(row);
+      return {
+        ...g,
+        artifactStatus: st.artifactStatus,
+        exportJobId: st.exportJobId,
+        compositeArtifactId: st.compositeArtifactId,
+      };
+    });
     const campaigns = await pgStore.listStage5CampaignsByOwnerOrParticipant(userId);
     const pendingIncomingIntents = await pgStore.listPendingIncomingConnectionIntents(userId);
     const pendingOutgoingIntents = await pgStore.listPendingOutgoingConnectionIntents(userId);

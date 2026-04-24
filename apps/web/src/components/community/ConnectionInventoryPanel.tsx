@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
+
+function artifactStatusCopy(status: string) {
+  if (status === 'audio_available') return 'Reading + sound available';
+  if (status === 'text_available') return 'Reading available · sound unavailable';
+  return 'Reading not generated';
+}
 
 type Props = {
   currentUserId: string | null;
@@ -127,31 +134,39 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     const relId = String(p.id || '');
     if (!relId || !currentUserId) return;
     setArtifactMsg(null);
-    const status = String(p.artifactStatus || 'not_generated');
-    const comparisonIdKnown = (p.comparisonId as string | undefined) || (p.comparison_id as string | undefined);
+    const comparisonIdKnown =
+      (p.comparisonId as string | undefined) || (p.comparison_id as string | undefined) || undefined;
+    const pairExport = (p.exportJobId as string | undefined) || (p.export_job_id as string | undefined);
+    const base = getApiBaseUrl() || '';
     try {
-      if (status === 'available' && comparisonIdKnown) {
-        window.open(`/api/comparisons/${encodeURIComponent(comparisonIdKnown)}`, '_blank', 'noopener,noreferrer');
+      if (comparisonIdKnown) {
+        window.open(`${base}/api/comparisons/${encodeURIComponent(String(comparisonIdKnown))}`, '_blank', 'noopener,noreferrer');
+        if (pairExport && String(pairExport).trim()) {
+          window.open(`${base}/api/exports/${encodeURIComponent(String(pairExport))}`, '_blank', 'noopener,noreferrer');
+        }
         return;
       }
       setMaterializingId(relId);
       const r = await fetch(
-        `${getApiBaseUrl() || ''}/api/relationships/${encodeURIComponent(relId)}/materialize?userId=${encodeURIComponent(currentUserId)}`,
+        `${base}/api/relationships/${encodeURIComponent(relId)}/materialize?userId=${encodeURIComponent(currentUserId)}`,
         { method: 'POST', credentials: 'same-origin' }
       );
-      const j = await r.json().catch(() => ({}));
+      const j = (await r.json().catch(() => ({}))) as { error?: string; comparisonId?: string; exportJobId?: string | null };
       if (!r.ok) {
         setArtifactMsg(typeof j.error === 'string' ? j.error : `Materialize failed (${r.status})`);
         return;
       }
       await refresh();
-      const cmp = typeof j.comparisonId === 'string' ? j.comparisonId : comparisonIdKnown;
+      const cmp = typeof j.comparisonId === 'string' ? j.comparisonId : undefined;
       if (cmp) {
-        window.open(`/api/comparisons/${encodeURIComponent(cmp)}`, '_blank', 'noopener,noreferrer');
+        window.open(`${base}/api/comparisons/${encodeURIComponent(cmp)}`, '_blank', 'noopener,noreferrer');
       }
       const ex = typeof j.exportJobId === 'string' && j.exportJobId ? j.exportJobId : null;
       if (ex) {
-        window.open(`/api/exports/${encodeURIComponent(ex)}`, '_blank', 'noopener,noreferrer');
+        window.open(`${base}/api/exports/${encodeURIComponent(ex)}`, '_blank', 'noopener,noreferrer');
+        setArtifactMsg(null);
+      } else if (cmp) {
+        setArtifactMsg('Reading ready. Sound unavailable for this connection.');
       }
     } finally {
       setMaterializingId(null);
@@ -320,12 +335,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     </div>
                     <p className="text-xs text-subtext">Label: {String(p.label || '')}</p>
                     <p className="text-xs text-subtext">
-                      Artifacts:{' '}
-                      {p.artifactStatus === 'available' ? (
-                        <span className="text-emerald">Available</span>
-                      ) : (
-                        <span>Not generated</span>
-                      )}
+                      Artifacts: <span className="text-text">{artifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
@@ -350,12 +360,39 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
               <p className="text-sm text-subtext">None yet. Use Discovery to create a group from selected people.</p>
             ) : (
               <ul className="space-y-2">
-                {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => (
-                  <li key={String(g.id)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text">
-                    {String(g.name)}{' '}
-                    <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
-                  </li>
-                ))}
+                {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
+                  const gSlug = (g.slug as string | undefined) || (g.id as string);
+                  const groupEx = (g.exportJobId as string | undefined) || (g.export_job_id as string | undefined);
+                  return (
+                    <li key={String(g.id)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2">
+                      <div>
+                        {String(g.name)}{' '}
+                        <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
+                      </div>
+                      <p className="text-xs text-subtext">
+                        Artifacts: <span className="text-text">{artifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/community/group/${encodeURIComponent(gSlug)}`}
+                          className="inline-flex px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30"
+                        >
+                          Open group
+                        </Link>
+                        {g.artifactStatus === 'audio_available' && groupEx && String(groupEx).trim() ? (
+                          <a
+                            href={`${getApiBaseUrl() || ''}/api/exports/${encodeURIComponent(String(groupEx))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex px-3 py-1.5 rounded-lg border border-border text-xs text-text hover:bg-surface-2"
+                          >
+                            Open sound
+                          </a>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

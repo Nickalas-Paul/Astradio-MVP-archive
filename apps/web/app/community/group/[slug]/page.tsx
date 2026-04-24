@@ -9,10 +9,11 @@ import { hasRealChart } from '@/core/social/constants';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
 
-export default function CommunityGroupPage({ params }: { params: Promise<{ slug: string }> }) {
-  const [slug, setSlug] = useState<string>('');
+export default function CommunityGroupPage({ params }: { params: { slug: string } }) {
+  const slug = typeof params?.slug === 'string' ? decodeURIComponent(params.slug) : '';
   const [group, setGroup] = useState<{
     id: string;
+    ownerId: string;
     slug: string;
     name: string;
     description: string;
@@ -26,11 +27,11 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   useEffect(() => {
-    params.then((p) => setSlug(p.slug));
-  }, [params]);
-
-  useEffect(() => {
-    if (!slug) return;
+    if (!slug) {
+      setLoading(false);
+      setError('Invalid group');
+      return;
+    }
     (async () => {
       setLoading(true);
       setError(null);
@@ -85,6 +86,13 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
     })();
   }, [slug, user?.id]);
 
+  useEffect(() => {
+    if (!group || !user?.id || group.ownerId !== user.id) return;
+    void fetch(`/api/groups/${encodeURIComponent(group.id)}/composite`, {
+      credentials: 'same-origin',
+    }).catch(() => {});
+  }, [group?.id, group?.ownerId, user?.id]);
+
   if (loading && !group) {
     return (
       <AppShell>
@@ -127,8 +135,8 @@ export default function CommunityGroupPage({ params }: { params: Promise<{ slug:
             <h2 className="text-lg font-medium text-text mb-2">Group profile</h2>
             {profile.explanation?.sections?.map((s, i) => (
               <div key={i} className="mb-2">
-                <h3 className="text-sm font-medium text-subtext">{s.title}</h3>
-                <p className="text-sm text-text">{s.text}</p>
+                <h3 className="text-sm font-medium text-subtext">{s?.title}</h3>
+                <p className="text-sm text-text">{s?.text}</p>
               </div>
             ))}
             {!profile.explanation?.sections?.length && (

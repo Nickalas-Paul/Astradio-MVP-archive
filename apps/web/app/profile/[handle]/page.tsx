@@ -12,18 +12,17 @@ interface ProfileByHandleUser {
   handle?: string;
 }
 
-export default function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
-  const [handle, setHandle] = useState('');
+export default function ProfilePage({ params }: { params: { handle: string } }) {
+  const handle = typeof params?.handle === 'string' ? decodeURIComponent(params.handle) : '';
   const [user, setUser] = useState<ProfileByHandleUser | null>(null);
   const [personality, setPersonality] = useState<{ temperament?: { activation?: number; stability?: number }; emphasis?: Record<string, number> } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!handle);
 
   useEffect(() => {
-    params.then((p) => setHandle(decodeURIComponent(p.handle)));
-  }, [params]);
-
-  useEffect(() => {
-    if (!handle) return;
+    if (!handle) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setUser(null);
     setPersonality(null);

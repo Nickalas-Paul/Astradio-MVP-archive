@@ -773,6 +773,9 @@ export type CommunityFeedSkeletonItemV1 = {
   feedKey: string;
 };
 
+/** Pairs: comparisonId = reading; exportJobId set when audio stored. Groups: reading_snapshot = composite; exportJobId on group row. */
+export type CommunityArtifactStatusV1 = 'not_generated' | 'text_available' | 'audio_available';
+
 export type CommunityInventoryV1 = {
   version: string;
   userId: string;
