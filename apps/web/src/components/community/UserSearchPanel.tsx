@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useProfile, useUserSearch, useProfileChart, type ProfileChartSection, type DirectoryUser } from '../../core/social/hooks';
 import { getApiBaseUrl } from '../../core/api-base';
 import { hasRealChart } from '../../core/social/constants';
-import { RELATIONSHIP_MODES } from '../../core/compat/relationshipModes';
+import type { RelationalIntent } from '../../lib/relational-intent';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -52,12 +52,13 @@ function snapshotSafeForWheel(snapshot: unknown): boolean {
 
 export interface UserSearchPanelProps {
   onInventoryRefresh?: () => void;
+  /** Used for POST /api/community/connect-intent relationshipKind (default friend). */
+  relationshipKind?: RelationalIntent;
 }
 
-export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {}) {
+export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend' }: UserSearchPanelProps = {}) {
   const [q, setQ] = useState('');
   const [selectedChartId, setSelectedChartId] = useState<string | null>(null);
-  const [compareResult, setCompareResult] = useState<{ chartId: string; planHash?: string; error?: string } | null>(null);
   const [groupPick, setGroupPick] = useState<Record<string, boolean>>({});
   const [groupName, setGroupName] = useState('');
   const [groupBusy, setGroupBusy] = useState(false);
@@ -75,34 +76,6 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
     profilePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [selectedChartId]);
 
-  const handleCompare = async (target: DirectoryUser) => {
-    if (!chartAId) {
-      setCompareResult({ chartId: target.chartId, error: 'Add your birth chart in Profile first. Matches use your stored chart only.' });
-      return;
-    }
-    setCompareResult(null);
-    try {
-      const base = getApiBaseUrl();
-      const r = await fetch(`${base || ''}/api/comparisons`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chartAId,
-          chartBId: target.chartId,
-          relationshipMode: RELATIONSHIP_MODES[0],
-        }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setCompareResult({ chartId: target.chartId, error: data?.error || `Failed (${r.status})` });
-        return;
-      }
-      setCompareResult({ chartId: target.chartId, planHash: data.planHash });
-    } catch (e) {
-      setCompareResult({ chartId: target.chartId, error: e instanceof Error ? e.message : 'Request failed' });
-    }
-  };
-
   const handleRequestConnection = async (target: DirectoryUser) => {
     if (!chartAId || !user?.id) {
       setConnMsg('Add your chart in Profile and sign in to request a connection.');
@@ -119,7 +92,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
           toUserId: target.userId,
           fromChartId: chartAId,
           toChartId: target.chartId,
-          relationshipKind: 'friend',
+          relationshipKind,
         }),
       });
       const data = await r.json().catch(() => ({}));
@@ -202,8 +175,8 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
     <div className="card space-y-6">
       <h2 className="text-xl font-semibold text-text">Find people</h2>
       <p className="text-sm text-subtext">
-        Search by name or handle (min 2 characters). Directory results only. Use Compare for a one-off reading; use Request connection for a saved link
-        (peer must accept). Select people below to build a relational chart group — you are added first; others get invites.
+        Search by name or handle (min 2 characters). Directory results only. Request connection for a saved link (peer must accept). Select people below
+        to build a relational chart group — you are added first; others get invites.
       </p>
 
       {connMsg && <p className="text-sm text-subtext border border-border rounded-lg px-3 py-2 bg-bgElev">{connMsg}</p>}
@@ -250,7 +223,7 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
       {loading && <div className="text-subtext text-sm">Loading…</div>}
 
       {!loading && users.length === 0 && canSearch && (
-        <p className="text-subtext text-sm">No users found. Results are limited to the directory; try a different query or check that you have a chart linked for comparison.</p>
+        <p className="text-subtext text-sm">No users found. Results are limited to the directory; try a different query.</p>
       )}
 
       {!loading && users.length > 0 && (
@@ -303,27 +276,10 @@ export function UserSearchPanel({ onInventoryRefresh }: UserSearchPanelProps = {
                     Request connection
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => handleCompare(u)}
-                  className="px-3 py-1.5 rounded-lg text-sm bg-emerald/20 text-emerald border border-emerald/40 hover:bg-emerald/30"
-                >
-                  Compare
-                </button>
               </div>
             </li>
           ))}
         </ul>
-      )}
-
-      {compareResult && (
-        <div className="p-3 rounded-lg border border-border bg-bgElev text-sm">
-          {compareResult.error ? (
-            <p className="text-red-400">{compareResult.error}</p>
-          ) : (
-            <p className="text-emerald">Comparison created. Plan hash: {compareResult.planHash?.slice(0, 12)}…</p>
-          )}
-        </div>
       )}
 
       {selectedChartId && (

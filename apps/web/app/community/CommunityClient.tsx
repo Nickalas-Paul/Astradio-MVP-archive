@@ -7,18 +7,15 @@ import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { RelationalCommunityFeed } from '../../src/components/community/RelationalCommunityFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
-import { CompareChartsPanel } from '../../src/components/community/CompareChartsPanel';
 import { UserSearchPanel } from '../../src/components/community/UserSearchPanel';
 import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
 import { SignalsPanel } from '../../src/components/community/SignalsPanel';
-import { IntentForm } from '../../src/components/compatibility/IntentForm';
-import { DiscoveryClustersBanner } from './DiscoveryClustersBanner';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
 import { RELATIONAL_INTENT_OPTIONS, type RelationalIntent } from '../../src/lib/relational-intent';
 
-const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
+const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
 type CommunityTabId = 'feed' | 'discovery' | 'connections';
 
@@ -92,9 +89,7 @@ function GroupsList({ userId }: { userId: string | null }) {
   if (!userId) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="rounded-lg border border-amber-200/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-200">
-          {GUIDANCE_BANNER}
-        </div>
+        <p className="text-sm text-subtext rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
         <p className="text-sm text-subtext">Sign in to list and create relational chart groups.</p>
       </div>
     );
@@ -102,9 +97,7 @@ function GroupsList({ userId }: { userId: string | null }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="rounded-lg border border-amber-200/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-200">
-        {GUIDANCE_BANNER}
-      </div>
+      <p className="text-sm text-subtext rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -166,7 +159,7 @@ function GroupsList({ userId }: { userId: string | null }) {
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-bgElev p-6 text-center">
           <p className="text-subtext text-sm">No groups match.</p>
-          <p className="text-xs text-subtext mt-1">Relational groups hold member charts for compatibility and forecasts.</p>
+          <p className="text-xs text-subtext mt-1">{GROUPS_INTRO}</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -219,7 +212,6 @@ function CommunityClientInner() {
   ];
 
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
-  const groupIdFromUrl = searchParams.get('groupId');
 
   return (
     <AppShell>
@@ -282,52 +274,10 @@ function CommunityClientInner() {
 
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-10">
-              {searchParams.get('view') === 'clusters' && (
-                <DiscoveryClustersBanner
-                  onDismiss={() => {
-                    try {
-                      sessionStorage.removeItem('compat_intent_results');
-                    } catch {
-                      /* ignore */
-                    }
-                    const next = new URLSearchParams(searchParams.toString());
-                    next.delete('view');
-                    router.replace(`/community?${next.toString()}`, { scroll: false });
-                  }}
-                />
-              )}
-              <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Intent clusters</h2>
-                <p className="text-sm text-subtext">
-                  Ranked clusters use the same canonical compatibility field; intent only changes projection weights.
-                </p>
-                <IntentForm
-                  defaultIntent="friend"
-                  seekerChartId={seekerChartId ?? undefined}
-                  groupId={groupIdFromUrl}
-                  defaultScope={groupIdFromUrl ? 'this_group' : 'my_groups'}
-                />
-              </section>
-
-              <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Directory search</h2>
-                <p className="text-sm text-subtext">Search by name or handle. Use Evaluate to compare charts before requesting a connection.</p>
-                <UserSearchPanel onInventoryRefresh={bumpCommunityInventory} />
-              </section>
-
-              <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Evaluate charts</h2>
-                <p className="text-sm text-subtext">One-off comparison for a candidate (not a separate product surface).</p>
-                <CompareChartsPanel onSwitchToGroups={() => setTab('connections')} />
-              </section>
-
-              <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text">Compatibility matches</h2>
-                <p className="text-sm text-subtext max-w-2xl">
-                  Ranked from the canonical field. Request connection with the selected intent; the other person must accept before the pair appears in
-                  Connections and Feed.
-                </p>
-                <div className="flex flex-wrap gap-2 mb-2">
+              <section className="card space-y-4">
+                <h2 className="text-lg font-semibold text-text">Step 1 — Intent</h2>
+                <p className="text-sm text-subtext">Choose the relationship lens for connection requests and compatibility ranking.</p>
+                <div className="flex flex-wrap gap-2">
                   {RELATIONAL_INTENT_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
@@ -343,15 +293,35 @@ function CommunityClientInner() {
                     </button>
                   ))}
                 </div>
+              </section>
+
+              <section className="card space-y-3">
+                <h2 className="text-lg font-semibold text-text">Step 2 — Search</h2>
+                <p className="text-sm text-subtext">
+                  Search the directory by name or handle. Results load from search only; they are separate from compatibility matches.
+                </p>
+                <UserSearchPanel
+                  onInventoryRefresh={bumpCommunityInventory}
+                  relationshipKind={discoveryIntent}
+                />
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-text">Step 3 — Compatibility matches</h2>
+                <p className="text-sm text-subtext max-w-2xl">
+                  Ranked matches load only after you click Find matches. Pending connection state comes from your Connections inventory.
+                </p>
                 <CompatibilitySection
                   hasProfile={user !== null}
                   chartId={seekerChartId}
                   limit={10}
                   mode={discoveryIntent}
                   onModeChange={setDiscoveryIntent}
+                  hideIntentSelector
                   onSwitchToProfile={() => router.push('/profile')}
                   currentUserId={user?.id ?? null}
                   onConnectionRequested={bumpCommunityInventory}
+                  inventoryRefreshSignal={inventoryRefreshSignal}
                 />
               </section>
             </div>

@@ -483,23 +483,35 @@ export function useCompat(params: {
     strictBirthTime?: boolean;
   };
 }) {
-  const [matches, setMatches] = useState<CompatMatch[]>([]);
+  /** null = not loaded; [] = loaded, no results */
+  const [matches, setMatches] = useState<CompatMatch[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const effectiveMode = params.mode ?? goalToMode(params.goal);
   const effectiveLimit = params.limit ?? params.pageSize ?? 10;
+  const filtersKey = params.filters ? JSON.stringify(params.filters) : '';
 
-  const refresh = useCallback(async () => {
+  useEffect(() => {
+    setMatches(null);
+    setNextCursor(undefined);
+    setError(null);
+    setIsLoading(false);
+  }, [params.chartId]);
+
+  const run = useCallback(async () => {
     if (!params.chartId) {
       setMatches([]);
+      setNextCursor(undefined);
+      setError(null);
       setIsLoading(false);
       return;
     }
     const abortController = new AbortController();
     try {
       setIsLoading(true);
+      setError(null);
       const queryParams = new URLSearchParams();
       queryParams.set('chartId', params.chartId);
       queryParams.set('mode', effectiveMode);
@@ -529,14 +541,9 @@ export function useCompat(params: {
     } finally {
       setIsLoading(false);
     }
-    return () => abortController.abort();
-  }, [params.chartId, effectiveMode, effectiveLimit, params.cursor, params.facets, JSON.stringify(params.filters)]);
+  }, [params.chartId, effectiveMode, effectiveLimit, params.cursor, params.facets, filtersKey]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { matches, nextCursor, isLoading, error, refresh };
+  return { matches, nextCursor, isLoading, error, run, refresh: run };
 }
 
 // Trending tracks hook

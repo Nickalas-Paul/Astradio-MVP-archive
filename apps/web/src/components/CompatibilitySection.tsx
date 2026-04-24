@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../core/api-base';
-import { useCompat } from '../core/social/hooks';
+import { useCompat, useCommunityInventory, type CommunityInventoryV1 } from '../core/social/hooks';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 import type { RelationalIntent } from '../lib/relational-intent';
@@ -18,10 +18,14 @@ interface CompatibilitySectionProps {
   /** Optional controlled mode (e.g. from Connections intent selector). */
   mode?: RelationalIntent;
   onModeChange?: (mode: RelationalIntent) => void;
+  /** When true, intent chips are omitted (parent owns Step 1 intent). */
+  hideIntentSelector?: boolean;
   /** Phase 8 — session user id for connection requests (not persisted until peer accepts). */
   currentUserId?: string | null;
   /** Called after a connection request is sent successfully. */
   onConnectionRequested?: () => void;
+  /** Increment to refetch GET /api/community/inventory (pending state source of truth). */
+  inventoryRefreshSignal?: number;
 }
 
 const MODES: { value: RelationalIntent; label: string }[] = [
@@ -31,6 +35,23 @@ const MODES: { value: RelationalIntent; label: string }[] = [
   { value: 'collaborator', label: 'Collaborator' },
 ];
 
+function pendingOutgoingForMatch(
+  inventory: CommunityInventoryV1 | null,
+  peerUserId: string,
+  peerChartId: string,
+  relationshipKind: RelationalIntent
+): boolean {
+  const list = inventory?.pendingOutgoingIntents;
+  if (!list?.length) return false;
+  return list.some((raw) => {
+    const i = raw as Record<string, unknown>;
+    const toUid = String(i.toUserId ?? i.to_user_id ?? '');
+    const toCid = String(i.toChartId ?? i.to_chart_id ?? '');
+    const rk = String(i.relationshipKind ?? i.relationship_kind ?? 'friend') as RelationalIntent;
+    return toUid === peerUserId && toCid === peerChartId && rk === relationshipKind;
+  });
+}
+
 export function CompatibilitySection({
   hasProfile,
   chartId,
@@ -39,19 +60,33 @@ export function CompatibilitySection({
   onSwitchToProfile,
   mode: controlledMode,
   onModeChange,
+  hideIntentSelector = false,
   currentUserId,
   onConnectionRequested,
+  inventoryRefreshSignal,
 }: CompatibilitySectionProps) {
   const [internalMode, setInternalMode] = useState<RelationalIntent>('friend');
+  const [userTriggered, setUserTriggered] = useState(false);
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
-  const { matches, isLoading: loading, error, refresh } = useCompat({
+  const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
+  const { matches, isLoading: loading, error, run } = useCompat({
     chartId,
     mode,
     limit,
   });
+
+  useEffect(() => {
+    setUserTriggered(false);
+  }, [chartId]);
+
+  useEffect(() => {
+    if (inventoryRefreshSignal != null && inventoryRefreshSignal > 0) {
+      void refreshInventory();
+    }
+  }, [inventoryRefreshSignal, refreshInventory]);
 
   const modeLabel = MODES.find((m) => m.value === mode)?.label ?? mode;
 
@@ -125,13 +160,15 @@ export function CompatibilitySection({
 
   const handleViewRationale = (targetChartId: string) => {
     trackFeatureUse('compatibility', 'view_rationale');
-    // TODO: Open rationale modal or navigate to detail page
     console.log('Viewing rationale for chart:', targetChartId);
   };
 
   const handleRequestConnection = async (match: { userId: string; chartId: string }) => {
     if (!chartId || !currentUserId) {
       setRequestMsg('Sign in and ensure your chart is set to request a connection.');
+      return;
+    }
+    if (pendingOutgoingForMatch(inventory, match.userId, match.chartId, mode)) {
       return;
     }
     setRequestBusy(match.chartId);
@@ -154,8 +191,9 @@ export function CompatibilitySection({
         setRequestMsg(typeof j.error === 'string' ? j.error : `Request failed (${r.status})`);
         return;
       }
-      setRequestMsg('Request sent. They must accept before it appears in Connections.');
+      await refreshInventory();
       onConnectionRequested?.();
+      setRequestMsg('Request sent');
     } catch (e) {
       setRequestMsg(e instanceof Error ? e.message : 'Request failed');
     } finally {
@@ -175,35 +213,59 @@ export function CompatibilitySection({
     return 'Fair';
   };
 
+  const intentRow =
+    !hideIntentSelector ? (
+      <div className="flex rounded-full bg-bgElev border border-border p-0.5 flex-wrap">
+        {MODES.map((m) => (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => setMode(m.value)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              mode === m.value ? 'bg-emerald text-bg' : 'text-subtext hover:text-text'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  const findMatchesControl = (
+    <button
+      type="button"
+      onClick={() => {
+        setUserTriggered(true);
+        void run();
+      }}
+      disabled={loading}
+      className="px-3 py-1.5 rounded-lg text-sm bg-emerald text-bg font-medium hover:opacity-90 disabled:opacity-50"
+    >
+      {loading ? 'Loading…' : 'Find matches'}
+    </button>
+  );
+
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-      <h3 className="text-lg font-semibold text-text">Compatibility Matches</h3>
-      <div className="flex items-center gap-2">
-        <div className="flex rounded-full bg-bgElev border border-border p-0.5">
-          {MODES.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => setMode(m.value)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                mode === m.value ? 'bg-emerald text-bg' : 'text-subtext hover:text-text'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          disabled={loading}
-          className="px-3 py-1.5 rounded-lg text-sm bg-bgElev text-subtext hover:text-text border border-border disabled:opacity-50"
-        >
-          Refresh
-        </button>
+      <h3 className="text-lg font-semibold text-text">Compatibility matches</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        {intentRow}
+        {findMatchesControl}
       </div>
     </div>
   );
+
+  // Before explicit Find matches: no skeleton, list, or empty state for matches
+  if (!userTriggered) {
+    return (
+      <div className={`card ${className}`}>
+        {header}
+        <p className="text-sm text-subtext">
+          Ranked matches load only when you click Find matches. Changing intent above does not reload until you click again.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -229,16 +291,24 @@ export function CompatibilitySection({
     );
   }
 
-  if (matches.length === 0) {
+  if (matches !== null && matches.length === 0) {
     return (
       <div className={`card ${className}`}>
         {header}
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">No eligible matches for your chart.</p>
+          <p className="text-subtext text-sm">No eligible matches</p>
           <p className="text-xs text-subtext mt-1">
-            Make sure you’ve added your birth chart in Profile. Matches are compatibility-driven — no results means no candidates meet the current criteria, or the directory has no eligible charts yet.
+            No candidates met the current criteria, or the directory has no eligible charts yet. Click Find matches again after adjusting intent if needed.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (!matches?.length) {
+    return (
+      <div className={`card ${className}`}>
+        {header}
       </div>
     );
   }
@@ -250,113 +320,96 @@ export function CompatibilitySection({
         <p className="text-sm text-subtext mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">{requestMsg}</p>
       )}
       <div className="space-y-4">
-        {matches.map((match, index) => (
-          <motion.div
-            key={`${match.userId}-${match.chartId}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 bg-bgElev rounded-lg border border-border hover:border-emerald/50 transition-colors"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-violet to-emerald rounded-full flex items-center justify-center">
-                  <span className="text-bg font-bold text-sm">
-                    {match.userId.slice(-2).toUpperCase()}
-                  </span>
+        {matches.map((match, index) => {
+          const pending = pendingOutgoingForMatch(inventory, match.userId, match.chartId, mode);
+          const connDisabled = !currentUserId || requestBusy === match.chartId || pending;
+          const connLabel = pending ? 'Awaiting response' : requestBusy === match.chartId ? 'Sending…' : 'Request connection';
+          return (
+            <motion.div
+              key={`${match.userId}-${match.chartId}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="p-4 bg-bgElev rounded-lg border border-border hover:border-emerald/50 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-violet to-emerald rounded-full flex items-center justify-center">
+                    <span className="text-bg font-bold text-sm">{match.userId.slice(-2).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-text">
+                      {match.displayName ?? `User ${match.userId.slice(-4)}`}
+                    </h4>
+                    <p className="text-xs text-subtext">Chart {match.chartId.slice(-4)}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-text">
-                    {match.displayName ?? `User ${match.userId.slice(-4)}`}
-                  </h4>
-                  <p className="text-xs text-subtext">
-                    Chart {match.chartId.slice(-4)}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className={`text-lg font-bold ${getScoreColor(match.score)}`}>
-                  {Math.round(match.score * 100)}%
-                </div>
-                <div className="text-xs text-subtext">
-                  {getScoreLabel(match.score)}
-                </div>
-              </div>
-            </div>
 
-            {/* Compatibility Breakdown */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="text-xs">
-                <span className="text-subtext">Elemental:</span>
-                <span className="text-emerald ml-1">
-                  {Math.round((match.facets[0]?.score ?? match.score) * 100)}%
-                </span>
+                <div className="text-right">
+                  <div className={`text-lg font-bold ${getScoreColor(match.score)}`}>{Math.round(match.score * 100)}%</div>
+                  <div className="text-xs text-subtext">{getScoreLabel(match.score)}</div>
+                </div>
               </div>
-              <div className="text-xs">
-                <span className="text-subtext">Modal:</span>
-                <span className="text-violet ml-1">
-                  {Math.round((match.facets[1]?.score ?? match.score) * 100)}%
-                </span>
-              </div>
-              <div className="text-xs">
-                <span className="text-subtext">Aspect:</span>
-                <span className="text-warning ml-1">
-                  {Math.round((match.facets[2]?.score ?? match.score) * 100)}%
-                </span>
-              </div>
-              <div className="text-xs">
-                <span className="text-subtext">Preference:</span>
-                <span className="text-success ml-1">
-                  {Math.round((match.facets[3]?.score ?? match.score) * 100)}%
-                </span>
-              </div>
-            </div>
 
-            {/* Rationale */}
-            <div className="mb-3">
-              <p className="text-xs text-subtext mb-1">Why this works:</p>
-              <div className="flex flex-wrap gap-1">
-                <span className="text-xs px-2 py-1 bg-emerald/10 text-emerald rounded-full">
-                  {match.rationale}
-                </span>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="text-xs">
+                  <span className="text-subtext">Elemental:</span>
+                  <span className="text-emerald ml-1">{Math.round((match.facets[0]?.score ?? match.score) * 100)}%</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-subtext">Modal:</span>
+                  <span className="text-violet ml-1">{Math.round((match.facets[1]?.score ?? match.score) * 100)}%</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-subtext">Aspect:</span>
+                  <span className="text-warning ml-1">{Math.round((match.facets[2]?.score ?? match.score) * 100)}%</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-subtext">Preference:</span>
+                  <span className="text-success ml-1">{Math.round((match.facets[3]?.score ?? match.score) * 100)}%</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-xs text-subtext mb-1">Why this works:</p>
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-xs px-2 py-1 bg-emerald/10 text-emerald rounded-full">{match.rationale}</span>
+                  <button
+                    onClick={() => handleViewRationale(match.chartId)}
+                    className="text-xs px-2 py-1 bg-bgElev text-subtext rounded-full hover:bg-border transition-colors"
+                  >
+                    Details
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 <button
+                  type="button"
+                  onClick={() => handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
+                  disabled={connDisabled}
+                  className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-sm font-medium hover:bg-emerald/30 disabled:opacity-50"
+                >
+                  {connLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePlayCompatibility(match.chartId, match.score)}
+                  className="flex-1 min-w-[120px] btn-primary text-sm py-2"
+                >
+                  Play Mix
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleViewRationale(match.chartId)}
-                  className="text-xs px-2 py-1 bg-bgElev text-subtext rounded-full hover:bg-border transition-colors"
+                  className="px-3 py-2 bg-bgElev text-subtext rounded-lg hover:bg-border transition-colors text-sm"
                 >
                   Details
                 </button>
               </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
-                disabled={!currentUserId || requestBusy === match.chartId}
-                className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-sm font-medium hover:bg-emerald/30 disabled:opacity-50"
-              >
-                {requestBusy === match.chartId ? 'Sending…' : 'Request connection'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePlayCompatibility(match.chartId, match.score)}
-                className="flex-1 min-w-[120px] btn-primary text-sm py-2"
-              >
-                Play Mix
-              </button>
-              <button
-                type="button"
-                onClick={() => handleViewRationale(match.chartId)}
-                className="px-3 py-2 bg-bgElev text-subtext rounded-lg hover:bg-border transition-colors text-sm"
-              >
-                Details
-              </button>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
