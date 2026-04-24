@@ -74,13 +74,23 @@ export function sumBucketsForHits(hits: CrossAspectHitInternal[]): MemberBucketT
   return t;
 }
 
+/**
+ * Intensity channel only: monotonic non-linear map to reduce linear-cap saturation.
+ * norm = clamp01(1 - exp(-raw / cap)), cap = RW_V1_BUCKET_CAP in callers.
+ */
+export function normalizeIntensityBucket(raw: number, cap: number): number {
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  if (!Number.isFinite(cap) || cap <= 0) return clamp01(raw);
+  return clamp01(1 - Math.exp(-raw / cap));
+}
+
 /** Per-member normalize then connection-level mean in fold-mean. */
 export function normalizeMemberBuckets(totals: MemberBucketTotalsV1, cap: number): MemberBucketTotalsV1 {
   const n = (x: number) => clamp01(x / cap);
   return {
     harmony: n(totals.harmony),
     friction: n(totals.friction),
-    intensity: n(totals.intensity),
+    intensity: normalizeIntensityBucket(totals.intensity, cap),
     emotional_activation: n(totals.emotional_activation),
     communication_emphasis: n(totals.communication_emphasis),
     volatility: n(totals.volatility),

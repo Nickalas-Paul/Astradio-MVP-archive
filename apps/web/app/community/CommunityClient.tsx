@@ -13,7 +13,7 @@ import { SignalsPanel } from '../../src/components/community/SignalsPanel';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
-import { RELATIONAL_INTENT_OPTIONS, type RelationalIntent } from '../../src/lib/relational-intent';
+import type { RelationalIntent } from '../../src/lib/relational-intent';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
@@ -274,31 +274,10 @@ function CommunityClientInner() {
 
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-10">
-              <section className="card space-y-4">
-                <h2 className="text-lg font-semibold text-text">Step 1 — Intent</h2>
-                <p className="text-sm text-subtext">Choose the relationship lens for connection requests and compatibility ranking.</p>
-                <div className="flex flex-wrap gap-2">
-                  {RELATIONAL_INTENT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setDiscoveryIntent(opt.value)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        discoveryIntent === opt.value
-                          ? 'bg-emerald-500 text-white ring-2 ring-emerald-500/50'
-                          : 'bg-bgElev text-subtext hover:text-text border border-border'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
               <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Step 2 — Search</h2>
+                <h2 className="text-lg font-semibold text-text">Option A — Search people</h2>
                 <p className="text-sm text-subtext">
-                  Search the directory by name or handle. Results load from search only; they are separate from compatibility matches.
+                  Search the directory by name or handle. Connection requests use the intent you select under Option B.
                 </p>
                 <UserSearchPanel
                   onInventoryRefresh={bumpCommunityInventory}
@@ -307,9 +286,9 @@ function CommunityClientInner() {
               </section>
 
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text">Step 3 — Compatibility matches</h2>
-                <p className="text-sm text-subtext max-w-2xl">
-                  Ranked matches load only after you click Find matches. Pending connection state comes from your Connections inventory.
+                <h2 className="text-lg font-semibold text-text mb-1">Option B — Find matches by intent</h2>
+                <p className="text-sm text-subtext max-w-2xl mb-2">
+                  Choose an intent, then find matches. Results load only after you click Find matches and appear directly below.
                 </p>
                 <CompatibilitySection
                   hasProfile={user !== null}
@@ -317,7 +296,6 @@ function CommunityClientInner() {
                   limit={10}
                   mode={discoveryIntent}
                   onModeChange={setDiscoveryIntent}
-                  hideIntentSelector
                   onSwitchToProfile={() => router.push('/profile')}
                   currentUserId={user?.id ?? null}
                   onConnectionRequested={bumpCommunityInventory}

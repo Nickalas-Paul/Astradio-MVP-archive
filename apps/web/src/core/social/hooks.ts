@@ -486,6 +486,7 @@ export function useCompat(params: {
   /** null = not loaded; [] = loaded, no results */
   const [matches, setMatches] = useState<CompatMatch[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [responseMode, setResponseMode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -496,6 +497,7 @@ export function useCompat(params: {
   useEffect(() => {
     setMatches(null);
     setNextCursor(undefined);
+    setResponseMode(null);
     setError(null);
     setIsLoading(false);
   }, [params.chartId]);
@@ -504,6 +506,7 @@ export function useCompat(params: {
     if (!params.chartId) {
       setMatches([]);
       setNextCursor(undefined);
+      setResponseMode(null);
       setError(null);
       setIsLoading(false);
       return;
@@ -512,6 +515,7 @@ export function useCompat(params: {
     try {
       setIsLoading(true);
       setError(null);
+      setResponseMode(null);
       const queryParams = new URLSearchParams();
       queryParams.set('chartId', params.chartId);
       queryParams.set('mode', effectiveMode);
@@ -533,17 +537,19 @@ export function useCompat(params: {
       const data = await response.json();
       setMatches(Array.isArray(data.matches) ? data.matches : []);
       setNextCursor(data.nextCursor);
+      setResponseMode(typeof data.mode === 'string' ? data.mode : null);
       setError(null);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load matches');
       setMatches([]);
+      setResponseMode(null);
     } finally {
       setIsLoading(false);
     }
   }, [params.chartId, effectiveMode, effectiveLimit, params.cursor, params.facets, filtersKey]);
 
-  return { matches, nextCursor, isLoading, error, run, refresh: run };
+  return { matches, nextCursor, responseMode, isLoading, error, run, refresh: run };
 }
 
 // Trending tracks hook
@@ -629,7 +635,8 @@ export interface RelationalCommunityFeedItem {
   relational_weather_state_hash: string | null;
   transit_snapshot_hash: string;
   ranking: {
-    activation_intensity: number;
+    weather_activation_intensity: number;
+    activation_effective: number;
     overall_relational_intensity: number;
     tie_break_key: string;
   };

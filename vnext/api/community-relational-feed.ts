@@ -2,10 +2,11 @@
  * Community relational weather feed — deterministic ranking over established connections only.
  *
  * Ordering (locked, server-side, identical for pair and group):
- * 1. activation_overlay.activation_vector.intensity DESC
+ * 1. activation_effective DESC — clamp01(0.55 * weather_activation_intensity + 0.45 * overall_relational_intensity)
  * 2. RelationalFieldScoreContract.scalar_outputs.overall_relational_intensity DESC
  * 3. Tie-break ASC: canonical field object_identity_hash (lexical)
  *
+ * weather_activation_intensity is overlay activation_vector.intensity (transit weather only).
  * Requires activation_overlay — natal-only / missing transit is rejected.
  * Does not use compatibility-intent, matches, recency, or engagement.
  */
@@ -13,10 +14,11 @@
 import { snapshotFingerprint } from '../canonical/stable-json';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
+import { clamp01 } from '../compatibility/stable';
 import { fetchChartSnapshot } from '../core/architecture-engine';
 
 /** Documented sort tuple id; bump when tuple definition changes. */
-export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v1';
+export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v2';
 
 export interface TransitInputV1 {
   date: string;
@@ -57,7 +59,10 @@ export interface CommunityRelationalFeedItemV1 {
   relational_weather_state_hash: string | null;
   transit_snapshot_hash: string;
   ranking: {
-    activation_intensity: number;
+    /** Transit relational weather intensity only (overlay activation_vector.intensity). */
+    weather_activation_intensity: number;
+    /** Feed projection: blend of weather + canonical overall_relational_intensity; primary sort key. */
+    activation_effective: number;
     overall_relational_intensity: number;
     tie_break_key: string;
   };
@@ -100,9 +105,9 @@ function uniqueSortedChartIds(ids: string[]): string[] {
 }
 
 function compareFeedItems(a: CommunityRelationalFeedItemV1, b: CommunityRelationalFeedItemV1): number {
-  const ai = a.ranking.activation_intensity;
-  const bi = b.ranking.activation_intensity;
-  if (bi !== ai) return bi - ai;
+  const ae = a.ranking.activation_effective;
+  const be = b.ranking.activation_effective;
+  if (be !== ae) return be - ae;
   const ao = a.ranking.overall_relational_intensity;
   const bo = b.ranking.overall_relational_intensity;
   if (bo !== ao) return bo - ao;
@@ -181,8 +186,11 @@ export async function buildCommunityRelationalFeed(params: {
       throw new Error('Community relational feed requires activation_overlay (transit must produce overlay)');
     }
     const scoring: RelationalFieldScoreContract = computed.scoring;
-    const activation_intensity = overlay.activation_vector.intensity;
+    const weather_activation_intensity = overlay.activation_vector.intensity;
     const overall_relational_intensity = scoring.scalar_outputs.overall_relational_intensity;
+    const activation_effective = clamp01(
+      0.55 * weather_activation_intensity + 0.45 * overall_relational_intensity
+    );
     const tie_break_key = computed.field.object_identity_hash;
 
     if (!envelopeLock) {
@@ -200,7 +208,8 @@ export async function buildCommunityRelationalFeed(params: {
       relational_weather_state_hash: overlay.relational_weather_state_hash,
       transit_snapshot_hash: overlay.transit_snapshot_hash,
       ranking: {
-        activation_intensity,
+        weather_activation_intensity,
+        activation_effective,
         overall_relational_intensity,
         tie_break_key,
       },

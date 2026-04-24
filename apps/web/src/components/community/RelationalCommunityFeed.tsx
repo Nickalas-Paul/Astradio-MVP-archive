@@ -54,7 +54,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         </button>
       </div>
       <p className="text-xs text-subtext">
-        Ranked by activation and relational intensity for your established connections at this moment (
+        Ranked by effective activation (weather + relational), then relational intensity, for your established connections at this moment (
         <span className="font-mono text-text/80">{data?.sort_tuple_version ?? '—'}</span>
         ). Not discovery.{' '}
         <Link href="/community?tab=connections" className="text-emerald hover:underline">
@@ -81,7 +81,8 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                 Charts: {item.chart_ids_ordered.join(', ')}
               </p>
               <div className="flex flex-wrap gap-3 text-xs text-subtext pt-1">
-                <span>activation: {item.ranking.activation_intensity.toFixed(4)}</span>
+                <span>effective: {item.ranking.activation_effective.toFixed(4)}</span>
+                <span>weather: {item.ranking.weather_activation_intensity.toFixed(4)}</span>
                 <span>relational: {item.ranking.overall_relational_intensity.toFixed(4)}</span>
                 <Link
                   href="/community?tab=connections&signals=1"

@@ -18,7 +18,7 @@ interface CompatibilitySectionProps {
   /** Optional controlled mode (e.g. from Connections intent selector). */
   mode?: RelationalIntent;
   onModeChange?: (mode: RelationalIntent) => void;
-  /** When true, intent chips are omitted (parent owns Step 1 intent). */
+  /** When true, intent chips are omitted (parent controls intent elsewhere). */
   hideIntentSelector?: boolean;
   /** Phase 8 — session user id for connection requests (not persisted until peer accepts). */
   currentUserId?: string | null;
@@ -72,11 +72,16 @@ export function CompatibilitySection({
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
-  const { matches, isLoading: loading, error, run } = useCompat({
+  const { matches, responseMode, isLoading: loading, error, run } = useCompat({
     chartId,
     mode,
     limit,
   });
+
+  const rankMode: RelationalIntent = MODES.some((m) => m.value === responseMode)
+    ? (responseMode as RelationalIntent)
+    : mode;
+  const rankModeLabel = MODES.find((m) => m.value === rankMode)?.label ?? rankMode;
 
   useEffect(() => {
     setUserTriggered(false);
@@ -168,7 +173,7 @@ export function CompatibilitySection({
       setRequestMsg('Sign in and ensure your chart is set to request a connection.');
       return;
     }
-    if (pendingOutgoingForMatch(inventory, match.userId, match.chartId, mode)) {
+    if (pendingOutgoingForMatch(inventory, match.userId, match.chartId, rankMode)) {
       return;
     }
     setRequestBusy(match.chartId);
@@ -183,7 +188,7 @@ export function CompatibilitySection({
           toUserId: match.userId,
           fromChartId: chartId,
           toChartId: match.chartId,
-          relationshipKind: mode,
+          relationshipKind: rankMode,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -255,13 +260,22 @@ export function CompatibilitySection({
     </div>
   );
 
+  const apiIntentBanner =
+    userTriggered && responseMode ? (
+      <p className="text-sm text-text mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">
+        <span className="font-medium">Results ranked for:</span>{' '}
+        {rankModeLabel}
+        <span className="text-subtext font-mono text-xs ml-2">(API mode: {responseMode})</span>
+      </p>
+    ) : null;
+
   // Before explicit Find matches: no skeleton, list, or empty state for matches
   if (!userTriggered) {
     return (
       <div className={`card ${className}`}>
         {header}
         <p className="text-sm text-subtext">
-          Ranked matches load only when you click Find matches. Changing intent above does not reload until you click again.
+          Ranked matches load when you click Find matches. Change intent and click again to reload with a new mode.
         </p>
       </div>
     );
@@ -271,6 +285,7 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
+        {apiIntentBanner}
         <div className="space-y-3">
           {Array.from({ length: limit }).map((_, i) => (
             <div key={i} className="skeleton h-24 rounded-lg" />
@@ -284,6 +299,7 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
+        {apiIntentBanner}
         <div className="text-center py-8">
           <p className="text-subtext text-sm">Unable to load compatibility matches</p>
         </div>
@@ -295,6 +311,7 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
+        {apiIntentBanner}
         <div className="text-center py-8">
           <p className="text-subtext text-sm">No eligible matches</p>
           <p className="text-xs text-subtext mt-1">
@@ -316,12 +333,13 @@ export function CompatibilitySection({
   return (
     <div className={`card ${className}`}>
       {header}
+      {apiIntentBanner}
       {requestMsg && (
         <p className="text-sm text-subtext mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">{requestMsg}</p>
       )}
       <div className="space-y-4">
         {matches.map((match, index) => {
-          const pending = pendingOutgoingForMatch(inventory, match.userId, match.chartId, mode);
+          const pending = pendingOutgoingForMatch(inventory, match.userId, match.chartId, rankMode);
           const connDisabled = !currentUserId || requestBusy === match.chartId || pending;
           const connLabel = pending ? 'Awaiting response' : requestBusy === match.chartId ? 'Sending…' : 'Request connection';
           return (
