@@ -410,6 +410,35 @@ router.get('/community/relational-group/:id/members', async (req, res) => {
   }
 });
 
+/**
+ * Read-only stored group composite (reading_snapshot, export id reference) for scoped users.
+ * No generation — queries existing astradio_composite_artifacts only.
+ */
+router.get('/community/relational-group/:idOrSlug/stored-artifact', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'postgres required' });
+    const userId = queryUserId(req) || (await getDevUserId());
+    const idOrSlug = req.params.idOrSlug;
+    const group = await pgStore.resolveRelationalGroupForScope(idOrSlug, userId);
+    if (!group) return res.status(404).json({ error: 'not_found' });
+    const ownerGroupPairs = [{ ownerId: group.ownerId, groupId: group.id }];
+    const groupCompRows = await pgStore.getGroupCompositeRowsForGroupOwnerPairs(ownerGroupPairs);
+    const row = selectGroupCompositeForInventory(groupCompRows, group.id);
+    const st = groupArtifactStatusFromRow(row);
+    const readingSnapshot = row && row.reading_snapshot != null ? row.reading_snapshot : null;
+    return res.status(200).json({
+      groupId: group.id,
+      readingSnapshot,
+      exportJobId: st.exportJobId,
+      compositeArtifactId: st.compositeArtifactId,
+      artifactStatus: st.artifactStatus,
+    });
+  } catch (e) {
+    console.error('[community] GET /community/relational-group/:idOrSlug/stored-artifact', e);
+    return res.status(500).json({ error: e?.message || 'failed' });
+  }
+});
+
 router.post('/community/report', async (req, res) => {
   try {
     if (!pgStore) return res.status(501).json({ error: 'reports require postgres' });

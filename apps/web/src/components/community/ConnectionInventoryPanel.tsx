@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
 
-function artifactStatusCopy(status: string) {
-  if (status === 'audio_available') return 'Reading + sound available';
-  if (status === 'text_available') return 'Reading available · sound unavailable';
+/** Inventory is conservative: export id does not mean playable audio. */
+function inventoryArtifactStatusCopy(status: string) {
+  if (status === 'audio_available') return 'Reading available · sound record on file';
+  if (status === 'text_available') return 'Reading available';
   return 'Reading not generated';
 }
 
@@ -70,8 +71,6 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
   const [declining, setDeclining] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [acceptGroup, setAcceptGroup] = useState<string | null>(null);
-  const [materializingId, setMaterializingId] = useState<string | null>(null);
-  const [artifactMsg, setArtifactMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (refreshSignal != null && refreshSignal > 0) {
@@ -130,49 +129,6 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     }
   };
 
-  const openConnectionArtifacts = async (p: Record<string, unknown>) => {
-    const relId = String(p.id || '');
-    if (!relId || !currentUserId) return;
-    setArtifactMsg(null);
-    const comparisonIdKnown =
-      (p.comparisonId as string | undefined) || (p.comparison_id as string | undefined) || undefined;
-    const pairExport = (p.exportJobId as string | undefined) || (p.export_job_id as string | undefined);
-    const base = getApiBaseUrl() || '';
-    try {
-      if (comparisonIdKnown) {
-        window.open(`${base}/api/comparisons/${encodeURIComponent(String(comparisonIdKnown))}`, '_blank', 'noopener,noreferrer');
-        if (pairExport && String(pairExport).trim()) {
-          window.open(`${base}/api/exports/${encodeURIComponent(String(pairExport))}`, '_blank', 'noopener,noreferrer');
-        }
-        return;
-      }
-      setMaterializingId(relId);
-      const r = await fetch(
-        `${base}/api/relationships/${encodeURIComponent(relId)}/materialize?userId=${encodeURIComponent(currentUserId)}`,
-        { method: 'POST', credentials: 'same-origin' }
-      );
-      const j = (await r.json().catch(() => ({}))) as { error?: string; comparisonId?: string; exportJobId?: string | null };
-      if (!r.ok) {
-        setArtifactMsg(typeof j.error === 'string' ? j.error : `Materialize failed (${r.status})`);
-        return;
-      }
-      await refresh();
-      const cmp = typeof j.comparisonId === 'string' ? j.comparisonId : undefined;
-      if (cmp) {
-        window.open(`${base}/api/comparisons/${encodeURIComponent(cmp)}`, '_blank', 'noopener,noreferrer');
-      }
-      const ex = typeof j.exportJobId === 'string' && j.exportJobId ? j.exportJobId : null;
-      if (ex) {
-        window.open(`${base}/api/exports/${encodeURIComponent(ex)}`, '_blank', 'noopener,noreferrer');
-        setArtifactMsg(null);
-      } else if (cmp) {
-        setArtifactMsg('Reading ready. Sound unavailable for this connection.');
-      }
-    } finally {
-      setMaterializingId(null);
-    }
-  };
-
   const acceptGroupInvite = async (groupId: string, inviteId: string) => {
     const key = `${groupId}:${inviteId}`;
     setAcceptGroup(key);
@@ -221,7 +177,6 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
 
       {loading && <p className="text-sm text-subtext">Loading inventory…</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {artifactMsg && <p className="text-sm text-amber-600 dark:text-amber-400">{artifactMsg}</p>}
 
       {data && (
         <>
@@ -335,17 +290,16 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     </div>
                     <p className="text-xs text-subtext">Label: {String(p.label || '')}</p>
                     <p className="text-xs text-subtext">
-                      Artifacts: <span className="text-text">{artifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
+                      Artifacts:{' '}
+                      <span className="text-text">{inventoryArtifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="button"
-                        disabled={materializingId === String(p.id)}
-                        onClick={() => openConnectionArtifacts(p)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30 disabled:opacity-50"
+                      <Link
+                        href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
+                        className="inline-flex px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30"
                       >
-                        {materializingId === String(p.id) ? 'Preparing…' : 'Open connection'}
-                      </button>
+                        Open connection
+                      </Link>
                     </div>
                     {currentUserId && <PairWeatherPreview relationshipId={String(p.id)} userId={currentUserId} />}
                   </li>
@@ -362,7 +316,6 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
                   const gSlug = (g.slug as string | undefined) || (g.id as string);
-                  const groupEx = (g.exportJobId as string | undefined) || (g.export_job_id as string | undefined);
                   return (
                     <li key={String(g.id)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2">
                       <div>
@@ -370,7 +323,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                         <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
                       </div>
                       <p className="text-xs text-subtext">
-                        Artifacts: <span className="text-text">{artifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
+                        Artifacts:{' '}
+                        <span className="text-text">{inventoryArtifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Link
@@ -379,16 +333,6 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                         >
                           Open group
                         </Link>
-                        {g.artifactStatus === 'audio_available' && groupEx && String(groupEx).trim() ? (
-                          <a
-                            href={`${getApiBaseUrl() || ''}/api/exports/${encodeURIComponent(String(groupEx))}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex px-3 py-1.5 rounded-lg border border-border text-xs text-text hover:bg-surface-2"
-                          >
-                            Open sound
-                          </a>
-                        ) : null}
                       </div>
                     </li>
                   );

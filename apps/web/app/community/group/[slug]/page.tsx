@@ -1,13 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { MemberCard } from '@/components/compatibility/MemberCard';
 import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
+import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
+
+function textFromReadingSnapshot(snapshot: unknown): string {
+  if (snapshot == null) return '';
+  if (typeof snapshot === 'string') return snapshot;
+  if (typeof snapshot === 'object' && snapshot !== null && 'text' in snapshot) {
+    const t = (snapshot as { text?: unknown }).text;
+    return typeof t === 'string' ? t : '';
+  }
+  return '';
+}
+
+function groupArtifactLabel(artifactStatus: string, hasExportRef: boolean) {
+  if (artifactStatus === 'not_generated') return 'Reading not generated';
+  if (hasExportRef) return 'Reading available · sound record on file';
+  if (artifactStatus === 'text_available') return 'Reading available';
+  return 'Reading available';
+}
 
 export default function CommunityGroupPage({ params }: { params: { slug: string } }) {
   const slug = typeof params?.slug === 'string' ? decodeURIComponent(params.slug) : '';
@@ -25,6 +43,14 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
   const [error, setError] = useState<string | null>(null);
   const { user, primaryChart } = useProfile();
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
+
+  const [stored, setStored] = useState<{
+    readingSnapshot: unknown;
+    exportJobId: string | null;
+    artifactStatus: string;
+  } | null>(null);
+  const [storedLoading, setStoredLoading] = useState(true);
+  const ownerCompositeOnceRef = useRef(false);
 
   useEffect(() => {
     if (!slug) {
@@ -76,7 +102,11 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
           if (profileRes.ok) {
             const pr = await profileRes.json();
             setProfile(pr);
+          } else {
+            setProfile(null);
           }
+        } else {
+          setProfile(null);
         }
       } catch {
         setError('Failed to load');
@@ -87,11 +117,59 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
   }, [slug, user?.id]);
 
   useEffect(() => {
-    if (!group || !user?.id || group.ownerId !== user.id) return;
-    void fetch(`/api/groups/${encodeURIComponent(group.id)}/composite`, {
-      credentials: 'same-origin',
-    }).catch(() => {});
-  }, [group?.id, group?.ownerId, user?.id]);
+    if (!group?.id) return;
+    let cancelled = false;
+    (async () => {
+      setStoredLoading(true);
+      const r = await fetch(`/api/community/relational-group/${encodeURIComponent(group.id)}/stored-artifact`, {
+        credentials: 'same-origin',
+      });
+      if (cancelled) return;
+      if (r.ok) {
+        const j = (await r.json()) as {
+          readingSnapshot?: unknown;
+          exportJobId?: string | null;
+          artifactStatus?: string;
+        };
+        setStored({
+          readingSnapshot: j.readingSnapshot ?? null,
+          exportJobId: typeof j.exportJobId === 'string' && j.exportJobId.trim() ? j.exportJobId.trim() : null,
+          artifactStatus: String(j.artifactStatus || 'not_generated'),
+        });
+      } else {
+        setStored(null);
+      }
+      if (!cancelled) setStoredLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [group?.id]);
+
+  useEffect(() => {
+    if (!group || !user?.id) return;
+    if (user.id !== group.ownerId) return;
+    if (storedLoading) return;
+    const readingText = textFromReadingSnapshot(stored?.readingSnapshot);
+    if (readingText) return;
+    if (ownerCompositeOnceRef.current) return;
+    ownerCompositeOnceRef.current = true;
+    void (async () => {
+      const r = await fetch(`/api/groups/${encodeURIComponent(group.id)}/composite`, {
+        credentials: 'same-origin',
+      });
+      if (!r.ok) return;
+      const j = (await r.json().catch(() => ({}))) as { artifact?: { readingSnapshot?: unknown; exportJobId?: string } };
+      const art = j.artifact;
+      if (!art) return;
+      setStored({
+        readingSnapshot: art.readingSnapshot ?? null,
+        exportJobId: art.exportJobId && String(art.exportJobId).trim() ? String(art.exportJobId).trim() : null,
+        artifactStatus:
+          art.exportJobId && String(art.exportJobId).trim() ? 'audio_available' : art.readingSnapshot ? 'text_available' : 'not_generated',
+      });
+    })();
+  }, [group, user?.id, stored, storedLoading]);
 
   if (loading && !group) {
     return (
@@ -113,6 +191,11 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
     );
   }
 
+  const readingText = textFromReadingSnapshot(stored?.readingSnapshot);
+  const exId = stored?.exportJobId && String(stored.exportJobId).trim() ? String(stored.exportJobId).trim() : null;
+  const hasExportRef = !!(stored?.exportJobId && String(stored.exportJobId).trim());
+  const artifactStatus = stored?.artifactStatus || 'not_generated';
+
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -128,29 +211,42 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
           <h1 className="text-2xl font-bold text-text">{group.name}</h1>
           <p className="text-subtext mt-1">{group.description}</p>
           <p className="text-sm text-subtext mt-2">{group.memberCount ?? members.length} members</p>
+          <p className="text-sm text-subtext mt-2">
+            Artifact: {storedLoading ? '…' : groupArtifactLabel(artifactStatus, hasExportRef)}
+          </p>
         </header>
 
-        {profile && (
-          <section className="rounded-lg border border-border bg-surface-1 p-4">
-            <h2 className="text-lg font-medium text-text mb-2">Group profile</h2>
+        <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-2">
+          <h2 className="text-lg font-medium text-text">Group reading</h2>
+          {storedLoading && <p className="text-sm text-subtext">Loading stored reading…</p>}
+          {!storedLoading && readingText ? <p className="text-sm text-text whitespace-pre-wrap">{readingText}</p> : null}
+          {!storedLoading && !readingText ? (
+            <p className="text-sm text-subtext">
+              {user?.id === group.ownerId
+                ? 'No stored reading yet. A reading will be prepared when the group composition is available.'
+                : 'No stored reading for this group yet. The group owner may need to open the group once to generate a stored reading.'}
+            </p>
+          ) : null}
+        </section>
+
+        {exId ? (
+          <section className="space-y-2">
+            <h2 className="text-lg font-medium text-text">Sound</h2>
+            <ValidatedExportAudioPlayer exportId={exId} />
+          </section>
+        ) : null}
+
+        {profile && (profile.explanation?.sections?.length ?? 0) > 0 && (
+          <section className="rounded-lg border border-dashed border-border bg-surface-1/50 p-4">
+            <h2 className="text-base font-medium text-text mb-2">Aggregate profile (context)</h2>
             {profile.explanation?.sections?.map((s, i) => (
               <div key={i} className="mb-2">
                 <h3 className="text-sm font-medium text-subtext">{s?.title}</h3>
                 <p className="text-sm text-text">{s?.text}</p>
               </div>
             ))}
-            {!profile.explanation?.sections?.length && (
-              <p className="text-sm text-subtext">No aggregate profile (add member charts to compute).</p>
-            )}
           </section>
         )}
-
-        <Link
-          href={`/community?tab=discovery&groupId=${group.id}`}
-          className="inline-block px-4 py-2 rounded-lg border border-border bg-surface-2 text-sm font-medium hover:bg-surface-3"
-        >
-          Compatibility in this group
-        </Link>
 
         {members.length > 0 && (
           <section>
