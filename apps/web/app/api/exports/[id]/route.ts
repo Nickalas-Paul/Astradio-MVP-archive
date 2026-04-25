@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
+/** Lightweight existence check — no WAV body (pair with GET in ValidatedExportAudioPlayer). */
+export async function HEAD(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const backend = getEngineBaseUrl();
+  const { id } = await params;
+  if (!/^[a-f0-9]{64}$/.test(id)) {
+    return new NextResponse(null, { status: 400 });
+  }
+  try {
+    const r = await fetch(`${backend}/api/exports/${id}`, { method: 'HEAD' });
+    return new NextResponse(null, { status: r.status });
+  } catch {
+    return new NextResponse(null, { status: 502 });
+  }
+}
+
 // Proxy to backend /api/exports/:id (Render). No local filesystem in web app.
 export async function GET(
   _request: NextRequest,

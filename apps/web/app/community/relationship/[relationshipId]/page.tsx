@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { useProfile } from '@/core/social/hooks';
+import { getApiBaseUrl } from '@/core/api-base';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 
 type RelationshipRow = {
@@ -37,9 +38,13 @@ function peerFromInventory(
   };
 }
 
-function artifactStatusLine(comparison: ComparisonJson | null, exportId: string | null) {
+function artifactStatusLine(
+  comparison: ComparisonJson | null,
+  exportId: string | null,
+  exportVerifiedReachable: boolean | null
+) {
   if (!comparison) return 'Reading not generated';
-  if (exportId) return 'Reading available · sound record on file';
+  if (exportId && exportVerifiedReachable === true) return 'Reading available · sound record on file';
   return 'Reading available';
 }
 
@@ -69,6 +74,8 @@ export default function CommunityRelationshipArtifactPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [materializeError, setMaterializeError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  /** null = idle or checking; true/false after HEAD /api/exports/:id (no full WAV). */
+  const [exportReachable, setExportReachable] = useState<boolean | null>(null);
 
   const materializeOnceRef = useRef(false);
 
@@ -168,6 +175,32 @@ export default function CommunityRelationshipArtifactPage() {
     comparison && typeof comparison.exportJobId === 'string' && comparison.exportJobId.trim()
       ? comparison.exportJobId.trim()
       : null;
+
+  useEffect(() => {
+    if (!exId || !/^[a-f0-9]{64}$/.test(exId)) {
+      setExportReachable(null);
+      return;
+    }
+    let cancelled = false;
+    setExportReachable(null);
+    const base = getApiBaseUrl() || '';
+    (async () => {
+      try {
+        const r = await fetch(`${base}/api/exports/${encodeURIComponent(exId)}`, {
+          method: 'HEAD',
+          credentials: 'same-origin',
+        });
+        if (cancelled) return;
+        setExportReachable(r.status === 204 || r.status === 200);
+      } catch {
+        if (!cancelled) setExportReachable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exId]);
+
   const { short, long, bullets } = comparison ? renderCompatText(comparison) : { short: '', long: '', bullets: [] as string[] };
 
   return (
@@ -199,7 +232,9 @@ export default function CommunityRelationshipArtifactPage() {
               {comparison?.relationshipMode ? (
                 <p className="text-sm text-text">Mode: {String(comparison.relationshipMode)}</p>
               ) : null}
-              <p className="text-sm text-subtext">Artifact: {artifactStatusLine(comparison, exId)}</p>
+              <p className="text-sm text-subtext">
+                Artifact: {artifactStatusLine(comparison, exId, exportReachable)}
+              </p>
             </header>
 
             {materializeError && <p className="text-amber-600 dark:text-amber-300 text-sm">{materializeError}</p>}
@@ -223,7 +258,7 @@ export default function CommunityRelationshipArtifactPage() {
               <p className="text-sm text-subtext">No text blocks in this reading yet.</p>
             )}
 
-            {exId && (
+            {exId && exportReachable === true && (
               <section className="space-y-2">
                 <h2 className="text-lg font-medium text-text">Sound</h2>
                 <ValidatedExportAudioPlayer exportId={exId} />

@@ -145,6 +145,13 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
     try {
       const bindingId = identityBindingId || item.binding_id;
+      const rawText = artifact.text;
+      const textForSave =
+        typeof rawText === 'string'
+          ? rawText
+          : rawText && typeof rawText === 'object' && !Array.isArray(rawText)
+            ? (rawText as Record<string, unknown>)
+            : null;
       const payload = {
         scopeKind: item.connection_kind === 'pair' ? 'pair' : item.connection_kind === 'relational_group' ? 'group' : null,
         bindingId,
@@ -164,7 +171,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         renderedArtifact: {
           planHash: typeof artifact.planHash === 'string' ? artifact.planHash : null,
           compositionId: typeof artifact.compositionId === 'string' ? artifact.compositionId : null,
-          text: typeof artifact.text === 'string' ? artifact.text : null,
+          text: textForSave,
           exportJobId:
             artifact.audio && typeof artifact.audio === 'object' && typeof (artifact.audio as Record<string, unknown>).export_id === 'string'
               ? (artifact.audio as Record<string, unknown>).export_id
@@ -200,7 +207,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; ok?: boolean };
+      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; repaired?: number; ok?: boolean };
       if (!r.ok) {
         setSaveStatusByFeedId((prev) => ({
           ...prev,
@@ -209,10 +216,17 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         return;
       }
       const inserted = j.inserted;
+      const repaired = j.repaired;
       setSaveStatusByFeedId((prev) => ({
         ...prev,
         [item.feed_item_id]:
-          inserted === 0 ? 'Already in Library' : inserted === 1 ? 'Saved to Library' : 'Library updated',
+          inserted === 1
+            ? 'Saved to Library'
+            : repaired === 1
+              ? 'Library updated'
+              : inserted === 0
+                ? 'Already in Library'
+                : 'Library updated',
       }));
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({

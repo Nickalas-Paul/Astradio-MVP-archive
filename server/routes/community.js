@@ -553,6 +553,8 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       return res.status(409).json({ error: 'artifact_identity_mismatch' });
     }
 
+    const resolvedExportJobId = existingDaily.exportJobId || exportJobId;
+    const weatherPayload = body.weather && typeof body.weather === 'object' ? body.weather : null;
     const saved = await pgStore.ensureCommunityRelationalWeatherLibraryEntryForUser({
       ownerUserId: userId,
       scopeKind,
@@ -568,15 +570,28 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       dailyArtifactId: existingDaily.id,
       planHash: existingDaily.planHash || planHash,
       compositionId: existingDaily.compositionId || compositionId,
-      exportJobId: existingDaily.exportJobId || exportJobId,
+      exportJobId: resolvedExportJobId,
       text,
-      weather: body.weather && typeof body.weather === 'object' ? body.weather : null,
+      weather: weatherPayload,
     });
+
+    let repaired = false;
+    if (!saved.inserted) {
+      const r = await pgStore.repairCommunityRelationalWeatherLibraryComposition({
+        ownerUserId: userId,
+        objectIdentityHash,
+        text,
+        exportJobId: resolvedExportJobId,
+        weather: weatherPayload,
+      });
+      repaired = !!r.updated;
+    }
 
     return res.status(200).json({
       ok: true,
       objectIdentityHash,
       inserted: saved.inserted ? 1 : 0,
+      repaired: repaired ? 1 : 0,
     });
   } catch (e) {
     console.error('[community] POST /community/artifacts/save', e);

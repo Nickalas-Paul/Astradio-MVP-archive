@@ -2011,6 +2011,19 @@ app.post('/api/exports', requireBeta, async (req, res) => {
     res.status(500).json({ error: 'export_failed', message: e.message });
   }
 });
+app.head('/api/exports/:id', async (req, res) => {
+  try {
+    const id = (req.params.id || '').trim();
+    if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).end();
+    const existsFn = exportStore && typeof exportStore.exists === 'function' ? exportStore.exists.bind(exportStore) : null;
+    if (!existsFn) return res.status(501).end();
+    const ok = await existsFn(id);
+    if (!ok) return res.status(404).end();
+    return res.status(204).end();
+  } catch (e) {
+    if (!res.headersSent) res.status(500).end();
+  }
+});
 app.get('/api/exports/:id', async (req, res) => {
   try {
     const id = (req.params.id || '').trim();
