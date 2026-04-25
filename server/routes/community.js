@@ -6,6 +6,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const crypto = require('crypto');
 const { optionalRequire } = require('../../lib/opt/optional');
 
 let pgStore = null;
@@ -248,6 +249,19 @@ function groupArtifactStatusFromRow(row) {
   return { artifactStatus: 'text_available', exportJobId: null, compositeArtifactId: String(row.id) };
 }
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function buildCommunityRelationalWeatherObjectIdentityHash(input) {
+  return crypto.createHash('sha256').update(canonicalJson(input), 'utf8').digest('hex');
+}
+
 async function enrichRelationshipForViewer(rel, viewerUserId, exportByComparisonId) {
   const cLo = await pgStore.getChart(rel.chartIdLow);
   const cHi = await pgStore.getChart(rel.chartIdHigh);
@@ -436,6 +450,115 @@ router.get('/community/relational-group/:idOrSlug/stored-artifact', async (req, 
   } catch (e) {
     console.error('[community] GET /community/relational-group/:idOrSlug/stored-artifact', e);
     return res.status(500).json({ error: e?.message || 'failed' });
+  }
+});
+
+router.post('/community/artifacts/save', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const body = req.body || {};
+    const userId = await resolveCommunityUserId(req, body);
+    const scopeKindRaw = String(body.scopeKind || '').trim();
+    const scopeKind = scopeKindRaw === 'pair' || scopeKindRaw === 'group' ? scopeKindRaw : null;
+    if (!scopeKind) return res.status(400).json({ error: 'scope_kind_required' });
+    const bindingId = String(body.bindingId || '').trim();
+    if (!bindingId) return res.status(400).json({ error: 'binding_id_required' });
+    const chartIdsOrdered = Array.isArray(body.chartIdsOrdered)
+      ? Array.from(
+          new Set(
+            body.chartIdsOrdered
+              .map((x) => String(x || '').trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, 'en'))
+      : [];
+    if (chartIdsOrdered.length < 2) return res.status(400).json({ error: 'chart_ids_ordered_required' });
+    const transitSnapshotHash = String(body.transit_snapshot_hash || '').trim();
+    const relationalWeatherStateHash = String(body.relational_weather_state_hash || '').trim();
+    if (!transitSnapshotHash || !relationalWeatherStateHash) {
+      return res.status(400).json({ error: 'weather_identity_required' });
+    }
+    const renderedArtifact =
+      body.renderedArtifact && typeof body.renderedArtifact === 'object' && !Array.isArray(body.renderedArtifact)
+        ? body.renderedArtifact
+        : {};
+    const planHash = String(renderedArtifact.planHash || body.planHash || '').trim() || null;
+    const compositionId = String(renderedArtifact.compositionId || body.compositionId || '').trim() || null;
+    const exportJobId = String(renderedArtifact.exportJobId || body.exportJobId || '').trim() || null;
+    const text = String(renderedArtifact.text || body.text || '').trim() || null;
+
+    const objectIdentityHash = buildCommunityRelationalWeatherObjectIdentityHash({
+      kind: 'community_relational_weather',
+      scopeKind,
+      bindingId,
+      chartIdsOrdered,
+      transitSnapshotHash,
+      relationalWeatherStateHash,
+      planHash: planHash || null,
+      compositionId: compositionId || null,
+    });
+
+    let participantUserIds = [];
+    let relationshipId = null;
+    let groupId = null;
+
+    if (scopeKind === 'pair') {
+      relationshipId = String(body.relationshipId || bindingId).trim();
+      const relationship = await pgStore.getRelationshipById(relationshipId);
+      if (!relationship) return res.status(404).json({ error: 'relationship_not_found' });
+      const charts = [relationship.chartIdLow, relationship.chartIdHigh].sort((a, b) => String(a).localeCompare(String(b), 'en'));
+      if (charts[0] !== chartIdsOrdered[0] || charts[1] !== chartIdsOrdered[1]) {
+        return res.status(400).json({ error: 'chart_scope_mismatch' });
+      }
+      const lowChart = await pgStore.getChart(relationship.chartIdLow);
+      const highChart = await pgStore.getChart(relationship.chartIdHigh);
+      participantUserIds = Array.from(
+        new Set(
+          [lowChart?.ownerId, highChart?.ownerId]
+            .map((x) => (typeof x === 'string' ? x.trim() : ''))
+            .filter(Boolean)
+        )
+      );
+      if (!participantUserIds.includes(userId)) return res.status(403).json({ error: 'forbidden' });
+    } else {
+      const group = await pgStore.resolveRelationalGroupForScope(bindingId, userId);
+      if (!group) return res.status(404).json({ error: 'group_not_found' });
+      groupId = group.id;
+      const members = await pgStore.listRelationalGroupMembers(group.id, group.ownerId);
+      if (!members) return res.status(404).json({ error: 'group_not_found' });
+      const platformMembers = members
+        .map((m) => (typeof m.userId === 'string' ? m.userId.trim() : ''))
+        .filter(Boolean);
+      participantUserIds = Array.from(new Set([group.ownerId, ...platformMembers].filter(Boolean)));
+      if (!participantUserIds.includes(userId)) return res.status(403).json({ error: 'forbidden' });
+    }
+
+    const rows = await pgStore.ensureCommunityRelationalWeatherLibraryEntriesForParticipants({
+      participantUserIds,
+      scopeKind,
+      bindingId,
+      relationshipId,
+      groupId,
+      chartIdsOrdered,
+      transitSnapshotHash,
+      relationalWeatherStateHash,
+      objectIdentityHash,
+      planHash,
+      compositionId,
+      exportJobId,
+      text,
+      weather: body.weather && typeof body.weather === 'object' ? body.weather : null,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      objectIdentityHash,
+      inserted: rows.filter((r) => r.inserted).length,
+      participants: rows.length,
+    });
+  } catch (e) {
+    console.error('[community] POST /community/artifacts/save', e);
+    return res.status(500).json({ error: e?.message || 'community_artifact_save_failed' });
   }
 });
 

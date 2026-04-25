@@ -42,6 +42,37 @@ function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {
   }));
 }
 
+function explanationFromCompatibilityText(raw: unknown): { sections: Array<Record<string, unknown>> } {
+  if (typeof raw === 'string') {
+    return {
+      sections: [{ sectionId: 'community', title: 'Community artifact', text: raw }],
+    };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { short?: unknown; long?: unknown; bullets?: unknown };
+    const short = typeof obj.short === 'string' ? obj.short : '';
+    const long = typeof obj.long === 'string' ? obj.long : '';
+    const bullets = Array.isArray(obj.bullets) ? obj.bullets.map((b) => String(b)) : [];
+    const text = [short, long].filter(Boolean).join('\n\n');
+    return {
+      sections: [{ sectionId: 'community', title: 'Community artifact', text, bullets }],
+    };
+  }
+  return {
+    sections: [{ sectionId: 'community', title: 'Community artifact', text: '' }],
+  };
+}
+
+function librarySourceLabel(source: unknown): string {
+  const s = String(source || '').trim();
+  if (s === 'community_relationship') return 'Relationship artifact';
+  if (s === 'community_group') return 'Group relationship artifact';
+  if (s === 'community_relational_weather') return 'Relational weather artifact';
+  if (s === 'profile_active') return 'Current transit';
+  if (s === 'profile_identity') return 'Identity';
+  return s || '—';
+}
+
 function isValidTransitLocationSource(s: unknown): s is CanonicalLocation['source'] {
   return s === 'browser_geo' || s === 'geofinder';
 }
@@ -448,6 +479,98 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       const ps = parseSandboxState(row.sandbox_state);
       if (source === 'profile_identity' || ps?.kind === 'profile_identity') {
         setLibraryDetailLoading(false);
+        return;
+      }
+      if (source === 'community_relationship' || ps?.kind === 'community_relationship') {
+        const cmpId =
+          (typeof ps?.comparisonId === 'string' && ps.comparisonId.trim()) ||
+          (typeof row.object_identity_hash === 'string' && row.object_identity_hash.trim()) ||
+          '';
+        if (!cmpId) {
+          setLibraryReconstructError('Missing comparison reference for this relationship artifact.');
+          return;
+        }
+        setLibraryReconstructLoading(true);
+        const cmpRes = await fetch(`${base || ''}/api/comparisons/${encodeURIComponent(cmpId)}`, {
+          credentials: 'same-origin',
+        });
+        const cmp = (await cmpRes.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!cmpRes.ok) {
+          setLibraryReconstructError(
+            typeof cmp.error === 'string' ? cmp.error : `Failed to load comparison (${cmpRes.status})`,
+          );
+          return;
+        }
+        setLibraryReconstructResult({
+          explanation: explanationFromCompatibilityText(cmp.compatibilityText),
+        });
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+          if (url) setLibraryDetailAudioUrl(url);
+        }
+        return;
+      }
+      if (source === 'community_group' || ps?.kind === 'community_group') {
+        const groupId = typeof ps?.groupId === 'string' ? ps.groupId : '';
+        if (!groupId) {
+          setLibraryReconstructError('Missing group reference for this group relationship artifact.');
+          return;
+        }
+        setLibraryReconstructLoading(true);
+        const gr = await fetch(
+          `${base || ''}/api/community/relational-group/${encodeURIComponent(groupId)}/stored-artifact`,
+          { credentials: 'same-origin' },
+        );
+        const gj = (await gr.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!gr.ok) {
+          setLibraryReconstructError(
+            typeof gj.error === 'string' ? gj.error : `Failed to load group artifact (${gr.status})`,
+          );
+          return;
+        }
+        const readingText =
+          typeof (gj.readingSnapshot as { text?: unknown } | null)?.text === 'string'
+            ? ((gj.readingSnapshot as { text?: string }).text ?? '')
+            : '';
+        setLibraryReconstructResult({
+          explanation: {
+            sections: [{ sectionId: 'community', title: 'Group relationship artifact', text: readingText }],
+          },
+        });
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+          if (url) setLibraryDetailAudioUrl(url);
+        }
+        return;
+      }
+      if (source === 'community_relational_weather' || ps?.kind === 'community_relational_weather') {
+        const report = row.report as { text?: unknown; weather?: unknown } | undefined;
+        const text =
+          typeof report?.text === 'string'
+            ? report.text
+            : typeof ps?.planHash === 'string'
+              ? `Saved relational weather artifact (${ps.planHash.slice(0, 16)}…).`
+              : 'Saved relational weather artifact.';
+        const weatherHash =
+          typeof ps?.relational_weather_state_hash === 'string' ? ps.relational_weather_state_hash : '';
+        setLibraryReconstructResult({
+          explanation: {
+            sections: [
+              {
+                sectionId: 'community',
+                title: 'Relational weather artifact',
+                text: weatherHash ? `${text}\n\nWeather hash: ${weatherHash}` : text,
+              },
+            ],
+          },
+        });
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+          if (url) setLibraryDetailAudioUrl(url);
+        }
         return;
       }
       if (source === 'profile_active' || ps?.kind === 'profile_active') {
@@ -1037,7 +1160,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
         {profileSection === 'library' && (
           <div className="space-y-3">
-            <p className="text-sm text-subtext">Saved transit bookmarks (text reconstructed from stored inputs; audio when exported).</p>
+            <p className="text-sm text-subtext">Saved profile and community artifacts (text first; audio when export is available).</p>
             {libraryLoading ? (
               <p className="text-sm text-subtext">Loading…</p>
             ) : (
@@ -1048,7 +1171,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                       <span>
                         <span className="text-subtext">{String(row.created_at)}</span>
                         {' · '}
-                        <span>{String(row.source ?? '—')}</span>
+                        <span>{librarySourceLabel(row.source)}</span>
                         {' · '}
                         <span>{String(row.composition_type ?? '—')}</span>
                       </span>
@@ -1066,7 +1189,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                 {libraryOpenId && (
                   <div className="rounded border border-border bg-bgElev p-4 space-y-3 mt-4">
                     <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-medium text-text">Saved artifact</p>
+                      <p className="text-sm font-medium text-text">
+                        {libraryDetailRow ? librarySourceLabel(libraryDetailRow.source) : 'Saved artifact'}
+                      </p>
                       <button
                         type="button"
                         className="text-xs text-subtext hover:text-text"

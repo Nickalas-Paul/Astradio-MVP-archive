@@ -473,6 +473,28 @@ function createStage4Router() {
         });
         artifact = await pgStore.getCompositeArtifactById(artifact.id);
       }
+      const memberUserIds = Array.from(
+        new Set(
+          [
+            group.ownerId,
+            ...members
+              .map((m) => (typeof m.userId === 'string' ? m.userId.trim() : ''))
+              .filter(Boolean),
+          ].filter(Boolean)
+        )
+      );
+      await pgStore.ensureCommunityGroupLibraryEntriesForMembers({
+        memberUserIds,
+        groupId: req.params.id,
+        groupSlug: group.slug || null,
+        groupName: group.name || null,
+        compositeArtifactId: artifact.id,
+        chartIds,
+        exportJobId: artifact.exportJobId || exportJobIdFromCompose || null,
+        compositionId: artifact.compositionId || composed.compositionId || null,
+        planHash: artifact.planHash || composed.planHash || null,
+        readingSnapshot: artifact.readingSnapshot || readingSnapshot || null,
+      });
       return res.status(200).json({
         groupId: req.params.id,
         artifact,

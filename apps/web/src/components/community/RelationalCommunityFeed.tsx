@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
 
 interface RelationalCommunityFeedProps {
@@ -15,6 +17,10 @@ interface RelationalCommunityFeedProps {
  */
 export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
+  const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
+  const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
+  const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
+  const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
 
   if (!userId) {
     return (
@@ -40,6 +46,128 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   }
 
   const items = data?.items ?? [];
+  const transitLock = (data?.transit_lock ?? {}) as {
+    ts?: string;
+    lat?: number;
+    lon?: number;
+    tz?: string;
+  };
+
+  const openAndRenderArtifact = async (item: (typeof items)[number]) => {
+    if (item.connection_kind === 'campaign_group') return;
+    const base = getApiBaseUrl();
+    const transitDatetime = String(transitLock.ts || '').trim();
+    const lat = Number(transitLock.lat);
+    const lon = Number(transitLock.lon);
+    const timezone = String(transitLock.tz || 'UTC').trim();
+    if (!transitDatetime || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+      setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Missing transit lock; refresh feed.' }));
+      return;
+    }
+    const scopePath =
+      item.connection_kind === 'pair'
+        ? `/api/relationships/${encodeURIComponent(item.binding_id)}/forecast`
+        : `/api/groups/${encodeURIComponent(item.binding_id)}/forecast`;
+    const qs = new URLSearchParams({
+      transitDatetime,
+      transitLatitude: String(lat),
+      transitLongitude: String(lon),
+      transitTimezone: timezone,
+      compose: '1',
+    });
+    setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
+    setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
+    try {
+      const r = await fetch(`${base || ''}${scopePath}?${qs.toString()}`, {
+        credentials: 'same-origin',
+      });
+      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) {
+        const msg = typeof j.error === 'string' ? j.error : `Render failed (${r.status})`;
+        setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: msg }));
+        return;
+      }
+      const artifact = (j.artifact && typeof j.artifact === 'object' ? j.artifact : null) as
+        | Record<string, unknown>
+        | null;
+      const weather = (j.weather && typeof j.weather === 'object' ? j.weather : null) as
+        | Record<string, unknown>
+        | null;
+      setArtifactByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: {
+          ...(artifact || {}),
+          weather,
+        },
+      }));
+      setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
+    } catch (e) {
+      setSaveStatusByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: e instanceof Error ? e.message : 'Render failed',
+      }));
+    } finally {
+      setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: false }));
+    }
+  };
+
+  const saveArtifact = async (item: (typeof items)[number]) => {
+    const artifact = artifactByFeedId[item.feed_item_id];
+    if (!artifact) return;
+    const base = getApiBaseUrl();
+    setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
+    setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
+    try {
+      const payload = {
+        scopeKind: item.connection_kind === 'pair' ? 'pair' : item.connection_kind === 'relational_group' ? 'group' : null,
+        bindingId: item.binding_id,
+        relationshipId: item.connection_kind === 'pair' ? item.binding_id : null,
+        groupId: item.connection_kind === 'relational_group' ? item.binding_id : null,
+        chartIdsOrdered: item.chart_ids_ordered,
+        transit_snapshot_hash: item.transit_snapshot_hash,
+        relational_weather_state_hash: item.relational_weather_state_hash,
+        renderedArtifact: {
+          planHash: typeof artifact.planHash === 'string' ? artifact.planHash : null,
+          compositionId: typeof artifact.compositionId === 'string' ? artifact.compositionId : null,
+          text: typeof artifact.text === 'string' ? artifact.text : null,
+          exportJobId:
+            artifact.audio && typeof artifact.audio === 'object' && typeof (artifact.audio as Record<string, unknown>).export_id === 'string'
+              ? (artifact.audio as Record<string, unknown>).export_id
+              : null,
+        },
+        weather: artifact.weather && typeof artifact.weather === 'object' ? artifact.weather : null,
+      };
+      if (!payload.scopeKind) {
+        setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'This feed scope is not saveable.' }));
+        return;
+      }
+      const r = await fetch(`${base || ''}/api/community/artifacts/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; participants?: number };
+      if (!r.ok) {
+        setSaveStatusByFeedId((prev) => ({
+          ...prev,
+          [item.feed_item_id]: j.error || `Save failed (${r.status})`,
+        }));
+        return;
+      }
+      setSaveStatusByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: `Saved to ${j.participants ?? 0} profile librar${(j.participants ?? 0) === 1 ? 'y' : 'ies'} (${j.inserted ?? 0} new).`,
+      }));
+    } catch (e) {
+      setSaveStatusByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: e instanceof Error ? e.message : 'Save failed',
+      }));
+    } finally {
+      setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: false }));
+    }
+  };
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -90,7 +218,38 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                 >
                   Signals
                 </Link>
+                {item.connection_kind !== 'campaign_group' && (
+                  <button
+                    type="button"
+                    className="text-emerald hover:underline"
+                    onClick={() => void openAndRenderArtifact(item)}
+                    disabled={busyByFeedId[item.feed_item_id]}
+                  >
+                    {busyByFeedId[item.feed_item_id] ? 'Rendering…' : 'Open artifact'}
+                  </button>
+                )}
               </div>
+              {openByFeedId[item.feed_item_id] && artifactByFeedId[item.feed_item_id] && (
+                <div className="rounded border border-border/70 bg-bgElev p-3 space-y-2">
+                  <p className="text-xs font-semibold text-text">Relational weather artifact</p>
+                  <p className="text-xs text-subtext whitespace-pre-wrap">
+                    {String((artifactByFeedId[item.feed_item_id].text as string | undefined) || 'No text block returned.')}
+                  </p>
+                  {item.connection_kind !== 'campaign_group' && (
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev disabled:opacity-50"
+                      onClick={() => void saveArtifact(item)}
+                      disabled={busyByFeedId[item.feed_item_id]}
+                    >
+                      {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
+                    </button>
+                  )}
+                  {saveStatusByFeedId[item.feed_item_id] && (
+                    <p className="text-xs text-subtext">{saveStatusByFeedId[item.feed_item_id]}</p>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
