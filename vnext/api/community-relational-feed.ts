@@ -66,6 +66,7 @@ export interface CommunityRelationalFeedItemV1 {
     overall_relational_intensity: number;
     tie_break_key: string;
   };
+  artifactStatus: 'not_generated' | 'available' | 'partial' | 'failed';
 }
 
 export interface CommunityRelationalFeedResponseV1 {
@@ -85,7 +86,7 @@ export interface CommunityRelationalFeedResponseV1 {
 }
 
 type PgStore = {
-  listRelationshipsByOwner: (userId: string) => Promise<
+  listRelationshipsByParticipant: (userId: string) => Promise<
     Array<{ id: string; chartIdLow: string; chartIdHigh: string }>
   >;
   listRelationalGroupsAccessibleToUser: (userId: string) => Promise<Array<{ id: string }>>;
@@ -96,6 +97,11 @@ type PgStore = {
   listStage5CampaignsByOwnerOrParticipant: (userId: string) => Promise<
     Array<{ campaignId: string; participantChartIds: string[] }>
   >;
+  canonicalDayBucketFromTransitTs: (transitTs: string) => string;
+  getCommunityRelationalWeatherStatusesForFeed: (input: {
+    canonicalDayBucket: string;
+    identities: Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
+  }) => Promise<Map<string, 'not_generated' | 'available' | 'partial' | 'failed'>>;
 };
 
 function uniqueSortedChartIds(ids: string[]): string[] {
@@ -130,7 +136,7 @@ export async function buildCommunityRelationalFeed(params: {
     chart_ids_ordered: string[];
   }> = [];
 
-  const rels = await pgStore.listRelationshipsByOwner(userId);
+  const rels = await pgStore.listRelationshipsByParticipant(userId);
   for (const r of rels) {
     const chart_ids_ordered = uniqueSortedChartIds([r.chartIdLow, r.chartIdHigh]);
     if (chart_ids_ordered.length >= 2) {
@@ -213,7 +219,32 @@ export async function buildCommunityRelationalFeed(params: {
         overall_relational_intensity,
         tie_break_key,
       },
+      artifactStatus: 'not_generated',
     });
+  }
+
+  const canonicalDayBucket = pgStore.canonicalDayBucketFromTransitTs(envelopeLock?.ts || '');
+  if (canonicalDayBucket) {
+    const scoped = items
+      .filter((x) => x.connection_kind === 'pair' || x.connection_kind === 'relational_group')
+      .map((x) => ({
+        scopeKind: x.connection_kind === 'pair' ? 'pair' : 'group',
+        bindingId: x.binding_id,
+        chartIdsOrdered: x.chart_ids_ordered,
+      })) as Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
+    const statusByIdentity = await pgStore.getCommunityRelationalWeatherStatusesForFeed({
+      canonicalDayBucket,
+      identities: scoped,
+    });
+    for (const item of items) {
+      if (item.connection_kind === 'campaign_group') {
+        item.artifactStatus = 'not_generated';
+        continue;
+      }
+      const key = `${item.connection_kind === 'pair' ? 'pair' : 'group'}:${item.binding_id}`;
+      const status = statusByIdentity.get(key) || 'not_generated';
+      item.artifactStatus = status;
+    }
   }
 
   items.sort(compareFeedItems);

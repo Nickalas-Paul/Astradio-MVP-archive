@@ -547,21 +547,22 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       }
       if (source === 'community_relational_weather' || ps?.kind === 'community_relational_weather') {
         const report = row.report as { text?: unknown; weather?: unknown } | undefined;
+        const textValue = report?.text;
         const text =
-          typeof report?.text === 'string'
-            ? report.text
-            : typeof ps?.planHash === 'string'
-              ? `Saved relational weather artifact (${ps.planHash.slice(0, 16)}…).`
+          typeof textValue === 'string'
+            ? textValue
+            : textValue && typeof textValue === 'object'
+              ? [String((textValue as { short?: unknown }).short || ''), String((textValue as { long?: unknown }).long || '')]
+                  .filter(Boolean)
+                  .join('\n\n')
               : 'Saved relational weather artifact.';
-        const weatherHash =
-          typeof ps?.relational_weather_state_hash === 'string' ? ps.relational_weather_state_hash : '';
         setLibraryReconstructResult({
           explanation: {
             sections: [
               {
                 sectionId: 'community',
                 title: 'Relational weather artifact',
-                text: weatherHash ? `${text}\n\nWeather hash: ${weatherHash}` : text,
+                text,
               },
             ],
           },

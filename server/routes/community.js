@@ -473,11 +473,9 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
         ).sort((a, b) => a.localeCompare(b, 'en'))
       : [];
     if (chartIdsOrdered.length < 2) return res.status(400).json({ error: 'chart_ids_ordered_required' });
-    const transitSnapshotHash = String(body.transit_snapshot_hash || '').trim();
-    const relationalWeatherStateHash = String(body.relational_weather_state_hash || '').trim();
-    if (!transitSnapshotHash || !relationalWeatherStateHash) {
-      return res.status(400).json({ error: 'weather_identity_required' });
-    }
+    const chartIdsOrderedHash = String(body.chart_ids_ordered_hash || pgStore.hashChartIdsOrdered(chartIdsOrdered)).trim();
+    const canonicalDayBucket = String(body.canonical_day_bucket || '').trim();
+    if (!chartIdsOrderedHash || !canonicalDayBucket) return res.status(400).json({ error: 'daily_identity_required' });
     const renderedArtifact =
       body.renderedArtifact && typeof body.renderedArtifact === 'object' && !Array.isArray(body.renderedArtifact)
         ? body.renderedArtifact
@@ -485,19 +483,25 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
     const planHash = String(renderedArtifact.planHash || body.planHash || '').trim() || null;
     const compositionId = String(renderedArtifact.compositionId || body.compositionId || '').trim() || null;
     const exportJobId = String(renderedArtifact.exportJobId || body.exportJobId || '').trim() || null;
-    const text = String(renderedArtifact.text || body.text || '').trim() || null;
+    const textRaw = renderedArtifact.text != null ? renderedArtifact.text : body.text;
+    const text =
+      typeof textRaw === 'string'
+        ? textRaw.trim() || null
+        : textRaw && typeof textRaw === 'object'
+          ? textRaw
+          : null;
 
     const objectIdentityHash = buildCommunityRelationalWeatherObjectIdentityHash({
       kind: 'community_relational_weather',
       scopeKind,
       bindingId,
       chartIdsOrdered,
-      transitSnapshotHash,
-      relationalWeatherStateHash,
+      chartIdsOrderedHash,
+      canonicalDayBucket,
+      dailyArtifactId: String(body.daily_artifact_id || '').trim() || null,
       planHash: planHash || null,
       compositionId: compositionId || null,
     });
-
     let participantUserIds = [];
     let relationshipId = null;
     let groupId = null;
@@ -533,19 +537,38 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       if (!participantUserIds.includes(userId)) return res.status(403).json({ error: 'forbidden' });
     }
 
-    const rows = await pgStore.ensureCommunityRelationalWeatherLibraryEntriesForParticipants({
-      participantUserIds,
+    const existingDaily = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity({
+      scopeKind,
+      bindingId,
+      chartIdsOrderedHash,
+      canonicalDayBucket,
+    });
+    if (!existingDaily) {
+      return res.status(404).json({ error: 'artifact_not_found_for_identity' });
+    }
+    if (
+      String(existingDaily.transitSnapshotHash || '').trim() !==
+      String(body.transit_snapshot_hash || '').trim()
+    ) {
+      return res.status(409).json({ error: 'artifact_identity_mismatch' });
+    }
+
+    const saved = await pgStore.ensureCommunityRelationalWeatherLibraryEntryForUser({
+      ownerUserId: userId,
       scopeKind,
       bindingId,
       relationshipId,
       groupId,
       chartIdsOrdered,
-      transitSnapshotHash,
-      relationalWeatherStateHash,
+      chartIdsOrderedHash,
+      canonicalDayBucket,
+      transitSnapshotHash: existingDaily.transitSnapshotHash,
+      relationalWeatherStateHash: existingDaily.relationalWeatherStateHash,
       objectIdentityHash,
-      planHash,
-      compositionId,
-      exportJobId,
+      dailyArtifactId: existingDaily.id,
+      planHash: existingDaily.planHash || planHash,
+      compositionId: existingDaily.compositionId || compositionId,
+      exportJobId: existingDaily.exportJobId || exportJobId,
       text,
       weather: body.weather && typeof body.weather === 'object' ? body.weather : null,
     });
@@ -553,8 +576,7 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
     return res.status(200).json({
       ok: true,
       objectIdentityHash,
-      inserted: rows.filter((r) => r.inserted).length,
-      participants: rows.length,
+      inserted: saved.inserted ? 1 : 0,
     });
   } catch (e) {
     console.error('[community] POST /community/artifacts/save', e);

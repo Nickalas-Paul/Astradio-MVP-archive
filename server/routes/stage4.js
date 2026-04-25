@@ -8,6 +8,7 @@ const { transitParamsToChartInput } = require('../../dist/vnext/vnext/relational
 const { fetchChartSnapshot } = require('../../dist/vnext/vnext/core/architecture-engine');
 const { resolveRelationalConnectionFromChartIds } = require('../../dist/vnext/vnext/relational/resolve-relational-connection-context');
 const { computeRelationalWeatherV1 } = require('../../dist/vnext/vnext/relational/weather/compute-relational-weather-v1');
+const { snapshotFingerprint } = require('../../dist/vnext/vnext/canonical/stable-json');
 
 function createStage4Router() {
   const router = express.Router({ mergeParams: true });
@@ -36,22 +37,15 @@ function createStage4Router() {
     return true;
   }
 
-  /** Option B: pair forecast/composite if owner holds a relationship row for this chart pair (post-accept). */
-  async function assertPairChartsAuthorizedForForecast(ownerUserId, chartIds) {
-    if (!chartIds || chartIds.length !== 2) return false;
-    if (await assertOwnedCharts(ownerUserId, chartIds)) return true;
-    const [a, b] = chartIds;
-    const lo = String(a).localeCompare(String(b), 'en') <= 0 ? a : b;
-    const hi = lo === a ? b : a;
-    const rel = await pgStore.findRelationshipByOwnerAndCharts(ownerUserId, lo, hi);
-    return !!rel;
+  /** Pair forecast auth is participant-scoped (not owner_user_id-scoped). */
+  async function assertPairChartsAuthorizedForForecast(viewerUserId, relationshipId, chartIds) {
+    if (!viewerUserId || !relationshipId || !chartIds || chartIds.length !== 2) return false;
+    return pgStore.userParticipatesInRelationship(relationshipId, viewerUserId);
   }
 
-  /** Relational group: owner may run aggregate paths when member rows match chart set and each chart is owned by its member userId. */
-  async function assertGroupChartsAuthorizedForForecast(ownerUserId, groupId, chartIds) {
-    const group = await pgStore.getRelationalGroupById(groupId);
-    if (!group || group.ownerId !== ownerUserId) return false;
-    const members = await pgStore.listRelationalGroupMembers(groupId, ownerUserId);
+  /** Group forecast auth is member-scoped (owner or platform member). */
+  async function assertGroupChartsAuthorizedForForecast(viewerUserId, groupId, chartIds) {
+    const members = await pgStore.listRelationalGroupMembersForScope(groupId, viewerUserId);
     if (!members || members.length === 0) return false;
     const expected = Array.from(new Set(members.map((m) => m.chartId))).sort((a, b) => a.localeCompare(b, 'en'));
     const got = Array.from(new Set(chartIds || [])).sort((a, b) => a.localeCompare(b, 'en'));
@@ -62,6 +56,24 @@ function createStage4Router() {
       if (!ch || ch.ownerId !== m.userId) return false;
     }
     return true;
+  }
+
+  function parseRelationalWeatherText(value) {
+    if (typeof value === 'string') return value.trim();
+    if (!value || typeof value !== 'object') return '';
+    const v = value;
+    const short = typeof v.short === 'string' ? v.short.trim() : '';
+    const long = typeof v.long === 'string' ? v.long.trim() : '';
+    const bullets = Array.isArray(v.bullets) ? v.bullets.map((b) => String(b || '').trim()).filter(Boolean) : [];
+    const out = [short, long, bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : ''].filter(Boolean).join('\n\n');
+    return out.trim();
+  }
+
+  function toArtifactStatus(composedText, exportId) {
+    const readableText = parseRelationalWeatherText(composedText);
+    if (!readableText) return 'failed';
+    if (exportId == null || String(exportId).trim() === '') return 'available';
+    return /^[a-f0-9]{64}$/.test(String(exportId).trim()) ? 'available' : 'partial';
   }
 
   function canonicalPair(chartAId, chartBId) {
@@ -100,9 +112,9 @@ function createStage4Router() {
     };
   }
 
-  async function runRelationalForecast(req, res, { kind, bindingId, chartIds }) {
-    const ownerUserId = requireOwner(req, res);
-    if (!ownerUserId) return;
+  async function runRelationalForecast(req, res, { kind, bindingId, chartIds, relationshipId = null }) {
+    const viewerUserId = requireOwner(req, res);
+    if (!viewerUserId) return;
     try {
       const transitDatetime = (req.query.transitDatetime || '').toString().trim();
       if (!transitDatetime) {
@@ -117,18 +129,21 @@ function createStage4Router() {
         transitLongitude: transitLon,
         transitTimezone,
       });
+      const normalizedChartIdsOrdered = pgStore.normalizeChartIdsOrdered(chartIds);
       let authorized = false;
-      if (kind === 'pair' && chartIds.length === 2) {
-        authorized = await assertPairChartsAuthorizedForForecast(ownerUserId, chartIds);
+      if (kind === 'pair' && normalizedChartIdsOrdered.length === 2) {
+        authorized = await assertPairChartsAuthorizedForForecast(viewerUserId, relationshipId || bindingId, normalizedChartIdsOrdered);
       } else if (kind === 'group') {
-        authorized = await assertGroupChartsAuthorizedForForecast(ownerUserId, bindingId, chartIds);
+        authorized = await assertGroupChartsAuthorizedForForecast(viewerUserId, bindingId, normalizedChartIdsOrdered);
       } else {
-        authorized = await assertOwnedCharts(ownerUserId, chartIds);
+        authorized = await assertOwnedCharts(viewerUserId, normalizedChartIdsOrdered);
       }
       if (!authorized) return res.status(404).json({ error: 'not_found' });
 
       const transitSnapshot = await fetchChartSnapshot(chartInput);
-      const ctx = await resolveRelationalConnectionFromChartIds(chartIds, bindingId);
+      const canonicalDayBucket = pgStore.canonicalDayBucketFromTransitTs(transitSnapshot.ts);
+      const chartIdsOrderedHash = pgStore.hashChartIdsOrdered(normalizedChartIdsOrdered);
+      const ctx = await resolveRelationalConnectionFromChartIds(normalizedChartIdsOrdered, bindingId);
       const weather = computeRelationalWeatherV1({
         connection: { kind, bindingId, chartIdsOrdered: ctx.chartIdsOrdered },
         transit: transitSnapshot,
@@ -140,26 +155,121 @@ function createStage4Router() {
       const wantCompose = String(req.query.compose || '').trim() === '1';
       let artifact = null;
       if (wantCompose) {
-        const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, {
-          groupId: bindingId,
-          relationalWeather: weather,
+        const identity = {
+          scopeKind: kind === 'pair' ? 'pair' : 'group',
+          bindingId,
+          chartIdsOrderedHash,
+          canonicalDayBucket,
+        };
+        const existing = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity);
+        if (existing && existing.artifactStatus === 'available') {
+          artifact = {
+            planHash: existing.planHash || null,
+            compositionId: existing.compositionId || null,
+            text: existing.textPayload || null,
+            audioBase64: null,
+            audio: {
+              format: 'wav',
+              sha256: '',
+              latency_ms: 0,
+              size_bytes: 0,
+              base64_present: false,
+              export_available: !!existing.exportJobId,
+              export_id: existing.exportJobId || null,
+              export_attempted: !!existing.exportJobId,
+              export_error: null,
+            },
+            dailyArtifactIdentity: {
+              dailyArtifactId: existing.id,
+              scopeKind: identity.scopeKind,
+              bindingId: identity.bindingId,
+              chartIdsOrdered: ctx.chartIdsOrdered,
+              chartIdsOrderedHash,
+              canonicalDayBucket,
+              transitSnapshotHash: existing.transitSnapshotHash,
+            },
+          };
+          return res.status(200).json({ weather, feedItem, artifact });
+        }
+
+        const winner = await pgStore.withTransaction(async (client) => {
+          await pgStore.lockCommunityRelationalWeatherIdentity(client, identity);
+          const inside = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity, client);
+          if (inside && inside.artifactStatus === 'available') {
+            return inside;
+          }
+          let composed = null;
+          let composeError = null;
+          try {
+            composed = await groupComposeAdapter.composeGroupFromChartIds(normalizedChartIdsOrdered, {
+              groupId: bindingId,
+              relationalWeather: weather,
+            });
+          } catch (err) {
+            composeError = err;
+          }
+          const exportId =
+            composed && composed.audio && typeof composed.audio.export_id === 'string' && composed.audio.export_id.trim()
+              ? composed.audio.export_id.trim()
+              : null;
+          const nextStatus = composeError ? 'failed' : toArtifactStatus(composed?.text, exportId);
+          const textPayload = composed?.text != null ? composed.text : null;
+          const persistedTransitSnapshotHash =
+            inside?.transitSnapshotHash || snapshotFingerprint(transitSnapshot);
+          const toPersist = {
+            scopeKind: identity.scopeKind,
+            bindingId: identity.bindingId,
+            chartIdsOrdered: ctx.chartIdsOrdered,
+            canonicalDayBucket,
+            transitSnapshotHash: persistedTransitSnapshotHash,
+            relationalWeatherStateHash: weather.stateHash || null,
+            planHash: composed?.planHash || null,
+            compositionId: composed?.compositionId || null,
+            exportJobId: exportId,
+            artifactStatus: nextStatus,
+            textPayload,
+            weatherPayload: weather,
+            createdByUserId: viewerUserId,
+          };
+          if (inside && (inside.artifactStatus === 'partial' || inside.artifactStatus === 'failed')) {
+            return pgStore.updateCommunityRelationalWeatherDailyArtifact(
+              { ...toPersist, id: inside.id },
+              client
+            );
+          }
+          const inserted = await pgStore.insertCommunityRelationalWeatherDailyArtifact(toPersist, client);
+          if (inserted) return inserted;
+          const afterConflict = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity, client);
+          if (afterConflict) return afterConflict;
+          const fallback = await pgStore.insertCommunityRelationalWeatherDailyArtifact(toPersist, client);
+          if (fallback) return fallback;
+          if (composeError) throw composeError;
+          return fallback;
         });
         artifact = {
-          planHash: composed.planHash,
-          compositionId: composed.compositionId,
-          text: composed.text,
-          audioBase64: composed.audioBase64,
-          // Explicit aggregate audio contract (same export path as snapshot compose; see group-compose-adapter).
-          audio: composed.audio || {
+          planHash: winner?.planHash || null,
+          compositionId: winner?.compositionId || null,
+          text: winner?.textPayload || null,
+          audioBase64: null,
+          audio: {
             format: 'wav',
             sha256: '',
             latency_ms: 0,
             size_bytes: 0,
             base64_present: false,
-            export_available: false,
-            export_id: null,
-            export_attempted: false,
+            export_available: !!winner?.exportJobId,
+            export_id: winner?.exportJobId || null,
+            export_attempted: !!winner?.exportJobId,
             export_error: null,
+          },
+          dailyArtifactIdentity: {
+            dailyArtifactId: winner?.id || null,
+            scopeKind: identity.scopeKind,
+            bindingId: identity.bindingId,
+            chartIdsOrdered: ctx.chartIdsOrdered,
+            chartIdsOrderedHash,
+            canonicalDayBucket,
+            transitSnapshotHash: winner?.transitSnapshotHash || snapshotFingerprint(transitSnapshot),
           },
         };
       }
@@ -260,7 +370,7 @@ function createStage4Router() {
         return res.status(404).json({ error: 'not_found' });
       }
       const chartIds = [relationship.chartIdLow, relationship.chartIdHigh];
-      const okPair = await assertPairChartsAuthorizedForForecast(ownerUserId, chartIds);
+      const okPair = await assertPairChartsAuthorizedForForecast(ownerUserId, relationship.id, chartIds);
       if (!okPair) return res.status(404).json({ error: 'not_found' });
 
       const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, { groupId: relationship.id });
@@ -319,11 +429,11 @@ function createStage4Router() {
   });
 
   router.get('/relationships/:id/forecast', async (req, res) => {
-    const ownerUserId = requireOwner(req, res);
-    if (!ownerUserId) return;
+    const viewerUserId = requireOwner(req, res);
+    if (!viewerUserId) return;
     try {
       const relationship = await pgStore.getRelationshipById(req.params.id);
-      if (!relationship || relationship.ownerUserId !== ownerUserId) {
+      if (!relationship) {
         return res.status(404).json({ error: 'not_found' });
       }
       const chartIds = [relationship.chartIdLow, relationship.chartIdHigh];
@@ -331,6 +441,7 @@ function createStage4Router() {
         kind: 'pair',
         bindingId: relationship.id,
         chartIds,
+        relationshipId: relationship.id,
       });
     } catch (e) {
       return res.status(500).json({ error: e?.message || 'forecast_failed' });
@@ -511,19 +622,19 @@ function createStage4Router() {
   router.post('/groups/:id/composite', buildGroupComposite);
 
   router.get('/groups/:id/forecast', async (req, res) => {
-    const ownerUserId = requireOwner(req, res);
-    if (!ownerUserId) return;
+    const viewerUserId = requireOwner(req, res);
+    if (!viewerUserId) return;
     try {
-      const group = await pgStore.getRelationalGroupById(req.params.id);
-      if (!group || group.ownerId !== ownerUserId) return res.status(404).json({ error: 'not_found' });
-      const members = await pgStore.listRelationalGroupMembers(req.params.id, ownerUserId);
+      const group = await pgStore.resolveRelationalGroupForScope(req.params.id, viewerUserId);
+      if (!group) return res.status(404).json({ error: 'not_found' });
+      const members = await pgStore.listRelationalGroupMembersForScope(group.id, viewerUserId);
       if (!members || members.length === 0) {
         return res.status(400).json({ error: 'validation_error', code: 'GROUP_EMPTY' });
       }
       const chartIds = Array.from(new Set(members.map((m) => m.chartId))).sort((a, b) => a.localeCompare(b, 'en'));
       return runRelationalForecast(req, res, {
         kind: 'group',
-        bindingId: req.params.id,
+        bindingId: group.id,
         chartIds,
       });
     } catch (e) {

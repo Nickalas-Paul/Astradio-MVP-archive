@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
+import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 
 interface RelationalCommunityFeedProps {
   userId: string | null;
@@ -21,6 +22,17 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
   const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
+
+  const artifactText = (artifact: Record<string, unknown>): { text: string; bullets: string[] } => {
+    const raw = artifact.text;
+    if (typeof raw === 'string') return { text: raw, bullets: [] };
+    if (!raw || typeof raw !== 'object') return { text: '', bullets: [] };
+    const obj = raw as { short?: unknown; long?: unknown; bullets?: unknown };
+    const short = typeof obj.short === 'string' ? obj.short : '';
+    const long = typeof obj.long === 'string' ? obj.long : '';
+    const bullets = Array.isArray(obj.bullets) ? obj.bullets.map((b) => String(b)) : [];
+    return { text: [short, long].filter(Boolean).join('\n\n'), bullets };
+  };
 
   if (!userId) {
     return (
@@ -98,6 +110,10 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         [item.feed_item_id]: {
           ...(artifact || {}),
           weather,
+          dailyArtifactIdentity:
+            j && typeof j === 'object' && j.artifact && typeof j.artifact === 'object'
+              ? (j.artifact as Record<string, unknown>).dailyArtifactIdentity
+              : null,
         },
       }));
       setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
@@ -124,7 +140,12 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         relationshipId: item.connection_kind === 'pair' ? item.binding_id : null,
         groupId: item.connection_kind === 'relational_group' ? item.binding_id : null,
         chartIdsOrdered: item.chart_ids_ordered,
-        transit_snapshot_hash: item.transit_snapshot_hash,
+        transit_snapshot_hash:
+          artifact.dailyArtifactIdentity &&
+          typeof artifact.dailyArtifactIdentity === 'object' &&
+          typeof (artifact.dailyArtifactIdentity as Record<string, unknown>).transitSnapshotHash === 'string'
+            ? ((artifact.dailyArtifactIdentity as Record<string, unknown>).transitSnapshotHash as string)
+            : item.transit_snapshot_hash,
         relational_weather_state_hash: item.relational_weather_state_hash,
         renderedArtifact: {
           planHash: typeof artifact.planHash === 'string' ? artifact.planHash : null,
@@ -135,6 +156,24 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               ? (artifact.audio as Record<string, unknown>).export_id
               : null,
         },
+        chart_ids_ordered_hash:
+          artifact.dailyArtifactIdentity &&
+          typeof artifact.dailyArtifactIdentity === 'object' &&
+          typeof (artifact.dailyArtifactIdentity as Record<string, unknown>).chartIdsOrderedHash === 'string'
+            ? ((artifact.dailyArtifactIdentity as Record<string, unknown>).chartIdsOrderedHash as string)
+            : null,
+        canonical_day_bucket:
+          artifact.dailyArtifactIdentity &&
+          typeof artifact.dailyArtifactIdentity === 'object' &&
+          typeof (artifact.dailyArtifactIdentity as Record<string, unknown>).canonicalDayBucket === 'string'
+            ? ((artifact.dailyArtifactIdentity as Record<string, unknown>).canonicalDayBucket as string)
+            : null,
+        daily_artifact_id:
+          artifact.dailyArtifactIdentity &&
+          typeof artifact.dailyArtifactIdentity === 'object' &&
+          typeof (artifact.dailyArtifactIdentity as Record<string, unknown>).dailyArtifactId === 'string'
+            ? ((artifact.dailyArtifactIdentity as Record<string, unknown>).dailyArtifactId as string)
+            : null,
         weather: artifact.weather && typeof artifact.weather === 'object' ? artifact.weather : null,
       };
       if (!payload.scopeKind) {
@@ -147,7 +186,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; participants?: number };
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) {
         setSaveStatusByFeedId((prev) => ({
           ...prev,
@@ -157,7 +196,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
       }
       setSaveStatusByFeedId((prev) => ({
         ...prev,
-        [item.feed_item_id]: `Saved to ${j.participants ?? 0} profile librar${(j.participants ?? 0) === 1 ? 'y' : 'ies'} (${j.inserted ?? 0} new).`,
+        [item.feed_item_id]: 'Saved to Library',
       }));
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({
@@ -212,6 +251,16 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                 <span>effective: {item.ranking.activation_effective.toFixed(4)}</span>
                 <span>weather: {item.ranking.weather_activation_intensity.toFixed(4)}</span>
                 <span>relational: {item.ranking.overall_relational_intensity.toFixed(4)}</span>
+                <span>
+                  artifact:{' '}
+                  {item.artifactStatus === 'available'
+                    ? 'available'
+                    : item.artifactStatus === 'partial'
+                      ? 'Artifact needs refresh'
+                      : item.artifactStatus === 'failed'
+                        ? 'Artifact unavailable'
+                        : 'not generated'}
+                </span>
                 <Link
                   href="/community?tab=connections&signals=1"
                   className="text-emerald hover:underline"
@@ -232,9 +281,32 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               {openByFeedId[item.feed_item_id] && artifactByFeedId[item.feed_item_id] && (
                 <div className="rounded border border-border/70 bg-bgElev p-3 space-y-2">
                   <p className="text-xs font-semibold text-text">Relational weather artifact</p>
-                  <p className="text-xs text-subtext whitespace-pre-wrap">
-                    {String((artifactByFeedId[item.feed_item_id].text as string | undefined) || 'No text block returned.')}
-                  </p>
+                  {(() => {
+                    const view = artifactText(artifactByFeedId[item.feed_item_id]);
+                    return (
+                      <>
+                        <p className="text-xs text-subtext whitespace-pre-wrap">
+                          {view.text || 'No text block returned.'}
+                        </p>
+                        {view.bullets.length > 0 && (
+                          <ul className="list-disc pl-5 text-xs text-subtext space-y-1">
+                            {view.bullets.map((b, idx) => (
+                              <li key={`${item.feed_item_id}-b-${idx}`}>{b}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    );
+                  })()}
+                  <ValidatedExportAudioPlayer
+                    exportId={
+                      artifactByFeedId[item.feed_item_id].audio &&
+                      typeof artifactByFeedId[item.feed_item_id].audio === 'object' &&
+                      typeof (artifactByFeedId[item.feed_item_id].audio as Record<string, unknown>).export_id === 'string'
+                        ? ((artifactByFeedId[item.feed_item_id].audio as Record<string, unknown>).export_id as string)
+                        : null
+                    }
+                  />
                   {item.connection_kind !== 'campaign_group' && (
                     <button
                       type="button"

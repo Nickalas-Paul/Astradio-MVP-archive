@@ -640,6 +640,7 @@ export interface RelationalCommunityFeedItem {
     overall_relational_intensity: number;
     tie_break_key: string;
   };
+  artifactStatus?: 'not_generated' | 'available' | 'partial' | 'failed';
 }
 
 export interface RelationalCommunityFeedResponse {
