@@ -787,11 +787,17 @@ export class ComposeAPI {
     const musicalSection = projected.find((s) => s.id === 'musical');
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
-    const allLong = projected.map((s) => s.text).filter(Boolean).join('\n\n');
+    /** Do not join all sections: `short` is already the signatures/relational_field block; joining every section repeated it in `long` (Community + feed UI). */
+    const leadSectionIds = new Set(['signatures', 'relational_field']);
+    const longBody = projected
+      .filter((s) => !leadSectionIds.has(s.id))
+      .map((s) => s.text)
+      .filter(Boolean)
+      .join('\n\n');
 
     const text = {
       short: signaturesText,
-      long: allLong || signaturesText,
+      long: longBody,
       bullets: musicalBullets,
       template_id: input.relationalWeather ? 'semantic-core-aggregate-relational-v1' : 'semantic-core-aggregate-v1',
       signatures: signaturesText,

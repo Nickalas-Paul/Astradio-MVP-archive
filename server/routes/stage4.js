@@ -192,6 +192,9 @@ function createStage4Router() {
           return res.status(200).json({ weather, feedItem, artifact });
         }
 
+        /** Lyria compose metadata for response when daily row has no export_job_id (e.g. storage write failed). */
+        let composeAudioForResponse = null;
+
         const winner = await pgStore.withTransaction(async (client) => {
           await pgStore.lockCommunityRelationalWeatherIdentity(client, identity);
           const inside = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity, client);
@@ -205,6 +208,17 @@ function createStage4Router() {
               groupId: bindingId,
               relationalWeather: weather,
             });
+            if (composed && composed.audio) {
+              composeAudioForResponse = {
+                export_available: !!composed.audio.export_available,
+                export_id: typeof composed.audio.export_id === 'string' ? composed.audio.export_id : null,
+                export_attempted: !!composed.audio.export_attempted,
+                export_error:
+                  composed.audio.export_error != null && composed.audio.export_error !== undefined
+                    ? String(composed.audio.export_error)
+                    : null,
+              };
+            }
           } catch (err) {
             composeError = err;
           }
@@ -246,6 +260,9 @@ function createStage4Router() {
           if (composeError) throw composeError;
           return fallback;
         });
+        const rowHasExport = winner?.exportJobId != null && String(winner.exportJobId).trim() !== '';
+        const ac = composeAudioForResponse;
+        const showStorageError = !rowHasExport && ac && ac.export_error;
         artifact = {
           planHash: winner?.planHash || null,
           compositionId: winner?.compositionId || null,
@@ -257,10 +274,10 @@ function createStage4Router() {
             latency_ms: 0,
             size_bytes: 0,
             base64_present: false,
-            export_available: !!winner?.exportJobId,
-            export_id: winner?.exportJobId || null,
-            export_attempted: !!winner?.exportJobId,
-            export_error: null,
+            export_available: rowHasExport || !!(ac && ac.export_available),
+            export_id: rowHasExport ? String(winner.exportJobId).trim() : ac && ac.export_id ? String(ac.export_id).trim() : null,
+            export_attempted: rowHasExport ? true : !!(ac && ac.export_attempted),
+            export_error: showStorageError ? ac.export_error : null,
           },
           dailyArtifactIdentity: {
             dailyArtifactId: winner?.id || null,

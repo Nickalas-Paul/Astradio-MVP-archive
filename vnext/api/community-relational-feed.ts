@@ -17,8 +17,11 @@ import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import { clamp01 } from '../compatibility/stable';
 import { fetchChartSnapshot } from '../core/architecture-engine';
 
-/** Documented sort tuple id; bump when tuple definition changes. */
-export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v2';
+/**
+ * Documented sort tuple id; bump when tuple definition changes.
+ * v3: pair feed dedupes duplicate astradio_relationships rows (same charts + label) to viewer-owned binding_id.
+ */
+export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v3';
 
 export interface TransitInputV1 {
   date: string;
@@ -85,10 +88,16 @@ export interface CommunityRelationalFeedResponseV1 {
   items: CommunityRelationalFeedItemV1[];
 }
 
+export type ListRelationshipByParticipantRow = {
+  id: string;
+  chartIdLow: string;
+  chartIdHigh: string;
+  ownerUserId: string;
+  label: string;
+};
+
 type PgStore = {
-  listRelationshipsByParticipant: (userId: string) => Promise<
-    Array<{ id: string; chartIdLow: string; chartIdHigh: string }>
-  >;
+  listRelationshipsByParticipant: (userId: string) => Promise<Array<ListRelationshipByParticipantRow>>;
   listRelationalGroupsAccessibleToUser: (userId: string) => Promise<Array<{ id: string }>>;
   listRelationalGroupMembersForScope: (
     groupId: string,
@@ -121,6 +130,54 @@ function compareFeedItems(a: CommunityRelationalFeedItemV1, b: CommunityRelation
 }
 
 /**
+ * Collapse duplicate `astradio_relationships` rows (Option B: two per pair) to one Community feed id.
+ *
+ * **Canonical key:** (ordered chart ids) + (trimmed label) — one logical pair.
+ * **Selection:** the row with `ownerUserId === viewerUserId` (viewer "owns" the relationship copy); if neither or both
+ * match, pick lexicographically smaller `id` (deterministic, stable for tests).
+ */
+export function selectCanonicalPairRowsForFeed(
+  viewerUserId: string,
+  rels: Array<ListRelationshipByParticipantRow>
+): Array<ListRelationshipByParticipantRow> {
+  const v = String(viewerUserId || '').trim();
+  const groups = new Map<string, ListRelationshipByParticipantRow[]>();
+  for (const r of rels) {
+    const chartIdsOrdered = uniqueSortedChartIds([r.chartIdLow, r.chartIdHigh]);
+    if (chartIdsOrdered.length < 2) continue;
+    const label = String(r.label || '').trim();
+    const gk = `pair|${chartIdsOrdered.join('\u0000')}|${label}`;
+    if (!groups.has(gk)) groups.set(gk, []);
+    groups.get(gk)!.push(r);
+  }
+  const out: ListRelationshipByParticipantRow[] = [];
+  for (const g of groups.values()) {
+    if (g.length === 1) {
+      out.push(g[0]!);
+      continue;
+    }
+    let best = g[0]!;
+    for (let i = 1; i < g.length; i++) {
+      const cur = g[i]!;
+      const aOwner = String(best.ownerUserId || '').trim() === v;
+      const cOwner = String(cur.ownerUserId || '').trim() === v;
+      if (cOwner && !aOwner) {
+        best = cur;
+        continue;
+      }
+      if (aOwner && !cOwner) {
+        continue;
+      }
+      if (String(cur.id).localeCompare(String(best.id), 'en') < 0) {
+        best = cur;
+      }
+    }
+    out.push(best);
+  }
+  return out;
+}
+
+/**
  * Build ordered relational feed for a user. Throws if transit invalid or Postgres unavailable.
  */
 export async function buildCommunityRelationalFeed(params: {
@@ -136,7 +193,8 @@ export async function buildCommunityRelationalFeed(params: {
     chart_ids_ordered: string[];
   }> = [];
 
-  const rels = await pgStore.listRelationshipsByParticipant(userId);
+  const relsRaw = await pgStore.listRelationshipsByParticipant(userId);
+  const rels = selectCanonicalPairRowsForFeed(userId, relsRaw);
   for (const r of rels) {
     const chart_ids_ordered = uniqueSortedChartIds([r.chartIdLow, r.chartIdHigh]);
     if (chart_ids_ordered.length >= 2) {

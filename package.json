@@ -59,7 +59,7 @@
     "test:campaign-daily": "npm run vnext:build && node --test tests/campaign-daily-anchor.test.js tests/campaign-daily-canonical-location.test.js tests/campaign-daily-day-fingerprint.test.js tests/campaign-daily-theme-source.test.js tests/campaign-group-resolve.test.js tests/campaign-state-machine.test.js tests/campaign-narrative-surface.test.js",
     "db:migrate-campaign-daily-fp": "node scripts/migrate-campaign-daily-transit-fingerprint.js",
     "test:chart-timezone": "npm run vnext:build && node --test tests/natal-identity-birth-compare.test.js tests/chart-timezone-resolve.test.js tests/chart-pg-store-timezone.integration.test.js",
-    "test:community-fixes": "npm run vnext:build && node --test tests/comparison-seed.test.js tests/community-connection-intent.integration.test.js",
+    "test:community-fixes": "npm run vnext:build && node --test tests/comparison-seed.test.js tests/community-connection-intent.integration.test.js tests/community-relational-feed-dedupe.test.cjs",
     "backfill:chart-timezones": "node scripts/backfill-chart-timezones.js",
     "repair:chart-utc-placeholders": "node scripts/backfill-chart-timezones.js --utc-placeholders",
     "repair:chart-utc-placeholders:execute": "node scripts/backfill-chart-timezones.js --utc-placeholders --execute",

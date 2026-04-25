@@ -31,7 +31,11 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     const short = typeof obj.short === 'string' ? obj.short : '';
     const long = typeof obj.long === 'string' ? obj.long : '';
     const bullets = Array.isArray(obj.bullets) ? obj.bullets.map((b) => String(b)) : [];
-    return { text: [short, long].filter(Boolean).join('\n\n'), bullets };
+    /** Compose `long` omits the signatures/relational block; if both exist, show short + long (no duplicate lead). */
+    if (long.trim()) {
+      return { text: [short, long].filter(Boolean).join('\n\n'), bullets };
+    }
+    return { text: short || long, bullets };
   };
 
   if (!userId) {
@@ -117,6 +121,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         },
       }));
       setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
+      await refresh();
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({
         ...prev,
@@ -130,16 +135,25 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   const saveArtifact = async (item: (typeof items)[number]) => {
     const artifact = artifactByFeedId[item.feed_item_id];
     if (!artifact) return;
+    const dai =
+      artifact.dailyArtifactIdentity && typeof artifact.dailyArtifactIdentity === 'object'
+        ? (artifact.dailyArtifactIdentity as Record<string, unknown>)
+        : null;
+    const identityBindingId = typeof dai?.bindingId === 'string' ? dai.bindingId : null;
     const base = getApiBaseUrl();
     setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
     setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
     try {
+      const bindingId = identityBindingId || item.binding_id;
       const payload = {
         scopeKind: item.connection_kind === 'pair' ? 'pair' : item.connection_kind === 'relational_group' ? 'group' : null,
-        bindingId: item.binding_id,
-        relationshipId: item.connection_kind === 'pair' ? item.binding_id : null,
-        groupId: item.connection_kind === 'relational_group' ? item.binding_id : null,
-        chartIdsOrdered: item.chart_ids_ordered,
+        bindingId,
+        relationshipId: item.connection_kind === 'pair' ? bindingId : null,
+        groupId: item.connection_kind === 'relational_group' ? bindingId : null,
+        chartIdsOrdered:
+          Array.isArray(dai?.chartIdsOrdered) && (dai?.chartIdsOrdered as unknown[]).every((c) => typeof c === 'string')
+            ? (dai.chartIdsOrdered as string[])
+            : item.chart_ids_ordered,
         transit_snapshot_hash:
           artifact.dailyArtifactIdentity &&
           typeof artifact.dailyArtifactIdentity === 'object' &&
@@ -186,7 +200,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; ok?: boolean };
       if (!r.ok) {
         setSaveStatusByFeedId((prev) => ({
           ...prev,
@@ -194,9 +208,11 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         }));
         return;
       }
+      const inserted = j.inserted;
       setSaveStatusByFeedId((prev) => ({
         ...prev,
-        [item.feed_item_id]: 'Saved to Library',
+        [item.feed_item_id]:
+          inserted === 0 ? 'Already in Library' : inserted === 1 ? 'Saved to Library' : 'Library updated',
       }));
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({
@@ -307,6 +323,20 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                         : null
                     }
                   />
+                  {(() => {
+                    const audio = artifactByFeedId[item.feed_item_id].audio;
+                    if (!audio || typeof audio !== 'object') return null;
+                    const a = audio as Record<string, unknown>;
+                    const ex = typeof a.export_error === 'string' && a.export_error.trim() ? a.export_error.trim() : '';
+                    const exId = typeof a.export_id === 'string' ? a.export_id.trim() : '';
+                    if (!ex || exId) return null;
+                    return (
+                      <p className="text-sm text-amber-600 dark:text-amber-300" role="status">
+                        Audio file was not stored for playback: {ex}. Inline generation may still have succeeded; refresh
+                        after storage is available.
+                      </p>
+                    );
+                  })()}
                   {item.connection_kind !== 'campaign_group' && (
                     <button
                       type="button"

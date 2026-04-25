@@ -507,14 +507,17 @@ function calcPositions(jd, includeExtras = true){
     }
   }
   
-  // Extras (Chiron, Ceres, Pallas, Juno, Vesta, nodes, Lilith)
+  // Extras (Chiron, Ceres, Pallas, Juno, Vesta, nodes, Lilith) — optional; noise off in production logs by default
+  const verboseOptionalBodies = process.env.ASTRADIO_VERBOSE_OPTIONAL_EPHEMERIS_BODIES === "1";
   if (includeExtras) {
     for (const [name, id] of Object.entries(EXTRAS)) {
       try {
         const result = swe.swe_calc_ut(jd, id, flags);
         
         if (result.rc < 0) {
-          console.warn(`Failed to calculate ${name}: ${result.rc}`);
+          if (verboseOptionalBodies) {
+            console.warn(`Failed to calculate ${name}: ${result.rc}`);
+          }
           continue;
         }
         
@@ -522,7 +525,9 @@ function calcPositions(jd, includeExtras = true){
           ? result.xx[0]
           : result.longitude;
         if (lon === undefined || lon === null) {
-          console.warn(`No longitude found for ${name}`);
+          if (verboseOptionalBodies) {
+            console.warn(`No longitude found for ${name}`);
+          }
           continue;
         }
         
