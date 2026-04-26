@@ -10,6 +10,7 @@ import type { ArchitectureOutput } from '../core/architecture-engine';
 import type { SemanticCore } from '../semantic/semantic-core';
 import { DEFAULT_DURATION_S } from '../constants';
 import { renderWithProvider, buildLyriaPrompt, getProvider, localWavProvider, isProductionOrPreview } from '../render';
+import type { LyriaPromptProfile } from '../render/prompt-from-controls';
 import {
   computeExportKey,
   hashPrompt,
@@ -80,9 +81,12 @@ export async function runLyriaAlignedExportBlock(
     semanticCore: SemanticCore;
     /** When set, Lyria integer seed is derived with server object_identity_hash (profile natal identity audio only). */
     lyriaProfileNatalIdentity?: { objectIdentityHash: string };
+    /** Optional Lyria prompt conditioning profile (aggregate relational weather only). */
+    lyriaPromptProfile?: LyriaPromptProfile;
   }
 ): Promise<LyriaExportBundle> {
-  const { plan, architecture, featureVec, payload, semanticCore, lyriaProfileNatalIdentity } = params;
+  const { plan, architecture, featureVec, payload, semanticCore, lyriaProfileNatalIdentity, lyriaPromptProfile } =
+    params;
   const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
 
   const stubAudio: LyriaExportAudio = {
@@ -117,7 +121,7 @@ export async function runLyriaAlignedExportBlock(
     try {
       const planHash = computePlanHash(plan);
       const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
-      prompt = buildLyriaPrompt(payload, plan, narrativePlan);
+      prompt = buildLyriaPrompt(payload, plan, narrativePlan, lyriaPromptProfile ?? 'default');
       promptHash = hashPrompt(prompt);
       if (
         lyriaProfileNatalIdentity &&

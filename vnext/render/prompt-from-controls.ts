@@ -403,6 +403,81 @@ const SPEC_KEY_ORDER: string[] = [
   'facet_tags',
 ];
 
+/** Same key order as `lyria_spec_v1` / `rowsToPrompt` (exported for focused contract tests). */
+export const LYRIA_SPEC_V1_KEY_ORDER: readonly string[] = SPEC_KEY_ORDER;
+
+/** Lyria prompt conditioning profile (audio export only; does not alter canonical or projection outputs). */
+export type LyriaPromptProfile = 'default' | 'aggregate_relational_weather_v1';
+
+function primaryStem(token: string): string {
+  const t = token.trim();
+  if (!t) return '';
+  const i = t.indexOf('_');
+  return i === -1 ? t : t.slice(0, i);
+}
+
+function stemCapFor(stem: string): number {
+  return stem === 'angle' ? 3 : 2;
+}
+
+function parsePipeBucket(raw: string | undefined): string[] {
+  const s = String(raw ?? '').trim();
+  if (!s || s === 'none') return [];
+  return s
+    .split('|')
+    .map((x) => tokenToSnake(x.trim()))
+    .filter(Boolean);
+}
+
+/**
+ * Deterministic tag-bucket collapse for aggregate relational weather audio only.
+ * Operates only on chart_identity_tags and facet_tags (lyria_spec_v1).
+ */
+export function collapseRelationalWeatherLyriaTagBuckets(rows: SpecRow[]): SpecRow[] {
+  const ciKey = 'chart_identity_tags';
+  const ftKey = 'facet_tags';
+
+  let ci = [...new Set(parsePipeBucket(rows.find((r) => r.key === ciKey)?.value))].sort((a, b) => a.localeCompare(b, 'en'));
+  let ft = [...new Set(parsePipeBucket(rows.find((r) => r.key === ftKey)?.value))].sort((a, b) => a.localeCompare(b, 'en'));
+
+  const ciSet = new Set(ci);
+  ft = ft.filter((t) => !ciSet.has(t));
+
+  const stems = new Set<string>();
+  for (const t of [...ci, ...ft]) {
+    const st = primaryStem(t);
+    if (st) stems.add(st);
+  }
+
+  const orderedStems = [...stems].sort((a, b) => a.localeCompare(b, 'en'));
+  for (const stem of orderedStems) {
+    const cap = stemCapFor(stem);
+    const ciStem = ci.filter((t) => primaryStem(t) === stem).sort((a, b) => a.localeCompare(b, 'en'));
+    const ftStem = ft.filter((t) => primaryStem(t) === stem).sort((a, b) => a.localeCompare(b, 'en'));
+    const kept: string[] = [];
+    for (const t of ciStem) {
+      if (kept.length >= cap) break;
+      kept.push(t);
+    }
+    for (const t of ftStem) {
+      if (kept.length >= cap) break;
+      kept.push(t);
+    }
+    const keptSet = new Set(kept);
+    ci = ci.filter((t) => primaryStem(t) !== stem || keptSet.has(t));
+    ft = ft.filter((t) => primaryStem(t) !== stem || keptSet.has(t));
+  }
+
+  const ciOut = ci.length ? [...ci].sort((a, b) => a.localeCompare(b, 'en')).join('|') : 'none';
+  const ftOut = ft.length ? [...ft].sort((a, b) => a.localeCompare(b, 'en')).join('|') : 'none';
+
+  return rows.map((r) => {
+    if (r.key === ciKey) return { ...r, value: ciOut };
+    if (r.key === ftKey) return { ...r, value: ftOut };
+    return r;
+  });
+}
+
 function rowsToPrompt(rows: SpecRow[]): string {
   const map = new Map(rows.map((r) => [r.key, r.value]));
   return SPEC_KEY_ORDER.map((k) => `${k}=${map.get(k) ?? 'none'}`).join('\n');
@@ -722,11 +797,16 @@ function logLyriaPromptMeta(length: number, keyCount: number, truncated: boolean
 export function buildLyriaPrompt(
   payload: ControlSurfacePayload,
   plan?: Plan | { bpm?: number; key?: string },
-  narrative?: CompositionNarrativePlan
+  narrative?: CompositionNarrativePlan,
+  lyriaPromptProfile: LyriaPromptProfile = 'default'
 ): string {
-  const rows = narrative
+  let rows = narrative
     ? buildLyriaSpecRowsFromNarrative(payload, plan, narrative)
     : buildLyriaSpecRowsLegacy(payload, plan);
+
+  if (lyriaPromptProfile === 'aggregate_relational_weather_v1') {
+    rows = collapseRelationalWeatherLyriaTagBuckets(rows);
+  }
 
   const { text, truncated } = applyElisionAndLengthCap(rows);
   logLyriaPromptMeta(text.length, SPEC_KEY_ORDER.length, truncated);

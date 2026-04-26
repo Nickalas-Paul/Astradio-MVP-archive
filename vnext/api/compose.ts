@@ -25,6 +25,7 @@ import type { EphemerisSnapshot, FeatureVec, Plan } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
 import { DEFAULT_DURATION_S } from '../constants';
 import { getProvider } from '../render';
+import type { LyriaPromptProfile } from '../render/prompt-from-controls';
 import type { CanonicalCompositionInput } from './canonical-compose-input';
 import { buildHomeCanonicalInput } from '../adapters/home-compose-adapter';
 import { buildProfileNatalCanonicalInput } from '../adapters/profile-natal-compose-adapter';
@@ -809,9 +810,13 @@ export class ComposeAPI {
         : undefined,
     };
 
+    const lyriaPromptProfile: LyriaPromptProfile | undefined = input.relationalWeather
+      ? 'aggregate_relational_weather_v1'
+      : undefined;
+
     const wavBundle = await runLyriaAlignedExportBlock(
       (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-      { plan, architecture, featureVec, payload, semanticCore }
+      { plan, architecture, featureVec, payload, semanticCore, lyriaPromptProfile }
     );
 
     const pvAgg = projected[projected.length - 1]?.meta?.projection_validation;
