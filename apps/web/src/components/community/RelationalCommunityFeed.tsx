@@ -207,7 +207,15 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string; inserted?: number; repaired?: number; ok?: boolean };
+      const j = (await r.json().catch(() => ({}))) as {
+        error?: string;
+        inserted?: number;
+        repaired?: number;
+        textRepaired?: number;
+        exportReachable?: boolean;
+        repairReason?: string;
+        ok?: boolean;
+      };
       if (!r.ok) {
         setSaveStatusByFeedId((prev) => ({
           ...prev,
@@ -217,16 +225,15 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
       }
       const inserted = j.inserted;
       const repaired = j.repaired;
+      const textRepaired = j.textRepaired;
+      const reason = j.repairReason ? ` (${j.repairReason})` : '';
+      let msg = 'Library updated';
+      if (inserted === 1) msg = 'Saved to Library';
+      else if (inserted === 0 && repaired !== 1 && textRepaired !== 1) msg = 'Already in Library';
+      else if (repaired === 1 || textRepaired === 1) msg = 'Library updated';
       setSaveStatusByFeedId((prev) => ({
         ...prev,
-        [item.feed_item_id]:
-          inserted === 1
-            ? 'Saved to Library'
-            : repaired === 1
-              ? 'Library updated'
-              : inserted === 0
-                ? 'Already in Library'
-                : 'Library updated',
+        [item.feed_item_id]: `${msg}${reason}`,
       }));
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({

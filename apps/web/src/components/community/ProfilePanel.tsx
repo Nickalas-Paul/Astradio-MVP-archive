@@ -243,6 +243,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [libraryReconstructResult, setLibraryReconstructResult] = useState<Record<string, unknown> | null>(null);
   const [libraryReconstructError, setLibraryReconstructError] = useState<string | null>(null);
   const [libraryDetailAudioUrl, setLibraryDetailAudioUrl] = useState<string | null>(null);
+  /** null = not checked; true = HEAD failed or GET blob failed; false = playable */
+  const [libraryAudioMissingFromStore, setLibraryAudioMissingFromStore] = useState<boolean | null>(null);
+  const [libraryRelationalWeatherTextMissing, setLibraryRelationalWeatherTextMissing] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -456,6 +459,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     setLibraryDetailRow(null);
     setLibraryReconstructResult(null);
     setLibraryReconstructError(null);
+    setLibraryAudioMissingFromStore(null);
+    setLibraryRelationalWeatherTextMissing(false);
     if (libraryDetailAudioUrl) {
       URL.revokeObjectURL(libraryDetailAudioUrl);
       setLibraryDetailAudioUrl(null);
@@ -548,6 +553,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       if (source === 'community_relational_weather' || ps?.kind === 'community_relational_weather') {
         const report = row.report as { text?: unknown; weather?: unknown } | undefined;
         const textValue = report?.text;
+        const textMissing = textValue == null;
+        setLibraryRelationalWeatherTextMissing(textMissing);
         const text =
           typeof textValue === 'string'
             ? textValue
@@ -569,8 +576,27 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         });
         const eid = row.export_id;
         if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-          if (url) setLibraryDetailAudioUrl(url);
+          try {
+            const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
+              method: 'HEAD',
+              credentials: 'same-origin',
+            });
+            if (headRes.status !== 204 && headRes.status !== 200) {
+              setLibraryAudioMissingFromStore(true);
+            } else {
+              const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+              if (url) {
+                setLibraryDetailAudioUrl(url);
+                setLibraryAudioMissingFromStore(false);
+              } else {
+                setLibraryAudioMissingFromStore(true);
+              }
+            }
+          } catch {
+            setLibraryAudioMissingFromStore(true);
+          }
+        } else {
+          setLibraryAudioMissingFromStore(null);
         }
         return;
       }
@@ -1201,6 +1227,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                           setLibraryDetailRow(null);
                           setLibraryReconstructResult(null);
                           setLibraryReconstructError(null);
+                          setLibraryAudioMissingFromStore(null);
+                          setLibraryRelationalWeatherTextMissing(false);
                           if (libraryDetailAudioUrl) {
                             URL.revokeObjectURL(libraryDetailAudioUrl);
                             setLibraryDetailAudioUrl(null);
@@ -1230,6 +1258,23 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         sections={mapExplanationToSections(libraryReconstructResult.explanation)}
                       />
                     )}
+                    {libraryDetailRow &&
+                      (libraryDetailRow.source === 'community_relational_weather' ||
+                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
+                      libraryRelationalWeatherTextMissing && (
+                        <p className="text-sm text-amber-600 dark:text-amber-300">
+                          Reading text was not stored for this bookmark. Re-save from the Community relational feed, or
+                          ask an operator to run a library repair.
+                        </p>
+                      )}
+                    {libraryDetailRow &&
+                      (libraryDetailRow.source === 'community_relational_weather' ||
+                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
+                      libraryAudioMissingFromStore === true && (
+                        <p className="text-sm text-amber-600 dark:text-amber-300">
+                          Audio record missing from storage (export pointer exists but file was not found).
+                        </p>
+                      )}
                     {libraryDetailAudioUrl && (
                       <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
                     )}

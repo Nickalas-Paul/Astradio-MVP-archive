@@ -20,8 +20,42 @@ try {
 
 const vnextRoot = path.join(__dirname, '..', '..', 'dist', 'vnext', 'vnext');
 const communityRelFeedMod = optionalRequire(path.join(vnextRoot, 'api', 'community-relational-feed'));
+const { createExportStore } = require('../../lib/export-store');
 
 const REPORT_BODY_MAX = 500;
+
+let communityExportStoreSingleton = null;
+function getCommunityExportStore() {
+  if (!communityExportStoreSingleton) {
+    communityExportStoreSingleton = createExportStore();
+  }
+  return communityExportStoreSingleton;
+}
+
+async function exportReachableOnServer(exportId) {
+  const id = String(exportId || '').trim();
+  if (!id || !/^[a-f0-9]{64}$/.test(id)) return false;
+  try {
+    return await getCommunityExportStore().exists(id);
+  } catch (_) {
+    return false;
+  }
+}
+
+function logRelationalWeatherRepairAttempt(payload) {
+  console.log(
+    '[community][relational-weather-repair]',
+    JSON.stringify({
+      libraryId: payload.libraryId,
+      dailyArtifactIdUsed: payload.dailyArtifactIdUsed ?? null,
+      textPayloadPresent: !!payload.textPayloadPresent,
+      updateExecuted: !!payload.updateExecuted,
+      exportReachable: !!payload.exportReachable,
+      repairReason: payload.repairReason || null,
+      objectIdentityHashPrefix: payload.objectIdentityHashPrefix || null,
+    })
+  );
+}
 
 const communityPostLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -484,7 +518,7 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
     const compositionId = String(renderedArtifact.compositionId || body.compositionId || '').trim() || null;
     const exportJobId = String(renderedArtifact.exportJobId || body.exportJobId || '').trim() || null;
     const textRaw = renderedArtifact.text != null ? renderedArtifact.text : body.text;
-    const text =
+    const incomingText =
       typeof textRaw === 'string'
         ? textRaw.trim() || null
         : textRaw && typeof textRaw === 'object'
@@ -553,6 +587,9 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       return res.status(409).json({ error: 'artifact_identity_mismatch' });
     }
 
+    const effectiveText =
+      incomingText != null ? incomingText : existingDaily.textPayload != null ? existingDaily.textPayload : null;
+
     const resolvedExportJobId = existingDaily.exportJobId || exportJobId;
     const weatherPayload = body.weather && typeof body.weather === 'object' ? body.weather : null;
     const saved = await pgStore.ensureCommunityRelationalWeatherLibraryEntryForUser({
@@ -571,31 +608,151 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       planHash: existingDaily.planHash || planHash,
       compositionId: existingDaily.compositionId || compositionId,
       exportJobId: resolvedExportJobId,
-      text,
+      text: effectiveText,
       weather: weatherPayload,
     });
 
-    let repaired = false;
+    const exportReachable = await exportReachableOnServer(resolvedExportJobId);
+    let repairResult = { updated: false, reportTextUpdated: false };
     if (!saved.inserted) {
-      const r = await pgStore.repairCommunityRelationalWeatherLibraryComposition({
+      repairResult = await pgStore.repairCommunityRelationalWeatherLibraryComposition({
         ownerUserId: userId,
         objectIdentityHash,
-        text,
-        exportJobId: resolvedExportJobId,
+        text: effectiveText,
         weather: weatherPayload,
       });
-      repaired = !!r.updated;
     }
+
+    const inserted = saved.inserted ? 1 : 0;
+    const repaired = repairResult.updated ? 1 : 0;
+    const textRepaired =
+      saved.inserted && effectiveText != null
+        ? 1
+        : !saved.inserted && repairResult.reportTextUpdated
+          ? 1
+          : 0;
+
+    let repairReason;
+    if (saved.inserted) {
+      repairReason = effectiveText != null ? 'inserted_new_with_effective_text' : 'inserted_new_no_text_source';
+    } else if (repairResult.reportTextUpdated) {
+      repairReason = 'duplicate_text_repaired';
+    } else if (repairResult.updated) {
+      repairReason = 'duplicate_report_weather_only';
+    } else {
+      repairReason = 'duplicate_no_report_change';
+    }
+
+    logRelationalWeatherRepairAttempt({
+      libraryId: saved.id,
+      dailyArtifactIdUsed: existingDaily.id,
+      textPayloadPresent: existingDaily.textPayload != null,
+      updateExecuted: saved.inserted || repairResult.updated,
+      exportReachable,
+      repairReason,
+      objectIdentityHashPrefix: String(objectIdentityHash).slice(0, 12),
+    });
 
     return res.status(200).json({
       ok: true,
       objectIdentityHash,
-      inserted: saved.inserted ? 1 : 0,
-      repaired: repaired ? 1 : 0,
+      inserted,
+      repaired,
+      textRepaired,
+      exportReachable,
+      repairReason,
     });
   } catch (e) {
     console.error('[community] POST /community/artifacts/save', e);
     return res.status(500).json({ error: e?.message || 'community_artifact_save_failed' });
+  }
+});
+
+/**
+ * POST /api/community/artifacts/repair — gated QA/admin repair for one library row.
+ * Header: x-community-repair-token must match env COMMUNITY_REPAIR_TOKEN.
+ */
+router.post('/community/artifacts/repair', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const token = (process.env.COMMUNITY_REPAIR_TOKEN || '').trim();
+    if (!token) return res.status(501).json({ error: 'repair_unconfigured', message: 'COMMUNITY_REPAIR_TOKEN not set' });
+    const hdr = (req.headers['x-community-repair-token'] || '').toString().trim();
+    if (hdr !== token) return res.status(403).json({ error: 'repair_forbidden' });
+
+    const body = req.body || {};
+    const userId = await resolveCommunityUserId(req, body);
+    const libraryId = String(body.libraryId || '').trim();
+    if (!libraryId) return res.status(400).json({ error: 'library_id_required' });
+
+    const row = await pgStore.getSandboxCompositionByIdForOwner(libraryId, userId);
+    if (!row) return res.status(404).json({ error: 'library_row_not_found' });
+    const source = String(row.source || '').trim();
+    if (source !== 'community_relational_weather') {
+      return res.status(400).json({ error: 'unsupported_source', source });
+    }
+
+    const resolved = await pgStore.resolveDailyArtifactForLibraryRepair(row);
+    const daily = resolved.daily;
+    const effectiveText = daily && daily.textPayload != null ? daily.textPayload : null;
+    const effectiveWeather =
+      daily && daily.weatherPayload != null && typeof daily.weatherPayload === 'object' ? daily.weatherPayload : null;
+
+    const objectIdentityHash = String(row.object_identity_hash || '').trim();
+    if (!objectIdentityHash) {
+      return res.status(400).json({ error: 'library_row_missing_identity_hash' });
+    }
+
+    const exportId = row.export_id != null && String(row.export_id).trim() ? String(row.export_id).trim() : null;
+    const exportReachable = await exportReachableOnServer(exportId);
+
+    let repairResult = { updated: false, reportTextUpdated: false };
+    if (resolved.reason === 'ok' && daily && (effectiveText != null || effectiveWeather != null)) {
+      repairResult = await pgStore.repairCommunityRelationalWeatherLibraryComposition({
+        ownerUserId: userId,
+        objectIdentityHash,
+        text: effectiveText,
+        weather: effectiveWeather,
+      });
+    }
+
+    let repairReason;
+    if (resolved.reason !== 'ok') {
+      repairReason = `daily_resolve:${resolved.reason}`;
+    } else if (!daily || (effectiveText == null && effectiveWeather == null)) {
+      repairReason = 'no_text_or_weather_in_daily';
+    } else if (repairResult.reportTextUpdated) {
+      repairReason = 'text_repaired_from_daily';
+    } else if (repairResult.updated) {
+      repairReason = 'weather_only_updated';
+    } else {
+      repairReason = 'no_report_change';
+    }
+
+    logRelationalWeatherRepairAttempt({
+      libraryId,
+      dailyArtifactIdUsed: daily ? daily.id : null,
+      textPayloadPresent: !!(daily && daily.textPayload != null),
+      updateExecuted: repairResult.updated,
+      exportReachable,
+      repairReason,
+      objectIdentityHashPrefix: objectIdentityHash.slice(0, 12),
+    });
+
+    return res.status(200).json({
+      ok: true,
+      libraryId,
+      inserted: 0,
+      repaired: repairResult.updated ? 1 : 0,
+      textRepaired: repairResult.reportTextUpdated ? 1 : 0,
+      exportReachable,
+      repairReason,
+      dailyResolutionPath: resolved.resolutionPath,
+      dailyResolveReason: resolved.reason,
+    });
+  } catch (e) {
+    console.error('[community] POST /community/artifacts/repair', e);
+    return res.status(500).json({ error: e?.message || 'community_artifact_repair_failed' });
   }
 });
 

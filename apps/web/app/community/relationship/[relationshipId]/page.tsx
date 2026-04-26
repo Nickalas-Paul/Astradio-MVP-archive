@@ -235,6 +235,11 @@ export default function CommunityRelationshipArtifactPage() {
               <p className="text-sm text-subtext">
                 Artifact: {artifactStatusLine(comparison, exId, exportReachable)}
               </p>
+              {exId && exportReachable === false ? (
+                <p className="text-sm text-amber-600 dark:text-amber-300">
+                  Sound record not in storage (export pointer exists but the file was not found).
+                </p>
+              ) : null}
             </header>
 
             {materializeError && <p className="text-amber-600 dark:text-amber-300 text-sm">{materializeError}</p>}
