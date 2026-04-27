@@ -1056,7 +1056,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       text,
       meta: {
         enrichDensity: densityDefault,
-        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        /** Phase 3: omit claim-id refs from meta (tension can overlap MEP); body text unchanged. */
+        claimIdsReferenced: [],
         phaseD: true,
         tagged,
       },

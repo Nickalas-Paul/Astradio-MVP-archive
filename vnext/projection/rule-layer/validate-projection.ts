@@ -200,14 +200,6 @@ export function validateClaimIdUniqueness(sections: ProjectedExplanationSection[
     const onlyMusicalOverlap =
       uniqueSec.length === 2 && isSig && uniqueSec.some((s) => MUSICAL_IDS.has(s));
     if (onlyMusicalOverlap) continue;
-    // Tension/contrast in contradiction_map can reference the same claim ids as MEP text (structural, not re-selected).
-    if (
-      uniqueSec.length === 2 &&
-      uniqueSec.includes('signatures') &&
-      uniqueSec.includes('contradiction_map')
-    ) {
-      continue;
-    }
     v.push(`claim_id_duplicate_across_sections:${claim}:[${uniqueSec.join(',')}]`);
   }
   return { ok: v.length === 0, violations: v };
