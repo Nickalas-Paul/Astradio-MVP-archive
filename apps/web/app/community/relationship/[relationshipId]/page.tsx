@@ -7,6 +7,7 @@ import { AppShell } from '@/components/AppShell';
 import { useProfile } from '@/core/social/hooks';
 import { getApiBaseUrl } from '@/core/api-base';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
 
 type RelationshipRow = {
   id: string;
@@ -21,6 +22,8 @@ type ComparisonJson = {
   id?: string;
   relationshipMode?: string;
   compatibilityText?: { short?: string; long?: string; bullets?: string[] } | string;
+  /** Present on POST create only; GET stored row is text-first. */
+  explanation?: { sections?: Array<{ title?: string; text?: string; bullets?: string[] }> };
   exportJobId?: string;
   planHash?: string;
   compositionId?: string;
@@ -202,6 +205,9 @@ export default function CommunityRelationshipArtifactPage() {
   }, [exId]);
 
   const { short, long, bullets } = comparison ? renderCompatText(comparison) : { short: '', long: '', bullets: [] as string[] };
+  const hasReadingSurface = comparison
+    ? hasCompatibilityReadingSurface(comparison.explanation ?? null, comparison.compatibilityText)
+    : false;
 
   return (
     <AppShell>
@@ -244,23 +250,48 @@ export default function CommunityRelationshipArtifactPage() {
 
             {materializeError && <p className="text-amber-600 dark:text-amber-300 text-sm">{materializeError}</p>}
 
-            {comparison && (short || long || bullets.length > 0) && (
+            {comparison && hasReadingSurface && (
               <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
                 <h2 className="text-lg font-medium text-text">Reading</h2>
-                {short ? <p className="text-sm text-text whitespace-pre-wrap">{short}</p> : null}
-                {long ? <p className="text-sm text-text whitespace-pre-wrap border-t border-border/60 pt-3 mt-2">{long}</p> : null}
-                {bullets.length > 0 ? (
-                  <ul className="list-disc pl-5 text-sm text-text space-y-1">
-                    {bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
+                {Array.isArray(comparison.explanation?.sections) && comparison.explanation!.sections!.length > 0 ? (
+                  <div className="space-y-4">
+                    {comparison.explanation!.sections!.map((s, i) => (
+                      <div key={i}>
+                        {s.title ? <h3 className="text-sm font-medium text-text mb-1">{s.title}</h3> : null}
+                        {s.text ? <p className="text-sm text-text whitespace-pre-wrap">{s.text}</p> : null}
+                        {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
+                          <ul className="list-disc pl-5 text-sm text-text space-y-1">
+                            {s.bullets.map((b, j) => (
+                              <li key={j}>{b}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
                     ))}
-                  </ul>
-                ) : null}
+                  </div>
+                ) : (
+                  <>
+                    {short ? <p className="text-sm text-text whitespace-pre-wrap">{short}</p> : null}
+                    {long ? (
+                      <p className="text-sm text-text whitespace-pre-wrap border-t border-border/60 pt-3 mt-2">{long}</p>
+                    ) : null}
+                    {bullets.length > 0 ? (
+                      <ul className="list-disc pl-5 text-sm text-text space-y-1">
+                        {bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                )}
               </section>
             )}
 
-            {comparison && !short && !long && !bullets.length && !materializeError && (
-              <p className="text-sm text-subtext">No text blocks in this reading yet.</p>
+            {comparison && !hasReadingSurface && !materializeError && (
+              <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+                Stored reading text is missing or incomplete for this connection. Use “materialize” from the server or open
+                a new compatibility reading from Community.
+              </p>
             )}
 
             {exId && exportReachable === true && (

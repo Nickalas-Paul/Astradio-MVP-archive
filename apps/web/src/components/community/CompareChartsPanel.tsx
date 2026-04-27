@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { LyriaAudio } from '../LyriaAudio';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { RELATIONSHIP_MODE_OPTIONS, type RelationshipMode } from '../../core/compat/relationshipModes';
+import {
+  hasCompatibilityReadingSurface,
+  type CompatibilityTextLike,
+  type ExplanationLike,
+} from '../../lib/compatibility-reading-surface';
 
 type ChartInput = { label: string; date: string; time: string; lat: string; lon: string };
 
@@ -31,7 +36,8 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
-    compatibilityText: { short?: string; long?: string; bullets?: string[] } | string;
+    compatibilityText: CompatibilityTextLike;
+    explanation?: ExplanationLike | { sections?: Array<{ title?: string; text?: string; bullets?: string[] }> };
     planHash?: string;
     compositionId?: string;
     audio?: { base64?: string };
@@ -128,6 +134,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
       const data = await r.json();
       setResult({
         compatibilityText: data.compatibilityText ?? '',
+        explanation: data.explanation,
         planHash: data.planHash,
         compositionId: data.compositionId,
         audio: data.audio,
@@ -143,6 +150,14 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
   const short = typeof compatText === 'string' ? compatText : compatText?.short ?? '';
   const long = typeof compatText === 'object' ? compatText?.long ?? '' : '';
   const bullets = typeof compatText === 'object' && Array.isArray(compatText?.bullets) ? compatText.bullets : [];
+  const sections = result?.explanation?.sections ?? [];
+  const hasSurface = result
+    ? hasCompatibilityReadingSurface(result.explanation ?? null, compatText)
+    : false;
+  const showStructuredSections = Array.isArray(sections) && sections.length > 0;
+  const showCompatFallback =
+    !showStructuredSections && (short || long || bullets.length > 0);
+  const readingIncomplete = !!result && !hasSurface;
   const audioBase64 = result?.audio?.base64 ?? null;
 
   return (
@@ -303,14 +318,40 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
       {result && (
         <div className="space-y-3 rounded-lg border border-border bg-bgElev p-4">
           <h3 className="text-sm font-medium text-text">Compatibility</h3>
-          {short && <p className="text-text">{short}</p>}
-          {long && <p className="text-sm text-subtext">{long}</p>}
-          {bullets.length > 0 && (
-            <ul className="list-inside list-disc text-sm text-subtext">
-              {bullets.map((b, i) => (
-                <li key={i}>{b}</li>
+          {readingIncomplete && (
+            <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+              Compatibility reading did not return text from the server. Try again, or contact support if this persists.
+            </p>
+          )}
+          {showStructuredSections && (
+            <div className="space-y-3 text-sm">
+              {sections.map((s, i) => (
+                <div key={i}>
+                  {s.title ? <h4 className="font-medium text-text mb-1">{s.title}</h4> : null}
+                  {s.text ? <p className="text-subtext whitespace-pre-wrap">{s.text}</p> : null}
+                  {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
+                    <ul className="list-inside list-disc text-subtext space-y-1 mt-1">
+                      {s.bullets.map((b, bi) => (
+                        <li key={bi}>{b}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ))}
-            </ul>
+            </div>
+          )}
+          {showCompatFallback && (
+            <div className="space-y-3">
+              {short ? <p className="text-text whitespace-pre-wrap">{short}</p> : null}
+              {long ? <p className="text-sm text-subtext whitespace-pre-wrap">{long}</p> : null}
+              {bullets.length > 0 ? (
+                <ul className="list-inside list-disc text-sm text-subtext">
+                  {bullets.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           )}
           {result.compositionId && (
             <p className="text-xs text-subtext">Composition: {result.compositionId.slice(0, 16)}…</p>

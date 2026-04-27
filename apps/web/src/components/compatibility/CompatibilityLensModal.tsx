@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { RELATIONSHIP_MODES, type RelationshipMode } from '../../core/compat/relationshipModes';
+import {
+  hasCompatibilityReadingSurface,
+  type CompatibilityTextLike,
+  type ExplanationLike,
+} from '../../lib/compatibility-reading-surface';
 
 const INTENT_TO_RELATIONSHIP: Record<string, RelationshipMode> = {
   friendship: 'friends',
@@ -30,8 +35,8 @@ export function CompatibilityLensModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{
-    compatibilityText?: { short?: string; long?: string; bullets?: string[] } | string;
-    explanation?: { sections?: Array<{ title: string; text: string }> };
+    compatibilityText?: CompatibilityTextLike;
+    explanation?: ExplanationLike | { sections?: Array<{ title?: string; text?: string; bullets?: string[] }> };
   } | null>(null);
 
   const chartAId = seekerChartId;
@@ -57,7 +62,6 @@ export function CompatibilityLensModal({
             chartAId: chartAId!,
             chartBId: targetChartId,
             relationshipMode,
-            generateComposition: false,
           }),
         });
         if (cancelled) return;
@@ -66,7 +70,6 @@ export function CompatibilityLensModal({
           throw new Error(d?.error || `Comparison failed ${r.status}`);
         }
         const json = await r.json();
-        // Prefer explicit role fields when present; fall back to request inputs.
         const seekerChartIdResp = (json as any).seekerChartId ?? chartAId;
         const targetChartIdResp = (json as any).targetChartId ?? targetChartId;
         if (seekerChartIdResp !== chartAId || targetChartIdResp !== targetChartId) {
@@ -84,7 +87,9 @@ export function CompatibilityLensModal({
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [seekerChartId, chartAId, targetChartId, intent]);
 
   const compatText = data?.compatibilityText;
@@ -92,6 +97,13 @@ export function CompatibilityLensModal({
   const long = typeof compatText === 'object' ? compatText?.long ?? '' : '';
   const bullets = typeof compatText === 'object' && Array.isArray(compatText?.bullets) ? compatText.bullets : [];
   const sections = data?.explanation?.sections ?? [];
+  const hasSurface = data
+    ? hasCompatibilityReadingSurface(data.explanation ?? null, compatText)
+    : false;
+  const showStructuredSections = Array.isArray(sections) && sections.length > 0;
+  const showCompatFallback =
+    !showStructuredSections && (short || long || bullets.length > 0);
+  const readingIncomplete = !loading && !!data && !error && !hasSurface;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
@@ -116,37 +128,51 @@ export function CompatibilityLensModal({
 
         {!loading && data && (
           <div className="space-y-4 text-sm">
-            {short && (
-              <div>
-                <h3 className="font-medium text-text mb-1">Summary</h3>
-                <p className="text-subtext">{short}</p>
-              </div>
+            {readingIncomplete && (
+              <p className="text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+                Compatibility reading did not return text from the server. Try again, or contact support if this
+                persists.
+              </p>
             )}
-            {long && (
-              <div>
-                <h3 className="font-medium text-text mb-1">Details</h3>
-                <p className="text-subtext">{long}</p>
-              </div>
-            )}
-            {bullets.length > 0 && (
-              <ul className="list-disc list-inside text-subtext space-y-1">
-                {bullets.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            )}
-            {sections.length > 0 && (
-              <div className="space-y-3 pt-2 border-t border-border">
+            {showStructuredSections && (
+              <div className="space-y-3">
                 {sections.map((s, i) => (
                   <div key={i}>
-                    <h3 className="font-medium text-text mb-1">{s.title}</h3>
-                    <p className="text-subtext">{s.text}</p>
+                    {s.title ? <h3 className="font-medium text-text mb-1">{s.title}</h3> : null}
+                    {s.text ? <p className="text-subtext whitespace-pre-wrap">{s.text}</p> : null}
+                    {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
+                      <ul className="list-disc list-inside text-subtext space-y-1 mt-1">
+                        {s.bullets.map((b, bi) => (
+                          <li key={bi}>{b}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ))}
               </div>
             )}
-            {!short && !long && bullets.length === 0 && sections.length === 0 && (
-              <p className="text-subtext">No narrative available for this comparison.</p>
+            {showCompatFallback && (
+              <div className="space-y-4">
+                {short ? (
+                  <div>
+                    <h3 className="font-medium text-text mb-1">Summary</h3>
+                    <p className="text-subtext whitespace-pre-wrap">{short}</p>
+                  </div>
+                ) : null}
+                {long ? (
+                  <div>
+                    <h3 className="font-medium text-text mb-1">Details</h3>
+                    <p className="text-subtext whitespace-pre-wrap">{long}</p>
+                  </div>
+                ) : null}
+                {bullets.length > 0 ? (
+                  <ul className="list-disc list-inside text-subtext space-y-1">
+                    {bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             )}
           </div>
         )}

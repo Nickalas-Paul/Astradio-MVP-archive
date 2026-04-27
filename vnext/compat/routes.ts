@@ -813,12 +813,22 @@ export function createCompatRouter(): import('express').Router {
   router.post('/comparisons', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
+      /** Invariant: HTTP compatibility comparisons always run aggregate compose (explanation + compatibilityText). */
+      const suppressComposeRequested =
+        body &&
+        typeof body === 'object' &&
+        'generateComposition' in body &&
+        (body as { generateComposition?: unknown }).generateComposition === false;
+      if (suppressComposeRequested) {
+        console.warn(
+          '[compat] POST /api/comparisons: ignoring generateComposition:false — server invariant forces composition',
+        );
+      }
       const {
         chartAId,
         chartBId,
         chartBInline,
         relationshipMode,
-        generateComposition,
         fusion,
         createdBy,
         expansionTier,
@@ -832,7 +842,6 @@ export function createCompatRouter(): import('express').Router {
         chartBId?: string;
         chartBInline?: unknown;
         relationshipMode?: string;
-        generateComposition?: boolean;
         fusion?: { wA: unknown; wB: unknown };
         createdBy?: string;
         expansionTier?: string;
@@ -874,7 +883,7 @@ export function createCompatRouter(): import('express').Router {
         chartBId: effectiveChartBId || undefined,
         chartBInline: chartBInlineInput,
         relationshipMode,
-        generateComposition: generateComposition !== false,
+        generateComposition: true,
         fusion: fusionInput,
         createdBy: createdBy || undefined,
         expansionTier: parseExpansionTier(expansionTier ?? expansion_tier),

@@ -11,6 +11,7 @@ import { BirthChartSection } from '../profile/BirthChartSection';
 import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
+import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 
 const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
 
@@ -1253,11 +1254,27 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                       <p className="text-sm text-subtext">Loading report…</p>
                     )}
                     {libraryReconstructResult != null &&
-                      libraryReconstructResult.explanation != null && (
-                      <ExplainerSections
-                        sections={mapExplanationToSections(libraryReconstructResult.explanation)}
-                      />
-                    )}
+                      libraryReconstructResult.explanation != null &&
+                      hasCompatibilityReadingSurface(
+                        libraryReconstructResult.explanation as ExplanationLike,
+                        undefined,
+                      ) && (
+                        <ExplainerSections
+                          sections={mapExplanationToSections(libraryReconstructResult.explanation)}
+                        />
+                      )}
+                    {libraryReconstructResult != null &&
+                      libraryReconstructResult.explanation != null &&
+                      !hasCompatibilityReadingSurface(
+                        libraryReconstructResult.explanation as ExplanationLike,
+                        undefined,
+                      ) &&
+                      !libraryReconstructError && (
+                        <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+                          Stored reading text for this artifact is missing or empty. Generate a new compatibility reading or
+                          contact support.
+                        </p>
+                      )}
                     {libraryDetailRow &&
                       (libraryDetailRow.source === 'community_relational_weather' ||
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
