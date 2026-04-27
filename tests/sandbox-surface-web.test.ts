@@ -10,6 +10,12 @@ import {
   slotWirePopulationKind,
   getPopulatedSlotIndicesFromCompositionInput,
 } from '../apps/web/src/lib/sandbox-composition-state';
+import {
+  trimResolveResponseForPersistence,
+  filterSandboxSavedRows,
+  loadTerminalSurfaceState,
+} from '../apps/web/src/lib/sandbox-persisted-trim';
+import { selectHandleResolvedChart } from '../vnext/compat/chart-store';
 import type { SandboxCompositionInputState } from '../apps/web/src/types/sandbox';
 
 describe('fingerprintResolveBodyExcludingSeed', () => {
@@ -149,6 +155,89 @@ describe('slotWirePopulationKind / getPopulatedSlotIndices', () => {
       overrides: { planets: {} },
     };
     expect(slotWirePopulationKind(slot as never)).toBe('ephemeris_birth');
+  });
+});
+
+describe('trimResolveResponseForPersistence', () => {
+  it('removes audio/base64 and keeps hashes/canonical fields', () => {
+    const trimmed = trimResolveResponseForPersistence({
+      ok: true,
+      canonical_input_hash: 'abc',
+      canonical_slot_order: ['0:chart:x:ov:y'],
+      compose: {
+        hashes: { plan_sha256: 'plan' },
+        explanation: { spec: 'UnifiedSpecV1.1', sections: [] },
+        export_id: 'exp_1',
+        audio: { base64: 'very-large', format: 'wav' },
+        audio_debug: { internal: true },
+      },
+      aggregate: {
+        hashes: { plan_sha256: 'agg_plan' },
+        audio: { base64: 'very-large-agg', format: 'wav' },
+        audio_debug: { internal: true },
+      },
+    });
+    expect(trimmed).toBeTruthy();
+    expect(trimmed?.canonical_input_hash).toBe('abc');
+    expect((trimmed?.compose as Record<string, unknown>).hashes).toEqual({ plan_sha256: 'plan' });
+    expect((trimmed?.compose as Record<string, unknown>).explanation).toEqual({ spec: 'UnifiedSpecV1.1', sections: [] });
+    expect((trimmed?.compose as Record<string, unknown>).export_id).toBe('exp_1');
+    expect((trimmed?.compose as Record<string, unknown>).audio).toBeUndefined();
+    expect((trimmed?.compose as Record<string, unknown>).audio_debug).toBeUndefined();
+    expect((trimmed?.aggregate as Record<string, unknown>).audio).toBeUndefined();
+    expect((trimmed?.aggregate as Record<string, unknown>).audio_debug).toBeUndefined();
+  });
+});
+
+describe('filterSandboxSavedRows', () => {
+  it('keeps only rows where source is sandbox', () => {
+    const rows = [
+      { id: '1', source: 'sandbox' },
+      { id: '2', source: 'profile_active' },
+      { id: '3', source: null },
+      { id: '4', source: 'sandbox' },
+    ];
+    expect(filterSandboxSavedRows(rows).map((r) => (r as { id: string }).id)).toEqual(['1', '4']);
+  });
+});
+
+describe('loadTerminalSurfaceState', () => {
+  it('returns ready_report on success and error on failure', () => {
+    expect(loadTerminalSurfaceState(true)).toBe('ready_report');
+    expect(loadTerminalSurfaceState(false)).toBe('error');
+  });
+});
+
+describe('selectHandleResolvedChart', () => {
+  it('returns chart by exact label when multiple charts exist', () => {
+    const chart = selectHandleResolvedChart(
+      [
+        { id: 'a', label: 'First Label' },
+        { id: 'b', label: 'QA Compat10' },
+      ],
+      'qa compat10',
+    ) as { id: string } | null;
+    expect(chart?.id).toBe('b');
+  });
+
+  it('returns null on ambiguous or not-found multi-chart handle resolution', () => {
+    const noMatch = selectHandleResolvedChart(
+      [
+        { id: 'a', label: 'First Label' },
+        { id: 'b', label: 'Second Label' },
+      ],
+      'qa compat10',
+    );
+    expect(noMatch).toBeNull();
+
+    const ambiguous = selectHandleResolvedChart(
+      [
+        { id: 'a', label: 'QA Compat10' },
+        { id: 'b', label: 'qa compat10' },
+      ],
+      'QA Compat10',
+    );
+    expect(ambiguous).toBeNull();
   });
 });
 

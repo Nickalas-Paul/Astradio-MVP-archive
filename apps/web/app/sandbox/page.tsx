@@ -41,6 +41,11 @@ import {
   fingerprintResolveBodyExcludingSeed,
 } from '../../src/lib/sandbox-resolve-fingerprint';
 import { classifySandboxPersistedState } from '../../src/lib/sandbox-persisted-classify';
+import {
+  trimResolveResponseForPersistence,
+  filterSandboxSavedRows,
+  loadTerminalSurfaceState,
+} from '../../src/lib/sandbox-persisted-trim';
 
 type SandboxSurfaceState =
   | 'idle'
@@ -223,10 +228,11 @@ export default function SandboxPage() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
-  const [savedList, setSavedList] = useState<Array<{ id: string; plan_hash: string; vector_hash: string; created_at: string; export_id?: string | null }>>([]);
+  const [savedList, setSavedList] = useState<Array<{ id: string; plan_hash: string; vector_hash: string; created_at: string; export_id?: string | null; source?: string | null }>>([]);
   const [listLoading, setListLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
@@ -998,15 +1004,21 @@ export default function SandboxPage() {
 
   const fetchSavedList = useCallback(async () => {
     setListLoading(true);
+    setListError(null);
     try {
       // Same-origin only: Next proxy injects session userId for engine owner isolation (see app/api/sandbox/[...path]/route.ts).
       const r = await fetch('/api/sandbox/compositions?limit=50');
       const data = await r.json().catch(() => []);
       if (!r.ok) {
         setSavedList([]);
+        setListError((data?.error ?? data?.message) || `Failed to load saved compositions (${r.status})`);
         return;
       }
-      setSavedList(Array.isArray(data) ? data : []);
+      const rows = Array.isArray(data) ? data : [];
+      setSavedList(filterSandboxSavedRows(rows));
+    } catch (e) {
+      setSavedList([]);
+      setListError(e instanceof Error ? e.message : 'Failed to load saved compositions');
     } finally {
       setListLoading(false);
     }
@@ -1062,7 +1074,8 @@ export default function SandboxPage() {
             composition_input: compositionModel.compositionInput,
             last_submitted_resolve_body:
               lr?.source === 'live_resolve' && lr.lastSubmittedResolveBody ? lr.lastSubmittedResolveBody : null,
-            full_resolve_response: lr?.source === 'live_resolve' ? lr.fullResponse : null,
+            full_resolve_response:
+              lr?.source === 'live_resolve' ? trimResolveResponseForPersistence(lr.fullResponse as Record<string, unknown>) : null,
           },
           vector_hash: lastCombinedHashUsed,
           seed: lastCombinedHashUsed,
@@ -1104,18 +1117,21 @@ export default function SandboxPage() {
 
   const handleLoad = useCallback(async (id: string) => {
     const base = getApiBaseUrl() || '';
+    let loadSucceeded = false;
+    let loadErrorMessage: string | null = null;
+    setError(null);
     try {
       const r = await fetch(`/api/sandbox/compositions/${id}`);
       const comp = await r.json().catch(() => null);
       if (!r.ok || !comp) {
-        setError(comp?.error ?? 'Failed to load composition');
+        loadErrorMessage = comp?.error ?? 'Failed to load composition';
         return;
       }
       const compRec = comp as Record<string, unknown>;
       const rowState = compRec.sandbox_state;
       const classified = classifySandboxPersistedState(rowState);
       if (classified.kind === 'unsupported') {
-        setError(classified.reason);
+        loadErrorMessage = classified.reason;
         return;
       }
       const parsed = parsePersistedSandboxState(rowState);
@@ -1163,8 +1179,7 @@ export default function SandboxPage() {
         });
         const snapData = await snapRes.json().catch(() => ({}));
         if (!snapRes.ok) {
-          setSurfaceState('ready_builder');
-          setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
+          loadErrorMessage = (snapData?.error ?? snapData?.message) || 'Snapshot failed after load';
           return;
         }
         const snapshot = snapData.snapshot as EphemerisSnapshot;
@@ -1183,14 +1198,14 @@ export default function SandboxPage() {
           },
           lastResolve,
         });
+        loadSucceeded = true;
       } else {
         const cidLoad = typeof activeSlot?.chart_id === 'string' ? activeSlot.chart_id.trim() : '';
         if (cidLoad) {
           const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cidLoad)}`);
           const chartData = await chartRes.json().catch(() => ({}));
           if (!chartRes.ok) {
-            setSurfaceState('ready_builder');
-            setError((chartData?.error ?? chartData?.message) || 'Chart not found for saved composition');
+            loadErrorMessage = (chartData?.error ?? chartData?.message) || 'Chart not found for saved composition';
             return;
           }
           const wire = chartApiRecordToSandboxBirthWire(chartData);
@@ -1203,8 +1218,7 @@ export default function SandboxPage() {
           });
           const snapData = await snapRes.json().catch(() => ({}));
           if (!snapRes.ok) {
-            setSurfaceState('ready_builder');
-            setError((snapData?.error ?? snapData?.message) || 'Snapshot failed after load');
+            loadErrorMessage = (snapData?.error ?? snapData?.message) || 'Snapshot failed after load';
             return;
           }
           const snapshot = snapData.snapshot as EphemerisSnapshot;
@@ -1223,6 +1237,7 @@ export default function SandboxPage() {
             },
             lastResolve,
           });
+          loadSucceeded = true;
         } else {
           const lastResolve = buildLastResolveFromLoadedRow(compRec, parsed, null);
           dispatchComposition({
@@ -1238,12 +1253,19 @@ export default function SandboxPage() {
             },
             lastResolve,
           });
+          loadSucceeded = true;
         }
       }
-      setSurfaceState('ready_report');
-      setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Load failed');
+      loadErrorMessage = e instanceof Error ? e.message : 'Load failed';
+    } finally {
+      if (loadTerminalSurfaceState(loadSucceeded) === 'ready_report') {
+        setSurfaceState('ready_report');
+        setError(null);
+        return;
+      }
+      setSurfaceState(loadTerminalSurfaceState(loadSucceeded));
+      setError(loadErrorMessage ?? 'Load failed');
     }
   }, []);
 
@@ -1793,6 +1815,7 @@ export default function SandboxPage() {
                     {listLoading ? '…' : 'Refresh'}
                   </button>
                 </div>
+                {listError && <p className="mb-2 text-xs text-red-400">{listError}</p>}
                 {savedList.length === 0 ? (
                   <p className="text-xs text-subtext">No saved compositions. Generate then Save.</p>
                 ) : (

@@ -38,6 +38,22 @@ export async function listChartsByOwner(ownerId: string): Promise<Chart[]> {
   return storage.listChartsByOwner(ownerId);
 }
 
+function normalizeExactLabelMatch(value: unknown): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function selectHandleResolvedChart<T extends { label?: string }>(
+  charts: T[],
+  handleInput: string
+): T | null {
+  if (!Array.isArray(charts) || charts.length === 0) return null;
+  if (charts.length === 1) return charts[0];
+  const exactLabel = normalizeExactLabelMatch(handleInput);
+  const matches = charts.filter((c) => normalizeExactLabelMatch(c.label) === exactLabel);
+  if (matches.length === 1) return matches[0];
+  return null;
+}
+
 export async function resolveChartOrInline(input: ResolveChartInput): Promise<Chart> {
   if ('chartId' in input) {
     const c = await storage.getChart(input.chartId);

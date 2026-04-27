@@ -4,7 +4,7 @@
  */
 
 import * as storage from './storage';
-import { getChartById, createChart } from './chart-store';
+import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart } from './chart-store';
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
@@ -795,10 +795,18 @@ export function createCompatRouter(): import('express').Router {
 
   // GET /api/charts/:id
   router.get('/charts/:id', async (req: import('express').Request, res: import('express').Response) => {
-    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
+    if (!id) return res.status(404).json({ error: 'Chart not found' });
     const chart = await getChartById(id);
-    if (!chart) return res.status(404).json({ error: 'Chart not found' });
-    return res.json(chart);
+    if (chart) return res.json(chart);
+
+    const userByHandle = await storage.getUserByHandle(id);
+    if (!userByHandle) return res.status(404).json({ error: 'Chart not found' });
+
+    const charts = await listChartsByOwner(userByHandle.id);
+    const resolved = selectHandleResolvedChart(charts, id);
+    if (resolved) return res.json(resolved);
+    return res.status(404).json({ error: 'Chart not found', code: 'CHART_LOOKUP_AMBIGUOUS' });
   });
 
   // POST /api/comparisons
