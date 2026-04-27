@@ -273,6 +273,133 @@ function applyAggregateSurfaceIdentityOverrides(
   return out;
 }
 
+/** Phase 3 — must not appear in sandbox (stripped in assembly, validated in validate-projection). */
+const SANDBOX_STRIP_SECTION_IDS = new Set<string>([
+  'relational_field',
+  'relational_weather_v1',
+  'connection_structure',
+  'ensemble_framing',
+  'interaction_map',
+  'field_distribution',
+  'subcluster',
+  'audio_thread',
+  'contradiction_map',
+  'synthesis_b',
+]);
+
+function bySectionIdBucket(sections: ProjectedExplanationSection[]): Map<string, ProjectedExplanationSection[]> {
+  const m = new Map<string, ProjectedExplanationSection[]>();
+  for (const s of sections) {
+    const a = m.get(s.id) ?? [];
+    a.push(s);
+    m.set(s.id, a);
+  }
+  return m;
+}
+
+function pluckId(m: Map<string, ProjectedExplanationSection[]>, id: string): ProjectedExplanationSection[] {
+  const a = m.get(id);
+  if (!a) return [];
+  m.delete(id);
+  return a;
+}
+
+function depthPanelSectionsSorted(sections: ProjectedExplanationSection[]): ProjectedExplanationSection[] {
+  return sections
+    .filter((s) => /^depth_panel_\d+$/.test(s.id))
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+}
+
+/**
+ * Phase 3 — deterministic final section order; does not change section bodies (only array order;
+ * for sandbox, also strips disallowed ids before ordering).
+ */
+function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], surface: ProjectionSurface): ProjectedExplanationSection[] {
+  if (!['profile', 'sandbox', 'group', 'compat_pair'].includes(surface)) {
+    return sections;
+  }
+  const base =
+    surface === 'sandbox' ? sections.filter((s) => !SANDBOX_STRIP_SECTION_IDS.has(s.id)) : sections.slice();
+  if (base.length === 0) return base;
+
+  const depthSorted = depthPanelSectionsSorted(base);
+  const m = bySectionIdBucket(
+    base.filter((s) => !/^depth_panel_\d+$/.test(s.id))
+  );
+
+  const withDepths = (order: (string | '__DEPTH__')[]): ProjectedExplanationSection[] => {
+    const out: ProjectedExplanationSection[] = [];
+    for (const id of order) {
+      if (id === '__DEPTH__') {
+        out.push(...depthSorted);
+        continue;
+      }
+      out.push(...pluckId(m, id as string));
+    }
+    for (const [, arr] of m) {
+      for (const s of arr) out.push(s);
+    }
+    return out;
+  };
+
+  if (surface === 'profile') {
+    const o = withDepths([
+      'signatures',
+      'significance',
+      'trait_bridge',
+      'synthesis_a',
+      'synthesis_b',
+      'musical',
+      'contradiction_map',
+      '__DEPTH__',
+      'audio_staging',
+      'audio_thread',
+    ]);
+    return o;
+  }
+
+  if (surface === 'sandbox') {
+    return withDepths(['significance', 'signatures', 'delta_emphasis', 'synthesis_a', 'musical', '__DEPTH__', 'audio_staging']);
+  }
+
+  if (surface === 'compat_pair') {
+    return withDepths([
+      'connection_structure',
+      'relational_field',
+      'relational_weather_v1',
+      'signatures',
+      'significance',
+      'interaction_map',
+      'synthesis_a',
+      'synthesis_b',
+      'musical',
+      '__DEPTH__',
+      'audio_staging',
+      'audio_thread',
+    ]);
+  }
+
+  if (surface === 'group') {
+    return withDepths([
+      'ensemble_framing',
+      'relational_field',
+      'relational_weather_v1',
+      'signatures',
+      'significance',
+      'field_distribution',
+      'synthesis_a',
+      'synthesis_b',
+      'subcluster',
+      'musical',
+      '__DEPTH__',
+      'audio_staging',
+      'audio_thread',
+    ]);
+  }
+
+  return base;
+}
+
 export function buildEmphasisRawSections(
   core: SemanticCore,
   seed: string,
@@ -447,6 +574,15 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp', options) : null;
 
   const globalExclusiveBodyClaimIds = new Set<string>();
+  /** MEP + synthesis + dominant — depth panels may not reintroduce these. */
+  const depthExcludeClaimIds = (): Set<string> => {
+    const s = new Set<string>(globalExclusiveBodyClaimIds);
+    for (const id of mep.claimIds) s.add(id);
+    for (const c of dominantClaimsForDiscipline) s.add(c.claim_id);
+    return s;
+  };
+
+  const emphasisHasSignatures = raw.some((s) => s.id === 'signatures');
 
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
     const d = densityForSectionId(sec.id, densityDefault);
@@ -454,9 +590,14 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const extrasTagged: TaggedSectionBody[] = [];
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
-    const isMusicalSection = sec.id === 'musical' || sec.id === 'music_translation';
+    const isMus = sec.id === 'musical' || sec.id === 'music_translation';
+    /** Phase 3: MEP must stay on `signatures` (or first spine section when no signatures id, e.g. daily). */
+    const mepHere = sec.id === 'signatures' || (!emphasisHasSignatures && idx === 0);
+    const isFirstSupplementalSlot =
+      sec.id === 'significance' || (surface === 'daily' && idx === 1 && !isMus);
+    const relOnly = sec.id === 'relational_field' || sec.id === 'relational_weather_v1';
 
-    if (idx === 0) {
+    if (mepHere) {
       if (openingClause) {
         extras.push(openingClause);
         extrasTagged.push(taggedSectionBodyFromText(openingClause, 'tier_scaffold'));
@@ -473,7 +614,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         extras.push(lab);
         extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
       }
-    } else if (isMusicalSection) {
+    } else if (isMus) {
       const musRole: ClaimOptionalRole[] = [];
       const musNorm: string[] = [];
       const n = mepOrdered.length;
@@ -496,7 +637,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       for (const musBlock of splitMepBodyForTaggedParagraphs(musicalJoined, mep.claimIds)) {
         appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, musBlock, 'claim_body', bodyClaimIdsOut);
       }
-    } else if (idx === 1) {
+    } else if (isFirstSupplementalSlot) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
       const pan = buildSupplementalPanel(
@@ -529,6 +670,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         'synthesis_wrapper',
         bodyClaimIdsOut
       );
+    } else if (relOnly) {
+      /* template-only: relational field / weather (no MEP, no supplemental here) */
     } else {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
@@ -556,11 +699,11 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const minNeed = minClaimBodiesForDensity(d);
     let effectiveDensity: 'short' | 'medium' | 'long' =
       bodyMeta.length < minNeed ? ('short' as const) : d;
-    if (isMusicalSection) {
+    if (isMus) {
       effectiveDensity = 'short';
     }
 
-    const claimIdsForEnrich = isMusicalSection ? [...mep.claimIds] : bodyMeta;
+    const claimIdsForEnrich = isMus ? [...mep.claimIds] : bodyMeta;
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
@@ -573,11 +716,11 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       reportPadUsed,
       PAD_SENTENCES
     );
-    const claimIdsReferenced = isMusicalSection ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
+    const claimIdsReferenced = isMus ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
     return {
       ...sec,
       text,
-      ...(isMusicalSection ? { bullets: undefined } : {}),
+      ...(isMus ? { bullets: undefined } : {}),
       meta: {
         ...sec.meta,
         claimIdsReferenced,
@@ -641,7 +784,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
-    if (key === 'synthesis_b') {
+    if (key === 'synthesis_b' && surface !== 'sandbox') {
       const synBSecRole: ClaimOptionalRole[] = [];
       const synBParaNorm: string[] = [];
       const synClaim = buildDisciplinedSynthesisClaimBodies(
@@ -890,7 +1033,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
   }
 
-  if (tierEff === 'extended' && extraKeys.includes('contradiction') && tensionBlock) {
+  if (surface === 'profile' && tierEff === 'extended' && extraKeys.includes('contradiction') && tensionBlock) {
     const con2 = pickVariant(seed + ':con2', [
       `Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
     ]);
@@ -951,10 +1094,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   let panelIdx = 0;
   while (out.length < schema.baselineMinSections - 1) {
+    if (surface === 'sandbox') break;
     const fillSecRole: ClaimOptionalRole[] = [];
     const fillParaNorm: string[] = [];
-    // Depth filler must retain at least one `claim_body` sentence (composition DEPTH grammar).
-    // Do not reuse `globalExclusiveBodyClaimIds` here — main sections can exhaust the slice otherwise.
+    // Phase 3: depth panels exclude all prior claim use + MEP + dominant (no reintroduction).
     const pan = buildSupplementalPanel(
       core,
       `${seed}:fillpanel`,
@@ -963,7 +1106,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       surface,
       fillSecRole,
       fillParaNorm,
-      new Set<string>(),
+      depthExcludeClaimIds(),
       densityForSectionId('depth_panel_x', 'short'),
       dominantClaimsForDiscipline
     );
@@ -1052,7 +1195,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     });
   }
 
-  if (tierEff === 'extended' && extraKeys.includes('audio_thread')) {
+  if (surface !== 'sandbox' && tierEff === 'extended' && extraKeys.includes('audio_thread')) {
     const bridge =
       'Listen detail lives in “How this sounds (listen metaphor)” below; it mirrors the words above without repeating every clause.';
     const bridgeTagged = taggedSectionBodyFromText(bridge, 'audio_thread');
@@ -1083,6 +1226,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     seed,
   });
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
+  framed = filterAndOrderPhase3Sections(framed, surface);
 
   for (const s of framed) {
     if (s.id === 'audio_staging') continue;

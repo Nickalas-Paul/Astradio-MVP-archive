@@ -2,7 +2,7 @@
  * Step 10 — projection validation (density, section counts, feed caps).
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
-import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection-types';
+import type { ExpansionTier, ProjectionSurface, ProjectedExplanationSection, ProjectionValidation } from '../projection-types';
 import { SURFACE_SCHEMAS } from '../surface-schemas';
 import { validateDensity, densityForSurfaceBaseline, countSentences } from '../density-validate';
 import { countAudioListenFamilyMatches } from './audio-lexicon';
@@ -117,6 +117,102 @@ function surfaceSentenceBudget(surface: ProjectionSurface): { max: number; hard:
   }
 }
 
+/** Phase 3 — hard forbidden section ids per surface (structural contract). */
+const SANDBOX_FORBIDDEN_SECTIONS = new Set<string>([
+  'relational_field',
+  'relational_weather_v1',
+  'connection_structure',
+  'ensemble_framing',
+  'interaction_map',
+  'field_distribution',
+  'subcluster',
+  'audio_thread',
+  'contradiction_map',
+  'synthesis_b',
+]);
+
+const PROFILE_FORBIDDEN = new Set<string>([
+  'connection_structure',
+  'ensemble_framing',
+  'interaction_map',
+  'field_distribution',
+  'subcluster',
+  'delta_emphasis',
+]);
+
+const GROUP_FORBIDDEN = new Set<string>(['connection_structure', 'delta_emphasis', 'trait_bridge', 'interaction_map']);
+
+const COMPAT_FORBIDDEN = new Set<string>(['ensemble_framing', 'field_distribution', 'subcluster', 'delta_emphasis', 'trait_bridge']);
+
+/**
+ * Phase 3 — section ownership: ensure no disallowed `id` appears for the projection surface.
+ */
+export function validateSectionOwnership(
+  sections: ProjectedExplanationSection[],
+  surface: ProjectionSurface,
+  _tier: ExpansionTier
+): { ok: boolean; violations: string[] } {
+  const v: string[] = [];
+  const ids = new Set(sections.map((s) => s.id));
+  if (surface === 'sandbox') {
+    for (const id of SANDBOX_FORBIDDEN_SECTIONS) {
+      if (ids.has(id)) v.push(`section_ownership_sandbox_forbidden:${id}`);
+    }
+  } else if (surface === 'profile') {
+    for (const id of PROFILE_FORBIDDEN) {
+      if (ids.has(id)) v.push(`section_ownership_profile_forbidden:${id}`);
+    }
+  } else if (surface === 'group') {
+    for (const id of GROUP_FORBIDDEN) {
+      if (ids.has(id)) v.push(`section_ownership_group_forbidden:${id}`);
+    }
+  } else if (surface === 'compat_pair') {
+    for (const id of COMPAT_FORBIDDEN) {
+      if (ids.has(id)) v.push(`section_ownership_compat_forbidden:${id}`);
+    }
+  }
+  return { ok: v.length === 0, violations: v };
+}
+
+const MUSICAL_IDS = new Set(['musical', 'music_translation']);
+
+/**
+ * Phase 3 — claim_id must appear in at most one section's `claimIdsReferenced`, except
+ * `musical` / `music_translation` may share ids with `signatures` (MEP + listen).
+ */
+export function validateClaimIdUniqueness(sections: ProjectedExplanationSection[]): { ok: boolean; violations: string[] } {
+  const claimToSections = new Map<string, string[]>();
+  for (const sec of sections) {
+    const cids = sec.meta?.claimIdsReferenced;
+    if (!cids || cids.length === 0) continue;
+    for (const c of cids) {
+      const list = claimToSections.get(c) ?? [];
+      list.push(sec.id);
+      claimToSections.set(c, list);
+    }
+  }
+  const v: string[] = [];
+  for (const [claim, secIds] of claimToSections) {
+    if (secIds.length <= 1) continue;
+    const uniqueSec = [...new Set(secIds)];
+    if (uniqueSec.length < 2) continue;
+    const isSig = uniqueSec.includes('signatures');
+    const onlyMusicalOverlap =
+      uniqueSec.length === 2 && isSig && uniqueSec.some((s) => MUSICAL_IDS.has(s));
+    if (onlyMusicalOverlap) continue;
+    // Tension/contrast in contradiction_map can reference the same claim ids as MEP text (structural, not re-selected).
+    if (
+      uniqueSec.length === 2 &&
+      uniqueSec.includes('signatures') &&
+      uniqueSec.includes('contradiction_map')
+    ) {
+      continue;
+    }
+    v.push(`claim_id_duplicate_across_sections:${claim}:[${uniqueSec.join(',')}]`);
+  }
+  return { ok: v.length === 0, violations: v };
+}
+
 export function validateReportSections(
   sections: import('../projection-types').ProjectedExplanationSection[],
   surface: ProjectionSurface,
@@ -138,6 +234,15 @@ export function validateReportSections(
   const maxSec = maxSectionsForSurface(surface);
   if (maxSec != null && sections.length > maxSec) {
     hard.push(`surface_sections_overflow:${sections.length}>${maxSec}`);
+  }
+
+  const own = validateSectionOwnership(sections, surface, tier);
+  for (const x of own.violations) {
+    hard.push(x);
+  }
+  const uniq = validateClaimIdUniqueness(sections);
+  for (const x of uniq.violations) {
+    hard.push(x);
   }
 
   const r3Text = sections

@@ -43,7 +43,8 @@ export const SURFACE_SCHEMAS: Record<ProjectionSurface, SurfaceSchemaDefinition>
   sandbox: {
     surface: 'sandbox',
     baselineDensityDefault: 'short',
-    baselineMinSections: 3,
+    /** Phase 3: minimal depth filler; structural count comes from template spine + expansions. */
+    baselineMinSections: 1,
     sections: [
       { sectionKey: 'lab_readout', density: 'short', minClaimsReferenced: 1 },
       { sectionKey: 'configuration', density: 'medium', minClaimsReferenced: 2 },
