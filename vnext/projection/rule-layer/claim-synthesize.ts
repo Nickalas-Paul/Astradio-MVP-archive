@@ -492,10 +492,10 @@ export function buildClaimMechanismExpressionParagraph(
   tier: ExpansionTier,
   surface: ProjectionSurface,
   sectionRoleDeque: ClaimOptionalRole[],
-  paragraphNormDeque: string[]
+  paragraphNormDeque: string[],
+  mechanismSliceOverride?: readonly SemanticClaim[]
 ): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
-  const window = claimWindow(tier);
-  const slice = core.claims.slice(0, window);
+  const slice = mechanismSliceOverride ?? core.claims.slice(0, claimWindow(tier));
   const lines: string[] = [];
   const ids: string[] = [];
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
@@ -529,7 +529,8 @@ function mechanismSliceIndexOfClaimId(slice: readonly SemanticClaim[], claimId: 
 
 /**
  * Controlled mechanism-expression paragraph: dominant prefix, then Tier 1–2 supporting tail only.
- * `localIndex` for rendering always equals the claim's index within `core.claims.slice(0, claimWindow(tier))`.
+ * `localIndex` for rendering always equals the claim's index within the mechanism slice
+ * (`mechanismSliceOverride` or `core.claims.slice(0, claimWindow(tier))`).
  */
 export function buildControlledMechanismExpressionParagraph(
   core: SemanticCore,
@@ -538,13 +539,21 @@ export function buildControlledMechanismExpressionParagraph(
   surface: ProjectionSurface,
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
-  dominantClaimIds: readonly string[]
+  dominantClaimIds: readonly string[],
+  mechanismSliceOverride?: readonly SemanticClaim[]
 ): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
   if (dominantClaimIds.length === 0) {
-    return buildClaimMechanismExpressionParagraph(core, seed, tier, surface, sectionRoleDeque, paragraphNormDeque);
+    return buildClaimMechanismExpressionParagraph(
+      core,
+      seed,
+      tier,
+      surface,
+      sectionRoleDeque,
+      paragraphNormDeque,
+      mechanismSliceOverride
+    );
   }
-  const window = claimWindow(tier);
-  const slice = core.claims.slice(0, window);
+  const slice = mechanismSliceOverride ?? core.claims.slice(0, claimWindow(tier));
   const maxLines = tier === 'baseline' ? 3 : tier === 'expanded' ? 5 : 8;
 
   const dominantOrdered: SemanticClaim[] = [];

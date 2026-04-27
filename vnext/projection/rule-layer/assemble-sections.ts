@@ -32,6 +32,7 @@ import {
 } from './claim-synthesize';
 import { claimWindow } from './claim-select';
 import { selectDominantMechanismSignals } from './dominant-signal-selection';
+import { applySurfaceMechanismComposition } from './surface-mechanism-composition';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
@@ -398,11 +399,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
-  const mechanismSlice = core.claims.slice(0, claimWindow(tierEff));
-  const dominantIdsDiscipline = selectDominantMechanismSignals(mechanismSlice, tierEff);
+  const window = claimWindow(tierEff);
+  const baseSlice = core.claims.slice(0, window);
+  const { claims: mechanismSliceView } = applySurfaceMechanismComposition(baseSlice, {
+    surface,
+    tier: tierEff,
+    seed,
+    options,
+  });
+  const dominantIdsDiscipline = selectDominantMechanismSignals(mechanismSliceView, tierEff);
   const dominantClaimsForDiscipline: SemanticClaim[] = [];
   for (const id of dominantIdsDiscipline) {
-    const found = mechanismSlice.find((c) => c.claim_id === id);
+    const found = mechanismSliceView.find((c) => c.claim_id === id);
     if (found) dominantClaimsForDiscipline.push(found);
   }
   const mepSectionRole: ClaimOptionalRole[] = [];
@@ -416,9 +424,18 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           surface,
           mepSectionRole,
           mepParagraphNorm,
-          dominantIdsDiscipline
+          dominantIdsDiscipline,
+          mechanismSliceView
         )
-      : buildClaimMechanismExpressionParagraph(core, seed, tierEff, surface, mepSectionRole, mepParagraphNorm);
+      : buildClaimMechanismExpressionParagraph(
+          core,
+          seed,
+          tierEff,
+          surface,
+          mepSectionRole,
+          mepParagraphNorm,
+          mechanismSliceView
+        );
   const mepOrdered = mep.orderedClaims;
   const openingClause = tierOpeningClause(surface, tierEff, seed);
   const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
