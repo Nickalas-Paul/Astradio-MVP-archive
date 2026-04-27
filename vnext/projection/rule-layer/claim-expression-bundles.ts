@@ -6,7 +6,9 @@ import { CLAIM_IDS, type ClaimId } from '../../semantic/ontology-codes';
 
 export type ClaimOptionalRole = 'mechanism' | 'experience' | 'variation' | 'implication';
 
-/** Canonical binding always uses `core[0]`; optional `core[1]` for modulation fallback only. */
+/**
+ * `core[0]` is primary; additional cores are selection variants (structural / aspect-diverse), not “more of the same line.”
+ */
 export type ClaimExpressionBundle = {
   readonly core: readonly string[];
   readonly mechanism?: readonly string[];
@@ -235,12 +237,27 @@ export function rotateArray<T>(arr: readonly T[], start: number): T[] {
 }
 
 const CLAIM_EXPRESSION_BUNDLES_RAW: Readonly<Record<ClaimId, ClaimExpressionBundle>> = {
-  ELEMENT_FIRE_DOM: bundle(
-    'ELEMENT_FIRE_DOM',
-    'A fire-weighted emphasis {strength_clause} marks initiation and expressive heat as the emphasized register in this picture.',
-    'Mechanistically, the label treats visible spark and quick starts as structural emphasis, not a verdict about temperament.',
-    'Many people notice this thread as forward-leaning phrasing under load, even when the underlying story stays steady.'
-  ),
+  ELEMENT_FIRE_DOM: (() => {
+    const b = bundle(
+      'ELEMENT_FIRE_DOM',
+      'A fire-weighted emphasis {strength_clause} marks initiation and expressive heat as the emphasized register in this picture.',
+      'Mechanistically, the label treats visible spark and quick starts as structural emphasis, not a verdict about temperament.',
+      'Many people notice this thread as forward-leaning phrasing under load, even when the underlying story stays steady.',
+      undefined,
+      'That keeps the door open to restate without forcing a one-label identity, especially when the heat is situational instead of totalizing.'
+    );
+    return {
+      ...b,
+      core: [
+        b.core[0]!,
+        'In outward language, the shape here favors visible initiative and quick ignition before a slower story settles, so the heat and the self-summary can part ways under pressure.',
+      ] as const,
+      implication: [
+        'That keeps the door open to restate without forcing a one-label identity, especially when the heat is situational instead of totalizing.',
+        'When the register is hot, pacing and meaning can decouple: name the engine without turning the moment into a verdict about the whole self-map.',
+      ] as const,
+    } as ClaimExpressionBundle;
+  })(),
   ELEMENT_EARTH_DOM: bundle(
     'ELEMENT_EARTH_DOM',
     'An earth-weighted emphasis {strength_clause} marks stepwise stabilization and tangible pacing as the emphasized register.',
@@ -561,8 +578,19 @@ function validateAllBundlesAtLoad(): void {
     const b = CLAIM_EXPRESSION_BUNDLES_RAW[id];
     if (!b) throw new MissingClaimExpressionBundleError(id);
     if (!b.core?.length || !b.core[0]?.trim()) throw new InvalidClaimExpressionBundleError(`${id}: missing core`);
-    if (b.core.length < 1 || b.core.length > 2) {
-      throw new InvalidClaimExpressionBundleError(`${id}: core must have 1–2 entries, got ${b.core.length}`);
+    if (b.core.length < 1 || b.core.length > 3) {
+      throw new InvalidClaimExpressionBundleError(`${id}: core must have 1–3 entries, got ${b.core.length}`);
+    }
+    const coreHeads = b.core.map((c) =>
+      c
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .slice(0, 2)
+        .join(' ')
+    );
+    if (new Set(coreHeads).size !== coreHeads.length) {
+      throw new InvalidClaimExpressionBundleError(`${id}: multi-core first-two-word frames must not collide`);
     }
     validateRoleArrayLen(`${id}.mechanism`, b.mechanism, 2, 3);
     validateRoleArrayLen(`${id}.experience`, b.experience, 2, 3);

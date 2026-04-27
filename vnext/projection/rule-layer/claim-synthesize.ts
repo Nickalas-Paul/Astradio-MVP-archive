@@ -8,6 +8,7 @@ import type {
   CampaignExpressionDigest,
   DensityClass,
   ExpansionTier,
+  Phase4ContentSourcePath,
   ProjectionOptions,
   ProjectionSurface,
 } from '../projection-types';
@@ -29,6 +30,7 @@ import { listenVariantsForArcRole } from './claim-listen-variants';
 import { pickInterClaimGlue } from './claim-inter-claim-glue';
 import { claimWindow } from './claim-select';
 import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
+import { contextualPadSet, reducedPadPool } from './phase2-sentence-load';
 
 function pickVariant(seed: string, variants: string[]): string {
   if (variants.length === 0) return '';
@@ -54,26 +56,40 @@ function trimVariantArray(arr: readonly string[] | undefined): readonly string[]
   return arr;
 }
 
-function selectPhraseFromRoleVariants(input: {
-  variants: readonly string[];
-  claimId: string;
-  role: ClaimOptionalRole | 'core';
-  slotKind: string;
-  seed: string;
-  claim: SemanticClaim;
-  paragraphNormDeque: string[];
+/**
+ * Deterministic phrase pick with deque collision handling. Never falls through to `variants[0]`:
+ * final index is salted by `claimId`, `sectionId`, `slotIndex`, and deque length.
+ */
+export function selectPhraseFromRoleVariants(input: {
+  readonly variants: readonly string[];
+  readonly claimId: string;
+  readonly role: ClaimOptionalRole | 'core';
+  readonly slotKind: string;
+  readonly seed: string;
+  readonly claim: SemanticClaim;
+  readonly paragraphNormDeque: string[];
+  readonly sectionId: string;
+  readonly slotIndex: number;
 }): string {
-  const { variants, claimId, role, slotKind, seed, claim, paragraphNormDeque } = input;
+  const { variants, claimId, role, slotKind, seed, claim, paragraphNormDeque, sectionId, slotIndex } = input;
   const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
   const N = variants.length;
   if (N === 0) throw new InvalidClaimExpressionBundleError(`${claimId}: empty variant list for ${role}`);
   const start = hash32(`${seed}|${claimId}|${role}|${slotKind}`) % N;
-  for (let k = 0; k < N; k++) {
-    const raw = variants[(start + k) % N]!;
-    const sent = interp(raw);
-    if (!paragraphNormDeque.includes(projectionNormSentence(sent))) return sent;
+  const salt = hash32(`${claimId}|${sectionId}|${slotIndex}|${role}`) % N;
+  for (let attempt = 0; attempt < N; attempt++) {
+    for (let k = 0; k < N; k++) {
+      const idx = (start + k + attempt * 7 + salt) % N;
+      const raw = variants[idx]!;
+      const sent = interp(raw);
+      if (!paragraphNormDeque.includes(projectionNormSentence(sent))) {
+        return sent;
+      }
+    }
   }
-  return interp(variants[0]!);
+  const dq = paragraphNormDeque.length;
+  const finalIdx = (start + salt + dq + hash32(`${seed}|collision|${claimId}|${sectionId}|${slotKind}`)) % N;
+  return interp(variants[finalIdx]!);
 }
 
 /** Arc register: mechanism-register copy vs listen-register realization (same arc slots). */
@@ -91,13 +107,13 @@ export function renderMechanismArcBlock(input: {
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
   seed: string;
+  sectionId: string;
   register?: ArcRegister;
 }): { text: string; claim_id: string } {
-  const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque, seed } = input;
+  const { claim, index: i, n, sectionRoleDeque, paragraphNormDeque, seed, sectionId } = input;
   const register = input.register ?? 'mechanism';
   const id = claim.claim_id as ClaimId;
   const bundle = getClaimExpressionBundle(id);
-  const interp = (raw: string) => applyStrengthInterpolation(raw.trim(), claim);
 
   const pushDequeForSentence = (sentence: string, role: ClaimOptionalRole | null): void => {
     pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(sentence));
@@ -108,7 +124,17 @@ export function renderMechanismArcBlock(input: {
   const sentences: string[] = [];
 
   if (n === 1) {
-    const coreSent = interp(coreVariants[0]!);
+    const coreSent = selectPhraseFromRoleVariants({
+      variants: coreVariants,
+      claimId: id,
+      role: 'core',
+      slotKind: 'mep_core',
+      seed,
+      claim,
+      paragraphNormDeque,
+      sectionId,
+      slotIndex: i,
+    });
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
     const mechArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'mechanism', register));
@@ -122,6 +148,8 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(elaboration);
       pushDequeForSentence(elaboration, 'mechanism');
@@ -134,6 +162,8 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(elaboration);
       pushDequeForSentence(elaboration, 'experience');
@@ -148,12 +178,24 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(implSent);
       pushDequeForSentence(implSent, 'implication');
     }
   } else if (i === 0) {
-    const coreSent = interp(coreVariants[0]!);
+    const coreSent = selectPhraseFromRoleVariants({
+      variants: coreVariants,
+      claimId: id,
+      role: 'core',
+      slotKind: 'mep_core',
+      seed,
+      claim,
+      paragraphNormDeque,
+      sectionId,
+      slotIndex: i,
+    });
     sentences.push(coreSent);
     pushDequeForSentence(coreSent, null);
     const mechArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'mechanism', register));
@@ -167,6 +209,8 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(elaboration);
       pushDequeForSentence(elaboration, 'mechanism');
@@ -179,12 +223,14 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(elaboration);
       pushDequeForSentence(elaboration, 'experience');
     }
   } else if (i === n - 1) {
-    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register, sectionId, i);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
     const implArr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'implication', register));
@@ -197,12 +243,14 @@ export function renderMechanismArcBlock(input: {
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex: i,
       });
       sentences.push(implSent);
       pushDequeForSentence(implSent, 'implication');
     }
   } else {
-    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register);
+    const mod = modulationMaterial(bundle, claim, id, seed, paragraphNormDeque, register, sectionId, i);
     sentences.push(mod.sentence);
     pushDequeForSentence(mod.sentence, mod.dequeRole);
   }
@@ -216,7 +264,9 @@ function modulationMaterial(
   claimId: string,
   seed: string,
   paragraphNormDeque: string[],
-  register: ArcRegister
+  register: ArcRegister,
+  sectionId: string,
+  slotIndex: number
 ): { sentence: string; dequeRole: ClaimOptionalRole | null } {
   const id = claimId as ClaimId;
   const varr = trimVariantArray(listenVariantsForArcRole(id, bundle, 'variation', register));
@@ -230,6 +280,8 @@ function modulationMaterial(
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex,
       }),
       dequeRole: 'variation',
     };
@@ -245,6 +297,8 @@ function modulationMaterial(
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex,
       }),
       dequeRole: 'experience',
     };
@@ -260,6 +314,8 @@ function modulationMaterial(
         seed,
         claim,
         paragraphNormDeque,
+        sectionId,
+        slotIndex,
       }),
       dequeRole: 'mechanism',
     };
@@ -274,6 +330,8 @@ function modulationMaterial(
       seed,
       claim,
       paragraphNormDeque,
+      sectionId,
+      slotIndex,
     }),
     dequeRole: null,
   };
@@ -289,8 +347,9 @@ function pickSecondarySentence(args: {
   claim: SemanticClaim;
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
+  sectionId: string;
 }): { role: ClaimOptionalRole; sentence: string } {
-  const { bundle: b, id, seed, claim, sectionRoleDeque, paragraphNormDeque } = args;
+  const { bundle: b, id, seed, claim, sectionRoleDeque, paragraphNormDeque, sectionId, localIndex } = args;
   const candidates: ClaimOptionalRole[] = [];
   for (const r of CLAIM_OPTIONAL_ROLE_ORDER) {
     const t = b[r];
@@ -314,6 +373,8 @@ function pickSecondarySentence(args: {
       seed,
       claim,
       paragraphNormDeque,
+      sectionId,
+      slotIndex: localIndex,
     });
     if (paragraphNormDeque.includes(projectionNormSentence(sent))) continue;
     chosen = role;
@@ -330,6 +391,8 @@ function pickSecondarySentence(args: {
     seed,
     claim,
     paragraphNormDeque,
+    sectionId,
+    slotIndex: localIndex,
   });
   return { role: chosen, sentence };
 }
@@ -342,11 +405,22 @@ export function renderClaimExpressionBlock(input: {
   tier: ExpansionTier;
   sectionRoleDeque: ClaimOptionalRole[];
   paragraphNormDeque: string[];
+  sectionId: string;
 }): { text: string; secondaryRole: ClaimOptionalRole; claim_id: string } {
-  const { claim, localIndex, seed, surface, tier, sectionRoleDeque, paragraphNormDeque } = input;
+  const { claim, localIndex, seed, surface, tier, sectionRoleDeque, paragraphNormDeque, sectionId } = input;
   const id = claim.claim_id as ClaimId;
   const bundle = getClaimExpressionBundle(id);
-  const coreSentence = applyStrengthInterpolation(bundle.core[0]!.trim(), claim);
+  const coreSentence = selectPhraseFromRoleVariants({
+    variants: bundle.core,
+    claimId: id,
+    role: 'core',
+    slotKind: 'block_core',
+    seed,
+    claim,
+    paragraphNormDeque,
+    sectionId,
+    slotIndex: localIndex,
+  });
   pushParagraphNormDeque(paragraphNormDeque, projectionNormSentence(coreSentence));
 
   const { role, sentence } = pickSecondarySentence({
@@ -359,6 +433,7 @@ export function renderClaimExpressionBlock(input: {
     claim,
     sectionRoleDeque,
     paragraphNormDeque,
+    sectionId,
   });
 
   pushSectionRoleDeque(sectionRoleDeque, role);
@@ -398,6 +473,7 @@ export function claimSentencesFromRange(
   tier: ExpansionTier,
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
+  sectionId: string,
   excludeClaimIds?: Set<string>
 ): { text: string; claimIds: string[] } {
   const lines: string[] = [];
@@ -415,6 +491,7 @@ export function claimSentencesFromRange(
       tier,
       sectionRoleDeque,
       paragraphNormDeque,
+      sectionId,
     });
     localIndex++;
     lines.push(block.text);
@@ -454,7 +531,8 @@ export function buildDisciplinedSynthesisClaimBodies(
   tier: ExpansionTier,
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
-  excludeClaimIds: ReadonlySet<string>
+  excludeClaimIds: ReadonlySet<string>,
+  sectionId: string
 ): { text: string; claimIds: string[] } {
   const excl = excludeClaimIds;
   let chosen: SemanticClaim[] = [];
@@ -478,6 +556,7 @@ export function buildDisciplinedSynthesisClaimBodies(
       tier,
       sectionRoleDeque,
       paragraphNormDeque,
+      sectionId,
     });
     localIndex++;
     lines.push(block.text);
@@ -493,6 +572,7 @@ export function buildClaimMechanismExpressionParagraph(
   surface: ProjectionSurface,
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
+  sectionId: string,
   mechanismSliceOverride?: readonly SemanticClaim[]
 ): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
   const slice = mechanismSliceOverride ?? core.claims.slice(0, claimWindow(tier));
@@ -512,6 +592,7 @@ export function buildClaimMechanismExpressionParagraph(
       sectionRoleDeque,
       paragraphNormDeque,
       seed: `${seed}|${ordered[i]!.claim_id}|mep`,
+      sectionId,
     });
     lines.push(block.text);
     ids.push(block.claim_id);
@@ -540,6 +621,7 @@ export function buildControlledMechanismExpressionParagraph(
   sectionRoleDeque: ClaimOptionalRole[],
   paragraphNormDeque: string[],
   dominantClaimIds: readonly string[],
+  sectionId: string,
   mechanismSliceOverride?: readonly SemanticClaim[]
 ): { text: string; claimIds: string[]; orderedClaims: readonly SemanticClaim[] } {
   if (dominantClaimIds.length === 0) {
@@ -550,6 +632,7 @@ export function buildControlledMechanismExpressionParagraph(
       surface,
       sectionRoleDeque,
       paragraphNormDeque,
+      sectionId,
       mechanismSliceOverride
     );
   }
@@ -611,6 +694,7 @@ export function buildControlledMechanismExpressionParagraph(
       sectionRoleDeque,
       paragraphNormDeque,
       seed: `${seed}|${c.claim_id}|mep`,
+      sectionId,
     });
     lines.push(block.text);
     ids.push(block.claim_id);
@@ -638,9 +722,32 @@ export function buildTensionIntegrationParagraph(
   return { text, claimIds: cIds };
 }
 
+function renderCoreOnlyLine(
+  claim: SemanticClaim,
+  seed: string,
+  sectionId: string,
+  paragraphNormDeque: string[],
+  slotIndex: number
+): string {
+  const id = claim.claim_id as ClaimId;
+  const bundle = getClaimExpressionBundle(id);
+  return selectPhraseFromRoleVariants({
+    variants: bundle.core,
+    claimId: id,
+    role: 'core',
+    slotKind: 'panel_core_shortform',
+    seed,
+    claim,
+    paragraphNormDeque,
+    sectionId,
+    slotIndex,
+  });
+}
+
 export function buildSupplementalPanel(
   core: SemanticCore,
   seed: string,
+  sectionId: string,
   panelIndex: number,
   tier: ExpansionTier,
   surface: ProjectionSurface,
@@ -649,7 +756,7 @@ export function buildSupplementalPanel(
   excludeClaimIds: ReadonlySet<string>,
   sectionDensity: DensityClass,
   dominantClaims: readonly SemanticClaim[]
-): { title: string; text: string; claimIds: string[] } {
+): { title: string; text: string; claimIds: string[]; phase4_source_path?: Phase4ContentSourcePath } {
   const minOrig = minClaimBodiesForDensity(sectionDensity);
   const minShort = minClaimBodiesForDensity('short');
 
@@ -677,7 +784,7 @@ export function buildSupplementalPanel(
   const lines: string[] = [];
   const ids: string[] = [];
   let localIndex = 0;
-  for (const c of chosen) {
+  for (const c of chosen!) {
     const block = renderClaimExpressionBlock({
       claim: c,
       localIndex,
@@ -686,6 +793,7 @@ export function buildSupplementalPanel(
       tier,
       sectionRoleDeque,
       paragraphNormDeque,
+      sectionId,
     });
     localIndex++;
     lines.push(block.text);
@@ -703,16 +811,32 @@ export function buildSupplementalPanel(
       title: `Pattern note ${panelIndex + 1}`,
       text,
       claimIds: ids,
+      phase4_source_path: 'claim_slice',
     };
   }
 
-  const text = pickVariant(`${seed}:pan:pad:${panelIndex}`, [
-    'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
-  ]);
+  const W = claimWindow(tier);
+  for (const c of sortClaimsDeterministic(core.claims.slice(0, W).filter((x) => !excludeClaimIds.has(x.claim_id)))) {
+    if (reinforcementTier(c, dominantClaims, core) === null) continue;
+    const t = renderCoreOnlyLine(c, seed, sectionId, paragraphNormDeque, panelIndex);
+    if (t.trim().length > 0) {
+      return {
+        title: `Pattern note ${panelIndex + 1}`,
+        text: capToMaxSentences(t, 2),
+        claimIds: [c.claim_id],
+        phase4_source_path: 'shortform',
+      };
+    }
+  }
+
+  const pool = reducedPadPool();
+  const pIdx = hash32(`${seed}|reduced_pad|${sectionId}|${panelIndex}`) % pool.length;
+  const padLine = pool[pIdx]!;
   return {
     title: `Pattern note ${panelIndex + 1}`,
-    text: capToMaxSentences(text, 2),
+    text: capToMaxSentences(padLine, 2),
     claimIds: [],
+    phase4_source_path: contextualPadSet.has(padLine) ? 'contextual_pad' : 'neutral_pad',
   };
 }
 

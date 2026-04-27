@@ -13,6 +13,7 @@ import {
   reconstructTaggedSectionBody,
   splitSentsForTagged,
 } from '../tagged-text';
+import { contextualPadSet } from './phase2-sentence-load';
 
 function hashSeed(seed: string): number {
   let h = 0;
@@ -97,7 +98,8 @@ function expandTaggedBodySentencesToMin(
     out.paragraphs.push(lastPara);
   }
   for (const p of pads) {
-    lastPara.sentences.push({ text: p, provenance: 'padding' });
+    const prov = contextualPadSet.has(p) ? ('contextual_pad' as const) : ('neutral_pad' as const);
+    lastPara.sentences.push({ text: p, provenance: prov });
   }
   if (reconstructTaggedSectionBody(out) !== after) {
     throw new Error('[Phase3] expandTaggedBodySentencesToMin reconstruction drift');

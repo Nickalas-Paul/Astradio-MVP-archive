@@ -18,6 +18,7 @@ import {
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { TemplateContext } from './template-lines';
 import { audioListenFamilyHit, countAudioListenFamilyMatches } from './audio-lexicon';
+import { CLAIM_GLUE_RE } from './claim-inter-claim-glue';
 
 export class Phase2AssemblyError extends Error {
   constructor(message: string) {
@@ -32,10 +33,10 @@ export type LoadProvenance =
   | 'preface'
   | 'tier_scaffold'
   | 'synthesis_wrapper'
-  | 'padding';
-
-const CLAIM_GLUE_RE =
-  /\b(In the same picture,|Alongside that signal,|Taken together with the prior emphasis,)\b/;
+  | 'padding'
+  | 'contextual_pad'
+  | 'neutral_pad'
+  | 'section_bridge';
 
 /**
  * Anchor stems (priority 1).
@@ -367,14 +368,53 @@ export function assertNoClaimAnchorSameSentence(fullText: string, context: strin
   }
 }
 
-const REDUCED_PAD = [
+/** Tied to surface-agnostic "this read / this view" framing; not generic life advice. */
+const CONTEXTUAL_PAD: string[] = [
+  'In this read, edge shows up in phrasing first; treat load as a dial, not a permanent trait label.',
+  'On a narrow pass like this, the signal names pressure shape before it names a whole biography.',
+  'The view stays bounded: it describes emphasis mechanics, not a final verdict on character.',
+  'When the picture is thin, the honest move is to track contrast and pacing, not force a single moral.',
+  'This pass highlights where attention stacks; it does not exhaust every lane in your life map.',
+  'A compressed read privileges what contradicts and what coheres in the same window.',
+  'Tonal and elemental cues here are handles for language, not costumes you must wear in public.',
+  'The thread is situational: what sharpens under stress can soften when conditions widen.',
+  'The emphasis register names how energy routes, not what you are "supposed" to do next.',
+  'In this frame, the question is what intensifies, not which identity label wins.',
+  'A tight view like this is for orientation; it is not a substitute for full-story synthesis.',
+  'Keep the time horizon explicit: the line describes a layer, not the whole year.',
+];
+
+const NEUTRAL_PAD: string[] = [
   'The same emphasis may read louder under stress and softer under safety.',
   'The feel is often situational when life load shifts week to week.',
   'Small experiments usually beat one decisive relabeling.',
+  'Hold the line without forcing one fixed story: let contrast stay visible in the data.',
+  'Pacing and closure can disagree; naming both often beats flattening the mix.',
+  'Let the through-line be descriptive before it becomes a verdict.',
+  'When the picture is mixed, the practical move is proportion, not a single adjective for the self.',
+  'A workable read leaves hooks for next steps without pretending the map is complete.',
+  'Tension in the data is information, not a mandate to escalate language immediately.',
+  'Softer and sharper beats can both be true; let sequence matter more than a forced average.',
+  'Keep the emphasis legible: label mechanisms before you name motives.',
+  'A steady baseline can host spikes; the spike does not erase the baseline in one sentence.',
+  'Nuance tends to return when the frame stops racing to a headline.',
+  'The pattern points to a lane of emphasis, not a full inventory of you.',
+  'Clarity here is the goal; certainty beyond the data is not.',
 ];
 
+export const contextualPadSet: ReadonlySet<string> = new Set(CONTEXTUAL_PAD);
+
+export function contextualPadPool(): string[] {
+  return CONTEXTUAL_PAD.slice();
+}
+
+export function neutralPadPool(): string[] {
+  return NEUTRAL_PAD.slice();
+}
+
+/** Phase 4: dual-class pool for density repair (order stable). */
 export function reducedPadPool(): string[] {
-  return REDUCED_PAD;
+  return [...CONTEXTUAL_PAD, ...NEUTRAL_PAD];
 }
 
 export function injectAnchorPrefix(ctx: TemplateContext): string {

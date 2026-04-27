@@ -21,6 +21,16 @@ const FRIENDS_BUNDLES = [
     'Friction is named without identity collapse.',
     'The sections stay observational.',
   ],
+  [
+    'Friendly contact here is framed as adjustable bandwidth: you can widen or tighten the read without erasing either person.',
+    'The lines below describe what shows, not a single myth that must carry the bond.',
+    'Parallel tracks stay visible; no forced fusion into one verdict.',
+  ],
+  [
+    'This frame assumes good faith and repairable edges; sharp moments can still be named plainly.',
+    'Contrast is allowed to remain in view while cooperation stays the default lens.',
+    'Neither side is reduced to a label in the copy that follows.',
+  ],
 ];
 
 const LOVERS_BUNDLES = [
@@ -33,6 +43,16 @@ const LOVERS_BUNDLES = [
     'This connection names heat without turning it into a label.',
     'Language stays situational.',
     'The sections stay descriptive.',
+  ],
+  [
+    'Intimacy cadence is described as a moving interface: contact can intensify and still stay bounded in language.',
+    'The following blocks keep heat reportable without turning it into a fixed character stamp.',
+    'Tension and care can both be named without one erasing the other in the read.',
+  ],
+  [
+    'This frame allows desire and risk to show as mechanics, not as a sealed fate for either person.',
+    'Reciprocity is treated as something you can read in the pattern without inventing a single winner.',
+    'The next sections keep the relationship picture multi-valued on purpose.',
   ],
 ];
 
@@ -47,6 +67,16 @@ const RIVALS_BUNDLES = [
     'The sections stay observational.',
     'Avoid single-story collapse.',
   ],
+  [
+    'Competitive charge is read as structural: edges can be sharp without turning either person into a villain type.',
+    'The copy below keeps boundary pressure visible and still avoids moral spectacle.',
+    'If collaboration appears, it has to win on evidence, not on a forced soft-focus.',
+  ],
+  [
+    'Rivalry language here is situational: it can spike and still be reported without a permanent scoreboard on character.',
+    'The following lines separate charge from identity so the interface stays testable in real time.',
+    'You can read contest without erasing the possibility of shared standards elsewhere.',
+  ],
 ];
 
 const NEUTRAL_BUNDLES = [
@@ -59,6 +89,16 @@ const NEUTRAL_BUNDLES = [
     'This connection keeps options open.',
     'It avoids locking one relationship myth.',
     'The sections stay observational.',
+  ],
+  [
+    'A neutral frame here means the bond is not pre-labeled: the sections name patterns, not a single romance script.',
+    'The emphasis is on what is legible in the data window, not on forcing a best guess story.',
+    'You can read uncertainty as part of the picture, not as a failure to commit to one arc.',
+  ],
+  [
+    'This pass treats the connection as a live interface: the copy tracks signals without crowning a single narrative king.',
+    'If two readings fit, both can stay in play while you watch how contact actually behaves.',
+    'The following text keeps categories light so new evidence can update the read.',
   ],
 ];
 
@@ -73,6 +113,16 @@ const MENTOR_BUNDLES = [
     'The sections stay descriptive.',
     'Care is honored without identity labels.',
   ],
+  [
+    'Mentor-shaped bandwidth is treated as a timing read: one lane may lead without erasing the other’s agency.',
+    'The lines below show support edges without crowning a permanent “teacher” in the text.',
+    'Responsibility here is reportable, not a life sentence in either direction.',
+  ],
+  [
+    'This frame allows uneven exchange to show as mechanics while still keeping both figures in the room.',
+    'Narration stays observational: care can read strong without relabeling either person’s core.',
+    'If roles shift, the read can follow without pretending roles were always symmetric.',
+  ],
 ];
 
 const COLLABORATOR_BUNDLES = [
@@ -85,6 +135,16 @@ const COLLABORATOR_BUNDLES = [
     'This connection does not assume chemistry explains task friction.',
     'The sections stay descriptive.',
     'Tasks stay human without identity-fixing.',
+  ],
+  [
+    'Task bridges are read as systems pressure: the issue may be the handoff, not the “type” of either partner.',
+    'The following text tracks deadlines and fit without smuggling a chemistry verdict into logistics.',
+    'If alignment returns, you can name it as data, not as a personality makeover.',
+  ],
+  [
+    'This frame allows parallel ownership: the copy can show split lanes while still sharing one work surface.',
+    'Responsibility loads are named where they show, without forcing a single scapegoat line.',
+    'Realignment language stays bounded to the task field so identity noise does not drown the fix.',
   ],
 ];
 
@@ -104,7 +164,15 @@ const ENSEMBLE_BUNDLES = [
   ],
   [
     'This group treats the room as shared space; local emphasis still varies person to person.',
-    'The sections stay descriptive.',
+    'The following lines avoid crowning a single person as the “true” center of the field.',
+  ],
+  [
+    'A multi-voice pass keeps the roster visible: the blend is explicit, the private backstory is not smuggled in as fact.',
+    'If one lane spikes, the text still allows other lanes to register without being averaged away.',
+  ],
+  [
+    'The ensemble read tracks shared load and local hotspots; it is not a crowd verdict on any one name.',
+    'You can use this layout to see where the airtime goes before you pick a local zoom.',
   ],
 ];
 

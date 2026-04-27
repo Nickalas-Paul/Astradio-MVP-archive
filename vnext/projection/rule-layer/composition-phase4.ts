@@ -33,10 +33,13 @@ const SYMBOL_ORDER: Record<ProvenanceType, number> = {
   template: 2,
   claim_body: 3,
   synthesis_wrapper: 4,
+  section_bridge: 4,
   preface: 5,
   audio_staging: 6,
   audio_thread: 7,
   padding: 8,
+  contextual_pad: 8,
+  neutral_pad: 8,
 };
 
 const RUN_MAX: Record<ProvenanceType, number> = {
@@ -46,10 +49,13 @@ const RUN_MAX: Record<ProvenanceType, number> = {
   claim_body: 8,
   /** Campaign (and other) template tails may emit several short wrapper sentences in one paragraph. */
   synthesis_wrapper: 8,
+  section_bridge: 2,
   preface: 3,
   audio_staging: 4,
   audio_thread: 2,
   padding: 2,
+  contextual_pad: 2,
+  neutral_pad: 2,
 };
 
 const MAX_BRUTE_M = 10;

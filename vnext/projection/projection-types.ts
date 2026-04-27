@@ -204,6 +204,9 @@ export type ProvenanceType =
   | 'tier_scaffold'
   | 'synthesis_wrapper'
   | 'padding'
+  | 'contextual_pad'
+  | 'neutral_pad'
+  | 'section_bridge'
   | 'assembler_glue';
 
 export type TaggedSentence = {
@@ -242,5 +245,19 @@ export type ProjectedExplanationSection = {
     tagged?: TaggedSectionBody;
     /** Phase 4 — diagnostic only; stripped for explanation hash. */
     phase4_composition?: Phase4CompositionReport;
+    /**
+     * Phase 4 — last expression fallback path (assembly diagnostics). Optional; not hashed.
+     */
+    phase4_source_path?: Phase4ContentSourcePath;
   };
 };
+
+/** How non-claim sentences were last resolved in the fallback chain. */
+export type Phase4ContentSourcePath =
+  | 'claim_slice'
+  | 'alt_role'
+  | 'shortform'
+  | 'contextual_pad'
+  | 'neutral_pad'
+  | 'section_bridge'
+  | 'template_only';

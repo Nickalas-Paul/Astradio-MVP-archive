@@ -264,6 +264,7 @@ function main(): void {
     tier: 'baseline',
     sectionRoleDeque: secR,
     paragraphNormDeque: paraN,
+    sectionId: 'unit_test',
   });
   const parts = splitSents(block.text);
   assert(parts.length >= 2, `renderClaimExpressionBlock must emit core + secondary (sentences=${parts.length})`);

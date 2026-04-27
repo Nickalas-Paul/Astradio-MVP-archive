@@ -4,7 +4,13 @@
  * Phase 3 — mirrors all text transforms on `meta.tagged` (no string inference).
  */
 import type { SemanticCore } from '../../semantic/semantic-core';
-import type { ProjectedExplanationSection, TaggedParagraph, TaggedSectionBody, TaggedSentence } from '../projection-types';
+import type {
+  ProvenanceType,
+  ProjectedExplanationSection,
+  TaggedParagraph,
+  TaggedSectionBody,
+  TaggedSentence,
+} from '../projection-types';
 import { lintParagraph, lintSectionBody } from '../language-lint';
 import { cloneTaggedSectionBody, reconstructTaggedSectionBody, splitSentsForTagged } from '../tagged-text';
 
@@ -68,17 +74,66 @@ function splitSentences(text: string): string[] {
 
 type Winner = { sectionId: string; rank: number; sectionIndex: number };
 
+function paddingLikeProvenance(p: ProvenanceType): boolean {
+  return p === 'padding' || p === 'neutral_pad' || p === 'contextual_pad';
+}
+
+function winnerKeyFor(
+  sectionIndex: number,
+  norm: string,
+  prov: ProvenanceType | 'legacy_text'
+): string {
+  if (prov === 'legacy_text') {
+    return norm;
+  }
+  if (paddingLikeProvenance(prov)) {
+    return norm;
+  }
+  return `${sectionIndex}|${norm}`;
+}
+
+function walkTaggedForWinnerKeys(
+  body: TaggedSectionBody,
+  sectionId: string,
+  sectionIndex: number,
+  rank: number,
+  winners: Map<string, Winner>
+): void {
+  const bump = (norm: string, prov: ProvenanceType) => {
+    if (norm.length < 12) return;
+    const key = winnerKeyFor(sectionIndex, norm, prov);
+    const cur = winners.get(key);
+    if (!cur || rank < cur.rank || (rank === cur.rank && sectionIndex < cur.sectionIndex)) {
+      winners.set(key, { sectionId, rank, sectionIndex });
+    }
+  };
+  for (const tp of body.paragraphs) {
+    for (const row of tp.sentences) {
+      const p = (row.contentProvenance ?? row.provenance) as ProvenanceType;
+      bump(normalizeSentence(row.text), p);
+    }
+  }
+  for (const bb of body.bulletBlocks ?? []) {
+    walkTaggedForWinnerKeys(bb, sectionId, sectionIndex, rank, winners);
+  }
+}
+
 function computeSentenceWinners(sections: ProjectedExplanationSection[]): Map<string, Winner> {
   const winners = new Map<string, Winner>();
   sections.forEach((sec, sectionIndex) => {
     const rank = sectionRank(sec.id);
+    if (sec.meta?.tagged) {
+      walkTaggedForWinnerKeys(sec.meta.tagged, sec.id, sectionIndex, rank, winners);
+      return;
+    }
     for (const para of sec.text.split(/\n\n+/)) {
       for (const sent of splitSentences(para)) {
         const norm = normalizeSentence(sent);
         if (norm.length < 12) continue;
-        const cur = winners.get(norm);
+        const key = winnerKeyFor(sectionIndex, norm, 'legacy_text');
+        const cur = winners.get(key);
         if (!cur || rank < cur.rank || (rank === cur.rank && sectionIndex < cur.sectionIndex)) {
-          winners.set(norm, { sectionId: sec.id, rank, sectionIndex });
+          winners.set(key, { sectionId: sec.id, rank, sectionIndex });
         }
       }
     }
@@ -86,7 +141,13 @@ function computeSentenceWinners(sections: ProjectedExplanationSection[]): Map<st
   return winners;
 }
 
-function filterParagraphsByWinners(text: string, sectionId: string, winners: Map<string, Winner>): string {
+/** Text-only path (no per-sentence provenance): legacy global-norm key. */
+function filterParagraphsByWinners(
+  text: string,
+  sectionId: string,
+  sectionIndex: number,
+  winners: Map<string, Winner>
+): string {
   const paras = text
     .split(/\n\n+/)
     .map((p) => p.trim())
@@ -97,7 +158,8 @@ function filterParagraphsByWinners(text: string, sectionId: string, winners: Map
     const keptSents = sents.filter((sent) => {
       const norm = normalizeSentence(sent);
       if (norm.length < 12) return true;
-      const w = winners.get(norm);
+      const key = winnerKeyFor(sectionIndex, norm, 'legacy_text');
+      const w = winners.get(key);
       return !w || w.sectionId === sectionId;
     });
     // Keep the whole paragraph if any sentence would be removed — partial removal breaks density validation.
@@ -118,12 +180,19 @@ function cloneSent(s: TaggedSentence): TaggedSentence {
   };
 }
 
-function filterTaggedParagraphByWinners(tp: TaggedParagraph, sectionId: string, winners: Map<string, Winner>): TaggedParagraph {
+function filterTaggedParagraphByWinners(
+  tp: TaggedParagraph,
+  sectionId: string,
+  sectionIndex: number,
+  winners: Map<string, Winner>
+): TaggedParagraph {
   const sents = tp.sentences.map((r) => r.text);
   const keptRows = tp.sentences.filter((row, idx) => {
     const norm = normalizeSentence(sents[idx]!);
     if (norm.length < 12) return true;
-    const w = winners.get(norm);
+    const p = (row.contentProvenance ?? row.provenance) as ProvenanceType;
+    const key = winnerKeyFor(sectionIndex, norm, p);
+    const w = winners.get(key);
     return !w || w.sectionId === sectionId;
   });
   const keptSents = keptRows.map((r) => r.text);
@@ -136,49 +205,52 @@ function filterTaggedParagraphByWinners(tp: TaggedParagraph, sectionId: string, 
   return { sentences: [] };
 }
 
-function filterTaggedSectionBodyByWinners(tagged: TaggedSectionBody, sectionId: string, winners: Map<string, Winner>): TaggedSectionBody {
+function filterTaggedSectionBodyByWinners(
+  tagged: TaggedSectionBody,
+  sectionId: string,
+  sectionIndex: number,
+  winners: Map<string, Winner>
+): TaggedSectionBody {
   return {
-    paragraphs: tagged.paragraphs.map((tp) => filterTaggedParagraphByWinners(tp, sectionId, winners)),
-    bulletBlocks: tagged.bulletBlocks?.map((bb) => filterTaggedSectionBodyByWinners(bb, sectionId, winners)),
+    paragraphs: tagged.paragraphs.map((tp) => filterTaggedParagraphByWinners(tp, sectionId, sectionIndex, winners)),
+    bulletBlocks: tagged.bulletBlocks?.map((bb) => filterTaggedSectionBodyByWinners(bb, sectionId, sectionIndex, winners)),
   };
 }
 
 function applyCrossSectionDiscipline(sections: ProjectedExplanationSection[]): ProjectedExplanationSection[] {
   if (sections.length === 0) return sections;
   const winners = computeSentenceWinners(sections);
-  return sections.map((sec) => {
-    const text = filterParagraphsByWinners(sec.text, sec.id, winners);
-    const bullets = sec.bullets?.map((b) => filterParagraphsByWinners(b, sec.id, winners)).filter((b) => b.trim().length > 0);
-    let tagged = sec.meta?.tagged ? filterTaggedSectionBodyByWinners(sec.meta.tagged, sec.id, winners) : undefined;
-    if (tagged && sec.meta?.tagged?.bulletBlocks?.length && bullets?.length) {
-      tagged = {
-        ...tagged,
-        bulletBlocks: sec.meta.tagged.bulletBlocks.map((bb) => filterTaggedSectionBodyByWinners(bb, sec.id, winners)),
+  return sections.map((sec, sectionIndex) => {
+    if (sec.meta?.tagged) {
+      let tagged = filterTaggedSectionBodyByWinners(sec.meta.tagged, sec.id, sectionIndex, winners);
+      const bbin = sec.meta.tagged.bulletBlocks;
+      if (bbin?.length) {
+        tagged = {
+          ...tagged,
+          bulletBlocks: bbin.map((bb) => filterTaggedSectionBodyByWinners(bb, sec.id, sectionIndex, winners)),
+        };
+      }
+      const text = reconstructTaggedSectionBody(tagged);
+      const bullets = tagged.bulletBlocks?.map((bb) => reconstructTaggedSectionBody(bb));
+      return {
+        ...sec,
+        text,
+        bullets: bullets?.length ? bullets : undefined,
+        meta: {
+          ...sec.meta!,
+          tagged,
+        },
       };
     }
-    if (tagged && reconstructTaggedSectionBody(tagged) !== text) {
-      throw new Error(`[Phase3] cross-section tagged drift ${sec.id}`);
-    }
-    if (tagged?.bulletBlocks && bullets?.length) {
-      if (tagged.bulletBlocks.length !== bullets.length) {
-        throw new Error(`[Phase3] cross-section bullet tagged ${sec.id}`);
-      }
-      for (let i = 0; i < bullets.length; i++) {
-        if (reconstructTaggedSectionBody(tagged.bulletBlocks[i]!) !== bullets[i]) {
-          throw new Error(`[Phase3] cross-section bullet reconstruct ${sec.id}[${i}]`);
-        }
-      }
-    }
+    const text = filterParagraphsByWinners(sec.text, sec.id, sectionIndex, winners);
+    const bullets = sec.bullets
+      ?.map((b) => filterParagraphsByWinners(b, sec.id, sectionIndex, winners))
+      .filter((b) => b.trim().length > 0);
     return {
       ...sec,
       text,
       bullets: bullets?.length ? bullets : undefined,
-      meta: sec.meta
-        ? {
-            ...sec.meta,
-            ...(tagged ? { tagged } : {}),
-          }
-        : undefined,
+      meta: sec.meta ? { ...sec.meta } : undefined,
     };
   });
 }

@@ -102,7 +102,16 @@ export function temporalIntegrationLine(bucket: TemporalVoiceBucket, seed: strin
   ]);
 }
 
-const LISTEN_POINTER = 'Listen detail lives in “How this sounds (listen metaphor)” below.';
+export function listenPointerLine(seed: string, surface: ProjectionSurface | undefined): string {
+  const s = surface ?? 'profile';
+  return pickVariant(`${seed}|lp|${s}`, [
+    'Listen detail lives in “How this sounds (listen metaphor)” below.',
+    'The listen metaphor under “How this sounds (listen metaphor)” below carries the sonic read for this pass.',
+    'A separate listen line below (same section family) matches these words to texture without duplicating every clause here.',
+    'Sonic phrasing is grouped under the listen metaphor below; keep this page as the wording layer.',
+    'For replay language, use the listen metaphor section below; it is the paired audio-adjacent line to this text.',
+  ]);
+}
 
 export function lineForTemplate(
   templateId: SectionTemplateId,
@@ -112,6 +121,7 @@ export function lineForTemplate(
 ): { title: string; text: string; bullets?: string[] } {
   const el = primaryElementLabel(core);
   const tonal = tonalLabel(core);
+  const lp = listenPointerLine(`${seed}:lt`, ctx.surface);
 
   switch (templateId) {
     case 'SECTION_SIGNATURES':
@@ -119,16 +129,16 @@ export function lineForTemplate(
         return {
           title: signaturesTitle(ctx),
           text: pickVariant(seed, [
-            `A ${tonal} mood carries ${el} weight. The situation asks you to notice how that mix lands today.\n\n${LISTEN_POINTER}`,
-            `The dominant feel is ${el} coloring through a ${tonal} mood.\n\n${LISTEN_POINTER}`,
+            `A ${tonal} mood carries ${el} weight. The situation asks you to notice how that mix lands today.\n\n${lp}`,
+            `The dominant feel is ${el} coloring through a ${tonal} mood.\n\n${lp}`,
           ]),
         };
       }
       return {
         title: signaturesTitle(ctx),
         text: pickVariant(seed, [
-          `The primary emphasis is ${el} coloring with a ${tonal} mood.\n\n${LISTEN_POINTER}`,
-          `Elemental weight centers on ${el} with ${tonal} shading.\n\n${LISTEN_POINTER}`,
+          `The primary emphasis is ${el} coloring with a ${tonal} mood.\n\n${lp}`,
+          `Elemental weight centers on ${el} with ${tonal} shading.\n\n${lp}`,
         ]),
       };
     case 'SECTION_SIGNIFICANCE':
@@ -147,17 +157,17 @@ export function lineForTemplate(
     case 'SECTION_SKY_SUMMARY':
       return {
         title: 'Sky Summary',
-        text: `Today’s layer adds ${el} emphasis and ${tonal} shading.\n\n${LISTEN_POINTER}`,
+        text: `Today’s layer adds ${el} emphasis and ${tonal} shading.\n\n${lp}`,
       };
     case 'SECTION_PERSONAL_EMPHASIS':
       return {
         title: 'Personal Emphasis',
-        text: `You carry ${el} emphasis with ${tonal} shading.\n\n${LISTEN_POINTER}`,
+        text: `You carry ${el} emphasis with ${tonal} shading.\n\n${lp}`,
       };
     case 'SECTION_LIKELY_EXPRESSIONS':
       return {
         title: 'Likely Expressions',
-        text: `Outward style leans ${el} in a ${tonal} register.\n\n${LISTEN_POINTER}`,
+        text: `Outward style leans ${el} in a ${tonal} register.\n\n${lp}`,
       };
     case 'SECTION_WATCH_FORS':
       return {

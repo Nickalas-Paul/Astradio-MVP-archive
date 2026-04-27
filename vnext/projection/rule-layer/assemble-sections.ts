@@ -443,7 +443,8 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
     'feed',
     'baseline',
     sectionRoleDeque,
-    paragraphNormDeque
+    paragraphNormDeque,
+    'feed_signal'
   );
   const fallbackUsed = new Set<string>();
   const t1Raw = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
@@ -552,6 +553,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           mepSectionRole,
           mepParagraphNorm,
           dominantIdsDiscipline,
+          'signatures',
           mechanismSliceView
         )
       : buildClaimMechanismExpressionParagraph(
@@ -561,6 +563,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           surface,
           mepSectionRole,
           mepParagraphNorm,
+          'signatures',
           mechanismSliceView
         );
   const mepOrdered = mep.orderedClaims;
@@ -628,6 +631,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           sectionRoleDeque: musRole,
           paragraphNormDeque: musNorm,
           seed: `${seed}|${c.claim_id}|listen`,
+          sectionId: 'musical',
           register: 'listen',
         });
         musLines.push(block.text);
@@ -643,6 +647,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       const pan = buildSupplementalPanel(
         core,
         `${seed}:s1`,
+        sec.id,
         0,
         tierEff,
         surface,
@@ -678,6 +683,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       const pan = buildSupplementalPanel(
         core,
         `${seed}:sx`,
+        sec.id,
         idx,
         tierEff,
         surface,
@@ -746,7 +752,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         tierEff,
         synSecRole,
         synParaNorm,
-        globalExclusiveBodyClaimIds
+        globalExclusiveBodyClaimIds,
+        'synthesis_a'
       );
       const wrap = pickVariant(seed + ':syn', [
         `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
@@ -796,7 +803,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         tierEff,
         synBSecRole,
         synBParaNorm,
-        globalExclusiveBodyClaimIds
+        globalExclusiveBodyClaimIds,
+        'synthesis_b'
       );
       const wrapB = pickVariant(seed + ':synb', [
         `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
@@ -1102,6 +1110,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const pan = buildSupplementalPanel(
       core,
       `${seed}:fillpanel`,
+      `depth_panel_${panelIdx}`,
       panelIdx++,
       tierEff,
       surface,

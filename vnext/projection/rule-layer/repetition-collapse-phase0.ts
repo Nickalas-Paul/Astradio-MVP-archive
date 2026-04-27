@@ -15,6 +15,8 @@ import { SURFACE_SCHEMAS } from '../surface-schemas';
 import { validateDensity, densityForSurfaceBaseline, countSentences } from '../density-validate';
 import { densityForSectionId, validateReportSections } from './validate-projection';
 import { AUDIO_LEXICON_CLAUSE_STRINGS } from './audio-lexicon';
+import { ALL_INTER_CLAIM_GLUE_LITERALS } from './claim-inter-claim-glue';
+import { reducedPadPool } from './phase2-sentence-load';
 
 /** Mirror `tone-pass.ts` `normalizeSentence` — must stay byte-identical for NORM. */
 export function projectionNormSentence(s: string): string {
@@ -73,11 +75,12 @@ function sectionRank(id: string): number {
   return 200;
 }
 
-const PADDING_LITERALS = [
+const PADDING_LITERALS: readonly string[] = [
   'This pattern tends to be context-sensitive rather than fixed: the same emphasis may read louder under stress and softer under safety.',
   'Many people with a similar picture describe the feel as more situational than permanent, especially when life load changes week to week.',
   'Integration often works better as small experiments than as a single decisive relabeling of the self or the relationship.',
-] as const;
+  ...reducedPadPool(),
+];
 
 const FEED_PADDING_LITERALS = [
   'This card stays narrow by design: it highlights one active thread from the same picture.',
@@ -107,11 +110,7 @@ export function phase0AudioCatalogClauseRef(): readonly string[] {
   return AUDIO_PHRASE_CATALOG;
 }
 
-const GLUE_LITERALS = [
-  'In the same picture,',
-  'Alongside that signal,',
-  'Taken together with the prior emphasis,',
-] as const;
+const GLUE_LITERALS: readonly string[] = [...ALL_INTER_CLAIM_GLUE_LITERALS];
 
 const CLAIM_OR_GLUE_GUARD_LITERALS: readonly string[] = (() => {
   const strong = 'shows up strongly in this view';
