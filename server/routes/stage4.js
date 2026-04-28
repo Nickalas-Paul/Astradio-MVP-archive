@@ -3,6 +3,11 @@ const express = require('express');
 
 const pgStore = require('../../lib/pg-store');
 const relationshipArtifacts = require('../../lib/relationship-artifacts');
+const {
+  COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+  readRelationalExpressionVersionFromDailyArtifact,
+  buildRelationalFreshness,
+} = require('../../lib/community-artifact-freshness');
 const groupComposeAdapter = require('../../dist/vnext/vnext/relational/composition/group-compose-adapter');
 const { transitParamsToChartInput } = require('../../dist/vnext/vnext/relational/weather/transit-chart-input');
 const { fetchChartSnapshot } = require('../../dist/vnext/vnext/core/architecture-engine');
@@ -162,7 +167,12 @@ function createStage4Router() {
           canonicalDayBucket,
         };
         const existing = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity);
-        if (existing && existing.artifactStatus === 'available') {
+        const existingVersion = readRelationalExpressionVersionFromDailyArtifact(existing);
+        const existingFreshness = buildRelationalFreshness(
+          COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+          existingVersion
+        );
+        if (existing && existing.artifactStatus === 'available' && existingFreshness.isCurrent) {
           artifact = {
             planHash: existing.planHash || null,
             compositionId: existing.compositionId || null,
@@ -188,6 +198,7 @@ function createStage4Router() {
               canonicalDayBucket,
               transitSnapshotHash: existing.transitSnapshotHash,
             },
+            freshness: existingFreshness,
           };
           return res.status(200).json({ weather, feedItem, artifact });
         }
@@ -230,6 +241,15 @@ function createStage4Router() {
           const textPayload = composed?.text != null ? composed.text : null;
           const persistedTransitSnapshotHash =
             inside?.transitSnapshotHash || snapshotFingerprint(transitSnapshot);
+          const weatherPayloadForStorage = {
+            ...weather,
+            meta: {
+              ...(weather && typeof weather === 'object' && weather.meta && typeof weather.meta === 'object'
+                ? weather.meta
+                : {}),
+              expressionVersion: COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+            },
+          };
           const toPersist = {
             scopeKind: identity.scopeKind,
             bindingId: identity.bindingId,
@@ -242,7 +262,7 @@ function createStage4Router() {
             exportJobId: exportId,
             artifactStatus: nextStatus,
             textPayload,
-            weatherPayload: weather,
+            weatherPayload: weatherPayloadForStorage,
             createdByUserId: viewerUserId,
           };
           if (inside && (inside.artifactStatus === 'partial' || inside.artifactStatus === 'failed')) {
@@ -288,6 +308,10 @@ function createStage4Router() {
             canonicalDayBucket,
             transitSnapshotHash: winner?.transitSnapshotHash || snapshotFingerprint(transitSnapshot),
           },
+          freshness: buildRelationalFreshness(
+            COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+            readRelationalExpressionVersionFromDailyArtifact(winner)
+          ),
         };
       }
 

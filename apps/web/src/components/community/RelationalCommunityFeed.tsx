@@ -320,13 +320,32 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     onClick={() => void openAndRenderArtifact(item)}
                     disabled={busyByFeedId[item.feed_item_id]}
                   >
-                    {busyByFeedId[item.feed_item_id] ? 'Rendering…' : 'Open artifact'}
+                    {busyByFeedId[item.feed_item_id]
+                      ? 'Rendering…'
+                      : openByFeedId[item.feed_item_id]
+                        ? 'Generate current version'
+                        : 'Open artifact'}
                   </button>
                 )}
               </div>
               {openByFeedId[item.feed_item_id] && artifactByFeedId[item.feed_item_id] && (
                 <div className="rounded border border-border/70 bg-bgElev p-3 space-y-2">
                   <p className="text-xs font-semibold text-text">Relational weather artifact</p>
+                  {(() => {
+                    const freshness =
+                      artifactByFeedId[item.feed_item_id].freshness &&
+                      typeof artifactByFeedId[item.feed_item_id].freshness === 'object'
+                        ? (artifactByFeedId[item.feed_item_id].freshness as Record<string, unknown>)
+                        : null;
+                    const isHistorical = freshness?.isHistorical === true;
+                    if (!isHistorical) return null;
+                    return (
+                      <p className="text-xs text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded px-2 py-1">
+                        Historical saved artifact. Generated with an earlier expression version. Generate current version
+                        to refresh this connection.
+                      </p>
+                    );
+                  })()}
                   {(() => {
                     const view = artifactText(artifactByFeedId[item.feed_item_id]);
                     return (

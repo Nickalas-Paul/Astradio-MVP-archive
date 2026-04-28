@@ -247,6 +247,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   /** null = not checked; true = HEAD failed or GET blob failed; false = playable */
   const [libraryAudioMissingFromStore, setLibraryAudioMissingFromStore] = useState<boolean | null>(null);
   const [libraryRelationalWeatherTextMissing, setLibraryRelationalWeatherTextMissing] = useState(false);
+  const [libraryHistoricalArtifact, setLibraryHistoricalArtifact] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -462,6 +463,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     setLibraryReconstructError(null);
     setLibraryAudioMissingFromStore(null);
     setLibraryRelationalWeatherTextMissing(false);
+    setLibraryHistoricalArtifact(false);
     if (libraryDetailAudioUrl) {
       URL.revokeObjectURL(libraryDetailAudioUrl);
       setLibraryDetailAudioUrl(null);
@@ -552,7 +554,24 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         return;
       }
       if (source === 'community_relational_weather' || ps?.kind === 'community_relational_weather') {
-        const report = row.report as { text?: unknown; weather?: unknown } | undefined;
+        const report = row.report as
+          | { text?: unknown; weather?: unknown; freshness?: { historicalReason?: unknown; isHistorical?: unknown } }
+          | undefined;
+        const reportExpressionVersion =
+          report &&
+          report.freshness &&
+          typeof (report.freshness as { expressionVersion?: unknown }).expressionVersion === 'string'
+            ? String((report.freshness as { expressionVersion?: unknown }).expressionVersion).trim()
+            : '';
+        const sandboxExpressionVersion =
+          ps && typeof ps.expressionVersion === 'string' ? ps.expressionVersion.trim() : '';
+        const versionMissing = !reportExpressionVersion && !sandboxExpressionVersion;
+        const freshnessHistorical =
+          report?.freshness?.isHistorical === true ||
+          (typeof report?.freshness?.historicalReason === 'string' && report.freshness.historicalReason.trim().length > 0) ||
+          (typeof ps?.historicalReason === 'string' && ps.historicalReason.trim().length > 0) ||
+          versionMissing;
+        setLibraryHistoricalArtifact(freshnessHistorical);
         const textValue = report?.text;
         const textMissing = textValue == null;
         setLibraryRelationalWeatherTextMissing(textMissing);
@@ -1188,7 +1207,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
         {profileSection === 'library' && (
           <div className="space-y-3">
-            <p className="text-sm text-subtext">Saved profile and community artifacts (text first; audio when export is available).</p>
+            <p className="text-sm text-subtext">
+              Saved profile and community artifacts (text first; audio when export is available). Older engine versions are shown as historical snapshots.
+            </p>
             {libraryLoading ? (
               <p className="text-sm text-subtext">Loading…</p>
             ) : (
@@ -1230,6 +1251,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                           setLibraryReconstructError(null);
                           setLibraryAudioMissingFromStore(null);
                           setLibraryRelationalWeatherTextMissing(false);
+                          setLibraryHistoricalArtifact(false);
                           if (libraryDetailAudioUrl) {
                             URL.revokeObjectURL(libraryDetailAudioUrl);
                             setLibraryDetailAudioUrl(null);
@@ -1240,6 +1262,18 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                       </button>
                     </div>
                     {libraryDetailLoading && <p className="text-sm text-subtext">Loading…</p>}
+                    {libraryHistoricalArtifact && (
+                      <div className="text-sm text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2 space-y-2">
+                        <p>Historical saved artifact.</p>
+                        <p>Generated with an earlier expression version.</p>
+                        <a
+                          href="/community?tab=feed"
+                          className="inline-block px-3 py-1 rounded border border-amber-500/50 text-xs hover:bg-amber-500/10"
+                        >
+                          Generate current version
+                        </a>
+                      </div>
+                    )}
                     {libraryReconstructError && (
                       <p className="text-sm text-red-500">{libraryReconstructError}</p>
                     )}

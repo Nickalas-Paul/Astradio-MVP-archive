@@ -8,6 +8,11 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const crypto = require('crypto');
 const { optionalRequire } = require('../../lib/opt/optional');
+const {
+  COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+  readRelationalExpressionVersionFromDailyArtifact,
+  buildRelationalFreshness,
+} = require('../../lib/community-artifact-freshness');
 
 let pgStore = null;
 try {
@@ -586,6 +591,11 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
     ) {
       return res.status(409).json({ error: 'artifact_identity_mismatch' });
     }
+    const dailyExpressionVersion = readRelationalExpressionVersionFromDailyArtifact(existingDaily);
+    const dailyFreshness = buildRelationalFreshness(
+      COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+      dailyExpressionVersion
+    );
 
     const effectiveText =
       incomingText != null ? incomingText : existingDaily.textPayload != null ? existingDaily.textPayload : null;
@@ -610,6 +620,8 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
       exportJobId: resolvedExportJobId,
       text: effectiveText,
       weather: weatherPayload,
+      expressionVersion: dailyFreshness.artifactVersion || dailyFreshness.currentVersion,
+      historicalReason: dailyFreshness.isHistorical ? dailyFreshness.reason : null,
     });
 
     const exportReachable = await exportReachableOnServer(resolvedExportJobId);
@@ -656,6 +668,7 @@ router.post('/community/artifacts/save', communityPostLimiter, async (req, res) 
     return res.status(200).json({
       ok: true,
       objectIdentityHash,
+      freshness: dailyFreshness,
       inserted,
       repaired,
       textRepaired,

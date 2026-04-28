@@ -22,6 +22,7 @@ import { fetchChartSnapshot } from '../core/architecture-engine';
  * v3: pair feed dedupes duplicate astradio_relationships rows (same charts + label) to viewer-owned binding_id.
  */
 export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v3';
+const COMMUNITY_RELATIONAL_EXPRESSION_VERSION = 'community_relational_expression_v1';
 
 export interface TransitInputV1 {
   date: string;
@@ -109,6 +110,7 @@ type PgStore = {
   canonicalDayBucketFromTransitTs: (transitTs: string) => string;
   getCommunityRelationalWeatherStatusesForFeed: (input: {
     canonicalDayBucket: string;
+    currentExpressionVersion?: string;
     identities: Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
   }) => Promise<Map<string, 'not_generated' | 'available' | 'partial' | 'failed'>>;
 };
@@ -292,6 +294,7 @@ export async function buildCommunityRelationalFeed(params: {
       })) as Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
     const statusByIdentity = await pgStore.getCommunityRelationalWeatherStatusesForFeed({
       canonicalDayBucket,
+      currentExpressionVersion: COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
       identities: scoped,
     });
     for (const item of items) {
