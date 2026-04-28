@@ -79,13 +79,17 @@ function isSparseCompatibilityCase(core: SemanticCore, surface: ProjectionSurfac
   const lowTexture =
     core.audio.relational_texture === 'REL_TEXTURE_NEUTRAL' ||
     core.audio.relational_texture === 'REL_TEXTURE_STATIC';
-  const notCallResponse = core.audio.relational_texture !== 'REL_TEXTURE_CALL_RESPONSE';
   const lowDensity = core.audio.density_band === 'DENSITY_SPARSE' || core.audio.density_band === 'DENSITY_BALANCED';
   const topStrength = core.claims.slice(0, 3).reduce((m, c) => Math.max(m, c.strength), 0);
   const weakStructure = topStrength < 0.7;
+  const fewClaimEdges = (core.tension_harmony?.claim_edges?.length ?? 0) <= 1;
   const weakInteraction = hasIntensityLow || (hasIntensityMed && !hasIntensityHigh);
   const lowDirectionalPressure = lowTension || medTension;
-  return weakInteraction && lowDirectionalPressure && lowDensity && notCallResponse && (lowTexture || hasFrictionLow || hasHarmonyLow || weakStructure);
+  return (
+    weakInteraction &&
+    lowDirectionalPressure &&
+    (lowDensity || lowTexture || hasFrictionLow || hasHarmonyLow || weakStructure || fewClaimEdges)
+  );
 }
 
 const PAD_SENTENCES = reducedPadPool();
