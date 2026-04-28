@@ -70,16 +70,22 @@ function isSparseCompatibilityCase(core: SemanticCore, surface: ProjectionSurfac
   if (surface !== 'compat_pair') return false;
   const rel = core.relational?.activation_profile ?? [];
   const hasIntensityLow = rel.includes('REL_BAND_INTENSITY_LOW');
+  const hasIntensityMed = rel.includes('REL_BAND_INTENSITY_MED');
   const hasIntensityHigh = rel.includes('REL_BAND_INTENSITY_HIGH');
   const hasFrictionLow = rel.includes('REL_BAND_FRICTION_LOW');
+  const hasHarmonyLow = rel.includes('REL_BAND_HARMONY_LOW');
   const lowTension = core.audio.tension_bias === 'AUDIO_TENSION_LOW';
+  const medTension = core.audio.tension_bias === 'AUDIO_TENSION_MED';
   const lowTexture =
     core.audio.relational_texture === 'REL_TEXTURE_NEUTRAL' ||
     core.audio.relational_texture === 'REL_TEXTURE_STATIC';
-  const lowDensity = core.audio.density_band === 'DENSITY_SPARSE';
+  const notCallResponse = core.audio.relational_texture !== 'REL_TEXTURE_CALL_RESPONSE';
+  const lowDensity = core.audio.density_band === 'DENSITY_SPARSE' || core.audio.density_band === 'DENSITY_BALANCED';
   const topStrength = core.claims.slice(0, 3).reduce((m, c) => Math.max(m, c.strength), 0);
-  const weakStructure = topStrength < 0.58;
-  return (hasIntensityLow || lowTension || lowDensity) && !hasIntensityHigh && lowTexture && (hasFrictionLow || weakStructure);
+  const weakStructure = topStrength < 0.7;
+  const weakInteraction = hasIntensityLow || (hasIntensityMed && !hasIntensityHigh);
+  const lowDirectionalPressure = lowTension || medTension;
+  return weakInteraction && lowDirectionalPressure && lowDensity && notCallResponse && (lowTexture || hasFrictionLow || hasHarmonyLow || weakStructure);
 }
 
 const PAD_SENTENCES = reducedPadPool();
