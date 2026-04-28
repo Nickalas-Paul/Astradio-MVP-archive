@@ -69,6 +69,7 @@ export function CompatibilitySection({
   const [userTriggered, setUserTriggered] = useState(false);
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
+  const [expandedChartId, setExpandedChartId] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
@@ -85,6 +86,7 @@ export function CompatibilitySection({
 
   useEffect(() => {
     setUserTriggered(false);
+    setExpandedChartId(null);
   }, [chartId]);
 
   useEffect(() => {
@@ -211,6 +213,13 @@ export function CompatibilitySection({
     if (score >= 0.8) return 'Excellent';
     if (score >= 0.6) return 'Good';
     return 'Fair';
+  };
+
+  const facetLabelById: Record<string, string> = {
+    cohesion: 'Cohesion',
+    tension: 'Tension',
+    transformation: 'Transformation',
+    stability: 'Stability',
   };
 
   const intentRow =
@@ -364,36 +373,62 @@ export function CompatibilitySection({
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="text-xs">
-                  <span className="text-subtext">Elemental:</span>
-                  <span className="text-emerald ml-1">{Math.round((match.facets[0]?.score ?? match.score) * 100)}%</span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-subtext">Modal:</span>
-                  <span className="text-violet ml-1">{Math.round((match.facets[1]?.score ?? match.score) * 100)}%</span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-subtext">Aspect:</span>
-                  <span className="text-warning ml-1">{Math.round((match.facets[2]?.score ?? match.score) * 100)}%</span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-subtext">Preference:</span>
-                  <span className="text-success ml-1">{Math.round((match.facets[3]?.score ?? match.score) * 100)}%</span>
-                </div>
+                {match.facets.slice(0, 4).map((facet, facetIndex) => (
+                  <div key={`${match.chartId}-${facet.id}-${facetIndex}`} className="text-xs">
+                    <span className="text-subtext">{facetLabelById[facet.id] ?? facet.name}:</span>
+                    <span className="text-emerald ml-1">{Math.round((facet.score ?? match.score) * 100)}%</span>
+                  </div>
+                ))}
               </div>
 
               <div className="mb-3">
-                <p className="text-xs text-subtext mb-1">Why this works:</p>
-                <div className="flex flex-wrap gap-1">
-                  <span className="text-xs px-2 py-1 bg-emerald/10 text-emerald rounded-full">{match.rationale}</span>
-                  <button
-                    onClick={() => handleViewRationale(match.chartId)}
-                    className="text-xs px-2 py-1 bg-bgElev text-subtext rounded-full hover:bg-border transition-colors"
-                  >
-                    Details
-                  </button>
+                <p className="text-xs text-subtext mb-1">{match.explanationProfile?.intentFitSummary ?? match.rationale}</p>
+                <div className="text-xs text-subtext space-y-1">
+                  <p>
+                    <span className="font-medium text-text">Support:</span>{' '}
+                    {match.explanationProfile?.primarySupports?.[0] ?? 'Support signal unavailable'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-text">Limit:</span>{' '}
+                    {match.explanationProfile?.tensionsOrLimits?.[0] ?? 'Limit signal unavailable'}
+                  </p>
                 </div>
               </div>
+
+              {expandedChartId === match.chartId && match.explanationProfile && (
+                <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-xs text-subtext space-y-2">
+                  <p className="font-medium text-text">{match.explanationProfile.intentFitSummary}</p>
+                  <div>
+                    <p className="font-medium text-text">Primary supports</p>
+                    {match.explanationProfile.primarySupports.slice(0, 2).map((line) => (
+                      <p key={`${match.chartId}-primary-${line}`}>- {line}</p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">Secondary supports</p>
+                    {match.explanationProfile.secondarySupports.slice(0, 2).map((line) => (
+                      <p key={`${match.chartId}-secondary-${line}`}>- {line}</p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">Tensions / limits</p>
+                    {match.explanationProfile.tensionsOrLimits.slice(0, 2).map((line) => (
+                      <p key={`${match.chartId}-limit-${line}`}>- {line}</p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">Intent contrast</p>
+                    <p>Friend: {match.explanationProfile.contrastByIntent.friend}</p>
+                    <p>Lover: {match.explanationProfile.contrastByIntent.lover}</p>
+                    <p>Collaborator: {match.explanationProfile.contrastByIntent.collaborator}</p>
+                    <p>Rival: {match.explanationProfile.contrastByIntent.rival}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">Anchors</p>
+                    <p>{match.explanationProfile.anchors.join(', ')}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <button
@@ -406,10 +441,13 @@ export function CompatibilitySection({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleViewRationale(match.chartId)}
+                  onClick={() => {
+                    handleViewRationale(match.chartId);
+                    setExpandedChartId((prev) => (prev === match.chartId ? null : match.chartId));
+                  }}
                   className="px-3 py-2 bg-bgElev text-subtext rounded-lg hover:bg-border transition-colors text-sm"
                 >
-                  Details
+                  {expandedChartId === match.chartId ? 'Hide details' : 'Details'}
                 </button>
               </div>
             </motion.div>

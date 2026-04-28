@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { computeCompatibilitySystem } from '../../compatibility/service';
+import { canonicalIntentRank } from '../../compatibility/intent-rank';
+import type { RelationalIntent } from '../../compatibility/relational-intent';
 import type { IntentProfile } from '../intent-profiles';
 
 export interface FacetBreakdown {
@@ -73,14 +75,12 @@ export function scoreWithIntent(
   return { score: Math.max(0, Math.min(1, raw)), facets };
 }
 
-function scoreByIntentProfileSlug(slug: string, scoring: Awaited<ReturnType<typeof computeCompatibilitySystem>>['scoring']): number {
-  const cohesion = scoring.derived_indices.cohesion_index;
-  const tension = scoring.derived_indices.tension_index;
-  const transformation = scoring.derived_indices.transformation_index;
-  const stability = scoring.derived_indices.stability_index;
-  if (slug.includes('rival')) return Math.max(0, Math.min(1, tension * 0.45 + transformation * 0.3 + scoring.scalar_outputs.overall_relational_intensity * 0.25));
-  if (slug.includes('lover') || slug.includes('dating')) return Math.max(0, Math.min(1, cohesion * 0.35 + transformation * 0.4 + stability * 0.25));
-  return Math.max(0, Math.min(1, cohesion * 0.4 + stability * 0.35 + scoring.scalar_outputs.overall_relational_intensity * 0.25));
+function mapIntentProfileToRelationalIntent(slug: string): RelationalIntent {
+  const lower = slug.toLowerCase();
+  if (lower.includes('rival')) return 'rival';
+  if (lower.includes('lover') || lower.includes('dating')) return 'lover';
+  if (lower.includes('collaborator') || lower.includes('mentor') || lower.includes('collaboration')) return 'collaborator';
+  return 'friend';
 }
 
 export async function scoreChartsByIntent(
@@ -92,8 +92,9 @@ export async function scoreChartsByIntent(
     chartIds: [chartIdA, chartIdB],
     relationshipBindingId: null,
   });
+  const intent = mapIntentProfileToRelationalIntent(intentProfileIdOrSlug);
   return {
-    score: scoreByIntentProfileSlug(intentProfileIdOrSlug, computed.scoring),
+    score: canonicalIntentRank(computed.scoring, intent),
     facet_breakdown: {
       overall: computed.scoring.scalar_outputs.overall_relational_intensity,
       elemental: computed.scoring.derived_indices.cohesion_index,

@@ -8,6 +8,9 @@ import * as storage from './storage';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
+import { canonicalIntentRank } from '../compatibility/intent-rank';
+import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
+import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
@@ -19,24 +22,13 @@ export interface CompatMatchResult {
   score: number;
   facets: Array<{ id: string; name: string; weight: number; score: number; explanation: string }>;
   rationale: string;
+  explanationProfile: CompatibilityExplanationProfile;
   lastUpdated: string;
   compatibilityFieldHash?: string;
 }
 
 function clampScore(x: number): number {
   return Math.max(0, Math.min(1, x));
-}
-
-function scoreForMode(scoring: RelationalFieldScoreContract, mode: RelationalIntent): number {
-  const { cohesion_index, tension_index, transformation_index, stability_index } = scoring.derived_indices;
-  if (mode === 'lover') return clampScore(cohesion_index * 0.35 + transformation_index * 0.35 + stability_index * 0.15 + scoring.scalar_outputs.overall_relational_intensity * 0.15);
-  if (mode === 'rival') return clampScore(tension_index * 0.45 + transformation_index * 0.25 + scoring.scalar_outputs.overall_relational_intensity * 0.3);
-  if (mode === 'collaborator') {
-    return clampScore(
-      cohesion_index * 0.35 + tension_index * 0.15 + transformation_index * 0.15 + stability_index * 0.35
-    );
-  }
-  return clampScore(cohesion_index * 0.4 + stability_index * 0.3 + scoring.scalar_outputs.overall_relational_intensity * 0.3);
 }
 
 function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchResult['facets'] {
@@ -68,14 +60,21 @@ export async function getCompatMatches(
       chartIds: [chartId, cand.chartId],
       relationshipBindingId: null,
     });
-    const score = scoreForMode(computed.scoring, mode);
+    const score = canonicalIntentRank(computed.scoring, mode);
+    const explanationProfile = buildCompatibilityExplanationProfile({
+      field: computed.field,
+      scoring: computed.scoring,
+      classification: computed.classification,
+      intent: mode,
+    });
     results.push({
       userId: cand.userId,
       chartId: cand.chartId,
       displayName: cand.displayName,
       score,
       facets: facetsFromScoring(computed.scoring),
-      rationale: `Ranked from canonical field ${computed.field.object_identity_hash.slice(0, 12)} using ${mode} intent weights only.`,
+      rationale: explanationProfile.intentFitSummary,
+      explanationProfile,
       lastUpdated: new Date().toISOString(),
       compatibilityFieldHash: computed.field.object_identity_hash,
     });

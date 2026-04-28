@@ -10,6 +10,9 @@ import type { Chart } from '../compat/types';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
+import { canonicalIntentRank } from '../compatibility/intent-rank';
+import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
+import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { getScopedCandidates } from './scope-resolver';
 
 export type ScopeType = 'my_groups' | 'group' | 'global';
@@ -33,6 +36,7 @@ export interface IntentClusterMember {
   displayName?: string;
   descriptors: string[];
   sharedContext?: string[];
+  explanationProfile: CompatibilityExplanationProfile;
 }
 
 export interface IntentCluster {
@@ -47,42 +51,6 @@ export interface CompatibilityIntentResponse {
   intent: RelationalIntent;
   clusters: IntentCluster[];
   meta?: { scope: ScopeType; candidateCount: number };
-}
-
-const INTENT_WEIGHTS: Record<
-  RelationalIntent,
-  { cohesion: number; tension: number; transformation: number; stability: number }
-> = {
-  friend: { cohesion: 0.4, tension: 0.1, transformation: 0.15, stability: 0.35 },
-  lover: { cohesion: 0.3, tension: 0.1, transformation: 0.4, stability: 0.2 },
-  rival: { cohesion: 0.25, tension: 0.35, transformation: 0.25, stability: 0.15 },
-  collaborator: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
-};
-
-function descriptorsFromScore(scoring: RelationalFieldScoreContract): string[] {
-  const out: string[] = [];
-  const parts = [
-    ['cohesion', scoring.derived_indices.cohesion_index],
-    ['tension', scoring.derived_indices.tension_index],
-    ['transformation', scoring.derived_indices.transformation_index],
-    ['stability', scoring.derived_indices.stability_index],
-  ] as const;
-  for (const [id, score] of parts) {
-    if (score >= 0.7) out.push(`Strong ${id} signal`);
-    else if (score >= 0.5) out.push(`Moderate ${id} signal`);
-    else out.push(`Light ${id} signal`);
-  }
-  return out;
-}
-
-function rankForIntent(scoring: RelationalFieldScoreContract, intent: RelationalIntent): number {
-  const weights = INTENT_WEIGHTS[intent];
-  return (
-    scoring.derived_indices.cohesion_index * weights.cohesion +
-    scoring.derived_indices.tension_index * weights.tension +
-    scoring.derived_indices.transformation_index * weights.transformation +
-    scoring.derived_indices.stability_index * weights.stability
-  );
 }
 
 function assignBand(scoring: RelationalFieldScoreContract): ClusterBand {
@@ -105,22 +73,6 @@ function bandLabel(band: ClusterBand): string {
       return 'Complex blend';
     default:
       return 'Mixed';
-  }
-}
-
-/** Why bullets for band (narrative, no numbers). */
-function whyBullets(band: ClusterBand): string[] {
-  switch (band) {
-    case 'ease':
-      return ['Elemental balance aligns', 'Conversation flows naturally'];
-    case 'spark':
-      return ['Shared preference space', 'Creative resonance'];
-    case 'growth':
-      return ['Tension invites growth', 'Complementary signatures'];
-    case 'complex':
-      return ['Mixed dynamics', 'Nuanced fit'];
-    default:
-      return ['Collective fit'];
   }
 }
 
@@ -165,8 +117,7 @@ export async function computeCompatibilityIntent(
     displayName?: string;
     score: number;
     band: ClusterBand;
-    scoring: RelationalFieldScoreContract;
-    rationale: string;
+    explanationProfile: CompatibilityExplanationProfile;
   }> = [];
   for (const candidate of candidates) {
     if (candidate.chartId === seekerChartIdResolved) continue;
@@ -176,10 +127,14 @@ export async function computeCompatibilityIntent(
     });
     scored.push({
       ...candidate,
-      score: rankForIntent(computed.scoring, intent),
+      score: canonicalIntentRank(computed.scoring, intent),
       band: assignBand(computed.scoring),
-      scoring: computed.scoring,
-      rationale: `Intent projection over canonical field ${computed.field.object_identity_hash.slice(0, 12)}.`,
+      explanationProfile: buildCompatibilityExplanationProfile({
+        field: computed.field,
+        scoring: computed.scoring,
+        classification: computed.classification,
+        intent,
+      }),
     });
   }
 
@@ -200,10 +155,16 @@ export async function computeCompatibilityIntent(
         userId: s.userId,
         chartId: s.chartId,
         displayName: s.displayName,
-        descriptors: descriptorsFromScore(s.scoring),
-        sharedContext: [s.rationale],
+        descriptors: s.explanationProfile.primarySupports.slice(0, 2),
+        sharedContext: [s.explanationProfile.intentFitSummary],
+        explanationProfile: s.explanationProfile,
       })),
-      why: { bullets: whyBullets(band) },
+      why: {
+        bullets: [
+          membersForBand[0]?.explanationProfile.primarySupports[0],
+          membersForBand[0]?.explanationProfile.tensionsOrLimits[0],
+        ].filter((x): x is string => Boolean(x)),
+      },
     };
   });
 

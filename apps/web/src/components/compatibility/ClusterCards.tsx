@@ -9,6 +9,19 @@ export interface ClusterMember {
   displayName?: string;
   descriptors?: string[];
   sharedContext?: string[];
+  explanationProfile?: {
+    intentFitSummary: string;
+    primarySupports: string[];
+    secondarySupports: string[];
+    tensionsOrLimits: string[];
+    contrastByIntent: {
+      friend: 'high' | 'moderate' | 'low';
+      lover: 'high' | 'moderate' | 'low';
+      collaborator: 'high' | 'moderate' | 'low';
+      rival: 'high' | 'moderate' | 'low';
+    };
+    anchors: string[];
+  };
 }
 
 export interface Cluster {
@@ -32,7 +45,14 @@ export function ClusterCards({ clusters, seekerChartId, keywordFilter }: Cluster
     const dn = (m.displayName || '').toLowerCase();
     const ctx = (m.sharedContext || []).join(' ').toLowerCase();
     const desc = (m.descriptors || []).join(' ').toLowerCase();
-    return dn.includes(k) || ctx.includes(k) || desc.includes(k);
+    const extra = [
+      m.explanationProfile?.intentFitSummary || '',
+      ...(m.explanationProfile?.primarySupports || []),
+      ...(m.explanationProfile?.tensionsOrLimits || []),
+    ]
+      .join(' ')
+      .toLowerCase();
+    return dn.includes(k) || ctx.includes(k) || desc.includes(k) || extra.includes(k);
   };
 
   return (

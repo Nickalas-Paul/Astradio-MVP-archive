@@ -38,6 +38,20 @@ export type CompatMatch = {
   score: number;
   facets: CompatFacet[];
   rationale: string;
+  explanationProfile?: {
+    intent: 'friend' | 'lover' | 'rival' | 'collaborator';
+    intentFitSummary: string;
+    primarySupports: string[];
+    secondarySupports: string[];
+    tensionsOrLimits: string[];
+    contrastByIntent: {
+      friend: 'high' | 'moderate' | 'low';
+      lover: 'high' | 'moderate' | 'low';
+      collaborator: 'high' | 'moderate' | 'low';
+      rival: 'high' | 'moderate' | 'low';
+    };
+    anchors: string[];
+  };
   lastUpdated: string;
 };
 
