@@ -76,6 +76,27 @@ function hashSeed(seed: string): number {
   return h >>> 0;
 }
 
+/**
+ * Synthesis openers only (read register). Must stay disjoint from `AUDIO_LEXICON_CLAUSE_STRINGS`
+ * in audio-lexicon (R3: one listen-family match per kind outside `audio_staging`). Exactly six each.
+ */
+const SYNTH_WRAPPER_A: readonly string[] = [
+  `This read weaves side threads and mid-rank cues so a single dominant thread still leads.`,
+  `Here the phrasing darts between sub-claims, keeping a brisk alternation with one through-line in front.`,
+  `The case stacks several small moves; the central line returns before the section runs long.`,
+  `A wider cadence between beats lets side comments land, then the main line comes back in plain form.`,
+  `Tilted counterpoints now trade in sharper back-and-forth, yet the spine of the case stays nameable.`,
+  `Secondary material stays in orbit, echoing the headline without eclipsing the first-order point.`,
+];
+const SYNTH_WRAPPER_B: readonly string[] = [
+  `Second pass widens the field, roping in quieter side constraints that reweight the same headline, not dethroning it.`,
+  `A brisker recheck places different moderators up front, keeping the through-line while sharpening the visible edges.`,
+  `More subclaims are named in one field of view, so the felt busyness rises while the top line still reads as one path.`,
+  `A slower handoff from headline to detail gives more leg room, same through-line, calmer path back to the lead.`,
+  `Nuance comes through as give-and-take between lines, while the opening sentence of the case still governs the page.`,
+  `Hangers-on sit closer to the main line, nudging emphasis in place, without a rewrite of the first sentence.`,
+];
+
 function countSentences(text: string): number {
   const t = text.trim();
   if (!t) return 0;
@@ -738,6 +759,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   });
 
   const extraKeys = expansionKeysFor(surface, tierEff);
+  const coreAudio = core.audio;
+  // Ordinal maps: TEMPO/DENSITY/TENSION bands → 0,1,2; ARC (four codes) and REL_TEXTURE (four codes) share buckets per inline rules.
+  const tempoOrdinal: 0 | 1 | 2 =
+    coreAudio.tempo_band === 'TEMPO_LOW' ? 0 : coreAudio.tempo_band === 'TEMPO_MED' ? 1 : 2; // TEMPO_HIGH
+  const densityOrdinal: 0 | 1 | 2 =
+    coreAudio.density_band === 'DENSITY_SPARSE' ? 0 : coreAudio.density_band === 'DENSITY_DENSE' ? 2 : 1; // DENSITY_BALANCED
+  const arcOrdinal: 0 | 1 | 2 =
+    coreAudio.arc_bias === 'ARC_CYCLIC' ? 1 : coreAudio.arc_bias === 'ARC_FALL' ? 2 : 0; // ARC_RISE & ARC_SURGE_RESOLVE → 0
+  const tensionOrdinal: 0 | 1 | 2 =
+    coreAudio.tension_bias === 'AUDIO_TENSION_LOW' ? 0 : coreAudio.tension_bias === 'AUDIO_TENSION_MED' ? 1 : 2; // HIGH
+  const textureOrdinal: 0 | 1 | 2 =
+    coreAudio.relational_texture === 'REL_TEXTURE_NEUTRAL' || coreAudio.relational_texture === 'REL_TEXTURE_STATIC'
+      ? 0
+      : coreAudio.relational_texture === 'REL_TEXTURE_FLUID'
+        ? 1
+        : 2; // REL_TEXTURE_CALL_RESPONSE
+
   for (const key of extraKeys) {
     if (key === 'audio_thread') continue;
     if (key === 'synthesis_a') {
@@ -755,10 +793,16 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         globalExclusiveBodyClaimIds,
         'synthesis_a'
       );
-      const wrap = pickVariant(seed + ':syn', [
-        `Cross-section synthesis ties together mid-rank threads that moderate the dominant pattern.`,
-        `Synthesis adds secondary threads that refine where intensity softens or concentrates.`,
-      ]);
+      const baseKeyA = `${seed}|synthesis_a|${coreAudio.density_band}|${coreAudio.arc_bias}|${coreAudio.tension_bias}|${coreAudio.relational_texture}`;
+      const idxA =
+        (hashSeed(baseKeyA) +
+          tempoOrdinal +
+          densityOrdinal +
+          arcOrdinal +
+          tensionOrdinal +
+          textureOrdinal) %
+        6;
+      const wrap = SYNTH_WRAPPER_A[idxA]!;
       const synBody = capToMaxSentences(synClaim.text, 3);
       const syn = [wrap, synBody].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
@@ -806,10 +850,16 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         globalExclusiveBodyClaimIds,
         'synthesis_b'
       );
-      const wrapB = pickVariant(seed + ':synb', [
-        `Extended synthesis brings in lower-ranked moderator threads to map nuance around the headline pattern.`,
-        `Second-pass synthesis adds moderator threads that can shift emphasis without replacing the primary signal.`,
-      ]);
+      const baseKeyB = `${seed}|synthesis_b|${coreAudio.density_band}|${coreAudio.arc_bias}|${coreAudio.tension_bias}|${coreAudio.relational_texture}`;
+      const idxB =
+        (hashSeed(baseKeyB) +
+          tempoOrdinal +
+          densityOrdinal +
+          arcOrdinal +
+          tensionOrdinal +
+          textureOrdinal) %
+        6;
+      const wrapB = SYNTH_WRAPPER_B[idxB]!;
       const synBodyB = capToMaxSentences(synClaim.text, 3);
       const syn = [wrapB, synBodyB].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
