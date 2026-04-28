@@ -14,6 +14,15 @@ import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { getScopedCandidates } from './scope-resolver';
+import { fetchChartSnapshot } from '../core/architecture-engine';
+import { encodeFeatures } from '../feature-encode';
+import type { FeatureVec } from '../contracts';
+import { mergeFeatureVectors } from '../compat/fusion';
+import { guidanceFromFeatures } from '../astro/guidance';
+import { buildCanonicalReportForAggregate } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
+import { projectTextFromSemanticCore } from '../projection/text-projection';
+import type { RelationshipMode } from '../compat/types';
 
 export type ScopeType = 'my_groups' | 'group' | 'global';
 
@@ -76,6 +85,123 @@ function bandLabel(band: ClusterBand): string {
   }
 }
 
+function intentToConnectionMode(intent: RelationalIntent): RelationshipMode {
+  if (intent === 'friend') return 'friends';
+  if (intent === 'lover') return 'lovers';
+  if (intent === 'rival') return 'rivals';
+  return 'collaborator';
+}
+
+function firstSentence(text: string): string {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return '';
+  const m = trimmed.match(/^[^.!?]+[.!?]?/);
+  return (m ? m[0] : trimmed).trim();
+}
+
+function pickSectionLine(
+  sections: Array<{ id: string; text?: string }>,
+  sectionId: string
+): string {
+  const sec = sections.find((s) => s.id === sectionId);
+  return firstSentence(sec?.text ?? '');
+}
+
+function sparseIntentLine(seed: string, kind: 'support' | 'secondary' | 'limit'): string {
+  const key = `${seed}:${kind}`;
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const idx = h >>> 0;
+  if (kind === 'support') {
+    return idx % 2 === 0
+      ? 'Weak interaction signal keeps coordination light, so decisions often proceed independently.'
+      : 'No dominant exchange pattern appears, so timing remains mostly independent with low coordination pull.';
+  }
+  if (kind === 'secondary') {
+    return idx % 2 === 0
+      ? 'Domain coupling is limited, so communication and resource pacing stay loosely linked.'
+      : 'Low structural overlap keeps planning tracks parallel rather than tightly synchronized.';
+  }
+  return idx % 2 === 0
+    ? 'Directional pressure is minimal, so urgency and escalation remain constrained.'
+    : 'Conflict loading is low, so role shifts are limited unless external pressure rises.';
+}
+
+async function buildProjectedCompatibilityProfile(
+  chartIdA: string,
+  chartIdB: string,
+  intent: RelationalIntent,
+  base: CompatibilityExplanationProfile,
+  seed: string
+): Promise<CompatibilityExplanationProfile> {
+  const [a, b] = await Promise.all([getChartById(chartIdA), getChartById(chartIdB)]);
+  if (!a || !b) {
+    return {
+      ...base,
+      primarySupports: [sparseIntentLine(seed, 'support')],
+      secondarySupports: [sparseIntentLine(seed, 'secondary')],
+      tensionsOrLimits: [sparseIntentLine(seed, 'limit')],
+    };
+  }
+  const [snapA, snapB] = await Promise.all([
+    fetchChartSnapshot({ date: a.date, time: a.time, lat: a.lat, lon: a.lon, timezone: a.timezone }),
+    fetchChartSnapshot({ date: b.date, time: b.time, lat: b.lat, lon: b.lon, timezone: b.timezone }),
+  ]);
+  const vecA = encodeFeatures(snapA) as FeatureVec;
+  const vecB = encodeFeatures(snapB) as FeatureVec;
+  const merged = mergeFeatureVectors(vecA, vecB, {
+    relationshipMode: intentToConnectionMode(intent),
+  }) as FeatureVec;
+  const guidance = guidanceFromFeatures(merged, snapA, seed);
+  const report = buildCanonicalReportForAggregate({
+    kind: 'comparison',
+    subject_ids: [seed],
+    participants: [
+      { snapshot: snapA, featureVec: vecA, role: 'primary' },
+      { snapshot: snapB, featureVec: vecB, role: 'member_i' },
+    ],
+    composite: merged,
+    anchorIndex: 0,
+    control_surface_hash: seed,
+    compose_seed: seed,
+    guidance,
+    relationalWeather: null,
+  });
+  const core = interpretCanonicalReportObject(report);
+  const sections = projectTextFromSemanticCore(core, seed, {
+    phaseD: true,
+    surface: 'compat_pair',
+    tier: 'extended',
+    narrativePlan: null,
+    aggregateKind: 'comparison',
+    connectionMode: intentToConnectionMode(intent),
+    participantCount: 2,
+  });
+
+  const support =
+    pickSectionLine(sections, 'interaction_map') ||
+    pickSectionLine(sections, 'relational_field') ||
+    sparseIntentLine(seed, 'support');
+  const secondary =
+    pickSectionLine(sections, 'synthesis_a') ||
+    pickSectionLine(sections, 'significance') ||
+    sparseIntentLine(seed, 'secondary');
+  const limit =
+    pickSectionLine(sections, 'contradiction_map') ||
+    pickSectionLine(sections, 'synthesis_b') ||
+    sparseIntentLine(seed, 'limit');
+
+  return {
+    ...base,
+    primarySupports: [support],
+    secondarySupports: [secondary],
+    tensionsOrLimits: [limit],
+  };
+}
+
 async function resolveSeekerChartId(seekerChartId?: string, inlineChart?: ChartInput): Promise<string> {
   if (seekerChartId) {
     const chart = await getChartById(seekerChartId);
@@ -125,16 +251,24 @@ export async function computeCompatibilityIntent(
       chartIds: [seekerChartIdResolved, candidate.chartId],
       relationshipBindingId: null,
     });
+    const explanationBase = buildCompatibilityExplanationProfile({
+      field: computed.field,
+      scoring: computed.scoring,
+      classification: computed.classification,
+      intent,
+    });
+    const explanationProfile = await buildProjectedCompatibilityProfile(
+      seekerChartIdResolved,
+      candidate.chartId,
+      intent,
+      explanationBase,
+      computed.field.object_identity_hash
+    );
     scored.push({
       ...candidate,
       score: canonicalIntentRank(computed.scoring, intent),
       band: assignBand(computed.scoring),
-      explanationProfile: buildCompatibilityExplanationProfile({
-        field: computed.field,
-        scoring: computed.scoring,
-        classification: computed.classification,
-        intent,
-      }),
+      explanationProfile,
     });
   }
 

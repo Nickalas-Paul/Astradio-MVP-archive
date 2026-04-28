@@ -55,6 +55,13 @@ function parseExpansionTier(v: unknown): ExpansionTier {
   return 'baseline';
 }
 
+function firstSentenceForSummary(text: string): string {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return '';
+  const m = trimmed.match(/^[^.!?]+[.!?]?/);
+  return (m ? m[0] : trimmed).trim();
+}
+
 /** Phase B — aggregate surfaces (comparison + group) share one downstream runner. */
 export type AggregateCompositionInput =
   | {
@@ -796,8 +803,27 @@ export class ComposeAPI {
       .filter(Boolean)
       .join('\n\n');
 
+    const dominantSummary =
+      firstSentenceForSummary(projected.find((s) => s.id === 'relational_field')?.text || signaturesText) ||
+      'Weak interaction signal keeps coordination light.';
+    const interactionSummary =
+      firstSentenceForSummary(projected.find((s) => s.id === 'interaction_map')?.text || '') ||
+      'Interaction type: low-coupling exchange.';
+    const directionSummary =
+      firstSentenceForSummary(projected.find((s) => s.id === 'contradiction_map')?.text || projected.find((s) => s.id === 'synthesis_b')?.text || '') ||
+      'Direction: low directional pressure.';
+    const domainSummary =
+      firstSentenceForSummary(projected.find((s) => s.id === 'significance')?.text || projected.find((s) => s.id === 'synthesis_a')?.text || '') ||
+      'Domain: practical communication and resource pacing.';
+    const compressedSummary = [
+      `Dominant signal: ${dominantSummary}`,
+      `Interaction type: ${interactionSummary}`,
+      `Direction: ${directionSummary}`,
+      `Domain: ${domainSummary}`,
+    ].join(' ');
+
     const text = {
-      short: signaturesText,
+      short: compressedSummary,
       long: longBody,
       bullets: musicalBullets,
       template_id: input.relationalWeather ? 'semantic-core-aggregate-relational-v1' : 'semantic-core-aggregate-v1',

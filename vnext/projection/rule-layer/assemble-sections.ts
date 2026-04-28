@@ -949,8 +949,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'interaction_map' && surface === 'compat_pair') {
       const syn = pickVariant(seed + ':im', [
-        `Interaction map: alternating seasons can show when harmony and friction both appear, rather than one steady average.`,
-        `Interaction map: different stress languages can appear when divergence shows; naming them often reduces unnecessary fusion.`,
+        `Interaction map: reinforcing patterns stabilize repeatable timing, escalating patterns increase urgency, cross-pressuring patterns pull decisions in competing directions, dissolving patterns diffuse shared structure, and transforming patterns reconfigure roles across communication and resource choices.`,
+        `Interaction map: reinforcing exchange aligns repeatable routines, escalating exchange amplifies pressure windows, cross-pressuring exchange creates competing directives, dissolving exchange weakens shared structure, and transforming exchange shifts role boundaries in real-world planning.`,
       ]);
       const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
@@ -978,8 +978,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
     if (key === 'field_distribution' && surface === 'group') {
       const syn = pickVariant(seed + ':fd', [
-        `Field distribution: emphasis often concentrates on a few people rather than spreading evenly.`,
-        `Field distribution: harmony and friction can read as uneven spread before local detail tightens.`,
+        `Field distribution: emphasis often concentrates on a subset of people, which increases coordination load for decision timing and redistributes communication responsibility.`,
+        `Field distribution: support and friction can spread unevenly, restricting some resource channels while destabilizing timing in specific local domains.`,
       ]);
       const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(

@@ -23,19 +23,28 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
 
-  const artifactText = (artifact: Record<string, unknown>): { text: string; bullets: string[] } => {
+  const artifactText = (artifact: Record<string, unknown>): { summary: string; text: string; bullets: string[] } => {
+    const sparseSummary =
+      'Dominant signal: weak interaction pattern. Interaction type: low-coupling exchange. Direction: low directional pressure. Domain: communication timing and resource pacing.';
     const raw = artifact.text;
-    if (typeof raw === 'string') return { text: raw, bullets: [] };
-    if (!raw || typeof raw !== 'object') return { text: '', bullets: [] };
+    if (typeof raw === 'string') return { summary: sparseSummary, text: raw, bullets: [] };
+    if (!raw || typeof raw !== 'object') return { summary: sparseSummary, text: '', bullets: [] };
     const obj = raw as { short?: unknown; long?: unknown; bullets?: unknown };
     const short = typeof obj.short === 'string' ? obj.short : '';
     const long = typeof obj.long === 'string' ? obj.long : '';
     const bullets = Array.isArray(obj.bullets) ? obj.bullets.map((b) => String(b)) : [];
+    const lowerShort = short.toLowerCase();
+    const hasSummaryContract =
+      lowerShort.includes('dominant signal:') &&
+      lowerShort.includes('interaction type:') &&
+      lowerShort.includes('direction:') &&
+      lowerShort.includes('domain:');
+    const summary = hasSummaryContract ? short : sparseSummary;
     /** Compose `long` omits the signatures/relational block; if both exist, show short + long (no duplicate lead). */
     if (long.trim()) {
-      return { text: [short, long].filter(Boolean).join('\n\n'), bullets };
+      return { summary, text: long, bullets };
     }
-    return { text: short || long, bullets };
+    return { summary, text: short || long, bullets };
   };
 
   if (!userId) {
@@ -322,6 +331,9 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     const view = artifactText(artifactByFeedId[item.feed_item_id]);
                     return (
                       <>
+                        <p className="text-xs text-subtext whitespace-pre-wrap">
+                          {view.summary}
+                        </p>
                         <p className="text-xs text-subtext whitespace-pre-wrap">
                           {view.text || 'No text block returned.'}
                         </p>
