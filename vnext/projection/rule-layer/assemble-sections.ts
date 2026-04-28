@@ -66,6 +66,22 @@ function pickVariant(seed: string, variants: string[]): string {
   return variants[h % variants.length];
 }
 
+function isSparseCompatibilityCase(core: SemanticCore, surface: ProjectionSurface): boolean {
+  if (surface !== 'compat_pair') return false;
+  const rel = core.relational?.activation_profile ?? [];
+  const hasIntensityLow = rel.includes('REL_BAND_INTENSITY_LOW');
+  const hasIntensityHigh = rel.includes('REL_BAND_INTENSITY_HIGH');
+  const hasFrictionLow = rel.includes('REL_BAND_FRICTION_LOW');
+  const lowTension = core.audio.tension_bias === 'AUDIO_TENSION_LOW';
+  const lowTexture =
+    core.audio.relational_texture === 'REL_TEXTURE_NEUTRAL' ||
+    core.audio.relational_texture === 'REL_TEXTURE_STATIC';
+  const lowDensity = core.audio.density_band === 'DENSITY_SPARSE';
+  const topStrength = core.claims.slice(0, 3).reduce((m, c) => Math.max(m, c.strength), 0);
+  const weakStructure = topStrength < 0.58;
+  return (hasIntensityLow || lowTension || lowDensity) && !hasIntensityHigh && lowTexture && (hasFrictionLow || weakStructure);
+}
+
 const PAD_SENTENCES = reducedPadPool();
 
 const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
@@ -760,6 +776,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const extraKeys = expansionKeysFor(surface, tierEff);
   const coreAudio = core.audio;
+  const sparseCompat = isSparseCompatibilityCase(core, surface);
   // Ordinal maps: TEMPO/DENSITY/TENSION bands → 0,1,2; ARC (four codes) and REL_TEXTURE (four codes) share buckets per inline rules.
   const tempoOrdinal: 0 | 1 | 2 =
     coreAudio.tempo_band === 'TEMPO_LOW' ? 0 : coreAudio.tempo_band === 'TEMPO_MED' ? 1 : 2; // TEMPO_HIGH
@@ -802,8 +819,14 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           tensionOrdinal +
           textureOrdinal) %
         6;
-      const wrap = SYNTH_WRAPPER_A[idxA]!;
-      const synBody = capToMaxSentences(synClaim.text, 3);
+      const wrap = sparseCompat
+        ? pickVariant(`${seed}:sparse:support`, [
+            'Interaction remains weak, so both people can keep independent decision timing with only light coordination demand.',
+            'Coordination pressure stays low in this sparse field, so each person can act independently without heavy synchronization.',
+            'The exchange remains lightly coupled, so planning and communication can proceed independently unless external pressure rises.',
+          ])
+        : SYNTH_WRAPPER_A[idxA]!;
+      const synBody = sparseCompat ? '' : capToMaxSentences(synClaim.text, 3);
       const syn = [wrap, synBody].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
         synBody.trim().length > 0
@@ -859,8 +882,15 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           tensionOrdinal +
           textureOrdinal) %
         6;
-      const wrapB = SYNTH_WRAPPER_B[idxB]!;
-      const synBodyB = capToMaxSentences(synClaim.text, 3);
+      const wrapB =
+        sparseCompat && surface === 'compat_pair'
+          ? pickVariant(`${seed}:sparse:limit`, [
+              'Directional pressure stays low, so urgency remains limited and role shifts are not strongly forced.',
+              'Low interaction pressure keeps escalation demand minimal, with little need to reorganize roles or pacing.',
+              'With weak coupling in the field, directional pressure stays light and conflict urgency remains contained.',
+            ])
+          : SYNTH_WRAPPER_B[idxB]!;
+      const synBodyB = sparseCompat && surface === 'compat_pair' ? '' : capToMaxSentences(synClaim.text, 3);
       const syn = [wrapB, synBodyB].filter((x) => x.trim().length > 0).join('\n\n');
       const synTagged =
         synBodyB.trim().length > 0
@@ -948,10 +978,16 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       });
     }
     if (key === 'interaction_map' && surface === 'compat_pair') {
-      const syn = pickVariant(seed + ':im', [
-        `Interaction map: reinforcing patterns stabilize repeatable timing, escalating patterns increase urgency, cross-pressuring patterns pull decisions in competing directions, dissolving patterns diffuse shared structure, and transforming patterns reconfigure roles across communication and resource choices.`,
-        `Interaction map: reinforcing exchange aligns repeatable routines, escalating exchange amplifies pressure windows, cross-pressuring exchange creates competing directives, dissolving exchange weakens shared structure, and transforming exchange shifts role boundaries in real-world planning.`,
-      ]);
+      const syn = sparseCompat
+        ? pickVariant(seed + ':im:sparse', [
+            `Interaction remains weak in this field, so coordination demand stays low and each person can keep independent timing.`,
+            `No strong shared push dominates this connection, so communication and decisions can proceed with light coordination pressure.`,
+            `This sparse exchange carries low interaction load, with minimal directional pressure on planning or role changes.`,
+          ])
+        : pickVariant(seed + ':im', [
+            `Interaction map: reinforcing patterns stabilize repeatable timing, escalating patterns increase urgency, cross-pressuring patterns pull decisions in competing directions, dissolving patterns diffuse shared structure, and transforming patterns reconfigure roles across communication and resource choices.`,
+            `Interaction map: reinforcing exchange aligns repeatable routines, escalating exchange amplifies pressure windows, cross-pressuring exchange creates competing directives, dissolving exchange weakens shared structure, and transforming exchange shifts role boundaries in real-world planning.`,
+          ]);
       const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
       const { text, claimIds, tagged } = enrichSectionTextWithTagged(
         syn,
