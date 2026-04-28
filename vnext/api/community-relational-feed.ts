@@ -16,6 +16,7 @@ import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import { clamp01 } from '../compatibility/stable';
 import { fetchChartSnapshot } from '../core/architecture-engine';
+import { buildFeedCollapsedDisplayV1, type FeedCollapsedDisplayV1 } from './feed-collapsed-display';
 
 /**
  * Documented sort tuple id; bump when tuple definition changes.
@@ -59,6 +60,10 @@ export interface CommunityRelationalFeedItemV1 {
   connection_kind: CommunityFeedConnectionKind;
   binding_id: string;
   chart_ids_ordered: string[];
+  /** User-facing line (e.g. You · label, Group · name). */
+  connection_identity_line: string;
+  /** Collapsed card: one sky signal + descriptor; derived from existing transit/activation snapshot only. */
+  collapsed_display: FeedCollapsedDisplayV1;
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;
   transit_snapshot_hash: string;
@@ -99,13 +104,13 @@ export type ListRelationshipByParticipantRow = {
 
 type PgStore = {
   listRelationshipsByParticipant: (userId: string) => Promise<Array<ListRelationshipByParticipantRow>>;
-  listRelationalGroupsAccessibleToUser: (userId: string) => Promise<Array<{ id: string }>>;
+  listRelationalGroupsAccessibleToUser: (userId: string) => Promise<Array<{ id: string; name?: string }>>;
   listRelationalGroupMembersForScope: (
     groupId: string,
     viewerUserId: string
   ) => Promise<Array<{ chartId: string }> | undefined>;
   listStage5CampaignsByOwnerOrParticipant: (userId: string) => Promise<
-    Array<{ campaignId: string; participantChartIds: string[] }>
+    Array<{ campaignId: string; participantChartIds: string[]; contextKey?: string }>
   >;
   canonicalDayBucketFromTransitTs: (transitTs: string) => string;
   getCommunityRelationalWeatherStatusesForFeed: (input: {
@@ -193,6 +198,7 @@ export async function buildCommunityRelationalFeed(params: {
     connection_kind: CommunityFeedConnectionKind;
     binding_id: string;
     chart_ids_ordered: string[];
+    connection_identity_line: string;
   }> = [];
 
   const relsRaw = await pgStore.listRelationshipsByParticipant(userId);
@@ -200,7 +206,13 @@ export async function buildCommunityRelationalFeed(params: {
   for (const r of rels) {
     const chart_ids_ordered = uniqueSortedChartIds([r.chartIdLow, r.chartIdHigh]);
     if (chart_ids_ordered.length >= 2) {
-      work.push({ connection_kind: 'pair', binding_id: r.id, chart_ids_ordered });
+      const lab = String(r.label || '').trim();
+      work.push({
+        connection_kind: 'pair',
+        binding_id: r.id,
+        chart_ids_ordered,
+        connection_identity_line: lab ? `You · ${lab}` : 'You · Connection',
+      });
     }
   }
 
@@ -210,7 +222,13 @@ export async function buildCommunityRelationalFeed(params: {
     if (!members?.length) continue;
     const chart_ids_ordered = uniqueSortedChartIds(members.map((m) => m.chartId));
     if (chart_ids_ordered.length >= 2) {
-      work.push({ connection_kind: 'relational_group', binding_id: g.id, chart_ids_ordered });
+      const gn = String(g.name || '').trim();
+      work.push({
+        connection_kind: 'relational_group',
+        binding_id: g.id,
+        chart_ids_ordered,
+        connection_identity_line: gn ? `Group · ${gn}` : 'Group',
+      });
     }
   }
 
@@ -218,7 +236,13 @@ export async function buildCommunityRelationalFeed(params: {
   for (const c of campaigns) {
     const chart_ids_ordered = uniqueSortedChartIds(c.participantChartIds || []);
     if (chart_ids_ordered.length >= 2) {
-      work.push({ connection_kind: 'campaign_group', binding_id: c.campaignId, chart_ids_ordered });
+      const ck = String(c.contextKey || '').trim();
+      work.push({
+        connection_kind: 'campaign_group',
+        binding_id: c.campaignId,
+        chart_ids_ordered,
+        connection_identity_line: ck ? `Campaign · ${ck.slice(0, 32)}` : 'Campaign',
+      });
     }
   }
 
@@ -265,11 +289,14 @@ export async function buildCommunityRelationalFeed(params: {
       envelopeWeather = overlay.relational_weather_state_hash;
     }
 
+    const collapsed_display = buildFeedCollapsedDisplayV1(computed.transit_weather);
     items.push({
       feed_item_id: `${w.connection_kind}:${w.binding_id}`,
       connection_kind: w.connection_kind,
       binding_id: w.binding_id,
       chart_ids_ordered: w.chart_ids_ordered,
+      connection_identity_line: w.connection_identity_line,
+      collapsed_display,
       compatibility_field_hash: computed.field.object_identity_hash,
       relational_weather_state_hash: overlay.relational_weather_state_hash,
       transit_snapshot_hash: overlay.transit_snapshot_hash,

@@ -631,6 +631,13 @@ export interface RelationalCommunityFeedItem {
   connection_kind: string;
   binding_id: string;
   chart_ids_ordered: string[];
+  /** User-facing identity line when provided by API (graceful fallback in UI if absent). */
+  connection_identity_line?: string;
+  collapsed_display?: {
+    primary_line: string;
+    micro_tag: string;
+    activation_descriptor: string;
+  };
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;
   transit_snapshot_hash: string;
@@ -693,7 +700,7 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
       const json = (await r.json()) as RelationalCommunityFeedResponse;
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load relational feed');
+      setError(err instanceof Error ? err.message : 'Failed to load feed');
       setData(null);
     } finally {
       setIsLoading(false);

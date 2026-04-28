@@ -12,6 +12,7 @@ import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
+import { stripReadingPresentationNoise } from '../../lib/reading-presentation-filter';
 
 const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
 
@@ -68,7 +69,7 @@ function librarySourceLabel(source: unknown): string {
   const s = String(source || '').trim();
   if (s === 'community_relationship') return 'Relationship artifact';
   if (s === 'community_group') return 'Group relationship artifact';
-  if (s === 'community_relational_weather') return 'Relational weather artifact';
+  if (s === 'community_relational_weather') return 'Connection reading';
   if (s === 'profile_active') return 'Current transit';
   if (s === 'profile_identity') return 'Identity';
   return s || '—';
@@ -111,17 +112,46 @@ const WheelCanvas = dynamic(
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
 
-const SECTION_ORDER = ['signatures', 'significance', 'musical'];
+/** Matches server `filterAndOrderPhase3Sections` / compat surfaces; unknown ids sort after known. */
+const SECTION_ORDER: string[] = [
+  'connection_structure',
+  'ensemble_framing',
+  'relational_field',
+  'relational_weather_v1',
+  'signatures',
+  'significance',
+  'trait_bridge',
+  'interaction_map',
+  'field_distribution',
+  'synthesis_a',
+  'synthesis_b',
+  'musical',
+  'contradiction_map',
+  'audio_staging',
+  'audio_thread',
+];
 const SECTION_TITLES: Record<string, string> = {
   signatures: 'Astrology',
   significance: 'Personal Significance',
   musical: 'Music Theory',
+  relational_weather_v1: 'Current Activation',
 };
 
+function sectionSortKey(id: string): number {
+  const i = SECTION_ORDER.indexOf(id);
+  if (i >= 0) return i;
+  const m = /^depth_panel_(\d+)$/.exec(id);
+  if (m) return SECTION_ORDER.length + parseInt(m[1]!, 10);
+  return 200 + (id ? id.charCodeAt(0) : 0);
+}
+
 function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
-  const sorted = [...sections].sort(
-    (a, b) => SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id)
-  );
+  const sorted = [...sections].sort((a, b) => {
+    const da = sectionSortKey(a.id);
+    const db = sectionSortKey(b.id);
+    if (da !== db) return da - db;
+    return a.id.localeCompare(b.id, 'en');
+  });
   return (
     <div className="space-y-6">
       {sorted.map((sec) => (
@@ -130,12 +160,12 @@ function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
             {SECTION_TITLES[sec.id] ?? sec.title}
           </h3>
           <div className="text-subtext text-sm leading-relaxed whitespace-pre-wrap">
-            {sec.text}
+            {stripReadingPresentationNoise(sec.text)}
           </div>
           {sec.bullets && sec.bullets.length > 0 && (
             <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
               {sec.bullets.map((b, i) => (
-                <li key={i}>{b}</li>
+                <li key={i}>{stripReadingPresentationNoise(b)}</li>
               ))}
             </ul>
           )}
@@ -582,13 +612,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               ? [String((textValue as { short?: unknown }).short || ''), String((textValue as { long?: unknown }).long || '')]
                   .filter(Boolean)
                   .join('\n\n')
-              : 'Saved relational weather artifact.';
+              : 'Saved connection reading.';
         setLibraryReconstructResult({
           explanation: {
             sections: [
               {
                 sectionId: 'community',
-                title: 'Relational weather artifact',
+                title: 'Connection reading',
                 text,
               },
             ],
@@ -1314,7 +1344,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
                       libraryRelationalWeatherTextMissing && (
                         <p className="text-sm text-amber-600 dark:text-amber-300">
-                          Reading text was not stored for this bookmark. Re-save from the Community relational feed, or
+                          Reading text was not stored for this bookmark. Re-save from the Community Feed, or
                           ask an operator to run a library repair.
                         </p>
                       )}

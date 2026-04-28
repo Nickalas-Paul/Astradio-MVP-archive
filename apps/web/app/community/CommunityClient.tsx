@@ -223,7 +223,7 @@ function CommunityClientInner() {
         >
           <h1 className="text-4xl font-bold text-text">Community</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Relational weather, discovery, and connections — chart-based and deterministic.
+            Feed, discovery, and connections — chart-based and deterministic.
           </p>
           <p className="text-sm text-subtext">
             Profile and saved tracks live under{' '}

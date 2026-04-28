@@ -11,6 +11,7 @@ import { buildPressureEventsForMember } from '../campaign/phase1/build-pressure-
 import { derivePressurePolarity } from '../campaign/phase1/polarity';
 import { resolveRelationalConnectionFromChartIds } from '../relational/resolve-relational-connection-context';
 import { computeRelationalWeatherV1 } from '../relational/weather/compute-relational-weather-v1';
+import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import type { DomainId } from '../campaign/phase1/contracts';
 import type {
   CanonicalRelationalFieldObject,
@@ -351,7 +352,7 @@ async function buildActivationOverlay(params: {
   memberSnapshotsOrdered: EphemerisSnapshot[];
   vectorHashes: Record<string, string>;
   transitInput: { date: string; time: string; lat: number; lon: number; timezone?: string };
-}): Promise<RelationalActivationOverlay> {
+}): Promise<{ overlay: RelationalActivationOverlay; weather: RelationalWeatherStateV1 }> {
   const transitSnapshot = await fetchChartSnapshot(params.transitInput);
   const weather = computeRelationalWeatherV1({
     connection: {
@@ -419,17 +420,18 @@ async function buildActivationOverlay(params: {
       transit_input_version: 'transit_chart_input_v1',
     },
   };
-  return {
+  const overlay: RelationalActivationOverlay = {
     ...overlayBase,
     activation_hash: stableSha256(overlayBase),
   };
+  return { overlay, weather };
 }
 
 export async function buildCanonicalRelationalField(params: {
   chartIds: string[];
   bindingKey?: string;
   transitInput?: { date: string; time: string; lat: number; lon: number; timezone?: string };
-}): Promise<CanonicalRelationalFieldObject> {
+}): Promise<{ field: CanonicalRelationalFieldObject; transit_weather: RelationalWeatherStateV1 | null }> {
   const chartIds = sortedUnique(params.chartIds);
   if (chartIds.length < 2) {
     throw new Error('compatibility field requires at least two charts');
@@ -513,21 +515,26 @@ export async function buildCanonicalRelationalField(params: {
     },
   };
   const object_identity_hash = stableSha256(base);
-  const activation_overlay = params.transitInput
-    ? await buildActivationOverlay({
-        base_field_hash: object_identity_hash,
-        chart_ids_ordered: ctx.chartIdsOrdered,
-        bindingKey: params.bindingKey ?? object_identity_hash,
-        memberSnapshotsOrdered: ctx.natalSnapshotsOrdered,
-        vectorHashes: ctx.provenance.vector_hashes,
-        transitInput: params.transitInput,
-      })
-    : null;
-  return {
+  let transit_weather: RelationalWeatherStateV1 | null = null;
+  let activation_overlay = null;
+  if (params.transitInput) {
+    const built = await buildActivationOverlay({
+      base_field_hash: object_identity_hash,
+      chart_ids_ordered: ctx.chartIdsOrdered,
+      bindingKey: params.bindingKey ?? object_identity_hash,
+      memberSnapshotsOrdered: ctx.natalSnapshotsOrdered,
+      vectorHashes: ctx.provenance.vector_hashes,
+      transitInput: params.transitInput,
+    });
+    activation_overlay = built.overlay;
+    transit_weather = built.weather;
+  }
+  const field: CanonicalRelationalFieldObject = {
     ...base,
     object_identity_hash,
     activation_overlay,
   };
+  return { field, transit_weather };
 }
 
 export async function buildCompatibilityRecord(params: {
@@ -535,8 +542,12 @@ export async function buildCompatibilityRecord(params: {
   relationshipBindingId?: string | null;
   transitInput?: { date: string; time: string; lat: number; lon: number; timezone?: string };
   computedAt?: string;
-}): Promise<{ field: CanonicalRelationalFieldObject; record: PersistedCompatibilityRecord }> {
-  const field = await buildCanonicalRelationalField({
+}): Promise<{
+  field: CanonicalRelationalFieldObject;
+  record: PersistedCompatibilityRecord;
+  transit_weather: RelationalWeatherStateV1 | null;
+}> {
+  const { field, transit_weather } = await buildCanonicalRelationalField({
     chartIds: params.chartIds,
     bindingKey: params.relationshipBindingId ?? undefined,
     transitInput: params.transitInput,
@@ -544,6 +555,7 @@ export async function buildCompatibilityRecord(params: {
   const computedAt = params.computedAt ?? new Date().toISOString();
   return {
     field,
+    transit_weather,
     record: {
       compatibility_id: `compat_${field.object_identity_hash.slice(0, 16)}`,
       compatibility_field_hash: field.object_identity_hash,
