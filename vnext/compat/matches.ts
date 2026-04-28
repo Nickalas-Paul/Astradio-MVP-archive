@@ -94,11 +94,34 @@ function sparseCompatibilityLine(seed: string, kind: 'support' | 'limit' | 'seco
     : 'Low conflict loading keeps urgency muted, with minimal pressure to reorganize roles.';
 }
 
+function isSparseByScoring(scoring: RelationalFieldScoreContract): boolean {
+  const d = scoring.derived_indices;
+  const c = scoring.components;
+  return (
+    d.tension_index <= 0.56 &&
+    d.transformation_index <= 0.6 &&
+    c.pairwise_volatility_mean <= 0.5 &&
+    c.pairwise_friction_mean <= 0.56
+  );
+}
+
+function hasSystemMetaLanguage(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return (
+    t.includes('interaction map:') ||
+    t.includes('subclaims') ||
+    t.includes('field of view') ||
+    t.includes('through-line') ||
+    t.includes('synthesis')
+  );
+}
+
 async function buildProjectedCompatibilityLines(
   chartIdA: string,
   chartIdB: string,
   mode: RelationalIntent,
-  seed: string
+  seed: string,
+  scoring: RelationalFieldScoreContract
 ): Promise<{ primary: string[]; secondary: string[]; limits: string[] }> {
   const [chartA, chartB] = await Promise.all([getChartById(chartIdA), getChartById(chartIdB)]);
   if (!chartA || !chartB) {
@@ -166,6 +189,19 @@ async function buildProjectedCompatibilityLines(
     projectedLineBySection(sections, 'synthesis_b') ||
     sparseCompatibilityLine(seed, 'limit');
 
+  const sparseRoute = isSparseByScoring(scoring);
+  const badProjectionText =
+    hasSystemMetaLanguage(supportLine) ||
+    hasSystemMetaLanguage(secondaryLine) ||
+    hasSystemMetaLanguage(limitLine);
+  if (sparseRoute || badProjectionText) {
+    return {
+      primary: [sparseCompatibilityLine(seed, 'support')],
+      secondary: [sparseCompatibilityLine(seed, 'secondary')],
+      limits: [sparseCompatibilityLine(seed, 'limit')],
+    };
+  }
+
   return {
     primary: [supportLine],
     secondary: [secondaryLine],
@@ -204,7 +240,8 @@ export async function getCompatMatches(
       chartId,
       cand.chartId,
       mode,
-      computed.field.object_identity_hash
+      computed.field.object_identity_hash,
+      computed.scoring
     );
     results.push({
       userId: cand.userId,

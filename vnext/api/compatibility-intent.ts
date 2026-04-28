@@ -130,12 +130,35 @@ function sparseIntentLine(seed: string, kind: 'support' | 'secondary' | 'limit')
     : 'Conflict loading is low, so role shifts are limited unless external pressure rises.';
 }
 
+function isSparseByScoring(scoring: RelationalFieldScoreContract): boolean {
+  const d = scoring.derived_indices;
+  const c = scoring.components;
+  return (
+    d.tension_index <= 0.56 &&
+    d.transformation_index <= 0.6 &&
+    c.pairwise_volatility_mean <= 0.5 &&
+    c.pairwise_friction_mean <= 0.56
+  );
+}
+
+function hasSystemMetaLanguage(text: string): boolean {
+  const t = String(text || '').toLowerCase();
+  return (
+    t.includes('interaction map:') ||
+    t.includes('subclaims') ||
+    t.includes('field of view') ||
+    t.includes('through-line') ||
+    t.includes('synthesis')
+  );
+}
+
 async function buildProjectedCompatibilityProfile(
   chartIdA: string,
   chartIdB: string,
   intent: RelationalIntent,
   base: CompatibilityExplanationProfile,
-  seed: string
+  seed: string,
+  scoring: RelationalFieldScoreContract
 ): Promise<CompatibilityExplanationProfile> {
   const [a, b] = await Promise.all([getChartById(chartIdA), getChartById(chartIdB)]);
   if (!a || !b) {
@@ -193,6 +216,20 @@ async function buildProjectedCompatibilityProfile(
     pickSectionLine(sections, 'contradiction_map') ||
     pickSectionLine(sections, 'synthesis_b') ||
     sparseIntentLine(seed, 'limit');
+
+  const sparseRoute = isSparseByScoring(scoring);
+  const badProjectionText =
+    hasSystemMetaLanguage(support) ||
+    hasSystemMetaLanguage(secondary) ||
+    hasSystemMetaLanguage(limit);
+  if (sparseRoute || badProjectionText) {
+    return {
+      ...base,
+      primarySupports: [sparseIntentLine(seed, 'support')],
+      secondarySupports: [sparseIntentLine(seed, 'secondary')],
+      tensionsOrLimits: [sparseIntentLine(seed, 'limit')],
+    };
+  }
 
   return {
     ...base,
@@ -262,7 +299,8 @@ export async function computeCompatibilityIntent(
       candidate.chartId,
       intent,
       explanationBase,
-      computed.field.object_identity_hash
+      computed.field.object_identity_hash,
+      computed.scoring
     );
     scored.push({
       ...candidate,
