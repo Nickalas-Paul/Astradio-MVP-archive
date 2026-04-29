@@ -3,9 +3,14 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
-import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
+import {
+  useRelationalCommunityFeed,
+  type ProfilePrimaryChart,
+  type RelationalCommunityFeedItem,
+} from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import {
+  EXPANDED_READING_RENDER_ORDER,
   EXPANDED_SLOT_LABELS,
   buildExpandedSlotsForArtifact,
   type ExpandedSlotId,
@@ -17,14 +22,40 @@ interface RelationalCommunityFeedProps {
   className?: string;
 }
 
-const SLOT_RENDER_ORDER: ExpandedSlotId[] = [
-  'summary',
-  'support',
-  'tension',
-  'activation',
-  'whatToDo',
-  'audio',
-];
+function tierPhrase(v: number, hi: string, mid: string, lo: string): string {
+  const x = Math.max(0, Math.min(1, Number(v) || 0));
+  if (x >= 0.58) return hi;
+  if (x >= 0.3) return mid;
+  return lo;
+}
+
+/** Deterministic copy from existing ranking fields only (no raw scores). */
+function feedSurfacingExplanationLine(item: RelationalCommunityFeedItem): string | null {
+  if (item.connection_kind === 'campaign_group') {
+    return 'Campaign threads mix story activity with relationship signals; this row reflects how much is registering for you now.';
+  }
+  const r = item.ranking;
+  if (!r) return null;
+  const sky = tierPhrase(
+    r.weather_activation_intensity,
+    'stronger sky contact',
+    'noticeable sky contact',
+    'light sky contact',
+  );
+  const bond = tierPhrase(
+    r.overall_relational_intensity,
+    'a durable bond signal',
+    'a steady bond signal',
+    'a soft baseline between you',
+  );
+  const blend = tierPhrase(
+    r.activation_effective,
+    'both layers stand out together',
+    'both layers show up in the mix',
+    'one layer is enough to list it now',
+  );
+  return `Surfacing now: ${sky} with ${bond}; the feed blends today’s contact with that steady layer—${blend}.`;
+}
 
 export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
@@ -289,6 +320,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                 ? cd.activation_descriptor
                 : 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));
+            const surfacingLine = feedSurfacingExplanationLine(item);
 
             return (
               <li
@@ -304,6 +336,9 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     </p>
                   ) : null}
                   <p className="text-xs text-subtext">{descriptor}</p>
+                  {surfacingLine ? (
+                    <p className="text-xs text-text/90 leading-snug max-w-xl">{surfacingLine}</p>
+                  ) : null}
                   <div
                     className="h-1 rounded-full bg-border overflow-hidden max-w-[200px]"
                     aria-hidden="true"
@@ -360,7 +395,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                       });
                       return (
                         <div className="space-y-4">
-                          {SLOT_RENDER_ORDER.map((slot) => {
+                          {EXPANDED_READING_RENDER_ORDER.map((slot) => {
                             const body = slots[slot];
                             if (!body?.trim()) return null;
                             return (

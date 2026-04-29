@@ -3,10 +3,8 @@
  * Presentation only — no generation.
  */
 
-import {
-  stripPresentationScaffoldingLabels,
-  stripReadingPresentationNoise,
-} from './reading-presentation-filter';
+import { applyReadingPresentationPolicies, stripPresentationScaffoldingLabels } from './reading-presentation-filter';
+import { dedupeComparableSentencesWithOpeningCap } from './sentence-enforcement-utils';
 
 export type ExpandedSlotId = 'summary' | 'support' | 'tension' | 'activation' | 'whatToDo' | 'audio';
 
@@ -18,6 +16,16 @@ export const EXPANDED_SLOT_LABELS: Record<ExpandedSlotId, string> = {
   whatToDo: 'What To Do',
   audio: 'Audio Translation',
 };
+
+/** Expanded reading render order including audio (after narrative slots). */
+export const EXPANDED_READING_RENDER_ORDER: ExpandedSlotId[] = [
+  'summary',
+  'support',
+  'tension',
+  'activation',
+  'whatToDo',
+  'audio',
+];
 
 type RawSection = { id?: string; sectionId?: string; title?: string; text?: string; bullets?: string[] };
 
@@ -49,6 +57,10 @@ const DEDUPE_SLOT_ORDER: ExpandedSlotId[] = [
   'whatToDo',
   'audio',
 ];
+
+/** When no compose sections exist, do not surface short+long blob text; leave summary empty unless policy keeps safe fragments. */
+const MINIMAL_UNAVAILABLE_SUMMARY_NOTE =
+  'Reading sections are unavailable in structured form for this bookmark; open Community Feed to regenerate.';
 
 function sectionIdOf(s: RawSection): string {
   return String(s.sectionId ?? s.id ?? '').trim();
@@ -236,7 +248,57 @@ export function mapSectionsToExpandedSlots(
   return labeled;
 }
 
-/** Only `short` (single stripped paragraph). Does not concatenate `long` into Summary. */
+function warnEmptiedNarrativeAfterEnforcement(narrEmpty: boolean, audioEmpty: boolean): void {
+  if (!narrEmpty || !audioEmpty) return;
+  if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'development') return;
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[community-feed-reading-layout] Expanded reading narrative and audio emptied after presentation enforcement.'
+  );
+}
+
+/**
+ * Final presentation enforcement: system-language policy per slot, deterministic sentence uniqueness
+ * across Summary / Support / Tension / Current Activation / What To Do, and opening-phrase repetition cap.
+ * Audio participates in policy-only cleanup but not narrative cross-slot dedupe.
+ */
+export function enforceExpandedReadingPresentation(slots: Record<ExpandedSlotId, string>): Record<ExpandedSlotId, string> {
+  const narrativeIn = {
+    summary: slots.summary || '',
+    support: slots.support || '',
+    tension: slots.tension || '',
+    activation: slots.activation || '',
+    whatToDo: slots.whatToDo || '',
+  };
+  const polished = {
+    summary: applyReadingPresentationPolicies(narrativeIn.summary),
+    support: applyReadingPresentationPolicies(narrativeIn.support),
+    tension: applyReadingPresentationPolicies(narrativeIn.tension),
+    activation: applyReadingPresentationPolicies(narrativeIn.activation),
+    whatToDo: applyReadingPresentationPolicies(narrativeIn.whatToDo),
+  };
+  const narrativeOut = dedupeComparableSentencesWithOpeningCap(polished);
+  const audioOut = applyReadingPresentationPolicies(slots.audio || '');
+
+  const narrEmpty =
+    narrativeOut.summary.trim().length === 0 &&
+    narrativeOut.support.trim().length === 0 &&
+    narrativeOut.tension.trim().length === 0 &&
+    narrativeOut.activation.trim().length === 0 &&
+    narrativeOut.whatToDo.trim().length === 0;
+  warnEmptiedNarrativeAfterEnforcement(narrEmpty, !audioOut.trim());
+
+  return {
+    summary: narrativeOut.summary,
+    support: narrativeOut.support,
+    tension: narrativeOut.tension,
+    activation: narrativeOut.activation,
+    whatToDo: narrativeOut.whatToDo,
+    audio: audioOut,
+  };
+}
+
+/** Only top-level compose `short` when sections missing; never join `short` + `long` into the reading body. */
 export function slotsLegacyMinimalFallback(
   artifact: Record<string, unknown>,
   opts?: { weather?: unknown }
@@ -252,21 +314,28 @@ export function slotsLegacyMinimalFallback(
 
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
     // eslint-disable-next-line no-console
-    console.warn('[community-feed-reading-layout] Missing structured sections; minimal short fallback.');
+    console.warn(
+      '[community-feed-reading-layout] Missing structured compose sections — using minimal non-blob fallback (no short+long body).'
+    );
   }
 
   let summary = stripPresentationScaffoldingLabels(short);
-  summary = stripReadingPresentationNoise(summary);
-  const firstBlock = summary.split(/\n\n+/)[0]?.trim() ?? summary;
+  summary = applyReadingPresentationPolicies(summary);
+  if (!summary.trim()) {
+    summary = MINIMAL_UNAVAILABLE_SUMMARY_NOTE;
+    summary = applyReadingPresentationPolicies(summary);
+  }
 
-  return {
-    summary: firstBlock,
+  const base: Record<ExpandedSlotId, string> = {
+    summary,
     support: '',
     tension: '',
     activation: '',
     whatToDo: whatToDoSentenceFromWeather(opts?.weather ?? artifact.weather),
     audio: '',
   };
+
+  return enforceExpandedReadingPresentation(base);
 }
 
 export function buildExpandedSlotsForArtifact(
@@ -283,14 +352,5 @@ export function buildExpandedSlotsForArtifact(
   let slots = mapSectionsToExpandedSlots(sections, weather);
   slots = dedupeParagraphsAcrossSlots(slots);
 
-  const out: Record<ExpandedSlotId, string> = {
-    summary: stripReadingPresentationNoise(slots.summary),
-    support: stripReadingPresentationNoise(slots.support),
-    tension: stripReadingPresentationNoise(slots.tension),
-    activation: stripReadingPresentationNoise(slots.activation),
-    whatToDo: stripReadingPresentationNoise(slots.whatToDo),
-    audio: stripReadingPresentationNoise(slots.audio),
-  };
-
-  return out;
+  return enforceExpandedReadingPresentation(slots);
 }

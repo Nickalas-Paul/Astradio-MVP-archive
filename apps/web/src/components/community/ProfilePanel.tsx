@@ -13,6 +13,12 @@ import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 import { stripReadingPresentationNoise } from '../../lib/reading-presentation-filter';
+import {
+  buildExpandedSlotsForArtifact,
+  EXPANDED_READING_RENDER_ORDER,
+  EXPANDED_SLOT_LABELS,
+  type ExpandedSlotId,
+} from '../../lib/community-feed-reading-layout';
 
 const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
 
@@ -278,6 +284,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [libraryAudioMissingFromStore, setLibraryAudioMissingFromStore] = useState<boolean | null>(null);
   const [libraryRelationalWeatherTextMissing, setLibraryRelationalWeatherTextMissing] = useState(false);
   const [libraryHistoricalArtifact, setLibraryHistoricalArtifact] = useState(false);
+  /** Community saved reading: artifact shape compatible with compose `artifact` (structured sections preferred). */
+  const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
+    null,
+  );
 
   useEffect(() => {
     const now = new Date();
@@ -494,6 +504,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
     setLibraryAudioMissingFromStore(null);
     setLibraryRelationalWeatherTextMissing(false);
     setLibraryHistoricalArtifact(false);
+    setLibraryCommunityReadingArtifact(null);
     if (libraryDetailAudioUrl) {
       URL.revokeObjectURL(libraryDetailAudioUrl);
       setLibraryDetailAudioUrl(null);
@@ -605,25 +616,48 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         const textValue = report?.text;
         const textMissing = textValue == null;
         setLibraryRelationalWeatherTextMissing(textMissing);
-        const text =
-          typeof textValue === 'string'
-            ? textValue
-            : textValue && typeof textValue === 'object'
-              ? [String((textValue as { short?: unknown }).short || ''), String((textValue as { long?: unknown }).long || '')]
-                  .filter(Boolean)
-                  .join('\n\n')
-              : 'Saved connection reading.';
-        setLibraryReconstructResult({
-          explanation: {
-            sections: [
-              {
-                sectionId: 'community',
-                title: 'Connection reading',
-                text,
-              },
-            ],
-          },
-        });
+        if (textMissing) {
+          setLibraryCommunityReadingArtifact(null);
+          setLibraryReconstructResult(null);
+          setLibraryDetailLoading(false);
+          const eid = row.export_id;
+          if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+            try {
+              const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
+                method: 'HEAD',
+                credentials: 'same-origin',
+              });
+              if (headRes.status !== 204 && headRes.status !== 200) {
+                setLibraryAudioMissingFromStore(true);
+              } else {
+                const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+                if (url) {
+                  setLibraryDetailAudioUrl(url);
+                  setLibraryAudioMissingFromStore(false);
+                } else {
+                  setLibraryAudioMissingFromStore(true);
+                }
+              }
+            } catch {
+              setLibraryAudioMissingFromStore(true);
+            }
+          } else {
+            setLibraryAudioMissingFromStore(null);
+          }
+          return;
+        }
+        const artifactPayload: Record<string, unknown> = {
+          weather: report?.weather ?? undefined,
+        };
+        if (typeof textValue === 'object' && textValue !== null && !Array.isArray(textValue)) {
+          artifactPayload.text = textValue as Record<string, unknown>;
+        } else if (typeof textValue === 'string') {
+          artifactPayload.text = { short: textValue };
+        } else {
+          artifactPayload.text = { short: '' };
+        }
+        setLibraryCommunityReadingArtifact(artifactPayload);
+        setLibraryReconstructResult({ explanation: null });
         const eid = row.export_id;
         if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
           try {
@@ -1282,6 +1316,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                           setLibraryAudioMissingFromStore(null);
                           setLibraryRelationalWeatherTextMissing(false);
                           setLibraryHistoricalArtifact(false);
+                          setLibraryCommunityReadingArtifact(null);
                           if (libraryDetailAudioUrl) {
                             URL.revokeObjectURL(libraryDetailAudioUrl);
                             setLibraryDetailAudioUrl(null);
@@ -1317,8 +1352,37 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                     {libraryReconstructLoading && (
                       <p className="text-sm text-subtext">Loading report…</p>
                     )}
+                    {libraryCommunityReadingArtifact &&
+                    (libraryDetailRow?.source === 'community_relational_weather' ||
+                      parseSandboxState(libraryDetailRow?.sandbox_state)?.kind === 'community_relational_weather') ? (
+                      <div className="space-y-4">
+                        {(() => {
+                          const art = libraryCommunityReadingArtifact;
+                          const w =
+                            art.weather && typeof art.weather === 'object' ? (art.weather as Record<string, unknown>) : undefined;
+                          const slots = buildExpandedSlotsForArtifact(art, { weather: w });
+                          return (
+                            <div className="space-y-4">
+                              {EXPANDED_READING_RENDER_ORDER.map((slot: ExpandedSlotId) => {
+                                const body = slots[slot];
+                                if (!body?.trim()) return null;
+                                return (
+                                  <section key={slot} className="space-y-1">
+                                    <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
+                                      {EXPANDED_SLOT_LABELS[slot]}
+                                    </h4>
+                                    <p className="text-xs text-text whitespace-pre-wrap leading-relaxed">{body}</p>
+                                  </section>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
                     {libraryReconstructResult != null &&
                       libraryReconstructResult.explanation != null &&
+                      !libraryCommunityReadingArtifact &&
                       hasCompatibilityReadingSurface(
                         libraryReconstructResult.explanation as ExplanationLike,
                         undefined,
@@ -1329,6 +1393,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                       )}
                     {libraryReconstructResult != null &&
                       libraryReconstructResult.explanation != null &&
+                      !libraryCommunityReadingArtifact &&
                       !hasCompatibilityReadingSurface(
                         libraryReconstructResult.explanation as ExplanationLike,
                         undefined,
