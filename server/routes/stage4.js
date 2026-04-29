@@ -210,7 +210,14 @@ function createStage4Router() {
           await pgStore.lockCommunityRelationalWeatherIdentity(client, identity);
           const inside = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity, client);
           if (inside && inside.artifactStatus === 'available') {
-            return inside;
+            const insideVersion = readRelationalExpressionVersionFromDailyArtifact(inside);
+            const insideFresh = buildRelationalFreshness(
+              COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+              insideVersion
+            );
+            if (insideFresh.isCurrent) {
+              return inside;
+            }
           }
           let composed = null;
           let composeError = null;
@@ -238,7 +245,23 @@ function createStage4Router() {
               ? composed.audio.export_id.trim()
               : null;
           const nextStatus = composeError ? 'failed' : toArtifactStatus(composed?.text, exportId);
-          const textPayload = composed?.text != null ? composed.text : null;
+          let textPayload = null;
+          if (composed && composed.text != null && typeof composed.text === 'object' && !Array.isArray(composed.text)) {
+            textPayload = { ...composed.text };
+            if (
+              composed.explanation &&
+              typeof composed.explanation === 'object' &&
+              Array.isArray(composed.explanation.sections) &&
+              composed.explanation.sections.length > 0
+            ) {
+              textPayload.explanation = {
+                spec: typeof composed.explanation.spec === 'string' ? composed.explanation.spec : '',
+                sections: composed.explanation.sections,
+              };
+            }
+          } else if (composed && composed.text != null) {
+            textPayload = composed.text;
+          }
           const persistedTransitSnapshotHash =
             inside?.transitSnapshotHash || snapshotFingerprint(transitSnapshot);
           const weatherPayloadForStorage = {
@@ -265,7 +288,10 @@ function createStage4Router() {
             weatherPayload: weatherPayloadForStorage,
             createdByUserId: viewerUserId,
           };
-          if (inside && (inside.artifactStatus === 'partial' || inside.artifactStatus === 'failed')) {
+          if (inside) {
+            if (composeError && inside.artifactStatus === 'available') {
+              return inside;
+            }
             return pgStore.updateCommunityRelationalWeatherDailyArtifact(
               { ...toPersist, id: inside.id },
               client

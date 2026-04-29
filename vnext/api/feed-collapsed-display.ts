@@ -27,20 +27,62 @@ const ASPECT_SYM: Record<CrossAspectHitV1['type'], string> = {
   sextile: '⚹',
 };
 
-function dynamicsClause(d: CrossAspectHitV1['dynamics']): string {
-  switch (d) {
-    case 'tense':
-      return 'is sharpening how you respond to each other right now';
-    case 'supportive':
-      return 'is easing how you work together right now';
-    case 'flowing':
-      return 'keeps contact workable between you right now';
-    case 'polarizing':
-      return 'pulls you toward contrasting instincts in this connection';
-    case 'amplifying':
-    default:
-      return 'intensifies what is already in motion between you right now';
-  }
+/** Deterministic clause keyed only by aspect geometry + dynamics (existing fields). */
+const PRIMARY_LINE_BY_TYPE_AND_DYNAMICS: Record<
+  CrossAspectHitV1['type'],
+  Record<CrossAspectHitV1['dynamics'], string>
+> = {
+  conjunction: {
+    amplifying:
+      '{aspect} brings attention to what gets said, clarified, or misunderstood between you.',
+    supportive: '{aspect} makes agreement easier—shared signals land cleanly between you.',
+    tense: '{aspect} tightens focus—small disagreements can feel personal unless you slow down.',
+    flowing: '{aspect} keeps contact workable—what you notice lines up without extra effort.',
+    polarizing: '{aspect} pulls instincts apart—you may want opposite things at the same time.',
+  },
+  opposition: {
+    amplifying: '{aspect} puts the bond in plain view—needs on both sides feel visible and urgent.',
+    supportive: '{aspect} helps you meet in the middle without one person carrying the repair.',
+    tense: '{aspect} sharpens contrast—balance shows up as tension until it is named.',
+    flowing: '{aspect} lets you trade perspectives without forcing a winner.',
+    polarizing: '{aspect} swings between poles—watch for all‑or‑nothing framing.',
+  },
+  square: {
+    amplifying:
+      '{aspect} puts tone and wording under pressure—small misunderstandings can read larger than intended.',
+    supportive: '{aspect} still moves things forward—friction becomes workable when you stay concrete.',
+    tense: '{aspect} asks for patience—pressure rises when assumptions stay unspoken.',
+    flowing: '{aspect} keeps you engaged—you sort differences by staying in contact.',
+    polarizing: '{aspect} escalates quickly—pause before you interpret intent.',
+  },
+  trine: {
+    amplifying: '{aspect} lifts what already works—ease between you shows up without forcing it.',
+    supportive: '{aspect} smooths cooperation—good timing for aligned action.',
+    tense: '{aspect} rarely bites hard—still check that ease does not skip needed honesty.',
+    flowing: '{aspect} carries rhythm—support flows with little friction.',
+    polarizing: '{aspect} can hide mismatch behind comfort—say the quiet part once.',
+  },
+  sextile: {
+    amplifying: '{aspect} opens helpful side doors—small openings matter more than big speeches.',
+    supportive: '{aspect} favors practical fixes—short exchanges move things.',
+    tense: '{aspect} adds mild edges—keep asks simple so nothing feels like a lecture.',
+    flowing: '{aspect} keeps dialogue nimble—you can adjust course without drama.',
+    polarizing: '{aspect} flickers between helpful and distracting—pick one thread and finish it.',
+  },
+};
+
+function aspectPhrase(tb: string, nb: string, type: CrossAspectHitV1['type']): string {
+  const aspectWord = ASPECT_LABEL[type] ?? 'aspect';
+  return `${tb} ${aspectWord} ${nb}`;
+}
+
+function primaryLineFromAspect(top: CrossAspectHitV1): string {
+  const tb = fmtBody(top.transitBody);
+  const nb = fmtBody(top.natalBody);
+  const phrase = aspectPhrase(tb, nb, top.type);
+  const byType = PRIMARY_LINE_BY_TYPE_AND_DYNAMICS[top.type];
+  const tpl = byType?.[top.dynamics] ?? byType?.amplifying ?? PRIMARY_LINE_BY_TYPE_AND_DYNAMICS.conjunction.amplifying;
+  return tpl.replace(/\{aspect\}/g, phrase);
 }
 
 function descriptorFromActivation(a: RelationalWeatherStateV1['activation']): string {
@@ -53,7 +95,7 @@ function descriptorFromActivation(a: RelationalWeatherStateV1['activation']): st
     { k: 'volatility', v: a.volatility },
     { k: 'growth', v: a.growth_pressure },
   ];
-  scores.sort((x, y) => y.v - x.v);
+  scores.sort((x, y) => y.v - x.v || x.k.localeCompare(y.k));
   const top = scores[0]!;
   if (top.v < 0.2) return 'Subtle but present between you';
   if (top.k === 'emotional' && top.v >= 0.45) return 'High emotional activation';
@@ -92,9 +134,8 @@ export function buildFeedCollapsedDisplayV1(weather: RelationalWeatherStateV1 | 
   }
   const tb = fmtBody(top.transitBody);
   const nb = fmtBody(top.natalBody);
-  const aspectWord = ASPECT_LABEL[top.type] ?? 'aspect';
   return {
-    primary_line: `${tb} ${aspectWord} ${nb} ${dynamicsClause(top.dynamics)}.`,
+    primary_line: primaryLineFromAspect(top),
     micro_tag: `${tb} ${ASPECT_SYM[top.type] ?? '·'} ${nb}`.trim(),
     activation_descriptor,
   };

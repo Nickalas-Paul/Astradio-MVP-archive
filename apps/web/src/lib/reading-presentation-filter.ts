@@ -16,10 +16,40 @@ const FORBIDDEN_SUBSTRINGS = [
   'synthesis_b',
   'relational weather',
   'relational field (structural)',
+  'dominant signal',
+  'interaction type',
+  'low-coupling',
+  'coordination light',
+  'directional pressure',
+] as const;
+
+const FORBIDDEN_PHRASES_LOOSE = [
+  'synthesis',
+  'structural',
 ] as const;
 
 function normalizeForScan(s: string): string {
   return s.toLowerCase();
+}
+
+const LABEL_STRIP_PATTERNS: RegExp[] = [
+  /\bdominant signal:\s*/gi,
+  /\binteraction type:\s*/gi,
+  /\bdirection:\s*/gi,
+  /\bdomain:\s*/gi,
+];
+
+/**
+ * Removes leading system labels (compose / legacy blobs) while keeping sentence bodies.
+ * Mapping-stage use; safe for multi-sentence text.
+ */
+export function stripPresentationScaffoldingLabels(text: string): string {
+  if (!text || typeof text !== 'string') return text;
+  let s = text;
+  for (const re of LABEL_STRIP_PATTERNS) {
+    s = s.replace(re, '');
+  }
+  return s.replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
@@ -31,11 +61,16 @@ export function stripReadingPresentationNoise(text: string): string {
   const paragraphs = text.split(/\n\n+/);
   const outParas: string[] = [];
   for (const para of paragraphs) {
-    const lines = para.split(/\n/).map((l) => l.trim()).filter(Boolean);
+    const lines = para
+      .split(/\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     const kept: string[] = [];
     for (const line of lines) {
       const low = normalizeForScan(line);
-      const bad = FORBIDDEN_SUBSTRINGS.some((f) => low.includes(f));
+      const bad =
+        FORBIDDEN_SUBSTRINGS.some((f) => low.includes(f)) ||
+        FORBIDDEN_PHRASES_LOOSE.some((f) => low.includes(f));
       if (!bad) kept.push(line);
     }
     if (kept.length > 0) outParas.push(kept.join('\n'));

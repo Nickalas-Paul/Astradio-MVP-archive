@@ -15,6 +15,7 @@ import {
 } from '../resolve-relational-connection-context';
 import type { RelationalWeatherStateV1 } from '../weather/types';
 import type { ExpansionTier } from '../../projection/projection-types';
+import type { AggregateComposeResult } from '../../api/compose';
 
 export { GROUP_COMPOSE_ALGORITHM_VERSION };
 
@@ -46,6 +47,8 @@ export interface GroupComposeResult {
   };
   /** Set when generateComposition=false — no runner, no Stage-4 artifact semantics */
   compose_skipped?: boolean;
+  /** Same object as `runAggregateComposition` — embedded into persisted `text` in Stage 4. */
+  explanation?: AggregateComposeResult['explanation'];
 }
 
 export async function composeGroupFromChartIds(
@@ -103,6 +106,7 @@ export async function composeGroupFromChartIds(
     compositionId: result.planHash,
     audioBase64: hasInline ? base64 : undefined,
     text: result.text,
+    explanation: result.explanation,
     audio: {
       format: 'wav',
       sha256: result.audio?.sha256 ?? '',

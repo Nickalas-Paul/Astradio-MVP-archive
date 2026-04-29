@@ -805,22 +805,17 @@ export class ComposeAPI {
 
     const dominantSummary =
       firstSentenceForSummary(projected.find((s) => s.id === 'relational_field')?.text || signaturesText) ||
-      'Weak interaction signal keeps coordination light.';
+      'Coordination stays light until one of you names what matters.';
     const interactionSummary =
       firstSentenceForSummary(projected.find((s) => s.id === 'interaction_map')?.text || '') ||
-      'Interaction type: low-coupling exchange.';
+      'The exchange between you stays low-coupling and practical.';
     const directionSummary =
       firstSentenceForSummary(projected.find((s) => s.id === 'contradiction_map')?.text || projected.find((s) => s.id === 'synthesis_b')?.text || '') ||
-      'Direction: low directional pressure.';
+      'Little is forcing a decision—next steps can stay open.';
     const domainSummary =
       firstSentenceForSummary(projected.find((s) => s.id === 'significance')?.text || projected.find((s) => s.id === 'synthesis_a')?.text || '') ||
-      'Domain: practical communication and resource pacing.';
-    const compressedSummary = [
-      `Dominant signal: ${dominantSummary}`,
-      `Interaction type: ${interactionSummary}`,
-      `Direction: ${directionSummary}`,
-      `Domain: ${domainSummary}`,
-    ].join(' ');
+      'Practical communication and pacing matter most here.';
+    const compressedSummary = [dominantSummary, interactionSummary, directionSummary, domainSummary].join(' ');
 
     const text = {
       short: compressedSummary,

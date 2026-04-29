@@ -354,7 +354,10 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     })()}
                     {(() => {
                       const art = artifactByFeedId[item.feed_item_id];
-                      const slots = buildExpandedSlotsForArtifact(art);
+                      const slots = buildExpandedSlotsForArtifact(art, {
+                        weather:
+                          art.weather && typeof art.weather === 'object' ? art.weather : undefined,
+                      });
                       return (
                         <div className="space-y-4">
                           {SLOT_RENDER_ORDER.map((slot) => {

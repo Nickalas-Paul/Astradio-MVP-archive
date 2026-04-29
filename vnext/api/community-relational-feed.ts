@@ -23,7 +23,7 @@ import { buildFeedCollapsedDisplayV1, type FeedCollapsedDisplayV1 } from './feed
  * v3: pair feed dedupes duplicate astradio_relationships rows (same charts + label) to viewer-owned binding_id.
  */
 export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v3';
-const COMMUNITY_RELATIONAL_EXPRESSION_VERSION = 'community_relational_expression_v1';
+const COMMUNITY_RELATIONAL_EXPRESSION_VERSION = 'community_relational_expression_v2';
 
 export interface TransitInputV1 {
   date: string;
