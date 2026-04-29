@@ -3,11 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
-import {
-  useRelationalCommunityFeed,
-  type ProfilePrimaryChart,
-  type RelationalCommunityFeedItem,
-} from '../../core/social/hooks';
+import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
@@ -24,6 +20,21 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
   const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
+
+  /** Must run unconditionally — same hook order when loading vs loaded (Rules of Hooks). */
+  const items = userId ? (data?.items ?? []) : [];
+  const finalizedFeedCollapsed = useMemo(
+    () =>
+      finalizeRelationalReadingSurfaces({
+        kind: 'feed_collapsed_batch',
+        items,
+      }),
+    [items]
+  );
+  const collapsedByFeedId = useMemo(() => {
+    if (finalizedFeedCollapsed.kind !== 'feed_collapsed_batch') return new Map();
+    return new Map(finalizedFeedCollapsed.items.map((row) => [row.feed_item_id, row] as const));
+  }, [finalizedFeedCollapsed]);
 
   if (!userId) {
     return (
@@ -50,19 +61,6 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     );
   }
 
-  const items = data?.items ?? [];
-  const finalizedFeedCollapsed = useMemo(
-    () =>
-      finalizeRelationalReadingSurfaces({
-        kind: 'feed_collapsed_batch',
-        items,
-      }),
-    [items]
-  );
-  const collapsedByFeedId = useMemo(() => {
-    if (finalizedFeedCollapsed.kind !== 'feed_collapsed_batch') return new Map();
-    return new Map(finalizedFeedCollapsed.items.map((row) => [row.feed_item_id, row] as const));
-  }, [finalizedFeedCollapsed]);
   const transitLock = (data?.transit_lock ?? {}) as {
     ts?: string;
     lat?: number;
