@@ -1,10 +1,11 @@
 /**
  * Maps existing compose/projection section ids to product-facing expanded slots.
  * Presentation only — no generation.
+ *
+ * Final relational enforcement runs in `relational-reading-enforcement.ts` (`finalizeRelationalReadingSurfaces`).
  */
 
 import { applyReadingPresentationPolicies, stripPresentationScaffoldingLabels } from './reading-presentation-filter';
-import { dedupeComparableSentencesWithOpeningCap } from './sentence-enforcement-utils';
 
 export type ExpandedSlotId = 'summary' | 'support' | 'tension' | 'activation' | 'whatToDo' | 'audio';
 
@@ -49,7 +50,7 @@ const ROUTED_IDS = new Set<string>([
 
 const FIRST_PARAGRAPH_IDS = new Set<string>(['significance', 'contradiction_map', 'ensemble_framing']);
 
-const DEDUPE_SLOT_ORDER: ExpandedSlotId[] = [
+export const DEDUPE_SLOT_ORDER: ExpandedSlotId[] = [
   'summary',
   'support',
   'tension',
@@ -93,7 +94,8 @@ function normalizeParagraph(p: string): string {
   return p.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function dedupeParagraphsAcrossSlots(slots: Record<ExpandedSlotId, string>): Record<ExpandedSlotId, string> {
+/** Exported for relational reading enforcement — paragraph-level dedupe in slot order. */
+export function dedupeParagraphsAcrossExpandedSlots(slots: Record<ExpandedSlotId, string>): Record<ExpandedSlotId, string> {
   const seen = new Set<string>();
   const out = { ...slots };
   for (const slotId of DEDUPE_SLOT_ORDER) {
@@ -162,7 +164,7 @@ export function whatToDoSentenceFromWeather(weather: unknown): string {
   );
 }
 
-/** Pull sections from compose artifact text blob. */
+/** Pull sections from compose artifact text blob or top-level explanation (forecast payloads). */
 export function extractSectionsFromArtifact(artifact: Record<string, unknown>): RawSection[] {
   const text = artifact.text;
   if (text && typeof text === 'object' && !Array.isArray(text)) {
@@ -171,6 +173,10 @@ export function extractSectionsFromArtifact(artifact: Record<string, unknown>): 
     if (expl?.sections && Array.isArray(expl.sections) && expl.sections.length > 0) return expl.sections;
     const secs = t.sections;
     if (Array.isArray(secs) && secs.length > 0) return secs as RawSection[];
+  }
+  const topExpl = artifact.explanation as { sections?: RawSection[] } | undefined;
+  if (topExpl?.sections && Array.isArray(topExpl.sections) && topExpl.sections.length > 0) {
+    return topExpl.sections;
   }
   return [];
 }
@@ -248,58 +254,10 @@ export function mapSectionsToExpandedSlots(
   return labeled;
 }
 
-function warnEmptiedNarrativeAfterEnforcement(narrEmpty: boolean, audioEmpty: boolean): void {
-  if (!narrEmpty || !audioEmpty) return;
-  if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'development') return;
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[community-feed-reading-layout] Expanded reading narrative and audio emptied after presentation enforcement.'
-  );
-}
-
 /**
- * Final presentation enforcement: system-language policy per slot, deterministic sentence uniqueness
- * across Summary / Support / Tension / Current Activation / What To Do, and opening-phrase repetition cap.
- * Audio participates in policy-only cleanup but not narrative cross-slot dedupe.
+ * When structured sections are missing: only `short` (no long blob). Policy enforcement is applied later by `finalizeRelationalReadingSurfaces`.
  */
-export function enforceExpandedReadingPresentation(slots: Record<ExpandedSlotId, string>): Record<ExpandedSlotId, string> {
-  const narrativeIn = {
-    summary: slots.summary || '',
-    support: slots.support || '',
-    tension: slots.tension || '',
-    activation: slots.activation || '',
-    whatToDo: slots.whatToDo || '',
-  };
-  const polished = {
-    summary: applyReadingPresentationPolicies(narrativeIn.summary),
-    support: applyReadingPresentationPolicies(narrativeIn.support),
-    tension: applyReadingPresentationPolicies(narrativeIn.tension),
-    activation: applyReadingPresentationPolicies(narrativeIn.activation),
-    whatToDo: applyReadingPresentationPolicies(narrativeIn.whatToDo),
-  };
-  const narrativeOut = dedupeComparableSentencesWithOpeningCap(polished);
-  const audioOut = applyReadingPresentationPolicies(slots.audio || '');
-
-  const narrEmpty =
-    narrativeOut.summary.trim().length === 0 &&
-    narrativeOut.support.trim().length === 0 &&
-    narrativeOut.tension.trim().length === 0 &&
-    narrativeOut.activation.trim().length === 0 &&
-    narrativeOut.whatToDo.trim().length === 0;
-  warnEmptiedNarrativeAfterEnforcement(narrEmpty, !audioOut.trim());
-
-  return {
-    summary: narrativeOut.summary,
-    support: narrativeOut.support,
-    tension: narrativeOut.tension,
-    activation: narrativeOut.activation,
-    whatToDo: narrativeOut.whatToDo,
-    audio: audioOut,
-  };
-}
-
-/** Only top-level compose `short` when sections missing; never join `short` + `long` into the reading body. */
-export function slotsLegacyMinimalFallback(
+export function buildMinimalExpandedSlotsBeforeEnforcement(
   artifact: Record<string, unknown>,
   opts?: { weather?: unknown }
 ): Record<ExpandedSlotId, string> {
@@ -320,13 +278,11 @@ export function slotsLegacyMinimalFallback(
   }
 
   let summary = stripPresentationScaffoldingLabels(short);
-  summary = applyReadingPresentationPolicies(summary);
   if (!summary.trim()) {
     summary = MINIMAL_UNAVAILABLE_SUMMARY_NOTE;
-    summary = applyReadingPresentationPolicies(summary);
   }
 
-  const base: Record<ExpandedSlotId, string> = {
+  return {
     summary,
     support: '',
     tension: '',
@@ -334,23 +290,4 @@ export function slotsLegacyMinimalFallback(
     whatToDo: whatToDoSentenceFromWeather(opts?.weather ?? artifact.weather),
     audio: '',
   };
-
-  return enforceExpandedReadingPresentation(base);
-}
-
-export function buildExpandedSlotsForArtifact(
-  artifact: Record<string, unknown>,
-  opts?: { weather?: unknown }
-): Record<ExpandedSlotId, string> {
-  const sections = extractSectionsFromArtifact(artifact);
-  const weather = opts?.weather ?? artifact.weather;
-
-  if (sections.length === 0) {
-    return slotsLegacyMinimalFallback(artifact, { weather });
-  }
-
-  let slots = mapSectionsToExpandedSlots(sections, weather);
-  slots = dedupeParagraphsAcrossSlots(slots);
-
-  return enforceExpandedReadingPresentation(slots);
 }

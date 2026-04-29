@@ -2,8 +2,12 @@
  * Deterministic helpers for relational reading presentation enforcement.
  */
 
-const WORDS_FOR_PREFIX = 6;
+/** First N words for opening-phrase repetition caps (relational reading enforcement). */
+const OPENING_PHRASE_WORDS = 5;
 const MAX_SAME_OPENING_SENTENCES_PER_ARTIFACT = 2;
+
+/** @deprecated Use OPENING_PHRASE_WORDS / openingPhraseKeyFiveWords for new enforcement */
+const WORDS_FOR_PREFIX = OPENING_PHRASE_WORDS;
 
 function collapseWhitespaceLower(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -27,6 +31,42 @@ function wordsSlice(sentence: string, count: number): string[] {
 export function openingSentencePrefixKey(sentence: string): string {
   const w = wordsSlice(sentence, WORDS_FOR_PREFIX);
   return w.join(' ');
+}
+
+/** Normalized first five words for cross-sentence opening repetition limits. */
+export function openingPhraseKeyFiveWords(sentence: string): string {
+  const w = wordsSlice(sentence, OPENING_PHRASE_WORDS);
+  return w.join(' ');
+}
+
+function wordSetForJaccard(sentence: string): Set<string> {
+  const fp = comparableSentenceFingerprint(sentence);
+  if (!fp) return new Set();
+  const parts = fp.split(/\s+/).filter(Boolean);
+  return new Set(parts);
+}
+
+export function jaccardWordSimilarity(a: string, b: string): number {
+  const A = wordSetForJaccard(a);
+  const B = wordSetForJaccard(b);
+  if (A.size === 0 && B.size === 0) return 1;
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0;
+  for (const x of A) {
+    if (B.has(x)) inter += 1;
+  }
+  const union = A.size + B.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+export function sentencesAreNearDuplicate(a: string, b: string, threshold: number): boolean {
+  const fa = comparableSentenceFingerprint(a);
+  const fb = comparableSentenceFingerprint(b);
+  if (!fa || !fb) return false;
+  if (fa === fb) return true;
+  const ja = jaccardWordSimilarity(a, b);
+  if (ja >= threshold) return true;
+  return false;
 }
 
 /**

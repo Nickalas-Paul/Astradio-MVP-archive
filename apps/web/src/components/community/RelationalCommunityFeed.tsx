@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import {
   useRelationalCommunityFeed,
@@ -9,52 +9,13 @@ import {
   type RelationalCommunityFeedItem,
 } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
-import {
-  EXPANDED_READING_RENDER_ORDER,
-  EXPANDED_SLOT_LABELS,
-  buildExpandedSlotsForArtifact,
-  type ExpandedSlotId,
-} from '../../lib/community-feed-reading-layout';
+import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
+import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 
 interface RelationalCommunityFeedProps {
   userId: string | null;
   primaryChart: ProfilePrimaryChart | null;
   className?: string;
-}
-
-function tierPhrase(v: number, hi: string, mid: string, lo: string): string {
-  const x = Math.max(0, Math.min(1, Number(v) || 0));
-  if (x >= 0.58) return hi;
-  if (x >= 0.3) return mid;
-  return lo;
-}
-
-/** Deterministic copy from existing ranking fields only (no raw scores). */
-function feedSurfacingExplanationLine(item: RelationalCommunityFeedItem): string | null {
-  if (item.connection_kind === 'campaign_group') {
-    return 'Campaign threads mix story activity with relationship signals; this row reflects how much is registering for you now.';
-  }
-  const r = item.ranking;
-  if (!r) return null;
-  const sky = tierPhrase(
-    r.weather_activation_intensity,
-    'stronger sky contact',
-    'noticeable sky contact',
-    'light sky contact',
-  );
-  const bond = tierPhrase(
-    r.overall_relational_intensity,
-    'a durable bond signal',
-    'a steady bond signal',
-    'a soft baseline between you',
-  );
-  const blend = tierPhrase(
-    r.activation_effective,
-    'both layers stand out together',
-    'both layers show up in the mix',
-    'one layer is enough to list it now',
-  );
-  return `Surfacing now: ${sky} with ${bond}; the feed blends today’s contact with that steady layer—${blend}.`;
 }
 
 export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
@@ -90,6 +51,18 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   }
 
   const items = data?.items ?? [];
+  const finalizedFeedCollapsed = useMemo(
+    () =>
+      finalizeRelationalReadingSurfaces({
+        kind: 'feed_collapsed_batch',
+        items,
+      }),
+    [items]
+  );
+  const collapsedByFeedId = useMemo(() => {
+    if (finalizedFeedCollapsed.kind !== 'feed_collapsed_batch') return new Map();
+    return new Map(finalizedFeedCollapsed.items.map((row) => [row.feed_item_id, row] as const));
+  }, [finalizedFeedCollapsed]);
   const transitLock = (data?.transit_lock ?? {}) as {
     ts?: string;
     lat?: number;
@@ -309,18 +282,12 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                   : item.connection_kind === 'relational_group'
                     ? 'Group'
                     : 'Campaign';
-            const cd = item.collapsed_display;
-            const primary =
-              cd && typeof cd.primary_line === 'string'
-                ? cd.primary_line
-                : 'This connection is active in your feed for this moment.';
-            const micro = cd && typeof cd.micro_tag === 'string' ? cd.micro_tag.trim() : '';
-            const descriptor =
-              cd && typeof cd.activation_descriptor === 'string'
-                ? cd.activation_descriptor
-                : 'Active between you';
+            const row = collapsedByFeedId.get(item.feed_item_id);
+            const primary = row?.primary_line ?? 'This connection is active in your feed for this moment.';
+            const micro = row?.micro_tag ?? '';
+            const descriptor = row?.activation_descriptor ?? 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));
-            const surfacingLine = feedSurfacingExplanationLine(item);
+            const surfacingLine = row?.surfacing_explanation ?? null;
 
             return (
               <li
@@ -389,10 +356,19 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     })()}
                     {(() => {
                       const art = artifactByFeedId[item.feed_item_id];
-                      const slots = buildExpandedSlotsForArtifact(art, {
+                      const finalized = finalizeRelationalReadingSurfaces({
+                        kind: 'expanded_artifact',
+                        artifact: art,
                         weather:
                           art.weather && typeof art.weather === 'object' ? art.weather : undefined,
                       });
+                      const slots =
+                        finalized.kind === 'expanded_artifact'
+                          ? finalized.slots
+                          : ({ summary: '', support: '', tension: '', activation: '', whatToDo: '', audio: '' } as Record<
+                              ExpandedSlotId,
+                              string
+                            >);
                       return (
                         <div className="space-y-4">
                           {EXPANDED_READING_RENDER_ORDER.map((slot) => {

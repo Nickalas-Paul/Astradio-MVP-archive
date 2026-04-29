@@ -34,6 +34,13 @@ export const SYSTEM_LANGUAGE_SENTENCE_FORBIDDEN: readonly string[] = [
   'synthesis_b',
   'relational field (structural)',
   'directional pressure',
+  'structural readout',
+  'ranking score',
+  'telemetry',
+  'debug',
+  'object_identity',
+  'canonical_object',
+  'sha256:',
 ] as const;
 
 function normalizeForScan(s: string): string {
@@ -73,6 +80,25 @@ function sentencePassesSystemScan(sentence: string): boolean {
 }
 
 /**
+ * Regex/structural meta: drop telemetry lines, debug-style tokens, and label-only rubric lines.
+ * Returns true if the sentence must be removed (not safe for user-facing copy).
+ */
+export function sentenceFailsStructuralMetaPolicy(sentence: string): boolean {
+  const t = sentence.trim();
+  if (!t) return true;
+  const low = normalizeForScan(t);
+  if (/\d+\.\d{3,}/.test(t)) return true;
+  if (/harmony signal:\s*[\d.]+\s*·\s*friction signal:/i.test(low)) return true;
+  if (/\branking score\s*\(raw\)/i.test(low)) return true;
+  if (/\b(structural readout|raw score|mechanism layer|object_identity|plan_sha256)\b/i.test(t)) {
+    return true;
+  }
+  if (/\bdebug\b|\bhash:\s*sha256|\bsha256:/i.test(t)) return true;
+  if (/^\s*[A-Za-z][A-Za-z0-9_]*:\s+\S/.test(t) && /:\s*[\d.]+\s*·/.test(t)) return true;
+  return false;
+}
+
+/**
  * Label strip + sentence deletion for scaffold / meta language. Empty paragraphs are dropped.
  */
 export function applyReadingPresentationPolicies(text: string): string {
@@ -86,7 +112,8 @@ export function applyReadingPresentationPolicies(text: string): string {
     const keptSents = sentences
       .map((s) => stripPresentationScaffoldingLabels(s).trim())
       .filter(Boolean)
-      .filter(sentencePassesSystemScan);
+      .filter(sentencePassesSystemScan)
+      .filter((s) => !sentenceFailsStructuralMetaPolicy(s));
     if (keptSents.length > 0) outParas.push(keptSents.join(' '));
   }
 

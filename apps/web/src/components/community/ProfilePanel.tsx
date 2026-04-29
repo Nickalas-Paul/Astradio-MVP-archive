@@ -13,12 +13,8 @@ import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 import { stripReadingPresentationNoise } from '../../lib/reading-presentation-filter';
-import {
-  buildExpandedSlotsForArtifact,
-  EXPANDED_READING_RENDER_ORDER,
-  EXPANDED_SLOT_LABELS,
-  type ExpandedSlotId,
-} from '../../lib/community-feed-reading-layout';
+import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
+import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 
 const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
 
@@ -1360,7 +1356,22 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                           const art = libraryCommunityReadingArtifact;
                           const w =
                             art.weather && typeof art.weather === 'object' ? (art.weather as Record<string, unknown>) : undefined;
-                          const slots = buildExpandedSlotsForArtifact(art, { weather: w });
+                          const finalized = finalizeRelationalReadingSurfaces({
+                            kind: 'expanded_artifact',
+                            artifact: art,
+                            weather: w,
+                          });
+                          const slots =
+                            finalized.kind === 'expanded_artifact'
+                              ? finalized.slots
+                              : ({
+                                  summary: '',
+                                  support: '',
+                                  tension: '',
+                                  activation: '',
+                                  whatToDo: '',
+                                  audio: '',
+                                } as Record<ExpandedSlotId, string>);
                           return (
                             <div className="space-y-4">
                               {EXPANDED_READING_RENDER_ORDER.map((slot: ExpandedSlotId) => {
