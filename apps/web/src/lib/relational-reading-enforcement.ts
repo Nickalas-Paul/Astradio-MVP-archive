@@ -88,6 +88,7 @@ function enforceNarrativeOwnershipPrefixAndNearDup(
     const raw = slots[slotId] || '';
     const paras = splitParagraphs(raw);
     const outParas: string[] = [];
+    const isActivationSlot = slotId === 'activation';
 
     for (const para of paras) {
       const sentsRaw = splitParagraphIntoSentences(para);
@@ -99,17 +100,19 @@ function enforceNarrativeOwnershipPrefixAndNearDup(
         const mode: 'narrative' | 'activation' = slotId === 'activation' ? 'activation' : 'narrative';
         if (!sentencePassesReadingPolicies(trimmed, mode)) continue;
 
-        let duplicateNear = false;
-        for (const r of representatives) {
-          if (sentencesAreNearDuplicate(trimmed, r, NEAR_DUPLICATE_JACCARD)) {
-            duplicateNear = true;
-            break;
+        if (!isActivationSlot) {
+          let duplicateNear = false;
+          for (const r of representatives) {
+            if (sentencesAreNearDuplicate(trimmed, r, NEAR_DUPLICATE_JACCARD)) {
+              duplicateNear = true;
+              break;
+            }
           }
+          if (duplicateNear) continue;
         }
-        if (duplicateNear) continue;
 
         const openingKey = openingPhraseKeyFiveWords(trimmed);
-        if (openingKey.length > 0) {
+        if (!isActivationSlot && openingKey.length > 0) {
           const n = openingPhraseCounts.get(openingKey) ?? 0;
           if (n >= MAX_SENTENCES_PER_OPENING_PHRASE) continue;
           openingPhraseCounts.set(openingKey, n + 1);
