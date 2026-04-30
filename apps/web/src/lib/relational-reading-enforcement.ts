@@ -32,13 +32,20 @@ const NARRATIVE_SLOT_ORDER: Array<'summary' | 'support' | 'tension' | 'activatio
   'whatToDo',
 ];
 
-/** Fixed neutral copy when audio section is not grounded in export metadata. */
-export const NEUTRAL_AUDIO_TRANSLATION_NOT_GROUNDED =
-  'Audio cues describe the chart-derived listen metaphor for this bookmark; they may not match every detail of playback.';
+const AUDIO_STATUS_COPY = {
+  unavailable: 'Playback unavailable for this reading. Audio export was not attached to this artifact.',
+  failed: 'Playback unavailable for this reading due to an audio export failure.',
+  pending: 'Audio export is still processing for this reading.',
+} as const;
 
 export type RelationalReadingEnforcementInput =
   | { kind: 'feed_collapsed_batch'; items: RelationalCommunityFeedItem[] }
-  | { kind: 'expanded_artifact'; artifact: Record<string, unknown>; weather?: unknown };
+  | {
+      kind: 'expanded_artifact';
+      artifact: Record<string, unknown>;
+      weather?: unknown;
+      context?: { feed_item_id?: string; binding_id?: string };
+    };
 
 export type RelationalReadingSurfacesOutput =
   | {
@@ -54,26 +61,19 @@ export type RelationalReadingSurfacesOutput =
   | {
       kind: 'expanded_artifact';
       slots: Record<ExpandedSlotId, string>;
-      audio_policy: 'full' | 'neutralized';
+      audio_policy: 'full' | 'unavailable' | 'failed' | 'pending';
     };
 
-function isAudioGroundedInArtifact(artifact: Record<string, unknown>): boolean {
-  const a = artifact.audio;
-  if (!a || typeof a !== 'object') return false;
-  const id = (a as Record<string, unknown>).export_id;
-  return typeof id === 'string' && id.trim().length > 0;
-}
-
-function sentencePassesReadingPolicies(sentence: string): boolean {
-  const cleaned = applyReadingPresentationPolicies(sentence);
+function sentencePassesReadingPolicies(sentence: string, mode: 'narrative' | 'activation'): boolean {
+  const cleaned = applyReadingPresentationPolicies(sentence, { mode });
   return cleaned.trim().length > 0;
 }
 
 /**
  * Strip narrative slots using unified policies; structural/meta enforced inside reading filter.
  */
-function applyPoliciesToSlotBody(body: string): string {
-  return applyReadingPresentationPolicies(body);
+function applyPoliciesToSlotBody(body: string, mode: 'narrative' | 'activation' | 'audio'): string {
+  return applyReadingPresentationPolicies(body, { mode });
 }
 
 function enforceNarrativeOwnershipPrefixAndNearDup(
@@ -96,7 +96,8 @@ function enforceNarrativeOwnershipPrefixAndNearDup(
       for (const rawSent of sentsRaw) {
         const trimmed = rawSent.trim();
         if (!trimmed) continue;
-        if (!sentencePassesReadingPolicies(trimmed)) continue;
+        const mode: 'narrative' | 'activation' = slotId === 'activation' ? 'activation' : 'narrative';
+        if (!sentencePassesReadingPolicies(trimmed, mode)) continue;
 
         let duplicateNear = false;
         for (const r of representatives) {
@@ -130,42 +131,94 @@ function enforceNarrativeOwnershipPrefixAndNearDup(
 function assemblePreliminaryExpandedSlots(
   artifact: Record<string, unknown>,
   weather: unknown
-): Record<ExpandedSlotId, string> {
+): { slots: Record<ExpandedSlotId, string>; sectionIds: string[]; usedFallback: boolean } {
   const sections = extractSectionsFromArtifact(artifact);
   const w = weather ?? artifact.weather;
+  const sectionIds = sections
+    .map((s) => String((s as { sectionId?: unknown; id?: unknown }).sectionId ?? (s as { id?: unknown }).id ?? '').trim())
+    .filter(Boolean);
 
   if (sections.length === 0) {
-    return buildMinimalExpandedSlotsBeforeEnforcement(artifact, { weather: w });
+    return {
+      slots: buildMinimalExpandedSlotsBeforeEnforcement(artifact, { weather: w }),
+      sectionIds: [],
+      usedFallback: true,
+    };
   }
 
   let slots = mapSectionsToExpandedSlots(sections, w);
   slots = dedupeParagraphsAcrossExpandedSlots(slots);
-  return slots;
+  return { slots, sectionIds, usedFallback: false };
+}
+
+function readAudioState(artifact: Record<string, unknown>): {
+  state: 'full' | 'unavailable' | 'failed' | 'pending';
+  message: string;
+} {
+  const a = artifact.audio;
+  if (!a || typeof a !== 'object') {
+    return { state: 'unavailable', message: AUDIO_STATUS_COPY.unavailable };
+  }
+  const rec = a as Record<string, unknown>;
+  const exportId = typeof rec.export_id === 'string' ? rec.export_id.trim() : '';
+  const exportError = typeof rec.export_error === 'string' ? rec.export_error.trim() : '';
+  const attempted = rec.export_attempted === true;
+  if (exportId) return { state: 'full', message: '' };
+  if (exportError) return { state: 'failed', message: `${AUDIO_STATUS_COPY.failed} ${exportError}`.trim() };
+  if (attempted) return { state: 'pending', message: AUDIO_STATUS_COPY.pending };
+  return { state: 'unavailable', message: AUDIO_STATUS_COPY.unavailable };
 }
 
 function finalizeExpandedArtifactSlots(
   artifact: Record<string, unknown>,
-  weather?: unknown
+  weather?: unknown,
+  context?: { feed_item_id?: string; binding_id?: string }
 ): RelationalReadingSurfacesOutput {
   const w = weather ?? artifact.weather;
-  let slots = assemblePreliminaryExpandedSlots(artifact, w);
+  const assembled = assemblePreliminaryExpandedSlots(artifact, w);
+  const slots = assembled.slots;
 
   const narrativeIn = {
-    summary: applyPoliciesToSlotBody(slots.summary || ''),
-    support: applyPoliciesToSlotBody(slots.support || ''),
-    tension: applyPoliciesToSlotBody(slots.tension || ''),
-    activation: applyPoliciesToSlotBody(slots.activation || ''),
-    whatToDo: applyPoliciesToSlotBody(slots.whatToDo || ''),
+    summary: applyPoliciesToSlotBody(slots.summary || '', 'narrative'),
+    support: applyPoliciesToSlotBody(slots.support || '', 'narrative'),
+    tension: applyPoliciesToSlotBody(slots.tension || '', 'narrative'),
+    activation: applyPoliciesToSlotBody(slots.activation || '', 'activation'),
+    whatToDo: applyPoliciesToSlotBody(slots.whatToDo || '', 'narrative'),
   };
 
   const narrativeOut = enforceNarrativeOwnershipPrefixAndNearDup(narrativeIn);
 
-  let audioBody = applyPoliciesToSlotBody(slots.audio || '');
-  let audio_policy: 'full' | 'neutralized' = 'full';
+  const audioState = readAudioState(artifact);
+  const audioBodyRaw = applyPoliciesToSlotBody(slots.audio || '', 'audio');
+  const audioBody = audioState.state === 'full' ? audioBodyRaw : audioState.message;
+  const audio_policy = audioState.state;
 
-  if (!isAudioGroundedInArtifact(artifact)) {
-    audioBody = NEUTRAL_AUDIO_TRANSLATION_NOT_GROUNDED;
-    audio_policy = 'neutralized';
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    const mk = (s: string): string => comparableSentenceFingerprint(s).slice(0, 80);
+    // eslint-disable-next-line no-console
+    console.debug('[relational-reading-enforcement] expanded-diagnostic', {
+      feed_item_id: context?.feed_item_id ?? null,
+      binding_id: context?.binding_id ?? null,
+      structured_section_ids: assembled.sectionIds,
+      fallback_used: assembled.usedFallback,
+      pre_slots: {
+        summary: mk(slots.summary || ''),
+        support: mk(slots.support || ''),
+        tension: mk(slots.tension || ''),
+        activation: mk(slots.activation || ''),
+        whatToDo: mk(slots.whatToDo || ''),
+        audio: mk(slots.audio || ''),
+      },
+      post_slots: {
+        summary: mk(narrativeOut.summary || ''),
+        support: mk(narrativeOut.support || ''),
+        tension: mk(narrativeOut.tension || ''),
+        activation: mk(narrativeOut.activation || ''),
+        whatToDo: mk(narrativeOut.whatToDo || ''),
+        audio: mk(audioBody || ''),
+      },
+      audio_state: audioState.state,
+    });
   }
 
   return {
@@ -321,7 +374,7 @@ export function finalizeRelationalReadingSurfaces(
   if (input.kind === 'feed_collapsed_batch') {
     return finalizeFeedCollapsedBatch(input.items);
   }
-  return finalizeExpandedArtifactSlots(input.artifact, input.weather);
+  return finalizeExpandedArtifactSlots(input.artifact, input.weather, input.context);
 }
 
 export type { ExpandedSlotId } from './community-feed-reading-layout';

@@ -84,24 +84,36 @@ function sentencePassesSystemScan(sentence: string): boolean {
  * Returns true if the sentence must be removed (not safe for user-facing copy).
  */
 export function sentenceFailsStructuralMetaPolicy(sentence: string): boolean {
+  return sentenceFailsStructuralMetaPolicyByMode(sentence, 'narrative');
+}
+
+type PresentationPolicyMode = 'narrative' | 'activation' | 'audio';
+
+function sentenceFailsStructuralMetaPolicyByMode(sentence: string, mode: PresentationPolicyMode): boolean {
   const t = sentence.trim();
   if (!t) return true;
   const low = normalizeForScan(t);
-  if (/\d+\.\d{3,}/.test(t)) return true;
-  if (/harmony signal:\s*[\d.]+\s*·\s*friction signal:/i.test(low)) return true;
-  if (/\branking score\s*\(raw\)/i.test(low)) return true;
+  const hasRawScoreLine = /\branking score\s*\(raw\)/i.test(low);
+  const hasMultiMetricTelemetry =
+    /harmony signal:\s*[\d.]+\s*·\s*friction signal:/i.test(low) ||
+    /emotional activation:\s*[\d.]+\s*·\s*communication emphasis:/i.test(low) ||
+    /volatility pressure:\s*[\d.]+\s*·\s*growth pressure:/i.test(low);
+  if (hasRawScoreLine) return true;
+  if (hasMultiMetricTelemetry && mode === 'narrative') return true;
   if (/\b(structural readout|raw score|mechanism layer|object_identity|plan_sha256)\b/i.test(t)) {
     return true;
   }
   if (/\bdebug\b|\bhash:\s*sha256|\bsha256:/i.test(t)) return true;
-  if (/^\s*[A-Za-z][A-Za-z0-9_]*:\s+\S/.test(t) && /:\s*[\d.]+\s*·/.test(t)) return true;
+  if (mode === 'narrative' && /^\s*[A-Za-z][A-Za-z0-9_]*:\s+\S/.test(t) && /:\s*[\d.]+\s*·/.test(t)) return true;
+  if (mode === 'audio' && /\b(listen metaphor|chart-derived)\b/i.test(low)) return false;
   return false;
 }
 
 /**
  * Label strip + sentence deletion for scaffold / meta language. Empty paragraphs are dropped.
  */
-export function applyReadingPresentationPolicies(text: string): string {
+export function applyReadingPresentationPolicies(text: string, opts?: { mode?: PresentationPolicyMode }): string {
+  const mode = opts?.mode ?? 'narrative';
   if (!text || typeof text !== 'string') return text;
   const t = stripPresentationScaffoldingLabels(text);
   const paragraphs = splitParagraphs(t);
@@ -113,7 +125,7 @@ export function applyReadingPresentationPolicies(text: string): string {
       .map((s) => stripPresentationScaffoldingLabels(s).trim())
       .filter(Boolean)
       .filter(sentencePassesSystemScan)
-      .filter((s) => !sentenceFailsStructuralMetaPolicy(s));
+      .filter((s) => !sentenceFailsStructuralMetaPolicyByMode(s, mode));
     if (keptSents.length > 0) outParas.push(keptSents.join(' '));
   }
 

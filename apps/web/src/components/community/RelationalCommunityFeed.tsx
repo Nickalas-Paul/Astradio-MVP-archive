@@ -106,6 +106,51 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         | Record<string, unknown>
         | null;
       const weather = (j.weather && typeof j.weather === 'object' ? j.weather : null) as Record<string, unknown> | null;
+      if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+        const artifactText =
+          artifact && artifact.text && typeof artifact.text === 'object' && !Array.isArray(artifact.text)
+            ? (artifact.text as Record<string, unknown>)
+            : null;
+        const textExpl =
+          artifactText &&
+          artifactText.explanation &&
+          typeof artifactText.explanation === 'object' &&
+          !Array.isArray(artifactText.explanation)
+            ? (artifactText.explanation as Record<string, unknown>)
+            : null;
+        const topExpl =
+          artifact &&
+          artifact.explanation &&
+          typeof artifact.explanation === 'object' &&
+          !Array.isArray(artifact.explanation)
+            ? (artifact.explanation as Record<string, unknown>)
+            : null;
+        // eslint-disable-next-line no-console
+        console.debug('[community-feed] open artifact diagnostic', {
+          feed_item_id: item.feed_item_id,
+          binding_id: item.binding_id,
+          connection_kind: item.connection_kind,
+          forecast_url: `${scopePath}?${qs.toString()}`,
+          artifact_text_present: !!(artifact && artifact.text),
+          text_explanation_sections_count: Array.isArray(textExpl?.sections) ? textExpl.sections.length : 0,
+          text_sections_count: Array.isArray(artifactText?.sections) ? artifactText.sections.length : 0,
+          explanation_sections_count: Array.isArray(topExpl?.sections) ? topExpl.sections.length : 0,
+          audio_export_id:
+            artifact &&
+            artifact.audio &&
+            typeof artifact.audio === 'object' &&
+            typeof (artifact.audio as Record<string, unknown>).export_id === 'string'
+              ? ((artifact.audio as Record<string, unknown>).export_id as string)
+              : null,
+          audio_export_error:
+            artifact &&
+            artifact.audio &&
+            typeof artifact.audio === 'object' &&
+            typeof (artifact.audio as Record<string, unknown>).export_error === 'string'
+              ? ((artifact.audio as Record<string, unknown>).export_error as string)
+              : null,
+        });
+      }
       setArtifactByFeedId((prev) => ({
         ...prev,
         [item.feed_item_id]: {
@@ -359,6 +404,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                         artifact: art,
                         weather:
                           art.weather && typeof art.weather === 'object' ? art.weather : undefined,
+                        context: { feed_item_id: item.feed_item_id, binding_id: item.binding_id },
                       });
                       const slots =
                         finalized.kind === 'expanded_artifact'

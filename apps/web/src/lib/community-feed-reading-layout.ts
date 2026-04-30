@@ -5,7 +5,7 @@
  * Final relational enforcement runs in `relational-reading-enforcement.ts` (`finalizeRelationalReadingSurfaces`).
  */
 
-import { applyReadingPresentationPolicies, stripPresentationScaffoldingLabels } from './reading-presentation-filter';
+import { stripPresentationScaffoldingLabels } from './reading-presentation-filter';
 
 export type ExpandedSlotId = 'summary' | 'support' | 'tension' | 'activation' | 'whatToDo' | 'audio';
 
@@ -61,7 +61,7 @@ export const DEDUPE_SLOT_ORDER: ExpandedSlotId[] = [
 
 /** When no compose sections exist, do not surface short+long blob text; leave summary empty unless policy keeps safe fragments. */
 const MINIMAL_UNAVAILABLE_SUMMARY_NOTE =
-  'Reading sections are unavailable in structured form for this bookmark; open Community Feed to regenerate.';
+  'Minimal reading state: structured sections were unavailable for this bookmark. Open this connection again to regenerate.';
 
 function sectionIdOf(s: RawSection): string {
   return String(s.sectionId ?? s.id ?? '').trim();
@@ -164,20 +164,67 @@ export function whatToDoSentenceFromWeather(weather: unknown): string {
   );
 }
 
+function candidateSections(value: unknown): RawSection[] {
+  if (!Array.isArray(value)) return [];
+  return (value as RawSection[]).filter((s) => !!s && typeof s === 'object');
+}
+
 /** Pull sections from compose artifact text blob or top-level explanation (forecast payloads). */
 export function extractSectionsFromArtifact(artifact: Record<string, unknown>): RawSection[] {
   const text = artifact.text;
-  if (text && typeof text === 'object' && !Array.isArray(text)) {
-    const t = text as Record<string, unknown>;
-    const expl = t.explanation as { sections?: RawSection[] } | undefined;
-    if (expl?.sections && Array.isArray(expl.sections) && expl.sections.length > 0) return expl.sections;
-    const secs = t.sections;
-    if (Array.isArray(secs) && secs.length > 0) return secs as RawSection[];
+  const textObj = text && typeof text === 'object' && !Array.isArray(text) ? (text as Record<string, unknown>) : null;
+  const textExplanationObj =
+    textObj && textObj.explanation && typeof textObj.explanation === 'object' && !Array.isArray(textObj.explanation)
+      ? (textObj.explanation as Record<string, unknown>)
+      : null;
+  const topExpl =
+    artifact.explanation && typeof artifact.explanation === 'object' && !Array.isArray(artifact.explanation)
+      ? (artifact.explanation as Record<string, unknown>)
+      : null;
+
+  const candidates: Array<{ path: 'text.explanation.sections' | 'text.sections' | 'explanation.sections'; sections: RawSection[] }> =
+    [
+      { path: 'text.explanation.sections', sections: candidateSections(textExplanationObj?.sections) },
+      { path: 'text.sections', sections: candidateSections(textObj?.sections) },
+      { path: 'explanation.sections', sections: candidateSections(topExpl?.sections) },
+    ];
+
+  let best: (typeof candidates)[number] | null = null;
+  for (const c of candidates) {
+    if (!best || c.sections.length > best.sections.length) {
+      best = c;
+      continue;
+    }
+    if (!best) continue;
+    if (c.sections.length === best.sections.length) {
+      const rank = (p: (typeof candidates)[number]['path']): number => {
+        if (p === 'text.explanation.sections') return 0;
+        if (p === 'text.sections') return 1;
+        return 2;
+      };
+      if (rank(c.path) < rank(best.path)) best = c;
+    }
   }
-  const topExpl = artifact.explanation as { sections?: RawSection[] } | undefined;
-  if (topExpl?.sections && Array.isArray(topExpl.sections) && topExpl.sections.length > 0) {
-    return topExpl.sections;
+
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    const nonEmpty = candidates.filter((c) => c.sections.length > 0);
+    if (nonEmpty.length > 1) {
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[community-feed-reading-layout] Multiple structured section candidates detected.',
+        nonEmpty.map((c) => `${c.path}:${c.sections.length}`).join(' | ')
+      );
+    }
+    if ((!best || best.sections.length === 0) && textObj) {
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[community-feed-reading-layout] No structured sections found while artifact.text exists.'
+      );
+    }
   }
+
+  if (best && best.sections.length > 0) return best.sections;
+
   return [];
 }
 
@@ -271,9 +318,10 @@ export function buildMinimalExpandedSlotsBeforeEnforcement(
   }
 
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    const textPresent = artifact.text != null;
     // eslint-disable-next-line no-console
     console.warn(
-      '[community-feed-reading-layout] Missing structured compose sections — using minimal non-blob fallback (no short+long body).'
+      `[community-feed-reading-layout] Using minimal fallback (reason=no_structured_sections text_present=${textPresent ? '1' : '0'}).`
     );
   }
 
