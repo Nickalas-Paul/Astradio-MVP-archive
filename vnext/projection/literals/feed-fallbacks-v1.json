@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "no_weather_primary": "This connection registers in your feed for this timed pass.",
+  "no_aspect_primary": "This connection stays active for this feed moment.",
+  "no_weather_activation_tag": "Subtle cues between charts",
+  "feed_descriptor_fallback": "Active between you",
+  "no_weather_aspect_tag": "Between charts"
+}

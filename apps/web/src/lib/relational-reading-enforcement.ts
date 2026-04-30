@@ -20,6 +20,12 @@ import {
   splitParagraphIntoSentences,
   splitParagraphs,
 } from './sentence-enforcement-utils';
+import {
+  buildFeedExplanationSentence,
+  campaignSurfacingSentence,
+  feedDescriptorCollapsedFallback,
+  feedFallbackNoAspectPrimary,
+} from '@projection/insight/map-insight-unit-v1';
 
 const NEAR_DUPLICATE_JACCARD = 0.92;
 const MAX_SENTENCES_PER_OPENING_PHRASE = 2;
@@ -238,88 +244,24 @@ function finalizeExpandedArtifactSlots(
   };
 }
 
-function tierPhrase(v: number, hi: string, mid: string, lo: string): string {
-  const x = Math.max(0, Math.min(1, Number(v) || 0));
-  if (x >= 0.58) return hi;
-  if (x >= 0.3) return mid;
-  return lo;
-}
-
-function hashStringToUint(str: string): number {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) {
-    h = (h * 33) ^ str.charCodeAt(i);
-  }
-  return h >>> 0;
-}
-
 function normalizeSurfacingKey(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Four deterministic templates per tier triple; template index selects wording variety. */
-function surfacingLineFromTiersAndTemplate(
-  sky: string,
-  bond: string,
-  blend: string,
-  templateIndex: number
-): string {
-  const t = templateIndex % 4;
-  if (t === 0) {
-    return `Surfacing now: ${sky} with ${bond}; the feed blends today’s contact with that steady layer—${blend}.`;
-  }
-  if (t === 1) {
-    return `Right now: ${sky} meets ${bond}; today’s sky sits on top of that baseline—${blend}.`;
-  }
-  if (t === 2) {
-    return `Showing here: ${sky} alongside ${bond}; the mix weights live contact against what holds—${blend}.`;
-  }
-  return `Listed because: ${sky} pairs with ${bond}; the blend reads how both layers register together—${blend}.`;
-}
-
-const CAMPAIGN_SURFACING_VARIANTS = [
-  'Campaign threads mix story activity with relationship signals; this row reflects how much is registering for you now.',
-  'Campaign rows combine story activity with relationship signals; what you see here is what registers most for you now.',
-  'This campaign listing weighs story motion alongside relationship signals for the current feed moment.',
-  'Campaign feeds blend narrative threads with connection signals; this entry reflects current emphasis.',
-] as const;
-
 function computeSurfacingForFeedItem(
   item: RelationalCommunityFeedItem,
-  templateBump: number
+  display: { readonly primary_line: string; readonly micro_tag: string },
+  shellRotate: number
 ): string | null {
-  if (item.connection_kind === 'campaign_group') {
-    const ix =
-      (hashStringToUint(`${item.feed_item_id}|${item.binding_id}`) + templateBump) %
-      CAMPAIGN_SURFACING_VARIANTS.length;
-    return CAMPAIGN_SURFACING_VARIANTS[ix]!;
-  }
+  if (item.connection_kind === 'campaign_group') return campaignSurfacingSentence();
   const r = item.ranking;
   if (!r) return null;
-
-  const sky = tierPhrase(
-    r.weather_activation_intensity,
-    'stronger sky contact',
-    'noticeable sky contact',
-    'light sky contact',
-  );
-  const bond = tierPhrase(
-    r.overall_relational_intensity,
-    'a durable bond signal',
-    'a steady bond signal',
-    'a soft baseline between you',
-  );
-  const blend = tierPhrase(
-    r.activation_effective,
-    'both layers stand out together',
-    'both layers show up in the mix',
-    'one layer is enough to list it now',
-  );
-
-  const base =
-    hashStringToUint(`${item.binding_id}|${sky}|${bond}|${blend}`) % 4;
-  const templateIndex = (base + templateBump) % 4;
-  return surfacingLineFromTiersAndTemplate(sky, bond, blend, templateIndex);
+  return buildFeedExplanationSentence({
+    ranking: r,
+    micro_tag: display.micro_tag,
+    primary_line: display.primary_line,
+    shell_rotate: shellRotate,
+  });
 }
 
 function finalizeFeedCollapsedBatch(items: RelationalCommunityFeedItem[]): RelationalReadingSurfacesOutput {
@@ -337,17 +279,17 @@ function finalizeFeedCollapsedBatch(items: RelationalCommunityFeedItem[]): Relat
     const primary =
       cd && typeof cd.primary_line === 'string'
         ? cd.primary_line
-        : 'This connection is active in your feed for this moment.';
+        : feedFallbackNoAspectPrimary();
     const micro = cd && typeof cd.micro_tag === 'string' ? cd.micro_tag.trim() : '';
     const descriptor =
-      cd && typeof cd.activation_descriptor === 'string' ? cd.activation_descriptor : 'Active between you';
+      cd && typeof cd.activation_descriptor === 'string' ? cd.activation_descriptor : feedDescriptorCollapsedFallback();
 
-    let bump = 0;
     let surf: string | null = null;
     let normalized = '';
-
-    for (; bump < 24; bump++) {
-      surf = computeSurfacingForFeedItem(item, bump);
+    let rot = 0;
+    const displayLines = { primary_line: primary, micro_tag: micro };
+    for (; rot < 3; rot++) {
+      surf = computeSurfacingForFeedItem(item, displayLines, rot);
       if (surf === null) break;
       normalized = normalizeSurfacingKey(surf);
       if (!seenSurfacing.has(normalized)) {

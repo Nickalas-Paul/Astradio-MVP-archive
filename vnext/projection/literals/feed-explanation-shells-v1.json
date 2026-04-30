@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "shells": [
+    "This is surfaced because {X} interacting with {Y}.",
+    "{X} presses against {Y} right now, so this feed row stays listed.",
+    "{X} meets {Y} with enough contrast for this ranking."
+  ],
+  "default_activation_clause": "clear contact-pressure cues shaping this feed moment",
+  "default_baseline_clause": "steady pair-baseline weight that holds between past meetings"
+}

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "why_works": {
+    "cohesion_high_band": "Cohesion reads high for this pairing, keeping practical coordination lighter between you.",
+    "complement_mid_band": "Complement reads workable for tasks that need different speeds without deadlock.",
+    "default": "Ease depends on pacing you both keep explicit when signals stay mixed."
+  },
+  "where_strains": {
+    "tension_high_band": "Tension reads high across the field until shorter asks blunt escalation risk.",
+    "friction_peak_band": "Friction reads sharp at the mean pairwise channel until pacing slows sharper replies.",
+    "default": "Edges show when timing tightens unless intent stays concrete and plainly spoken."
+  },
+  "facets": {
+    "cohesion": {
+      "high": "Cohesion sits high on the stored contract, helping routine coordination feel workable.",
+      "mid": "Cohesion sits middling on the stored contract, so coordination needs clearer asks.",
+      "low": "Cohesion sits low on the stored contract, so pacing and roles need explicit staging."
+    },
+    "tension": {
+      "high": "Tension sits high on the stored contract, so sharp replies need slower pacing.",
+      "mid": "Tension sits middling on the stored contract, workable if intent stays plainly stated.",
+      "low": "Tension sits low on the stored contract, keeping sharp spikes unlikely without outside pressure."
+    },
+    "transformation": {
+      "high": "Transformation pressure reads high from stored indices, inviting deliberate change timing.",
+      "mid": "Transformation pressure reads middling from stored indices, favoring paced adjustments.",
+      "low": "Transformation pressure reads low from stored indices, keeping stable routines primary."
+    },
+    "stability": {
+      "high": "Stability reads high on the stored contract, buffering volatility with steadier pacing.",
+      "mid": "Stability reads middling on the stored contract, so rhythms need clearer guardrails.",
+      "low": "Stability reads low on the stored contract, so pacing may shift quickly when novelty spikes."
+    }
+  }
+}

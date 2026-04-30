@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "pairs": [
+    {
+      "body_pair_key": "jupiter|mars",
+      "meaning_clause": "expansion meets drive as big promises test courage until patience tempers costly leaps",
+      "feed_predicate": "Jupiter Mars stretches bold gambits until disciplined pacing steadies the next outward move",
+      "feed_predicate_tail": "stretches bold gambits until disciplined pacing steadies the next outward move"
+    },
+    {
+      "body_pair_key": "jupiter|mercury",
+      "meaning_clause": "expansion meets analysis as story tests facts until proof narrows what can be claimed",
+      "feed_predicate": "Jupiter Mercury weighs tall claims against careful wording until one verified fact anchors tone",
+      "feed_predicate_tail": "weighs tall claims against careful wording until one verified fact anchors tone"
+    },
+    {
+      "body_pair_key": "jupiter|moon",
+      "meaning_clause": "expansion meets caretaking as restless hope tests nightly comfort until feeling finds limits",
+      "feed_predicate": "Jupiter Moon lifts nightly moods beneath restless luck until quieter habits restore steady care",
+      "feed_predicate_tail": "lifts nightly moods beneath restless luck until quieter habits restore steady care"
+    },
+    {
+      "body_pair_key": "jupiter|neptune",
+      "meaning_clause": "expansion meets diffusion as generous faith tests foggy reads until clarity returns in practice",
+      "feed_predicate": "Jupiter Neptune melts bold hopes into misty reads until one blunt chore restores firm footing",
+      "feed_predicate_tail": "melts bold hopes into misty reads until one blunt chore restores firm footing"
+    },
+    {
+      "body_pair_key": "jupiter|pluto",
+      "meaning_clause": "expansion meets power as growth tests hidden leverage until stakes turn explicit and fair",
+      "feed_predicate": "Jupiter Pluto swells stakes through covert leverage until plainly named terms replace quiet deals",
+      "feed_predicate_tail": "swells stakes through covert leverage until plainly named terms replace quiet deals"
+    },
+    {
+      "body_pair_key": "jupiter|saturn",
+      "meaning_clause": "expansion meets restraint as vision tests proof until slow work earns the wider promise",
+      "feed_predicate": "Jupiter Saturn stretches hope across stern timelines until modest planning steadies honest leaps",
+      "feed_predicate_tail": "stretches hope across stern timelines until modest planning steadies honest leaps"
+    },
+    {
+      "body_pair_key": "jupiter|sun",
+      "meaning_clause": "expansion meets visibility as promise tests pride until modest proof keeps stature honest",
+      "feed_predicate": "Jupiter Sun widens visible roles beneath proof tests until careful pride stays sized to facts",
+      "feed_predicate_tail": "widens visible roles beneath proof tests until careful pride stays sized to facts"
+    },
+    {
+      "body_pair_key": "jupiter|uranus",
+      "meaning_clause": "expansion meets rupture as optimism tests sudden breaks until pacing repairs workable freedom",
+      "feed_predicate": "Jupiter Uranus jolts upward curves through sudden bends until steadier pacing restores safe runway",
+      "feed_predicate_tail": "jolts upward curves through sudden bends until steadier pacing restores safe runway"
+    },
+    {
+      "body_pair_key": "jupiter|venus",
+      "meaning_clause": "expansion meets desire as appetite tests taste until shared values curb indulgent drift",
+      "feed_predicate": "Jupiter Venus sweetens wants through generous warmth until shared values tame restless appetite",
+      "feed_predicate_tail": "sweetens wants through generous warmth until shared values tame restless appetite"
+    },
+    {
+      "body_pair_key": "mars|mercury",
+      "meaning_clause": "drive meets thought as heat tests wording until careful lines prevent sharper escalation",
+      "feed_predicate": "Mars Mercury heats quick speech through impatient mind until softer pacing restores terse clarity",
+      "feed_predicate_tail": "heats quick speech through impatient mind until softer pacing restores terse clarity"
+    },
+    {
+      "body_pair_key": "mars|moon",
+      "meaning_clause": "drive meets feeling as anger tests comfort until care names what protection requires now",
+      "feed_predicate": "Mars Moon spikes protective moods through sudden heat until gentler pacing restores nightly safety",
+      "feed_predicate_tail": "spikes protective moods through sudden heat until gentler pacing restores nightly safety"
+    },
+    {
+      "body_pair_key": "mars|neptune",
+      "meaning_clause": "drive meets diffusion as force tests fantasy until sober facts replace wishful momentum",
+      "feed_predicate": "Mars Neptune blurs blunt pushes inside misty reads until one sober fact restores blunt aim",
+      "feed_predicate_tail": "blurs blunt pushes inside misty reads until one sober fact restores blunt aim"
+    },
+    {
+      "body_pair_key": "mars|pluto",
+      "meaning_clause": "drive meets power as hunger tests secrecy until plain courage dissolves covert games",
+      "feed_predicate": "Mars Pluto pushes wants through ruthless edges until plain facts cut through hidden leverage",
+      "feed_predicate_tail": "pushes wants through ruthless edges until plain facts cut through hidden leverage"
+    },
+    {
+      "body_pair_key": "mars|saturn",
+      "meaning_clause": "drive meets duty as push tests limits until steady pacing prevents bitter burnout",
+      "feed_predicate": "Mars Saturn grinds force into heavy clocks until humane pacing preserves enough daily strength",
+      "feed_predicate_tail": "grinds force into heavy clocks until humane pacing preserves enough daily strength"
+    },
+    {
+      "body_pair_key": "mars|sun",
+      "meaning_clause": "drive meets pride as heat tests self display until restraint keeps rivalry from scorching trust",
+      "feed_predicate": "Mars Sun fuels proud roles through heated rivalry until restraint keeps competition from scorching trust",
+      "feed_predicate_tail": "fuels proud roles through heated rivalry until restraint keeps competition from scorching trust"
+    },
+    {
+      "body_pair_key": "mars|uranus",
+      "meaning_clause": "drive meets rupture as sparks test freedom until inventive exits cool careless fights",
+      "feed_predicate": "Mars Uranus sparks sudden fights through sharp turns until inventive pacing cools the sharpest fray",
+      "feed_predicate_tail": "sparks sudden fights through sharp turns until inventive pacing cools the sharpest fray"
+    },
+    {
+      "body_pair_key": "mars|venus",
+      "meaning_clause": "drive meets pleasure as appetite tests charm until jealousy names the sharper hidden ask",
+      "feed_predicate": "Mars Venus presses wants through flirtatious heat until honest naming steadies jealous edges",
+      "feed_predicate_tail": "presses wants through flirtatious heat until honest naming steadies jealous edges"
+    },
+    {
+      "body_pair_key": "mercury|moon",
+      "meaning_clause": "thought meets feeling as words test moods until honest listening steadies nervous stories",
+      "feed_predicate": "Mercury Moon bends tidy speech around shifting moods until patient listening steadies nervous stories",
+      "feed_predicate_tail": "bends tidy speech around shifting moods until patient listening steadies nervous stories"
+    },
+    {
+      "body_pair_key": "mercury|neptune",
+      "meaning_clause": "thought meets diffusion as facts test fog until crisp statements refill stolen focus",
+      "feed_predicate": "Mercury Neptune smudges neat facts inside subtle hints until crisp wording restores honest focus",
+      "feed_predicate_tail": "smudges neat facts inside subtle hints until crisp wording restores honest focus"
+    },
+    {
+      "body_pair_key": "mercury|pluto",
+      "meaning_clause": "thought meets power as wording tests leverage until plain facts replace clever withholding",
+      "feed_predicate": "Mercury Pluto presses wording through hidden leverage until plain speech replaces withholding spin",
+      "feed_predicate_tail": "presses wording through hidden leverage until plain speech replaces withholding spin"
+    },
+    {
+      "body_pair_key": "mercury|saturn",
+      "meaning_clause": "thought meets duty as agility tests limits until shorter lines earn patient respect",
+      "feed_predicate": "Mercury Saturn slows nimble speech beneath firm duty until shorter lines land with blunt respect",
+      "feed_predicate_tail": "slows nimble speech beneath firm duty until shorter lines land with blunt respect"
+    },
+    {
+      "body_pair_key": "mercury|sun",
+      "meaning_clause": "thought meets pride as messaging tests self story until careful tone keeps face proportioned",
+      "feed_predicate": "Mercury Sun sharpens public talk through restless facts until careful wording steadies outward face",
+      "feed_predicate_tail": "sharpens public talk through restless facts until careful wording steadies outward face"
+    },
+    {
+      "body_pair_key": "mercury|uranus",
+      "meaning_clause": "thought meets rupture as news tests breaks until steady facts restore workable sequence",
+      "feed_predicate": "Mercury Uranus snaps attention through odd zigzags until steady facts restore plain workable sequence",
+      "feed_predicate_tail": "snaps attention through odd zigzags until steady facts restore plain workable sequence"
+    },
+    {
+      "body_pair_key": "mercury|venus",
+      "meaning_clause": "thought meets desire as banter tests taste until honesty names what flattery skipped",
+      "feed_predicate": "Mercury Venus trades clever lines through flirtatious wit until honest taste names what flattery skipped",
+      "feed_predicate_tail": "trades clever lines through flirtatious wit until honest taste names what flattery skipped"
+    },
+    {
+      "body_pair_key": "moon|neptune",
+      "meaning_clause": "feeling meets diffusion as needs test fantasy until blunt care restores simple ground",
+      "feed_predicate": "Moon Neptune dissolves tidy needs inside misty moods until one blunt chore restores simple ground",
+      "feed_predicate_tail": "dissolves tidy needs inside misty moods until one blunt chore restores simple ground"
+    },
+    {
+      "body_pair_key": "moon|pluto",
+      "meaning_clause": "feeling meets power as care tests secrecy until needs refuse covert emotional games",
+      "feed_predicate": "Moon Pluto swings caretaking into fierce stakes until honest needs forbid covert withholding games",
+      "feed_predicate_tail": "swings caretaking into fierce stakes until honest needs forbid covert withholding games"
+    },
+    {
+      "body_pair_key": "moon|saturn",
+      "meaning_clause": "feeling meets duty as comfort tests limits until steady warmth earns its careful return",
+      "feed_predicate": "Moon Saturn chills comfort beneath solemn duty until dependable warmth returns on honest schedule",
+      "feed_predicate_tail": "chills comfort beneath solemn duty until dependable warmth returns on honest schedule"
+    },
+    {
+      "body_pair_key": "moon|sun",
+      "meaning_clause": "feeling meets pride as moods test aims until candid care plainly names both sides",
+      "feed_predicate": "Moon Sun splits private moods from proud aims until candid care plainly names both visible sides",
+      "feed_predicate_tail": "splits private moods from proud aims until candid care plainly names both visible sides"
+    },
+    {
+      "body_pair_key": "moon|uranus",
+      "meaning_clause": "feeling meets rupture as habits test shocks until pacing restores steadier nightly rhythm",
+      "feed_predicate": "Moon Uranus jolts nightly habits through sudden moods until steadier pacing restores workable rhythm",
+      "feed_predicate_tail": "jolts nightly habits through sudden moods until steadier pacing restores workable rhythm"
+    },
+    {
+      "body_pair_key": "moon|venus",
+      "meaning_clause": "feeling meets desire as needs test taste until honest wants replace restless craving",
+      "feed_predicate": "Moon Venus warms attachment through restless taste until plainly stated wants replace jealous craving",
+      "feed_predicate_tail": "warms attachment through restless taste until plainly stated wants replace jealous craving"
+    },
+    {
+      "body_pair_key": "neptune|pluto",
+      "meaning_clause": "diffusion meets power as fog tests secrecy until chores replace obsessive whispered rumor",
+      "feed_predicate": "Neptune Pluto melts brittle fantasies beside covert leverage until sober chores replace whispered rumor",
+      "feed_predicate_tail": "melts brittle fantasies beside covert leverage until sober chores replace whispered rumor"
+    },
+    {
+      "body_pair_key": "neptune|saturn",
+      "meaning_clause": "diffusion meets duty as haze tests limits until concrete tasks replace roundabout promises",
+      "feed_predicate": "Neptune Saturn blurs solemn duty beneath foggy reads until concrete tasks replace roundabout vague promises",
+      "feed_predicate_tail": "blurs solemn duty beneath foggy reads until concrete tasks replace roundabout vague promises"
+    },
+    {
+      "body_pair_key": "neptune|sun",
+      "meaning_clause": "diffusion meets pride as mist tests stature until honest goals regain their clean edges",
+      "feed_predicate": "Neptune Sun thins proud aims beneath haze until honest goals regain their clean sharpened edges",
+      "feed_predicate_tail": "thins proud aims beneath haze until honest goals regain their clean sharpened edges"
+    },
+    {
+      "body_pair_key": "neptune|uranus",
+      "meaning_clause": "diffusion meets rupture as dreams test breaks until steady facts repair workable hope",
+      "feed_predicate": "Neptune Uranus fractures shimmering dreams through sudden snaps until steady facts reground blunt hope",
+      "feed_predicate_tail": "fractures shimmering dreams through sudden snaps until steady facts reground blunt hope"
+    },
+    {
+      "body_pair_key": "neptune|venus",
+      "meaning_clause": "diffusion meets desire as glamour tests taste until blunt honesty restores credible want",
+      "feed_predicate": "Neptune Venus romanticizes fleeting charm until blunt honesty restores plainly credible heartfelt want",
+      "feed_predicate_tail": "romanticizes fleeting charm until blunt honesty restores plainly credible heartfelt want"
+    },
+    {
+      "body_pair_key": "pluto|saturn",
+      "meaning_clause": "power meets duty as leverage tests endurance until gentle repair avoids brittle endings",
+      "feed_predicate": "Pluto Saturn tightens limits around cold leverage until gentle repair avoids brittle careless endings",
+      "feed_predicate_tail": "tightens limits around cold leverage until gentle repair avoids brittle careless endings"
+    },
+    {
+      "body_pair_key": "pluto|sun",
+      "meaning_clause": "power meets pride as change tests face until plainly named stakes stop totalizing plots",
+      "feed_predicate": "Pluto Sun pits deep change beneath proud faces until plainly named stakes stop sweeping total plots",
+      "feed_predicate_tail": "pits deep change beneath proud faces until plainly named stakes stop sweeping total plots"
+    },
+    {
+      "body_pair_key": "pluto|uranus",
+      "meaning_clause": "power meets rupture as secrecy tests shocks until workable facts revise an honest plan",
+      "feed_predicate": "Pluto Uranus breaks brittle control beside sudden shocks until workable facts revise the honest plan safely",
+      "feed_predicate_tail": "breaks brittle control beside sudden shocks until workable facts revise the honest plan safely"
+    },
+    {
+      "body_pair_key": "pluto|venus",
+      "meaning_clause": "power meets desire as fixation tests intimacy until sane boundaries plainly return intact",
+      "feed_predicate": "Pluto Venus pulls desire toward obsessive twists until plainly sane boundaries return fully intact again",
+      "feed_predicate_tail": "pulls desire toward obsessive twists until plainly sane boundaries return fully intact again"
+    },
+    {
+      "body_pair_key": "saturn|sun",
+      "meaning_clause": "duty meets pride as restraint tests stature until proof earns modest visible room",
+      "feed_predicate": "Saturn Sun binds proud roles beneath patient limits until quiet proof earns modest visible breathing room",
+      "feed_predicate_tail": "binds proud roles beneath patient limits until quiet proof earns modest visible breathing room"
+    },
+    {
+      "body_pair_key": "saturn|uranus",
+      "meaning_clause": "duty meets rupture as rules test shocks until workable revision earns durable trust",
+      "feed_predicate": "Saturn Uranus stresses aging rules beside sudden breaks until workable revision earns durable patient trust",
+      "feed_predicate_tail": "stresses aging rules beside sudden breaks until workable revision earns durable patient trust"
+    },
+    {
+      "body_pair_key": "saturn|venus",
+      "meaning_clause": "duty meets desire as restraint tests affection until kindness earns footing again",
+      "feed_predicate": "Saturn Venus cools heartfelt warmth beneath stern tests until patient kindness earns workable footing plainly",
+      "feed_predicate_tail": "cools heartfelt warmth beneath stern tests until patient kindness earns workable footing plainly"
+    },
+    {
+      "body_pair_key": "sun|uranus",
+      "meaning_clause": "pride meets rupture as selfhood tests shocks until pacing keeps dignity politely intact",
+      "feed_predicate": "Sun Uranus shocks steady reputations through sudden bends until pacing keeps outward dignity politely intact",
+      "feed_predicate_tail": "shocks steady reputations through sudden bends until pacing keeps outward dignity politely intact"
+    },
+    {
+      "body_pair_key": "sun|venus",
+      "meaning_clause": "pride meets desire as selfhood tests affection until jealousy states its sharper plain ask",
+      "feed_predicate": "Sun Venus warms outward pride through courtship tides until jealous edges state their sharper plain heartfelt ask",
+      "feed_predicate_tail": "warms outward pride through courtship tides until jealous edges state their sharper plain heartfelt ask"
+    },
+    {
+      "body_pair_key": "uranus|venus",
+      "meaning_clause": "rupture meets desire as surprise tests taste until clearer wants steady the bond",
+      "feed_predicate": "Uranus Venus surprises taste through restless whims until clearer spoken wants steady the mutual bond honestly",
+      "feed_predicate_tail": "surprises taste through restless whims until clearer spoken wants steady the mutual bond honestly"
+    },
+    {
+      "body_pair_key": "*|*",
+      "meaning_clause": "unfamiliar chart voices negotiate one crossing until pace plainly names first priority without drift",
+      "feed_predicate": "Two unfamiliar voices share one crossing until careful pacing keeps terse wording cleanly readable plainly",
+      "feed_predicate_tail": "Two unfamiliar voices share one crossing until careful pacing keeps terse wording cleanly readable plainly"
+    }
+  ]
+}

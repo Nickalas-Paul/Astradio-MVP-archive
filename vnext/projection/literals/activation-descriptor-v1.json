@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "descriptors": {
+    "stable_subtle_between": "Subtle cues between charts",
+    "high_emotional": "Elevated emotion channel between charts",
+    "rising_friction": "Rising friction channel between charts",
+    "steady_harmony": "Cooperation channel cresting between charts",
+    "elevated_contact": "Contact intensity cresting between charts",
+    "wording_focus": "Wording spotlight between charts",
+    "tone_swings": "Quick tone swings showing between charts",
+    "growth_push": "Change pressure edging between charts",
+    "steady_contact": "Steady contact cues between charts"
+  }
+}

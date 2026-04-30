@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sky_activation_clause": {
+    "high": "pronounced transit pull on charts",
+    "mid": "visible transit tug on today's window",
+    "low": "light transit ripple above quiet habits"
+  },
+  "relational_baseline_clause": {
+    "high": "durable reciprocal baseline between charts",
+    "mid": "steady familiar baseline linking both charts",
+    "low": "soft baseline footing that lightly frames contact"
+  },
+  "tier_thresholds": {
+    "high": 0.58,
+    "mid": 0.3
+  }
+}

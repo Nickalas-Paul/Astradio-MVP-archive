@@ -5,6 +5,7 @@
 
 import { getChartById } from './chart-store';
 import * as storage from './storage';
+import { compatibilityFacetExplanation } from '../projection/insight/map-insight-unit-v1';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
@@ -42,10 +43,34 @@ function clampScore(x: number): number {
 
 function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchResult['facets'] {
   return [
-    { id: 'cohesion', name: 'Cohesion', weight: 1, score: clampScore(scoring.derived_indices.cohesion_index), explanation: 'Derived from canonical pairwise and trait-field structure' },
-    { id: 'tension', name: 'Tension', weight: 1, score: clampScore(scoring.derived_indices.tension_index), explanation: 'Derived from canonical friction and escalation components' },
-    { id: 'transformation', name: 'Transformation', weight: 1, score: clampScore(scoring.derived_indices.transformation_index), explanation: 'Derived from canonical transforming and activation components' },
-    { id: 'stability', name: 'Stability', weight: 1, score: clampScore(scoring.derived_indices.stability_index), explanation: 'Derived from canonical cohesion, volatility, and domain entropy' },
+    {
+      id: 'cohesion',
+      name: 'Cohesion',
+      weight: 1,
+      score: clampScore(scoring.derived_indices.cohesion_index),
+      explanation: compatibilityFacetExplanation('cohesion', scoring),
+    },
+    {
+      id: 'tension',
+      name: 'Tension',
+      weight: 1,
+      score: clampScore(scoring.derived_indices.tension_index),
+      explanation: compatibilityFacetExplanation('tension', scoring),
+    },
+    {
+      id: 'transformation',
+      name: 'Transformation',
+      weight: 1,
+      score: clampScore(scoring.derived_indices.transformation_index),
+      explanation: compatibilityFacetExplanation('transformation', scoring),
+    },
+    {
+      id: 'stability',
+      name: 'Stability',
+      weight: 1,
+      score: clampScore(scoring.derived_indices.stability_index),
+      explanation: compatibilityFacetExplanation('stability', scoring),
+    },
   ];
 }
 

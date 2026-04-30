@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "primary_line_templates": {
+    "conjunction": {
+      "amplifying": "{aspect} brings crisp focus to wording that can clarify or distort between charts between chart lines on this timed pass.",
+      "supportive": "{aspect} smoothes wording so shared signals settle without needless friction between chart lines on this timed pass.",
+      "tense": "{aspect} tightens tone so small clashes can sting until pacing slows replies between chart lines on this timed pass.",
+      "flowing": "{aspect} carries workable rhythm so noticing lines up without force between chart lines on this timed pass.",
+      "polarizing": "{aspect} pulls instincts apart toward opposite urgencies at once between chart lines on this timed pass."
+    },
+    "opposition": {
+      "amplifying": "{aspect} lays private needs plainly open until pacing holds both truths between chart lines on this timed pass.",
+      "supportive": "{aspect} favors meeting halfway without forcing one repair persona between chart lines on this timed pass.",
+      "tense": "{aspect} steepens contrast until balance is spoken instead of hinted between chart lines on this timed pass.",
+      "flowing": "{aspect} swaps angles without insisting on winners or brittle pride between chart lines on this timed pass.",
+      "polarizing": "{aspect} swings polarity until simpler framing slows totalizing leaps between chart lines on this timed pass."
+    },
+    "square": {
+      "amplifying": "{aspect} magnifies slips so small tone reads larger than intent between chart lines on this timed pass.",
+      "supportive": "{aspect} pushes progress if concrete asks replace vague digs between chart lines on this timed pass.",
+      "tense": "{aspect} lengthens misunderstandings unless patience names quiet fears between chart lines on this timed pass.",
+      "flowing": "{aspect} pulls you back toward contact whenever warmth still matters between chart lines on this timed pass.",
+      "polarizing": "{aspect} can spike escalation until pacing checks intent before blaming between chart lines on this timed pass."
+    },
+    "trine": {
+      "amplifying": "{aspect} reinforces ease so shared timing steadies simple moves between chart lines on this timed pass.",
+      "supportive": "{aspect} gives cooperation room if honest chores keep pace between chart lines on this timed pass.",
+      "tense": "{aspect} softens sharper edges though honesty still earns its slice between chart lines on this timed pass.",
+      "flowing": "{aspect} favors fluid moves when clear asks steer the glide between chart lines on this timed pass.",
+      "polarizing": "{aspect} lets comfort cloak mismatch until quieter facts surface once between chart lines on this timed pass."
+    },
+    "sextile": {
+      "amplifying": "{aspect} opens workable side doors until small proofs finish loops between chart lines on this timed pass.",
+      "supportive": "{aspect} grants practical tweaks when short replies stay terse between chart lines on this timed pass.",
+      "tense": "{aspect} leaves mild sparks until blunt asks shrink needless lectures between chart lines on this timed pass.",
+      "flowing": "{aspect} keeps dialogue nimble without forcing dramatic reversals between chart lines on this timed pass.",
+      "polarizing": "{aspect} flickers aid against noise until finishing one thread settles tone between chart lines on this timed pass."
+    }
+  }
+}
