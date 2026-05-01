@@ -16,7 +16,9 @@ import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import { clamp01 } from '../compatibility/stable';
 import { fetchChartSnapshot } from '../core/architecture-engine';
+import type { CrossAspectHitV1, RelationalWeatherStateV1 } from '../relational/weather/types';
 import { buildFeedCollapsedDisplayV1, type FeedCollapsedDisplayV1 } from './feed-collapsed-display';
+import { selectDisplayedFeedAspectForSortedRow } from './feed-displayed-aspect-v1';
 
 /**
  * Documented sort tuple id; bump when tuple definition changes.
@@ -78,6 +80,11 @@ export interface CommunityRelationalFeedItemV1 {
   artifactStatus: 'not_generated' | 'available' | 'partial' | 'failed';
 }
 
+/** Pass-1 row (before diversity display); `collapsed_display` applied in pass 2 after sort. */
+export type CommunityRelationalFeedItemPass1V1 = Omit<CommunityRelationalFeedItemV1, 'collapsed_display'> & {
+  transit_weather: RelationalWeatherStateV1 | null;
+};
+
 export interface CommunityRelationalFeedResponseV1 {
   version: 'community_relational_feed_v1';
   sort_tuple_version: typeof COMMUNITY_RELATIONAL_FEED_SORT_VERSION;
@@ -126,7 +133,10 @@ function uniqueSortedChartIds(ids: string[]): string[] {
   );
 }
 
-function compareFeedItems(a: CommunityRelationalFeedItemV1, b: CommunityRelationalFeedItemV1): number {
+function compareFeedRanking(
+  a: { ranking: CommunityRelationalFeedItemV1['ranking'] },
+  b: { ranking: CommunityRelationalFeedItemV1['ranking'] }
+): number {
   const ae = a.ranking.activation_effective;
   const be = b.ranking.activation_effective;
   if (be !== ae) return be - ae;
@@ -134,6 +144,39 @@ function compareFeedItems(a: CommunityRelationalFeedItemV1, b: CommunityRelation
   const bo = b.ranking.overall_relational_intensity;
   if (bo !== ao) return bo - ao;
   return a.ranking.tie_break_key.localeCompare(b.ranking.tie_break_key, 'en');
+}
+
+/**
+ * Pass 2: deterministic display aspect selection + collapsed strings (after ranking is final).
+ * Exported for regression tests.
+ */
+export function applyFeedCollapsedDisplayPass2(
+  sortedPass1: CommunityRelationalFeedItemPass1V1[]
+): CommunityRelationalFeedItemV1[] {
+  let recentWindow: string[] = [];
+  const out: CommunityRelationalFeedItemV1[] = [];
+  for (let i = 0; i < sortedPass1.length; i++) {
+    const row = sortedPass1[i]!;
+    const weather = row.transit_weather;
+    const hits = weather?.aspects?.topCrossAspects ?? [];
+    let displayHit: CrossAspectHitV1 | undefined;
+    if (hits.length > 0) {
+      const sel = selectDisplayedFeedAspectForSortedRow({
+        sortedIndex: i,
+        hits,
+        recentKeyWindow: recentWindow,
+      });
+      displayHit = sel.hit;
+      recentWindow = sel.nextWindow;
+    }
+    const collapsed_display = buildFeedCollapsedDisplayV1(weather, displayHit);
+    const { transit_weather: _drop, ...rest } = row;
+    out.push({
+      ...rest,
+      collapsed_display,
+    });
+  }
+  return out;
 }
 
 /**
@@ -260,7 +303,7 @@ export async function buildCommunityRelationalFeed(params: {
     };
   }
 
-  const items: CommunityRelationalFeedItemV1[] = [];
+  const pass1: CommunityRelationalFeedItemPass1V1[] = [];
   let envelopeLock: CommunityRelationalFeedResponseV1['transit_lock'] | null = null;
   let envelopeTransitSnap: string | null = null;
   let envelopeWeather: string | null = null;
@@ -289,14 +332,13 @@ export async function buildCommunityRelationalFeed(params: {
       envelopeWeather = overlay.relational_weather_state_hash;
     }
 
-    const collapsed_display = buildFeedCollapsedDisplayV1(computed.transit_weather);
-    items.push({
+    pass1.push({
       feed_item_id: `${w.connection_kind}:${w.binding_id}`,
       connection_kind: w.connection_kind,
       binding_id: w.binding_id,
       chart_ids_ordered: w.chart_ids_ordered,
       connection_identity_line: w.connection_identity_line,
-      collapsed_display,
+      transit_weather: computed.transit_weather,
       compatibility_field_hash: computed.field.object_identity_hash,
       relational_weather_state_hash: overlay.relational_weather_state_hash,
       transit_snapshot_hash: overlay.transit_snapshot_hash,
@@ -310,9 +352,11 @@ export async function buildCommunityRelationalFeed(params: {
     });
   }
 
+  pass1.sort(compareFeedRanking);
+
   const canonicalDayBucket = pgStore.canonicalDayBucketFromTransitTs(envelopeLock?.ts || '');
   if (canonicalDayBucket) {
-    const scoped = items
+    const scoped = pass1
       .filter((x) => x.connection_kind === 'pair' || x.connection_kind === 'relational_group')
       .map((x) => ({
         scopeKind: x.connection_kind === 'pair' ? 'pair' : 'group',
@@ -324,7 +368,7 @@ export async function buildCommunityRelationalFeed(params: {
       currentExpressionVersion: COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
       identities: scoped,
     });
-    for (const item of items) {
+    for (const item of pass1) {
       if (item.connection_kind === 'campaign_group') {
         item.artifactStatus = 'not_generated';
         continue;
@@ -335,7 +379,7 @@ export async function buildCommunityRelationalFeed(params: {
     }
   }
 
-  items.sort(compareFeedItems);
+  const items = applyFeedCollapsedDisplayPass2(pass1);
 
   if (!envelopeLock) {
     throw new Error('Community relational feed: missing transit envelope');

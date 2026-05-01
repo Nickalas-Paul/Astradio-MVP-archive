@@ -60,6 +60,7 @@
     "db:migrate-campaign-daily-fp": "node scripts/migrate-campaign-daily-transit-fingerprint.js",
     "test:chart-timezone": "npm run vnext:build && node --test tests/natal-identity-birth-compare.test.js tests/chart-timezone-resolve.test.js tests/chart-pg-store-timezone.integration.test.js",
     "test:community-fixes": "npm run vnext:build && node --test tests/comparison-seed.test.js tests/community-connection-intent.integration.test.js tests/community-relational-feed-dedupe.test.cjs",
+    "test:feed-display-aspect": "npm run vnext:build && node dist/vnext/vnext/scripts/test-feed-displayed-aspect.js",
     "backfill:chart-timezones": "node scripts/backfill-chart-timezones.js",
     "repair:chart-utc-placeholders": "node scripts/backfill-chart-timezones.js --utc-placeholders",
     "repair:chart-utc-placeholders:execute": "node scripts/backfill-chart-timezones.js --utc-placeholders --execute",

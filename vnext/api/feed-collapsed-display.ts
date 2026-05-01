@@ -26,7 +26,25 @@ export type FeedCollapsedDisplayV1 = {
   activation_descriptor: string;
 };
 
-export function buildFeedCollapsedDisplayV1(weather: RelationalWeatherStateV1 | null | undefined): FeedCollapsedDisplayV1 {
+function resolveHitForDisplay(
+  weather: RelationalWeatherStateV1,
+  displayHit: CrossAspectHitV1 | null | undefined
+): CrossAspectHitV1 | undefined {
+  const list = weather.aspects?.topCrossAspects;
+  if (!list?.length) return undefined;
+  if (!displayHit) return list[0];
+  const want = `${displayHit.transitBody}|${displayHit.natalBody}|${displayHit.type}`;
+  return list.find((h) => `${h.transitBody}|${h.natalBody}|${h.type}` === want) ?? list[0];
+}
+
+/**
+ * @param displayHit Optional hit from `weather.aspects.topCrossAspects` (matched by transit|natal|type).
+ *                  When omitted, uses topCrossAspects[0] (legacy behavior).
+ */
+export function buildFeedCollapsedDisplayV1(
+  weather: RelationalWeatherStateV1 | null | undefined,
+  displayHit?: CrossAspectHitV1 | null
+): FeedCollapsedDisplayV1 {
   if (!weather) {
     return {
       primary_line: feedFallbackNoWeatherPrimary(),
@@ -34,7 +52,7 @@ export function buildFeedCollapsedDisplayV1(weather: RelationalWeatherStateV1 | 
       activation_descriptor: descriptorFromActivationMapped(null),
     };
   }
-  const top = weather.aspects?.topCrossAspects?.[0];
+  const top = resolveHitForDisplay(weather, displayHit);
   const act = weather.activation;
   const activation_descriptor = descriptorFromActivationMapped(act);
   if (!top) {
