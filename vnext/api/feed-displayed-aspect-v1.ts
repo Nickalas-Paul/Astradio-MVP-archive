@@ -1,11 +1,10 @@
 /**
- * Deterministic feed-level display aspect selection (diversity scope only).
+ * Deterministic feed-level display aspect selection (full-feed sliding window).
  * Does not alter weather computation, ranking, or aspect ordering inside topCrossAspects.
  */
 
 import type { CrossAspectHitV1 } from '../relational/weather/types';
 
-export const FEED_DISPLAY_DIVERSITY_ROW_CAP = 10;
 export const FEED_DISPLAY_MAX_REPEAT_WINDOW = 3;
 
 /** Display diversity key — transitBody | natalBody | type (no prose). */
@@ -14,22 +13,19 @@ export function feedDisplayedAspectKey(hit: CrossAspectHitV1): string {
 }
 
 /**
- * Pick which hit to show for row `sortedIndex` (0-based along already-sorted feed).
- * Rows sortedIndex >= N always use hits[0] and do not mutate recentKeyWindow.
+ * Pick which hit to show for this feed row (after ranking order is fixed).
+ * Scans topCrossAspects in existing sorted order; first hit whose display key is not in the
+ * last W keys; if none, fallback to hits[0].
  */
 export function selectDisplayedFeedAspectForSortedRow(input: {
-  sortedIndex: number;
   hits: CrossAspectHitV1[];
   recentKeyWindow: readonly string[];
 }): { readonly hit: CrossAspectHitV1; readonly nextWindow: string[] } {
-  const { sortedIndex, hits, recentKeyWindow } = input;
+  const { hits, recentKeyWindow } = input;
   if (!hits.length) {
     throw new Error('selectDisplayedFeedAspectForSortedRow: empty hits');
   }
   const top = hits[0]!;
-  if (sortedIndex >= FEED_DISPLAY_DIVERSITY_ROW_CAP) {
-    return { hit: top, nextWindow: [...recentKeyWindow] };
-  }
   const recentSet = new Set(recentKeyWindow);
   const hit = hits.find((h) => !recentSet.has(feedDisplayedAspectKey(h))) ?? top;
   const k = feedDisplayedAspectKey(hit);

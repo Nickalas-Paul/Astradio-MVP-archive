@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 
 import type { CrossAspectHitV1, RelationalWeatherStateV1 } from '../relational/weather/types';
-import { FEED_DISPLAY_DIVERSITY_ROW_CAP } from '../api/feed-displayed-aspect-v1';
+import { feedDisplayedAspectKey } from '../api/feed-displayed-aspect-v1';
 import { buildFeedCollapsedDisplayV1 } from '../api/feed-collapsed-display';
 import {
   applyFeedCollapsedDisplayPass2,
@@ -228,28 +228,91 @@ function testDeterminism(): void {
   assert.deepEqual(JSON.stringify(a), JSON.stringify(b));
 }
 
-function testTailUsesTopAspectOnly(): void {
-  const two = mkWeather([
-    sunPlutoOpp,
-    hit({
-      transitBody: 'Moon',
-      natalBody: 'Saturn',
-      memberChartId: 'c2',
-      type: 'square',
-      orbDeg: 1,
-      exactness: 0.8,
-      dynamics: 'tense',
-      weight: 9,
-    }),
-  ]);
+/**
+ * Rows after index 9 still run the same W-window selector (no row-cap shortcut).
+ * With only two distinct keys, both can sit in the last W slots — fallback [0] is expected often.
+ * Use three hits so the tail can still surface non-dominant aspects past index 9.
+ */
+function testTailParticipatesInDiversity(): void {
+  const moonSat = hit({
+    transitBody: 'Moon',
+    natalBody: 'Saturn',
+    memberChartId: 'c2',
+    type: 'square',
+    orbDeg: 1,
+    exactness: 0.8,
+    dynamics: 'tense',
+    weight: 9,
+  });
+  const mercVen = hit({
+    transitBody: 'Mercury',
+    natalBody: 'Venus',
+    memberChartId: 'c2',
+    type: 'trine',
+    orbDeg: 2,
+    exactness: 0.75,
+    dynamics: 'flowing',
+    weight: 5,
+  });
+  const three = mkWeather([sunPlutoOpp, moonSat, mercVen]);
   const pass1: CommunityRelationalFeedItemPass1V1[] = [];
-  for (let i = 0; i < FEED_DISPLAY_DIVERSITY_ROW_CAP + 1; i++) {
-    pass1.push(pass1Row(`pair:r${i}`, two, { ae: 0.9 - i * 0.001, or: 0.5, tb: `${i}_k` }));
+  for (let i = 0; i < 12; i++) {
+    pass1.push(pass1Row(`pair:r${i}`, three, { ae: 0.9 - i * 0.001, or: 0.5, tb: `${i}_k` }));
   }
   const out = applyFeedCollapsedDisplayPass2(pass1);
-  const baselineTop = buildFeedCollapsedDisplayV1(two, two.aspects.topCrossAspects[0]);
-  const last = out[FEED_DISPLAY_DIVERSITY_ROW_CAP]!;
-  assert.deepEqual(last.collapsed_display, baselineTop);
+  const domMicro = buildFeedCollapsedDisplayV1(three, sunPlutoOpp).micro_tag;
+  const tail = out.slice(10);
+  assert.ok(
+    tail.some((r) => r.collapsed_display.micro_tag !== domMicro),
+    'tail rows (index >= 10) should still participate in diversity when ≥3 aspect keys exist'
+  );
+}
+
+/** 17 items like live QA: shared dominant [0], distinct alternates — diversity applies through last row. */
+function testFullFeedSeventeenItemsDiversity(): void {
+  const dom = sunPlutoOpp;
+  const pass1: CommunityRelationalFeedItemPass1V1[] = [];
+  for (let i = 0; i < 17; i++) {
+    const alt = hit({
+      transitBody: 'Mercury',
+      natalBody: `Aux${i}`,
+      memberChartId: 'c2',
+      type: 'trine',
+      orbDeg: 2,
+      exactness: 0.75,
+      dynamics: 'flowing',
+      weight: 6,
+    });
+    pass1.push(
+      pass1Row(`pair:x${i}`, mkWeather([dom, alt]), {
+        ae: 0.92 - i * 0.001,
+        or: 0.5 - i * 0.001,
+        tb: `z${String(i).padStart(3, '0')}`,
+      })
+    );
+  }
+  const out = applyFeedCollapsedDisplayPass2(pass1);
+  const domMicro = buildFeedCollapsedDisplayV1(pass1[0]!.transit_weather!, dom).micro_tag;
+  const keys = out.map((row, idx) => {
+    const w = pass1[idx]!.transit_weather!;
+    const list = w.aspects.topCrossAspects;
+    const chosen = list.find(
+      (h) =>
+        buildFeedCollapsedDisplayV1(w, h).micro_tag === row.collapsed_display.micro_tag
+    );
+    assert.ok(chosen, `row ${idx} collapsed_display must match a hit in topCrossAspects`);
+    return feedDisplayedAspectKey(chosen!);
+  });
+  const uniqueKeys = new Set(keys);
+  assert.ok(uniqueKeys.size >= 8, `expected diversified keys across 17 rows, got ${uniqueKeys.size} unique`);
+  const tailKeys = keys.slice(10);
+  const tailOnlyDom = tailKeys.every((k) => k === feedDisplayedAspectKey(dom));
+  assert.ok(!tailOnlyDom, 'tail rows (index >= 10) must not all show dominant key when alternates exist');
+  let repeats = 0;
+  for (let i = 0; i < out.length; i++) {
+    if (out[i]!.collapsed_display.micro_tag === domMicro) repeats += 1;
+  }
+  assert.ok(repeats < 17, 'not every row should display dominant micro_tag when each row has a distinct alternate');
 }
 
 function main(): void {
@@ -258,7 +321,8 @@ function main(): void {
   testExplanationAlignment();
   testRankingUnchanged();
   testDeterminism();
-  testTailUsesTopAspectOnly();
+  testTailParticipatesInDiversity();
+  testFullFeedSeventeenItemsDiversity();
   console.log('[test-feed-displayed-aspect] PASS');
 }
 

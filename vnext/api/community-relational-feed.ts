@@ -162,7 +162,6 @@ export function applyFeedCollapsedDisplayPass2(
     let displayHit: CrossAspectHitV1 | undefined;
     if (hits.length > 0) {
       const sel = selectDisplayedFeedAspectForSortedRow({
-        sortedIndex: i,
         hits,
         recentKeyWindow: recentWindow,
       });
