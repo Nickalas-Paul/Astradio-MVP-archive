@@ -22,6 +22,8 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForAggregate } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import { classifyCompatibilityScore } from '../compatibility/scoring';
 import type { RelationshipMode } from '../compat/types';
 
 export type ScopeType = 'my_groups' | 'group' | 'global';
@@ -194,6 +196,8 @@ async function buildProjectedCompatibilityProfile(
     relationalWeather: null,
   });
   const core = interpretCanonicalReportObject(report);
+  const classification = classifyCompatibilityScore(scoring);
+  const insightOpts = insightProjectionOptionsFromCanonical(report);
   const sections = projectTextFromSemanticCore(core, seed, {
     phaseD: true,
     surface: 'compat_pair',
@@ -202,6 +206,8 @@ async function buildProjectedCompatibilityProfile(
     aggregateKind: 'comparison',
     connectionMode: intentToConnectionMode(intent),
     participantCount: 2,
+    ...insightOpts,
+    compatClassCode: classification.outputs.class_code,
   });
 
   const support =

@@ -7,6 +7,7 @@
 // Do not use this terminology in new implementation, planning, or design work.
 
 import type { RelationshipMode } from '../compat/types';
+import type { SnapshotAspect } from '../contracts';
 
 export type ExpansionTier = 'baseline' | 'expanded' | 'extended';
 
@@ -152,6 +153,12 @@ export type ProjectionOptions = {
    * expression wiring only. Invalid on other surfaces (enforced in apply-unified-projection).
    */
   campaignExpressionDigest?: CampaignExpressionDigest;
+  /** Natal snapshot aspects for insight-library aspect lookups (not on SemanticCore at runtime). */
+  snapshotAspects?: readonly SnapshotAspect[];
+  /** Compatibility classification class_code for relational insight (compat surfaces). */
+  compatClassCode?: string;
+  /** Relational weather dominant theme tags for insight-library (aggregate / feed). */
+  relationalWeatherThemes?: readonly string[];
 };
 
 export type Phase4UnitRef = {

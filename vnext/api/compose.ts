@@ -45,6 +45,7 @@ import {
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
@@ -75,6 +76,8 @@ export type AggregateCompositionInput =
       merged: FeatureVec;
       payload: ControlSurfacePayload;
       relationalWeather?: RelationalWeatherStateV1;
+      /** From compatibility classification when comparison compose runs after relational scoring. */
+      compatClassCode?: string;
       relationshipMode?: RelationshipMode;
       expansionTier?: ExpansionTier;
       output_kind?: 'full' | 'feed_card';
@@ -281,16 +284,22 @@ export class ComposeAPI {
       else if ((request as any).mode === 'sky' && enableDailyV1Text) projectionSurface = 'daily';
       else if ((request as any).mode === 'sandbox') projectionSurface = 'sandbox';
 
+      const insightOpts = insightProjectionOptionsFromCanonical(canonicalReport);
       const outputKind = (request as any).output_kind === 'feed_card' ? 'feed_card' : 'full';
       const projected =
         outputKind === 'feed_card'
-          ? projectFeedCardFromSemanticCore(semanticCore, payload.hash)
+          ? projectFeedCardFromSemanticCore(semanticCore, payload.hash, {
+              ...insightOpts,
+              narrativePlan,
+              aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+            })
           : projectTextFromSemanticCore(semanticCore, payload.hash, {
               phaseD: true,
               surface: projectionSurface,
               tier,
               narrativePlan,
               aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+              ...insightOpts,
             });
 
       const dailyLike = projected.map((s) => ({
@@ -775,10 +784,21 @@ export class ComposeAPI {
     const tier = parseExpansionTier((input as { expansionTier?: ExpansionTier }).expansionTier);
     const projectionSurface: ProjectionSurface = input.kind === 'comparison' ? 'compat_pair' : 'group';
     const participantCount = participants.length;
+    const insightOptsAgg = insightProjectionOptionsFromCanonical(canonicalReport);
+    const compatClassCodeAgg =
+      input.kind === 'comparison' ? input.compatClassCode : undefined;
     const aggOutputKind = input.output_kind === 'feed_card' ? 'feed_card' : 'full';
     const projected =
       aggOutputKind === 'feed_card'
-        ? projectFeedCardFromSemanticCore(semanticCore, payload.hash)
+        ? projectFeedCardFromSemanticCore(semanticCore, payload.hash, {
+            ...insightOptsAgg,
+            narrativePlan,
+            aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
+            connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
+            participantCount,
+            aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+            compatClassCode: compatClassCodeAgg,
+          })
         : projectTextFromSemanticCore(semanticCore, payload.hash, {
             phaseD: true,
             surface: projectionSurface,
@@ -788,6 +808,8 @@ export class ComposeAPI {
             connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
             participantCount,
             aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+            ...insightOptsAgg,
+            compatClassCode: compatClassCodeAgg,
           });
 
     const signaturesText = projected.find((s) => s.id === 'signatures' || s.id === 'relational_field')?.text || '';
@@ -923,12 +945,14 @@ export class ComposeAPI {
     });
     const semanticCore = interpretCanonicalReportObject(canonicalReport);
     const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
+    const insightOptsExpl = insightProjectionOptionsFromCanonical(canonicalReport);
     const projected = projectTextFromSemanticCore(semanticCore, payload.hash, {
       phaseD: true,
       surface: 'profile',
       tier: 'baseline',
       narrativePlan,
       aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+      ...insightOptsExpl,
     });
     const object_identity_hash = canonicalReport.object_identity_hash;
     const plan_sha256 = computePlanHash(plan);

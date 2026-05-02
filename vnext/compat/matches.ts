@@ -20,6 +20,8 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForAggregate } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import { classifyCompatibilityScore } from '../compatibility/scoring';
 import type { RelationshipMode } from './types';
 
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
@@ -191,6 +193,8 @@ async function buildProjectedCompatibilityLines(
     relationalWeather: null,
   });
   const core = interpretCanonicalReportObject(canonical);
+  const classification = classifyCompatibilityScore(scoring);
+  const insightOpts = insightProjectionOptionsFromCanonical(canonical);
   const sections = projectTextFromSemanticCore(core, seed, {
     phaseD: true,
     surface: 'compat_pair',
@@ -199,6 +203,8 @@ async function buildProjectedCompatibilityLines(
     aggregateKind: 'comparison',
     connectionMode: modeToConnectionMode(mode),
     participantCount: 2,
+    ...insightOpts,
+    compatClassCode: classification.outputs.class_code,
   });
 
   const supportLine =

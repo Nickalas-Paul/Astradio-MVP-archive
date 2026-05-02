@@ -25,6 +25,15 @@ export function projectTextFromSemanticCore(
   return applyUnifiedProjection(core, seed, options);
 }
 
-export function projectFeedCardFromSemanticCore(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
-  return applyUnifiedProjection(core, seed, { phaseD: true, surface: 'feed', tier: 'baseline' });
+export function projectFeedCardFromSemanticCore(
+  core: SemanticCore,
+  seed: string,
+  extras?: Partial<ProjectionOptions>
+): ProjectedExplanationSection[] {
+  return applyUnifiedProjection(core, seed, {
+    phaseD: true,
+    surface: 'feed',
+    tier: 'baseline',
+    ...extras,
+  });
 }

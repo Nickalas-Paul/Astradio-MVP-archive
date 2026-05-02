@@ -67,13 +67,6 @@ import {
   type AspectInsight,
 } from '../insight-library/insight-library-index';
 
-/** Optional upstream snapshot / compat payloads not yet on `SemanticCore` typing. */
-type CoreWithInsightExtensions = SemanticCore & {
-  snapshot?: { aspects?: readonly SnapshotAspect[] };
-  compatibility?: { outputs?: { class_code?: string } };
-  relational_weather?: { themes?: readonly string[] };
-};
-
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -495,7 +488,11 @@ function taggedFeedSignalBody(fullText: string): TaggedSectionBody {
   };
 }
 
-export function buildFeedSections(core: SemanticCore, seed: string): ProjectedExplanationSection[] {
+export function buildFeedSections(
+  core: SemanticCore,
+  seed: string,
+  options: ProjectionOptions
+): ProjectedExplanationSection[] {
   const sectionRoleDeque: ClaimOptionalRole[] = [];
   const paragraphNormDeque: string[] = [];
   const claimSlice = claimSentencesFromRange(
@@ -528,8 +525,7 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
       tagged: taggedFeedSignalBody(feedSignalText),
     },
   };
-  const coreX = core as CoreWithInsightExtensions;
-  const feedThemes: readonly string[] = coreX.relational_weather?.themes ?? [];
+  const feedThemes: readonly string[] = options.relationalWeatherThemes ?? [];
   const feedWeatherInsight = feedThemes[0] ? getRelationalInsight(feedThemes[0]) : undefined;
   let feedContextText = FEED_SCOPE_SENTENCE;
   let feedContextTagged = taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template');
@@ -568,7 +564,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const schema = SURFACE_SCHEMAS[surface];
 
   if (surface === 'feed') {
-    return buildFeedSections(core, seed);
+    return buildFeedSections(core, seed, options);
   }
 
   const templateCtx: TemplateContext = {
@@ -695,8 +691,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         extras.push(lab);
         extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
       }
-      const coreInsight = core as CoreWithInsightExtensions;
-      const rawAspects: readonly SnapshotAspect[] = coreInsight.snapshot?.aspects ?? [];
+      const rawAspects: readonly SnapshotAspect[] = options.snapshotAspects ?? [];
       const aspectInsights: AspectInsight[] = rawAspects
         .slice(0, 3)
         .map((a) => getAspectInsight(buildAspectKey(a.bodyA, a.bodyB, a.type)))
@@ -835,9 +830,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
 
     if (relOnly) {
-      const coreX = core as CoreWithInsightExtensions;
       if (sec.id === 'relational_field') {
-        const classCode = coreX.compatibility?.outputs?.class_code;
+        const classCode = options.compatClassCode;
         if (classCode) {
           const compatInsight = getRelationalInsight(classCode);
           if (compatInsight) {
@@ -865,7 +859,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         }
       }
       if (sec.id === 'relational_weather_v1') {
-        const themes: readonly string[] = coreX.relational_weather?.themes ?? [];
+        const themes: readonly string[] = options.relationalWeatherThemes ?? [];
         const primaryTheme = themes[0];
         if (primaryTheme) {
           const weatherInsight = getRelationalInsight(primaryTheme);

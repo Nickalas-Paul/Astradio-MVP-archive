@@ -162,6 +162,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     vecHigh: vecHigh as import('../contracts').FeatureVec,
     merged: merged as import('../contracts').FeatureVec,
     payload,
+    compatClassCode: compatibility.classification.outputs.class_code,
     relationshipMode: input.relationshipMode,
     expansionTier: parseExpansionTier(input.expansionTier),
   });
