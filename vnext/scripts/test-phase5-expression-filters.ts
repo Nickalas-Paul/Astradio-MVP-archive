@@ -601,7 +601,10 @@ function wave1ShippedTablesVerification(): void {
       campSyn.includes('lands most clearly') ||
       campSyn.includes('The feel is often situational when life load shifts week to week.') ||
       campSyn.includes('In this pass,') ||
-      campSyn.includes('tradeoff in this pass'),
+      campSyn.includes('tradeoff in this pass') ||
+      campSyn.includes('you track pressure and response in sound') ||
+      campSyn.includes('push toward new chapters once momentum appears') ||
+      campSyn.includes('steadier commitments once a stance is chosen'),
     'Wave 2–3 campaign-only synthesis rules apply when literals present'
   );
 
@@ -716,7 +719,12 @@ function phase6bAggregateExpressionInvariants(): void {
   assert(JSON.stringify(g1) === JSON.stringify(g2), 'phase6b group aggregate projection deterministic');
 
   const prefaceJoined = g1.filter((s) => s.id === 'ensemble_framing').map((s) => s.text).join('\n');
-  assert(prefaceJoined.includes('This group'), 'phase6b ensemble preface owns This group topology');
+  assert(
+    prefaceJoined.includes('This group') ||
+      prefaceJoined.includes('multi-voice') ||
+      prefaceJoined.includes('roster'),
+    'phase6b ensemble preface owns group topology language'
+  );
 
   for (const s of g1) {
     if (s.id !== 'ensemble_framing' && s.text.includes('This group')) {
@@ -777,7 +785,10 @@ function phase6bAggregateExpressionInvariants(): void {
   };
   const c1 = applySurfaceExpressionRules(projectTextFromSemanticCore(coreCompat, 'p6b-c', compatOpts), compatOpts);
   const pre = c1.find((x) => x.id === 'connection_structure')?.text ?? '';
-  assert(pre.includes('This connection'), 'phase6b compat preface uses connection topology');
+  assert(
+    pre.includes('This connection') || pre.includes('Friendly contact'),
+    'phase6b compat preface uses connection topology'
+  );
   assert(!pre.includes('This group'), 'phase6b compat preface does not use group topology');
   const glueC = c1.find((s) => s.id === 'signatures')?.text ?? '';
   assert(glueC.includes('For this connection'), 'phase6b compat glue names connection');

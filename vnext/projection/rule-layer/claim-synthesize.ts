@@ -31,6 +31,7 @@ import { pickInterClaimGlue } from './claim-inter-claim-glue';
 import { claimWindow } from './claim-select';
 import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
 import { contextualPadSet, reducedPadPool } from './phase2-sentence-load';
+import { getStructuralInsight } from '../insight-library/insight-library-index';
 
 function pickVariant(seed: string, variants: string[]): string {
   if (variants.length === 0) return '';
@@ -779,6 +780,24 @@ export function buildSupplementalPanel(
   }
   if (!chosen) {
     chosen = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, 4, minShort);
+  }
+
+  for (const c of chosen!) {
+    const insight = getStructuralInsight(String(c.claim_id));
+    if (insight) {
+      const body =
+        surface === 'feed'
+          ? insight.feed
+          : [insight.core, insight.behavioral].filter(Boolean).join(' ');
+      const trimmed = body.trim();
+      if (trimmed) {
+        return {
+          title: `Pattern note ${panelIndex + 1}`,
+          text: capToMaxSentences(trimmed, 2),
+          claimIds: [c.claim_id],
+        };
+      }
+    }
   }
 
   const lines: string[] = [];

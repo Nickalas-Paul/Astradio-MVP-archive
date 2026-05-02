@@ -79,6 +79,15 @@ export type SectionKind =
 
 export type { Phase4CompositionReport, Phase4UnitRef };
 
+/** Enrich may emit contextual/neutral pad tokens; grammar slots treat them as `padding`. */
+function normalizePadProv(p: ProvenanceType): ProvenanceType {
+  return p === 'contextual_pad' || p === 'neutral_pad' ? 'padding' : p;
+}
+
+function normalizeProvSeq(syms: ProvenanceType[]): ProvenanceType[] {
+  return syms.map(normalizePadProv);
+}
+
 function rankSym(p: ProvenanceType): number {
   const r = SYMBOL_ORDER[p];
   if (r === undefined) return 999;
@@ -113,6 +122,7 @@ export function sectionKind(section: ProjectedExplanationSection, surface: Proje
 }
 
 function maxRunViolations(syms: ProvenanceType[]): boolean {
+  syms = normalizeProvSeq(syms);
   if (syms.length === 0) return false;
   let i = 0;
   while (i < syms.length) {
@@ -223,6 +233,8 @@ function acceptsSwPd(s: ProvenanceType[]): boolean {
 
 function acceptsDepth(s: ProvenanceType[]): boolean {
   if (!onlySymbols(s, new Set<ProvenanceType>(['claim_body', 'padding']))) return false;
+  // Supplemental fill panels may be pad-only when no claims remain (still valid copy).
+  if (matchesBlocks(s, [{ sym: 'padding', min: 1, max: -1 }])) return true;
   return matchesBlocks(s, [
     { sym: 'claim_body', min: 1, max: -1 },
     { sym: 'padding', min: 0, max: -1 },
@@ -550,7 +562,7 @@ function findCanonicalPermutation(
 ): { perm: number[] | null; infeasible: boolean } {
   const m = rows.length;
   if (m === 0) return { perm: null, infeasible: false };
-  const syms = rows.map((r) => r.provenance);
+  const syms = normalizeProvSeq(rows.map((r) => r.provenance));
   if (grammarAccepts(kind, syms)) {
     return { perm: null, infeasible: false };
   }
@@ -684,7 +696,7 @@ export function validatePhase4GrammarAndRuns(
     };
     const walk = (body: TaggedSectionBody, label: string) => {
       for (let pi = 0; pi < body.paragraphs.length; pi++) {
-        const syms = body.paragraphs[pi]!.sentences.map((s) => s.provenance);
+        const syms = normalizeProvSeq(body.paragraphs[pi]!.sentences.map((s) => s.provenance));
         const k = label.startsWith('bullet') ? grammarKindForBulletBlock(sec, surface) : kind;
         if (maxRunViolations(syms)) violations.push(`${sec.id}:${label}:p${pi}:runlength`);
         if (!grammarOkForValidation(k, syms)) violations.push(`${sec.id}:${label}:p${pi}:grammar`);

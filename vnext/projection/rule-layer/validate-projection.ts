@@ -176,9 +176,12 @@ export function validateSectionOwnership(
 
 const MUSICAL_IDS = new Set(['musical', 'music_translation']);
 
+/** Spine sections whose claim overlap with `musical` / `music_translation` is intentional (MEP + listen). */
+const MECHANISM_SPINE_SECTION_IDS = new Set(['signatures', 'sky_summary']);
+
 /**
  * Phase 3 — claim_id must appear in at most one section's `claimIdsReferenced`, except
- * `musical` / `music_translation` may share ids with `signatures` (MEP + listen).
+ * `musical` / `music_translation` may share ids with `signatures` or `sky_summary` (MEP + listen).
  */
 export function validateClaimIdUniqueness(sections: ProjectedExplanationSection[]): { ok: boolean; violations: string[] } {
   const claimToSections = new Map<string, string[]>();
@@ -196,9 +199,10 @@ export function validateClaimIdUniqueness(sections: ProjectedExplanationSection[
     if (secIds.length <= 1) continue;
     const uniqueSec = [...new Set(secIds)];
     if (uniqueSec.length < 2) continue;
-    const isSig = uniqueSec.includes('signatures');
     const onlyMusicalOverlap =
-      uniqueSec.length === 2 && isSig && uniqueSec.some((s) => MUSICAL_IDS.has(s));
+      uniqueSec.length === 2 &&
+      uniqueSec.some((s) => MECHANISM_SPINE_SECTION_IDS.has(s)) &&
+      uniqueSec.some((s) => MUSICAL_IDS.has(s));
     if (onlyMusicalOverlap) continue;
     v.push(`claim_id_duplicate_across_sections:${claim}:[${uniqueSec.join(',')}]`);
   }

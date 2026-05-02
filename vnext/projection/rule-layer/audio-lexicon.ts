@@ -4,6 +4,7 @@
  */
 
 import type { SemanticCore } from '../../semantic/semantic-core';
+import { getAudioInsight } from '../insight-library/insight-library-index';
 import type { CompositionNarrativePlan } from '../../audio/composition-narrative';
 import type { ExpansionTier } from '../projection-types';
 import type { ProjectionSurface } from '../projection-types';
@@ -159,12 +160,48 @@ export function withTerminalPeriod(s: string): string {
   return `${t}.`;
 }
 
+/**
+ * Tone pass splits on `.!?` boundaries; library blurbs often contain several periods.
+ * Fold interior `. ` into `; ` so the listen owner stays one sentence for phase4 run caps.
+ */
+function collapseListenInteriorPeriods(s: string): string {
+  let t = s.trim().replace(/\.\s+/g, '; ');
+  t = t.replace(/;\s*;/g, ';').trim();
+  if (!t) return t;
+  return t.endsWith('.') ? t : `${t}.`;
+}
+
 export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string {
   const a = core.audio;
-  /** Single tagged sentence for `audio_staging` grammar; clauses are one field each, separated by `;`. */
-  return `${mapTempo(a.tempo_band)}; ${mapDensity(a.density_band)}; ${mapTensionBias(a.tension_bias)}; ${mapArc(
-    a.arc_bias
-  )}; ${mapTexture(a.relational_texture)}.`;
+  const parts: string[] = [];
+
+  const tempo = getAudioInsight(a.tempo_band);
+  if (tempo) parts.push(tempo.reading_text + ' ' + tempo.listen_for);
+
+  const density = getAudioInsight(a.density_band);
+  if (density) parts.push(density.reading_text);
+
+  const arc = getAudioInsight(a.arc_bias);
+  if (arc) parts.push(arc.reading_text);
+
+  const tension = getAudioInsight(a.tension_bias);
+  if (tension) parts.push(tension.reading_text);
+
+  const texture = getAudioInsight(a.relational_texture);
+  if (texture) parts.push(texture.reading_text);
+
+  const legacyFused = collapseListenInteriorPeriods(
+    `${mapTempo(a.tempo_band)}; ${mapDensity(a.density_band)}; ${mapTensionBias(a.tension_bias)}; ${mapArc(
+      a.arc_bias
+    )}; ${mapTexture(a.relational_texture)}.`
+  );
+
+  if (parts.length === 0) return legacyFused;
+
+  const merged = collapseListenInteriorPeriods(parts.filter(Boolean).join('; '));
+  const semiCount = (merged.match(/;\s+/g) ?? []).length;
+  if (semiCount < 4) return legacyFused;
+  return merged;
 }
 
 /** @deprecated for templates — use lightListenHintFromCore or fullPerceptualListenSummaryFromCore on owner. */

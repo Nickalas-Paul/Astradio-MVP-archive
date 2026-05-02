@@ -24,6 +24,8 @@ const PROVENANCE: ReadonlySet<string> = new Set([
   'tier_scaffold',
   'synthesis_wrapper',
   'padding',
+  'contextual_pad',
+  'neutral_pad',
   'assembler_glue',
 ]);
 

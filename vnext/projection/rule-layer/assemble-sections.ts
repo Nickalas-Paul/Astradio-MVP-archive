@@ -7,6 +7,7 @@
 // It is not a product concept, runtime layer, or Campaign feature.
 // Do not use this terminology in new implementation, planning, or design work.
 
+import type { SnapshotAspect } from '../../contracts';
 import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
   ExpansionTier,
@@ -50,6 +51,7 @@ import {
 import { enrichSectionTextWithTagged } from './assemble-section-tagged';
 import { sortUniqueClaimIds, splitMepBodyForTaggedParagraphs } from './section-ownership';
 import {
+  mergeTaggedSectionBodiesVertical,
   reconstructTaggedSectionBody,
   splitParasForTagged,
   splitSentsForTagged,
@@ -57,6 +59,20 @@ import {
   taggedSectionBodyFromText,
   taggedSectionFromTemplateLine,
 } from '../tagged-text';
+import {
+  buildAspectKey,
+  getAspectInsight,
+  getRelationalInsight,
+  getStructuralInsight,
+  type AspectInsight,
+} from '../insight-library/insight-library-index';
+
+/** Optional upstream snapshot / compat payloads not yet on `SemanticCore` typing. */
+type CoreWithInsightExtensions = SemanticCore & {
+  snapshot?: { aspects?: readonly SnapshotAspect[] };
+  compatibility?: { outputs?: { class_code?: string } };
+  relational_weather?: { themes?: readonly string[] };
+};
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -495,27 +511,41 @@ export function buildFeedSections(core: SemanticCore, seed: string): ProjectedEx
   );
   const fallbackUsed = new Set<string>();
   const t1Raw = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
-  const t1 = capToMaxSentences(t1Raw, 2);
+  let feedSignalText = capToMaxSentences(t1Raw, 2);
+  const feedSignalClaim = claimSlice.claimIds[0];
+  const feedStructInsight = feedSignalClaim ? getStructuralInsight(feedSignalClaim) : undefined;
+  if (feedStructInsight?.feed) {
+    feedSignalText = capToMaxSentences(feedStructInsight.feed + ' ' + feedSignalText, 2);
+  }
   const s1: ProjectedExplanationSection = {
     id: 'feed_signal',
     title: 'Signal',
-    text: t1,
+    text: feedSignalText,
     meta: {
       enrichDensity: 'short',
       claimIdsReferenced: sortUniqueClaimIds(claimSlice.claimIds),
       phaseD: true,
-      tagged: taggedFeedSignalBody(t1),
+      tagged: taggedFeedSignalBody(feedSignalText),
     },
   };
+  const coreX = core as CoreWithInsightExtensions;
+  const feedThemes: readonly string[] = coreX.relational_weather?.themes ?? [];
+  const feedWeatherInsight = feedThemes[0] ? getRelationalInsight(feedThemes[0]) : undefined;
+  let feedContextText = FEED_SCOPE_SENTENCE;
+  let feedContextTagged = taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template');
+  if (feedWeatherInsight?.feed) {
+    feedContextText = capToMaxSentences(feedWeatherInsight.feed, 2);
+    feedContextTagged = taggedSectionBodyFromText(feedContextText, 'claim_body');
+  }
   const s2: ProjectedExplanationSection = {
     id: 'feed_context',
     title: 'Scope',
-    text: FEED_SCOPE_SENTENCE,
+    text: feedContextText,
     meta: {
       enrichDensity: 'short',
       claimIdsReferenced: [],
       phaseD: true,
-      tagged: taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template'),
+      tagged: feedContextTagged,
     },
   };
   return [s1, s2];
@@ -640,6 +670,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const extrasTagged: TaggedSectionBody[] = [];
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
+    let mepAspectLibraryText: string | undefined;
     const isMus = sec.id === 'musical' || sec.id === 'music_translation';
     /** Phase 3: MEP must stay on `signatures` (or first spine section when no signatures id, e.g. daily). */
     const mepHere = sec.id === 'signatures' || (!emphasisHasSignatures && idx === 0);
@@ -663,6 +694,30 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         ]);
         extras.push(lab);
         extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
+      }
+      const coreInsight = core as CoreWithInsightExtensions;
+      const rawAspects: readonly SnapshotAspect[] = coreInsight.snapshot?.aspects ?? [];
+      const aspectInsights: AspectInsight[] = rawAspects
+        .slice(0, 3)
+        .map((a) => getAspectInsight(buildAspectKey(a.bodyA, a.bodyB, a.type)))
+        .filter((ins): ins is AspectInsight => ins !== undefined);
+      if (aspectInsights.length > 0) {
+        const effSurface = options?.surface ?? surface;
+        const connectionMode = options?.connectionMode ?? 'none';
+        const romanticPairSurface =
+          connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+        const context = romanticPairSurface ? 'romantic' : 'friendship';
+        mepAspectLibraryText = aspectInsights
+          .map((ins) => {
+            if (effSurface === 'feed') return ins.feed;
+            if (effSurface === 'compat_pair' || effSurface === 'group') {
+              return [ins.core, ins.behavioral, context === 'romantic' ? ins.romantic : ins.friendship]
+                .filter(Boolean)
+                .join(' ');
+            }
+            return [ins.core, ins.behavioral].filter(Boolean).join(' ');
+          })
+          .join('\n\n');
       }
     } else if (isMus) {
       const musRole: ClaimOptionalRole[] = [];
@@ -769,16 +824,76 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       reportPadUsed,
       PAD_SENTENCES
     );
+    let finalText = text;
+    let finalTagged = tagged;
+
+    if (mepHere && mepAspectLibraryText) {
+      // Template (not claim_body): ANCHORED sections require scaffold/templates before claim_body runs (phase4 grammar).
+      const libTagged = taggedSectionBodyFromText(mepAspectLibraryText, 'template');
+      finalTagged = mergeTaggedSectionBodiesVertical(libTagged, tagged);
+      finalText = reconstructTaggedSectionBody(finalTagged);
+    }
+
+    if (relOnly) {
+      const coreX = core as CoreWithInsightExtensions;
+      if (sec.id === 'relational_field') {
+        const classCode = coreX.compatibility?.outputs?.class_code;
+        if (classCode) {
+          const compatInsight = getRelationalInsight(classCode);
+          if (compatInsight) {
+            const connectionMode = options?.connectionMode ?? 'none';
+            const effSurface = options?.surface ?? surface;
+            const romanticPairSurface =
+              connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+            const context = romanticPairSurface
+              ? 'romantic'
+              : (effSurface as string) === 'discovery'
+                ? 'discovery'
+                : 'friendship';
+            const contextText =
+              context === 'romantic'
+                ? compatInsight.romantic
+                : context === 'discovery'
+                  ? compatInsight.discovery
+                  : compatInsight.friendship;
+            const libraryText = [compatInsight.core, compatInsight.behavioral, contextText].filter(Boolean).join(' ');
+            if (libraryText) {
+              finalText = libraryText;
+              finalTagged = taggedSectionBodyFromText(libraryText, 'claim_body');
+            }
+          }
+        }
+      }
+      if (sec.id === 'relational_weather_v1') {
+        const themes: readonly string[] = coreX.relational_weather?.themes ?? [];
+        const primaryTheme = themes[0];
+        if (primaryTheme) {
+          const weatherInsight = getRelationalInsight(primaryTheme);
+          if (weatherInsight) {
+            const effSurface = options?.surface ?? surface;
+            const weatherText =
+              effSurface === 'feed'
+                ? weatherInsight.feed
+                : [weatherInsight.core, weatherInsight.behavioral].join(' ');
+            if (weatherText) {
+              finalText = weatherText;
+              finalTagged = taggedSectionBodyFromText(weatherText, 'claim_body');
+            }
+          }
+        }
+      }
+    }
+
     const claimIdsReferenced = isMus ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
     return {
       ...sec,
-      text,
+      text: finalText,
       ...(isMus ? { bullets: undefined } : {}),
       meta: {
         ...sec.meta,
         claimIdsReferenced,
         phaseD: true,
-        tagged,
+        tagged: finalTagged,
         enrichDensity: effectiveDensity,
       },
     };
@@ -1250,9 +1365,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const audio = buildAudioStagingBlock(core, tierEff, options.narrativePlan ?? null, surface);
   const audioBodyNormalized = normalizeAudioExplanationBody(audio.text);
   if (tierEff === 'baseline') {
-    const parts = audioBodyNormalized.split(/(?<=[.!?])\s+/).filter(Boolean);
-    const shortAudio = parts.slice(0, 2).join(' ');
-    const shortTagged = taggedSectionBodyFromText(shortAudio, 'audio_staging');
+    const clauses = audioBodyNormalized.split(/;\s+/).map((c) => c.trim()).filter(Boolean);
+    const shortAudio =
+      clauses.length >= 5 ? clauses.slice(0, 5).join('; ') : audioBodyNormalized;
+    // One tagged sentence: library/clause fusion uses many periods; splitting would exceed audio_staging run caps in phase4.
+    const shortTagged: TaggedSectionBody = {
+      paragraphs: [{ sentences: [{ text: shortAudio, provenance: 'audio_staging' }] }],
+    };
     const { text, tagged } = enrichSectionTextWithTagged(
       shortAudio,
       shortTagged,
