@@ -26,6 +26,8 @@ import type { FeatureVec } from '../contracts';
 import { aggregateFeatureVectors } from '../community/group-profile';
 import { hashVector64 } from '../relational/compatibility/score';
 import { vectorToControlPayload } from '../relational/composition/vector-to-controls';
+import { computeCompatibilitySystem } from '../compatibility/service';
+import { ADDITIONAL_BODIES } from '../canonical-bodies';
 
 const SANDBOX_GROUP_SEED_VERSION = 'sandbox_group_v3';
 
@@ -36,6 +38,8 @@ export const SANDBOX_RESOLVE_ERROR_CODES = {
   EXECUTION_FAILED: 'execution_failed',
 } as const;
 
+export type SandboxSynastryNotice = 'asteroids_excluded_v1';
+
 export type SandboxResolveSuccess = {
   ok: true;
   composition_mode: NormalizedCompositionSuccess['composition_mode'];
@@ -45,6 +49,8 @@ export type SandboxResolveSuccess = {
   output_kind: NormalizedCompositionSuccess['output_kind'];
   compose?: ComposeResponse;
   aggregate?: AggregateComposeResult;
+  /** UX hint when user longitude-overrode an asteroid body (synastry/library still core-body scoped). */
+  synastryNotice?: SandboxSynastryNotice;
 };
 
 export type SandboxResolveFailure = {
@@ -126,6 +132,23 @@ function isChartNotFoundErr(e: unknown): boolean {
   );
 }
 
+const ASTEROID_BODY_KEYS = new Set<string>(ADDITIONAL_BODIES as unknown as string[]);
+
+/** True when any slot applies a planet longitude override targeting an additional-body key (asteroids). */
+export function synastryNoticeForAsteroidLongitudeOverrides(
+  resolutions: SandboxSlotResolution[]
+): SandboxSynastryNotice | undefined {
+  for (const r of resolutions) {
+    const planets = r.overrides?.planets || {};
+    for (const key of Object.keys(planets)) {
+      if (ASTEROID_BODY_KEYS.has(key.toLowerCase())) {
+        return 'asteroids_excluded_v1';
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * Resolve sandbox composition through canonical pipeline only.
  */
@@ -142,6 +165,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
   }
 
   const output_kind = normalized.output_kind;
+  const synastryNotice = synastryNoticeForAsteroidLongitudeOverrides(normalized.slot_resolutions);
 
   try {
     if (normalized.composition_mode === 'single') {
@@ -188,6 +212,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         compose,
+        ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
 
@@ -234,6 +259,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         compose,
+        ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
 
@@ -281,6 +307,20 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
       const seed = comparisonSeed(idA, idB, relationshipMode, FUSION_METHOD_BLEND_V1, wA, wB);
       const payload = controlPayloadFromSeed(seed);
 
+      // compatClassCode: double gate — both slots chart_id AND explicit commit_relational_classification (R2 preview vs commit).
+      let compatClassCode: string | undefined;
+      if (
+        normalized.commit_relational_classification &&
+        rA.chart_id &&
+        rB.chart_id
+      ) {
+        const compatibility = await computeCompatibilitySystem({
+          chartIds: [rA.chart_id, rB.chart_id],
+          relationshipBindingId: null,
+        });
+        compatClassCode = compatibility.classification.outputs.class_code;
+      }
+
       const aggregate = await composeAPI.runAggregateComposition({
         kind: 'comparison',
         chartIdLow: idA,
@@ -292,6 +332,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         merged: merged as FeatureVec,
         payload,
         relationshipMode,
+        ...(compatClassCode !== undefined ? { compatClassCode } : {}),
         output_kind,
       });
 
@@ -303,6 +344,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
 
@@ -353,6 +395,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
 

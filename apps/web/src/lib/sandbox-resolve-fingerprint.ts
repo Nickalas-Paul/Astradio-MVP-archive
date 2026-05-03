@@ -63,6 +63,7 @@ export function fingerprintCompositionInputExcludingSeed(input: SandboxCompositi
     active_slot_index: typeof input.active_slot_index === 'number' ? input.active_slot_index : 0,
     compose_controls: input.compose_controls ?? {},
     output_kind: input.output_kind === 'feed_card' ? 'feed_card' : 'full',
+    commit_relational_classification: input.commit_relational_classification === true,
     binding: input.binding && typeof input.binding === 'object' ? input.binding : null,
     transit_context: input.transit_context && typeof input.transit_context === 'object' ? input.transit_context : null,
   };
@@ -88,6 +89,7 @@ export function fingerprintResolveBodyExcludingSeed(body: Record<string, unknown
     active_slot_index: activeIdx,
     compose_controls: rest.compose_controls && typeof rest.compose_controls === 'object' ? rest.compose_controls : {},
     output_kind: rest.output_kind === 'feed_card' ? 'feed_card' : 'full',
+    commit_relational_classification: rest.commit_relational_classification === true,
     binding: rest.binding && typeof rest.binding === 'object' ? rest.binding : null,
     transit_context: rest.transit_context && typeof rest.transit_context === 'object' ? rest.transit_context : null,
   };

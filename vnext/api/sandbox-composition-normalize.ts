@@ -57,6 +57,11 @@ export type SandboxCompositionInputV1 = {
   compose_controls?: Record<string, unknown>;
   output_kind?: CompositionOutputKind;
   seed?: string;
+  /**
+   * When true (and pair has two saved chart_ids), allow computeCompatibilitySystem and pass
+   * compat class into aggregate projection. Default false: preview/exploration resolves skip classification.
+   */
+  commit_relational_classification?: boolean;
 };
 
 export type DerivedCompositionMode = 'single' | 'overlay' | 'pair_aggregate' | 'group_aggregate';
@@ -88,6 +93,7 @@ export type NormalizedCompositionSuccess = {
   canonical_input_hash_version: number;
   output_kind: CompositionOutputKind;
   seed?: string;
+  commit_relational_classification: boolean;
   slot_resolutions: SandboxSlotResolution[];
   transit_context?: OverlayTransitContextInput;
   binding?: CompositionBindingInput;
@@ -182,6 +188,8 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
 
   const output_kind: CompositionOutputKind =
     input.output_kind === 'feed_card' ? 'feed_card' : 'full';
+
+  const commit_relational_classification = input.commit_relational_classification === true;
 
   const populatedIndices: number[] = [];
   for (let i = 0; i < input.slots.length; i++) {
@@ -318,6 +326,7 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     controls: input.compose_controls || {},
     output_kind,
     seed: input.seed ?? null,
+    commit_relational_classification,
   };
 
   const canonical_input_hash = crypto.createHash('sha256').update(stableStringify(hashPayload), 'utf8').digest('hex');
@@ -330,6 +339,7 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     canonical_input_hash_version: CANONICAL_INPUT_HASH_VERSION,
     output_kind,
     seed: input.seed,
+    commit_relational_classification,
     slot_resolutions,
     transit_context: tc,
     binding: input.binding,

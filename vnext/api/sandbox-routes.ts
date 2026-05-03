@@ -109,6 +109,7 @@ export function createSandboxRouter(): import('express').Router {
         canonical_object_hash,
         compose: result.compose ?? undefined,
         aggregate: result.aggregate ?? undefined,
+        ...(result.synastryNotice ? { synastryNotice: result.synastryNotice } : {}),
       });
     } catch (e: unknown) {
       const err = e as Error;

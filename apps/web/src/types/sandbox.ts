@@ -73,6 +73,8 @@ export type SandboxCompositionInputState = {
   compose_controls: Record<string, number>;
   output_kind: 'full' | 'feed_card';
   seed?: string;
+  /** When true, next resolve may run computeCompatibilitySystem for two-chart_id pair aggregates. */
+  commit_relational_classification?: boolean;
   transit_context?: Record<string, unknown>;
   binding?: Record<string, unknown>;
 };

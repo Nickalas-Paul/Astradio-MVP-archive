@@ -632,12 +632,12 @@ export default function SandboxPage() {
       'A slot has date/time but no coordinates—select a full location (lat/lon) for each birth slot before resolve.',
     );
   }
-    if (!hasResolveSource && !hasInvalidSlotWire) {
-      if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
-        generateDisabledReasons.push(
-          'Two or more occupied slots must each be either a stored chart or ephemeris birth (not both, not empty).',
-        );
-      } else {
+  if (!hasResolveSource && !hasInvalidSlotWire) {
+    if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
+      generateDisabledReasons.push(
+        'Two or more occupied slots must each be either a stored chart or ephemeris birth (not both, not empty).',
+      );
+    } else {
       generateDisabledReasons.push(
         'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
       );
@@ -652,6 +652,23 @@ export default function SandboxPage() {
   if (surfaceState === 'syncing_overrides') {
     generateDisabledReasons.push('Wait until override edits finish syncing to the preview.');
   }
+
+  const pairAggregateWithTwoChartIds = useMemo(() => {
+    if (populatedSlotIndices.length !== 2) return false;
+    const slots = compositionModel.compositionInput.slots;
+    const a = slots[populatedSlotIndices[0]!];
+    const b = slots[populatedSlotIndices[1]!];
+    const idA = typeof a?.chart_id === 'string' && a.chart_id.trim() ? a.chart_id : null;
+    const idB = typeof b?.chart_id === 'string' && b.chart_id.trim() ? b.chart_id : null;
+    if (!idA || !idB) return false;
+    if (a?.ephemeris_birth || b?.ephemeris_birth) return false;
+    return true;
+  }, [compositionModel.compositionInput, populatedSlotIndices]);
+
+  const resolveSynastryNotice =
+    compositionModel.lastResolve?.source === 'live_resolve'
+      ? (compositionModel.lastResolve.fullResponse.synastryNotice as string | undefined)
+      : undefined;
 
   const previewCombinedHash = preview.snapshotMeta?.combinedHash;
   const lastResolveCombinedHash = compositionModel.lastResolve?.combinedHashUsed ?? null;
@@ -1540,6 +1557,14 @@ export default function SandboxPage() {
                     selectedPlanetForPlacement={paletteSelectedPlanet}
                   />
                 </div>
+                {resolveSynastryNotice === 'asteroids_excluded_v1' && (
+                  <p
+                    className="mt-3 text-xs text-amber-200/90 border border-amber-500/30 rounded-lg p-2.5 bg-amber-500/5"
+                    role="status"
+                  >
+                    Asteroid placements aren&apos;t included in relationship-aspect lines yet. Sun-Pluto positions drive those lines.
+                  </p>
+                )}
               </div>
 
               {!birth && (
@@ -1569,6 +1594,22 @@ export default function SandboxPage() {
                   </p>
                 ) : (
                   <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>
+                )}
+                {pairAggregateWithTwoChartIds && (
+                  <label className="flex items-start gap-2 mb-3 text-xs text-subtext cursor-pointer select-none max-w-xl">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={compositionModel.compositionInput.commit_relational_classification === true}
+                      onChange={(e) =>
+                        dispatchComposition({ type: 'set_commit_relational_classification', value: e.target.checked })
+                      }
+                    />
+                    <span>
+                      Commit relational classification (Friend/Lover lens). Off for preview; turn on when generating a full
+                      reading so compatibility classification runs on two saved charts.
+                    </span>
+                  </label>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   <button

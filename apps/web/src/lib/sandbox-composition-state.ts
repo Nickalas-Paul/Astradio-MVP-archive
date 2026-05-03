@@ -326,7 +326,8 @@ export type SandboxCompositionAction =
   | { type: 'add_slot' }
   | { type: 'remove_slot'; index: number }
   | { type: 'clear_slot'; index: number }
-  | { type: 'preview_clear' };
+  | { type: 'preview_clear' }
+  | { type: 'set_commit_relational_classification'; value: boolean };
 
 function withSlotsEnsured(
   slots: SandboxCompositionInputState['slots'],
@@ -546,6 +547,15 @@ export function sandboxCompositionReducer(
         },
       };
 
+    case 'set_commit_relational_classification':
+      return {
+        ...state,
+        compositionInput: {
+          ...state.compositionInput,
+          commit_relational_classification: action.value,
+        },
+      };
+
     case 'resolve_success': {
       const live: SandboxLiveResolveSession = {
         source: 'live_resolve',
@@ -652,6 +662,9 @@ export function serializeSandboxResolveRequestBody(
     compose_controls: compositionInput.compose_controls,
     output_kind: compositionInput.output_kind,
     seed: effectiveSeed,
+    ...(compositionInput.commit_relational_classification === true
+      ? { commit_relational_classification: true }
+      : {}),
     ...(compositionInput.transit_context ? { transit_context: compositionInput.transit_context } : {}),
     ...(compositionInput.binding ? { binding: compositionInput.binding } : {}),
   };
