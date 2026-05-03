@@ -13,9 +13,11 @@
  * Import in audio-lexicon.ts:
  *   import { getAudioInsight } from '../insight-library/insight-library-index';
  *
- * NOTE: This file imports from all six split aspect files. TypeScript will not
- * compile until all six are present in the same directory. Copy all aspect
- * files before running tsc --noEmit.
+ * NOTE: This file imports from all aspect files (six core planet files plus
+ * Mercury and five asteroid files). TypeScript will not compile until all
+ * referenced files are present in the same directory. Empty scaffolds for
+ * Mercury and the asteroid files are part of Phase 1 so the index compiles
+ * even before content authoring lands.
  */
 
 import type {
@@ -31,6 +33,13 @@ import { JUPITER_ASPECT_INSIGHTS }   from './insight-library-aspects-jupiter';
 import { URANUS_ASPECT_INSIGHTS }    from './insight-library-aspects-uranus';
 import { NEPTUNE_ASPECT_INSIGHTS }   from './insight-library-aspects-neptune';
 import { PLUTO_ASPECT_INSIGHTS }     from './insight-library-aspects-pluto';
+import { MERCURY_ASPECT_INSIGHTS }   from './insight-library-aspects-mercury';
+
+import { CHIRON_ASPECT_INSIGHTS }    from './insight-library-aspects-chiron';
+import { CERES_ASPECT_INSIGHTS }     from './insight-library-aspects-ceres';
+import { PALLAS_ASPECT_INSIGHTS }    from './insight-library-aspects-pallas';
+import { JUNO_ASPECT_INSIGHTS }      from './insight-library-aspects-juno';
+import { VESTA_ASPECT_INSIGHTS }     from './insight-library-aspects-vesta';
 
 import { STRUCTURAL_INSIGHTS }  from './insight-library-structural';
 import { RELATIONAL_INSIGHTS }  from './insight-library-relational';
@@ -47,6 +56,12 @@ const ASPECT_INSIGHTS: Readonly<Record<string, AspectInsight>> = {
   ...URANUS_ASPECT_INSIGHTS,
   ...NEPTUNE_ASPECT_INSIGHTS,
   ...PLUTO_ASPECT_INSIGHTS,
+  ...MERCURY_ASPECT_INSIGHTS,
+  ...CHIRON_ASPECT_INSIGHTS,
+  ...CERES_ASPECT_INSIGHTS,
+  ...PALLAS_ASPECT_INSIGHTS,
+  ...JUNO_ASPECT_INSIGHTS,
+  ...VESTA_ASPECT_INSIGHTS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -54,10 +69,23 @@ const ASPECT_INSIGHTS: Readonly<Record<string, AspectInsight>> = {
 // ---------------------------------------------------------------------------
 
 /**
- * Canonical planet order for aspect key construction.
+ * Canonical body order for aspect key construction.
  * Lower number = appears first in the derived key.
- * Outer/transpersonal planets before personal planets.
- * Among personal planets, luminaries (Sun, Moon) before Venus and Mars.
+ *
+ * Ordering rationale:
+ *   - Outer/transpersonal planets first (Pluto → Jupiter), per traditional
+ *     synastry convention where outer-on-personal is read with the outer named first.
+ *   - Chiron between Saturn/Jupiter and the luminaries — reflects its Saturn-Uranus
+ *     orbital territory and its bridge function in chart interpretation.
+ *   - Luminaries (Sun, Moon) before personal planets and asteroid-belt cluster.
+ *   - Asteroid-belt cluster (Ceres, Pallas, Juno, Vesta) sits with the personal-feminine
+ *     archetypes alongside Venus, ordered before Mercury/Venus/Mars.
+ *   - Mercury, Venus, Mars at the end as the most personal planets.
+ *
+ * This ordering is the single source of truth for buildAspectKey. Asteroid library
+ * entries are authored against this ordering. Synastry compute's CORE_BODIES filter
+ * currently excludes asteroids; expanding that filter is a separate wiring stream.
+ * Library content lives ahead of wiring, ready to render when wiring expands.
  */
 const PLANET_ORDER: Readonly<Record<string, number>> = {
   PLUTO:   0,
@@ -65,11 +93,16 @@ const PLANET_ORDER: Readonly<Record<string, number>> = {
   URANUS:  2,
   SATURN:  3,
   JUPITER: 4,
-  SUN:     5,
-  MOON:    6,
-  MERCURY: 7,
-  VENUS:   8,
-  MARS:    9,
+  CHIRON:  5,
+  SUN:     6,
+  MOON:    7,
+  CERES:   8,
+  PALLAS:  9,
+  JUNO:    10,
+  VESTA:   11,
+  MERCURY: 12,
+  VENUS:   13,
+  MARS:    14,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -79,7 +112,7 @@ const PLANET_ORDER: Readonly<Record<string, number>> = {
 /**
  * Build a canonical aspect key from a SnapshotAspect's bodyA, bodyB, and type.
  *
- * Normalizes planet order so the same pair always produces the same key
+ * Normalizes body order so the same pair always produces the same key
  * regardless of which body is A or B in the snapshot.
  *
  * @example
@@ -87,6 +120,8 @@ const PLANET_ORDER: Readonly<Record<string, number>> = {
  *   buildAspectKey('saturn', 'moon', 'square')   => 'SATURN_MOON_SQUARE'
  *   buildAspectKey('sun', 'moon', 'conjunction') => 'SUN_MOON_CONJUNCTION'
  *   buildAspectKey('venus', 'neptune', 'trine')  => 'NEPTUNE_VENUS_TRINE'
+ *   buildAspectKey('chiron', 'sun', 'square')    => 'CHIRON_SUN_SQUARE'
+ *   buildAspectKey('vesta', 'mars', 'opposition')=> 'VESTA_MARS_OPPOSITION'
  */
 export function buildAspectKey(
   bodyA: string,

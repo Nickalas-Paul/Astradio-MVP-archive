@@ -25,18 +25,31 @@ export type InsightContext = 'friendship' | 'romantic' | 'discovery';
  * against Sun, Moon, Venus, Mars).
  *
  * Key construction: buildAspectKey(bodyA, bodyB, type) in insight-library-index.ts.
+ *
+ * Synastry-frame fields (core_synastry, behavioral_synastry, friendship_synastry,
+ * romantic_synastry) are optional cross-chart interpretations. When present, the
+ * synastry compose helper prefers them over the natal-frame core / behavioral /
+ * friendship / romantic fields. Single-chart surfaces always read the natal
+ * fields. See docs/SYNASTRY-S5-STAGE-A-SPECIFICATION.md and the v2 handoff for
+ * authoring guidance.
  */
 export interface AspectInsight {
   readonly key: string;       // e.g. 'SATURN_MOON_SQUARE'
   readonly pair: string;      // e.g. 'SATURN_MOON'
   readonly aspect: string;    // e.g. 'square'
   readonly intensity: string; // descriptive intensity label
-  readonly core: string;      // archetypal core meaning paragraph
-  readonly behavioral: string; // psychological / behavioral expression paragraph
-  readonly friendship: string; // relational context: friendship variant
-  readonly romantic: string;   // relational context: romantic variant
+  readonly core: string;      // archetypal core meaning paragraph (natal frame)
+  readonly behavioral: string; // psychological / behavioral expression paragraph (natal frame)
+  readonly friendship: string; // relational context: friendship variant (natal frame)
+  readonly romantic: string;   // relational context: romantic variant (natal frame)
   readonly feed: string;       // feed card line (transit-activated, 1–3 sentences)
   readonly sonic: string;      // expanded sonic character description
+
+  // Synastry-frame variants (cross-chart interpretation, used by compat_pair and group surfaces)
+  readonly core_synastry?: string;
+  readonly behavioral_synastry?: string;
+  readonly friendship_synastry?: string;
+  readonly romantic_synastry?: string;
 }
 
 /**
