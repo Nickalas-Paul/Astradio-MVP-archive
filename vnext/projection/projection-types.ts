@@ -155,6 +155,10 @@ export type ProjectionOptions = {
   campaignExpressionDigest?: CampaignExpressionDigest;
   /** Natal snapshot aspects for insight-library aspect lookups (not on SemanticCore at runtime). */
   snapshotAspects?: readonly SnapshotAspect[];
+  /** Synastry cross-chart aspects; when set with length ≥ 1, supersedes anchor snapshotAspects for library lookup. */
+  pairInteractionAspects?: readonly SnapshotAspect[];
+  /** How pair_interaction_aspects were produced (projection-only discriminator). */
+  synastry_context?: 'pair_comparison' | 'group_aggregate' | 'sandbox_override';
   /** Compatibility classification class_code for relational insight (compat surfaces). */
   compatClassCode?: string;
   /** Relational weather dominant theme tags for insight-library (aggregate / feed). */

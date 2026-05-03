@@ -46,6 +46,7 @@ import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import { computeSynastryAspects } from '../synastry/synastry-compute';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
@@ -768,6 +769,32 @@ export class ComposeAPI {
             role: (i === 0 ? 'primary' : 'member_i') as 'primary' | 'member_i',
           }));
 
+    /**
+     * Synastry (S3): participant-count-based mode, not compose entry point.
+     * - Comparison: always pair-shaped synastry between the two comparison snapshots.
+     * - Group + exactly 2 natals (Community Feed expanded / pair-shaped group compose): `pair` — same
+     *   primitive as comparison; transit/relational_weather is orthogonal (merged separately above).
+     * - Group + 1 or 0 snapshots: skip (graceful; should not occur in production group compose).
+     * - Group + ≥3 natals: `group_matrix` — full pairwise matrix, R1-ranked and capped inside the primitive.
+     */
+    const pairInteractionAspects =
+      input.kind === 'comparison'
+        ? computeSynastryAspects({
+            snapshotsOrdered: [input.snapLow, input.snapHigh],
+            mode: 'pair',
+          })
+        : input.kind === 'group' && input.snapshotsOrdered.length === 2
+          ? computeSynastryAspects({
+              snapshotsOrdered: input.snapshotsOrdered,
+              mode: 'pair',
+            })
+          : input.kind === 'group' && input.snapshotsOrdered.length >= 3
+            ? computeSynastryAspects({
+                snapshotsOrdered: input.snapshotsOrdered,
+                mode: 'group_matrix',
+              })
+            : undefined;
+
     const canonicalReport = buildCanonicalReportForAggregate({
       kind: input.kind === 'comparison' ? 'comparison' : 'group',
       subject_ids: [payload.hash],
@@ -778,6 +805,7 @@ export class ComposeAPI {
       compose_seed: payload.hash,
       guidance: architecture.guidance,
       relationalWeather: input.relationalWeather ?? null,
+      ...(pairInteractionAspects != null ? { pair_interaction_aspects: pairInteractionAspects } : {}),
     });
     const semanticCore = interpretCanonicalReportObject(canonicalReport);
     const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);

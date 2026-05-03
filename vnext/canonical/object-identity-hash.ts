@@ -33,6 +33,8 @@ export function computeCanonicalObjectIdentityHash(o: Omit<CanonicalReportObject
     composite_feature_fingerprint: o.composite_feature_vector
       ? stableStringify(Array.from(o.composite_feature_vector))
       : null,
+    pair_interaction_aspects_digest:
+      o.pair_interaction_aspects != null ? stableStringify([...o.pair_interaction_aspects]) : null,
   };
   return crypto.createHash('sha256').update(stableStringify(payload), 'utf8').digest('hex');
 }

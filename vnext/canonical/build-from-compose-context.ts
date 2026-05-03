@@ -1,4 +1,4 @@
-import type { EphemerisSnapshot, FeatureVec } from '../contracts';
+import type { EphemerisSnapshot, FeatureVec, SnapshotAspect } from '../contracts';
 import type { AstroGuidance, MotionProfile } from '../astro/guidance';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
@@ -145,6 +145,8 @@ export function buildCanonicalReportForAggregate(params: {
   compose_seed: string;
   guidance: AstroGuidance & { motionProfile: MotionProfile };
   relationalWeather?: RelationalWeatherStateV1 | null;
+  /** Set by compose for `kind: 'comparison'` when synastry is computed (S3+). */
+  pair_interaction_aspects?: readonly SnapshotAspect[];
 }): CanonicalReportObject {
   const slots: ParticipantSlot[] = params.participants.map((p, i) =>
     slotFromSnapshot(p.role, i, p.snapshot, p.featureVec)
@@ -170,6 +172,9 @@ export function buildCanonicalReportForAggregate(params: {
     planner_version: 'narrative-v1',
     semantic_authority_version: SEMANTIC_AUTHORITY_VERSION,
     gate_policy_version: 'audition-v2.3',
+    ...(params.pair_interaction_aspects != null
+      ? { pair_interaction_aspects: params.pair_interaction_aspects }
+      : {}),
   };
   return withObjectIdentityHash(base);
 }

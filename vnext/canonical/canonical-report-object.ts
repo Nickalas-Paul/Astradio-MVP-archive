@@ -1,4 +1,4 @@
-import type { EphemerisSnapshot, FeatureVec } from '../contracts';
+import type { EphemerisSnapshot, FeatureVec, SnapshotAspect } from '../contracts';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 
 export type SurfaceKind =
@@ -53,6 +53,11 @@ export interface CanonicalReportObject {
   readonly gate_policy_version: string;
   /** Populated after computeCanonicalObjectIdentityHash */
   readonly object_identity_hash: string;
+  /**
+   * Cross-chart synastry aspects (S3+), when computed for multi-chart comparison/aggregate.
+   * Omitted on single-chart surfaces. Empty array means computation ran and found no in-orb aspects.
+   */
+  readonly pair_interaction_aspects?: readonly SnapshotAspect[];
 }
 
 export const SEMANTIC_AUTHORITY_VERSION = 'phase-b-1';

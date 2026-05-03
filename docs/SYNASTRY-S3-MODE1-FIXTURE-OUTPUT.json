@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2026-05-03T16:21:31.266Z",
+  "fixtures": [
+    {
+      "fixture": "fixture_1_spread_cross_emphasis",
+      "chartIdsSorted": [
+        "fixture_alpha",
+        "fixture_omega"
+      ],
+      "synastryDirectedHitCount": 62,
+      "synastryFirst3Keys": [
+        "SUN_MERCURY_OPPOSITION",
+        "SUN_MERCURY_OPPOSITION",
+        "MOON_MERCURY_SEXTILE"
+      ],
+      "anchorNatalFirst3Keys": [
+        "SUN_MOON_TRINE",
+        "JUPITER_MERCURY_SQUARE",
+        "NEPTUNE_JUPITER_TRINE"
+      ],
+      "keysDifferFromAnchor": true,
+      "preSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "SUN_MOON_TRINE",
+          "JUPITER_MERCURY_SQUARE",
+          "NEPTUNE_JUPITER_TRINE"
+        ],
+        "aspectSource": "anchor_natal",
+        "signaturesText": "The Sun, conscious will and the drive toward purposeful self-expression, and the Moon, emotional instinct, memory, and the body's need for safety, are separated by 120 degrees, placing them in the same elemental family. The trine means these two forces do not experience each other as foreign. The Sun's direction and the Moon's instinct are oriented toward compatible ends, using the same emotional vocabulary, reaching naturally toward similar conclusions. The trine between the Sun's ego-function and the Moon's feeling-function creates what psychologists would describe as a well-integrated emotional identity. The Sun's capacity for purposeful action and the Moon's instinct for emotional self-care are not competing for psychological resources, which means very little energy is lost to internal conflict. Feelings match stated intentions, mood tends to support rather than undermine goals, and the capacity for recovery after difficulty is strong. The psychological shadow is that without inner tension as a developmental driver, the person may remain at a level of psychological development that is comfortable but not particularly deep. Partners often cite this person's steadiness as central to what makes the relationship sustainable.\n\nFor this connection, you see steady and sparky layers today. Let the through-line be descriptive before it becomes a verdict.\n\nBoth steady and quick layers count; name which timescale you mean before you lock one story. In this frame, the question is what intensifies, not which identity label wins.\n\nThe primary emphasis is water coloring with a balanced mood. Tonal and elemental cues here are handles for language, not costumes you must wear in public.\n\nFor replay language, use the listen metaphor section below; it is the paired audio-adjacent line to this text. The pattern points to a lane of emphasis, not a full inventory of you.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. Mechanistically, the label treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nIn practice, this reads as occasional sharpness layered over a wider baseline mix. This pass highlights where attention stacks; it does not exhaust every lane in your life map.\n\nListeners often register this thread as push toward new chapters once momentum appears. A steady baseline can host spikes; the spike does not erase the baseline in one sentence.",
+        "relationalFieldText": "Two-person timing and mutual regulation stay in view before wider generalization. Pacing and closure can disagree; naming both often beats flattening the mix."
+      },
+      "postSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "SUN_MERCURY_OPPOSITION",
+          "SUN_MERCURY_OPPOSITION",
+          "MOON_MERCURY_SEXTILE"
+        ],
+        "aspectSource": "synastry",
+        "signaturesText": "For this connection, you see steady and sparky layers today. Let the through-line be descriptive before it becomes a verdict.\n\nBoth steady and quick layers count; name which timescale you mean before you lock one story. In this frame, the question is what intensifies, not which identity label wins.\n\nThe primary emphasis is water coloring with a balanced mood. Tonal and elemental cues here are handles for language, not costumes you must wear in public.\n\nFor replay language, use the listen metaphor section below; it is the paired audio-adjacent line to this text. The pattern points to a lane of emphasis, not a full inventory of you.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. Mechanistically, the label treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nIn practice, this reads as occasional sharpness layered over a wider baseline mix. This pass highlights where attention stacks; it does not exhaust every lane in your life map.\n\nListeners often register this thread as push toward new chapters once momentum appears. A steady baseline can host spikes; the spike does not erase the baseline in one sentence.",
+        "relationalFieldText": "Two-person timing and mutual regulation stay in view before wider generalization. Pacing and closure can disagree; naming both often beats flattening the mix."
+      },
+      "textDiff": {
+        "signaturesChanged": true,
+        "relationalFieldChanged": false
+      }
+    },
+    {
+      "fixture": "fixture_2_tight_personal_cross",
+      "chartIdsSorted": [
+        "natal_person_a",
+        "natal_person_b"
+      ],
+      "synastryDirectedHitCount": 60,
+      "synastryFirst3Keys": [
+        "SUN_SUN_OPPOSITION",
+        "SUN_SUN_OPPOSITION",
+        "SUN_MOON_CONJUNCTION"
+      ],
+      "anchorNatalFirst3Keys": [
+        "SUN_MARS_SQUARE",
+        "PLUTO_SUN_OPPOSITION",
+        "JUPITER_MARS_SEXTILE"
+      ],
+      "keysDifferFromAnchor": true,
+      "preSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "SUN_MARS_SQUARE",
+          "PLUTO_SUN_OPPOSITION",
+          "JUPITER_MARS_SEXTILE"
+        ],
+        "aspectSource": "anchor_natal",
+        "signaturesText": "The Sun, the principle of conscious identity and purposeful direction, meets Mars, the planet of raw drive, assertion, and the force that moves the person toward desire and away from threat, at a 90-degree angle of genuine, sustained tension. Both of these forces are strong. The Sun insists on its chosen direction. Mars insists on its own momentum. The square means neither naturally yields, and the person's sense of who they are and the direction of their energy do not automatically agree. The Sun-Mars square creates a psychological configuration where the ego's goal-setting function and the Mars drive are perpetually in each other's way. The ego plans. Mars charges ahead of the plan. Or the ego is ready to move and Mars has already burned the available energy on something else. The Mars energy here is real and significant. This is not a low-drive person. But it has a quality of pressure that seeks release rather than direction. The development task is the cultivation of the directed will: the capacity to feel the full force of the Mars drive and then deliberately choose when and where to deploy it, rather than being driven by it reactively. The square is also a source of real power. When identity and drive are pointed at the same target, the output is formidable. The Mars square creates heat. There is genuine passion here. But the friction between self and drive means conflict can arise even when unintended. Relationships that can hold vigorous honest exchange do far better than those requiring constant smoothness.\n\nPluto, transformation through depth, the unconscious, and the regenerative destruction of what is no longer genuinely alive, stands at full polarity with the Sun, conscious identity and the drive toward purposeful self-expression and recognition. At 180 degrees, the Sun asserts its right to express and to be seen. Pluto challenges whether that expression is genuinely authentic or whether it is hiding something that needs to be examined. The opposition tends to externalize. The person encounters Pluto's transformative, power-oriented, depth-driving principle through other people, through power struggles with significant others, through encounters with people who seem to hold power over the person's sense of self, or through external events that force a fundamental revision of who the person understands themselves to be. The ego tends to experience Pluto's transformative, power-testing function as something that comes from outside rather than from within. The person may repeatedly encounter people or circumstances that hold a kind of psychological power over their self-definition, without fully recognizing that the Pluto principle is part of their own psychological architecture. The developmental work is integrating Pluto's depth, power, and transformation as genuinely interior qualities. Partners who carry a significant Plutonian quality, who seem to hold power, who force confrontations with hidden dimensions of the self, or who introduce genuine power dynamics, can be among the most transformative and most challenging relationship experiences.\n\nJupiter, expansion, meaning, and abundance, and Mars, drive, assertion, and the force that converts desire into action, are in a 60-degree relationship of easy, productive cooperation. The sextile places these two forces in compatible elemental territories where Jupiter's expansive faith and Mars's energetic drive can support each other without the amplification of the conjunction. The person's drive and their natural orientation toward growth and meaning are in easy dialogue. Mars provides the energy and the directional impulse. Jupiter provides the faith in the significance of where that energy is being directed. The result is reliable drive, genuine confidence in the capacity to pursue what matters, and a quality of energetic optimism that sustains itself through difficulty because Jupiter's faith in growth is available as a sustaining resource even when the Mars drive meets genuine resistance. Partners find a quality of genuine energetic investment and expansive ambition in this person that makes the relationship feel forward-moving and full of possibility.\n\nFor this connection, you see steady and sparky layers today. The same emphasis may read louder under stress and softer under safety.\n\nBoth steady and quick layers count; name which timescale you mean before you lock one story. A compressed read privileges what contradicts and what coheres in the same window.\n\nThe primary emphasis is water coloring with a balanced mood. Nuance tends to return when the frame stops racing to a headline.\n\nListen detail lives in “How this sounds (listen metaphor)” below. Tension in the data is information, not a mandate to escalate language immediately.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. At the mechanism layer, this reading encodes treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nListeners often register this thread as occasional sharpness layered over a wider baseline mix. This pass highlights where attention stacks; it does not exhaust every lane in your life map.\n\nListeners often register this thread as push toward new chapters once momentum appears. A steady baseline can host spikes; the spike does not erase the baseline in one sentence.",
+        "relationalFieldText": "Dyad framing keeps both people visible as separate centers before blend reads. Keep the time horizon explicit: the line describes a layer, not the whole year."
+      },
+      "postSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "SUN_SUN_OPPOSITION",
+          "SUN_SUN_OPPOSITION",
+          "SUN_MOON_CONJUNCTION"
+        ],
+        "aspectSource": "synastry",
+        "signaturesText": "The Sun, the seat of conscious will and purposeful identity, sits fused with the Moon, the keeper of emotional memory, instinctive need, and interior safety. Where a conjunction occurs, two planets operate as one undivided system. Here that means the sense of who you are and what you feel are not two separate conversations. They run along the same current. The conscious self does not experience itself as separate from the emotional self. What this person wants, they feel. What they feel, they identify with completely. This produces a powerful coherence of self that others often read as certainty, presence, or magnetism. Born near the new moon, this is a person at the beginning of a lunar cycle, oriented toward initiation rather than reflection. Because the Sun's ego-drive and the Moon's emotional instinct are fused rather than separate, this person's psychological decision-making runs on a single track rather than two competing ones. The persona and the interior feeling-self are unusually integrated. There is very little shadow material created by the tension between who they present as and who they feel themselves to be. Full commitment follows: when the Sun decides to move toward something, the Moon's emotional body is already on board, so the follow-through is total. There is no private second-guessing that contradicts the public self. The fusion also means the Moon's vulnerability is fully exposed at the level of identity. Emotional wounding is not cushioned by any psychological distance between feeling and self. A slight to their work, their choices, or their affections can register as an existential threat because what they feel and who they are genuinely cannot be separated. Partners feel the full force of this person's attention when they are loved. Relational wounds hit at the level of identity, because for this person feeling hurt and feeling threatened as a self are the same experience.\n\nFor this connection, you see steady and sparky layers today. The same emphasis may read louder under stress and softer under safety.\n\nBoth steady and quick layers count; name which timescale you mean before you lock one story. A compressed read privileges what contradicts and what coheres in the same window.\n\nThe primary emphasis is water coloring with a balanced mood. Nuance tends to return when the frame stops racing to a headline.\n\nListen detail lives in “How this sounds (listen metaphor)” below. Tension in the data is information, not a mandate to escalate language immediately.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. At the mechanism layer, this reading encodes treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nListeners often register this thread as occasional sharpness layered over a wider baseline mix. This pass highlights where attention stacks; it does not exhaust every lane in your life map.\n\nListeners often register this thread as push toward new chapters once momentum appears. A steady baseline can host spikes; the spike does not erase the baseline in one sentence.",
+        "relationalFieldText": "Dyad framing keeps both people visible as separate centers before blend reads. Keep the time horizon explicit: the line describes a layer, not the whole year."
+      },
+      "textDiff": {
+        "signaturesChanged": true,
+        "relationalFieldChanged": false
+      }
+    },
+    {
+      "fixture": "fixture_3_outer_vs_inner",
+      "chartIdsSorted": [
+        "partner_chart",
+        "seeker_chart"
+      ],
+      "synastryDirectedHitCount": 58,
+      "synastryFirst3Keys": [
+        "SUN_SUN_OPPOSITION",
+        "SUN_SUN_OPPOSITION",
+        "JUPITER_MARS_SQUARE"
+      ],
+      "anchorNatalFirst3Keys": [
+        "JUPITER_MERCURY_SEXTILE",
+        "URANUS_MOON_TRINE",
+        "JUPITER_MARS_SQUARE"
+      ],
+      "keysDifferFromAnchor": true,
+      "preSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "JUPITER_MERCURY_SEXTILE",
+          "URANUS_MOON_TRINE",
+          "JUPITER_MARS_SQUARE"
+        ],
+        "aspectSource": "anchor_natal",
+        "signaturesText": "Uranus, disruption, awakening, and the sudden break from pattern, and the Moon, emotional instinct, interior need, and the body's requirement for safety, are in the same elemental family, separated by 120 degrees of natural resonance. The trine means these two forces are naturally aligned. Emotional authenticity and genuine feeling are integrated. The person can feel with the Moon's depth and express those feelings with Uranus's liberating originality without the instability that the conjunction or square produces. The Moon can feel what it feels with Uranus's liberating perspective available as an integrated quality of the emotional field itself, allowing for emotional expression that is genuine, spontaneous, and free from conventional emotional templates without the unpredictability that harder Uranus-Moon aspects produce. The result is genuine emotional freedom, natural authenticity in emotional life, and a quality of emotional independence that makes them genuinely refreshing to be around. Partners find a quality of genuine emotional authenticity and emotional independence in this person that makes the relationship feel real and alive.\n\nJupiter, the principle of expansion, meaning, abundance, and growth, meets Mars, raw drive, assertion, and the force that moves the person toward what they want, at a 90-degree angle of genuine, productive tension. Jupiter says: pursue it further, the ambition should be larger, the force should be greater. Mars hears this and amplifies. But the 90-degree angle means Jupiter's expansive amplification and Mars's strategic requirement for precision and appropriate force are not naturally compatible. Jupiter's encouragement of larger scale does not often produce more effective force. Sometimes it produces more force than the situation can accommodate, directed at targets that were not chosen with sufficient strategic precision. Jupiter amplifies the Mars drive beyond what any single situation strictly requires. This person brings more energy, more ambition, and more force to their pursuits than is often strategically optimal. The result is a person with formidable drive and genuine ambition who periodically overreaches: pursuing targets at a scale that exceeds the available resources, bringing more force to situations than they can absorb, or moving faster than the strategic situation warrants because Jupiter's faith that things will expand removes the natural checks that Mars's strategic wisdom would otherwise apply. The development task is developing Jupiter's wisdom alongside its enthusiasm, learning to pursue at a scale that is genuinely sustainable rather than simply the largest scale that can be imagined. Partners experience a person with formidable energy and genuine expansive ambition who occasionally overextends in ways that require recalibration. The drive is real and so is the need for strategic discipline to sustain it.\n\nFor this connection, you see steady and sparky layers today. When the picture is thin, the honest move is to track contrast and pacing, not force a single moral.\n\nNear-term and long-haul signals both show; context usually decides which one speaks loudest. Keep the emphasis legible: label mechanisms before you name motives.\n\nElemental weight centers on water with bright shading. Small experiments usually beat one decisive relabeling.\n\nFor replay language, use the listen metaphor section below; it is the paired audio-adjacent line to this text. Tonal and elemental cues here are handles for language, not costumes you must wear in public.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. In structural terms, the label maps treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nMany people notice this thread as occasional sharpness layered over a wider baseline mix. The pattern points to a lane of emphasis, not a full inventory of you.\n\nListeners often register this thread as push toward new chapters once momentum appears. Let the through-line be descriptive before it becomes a verdict.",
+        "relationalFieldText": "The baseline picture weights what both charts show together, not a solo verdict. The view stays bounded: it describes emphasis mechanics, not a final verdict on character."
+      },
+      "postSynastry": {
+        "aspectLibraryKeysFirst3": [
+          "SUN_SUN_OPPOSITION",
+          "SUN_SUN_OPPOSITION",
+          "JUPITER_MARS_SQUARE"
+        ],
+        "aspectSource": "synastry",
+        "signaturesText": "Jupiter, the principle of expansion, meaning, abundance, and growth, meets Mars, raw drive, assertion, and the force that moves the person toward what they want, at a 90-degree angle of genuine, productive tension. Jupiter says: pursue it further, the ambition should be larger, the force should be greater. Mars hears this and amplifies. But the 90-degree angle means Jupiter's expansive amplification and Mars's strategic requirement for precision and appropriate force are not naturally compatible. Jupiter's encouragement of larger scale does not often produce more effective force. Sometimes it produces more force than the situation can accommodate, directed at targets that were not chosen with sufficient strategic precision. Jupiter amplifies the Mars drive beyond what any single situation strictly requires. This person brings more energy, more ambition, and more force to their pursuits than is often strategically optimal. The result is a person with formidable drive and genuine ambition who periodically overreaches: pursuing targets at a scale that exceeds the available resources, bringing more force to situations than they can absorb, or moving faster than the strategic situation warrants because Jupiter's faith that things will expand removes the natural checks that Mars's strategic wisdom would otherwise apply. The development task is developing Jupiter's wisdom alongside its enthusiasm, learning to pursue at a scale that is genuinely sustainable rather than simply the largest scale that can be imagined. Partners experience a person with formidable energy and genuine expansive ambition who occasionally overextends in ways that require recalibration. The drive is real and so is the need for strategic discipline to sustain it.\n\nFor this connection, you see steady and sparky layers today. When the picture is thin, the honest move is to track contrast and pacing, not force a single moral.\n\nNear-term and long-haul signals both show; context usually decides which one speaks loudest. Keep the emphasis legible: label mechanisms before you name motives.\n\nElemental weight centers on water with bright shading. Small experiments usually beat one decisive relabeling.\n\nFor replay language, use the listen metaphor section below; it is the paired audio-adjacent line to this text. Tonal and elemental cues here are handles for language, not costumes you must wear in public.\n\nA water-weighted emphasis shows up moderately in this view marks permeability and layered processing as the emphasized register. In structural terms, the label maps treats emotional bandwidth and depth-before-surface as structural emphasis.\n\nMany people notice this thread as occasional sharpness layered over a wider baseline mix. The pattern points to a lane of emphasis, not a full inventory of you.\n\nListeners often register this thread as push toward new chapters once momentum appears. Let the through-line be descriptive before it becomes a verdict.",
+        "relationalFieldText": "The baseline picture weights what both charts show together, not a solo verdict. The view stays bounded: it describes emphasis mechanics, not a final verdict on character."
+      },
+      "textDiff": {
+        "signaturesChanged": true,
+        "relationalFieldChanged": false
+      }
+    }
+  ]
+}
