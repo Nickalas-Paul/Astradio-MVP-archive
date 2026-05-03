@@ -1,5 +1,6 @@
-import { ASPECT_CONFIG, smallestArc, type AspectTypeKey } from '../aspect-engine';
+import { type AspectTypeKey } from '../aspect-engine';
 import { CORE_BODIES, type BodyKey } from '../canonical-bodies';
+import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 import { snapshotFingerprint } from '../canonical/stable-json';
 import type { EphemerisSnapshot } from '../contracts';
 import { lonToHouse } from '../astro/profile-from-snapshot';
@@ -37,8 +38,6 @@ import { clamp01, roundCompat, stableSha256, sortedUnique } from './stable';
 const vectorStore = require('../../../../lib/vector-store');
 
 type VectorRow = { chartId: string; vector64: number[]; version: string; encoderVersion: string; snapshotHash?: string };
-
-const ASPECT_TYPE_ORDER: AspectTypeKey[] = ['conjunction', 'opposition', 'square', 'trine', 'sextile'];
 
 type NatalCrossSignal = {
   pair_key: PairKey;
@@ -137,22 +136,12 @@ function computePairSignals(
   const targetCusps = [...targetSnapshot.houses];
 
   for (const sb of [...CORE_BODIES] as BodyKey[]) {
-    const lonA = sourceLon.get(sb);
-    if (lonA === undefined) continue;
-    for (const tb of [...CORE_BODIES] as BodyKey[]) {
+      const lonA = sourceLon.get(sb);
+      if (lonA === undefined) continue;
+      for (const tb of [...CORE_BODIES] as BodyKey[]) {
       const lonB = targetLon.get(tb);
       if (lonB === undefined) continue;
-      const exactAngle = smallestArc(lonA, lonB);
-      let best: { type: AspectTypeKey; orb: number; exactness: number } | null = null;
-      for (const type of ASPECT_TYPE_ORDER) {
-        const cfg = ASPECT_CONFIG[type];
-        const orb = Math.abs(exactAngle - cfg.angle);
-        if (orb > cfg.orb) continue;
-        const candidate = { type, orb, exactness: 1 - orb / cfg.orb };
-        if (!best || candidate.orb < best.orb || (candidate.orb === best.orb && ASPECT_TYPE_ORDER.indexOf(candidate.type) < ASPECT_TYPE_ORDER.indexOf(best.type))) {
-          best = candidate;
-        }
-      }
+      const best = findBestDirectedCrossAspect(lonA, lonB);
       if (!best) continue;
 
       const sourceHouse = Math.min(12, Math.max(1, lonToHouse(lonA, sourceCusps))) as NatalCrossSignal['source_house'];
