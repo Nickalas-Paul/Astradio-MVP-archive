@@ -66,6 +66,24 @@ import {
   getStructuralInsight,
   type AspectInsight,
 } from '../insight-library/insight-library-index';
+import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kill-list';
+import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
+
+/**
+ * S3 Mode 1 — single aspect source for insight-library MEP slice (no double-render):
+ *
+ * **Primary:** `pairInteractionAspects` when defined and length ≥ 1 (cross-chart synastry).
+ *
+ * **Fallback — "synastry empty":** use anchor `snapshotAspects`. Trigger when synastry is omitted from
+ * projection options, or lists zero hits (canonical may still store `pair_interaction_aspects: []`;
+ * insightProjectionOptionsFromCanonical omits `pairInteractionAspects` so we land here). Same path as
+ * pre-S3 anchor-only behavior. No user-visible signal when fallback applies (Mode 1).
+ */
+function aspectsForInsightLibraryLookup(options: ProjectionOptions): readonly SnapshotAspect[] {
+  const syn = options.pairInteractionAspects;
+  if (syn != null && syn.length > 0) return syn;
+  return options.snapshotAspects ?? [];
+}
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -691,10 +709,14 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         extras.push(lab);
         extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
       }
-      const rawAspects: readonly SnapshotAspect[] = options.snapshotAspects ?? [];
+      const rawAspects: readonly SnapshotAspect[] = aspectsForInsightLibraryLookup(options);
       const aspectInsights: AspectInsight[] = rawAspects
         .slice(0, 3)
-        .map((a) => getAspectInsight(buildAspectKey(a.bodyA, a.bodyB, a.type)))
+        .map((a) => {
+          const key = buildAspectKey(a.bodyA, a.bodyB, a.type);
+          if (isAspectLibraryKillListed(key)) return undefined;
+          return getAspectInsight(key);
+        })
         .filter((ins): ins is AspectInsight => ins !== undefined);
       if (aspectInsights.length > 0) {
         const effSurface = options?.surface ?? surface;
@@ -706,9 +728,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
           .map((ins) => {
             if (effSurface === 'feed') return ins.feed;
             if (effSurface === 'compat_pair' || effSurface === 'group') {
-              return [ins.core, ins.behavioral, context === 'romantic' ? ins.romantic : ins.friendship]
-                .filter(Boolean)
-                .join(' ');
+              return composeSynastryMepAspectParagraph(
+                ins,
+                context === 'romantic' ? 'romantic' : 'friendship'
+              );
             }
             return [ins.core, ins.behavioral].filter(Boolean).join(' ');
           })
@@ -829,16 +852,31 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       finalText = reconstructTaggedSectionBody(finalTagged);
     }
 
+    /**
+     * Phase C prep: `SPARSE_CARD_*` ids will use core+behavioral only (intent in id). When wiring,
+     * confirm join here does not double-append `friendship`/`romantic` for those ids.
+     */
     if (relOnly) {
       if (sec.id === 'relational_field') {
         const classCode = options.compatClassCode;
-        if (classCode) {
+        if (surface === 'group' && !classCode) {
+          const neutral = getRelationalInsight('GROUP_RELATIONAL_FIELD_NEUTRAL');
+          if (neutral) {
+            const libraryText = [neutral.core, neutral.behavioral, neutral.friendship].filter(Boolean).join(' ');
+            if (libraryText) {
+              finalText = libraryText;
+              finalTagged = taggedSectionBodyFromText(libraryText, 'claim_body');
+            }
+          }
+        } else if (classCode) {
           const compatInsight = getRelationalInsight(classCode);
           if (compatInsight) {
             const connectionMode = options?.connectionMode ?? 'none';
             const effSurface = options?.surface ?? surface;
+            /** Dyadic romantic path; `surface === 'group'` never uses romantic here (downgrade to friendship). */
             const romanticPairSurface =
-              connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+              surface !== 'group' &&
+              (connectionMode === 'lovers' || (connectionMode as string) === 'romantic');
             const context = romanticPairSurface
               ? 'romantic'
               : (effSurface as string) === 'discovery'

@@ -1,0 +1,39 @@
+aspect_key,variant,p1_pair_clarity,p2_attribution,p3_tone,p4_safety,verdict,failure_notes,kill_list_action,reviewer,audit_date
+SUN_MOON_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Moon cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MOON_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MOON_SEXTILE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Moon cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MOON_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MOON_SQUARE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Moon cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MOON_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MOON_TRINE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Moon cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MOON_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MOON_OPPOSITION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Moon cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MOON_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_VENUS_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Venus cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_VENUS_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_VENUS_SEXTILE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Venus cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_VENUS_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_VENUS_SQUARE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Venus cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_VENUS_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_VENUS_TRINE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Venus cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_VENUS_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_VENUS_OPPOSITION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Venus cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_VENUS_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MARS_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Mars cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MARS_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MARS_SEXTILE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Mars cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MARS_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MARS_SQUARE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Mars cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MARS_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MARS_TRINE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Mars cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MARS_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+SUN_MARS_OPPOSITION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person / fused identity) without explicit Person A Sun vs Person B Mars cross-chart scope",added,tier1-single-reviewer,2026-05-03
+SUN_MARS_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person) without explicit Person A Jupiter vs Person B Sun cross-chart scope",added,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_SEXTILE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person) without explicit Person A Jupiter vs Person B Sun cross-chart scope",added,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_SQUARE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person) without explicit Person A Jupiter vs Person B Sun cross-chart scope",added,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_TRINE,friendship,fail,pass,pass,pass,revise,"core and behavioral use natal single-chart fusion (this person) without explicit Person A Jupiter vs Person B Sun cross-chart scope",added,tier1-single-reviewer,2026-05-03
+JUPITER_SUN_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body as friendship row; P1 fails for cross-chart synastry",none,tier1-single-reviewer,2026-05-03

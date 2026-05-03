@@ -1,0 +1,25 @@
+aspect_key,variant,p1_pair_clarity,p2_attribution,p3_tone,p4_safety,verdict,failure_notes,kill_list_action,reviewer,audit_date
+JUPITER_SUN_OPPOSITION,friendship,fail,pass,pass,pass,revise,"core and behavioral natal-frame ego text dominates; no explicit Person A Jupiter vs Person B Sun cross-chart scope",added,s5-tier2-sampler,2026-05-04
+JUPITER_SUN_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+SATURN_SUN_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"natal internalized Saturn-Sun fusion (this person); relational tail does not rescope to two charts",added,s5-tier2-sampler,2026-05-04
+SATURN_SUN_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+SATURN_SUN_SQUARE,friendship,fail,pass,pass,pass,revise,"natal-frame square narrative; not attributed as cross-chart between two owners",added,s5-tier2-sampler,2026-05-04
+SATURN_SUN_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+URANUS_SUN_SEXTILE,friendship,fail,pass,pass,pass,revise,"natal-frame core and behavioral; insufficient dyadic rescope",added,s5-tier2-sampler,2026-05-04
+URANUS_SUN_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+URANUS_SUN_TRINE,friendship,fail,pass,pass,pass,revise,"natal-frame trine integration; no Person A vs Person B chart attribution",added,s5-tier2-sampler,2026-05-04
+URANUS_SUN_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+NEPTUNE_SUN_SEXTILE,friendship,fail,pass,pass,pass,revise,"natal-frame prose dominates composed MEP output",added,s5-tier2-sampler,2026-05-04
+NEPTUNE_SUN_SEXTILE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+NEPTUNE_SUN_TRINE,friendship,fail,pass,pass,pass,revise,"natal-frame trine; relational variant insufficient for P1",added,s5-tier2-sampler,2026-05-04
+NEPTUNE_SUN_TRINE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+PLUTO_SUN_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"early Tier 2 boundary key; same structural natal dominance as Tier 1",added,s5-tier2-sampler,2026-05-04
+PLUTO_SUN_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+PLUTO_SUN_OPPOSITION,friendship,fail,pass,pass,pass,revise,"outer-to-Sun opposition still authored single-chart",added,s5-tier2-sampler,2026-05-04
+PLUTO_SUN_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+MOON_VENUS_OPPOSITION,friendship,fail,pass,pass,pass,revise,"Moon-Venus family; natal-frame core and behavioral before dyadic tail",added,s5-tier2-sampler,2026-05-04
+MOON_VENUS_OPPOSITION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+MOON_MARS_SQUARE,friendship,fail,pass,pass,pass,revise,"Moon-Mars square natal narrative; not cross-chart scoped",added,s5-tier2-sampler,2026-05-04
+MOON_MARS_SQUARE,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
+JUPITER_MOON_CONJUNCTION,friendship,fail,pass,pass,pass,revise,"late Tier 2 boundary key; Jupiter-Moon fusion described intrapsychically",added,s5-tier2-sampler,2026-05-04
+JUPITER_MOON_CONJUNCTION,romantic,fail,pass,pass,pass,revise,"same composed body; P1 fails for synastry MEP",none,s5-tier2-sampler,2026-05-04
