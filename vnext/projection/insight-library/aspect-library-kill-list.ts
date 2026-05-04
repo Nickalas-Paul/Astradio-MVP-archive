@@ -6,11 +6,21 @@
  * Stage C Tier 2 sample audit: docs/audit-logs/synastry-tier2-sample-audit-v1.csv
  * Phase 2A v2 re-audit: docs/audit-logs/synastry-v2-revaudit-v1.csv (15 Sun-pair
  *   entries from insight-library-aspects-personal.ts cleared after
- *   `phase2a-full-reaudit` returned accept on all 30 renders. Specifically:
- *   SUN_MOON, SUN_VENUS, SUN_MARS × 5 aspects each. The 4 JUPITER_SUN_*
- *   entries below remain kill-listed because they live in
- *   insight-library-aspects-jupiter.ts and their content has not yet been
- *   revised under v2 (Phase 2D scope).
+ *   `phase2a-full-reaudit` returned accept on all 30 renders).
+ * Phase 2B v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
+ *   (MOON_VENUS_OPPOSITION and MOON_MARS_SQUARE cleared after
+ *   `phase2b-full-audit` returned accept on all 30 renders covering the 15
+ *   Moon/Venus/Mars-pair entries).
+ *
+ * Remaining entries (14) are queued for cleanup as later phases ship and
+ * their audit passes clear:
+ *   - 4 JUPITER_SUN_* entries: Phase 2D scope (insight-library-aspects-jupiter.ts)
+ *   - JUPITER_SUN_OPPOSITION: Phase 2D scope
+ *   - 2 SATURN_SUN_* entries: Phase 2C scope (insight-library-aspects-saturn.ts)
+ *   - 2 URANUS_SUN_* entries: Phase 2E scope (insight-library-aspects-uranus.ts)
+ *   - 2 NEPTUNE_SUN_* entries: Phase 2F scope (insight-library-aspects-neptune.ts)
+ *   - 2 PLUTO_SUN_* entries: Phase 2G scope (insight-library-aspects-pluto.ts)
+ *   - JUPITER_MOON_CONJUNCTION: Phase 2D scope
  */
 
 export type KillListReasonCode = 'P1_PAIR_CLARITY' | 'P4_SAFETY' | 'P1_P4' | 'OTHER';
@@ -114,20 +124,6 @@ export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
     addedAt: '2026-05-04',
     reviewer: 's5-tier2-sampler',
     auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 18',
-  },
-  {
-    aspectKey: 'MOON_VENUS_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 20',
-  },
-  {
-    aspectKey: 'MOON_MARS_SQUARE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 22',
   },
   {
     aspectKey: 'JUPITER_MOON_CONJUNCTION',
