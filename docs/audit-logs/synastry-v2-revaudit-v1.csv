@@ -289,3 +289,43 @@ MERCURY_VENUS_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n
 MERCURY_VENUS_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Honesty and kindness both in romantic_synastry.
 MERCURY_VENUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Direct vs warm rhythm difference; friends honor modes.
 MERCURY_VENUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Opposition of clarity and warmth; partnership middle-path work.
+MERCURY_MARS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Assertive mind/action; friend path platonic; chart-bearer synastry.
+MERCURY_MARS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Partners/intellectual combat framing in romantic_synastry.
+MERCURY_MARS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Cooperative directness; shared blocks non-romantic.
+MERCURY_MARS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Verbal and assertive register in romantic_synastry.
+MERCURY_MARS_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Friction on edge vs content; friend repair.
+MERCURY_MARS_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Partners/arguments in romantic_synastry; no P2 you/your.
+MERCURY_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Clear assertive flow; platonic friend close.
+MERCURY_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Direct partnership talk in romantic_synastry.
+MERCURY_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Action vs analysis polarity; friend-level.
+MERCURY_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Stakes in romantic_synastry; partners when conflict.
+MERCURY_MERCURY_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Same-body doubled Mercury; cross-chart mind meeting; platonic.
+MERCURY_MERCURY_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Verbal partnership in romantic_synastry; natal conceptual as spec.
+MERCURY_MERCURY_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Easy mental exchange; friend path.
+MERCURY_MERCURY_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Conversational fit in romantic_synastry.
+MERCURY_MERCURY_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Crossed signals; friends name misfire.
+MERCURY_MERCURY_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Repair work in romantic_synastry; partners.
+MERCURY_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Aligned mental style; friendship ease.
+MERCURY_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Verbal ease in romantic_synastry.
+MERCURY_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Observer vs speaker polarity; platonic.
+MERCURY_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Meta-conversation stakes in romantic_synastry.
+SATURN_MERCURY_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Rigor named as developmental; behavioral_synastry P2-safe paraphrase vs quoted prompts.
+SATURN_MERCURY_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Saturn standards in romantic_synastry; P4 no shaming idiom.
+SATURN_MERCURY_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Productive discipline; platonic collaboration.
+SATURN_MERCURY_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Intellectual partnership in romantic_synastry.
+SATURN_MERCURY_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Constraint vs speed; P2 pass on tier1 compose.
+SATURN_MERCURY_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Growth framing not punitive; partners in romantic block.
+SATURN_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Mastery ease; friend intellectual projects.
+SATURN_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Depth without shame in romantic_synastry.
+SATURN_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Freedom vs rigor; friend honors both poles.
+SATURN_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Alternation narrative in romantic_synastry; P4 clean.
+JUPITER_MERCURY_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Meaning-making expansion; friend wide questions.
+JUPITER_MERCURY_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Synthesis partnership in romantic_synastry.
+JUPITER_MERCURY_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Detail+meaning ease; platonic.
+JUPITER_MERCURY_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Generative talk in romantic_synastry.
+JUPITER_MERCURY_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Scope friction; P2 pass after paraphrase of quoted lines.
+JUPITER_MERCURY_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Precision vs reach in romantic_synastry.
+JUPITER_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Breadth with accuracy; friend bond.
+JUPITER_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Shared understanding ease in romantic_synastry.
+JUPITER_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Detail vs meaning scale; friends negotiate.
+JUPITER_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1c-full-audit,n/a,Opposition work in romantic_synastry; P2 pass.
