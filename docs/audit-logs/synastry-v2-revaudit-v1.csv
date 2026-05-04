@@ -269,3 +269,23 @@ SUN_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1a-full-audit,n/a
 SUN_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1a-full-audit,n/a,Relationship/partners phrasing in romantic_synastry.
 SUN_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1a-full-audit,n/a,Friend-weight conversations; no partner-coded leakage in bond blocks.
 SUN_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1a-full-audit,n/a,Opposition stakes and partnership framing in romantic_synastry.
+MOON_MERCURY_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Cross-chart emotional legibility; friendship_synastry platonic; behavioral_synastry uses Moon-bearer-attributed examples (no second-person).
+MOON_MERCURY_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Partnership/emotional processing in romantic_synastry; shared blocks chart-bearer scoped.
+MOON_MERCURY_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Steady emotional-communicative register; friend path non-romantic.
+MOON_MERCURY_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Warm verbal exchange in romantic_synastry; partners phrasing confined there.
+MOON_MERCURY_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Friction named as structural; friends repair tone.
+MOON_MERCURY_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Work-focused romantic_synastry; partners when discussing difficulty.
+MOON_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Ease of emotional naming; platonic friendship close.
+MOON_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Communicative warmth in romantic_synastry; partners cited appropriately.
+MOON_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Observation vs feeling polarity; friend-role platonic.
+MOON_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,High-stakes emotional-verbal processing in romantic_synastry.
+MERCURY_VENUS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Aesthetic-verbal warmth; conversational friendship framing.
+MERCURY_VENUS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Voice/beauty recognition in romantic_synastry; partnership early-phase noted.
+MERCURY_VENUS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Pleasant sustained exchange; no partner leakage in shared blocks.
+MERCURY_VENUS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Steady conversational partnership tone in romantic_synastry.
+MERCURY_VENUS_SQUARE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Clarity vs harmony tension; friend bond addresses tone.
+MERCURY_VENUS_SQUARE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Honest/warm fluency in romantic_synastry; partners commit language.
+MERCURY_VENUS_TRINE,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Nourishing conversational trine; platonic close.
+MERCURY_VENUS_TRINE,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Honesty and kindness both in romantic_synastry.
+MERCURY_VENUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Direct vs warm rhythm difference; friends honor modes.
+MERCURY_VENUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a1b-full-audit,n/a,Opposition of clarity and warmth; partnership middle-path work.
