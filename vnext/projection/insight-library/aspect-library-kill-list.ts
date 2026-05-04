@@ -14,17 +14,17 @@
  *   (SATURN_SUN_CONJUNCTION and SATURN_SUN_SQUARE cleared after
  *   `phase2c-full-audit` returned accept on all 40 renders).
  * Phase 2D v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv (6 Jupiter-pair
- *   entries cleared after `phase2d-full-audit` returned accept on all 40
- *   renders: JUPITER_SUN_CONJUNCTION, JUPITER_SUN_SEXTILE, JUPITER_SUN_SQUARE,
- *   JUPITER_SUN_TRINE, JUPITER_SUN_OPPOSITION, JUPITER_MOON_CONJUNCTION).
+ *   entries cleared after `phase2d-full-audit` returned accept on all 40 renders).
  * Phase 2E v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
  *   (URANUS_SUN_SEXTILE and URANUS_SUN_TRINE cleared after
- *   `phase2e-full-audit` returned accept on all 40 renders covering the 20
- *   Uranus-pair entries).
+ *   `phase2e-full-audit` returned accept on all 40 renders).
+ * Phase 2F v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
+ *   (NEPTUNE_SUN_SEXTILE and NEPTUNE_SUN_TRINE cleared after
+ *   `phase2f-full-audit` returned accept on all 40 renders covering the 20
+ *   Neptune-pair entries).
  *
- * Remaining entries (4) are queued for cleanup as later phases ship and
- * their audit passes clear:
- *   - 2 NEPTUNE_SUN_* entries: Phase 2F scope (insight-library-aspects-neptune.ts)
+ * Remaining entries (2) are queued for cleanup as Phase 2G ships and its
+ * audit pass clears:
  *   - 2 PLUTO_SUN_* entries: Phase 2G scope (insight-library-aspects-pluto.ts)
  */
 
@@ -39,20 +39,6 @@ export type AspectLibraryKillListEntry = {
 };
 
 export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
-  {
-    aspectKey: 'NEPTUNE_SUN_SEXTILE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 12',
-  },
-  {
-    aspectKey: 'NEPTUNE_SUN_TRINE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 14',
-  },
   {
     aspectKey: 'PLUTO_SUN_CONJUNCTION',
     reasonCode: 'P1_PAIR_CLARITY',
