@@ -399,3 +399,53 @@ MARS_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Sh
 MARS_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Physical attunement given in romantic_synastry; intimacy breadth reminder OK.
 MARS_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Assertive polarity as feature; timing honesty friend-level.
 MARS_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Timing negotiation in romantic_synastry; P4 no deterministic outcome.
+JUPITER_JUPITER_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Same-body Jupiter; expansion meaning-scale mirror; core_synastry platonic-safe.
+JUPITER_JUPITER_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Philosophical twinning in romantic_synastry; P4 no fate framing.
+JUPITER_JUPITER_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Compatible synthesis modes; productive mutual expansion.
+JUPITER_JUPITER_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Intellectual complementarity in romantic_synastry.
+JUPITER_JUPITER_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Scale-of-meaning friction; structural philosophical mismatch noted.
+JUPITER_JUPITER_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Translation work in romantic_synastry; no second-person in shared blocks.
+JUPITER_JUPITER_TRINE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Elemental ease of shared belief; friend bond licensed in friend field only.
+JUPITER_JUPITER_TRINE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Aligned expansion frameworks in romantic_synastry; ease caveat OK.
+JUPITER_JUPITER_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Broad-vs-grounded polarity in friendship_synastry; convergence not goal OK.
+JUPITER_JUPITER_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Intellectual breadth across poles in romantic_synastry; P4 clean.
+SATURN_SATURN_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Discipline mirror; P4 developmental pressure not shame in shared blocks.
+SATURN_SATURN_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Standards twinning in romantic_synastry; rest/imperfection reminder OK.
+SATURN_SATURN_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Compatible structure; sustainable collaborative rigor.
+SATURN_SATURN_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Complementary mastery paths in romantic_synastry; P4 no clinical tone.
+SATURN_SATURN_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Competing standards named structurally; friend respect for difference.
+SATURN_SATURN_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Hard-won structural negotiation in romantic_synastry; not fate-cursed.
+SATURN_SATURN_TRINE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Shared discipline ease; friend-level work bond.
+SATURN_SATURN_TRINE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Aligned frameworks in romantic_synastry; compassion-for-imperfection trine note OK.
+SATURN_SATURN_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Perfection-vs-completion polarity; honest standards talk friend path.
+SATURN_SATURN_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Middle-path excellence work in romantic_synastry; P4 developmental.
+URANUS_URANUS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Innovation-voltage mirror; chart-bearer language in shared blocks.
+URANUS_URANUS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Change-twinning in romantic_synastry; stability reminder not deterministic.
+URANUS_URANUS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Strategic + sudden change mix; generative friend collaboration.
+URANUS_URANUS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Complementary disruption styles in romantic_synastry.
+URANUS_URANUS_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Clash of how to break patterns; structural not personal.
+URANUS_URANUS_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,High-charge change friction in romantic_synastry; P4 no cosmic verdict.
+URANUS_URANUS_TRINE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Shared change ease; durable inventive bond.
+URANUS_URANUS_TRINE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Aligned innovation in romantic_synastry; build-what-lasts caveat OK.
+URANUS_URANUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Rupture-vs-preservation polarity friend framing OK.
+URANUS_URANUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Breadth across innovation poles in romantic_synastry; P4 clean.
+NEPTUNE_NEPTUNE_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Empathic dissolution mirror; containment caution in friend channel.
+NEPTUNE_NEPTUNE_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Merging twinning in romantic_synastry; structure reminder not shame.
+NEPTUNE_NEPTUNE_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Porous imaginative exchange without overwhelm.
+NEPTUNE_NEPTUNE_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Complementary empathy modes in romantic_synastry.
+NEPTUNE_NEPTUNE_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Merge-vs-boundary tension named clearly for friends.
+NEPTUNE_NEPTUNE_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Intimacy negotiation work in romantic_synastry; P4 no diagnostic clinical.
+NEPTUNE_NEPTUNE_TRINE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Shared empathic ease; imaginative bond sustains.
+NEPTUNE_NEPTUNE_TRINE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Aligned dissolution frameworks in romantic_synastry; structure caveat OK.
+NEPTUNE_NEPTUNE_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Merge-vs-containment polarity friend-level honesty OK.
+NEPTUNE_NEPTUNE_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Polarized empathy breadth in romantic_synastry; P4 clean.
+PLUTO_PLUTO_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Depth-work intensity mirror; transformative framing not fate decree.
+PLUTO_PLUTO_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Transform twinning in romantic_synastry; rest/surface reminder developmental.
+PLUTO_PLUTO_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Sustainable excavation collaboration; friend trust OK.
+PLUTO_PLUTO_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Complementary depth styles in romantic_synastry; P4 pressure as work not shame.
+PLUTO_PLUTO_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,How-to-excavate clash structural; friend tolerance framing OK.
+PLUTO_PLUTO_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Transform friction with honesty in romantic_synastry; no pathologizing tone.
+PLUTO_PLUTO_TRINE,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Shared depth ease; psychological work bond sustains.
+PLUTO_PLUTO_TRINE,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Aligned transformative frameworks in romantic_synastry; rest caveat OK.
+PLUTO_PLUTO_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Total-depth-vs-surface polarity friend respect OK.
+PLUTO_PLUTO_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b2-full-audit,n/a,Breadth across depth poles in romantic_synastry; P4 transformative not deterministic.
