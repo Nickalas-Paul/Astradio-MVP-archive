@@ -20,12 +20,17 @@
  *   `phase2e-full-audit` returned accept on all 40 renders).
  * Phase 2F v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
  *   (NEPTUNE_SUN_SEXTILE and NEPTUNE_SUN_TRINE cleared after
- *   `phase2f-full-audit` returned accept on all 40 renders covering the 20
- *   Neptune-pair entries).
+ *   `phase2f-full-audit` returned accept on all 40 renders).
+ * Phase 2G v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
+ *   (PLUTO_SUN_CONJUNCTION and PLUTO_SUN_OPPOSITION cleared after
+ *   `phase2g-full-audit` returned accept on all 40 renders covering the 20
+ *   Pluto-pair entries). With this clearance, the v2 Phase 2 retrofit is
+ *   complete: 130 entries authored across 6 files, 220 audit renders all
+ *   accept, and the kill-list reaches 0.
  *
- * Remaining entries (2) are queued for cleanup as Phase 2G ships and its
- * audit pass clears:
- *   - 2 PLUTO_SUN_* entries: Phase 2G scope (insight-library-aspects-pluto.ts)
+ * The kill-list is currently empty. New entries should be added here only if
+ * future audit passes identify keys whose authored content fails P1/P4 in
+ * ways that cannot be fixed in the same commit.
  */
 
 export type KillListReasonCode = 'P1_PAIR_CLARITY' | 'P4_SAFETY' | 'P1_P4' | 'OTHER';
@@ -38,22 +43,7 @@ export type AspectLibraryKillListEntry = {
   readonly auditArtifactRef: string;
 };
 
-export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
-  {
-    aspectKey: 'PLUTO_SUN_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 16',
-  },
-  {
-    aspectKey: 'PLUTO_SUN_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 18',
-  },
-] as const;
+export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [] as const;
 
 const KILL_SET = new Set<string>(ASPECT_LIBRARY_KILL_LIST.map((e) => e.aspectKey));
 
