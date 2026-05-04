@@ -139,3 +139,43 @@ JUPITER_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase2d-full-audit,n/a,
 JUPITER_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase2d-full-audit,n/a,
 JUPITER_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2d-full-audit,n/a,
 JUPITER_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2d-full-audit,n/a,
+URANUS_SUN_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Cross-chart Uranus-bearer and Sun-bearer; no second person in synastry blocks.
+URANUS_SUN_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Romantic uses partnership framing as intended.
+URANUS_SUN_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,pending_full_set_pass,Kill-list entry; shared blocks stay intrapsychic-free; friendship render has no partner-coded tokens.
+URANUS_SUN_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,pending_full_set_pass,Kill-list entry; partnership language limited to romantic_synastry.
+URANUS_SUN_SQUARE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Friction and friends-scoped; P3 clear on friendship channel.
+URANUS_SUN_SQUARE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_SUN_TRINE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,pending_full_set_pass,Kill-list entry; trine shared blocks read cross-chart; friendship no partnership vocabulary.
+URANUS_SUN_TRINE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,pending_full_set_pass,Kill-list entry; alive and dependable phrasing in romantic only.
+URANUS_SUN_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Opposition bond as productive tension; platonic register.
+URANUS_SUN_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Emotional patterns and friends; no diagnostic claims.
+URANUS_MOON_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_SQUARE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_SQUARE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_TRINE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_TRINE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MOON_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Chemistry undertone framed for friendship channel.
+URANUS_VENUS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_SQUARE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_SQUARE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_TRINE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_TRINE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_VENUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Acceleration and action; safety caveat non-diagnostic.
+URANUS_MARS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,Spot-check romantic collaborative partnerships lives in romantic_synastry only.
+URANUS_MARS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_SQUARE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_SQUARE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
+URANUS_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2e-full-audit,n/a,
