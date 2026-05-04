@@ -4,6 +4,13 @@
  *
  * Stage B Tier 1 audit: docs/audit-logs/synastry-tier1-audit-v1.csv
  * Stage C Tier 2 sample audit: docs/audit-logs/synastry-tier2-sample-audit-v1.csv
+ * Phase 2A v2 re-audit: docs/audit-logs/synastry-v2-revaudit-v1.csv (15 Sun-pair
+ *   entries from insight-library-aspects-personal.ts cleared after
+ *   `phase2a-full-reaudit` returned accept on all 30 renders. Specifically:
+ *   SUN_MOON, SUN_VENUS, SUN_MARS × 5 aspects each. The 4 JUPITER_SUN_*
+ *   entries below remain kill-listed because they live in
+ *   insight-library-aspects-jupiter.ts and their content has not yet been
+ *   revised under v2 (Phase 2D scope).
  */
 
 export type KillListReasonCode = 'P1_PAIR_CLARITY' | 'P4_SAFETY' | 'P1_P4' | 'OTHER';
@@ -17,111 +24,6 @@ export type AspectLibraryKillListEntry = {
 };
 
 export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
-  {
-    aspectKey: 'SUN_MOON_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 2',
-  },
-  {
-    aspectKey: 'SUN_MOON_SEXTILE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 4',
-  },
-  {
-    aspectKey: 'SUN_MOON_SQUARE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 6',
-  },
-  {
-    aspectKey: 'SUN_MOON_TRINE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 8',
-  },
-  {
-    aspectKey: 'SUN_MOON_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 10',
-  },
-  {
-    aspectKey: 'SUN_VENUS_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 12',
-  },
-  {
-    aspectKey: 'SUN_VENUS_SEXTILE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 14',
-  },
-  {
-    aspectKey: 'SUN_VENUS_SQUARE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 16',
-  },
-  {
-    aspectKey: 'SUN_VENUS_TRINE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 18',
-  },
-  {
-    aspectKey: 'SUN_VENUS_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 20',
-  },
-  {
-    aspectKey: 'SUN_MARS_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 22',
-  },
-  {
-    aspectKey: 'SUN_MARS_SEXTILE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 24',
-  },
-  {
-    aspectKey: 'SUN_MARS_SQUARE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 26',
-  },
-  {
-    aspectKey: 'SUN_MARS_TRINE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 28',
-  },
-  {
-    aspectKey: 'SUN_MARS_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 30',
-  },
   {
     aspectKey: 'JUPITER_SUN_CONJUNCTION',
     reasonCode: 'P1_PAIR_CLARITY',

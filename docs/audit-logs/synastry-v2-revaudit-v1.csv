@@ -1,0 +1,31 @@
+aspect_key,variant,p1_verdict,p2_verdict,p3_verdict,p4_verdict,overall_verdict,reviewer,kill_list_action,notes
+SUN_MOON_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,Chart-bearer scoped shared synastry; Friend close platonic.
+SUN_MOON_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,Partnership framing reserved to romantic_synastry close.
+SUN_MOON_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,Bond/ chart-bearer wording in shared blocks; no partner-coded leakage.
+SUN_MOON_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MOON_SQUARE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MOON_SQUARE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MOON_TRINE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MOON_TRINE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MOON_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,P3 spot-check: harness friendship text clears prior Partner-language failure.
+SUN_MOON_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_SQUARE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_SQUARE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_TRINE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_TRINE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_VENUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,P3 spot-check: bond/two-cycle wording replaces partner-cycle in shared blocks.
+SUN_VENUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_SQUARE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_SQUARE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
+SUN_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase2a-full-reaudit,pending_full_set_pass,
