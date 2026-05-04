@@ -12,17 +12,18 @@
  *   `phase2b-full-audit` returned accept on all 30 renders).
  * Phase 2C v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
  *   (SATURN_SUN_CONJUNCTION and SATURN_SUN_SQUARE cleared after
- *   `phase2c-full-audit` returned accept on all 40 renders covering the 20
- *   Saturn-pair entries).
+ *   `phase2c-full-audit` returned accept on all 40 renders).
+ * Phase 2D v2 audit: docs/audit-logs/synastry-v2-revaudit-v1.csv
+ *   (JUPITER_SUN_CONJUNCTION, JUPITER_SUN_SEXTILE, JUPITER_SUN_SQUARE,
+ *   JUPITER_SUN_TRINE, JUPITER_SUN_OPPOSITION, JUPITER_MOON_CONJUNCTION
+ *   cleared after `phase2d-full-audit` returned accept on all 40 renders
+ *   covering the 20 Jupiter-pair entries).
  *
- * Remaining entries (12) are queued for cleanup as later phases ship and
+ * Remaining entries (6) are queued for cleanup as later phases ship and
  * their audit passes clear:
- *   - 4 JUPITER_SUN_* entries: Phase 2D scope (insight-library-aspects-jupiter.ts)
- *   - JUPITER_SUN_OPPOSITION: Phase 2D scope
  *   - 2 URANUS_SUN_* entries: Phase 2E scope (insight-library-aspects-uranus.ts)
  *   - 2 NEPTUNE_SUN_* entries: Phase 2F scope (insight-library-aspects-neptune.ts)
  *   - 2 PLUTO_SUN_* entries: Phase 2G scope (insight-library-aspects-pluto.ts)
- *   - JUPITER_MOON_CONJUNCTION: Phase 2D scope
  */
 
 export type KillListReasonCode = 'P1_PAIR_CLARITY' | 'P4_SAFETY' | 'P1_P4' | 'OTHER';
@@ -36,41 +37,6 @@ export type AspectLibraryKillListEntry = {
 };
 
 export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
-  {
-    aspectKey: 'JUPITER_SUN_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 32',
-  },
-  {
-    aspectKey: 'JUPITER_SUN_SEXTILE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 34',
-  },
-  {
-    aspectKey: 'JUPITER_SUN_SQUARE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 36',
-  },
-  {
-    aspectKey: 'JUPITER_SUN_TRINE',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-03',
-    reviewer: 'tier1-single-reviewer',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier1-audit-v1.csv:row 38',
-  },
-  {
-    aspectKey: 'JUPITER_SUN_OPPOSITION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 2',
-  },
   {
     aspectKey: 'URANUS_SUN_SEXTILE',
     reasonCode: 'P1_PAIR_CLARITY',
@@ -112,13 +78,6 @@ export const ASPECT_LIBRARY_KILL_LIST: readonly AspectLibraryKillListEntry[] = [
     addedAt: '2026-05-04',
     reviewer: 's5-tier2-sampler',
     auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 18',
-  },
-  {
-    aspectKey: 'JUPITER_MOON_CONJUNCTION',
-    reasonCode: 'P1_PAIR_CLARITY',
-    addedAt: '2026-05-04',
-    reviewer: 's5-tier2-sampler',
-    auditArtifactRef: 'docs/audit-logs/synastry-tier2-sample-audit-v1.csv:row 24',
   },
 ] as const;
 
