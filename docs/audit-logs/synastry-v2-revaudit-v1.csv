@@ -359,3 +359,43 @@ PLUTO_MERCURY_TRINE,friendship,pass,pass,pass,pass,accept,phase3a2a-full-audit,n
 PLUTO_MERCURY_TRINE,romantic,pass,pass,pass,pass,accept,phase3a2a-full-audit,n/a,Penetrating warmth in romantic_synastry.
 PLUTO_MERCURY_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3a2a-full-audit,n/a,Conscious vs hidden knowledge polarity; friend respect.
 PLUTO_MERCURY_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3a2a-full-audit,n/a,Truth negotiation in romantic_synastry; P4 transformative not deterministic.
+SUN_SUN_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Same-body Sun; shared self register; core_synastry no friend/partner leak.
+SUN_SUN_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Identity twinning in romantic_synastry; P4 no fate/diagnostic.
+SUN_SUN_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Compatible identity modes; platonic bond sentence licensed in friendship_synastry.
+SUN_SUN_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Complementary selfhood in romantic_synastry; no second-person in shared blocks.
+SUN_SUN_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Identity friction named structurally; friends tolerate non-convergence.
+SUN_SUN_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Hard-won translation in romantic_synastry; P4 clean.
+SUN_SUN_TRINE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Elemental identity ease; friend path uses friend label only in friend field.
+SUN_SUN_TRINE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Shared direction ease in romantic_synastry; partnership word in romantic only.
+SUN_SUN_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Opposed life-stance polarity; debate OK in friend channel.
+SUN_SUN_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Breadth-across-difference in romantic_synastry; P4 no cosmic decree.
+MOON_MOON_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Same-body Moon; emotive mirror; shared blocks chart-bearer safe.
+MOON_MOON_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Emotional twinning in romantic_synastry; intensity not pathology.
+MOON_MOON_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Compatible feeling modes; supportive exchange.
+MOON_MOON_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Attunement complementarity in romantic_synastry.
+MOON_MOON_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Mismatch in instinct support; structural-care framing.
+MOON_MOON_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Translation work in romantic_synastry; no you-language in shared.
+MOON_MOON_TRINE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Effortless emotional rhythm; friend bond OK.
+MOON_MOON_TRINE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Attunement-as-given in romantic_synastry; ease bounded to intimacy reminder.
+MOON_MOON_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Emotional polarity productive when convergence not goal.
+MOON_MOON_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Negotiated needs in romantic_synastry; middle-path work language.
+VENUS_VENUS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Same-body Venus taste mirror; aesthetic friend bond.
+VENUS_VENUS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Aesthetic twinning in romantic_synastry; friction-for-depth note OK.
+VENUS_VENUS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Taste partnership enrichment; platonic pleasure.
+VENUS_VENUS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Collaborative valuing in romantic_synastry.
+VENUS_VENUS_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Beauty-friction structural; friends tolerate mismatch.
+VENUS_VENUS_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Aesthetic translation work in romantic_synastry.
+VENUS_VENUS_TRINE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Shared beauty logic; easy friend appreciation.
+VENUS_VENUS_TRINE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Aligned valuing in romantic_synastry; developmental ease caveat OK.
+VENUS_VENUS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Values Beauty-vs-connection polarity in friendship_synastry only.
+VENUS_VENUS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Breadth across taste poles in romantic_synastry; P4 clean.
+MARS_MARS_CONJUNCTION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Drive-speed mirror; physical friend rhythm.
+MARS_MARS_CONJUNCTION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Drive twinning in romantic_synastry; escalation caveat developmental not fate.
+MARS_MARS_SEXTILE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Compatible assertion modes; shared momentum.
+MARS_MARS_SEXTILE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Active collaboration in romantic_synastry.
+MARS_MARS_SQUARE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,When-to-act friction; friends name structural timing clash.
+MARS_MARS_SQUARE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Physical attunement work in romantic_synastry; vitality vs ease contrast OK.
+MARS_MARS_TRINE,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Shared drive ease; durable activity bond.
+MARS_MARS_TRINE,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Physical attunement given in romantic_synastry; intimacy breadth reminder OK.
+MARS_MARS_OPPOSITION,friendship,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Assertive polarity as feature; timing honesty friend-level.
+MARS_MARS_OPPOSITION,romantic,pass,pass,pass,pass,accept,phase3b1-full-audit,n/a,Timing negotiation in romantic_synastry; P4 no deterministic outcome.
