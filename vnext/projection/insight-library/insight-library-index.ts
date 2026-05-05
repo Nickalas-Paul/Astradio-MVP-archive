@@ -29,6 +29,7 @@ import type {
   SignInsight,
   HouseInsight,
   PlanetInSignInsight,
+  PlanetInHouseInsight,
 } from './insight-library-types';
 
 import { PERSONAL_ASPECT_INSIGHTS }  from './insight-library-aspects-personal';
@@ -53,6 +54,7 @@ import { PLANET_INSIGHTS } from './insight-library-planets';
 import { SIGN_INSIGHTS } from './insight-library-signs';
 import { HOUSE_INSIGHTS } from './insight-library-houses';
 import { PLANET_IN_SIGN_INSIGHTS } from './insight-library-placements-sign';
+import { PLANET_IN_HOUSE_INSIGHTS } from './insight-library-placements-house';
 
 // ---------------------------------------------------------------------------
 // Phase 5A placement archetypes → AspectInsight-shaped rows for MEP compose + tier1 audit
@@ -120,6 +122,21 @@ function planetInSignInsightToAspect(ins: PlanetInSignInsight): AspectInsight {
   };
 }
 
+function planetInHouseInsightToAspect(ins: PlanetInHouseInsight): AspectInsight {
+  return {
+    key: ins.key,
+    pair: `${ins.planet}_${ins.house}`,
+    aspect: 'placement',
+    intensity: PLACEMENT_INTENSITY,
+    core: ins.core,
+    behavioral: ins.behavioral,
+    friendship: ins.friendship,
+    romantic: ins.romantic,
+    feed: ins.feed,
+    sonic: ins.sonic,
+  };
+}
+
 function buildPlacementAspectInsights(): Record<string, AspectInsight> {
   const out: Record<string, AspectInsight> = {};
   for (const ins of Object.values(PLANET_INSIGHTS) as PlanetInsight[]) {
@@ -133,6 +150,9 @@ function buildPlacementAspectInsights(): Record<string, AspectInsight> {
   }
   for (const ins of Object.values(PLANET_IN_SIGN_INSIGHTS) as PlanetInSignInsight[]) {
     out[ins.key] = planetInSignInsightToAspect(ins);
+  }
+  for (const ins of Object.values(PLANET_IN_HOUSE_INSIGHTS) as PlanetInHouseInsight[]) {
+    out[ins.key] = planetInHouseInsightToAspect(ins);
   }
   return out;
 }
@@ -285,4 +305,5 @@ export type {
   SignInsight,
   HouseInsight,
   PlanetInSignInsight,
+  PlanetInHouseInsight,
 };
