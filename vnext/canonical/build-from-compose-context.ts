@@ -102,6 +102,7 @@ export function buildCanonicalReportForOverlay(params: {
   control_surface_hash: string;
   compose_seed: string;
   guidance: AstroGuidance & { motionProfile: MotionProfile };
+  pair_interaction_aspects?: readonly SnapshotAspect[];
 }): CanonicalReportObject {
   const p0 = slotFromSnapshot('primary', 0, params.natalSnapshot, params.natalFeatureVec);
   const p1 = slotFromSnapshot('secondary', 1, params.transitSnapshot, params.transitFeatureVec);
@@ -131,6 +132,9 @@ export function buildCanonicalReportForOverlay(params: {
     planner_version: 'narrative-v1',
     semantic_authority_version: SEMANTIC_AUTHORITY_VERSION,
     gate_policy_version: 'audition-v2.3',
+    ...(params.pair_interaction_aspects != null
+      ? { pair_interaction_aspects: params.pair_interaction_aspects }
+      : {}),
   };
   return withObjectIdentityHash(base);
 }

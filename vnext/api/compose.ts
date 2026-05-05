@@ -253,6 +253,10 @@ export class ComposeAPI {
       if (hasOverlayContext && canonicalInput.overlayNatalSnapshot) {
         const natalSnapshot = canonicalInput.overlayNatalSnapshot;
         const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
+        const overlaySynastry = computeSynastryAspects({
+          snapshotsOrdered: [natalSnapshot, architecture.snapshot],
+          mode: 'pair',
+        });
         canonicalReport = buildCanonicalReportForOverlay({
           subject_ids: [payload.hash],
           natalSnapshot,
@@ -262,6 +266,7 @@ export class ComposeAPI {
           control_surface_hash: payload.hash,
           compose_seed: requestSeed,
           guidance: architecture.guidance,
+          pair_interaction_aspects: overlaySynastry,
         });
       } else {
         const surface_kind =

@@ -875,8 +875,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
                 context === 'romantic' ? 'romantic' : 'friendship'
               );
             }
+            if (effSurface === 'overlay_pair') {
+              const transitText = [ins.core_transit, ins.behavioral_transit].filter(Boolean).join(' ');
+              return transitText || [ins.core, ins.behavioral].filter(Boolean).join(' ');
+            }
             return [ins.core, ins.behavioral].filter(Boolean).join(' ');
           })
+          .filter(Boolean)
           .join('\n\n');
       }
     } else if (isMus) {
