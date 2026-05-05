@@ -131,6 +131,10 @@ export interface AspectInsight {
   readonly behavioral_synastry?: string;
   readonly friendship_synastry?: string;
   readonly romantic_synastry?: string;
+
+  /** Natal sky overlay (transit→natal); 2nd person, temporal window per transiting body (overlay_pair / Phase 6B). */
+  readonly core_transit?: string;
+  readonly behavioral_transit?: string;
 }
 
 /**
