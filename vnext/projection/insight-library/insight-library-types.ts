@@ -82,6 +82,22 @@ export interface HouseInsight {
   readonly sonic: string;
 }
 
+/**
+ * Planet-in-sign placement (Phase 5B+). Keys: PLCMT_{PLANET}_{SIGN}.
+ */
+export interface PlanetInSignInsight {
+  readonly key: string;
+  readonly planet: string;
+  readonly sign: string;
+  readonly title: string;
+  readonly core: string;
+  readonly behavioral: string;
+  readonly friendship: string;
+  readonly romantic: string;
+  readonly feed: string;
+  readonly sonic: string;
+}
+
 export interface AspectInsight {
   readonly key: string;       // e.g. 'SATURN_MOON_SQUARE'
   readonly pair: string;      // e.g. 'SATURN_MOON'
