@@ -980,6 +980,7 @@ export class ComposeAPI {
       tier: 'baseline',
       narrativePlan,
       aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+      snapshot,
       ...insightOptsExpl,
     });
     const object_identity_hash = canonicalReport.object_identity_hash;

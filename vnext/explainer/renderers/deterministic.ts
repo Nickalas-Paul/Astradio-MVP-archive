@@ -15,6 +15,7 @@ import type {
   MusicFacts
 } from '../spec-contracts';
 import type { AstroProfile } from '../../astro/profile-from-snapshot';
+import { getAspectInsight } from '../../projection/insight-library/insight-library-index';
 import {
   densityBandCodeFromExplainerBucket,
   mapDensity,
@@ -202,12 +203,17 @@ const HOUSE_TOPIC: Record<number, string> = {
   12: 'the unconscious and release'
 };
 
-/** One-line placement meaning: planet in sign + house topic. */
-function placementMeaning(p: AstroProfile['planets'][0]): string {
-  const op = PLANET_OPERATOR[p.name] ?? 'influence';
-  const topic = HOUSE_TOPIC[p.house] ?? 'the chart';
-  const angleNote = p.nearAngle ? `, accenting the ${p.nearAngle},` : '';
-  return `${op}${angleNote} expressed through ${topic}.`;
+/** One-line placement meaning sourced from placement insight library. */
+function placementMeaning(planet: AstroProfile['planets'][0]): string {
+  const signKey = `PLCMT_${planet.name.toUpperCase()}_${planet.sign.toUpperCase()}`;
+  const insight = getAspectInsight(signKey);
+
+  if (!insight || !insight.core) {
+    return `${planet.name} in ${planet.sign} (${planet.house})`;
+  }
+
+  const firstSentence = insight.core.split('.')[0];
+  return `${planet.name} in ${planet.sign}: ${firstSentence}.`;
 }
 
 /** Ordinal for house (1st, 2nd, ...). */

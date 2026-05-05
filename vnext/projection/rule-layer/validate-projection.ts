@@ -177,7 +177,7 @@ export function validateSectionOwnership(
 const MUSICAL_IDS = new Set(['musical', 'music_translation']);
 
 /** Spine sections whose claim overlap with `musical` / `music_translation` is intentional (MEP + listen). */
-const MECHANISM_SPINE_SECTION_IDS = new Set(['signatures', 'sky_summary']);
+const MECHANISM_SPINE_SECTION_IDS = new Set(['signatures', 'aspects', 'sky_summary']);
 
 /**
  * Phase 3 — claim_id must appear in at most one section's `claimIdsReferenced`, except

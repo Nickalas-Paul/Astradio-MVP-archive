@@ -153,7 +153,7 @@ function main(): void {
   );
 
   const pBase = runSurface('profile', coreProfile, 'profile', 'baseline');
-  assert(pBase.includes('signatures') && pBase.includes('audio_staging'), 'profile baseline ids');
+  assert((pBase.includes('aspects') || pBase.includes('signatures')) && pBase.includes('audio_staging'), 'profile baseline ids');
 
   const pExt = runSurface('profile', coreProfile, 'profile', 'extended');
   assert(pExt.includes('synthesis_a'), 'profile extended must include synthesis_a');

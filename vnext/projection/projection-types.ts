@@ -7,7 +7,7 @@
 // Do not use this terminology in new implementation, planning, or design work.
 
 import type { RelationshipMode } from '../compat/types';
-import type { SnapshotAspect } from '../contracts';
+import type { EphemerisSnapshot, SnapshotAspect } from '../contracts';
 
 export type ExpansionTier = 'baseline' | 'expanded' | 'extended';
 
@@ -163,6 +163,8 @@ export type ProjectionOptions = {
   compatClassCode?: string;
   /** Relational weather dominant theme tags for insight-library (aggregate / feed). */
   relationalWeatherThemes?: readonly string[];
+  /** Optional chart snapshot for placement-key section assembly on profile surface. */
+  snapshot?: EphemerisSnapshot;
 };
 
 export type Phase4UnitRef = {

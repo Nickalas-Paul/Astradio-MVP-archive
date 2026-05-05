@@ -445,6 +445,7 @@ export function injectAnchorPrefix(ctx: TemplateContext): string {
 /** Section ids that receive assembler-injected anchor before template body. */
 export const PHASE2_ANCHORED_SECTION_IDS = new Set<string>([
   'signatures',
+  'aspects',
   'significance',
   'musical',
   'sky_summary',

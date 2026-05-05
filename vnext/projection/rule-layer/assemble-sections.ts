@@ -7,7 +7,7 @@
 // It is not a product concept, runtime layer, or Campaign feature.
 // Do not use this terminology in new implementation, planning, or design work.
 
-import type { SnapshotAspect } from '../../contracts';
+import type { EphemerisSnapshot, SnapshotAspect } from '../../contracts';
 import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
   ExpansionTier,
@@ -68,6 +68,7 @@ import {
 } from '../insight-library/insight-library-index';
 import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kill-list';
 import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
+import { buildPlacementKeys, PLANET_TIERS, type PlacementKey } from '../placement-keys';
 
 /**
  * S3 Mode 1 — single aspect source for insight-library MEP slice (no double-render):
@@ -418,6 +419,11 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
 
   if (surface === 'profile') {
     const o = withDepths([
+      'core_identity',
+      'personal_expression',
+      'growth_expansion',
+      'evolutionary_currents',
+      'aspects',
       'signatures',
       'significance',
       'trait_bridge',
@@ -576,6 +582,142 @@ export type PhaseDAssemblyParams = {
   surface: ProjectionSurface;
   temporalBucket: import('./temporal-classify').TemporalVoiceBucket;
 };
+
+/**
+ * Assemble placement sections for Profile Identity
+ * Creates 4-tier graduated depth structure
+ */
+function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): ProjectedExplanationSection[] {
+  const placementKeys = buildPlacementKeys(snapshot);
+  const sections: ProjectedExplanationSection[] = [];
+
+  sections.push(
+    assemblePlacementTier({
+      tierId: 'core_identity',
+      title: 'Core Identity Architecture',
+      subtitle: 'The Foundation of Self',
+      planets: PLANET_TIERS.core_identity,
+      placementKeys,
+      depth: 'full',
+    })
+  );
+  sections.push(
+    assemblePlacementTier({
+      tierId: 'personal_expression',
+      title: 'Personal Expression',
+      subtitle: 'How You Communicate, Connect, and Create',
+      planets: PLANET_TIERS.personal_expression,
+      placementKeys,
+      depth: 'full',
+    })
+  );
+  sections.push(
+    assemblePlacementTier({
+      tierId: 'growth_expansion',
+      title: 'Growth and Expansion',
+      subtitle: 'Your Path of Development',
+      planets: PLANET_TIERS.growth_expansion,
+      placementKeys,
+      depth: 'medium',
+    })
+  );
+  sections.push(
+    assemblePlacementTier({
+      tierId: 'evolutionary_currents',
+      title: 'Evolutionary Currents',
+      subtitle: 'Generational Themes and Deep Transformation',
+      planets: PLANET_TIERS.evolutionary_currents,
+      placementKeys,
+      depth: 'concise',
+    })
+  );
+
+  return sections.filter((s) => s.text && s.text.trim().length > 0);
+}
+
+function assemblePlacementTier(config: {
+  tierId: string;
+  title: string;
+  subtitle: string;
+  planets: readonly string[];
+  placementKeys: PlacementKey[];
+  depth: 'full' | 'medium' | 'concise';
+}): ProjectedExplanationSection {
+  const paragraphs: string[] = [];
+
+  for (const planetName of config.planets) {
+    const placement = config.placementKeys.find((pk) => pk.planet === planetName);
+    if (!placement) continue;
+
+    const planetBlock = assemblePlanetPlacement(placement, config.depth);
+    if (planetBlock) paragraphs.push(planetBlock);
+  }
+
+  const body = paragraphs.join('\n\n---\n\n');
+  const text = config.subtitle ? `${config.subtitle}\n\n${body}`.trim() : body;
+  return {
+    id: config.tierId,
+    title: config.title,
+    text,
+    bullets: [],
+    meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+  };
+}
+
+function assemblePlanetPlacement(placement: PlacementKey, depth: 'full' | 'medium' | 'concise'): string | null {
+  const signInsight = getAspectInsight(placement.signKey);
+  const houseInsight = getAspectInsight(placement.houseKey);
+
+  if (!signInsight && !houseInsight) return null;
+
+  const parts: string[] = [];
+  const planetDisplay = placement.planet.charAt(0).toUpperCase() + placement.planet.slice(1).toLowerCase();
+  const signDisplay = placement.sign.charAt(0).toUpperCase() + placement.sign.slice(1).toLowerCase();
+  const ordinal = getOrdinalSuffix(placement.house);
+  parts.push(`### ${planetDisplay} in ${signDisplay}, ${ordinal} House`);
+
+  if (signInsight) {
+    if (depth === 'full' || depth === 'medium') {
+      parts.push('**Archetypal Expression**');
+      parts.push(signInsight.core || '');
+      parts.push('**Observable Patterns**');
+      parts.push(signInsight.behavioral || '');
+      if (depth === 'full') {
+        parts.push('**Sonic Signature**');
+        parts.push(signInsight.sonic || '');
+      }
+    } else {
+      parts.push(signInsight.core || '');
+    }
+  }
+
+  if (houseInsight) {
+    if (depth === 'full') {
+      parts.push('**Life Arena**');
+      parts.push(houseInsight.core || '');
+      parts.push('**Manifestation Context**');
+      parts.push(houseInsight.behavioral || '');
+      parts.push('**Aesthetic Resonance**');
+      parts.push(houseInsight.sonic || '');
+    } else if (depth === 'medium') {
+      parts.push('**Life Arena**');
+      parts.push(houseInsight.core || '');
+      parts.push('**Manifestation Context**');
+      parts.push(houseInsight.behavioral || '');
+    } else {
+      parts.push('**Life Context**');
+      parts.push(houseInsight.core || '');
+    }
+  }
+
+  return parts.filter((p) => p && p.trim().length > 0).join('\n\n');
+}
+
+function getOrdinalSuffix(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
 
 export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedExplanationSection[] {
   const { core, seed, options, tierEff, surface, temporalBucket } = params;
@@ -917,8 +1059,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
 
     const claimIdsReferenced = isMus ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
+    const profileMepSection = mepHere && surface === 'profile';
     return {
       ...sec,
+      ...(profileMepSection ? { id: 'aspects', title: 'Planetary Relationships' } : {}),
       text: finalText,
       ...(isMus ? { bullets: undefined } : {}),
       meta: {
@@ -1475,7 +1619,11 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     });
   }
 
-  let framed = applyConnectionPreface(out, {
+  const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
+  const placementSections =
+    surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
+
+  let framed = applyConnectionPreface([...placementSections, ...out], {
     surface,
     connectionMode: options.connectionMode,
     participantCount: options.participantCount,

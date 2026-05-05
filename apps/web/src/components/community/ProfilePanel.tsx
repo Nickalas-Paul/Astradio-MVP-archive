@@ -120,6 +120,11 @@ const SECTION_ORDER: string[] = [
   'ensemble_framing',
   'relational_field',
   'relational_weather_v1',
+  'core_identity',
+  'personal_expression',
+  'growth_expansion',
+  'evolutionary_currents',
+  'aspects',
   'signatures',
   'significance',
   'trait_bridge',
@@ -133,6 +138,11 @@ const SECTION_ORDER: string[] = [
   'audio_thread',
 ];
 const SECTION_TITLES: Record<string, string> = {
+  core_identity: 'Core Identity Architecture',
+  personal_expression: 'Personal Expression',
+  growth_expansion: 'Growth and Expansion',
+  evolutionary_currents: 'Evolutionary Currents',
+  aspects: 'Planetary Relationships',
   signatures: 'Astrology',
   significance: 'Personal Significance',
   musical: 'Music Theory',
