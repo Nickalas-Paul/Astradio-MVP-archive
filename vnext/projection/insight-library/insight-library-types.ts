@@ -33,6 +33,55 @@ export type InsightContext = 'friendship' | 'romantic' | 'discovery';
  * fields. See docs/SYNASTRY-S5-STAGE-A-SPECIFICATION.md and the v2 handoff for
  * authoring guidance.
  */
+/**
+ * Planet archetype placement (Phase 5A). Keys: PLANET_{BODY}.
+ * Singular-chart natal meanings only; wired through insight-library-index as MEP-composable entries.
+ */
+export interface PlanetInsight {
+  readonly key: string;
+  readonly planet: string;
+  readonly title: string;
+  readonly core: string;
+  readonly behavioral: string;
+  readonly friendship: string;
+  readonly romantic: string;
+  readonly feed: string;
+  readonly sonic: string;
+}
+
+/**
+ * Zodiac sign archetype (Phase 5A). Keys: SIGN_{SIGN}.
+ */
+export interface SignInsight {
+  readonly key: string;
+  readonly sign: string;
+  readonly element: string;
+  readonly modality: string;
+  readonly title: string;
+  readonly core: string;
+  readonly behavioral: string;
+  readonly friendship: string;
+  readonly romantic: string;
+  readonly feed: string;
+  readonly sonic: string;
+}
+
+/**
+ * House archetype (Phase 5A). Keys: HOUSE_{1..12}.
+ */
+export interface HouseInsight {
+  readonly key: string;
+  readonly house: number;
+  readonly title: string;
+  readonly domain: string;
+  readonly core: string;
+  readonly behavioral: string;
+  readonly friendship: string;
+  readonly romantic: string;
+  readonly feed: string;
+  readonly sonic: string;
+}
+
 export interface AspectInsight {
   readonly key: string;       // e.g. 'SATURN_MOON_SQUARE'
   readonly pair: string;      // e.g. 'SATURN_MOON'

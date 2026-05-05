@@ -25,6 +25,9 @@ import type {
   StructuralClaimInsight,
   RelationalInsight,
   AudioDescriptorInsight,
+  PlanetInsight,
+  SignInsight,
+  HouseInsight,
 } from './insight-library-types';
 
 import { PERSONAL_ASPECT_INSIGHTS }  from './insight-library-aspects-personal';
@@ -45,6 +48,77 @@ import { STRUCTURAL_INSIGHTS }  from './insight-library-structural';
 import { RELATIONAL_INSIGHTS }  from './insight-library-relational';
 import { AUDIO_INSIGHTS }       from './insight-library-audio';
 
+import { PLANET_INSIGHTS } from './insight-library-planets';
+import { SIGN_INSIGHTS } from './insight-library-signs';
+import { HOUSE_INSIGHTS } from './insight-library-houses';
+
+// ---------------------------------------------------------------------------
+// Phase 5A placement archetypes → AspectInsight-shaped rows for MEP compose + tier1 audit
+// ---------------------------------------------------------------------------
+
+const PLACEMENT_INTENSITY = 'natal_placement_foundational';
+
+function planetInsightToAspect(ins: PlanetInsight): AspectInsight {
+  return {
+    key: ins.key,
+    pair: ins.planet,
+    aspect: 'placement',
+    intensity: PLACEMENT_INTENSITY,
+    core: ins.core,
+    behavioral: ins.behavioral,
+    friendship: ins.friendship,
+    romantic: ins.romantic,
+    feed: ins.feed,
+    sonic: ins.sonic,
+  };
+}
+
+function signInsightToAspect(ins: SignInsight): AspectInsight {
+  return {
+    key: ins.key,
+    pair: ins.sign,
+    aspect: 'placement',
+    intensity: PLACEMENT_INTENSITY,
+    core: ins.core,
+    behavioral: ins.behavioral,
+    friendship: ins.friendship,
+    romantic: ins.romantic,
+    feed: ins.feed,
+    sonic: ins.sonic,
+  };
+}
+
+function houseInsightToAspect(ins: HouseInsight): AspectInsight {
+  return {
+    key: ins.key,
+    pair: `HOUSE_${ins.house}`,
+    aspect: 'placement',
+    intensity: PLACEMENT_INTENSITY,
+    core: ins.core,
+    behavioral: ins.behavioral,
+    friendship: ins.friendship,
+    romantic: ins.romantic,
+    feed: ins.feed,
+    sonic: ins.sonic,
+  };
+}
+
+function buildPlacementAspectInsights(): Record<string, AspectInsight> {
+  const out: Record<string, AspectInsight> = {};
+  for (const ins of Object.values(PLANET_INSIGHTS) as PlanetInsight[]) {
+    out[ins.key] = planetInsightToAspect(ins);
+  }
+  for (const ins of Object.values(SIGN_INSIGHTS) as SignInsight[]) {
+    out[ins.key] = signInsightToAspect(ins);
+  }
+  for (const ins of Object.values(HOUSE_INSIGHTS) as HouseInsight[]) {
+    out[ins.key] = houseInsightToAspect(ins);
+  }
+  return out;
+}
+
+const PLACEMENT_ASPECT_INSIGHTS: Readonly<Record<string, AspectInsight>> = buildPlacementAspectInsights();
+
 // ---------------------------------------------------------------------------
 // Merged aspect lookup table
 // ---------------------------------------------------------------------------
@@ -62,6 +136,7 @@ const ASPECT_INSIGHTS: Readonly<Record<string, AspectInsight>> = {
   ...PALLAS_ASPECT_INSIGHTS,
   ...JUNO_ASPECT_INSIGHTS,
   ...VESTA_ASPECT_INSIGHTS,
+  ...PLACEMENT_ASPECT_INSIGHTS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -186,4 +261,7 @@ export type {
   StructuralClaimInsight,
   RelationalInsight,
   AudioDescriptorInsight,
+  PlanetInsight,
+  SignInsight,
+  HouseInsight,
 };
