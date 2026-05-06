@@ -17,7 +17,12 @@ import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import { clamp01 } from '../compatibility/stable';
 import { fetchChartSnapshot } from '../core/architecture-engine';
 import type { CrossAspectHitV1, RelationalWeatherStateV1 } from '../relational/weather/types';
-import { buildFeedCollapsedDisplayV1, type FeedCollapsedDisplayV1 } from './feed-collapsed-display';
+import {
+  buildFeedCollapsedDisplayV1,
+  buildFeedCollapsedDisplayPairBetaV1,
+  type FeedCollapsedDisplayPairBetaV1,
+  type FeedCollapsedDisplayV1,
+} from './feed-collapsed-display';
 import { selectDisplayedFeedAspectForSortedRow } from './feed-displayed-aspect-v1';
 
 /**
@@ -64,8 +69,8 @@ export interface CommunityRelationalFeedItemV1 {
   chart_ids_ordered: string[];
   /** User-facing line (e.g. You · label, Group · name). */
   connection_identity_line: string;
-  /** Collapsed card: one sky signal + descriptor; derived from existing transit/activation snapshot only. */
-  collapsed_display: FeedCollapsedDisplayV1;
+  /** Collapsed card: one sky signal + descriptor; pairs may include Phase 6D Beta three-line activation block. */
+  collapsed_display: FeedCollapsedDisplayV1 | FeedCollapsedDisplayPairBetaV1;
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;
   transit_snapshot_hash: string;
@@ -128,7 +133,15 @@ type PgStore = {
     viewerPrimaryChartId: string;
     identities: Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
   }) => Promise<Map<string, 'not_generated' | 'available' | 'partial' | 'failed'>>;
+  /** Optional: partner chart label for collapsed Beta title (pair connections). */
+  getChart?: (chartId: string) => Promise<{ label?: string } | null | undefined>;
 };
+
+function connectionLabelFromIdentityLine(line: string): string {
+  const s = String(line || '').trim();
+  if (s.toLowerCase().startsWith('you ·')) return s.slice(5).trim();
+  return s;
+}
 
 function uniqueSortedChartIds(ids: string[]): string[] {
   return Array.from(new Set(ids.filter((x) => typeof x === 'string' && x.trim()))).sort((a, b) =>
@@ -154,10 +167,17 @@ function compareFeedRanking(
  * Exported for regression tests.
  */
 export function applyFeedCollapsedDisplayPass2(
-  sortedPass1: CommunityRelationalFeedItemPass1V1[]
+  sortedPass1: CommunityRelationalFeedItemPass1V1[],
+  opts?: {
+    viewerPrimaryChartId?: string;
+    partnerChartLabelByChartId?: Map<string, string>;
+  }
 ): CommunityRelationalFeedItemV1[] {
   let recentWindow: string[] = [];
   const out: CommunityRelationalFeedItemV1[] = [];
+  const viewerPc = String(opts?.viewerPrimaryChartId || '').trim();
+  const labelMap = opts?.partnerChartLabelByChartId;
+
   for (let i = 0; i < sortedPass1.length; i++) {
     const row = sortedPass1[i]!;
     const weather = row.transit_weather;
@@ -171,7 +191,31 @@ export function applyFeedCollapsedDisplayPass2(
       displayHit = sel.hit;
       recentWindow = sel.nextWindow;
     }
-    const collapsed_display = buildFeedCollapsedDisplayV1(weather, displayHit);
+
+    let collapsed_display: FeedCollapsedDisplayV1 | FeedCollapsedDisplayPairBetaV1;
+    const usePairBeta =
+      row.connection_kind === 'pair' &&
+      viewerPc &&
+      row.chart_ids_ordered.includes(viewerPc) &&
+      row.chart_ids_ordered.length >= 2;
+
+    if (usePairBeta) {
+      const partnerChartId = row.chart_ids_ordered.find((id) => id !== viewerPc) ?? '';
+      const fallbackLab = connectionLabelFromIdentityLine(row.connection_identity_line);
+      const partnerLabel =
+        (partnerChartId && labelMap?.get(partnerChartId)?.trim()) || fallbackLab || 'Partner';
+      collapsed_display = buildFeedCollapsedDisplayPairBetaV1({
+        weather,
+        displayHit,
+        viewerPrimaryChartId: viewerPc,
+        partnerChartId,
+        partnerChartLabel: partnerLabel,
+        connectionLabelFallback: fallbackLab,
+      });
+    } else {
+      collapsed_display = buildFeedCollapsedDisplayV1(weather, displayHit);
+    }
+
     const { transit_weather: _drop, ...rest } = row;
     out.push({
       ...rest,
@@ -383,7 +427,27 @@ export async function buildCommunityRelationalFeed(params: {
     }
   }
 
-  const items = applyFeedCollapsedDisplayPass2(pass1);
+  const partnerChartLabelByChartId = new Map<string, string>();
+  if (viewerPrimaryChartId && typeof pgStore.getChart === 'function') {
+    for (const row of pass1) {
+      if (row.connection_kind !== 'pair') continue;
+      if (!row.chart_ids_ordered.includes(viewerPrimaryChartId)) continue;
+      const partnerId = row.chart_ids_ordered.find((id) => id !== viewerPrimaryChartId);
+      if (!partnerId || partnerChartLabelByChartId.has(partnerId)) continue;
+      try {
+        const ch = await pgStore.getChart(partnerId);
+        const lab = ch && typeof ch.label === 'string' ? ch.label.trim() : '';
+        partnerChartLabelByChartId.set(partnerId, lab);
+      } catch {
+        partnerChartLabelByChartId.set(partnerId, '');
+      }
+    }
+  }
+
+  const items = applyFeedCollapsedDisplayPass2(pass1, {
+    viewerPrimaryChartId,
+    partnerChartLabelByChartId,
+  });
 
   if (!envelopeLock) {
     throw new Error('Community relational feed: missing transit envelope');

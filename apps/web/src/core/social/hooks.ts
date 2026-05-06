@@ -637,6 +637,10 @@ export interface RelationalCommunityFeedItem {
     primary_line: string;
     micro_tag: string;
     activation_descriptor: string;
+    /** Phase 6D Beta — pair-only; three fixed activation lines with viewer/partner framing. */
+    enhanced_title?: string;
+    activity_count?: number;
+    activation_lines?: Array<{ text: string; member_scope: 'you' | 'them' | 'shared' }>;
   };
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;

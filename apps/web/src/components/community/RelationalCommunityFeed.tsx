@@ -14,6 +14,24 @@ interface RelationalCommunityFeedProps {
   className?: string;
 }
 
+/** Bold YOUR/THEIR without HTML injection (activation lines are server-built). */
+function MemberScopeFragment({ text }: { text: string }) {
+  const parts = text.split(/(YOUR|THEIR)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p === 'YOUR' || p === 'THEIR' ? (
+          <strong key={`${i}-${p}`} className="font-semibold text-emerald-700 dark:text-emerald-400">
+            {p}
+          </strong>
+        ) : (
+          <span key={`${i}-t`}>{p}</span>
+        )
+      )}
+    </>
+  );
+}
+
 export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
@@ -326,11 +344,23 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     ? 'Group'
                     : 'Campaign';
             const row = collapsedByFeedId.get(item.feed_item_id);
+            const cd = item.collapsed_display;
+            const betaLines =
+              item.connection_kind === 'pair' &&
+              cd &&
+              Array.isArray(cd.activation_lines) &&
+              cd.activation_lines.length === 3 &&
+              typeof cd.enhanced_title === 'string' &&
+              cd.enhanced_title.trim().length > 0
+                ? cd.activation_lines
+                : null;
             const primary = row?.primary_line ?? 'This connection is active in your feed for this moment.';
             const micro = row?.micro_tag ?? '';
             const descriptor = row?.activation_descriptor ?? 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));
             const surfacingLine = row?.surfacing_explanation ?? null;
+            const activityCount =
+              cd && typeof cd.activity_count === 'number' ? cd.activity_count : null;
 
             return (
               <li
@@ -339,13 +369,40 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               >
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-text">{identity}</p>
-                  <p className="text-sm text-text leading-snug">{primary}</p>
-                  {micro ? (
-                    <p className="text-xs font-medium text-subtext tracking-wide" aria-hidden="true">
-                      {micro}
-                    </p>
-                  ) : null}
-                  <p className="text-xs text-subtext">{descriptor}</p>
+                  {betaLines && cd?.enhanced_title ? (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
+                        {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
+                      </h4>
+                      {activityCount != null ? (
+                        <p className="text-xs text-subtext max-w-full">
+                          {activityCount} transits highlighted today
+                        </p>
+                      ) : null}
+                      <ul className="list-none space-y-1.5 pl-0 max-w-full">
+                        {betaLines.map((line, idx) => (
+                          <li key={`${item.feed_item_id}-ln-${idx}`} className="flex gap-2 text-sm text-text leading-snug">
+                            <span className="mt-1.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden>
+                              ●
+                            </span>
+                            <span className="min-w-0 break-words">
+                              <MemberScopeFragment text={line.text} />
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-text leading-snug">{primary}</p>
+                      {micro ? (
+                        <p className="text-xs font-medium text-subtext tracking-wide" aria-hidden="true">
+                          {micro}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                  {!betaLines ? <p className="text-xs text-subtext">{descriptor}</p> : null}
                   {surfacingLine ? (
                     <p className="text-xs text-text/90 leading-snug max-w-xl">{surfacingLine}</p>
                   ) : null}
