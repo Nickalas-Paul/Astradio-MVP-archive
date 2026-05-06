@@ -12,11 +12,21 @@ export function insightProjectionOptionsFromCanonical(
   canonicalReport: CanonicalReportObject
 ): Pick<
   ProjectionOptions,
-  'snapshotAspects' | 'relationalWeatherThemes' | 'pairInteractionAspects' | 'synastry_context'
+  | 'snapshotAspects'
+  | 'snapshot'
+  | 'secondarySnapshot'
+  | 'relationalWeatherThemes'
+  | 'pairInteractionAspects'
+  | 'synastry_context'
 > {
   const anchorIdx = canonicalReport.anchor_slot_index ?? 0;
   const anchorParticipant = canonicalReport.participants[anchorIdx] ?? canonicalReport.participants[0];
   const snapshotAspects = anchorParticipant?.natal_snapshot?.aspects ?? [];
+  const snapshot = anchorParticipant?.natal_snapshot ?? undefined;
+  const secondarySnapshot =
+    canonicalReport.participants.length >= 2
+      ? canonicalReport.participants[(anchorIdx + 1) % canonicalReport.participants.length]?.natal_snapshot
+      : undefined;
   const relationalWeatherThemes = canonicalReport.relational_weather?.themes?.dominantThemes ?? [];
 
   const syn = canonicalReport.pair_interaction_aspects;
@@ -32,11 +42,13 @@ export function insightProjectionOptionsFromCanonical(
       canonicalReport.participants.length > 2 ? 'group_aggregate' : 'pair_comparison';
     return {
       snapshotAspects,
+      snapshot,
+      secondarySnapshot: secondarySnapshot ?? undefined,
       relationalWeatherThemes,
       pairInteractionAspects: syn,
       synastry_context,
     };
   }
 
-  return { snapshotAspects, relationalWeatherThemes };
+  return { snapshotAspects, snapshot, secondarySnapshot: secondarySnapshot ?? undefined, relationalWeatherThemes };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -34,6 +34,17 @@ function parseSandboxState(raw: unknown): Record<string, unknown> | null {
     }
   }
   return null;
+}
+
+function parseSnapshotFingerprint(raw: unknown): Record<string, unknown> | null {
+  if (typeof raw !== 'string' || raw.trim().length === 0) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {
@@ -257,6 +268,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
   const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
   const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
@@ -294,6 +306,19 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
     null,
   );
+
+  const activeWheelSlots = useMemo(() => {
+    const id = activeResult?.identity as
+      | { natal_snapshot_fingerprint?: unknown; transit_snapshot_fingerprint?: unknown }
+      | undefined;
+    const natal = parseSnapshotFingerprint(id?.natal_snapshot_fingerprint);
+    const transit = parseSnapshotFingerprint(id?.transit_snapshot_fingerprint);
+    if (!natal || !transit) return null;
+    return [
+      { label: 'Your Chart', description: 'Natal positions', snapshot: natal },
+      { label: 'Current Sky', description: 'Transiting positions', snapshot: transit },
+    ] as const;
+  }, [activeResult]);
 
   useEffect(() => {
     const now = new Date();
@@ -380,6 +405,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
       });
     };
   }, [chartData?.identity_export_id]);
+
+  useEffect(() => {
+    setActiveSlotIndex(0);
+  }, [activeResult]);
 
   const loadActiveStateText = async () => {
     if (
@@ -1204,6 +1233,39 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                 </div>
                 {libraryError && <p className="text-sm text-red-500">{libraryError}</p>}
                 {activeError && <p className="text-sm text-red-500">{activeError}</p>}
+                {activeWheelSlots && (
+                  <div className="max-w-xl space-y-3">
+                    <div className="flex gap-2 rounded-lg bg-bgElev p-1 border border-border">
+                      {activeWheelSlots.map((slot, idx) => (
+                        <button
+                          key={slot.label}
+                          type="button"
+                          className={`flex-1 rounded-md px-3 py-2 text-left transition-colors ${
+                            activeSlotIndex === idx
+                              ? 'bg-bg border border-border text-emerald'
+                              : 'text-subtext hover:bg-bg'
+                          }`}
+                          onClick={() => setActiveSlotIndex(idx as 0 | 1)}
+                          aria-pressed={activeSlotIndex === idx}
+                        >
+                          <div className="text-sm font-medium">{slot.label}</div>
+                          <div className="text-xs text-subtext">{slot.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                    {snapshotSafeForWheel(activeWheelSlots[activeSlotIndex]?.snapshot) ? (
+                      <WheelCanvas
+                        chartData={activeWheelSlots[activeSlotIndex]!.snapshot as any}
+                        isLoading={false}
+                        className="max-w-full"
+                      />
+                    ) : (
+                      <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+                        Wheel unavailable for selected slot.
+                      </div>
+                    )}
+                  </div>
+                )}
                 {activeResult?.explanation && (
                   <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
                 )}

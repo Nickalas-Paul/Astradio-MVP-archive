@@ -201,6 +201,15 @@ function splitIntoParagraphs(text: string): string[] {
     .filter(Boolean);
 }
 
+function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
+  return arr.reduce((acc, item) => {
+    const key = keyFn(item);
+    if (!acc[key]) acc[key] = [];
+    acc[key]!.push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
+}
+
 function normalizeAudioExplanationBody(audioText: string): string {
   return audioText
     .split(/\n\n+/)
@@ -719,12 +728,177 @@ function getOrdinalSuffix(n: number): string {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 }
 
+function formatPlanetName(planet: string): string {
+  const p = String(planet || '').toLowerCase();
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
+function formatSignName(sign: string): string {
+  const s = String(sign || '').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatHouseName(house: number): string {
+  return `${getOrdinalSuffix(house)} House`;
+}
+
+function formatAspectName(aspect: string): string {
+  return String(aspect || '').toLowerCase();
+}
+
+function buildMinimalOverlaySections(): ProjectedExplanationSection[] {
+  const text =
+    'Your natal chart is in a relatively quiet period with no significant transiting aspects forming close connections to your personal planets.';
+  return [
+    {
+      id: 'no_activations',
+      title: 'Current Transit Window',
+      text,
+      bullets: [],
+      meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+    },
+  ];
+}
+
+function assembleOverlayActivationSections(options: ProjectionOptions): ProjectedExplanationSection[] {
+  const natalSnapshot = options.snapshot;
+  const transitSnapshot = options.secondarySnapshot;
+  if (!natalSnapshot || !transitSnapshot) return buildMinimalOverlaySections();
+
+  const transitAspects = [...(options.pairInteractionAspects ?? [])];
+  if (transitAspects.length === 0) return buildMinimalOverlaySections();
+
+  const tiers: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    natalBodies: readonly string[];
+    depth: 'full' | 'medium' | 'concise';
+  }> = [
+    {
+      id: 'core_identity',
+      title: 'Core Identity Architecture',
+      subtitle: 'Fundamental Self-Expression Under Current Influence',
+      natalBodies: PLANET_TIERS.core_identity,
+      depth: 'full',
+    },
+    {
+      id: 'personal_expression',
+      title: 'Personal Expression',
+      subtitle: 'Communication, Values, and Drive in Current Context',
+      natalBodies: PLANET_TIERS.personal_expression,
+      depth: 'full',
+    },
+    {
+      id: 'growth_expansion',
+      title: 'Growth and Expansion',
+      subtitle: 'Long-Term Development and Structure',
+      natalBodies: PLANET_TIERS.growth_expansion,
+      depth: 'medium',
+    },
+    {
+      id: 'evolutionary_currents',
+      title: 'Evolutionary Currents',
+      subtitle: 'Generational and Transformative Forces',
+      natalBodies: PLANET_TIERS.evolutionary_currents,
+      depth: 'concise',
+    },
+  ];
+
+  const natalPlacements = buildPlacementKeys(natalSnapshot);
+  const transitPlacements = buildPlacementKeys(transitSnapshot);
+  const sections: ProjectedExplanationSection[] = [];
+
+  for (const tier of tiers) {
+    const tierAspects = transitAspects.filter((aspect) =>
+      tier.natalBodies.includes(String(aspect.bodyA || '').toUpperCase())
+    );
+    if (tierAspects.length === 0) continue;
+
+    const activationsByPlanet = groupBy(tierAspects, (a) => String(a.bodyA || '').toUpperCase());
+    const planetNarratives: string[] = [];
+
+    for (const natalPlanet of tier.natalBodies) {
+      const aspects = activationsByPlanet[natalPlanet];
+      if (!aspects || aspects.length === 0) continue;
+
+      const natalPlacement = natalPlacements.find((p) => p.planet === natalPlanet);
+      if (!natalPlacement) continue;
+
+      const natalSignInsight = getAspectInsight(natalPlacement.signKey);
+      const natalHouseInsight = getAspectInsight(natalPlacement.houseKey);
+      const natalPlacementCore = [natalSignInsight?.core, natalHouseInsight?.core]
+        .filter(Boolean)
+        .join(' ');
+      if (!natalPlacementCore) continue;
+
+      let planetText = `**Your ${formatPlanetName(natalPlanet)} in ${formatSignName(natalPlacement.sign)}, ${formatHouseName(natalPlacement.house)}**\n\n`;
+      if (tier.depth === 'full') {
+        planetText += `${natalPlacementCore}\n\n`;
+      } else if (tier.depth === 'medium') {
+        planetText += `${natalPlacementCore.split('.')[0]}.\n\n`;
+      } else {
+        planetText += `Your ${natalPlanet.toLowerCase()} placement.\n\n`;
+      }
+
+      for (const aspect of aspects) {
+        const transitPlanet = String(aspect.bodyB || '').toUpperCase();
+        const transitPlacement = transitPlacements.find((p) => p.planet === transitPlanet);
+        if (!transitPlacement) continue;
+
+        const aspectKey = buildAspectKey(String(aspect.bodyA || ''), String(aspect.bodyB || ''), String(aspect.type || ''));
+        const aspectInsight = getAspectInsight(aspectKey);
+        if (!aspectInsight) continue;
+
+        planetText += `Your ${natalPlanet.toLowerCase()} is currently being activated by **transiting ${formatPlanetName(transitPlanet)} in ${formatSignName(transitPlacement.sign)}** (${formatHouseName(transitPlacement.house)}), forming a ${formatAspectName(String(aspect.type || ''))}. `;
+
+        const aspectText = [aspectInsight.core_transit || aspectInsight.core, aspectInsight.behavioral_transit || aspectInsight.behavioral]
+          .filter(Boolean)
+          .join(' ');
+        planetText += `${aspectText}\n\n`;
+
+        const transitSignInsight = getAspectInsight(transitPlacement.signKey);
+        const transitHouseInsight = getAspectInsight(transitPlacement.houseKey);
+        const transitPlacementCore = [transitSignInsight?.core, transitHouseInsight?.core]
+          .filter(Boolean)
+          .join(' ');
+        if (transitPlacementCore) {
+          if (tier.depth === 'full') {
+            planetText += `Transiting ${transitPlanet.toLowerCase()} ${transitPlacementCore}\n\n`;
+          } else if (tier.depth === 'medium') {
+            planetText += `Transiting ${transitPlanet.toLowerCase()} ${transitPlacementCore.split('.')[0]}.\n\n`;
+          }
+        }
+        planetText += '---\n\n';
+      }
+      planetNarratives.push(planetText.trim());
+    }
+
+    if (planetNarratives.length > 0) {
+      const text = `${tier.subtitle}\n\n${planetNarratives.join('\n\n')}`.trim();
+      sections.push({
+        id: tier.id,
+        title: tier.title,
+        text,
+        bullets: [],
+        meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+      });
+    }
+  }
+
+  return sections.length > 0 ? sections : buildMinimalOverlaySections();
+}
+
 export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedExplanationSection[] {
   const { core, seed, options, tierEff, surface, temporalBucket } = params;
   const schema = SURFACE_SCHEMAS[surface];
 
   if (surface === 'feed') {
     return buildFeedSections(core, seed, options);
+  }
+
+  if (surface === 'overlay_pair') {
+    return assembleOverlayActivationSections(options);
   }
 
   const templateCtx: TemplateContext = {
@@ -1373,7 +1547,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         },
       });
     }
-    if (key === 'layering' && surface === 'overlay_pair') {
+    if (key === 'layering') {
       const syn = pickVariant(seed + ':lay', [
         `Layering: two time layers can disagree; treat them as two simultaneous pictures rather than one merged verdict.`,
         `Layering: a short spike can sit on a longer personal arc; both can be true at different timescales.`,

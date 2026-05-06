@@ -165,6 +165,8 @@ export type ProjectionOptions = {
   relationalWeatherThemes?: readonly string[];
   /** Optional chart snapshot for placement-key section assembly on profile surface. */
   snapshot?: EphemerisSnapshot;
+  /** Optional secondary chart snapshot for overlay/transit activation assembly. */
+  secondarySnapshot?: EphemerisSnapshot;
 };
 
 export type Phase4UnitRef = {
