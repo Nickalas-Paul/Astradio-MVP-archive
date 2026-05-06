@@ -10,6 +10,7 @@
 import type { EphemerisSnapshot, SnapshotAspect } from '../../contracts';
 import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
+  DensityClass,
   ExpansionTier,
   ProjectionOptions,
   ProjectionSurface,
@@ -477,6 +478,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   if (surface === 'group') {
     return withDepths([
       'ensemble_framing',
+      'group_key_interactions_v1',
       'relational_field',
       'relational_weather_v1',
       'signatures',
@@ -905,6 +907,85 @@ function buildMinimalCompatSynastryActivationSections(): ProjectedExplanationSec
       text,
       bullets: [],
       meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+    },
+  ];
+}
+
+const GROUP_KEY_INTERACTIONS_V1_MAX = 10;
+
+/**
+ * Phase 6E-Beta — labeled top synastry rows for group aggregates (3+ participants).
+ * Skips when labels or directed synastry are absent, or when no library rows survive kill-list + lookup.
+ */
+function assembleGroupKeyInteractionsV1(
+  options: ProjectionOptions,
+  seed: string,
+  reportPadUsed: Set<string>,
+  densityDefault: DensityClass
+): ProjectedExplanationSection[] {
+  if (options.surface !== 'group') return [];
+  if ((options.participantCount ?? 0) <= 2) return [];
+  const labels = options.aggregateParticipantLabelsV1;
+  if (!labels || labels.length === 0) return [];
+  const v2 = options.pairInteractionAspectsV2;
+  if (!v2 || v2.length === 0) return [];
+
+  const labelAt = (slot: number): string => {
+    const row = labels.find((l) => l.slotIndex === slot);
+    return row?.label ?? `Person ${slot + 1}`;
+  };
+
+  /** "YOUR Mars" / "Alice's Mars" — avoid "YOUR's Mars". */
+  const possessivePlanetPhrase = (label: string, planetDisplay: string): string =>
+    label === 'YOUR' ? `YOUR ${planetDisplay}` : `${label}'s ${planetDisplay}`;
+
+  const connectionMode = options.connectionMode ?? 'none';
+  const romanticPairSurface =
+    connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+  const synVariant: 'romantic' | 'friendship' = romanticPairSurface ? 'romantic' : 'friendship';
+
+  const blocks: string[] = [];
+  for (const asp of v2) {
+    if (blocks.length >= GROUP_KEY_INTERACTIONS_V1_MAX) break;
+    const key = buildAspectKey(String(asp.bodyA), String(asp.bodyB), String(asp.type));
+    if (isAspectLibraryKillListed(key)) continue;
+    const insight = getAspectInsight(key);
+    if (!insight) continue;
+    const src = labelAt(asp.sourceSlotIndex);
+    const tgt = labelAt(asp.targetSlotIndex);
+    const header = `${possessivePlanetPhrase(src, formatPlanetName(String(asp.bodyA)))} ${formatAspectName(String(asp.type))} ${possessivePlanetPhrase(tgt, formatPlanetName(String(asp.bodyB)))}`;
+    const body = composeSynastryMepAspectParagraph(insight, synVariant);
+    blocks.push(`${header}\n\n${body}`);
+  }
+
+  if (blocks.length === 0) return [];
+
+  const combined = blocks.join('\n\n---\n\n');
+  const synTagged = taggedSectionBodyFromText(combined, 'template');
+  const d = densityForSectionId('group_key_interactions_v1', densityDefault);
+  const { text, claimIds, tagged } = enrichSectionTextWithTagged(
+    combined,
+    synTagged,
+    [],
+    [],
+    d,
+    `${seed}:gki`,
+    [],
+    reportPadUsed,
+    PAD_SENTENCES
+  );
+
+  return [
+    {
+      id: 'group_key_interactions_v1',
+      title: 'Key interactions',
+      text,
+      meta: {
+        enrichDensity: d,
+        claimIdsReferenced: sortUniqueClaimIds(claimIds),
+        phaseD: true,
+        tagged,
+      },
     },
   ];
 }
@@ -2099,13 +2180,19 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       ? assembleCompatActivationSections(options)
       : [];
 
-  let framed = applyConnectionPreface([...compatActivationSections, ...placementSections, ...out], {
-    surface,
-    connectionMode: options.connectionMode,
-    participantCount: options.participantCount,
-    tier: tierEff,
-    seed,
-  });
+  const groupKeyInteractionSections =
+    surface === 'group' ? assembleGroupKeyInteractionsV1(options, seed, reportPadUsed, densityDefault) : [];
+
+  let framed = applyConnectionPreface(
+    [...compatActivationSections, ...placementSections, ...groupKeyInteractionSections, ...out],
+    {
+      surface,
+      connectionMode: options.connectionMode,
+      participantCount: options.participantCount,
+      tier: tierEff,
+      seed,
+    }
+  );
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
   framed = filterAndOrderPhase3Sections(framed, surface);
 

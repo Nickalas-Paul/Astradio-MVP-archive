@@ -108,6 +108,7 @@ export function sectionKind(section: ProjectedExplanationSection, surface: Proje
     id === 'trait_bridge' ||
     id === 'interaction_map' ||
     id === 'field_distribution' ||
+    id === 'group_key_interactions_v1' ||
     id === 'layering' ||
     id === 'delta_emphasis'
   ) {

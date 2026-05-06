@@ -15,7 +15,8 @@ export function densityForSectionId(sectionId: string, defaultD: 'short' | 'medi
     sectionId === 'personal_expression' ||
     sectionId === 'growth_expansion' ||
     sectionId === 'evolutionary_currents' ||
-    sectionId === 'no_activations'
+    sectionId === 'no_activations' ||
+    sectionId === 'group_key_interactions_v1'
   ) {
     return 'short';
   }
@@ -70,6 +71,7 @@ function totalReportSentences(sections: import('../projection-types').ProjectedE
 function sectionSentenceCap(sectionId: string): number | null {
   /** Library-driven synastry synthesis (Phase 6C-Gamma) stacks multiple aspect paragraphs; keep ceiling above template-only synthesis. */
   if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 18;
+  if (sectionId === 'group_key_interactions_v1') return 72;
   if (sectionId.startsWith('depth_panel_')) return 2;
   if (sectionId === 'pressure_response') return 5;
   if (sectionId === 'feed_signal' || sectionId === 'feed_context') return 2;
@@ -96,7 +98,7 @@ function maxSectionsForSurface(surface: ProjectionSurface): number | null {
     case 'compat_pair':
       return 24;
     case 'group':
-      return 14;
+      return 15;
     case 'feed':
       return 2;
     case 'overlay_pair':

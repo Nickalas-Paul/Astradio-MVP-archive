@@ -18,6 +18,7 @@ import { cloneTaggedSectionBody, reconstructTaggedSectionBody, splitSentsForTagg
 const SECTION_RANK: Record<string, number> = {
   connection_structure: 5,
   ensemble_framing: 5,
+  group_key_interactions_v1: 6,
   signatures: 10,
   sky_summary: 12,
   significance: 14,
