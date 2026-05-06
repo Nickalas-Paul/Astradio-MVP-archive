@@ -14,6 +14,11 @@ const { fetchChartSnapshot } = require('../../dist/vnext/vnext/core/architecture
 const { resolveRelationalConnectionFromChartIds } = require('../../dist/vnext/vnext/relational/resolve-relational-connection-context');
 const { computeRelationalWeatherV1 } = require('../../dist/vnext/vnext/relational/weather/compute-relational-weather-v1');
 const { snapshotFingerprint } = require('../../dist/vnext/vnext/canonical/stable-json');
+const {
+  composeComparisonAggregateReading,
+  parseExpansionTier,
+} = require('../../dist/vnext/vnext/compat/comparison-service');
+const { coerceRelationshipModeFromStorage } = require('../../dist/vnext/vnext/compat/types');
 
 function createStage4Router() {
   const router = express.Router({ mergeParams: true });
@@ -145,6 +150,25 @@ function createStage4Router() {
       }
       if (!authorized) return res.status(404).json({ error: 'not_found' });
 
+      /** Phase 6D Alpha — pair forecast is viewer-seeker scoped; requires primary chart in the dyad. */
+      let viewerPrimaryChartId = null;
+      if (kind === 'pair' && normalizedChartIdsOrdered.length === 2) {
+        viewerPrimaryChartId = await pgStore.getUserPrimaryChart(viewerUserId);
+        if (!viewerPrimaryChartId) {
+          return res.status(422).json({
+            error: 'Viewer must have a primary chart',
+            code: 'viewer_primary_chart_missing',
+            message: 'Set a primary profile chart to load relational forecast.',
+          });
+        }
+        if (!normalizedChartIdsOrdered.includes(viewerPrimaryChartId)) {
+          return res.status(422).json({
+            error: 'Viewer chart not in pair connection',
+            code: 'viewer_primary_chart_not_in_connection',
+          });
+        }
+      }
+
       const transitSnapshot = await fetchChartSnapshot(chartInput);
       const canonicalDayBucket = pgStore.canonicalDayBucketFromTransitTs(transitSnapshot.ts);
       const chartIdsOrderedHash = pgStore.hashChartIdsOrdered(normalizedChartIdsOrdered);
@@ -160,12 +184,21 @@ function createStage4Router() {
       const wantCompose = String(req.query.compose || '').trim() === '1';
       let artifact = null;
       if (wantCompose) {
-        const identity = {
-          scopeKind: kind === 'pair' ? 'pair' : 'group',
-          bindingId,
-          chartIdsOrderedHash,
-          canonicalDayBucket,
-        };
+        const identity =
+          kind === 'pair' && normalizedChartIdsOrdered.length === 2 && viewerPrimaryChartId
+            ? {
+                scopeKind: 'pair',
+                bindingId,
+                chartIdsOrderedHash,
+                canonicalDayBucket,
+                seekerChartId: viewerPrimaryChartId,
+              }
+            : {
+                scopeKind: kind === 'pair' ? 'pair' : 'group',
+                bindingId,
+                chartIdsOrderedHash,
+                canonicalDayBucket,
+              };
         const existing = await pgStore.getCommunityRelationalWeatherDailyArtifactByIdentity(identity);
         const existingVersion = readRelationalExpressionVersionFromDailyArtifact(existing);
         const existingFreshness = buildRelationalFreshness(
@@ -197,6 +230,7 @@ function createStage4Router() {
               chartIdsOrderedHash,
               canonicalDayBucket,
               transitSnapshotHash: existing.transitSnapshotHash,
+              ...(identity.seekerChartId ? { seekerChartId: identity.seekerChartId } : {}),
             },
             freshness: existingFreshness,
           };
@@ -222,11 +256,44 @@ function createStage4Router() {
           let composed = null;
           let composeError = null;
           try {
-            composed = await groupComposeAdapter.composeGroupFromChartIds(normalizedChartIdsOrdered, {
-              groupId: bindingId,
-              relationalWeather: weather,
-            });
-            if (composed && composed.audio) {
+            const isPairDyad =
+              kind === 'pair' && normalizedChartIdsOrdered.length === 2 && viewerPrimaryChartId;
+            if (isPairDyad) {
+              const partnerChartId =
+                normalizedChartIdsOrdered[0] === viewerPrimaryChartId
+                  ? normalizedChartIdsOrdered[1]
+                  : normalizedChartIdsOrdered[0];
+              const relationship = await pgStore.getRelationshipById(relationshipId || bindingId);
+              let relationshipMode = 'friends';
+              if (relationship && relationship.comparisonId) {
+                const cmp = await pgStore.getComparison(relationship.comparisonId);
+                relationshipMode = coerceRelationshipModeFromStorage(cmp && cmp.relationshipMode);
+              }
+              const expansionTier = parseExpansionTier(req.query.expansionTier ?? req.query.tier);
+              const core = await composeComparisonAggregateReading({
+                chartAId: viewerPrimaryChartId,
+                chartBId: partnerChartId,
+                relationshipMode,
+                seekerChartId: viewerPrimaryChartId,
+                targetChartId: partnerChartId,
+                relationshipBindingId: relationshipId || bindingId,
+                expansionTier,
+              });
+              composed = {
+                planHash: core.compose.planHash,
+                compositionId: core.compose.planHash,
+                text: core.compose.text,
+                explanation: core.compose.explanation,
+                audio: {
+                  export_available: !!core.compose.audio_export_available,
+                  export_id: core.compose.export_id ?? null,
+                  export_attempted: !!core.compose.export_attempted,
+                  export_error:
+                    core.compose.export_error != null && core.compose.export_error !== undefined
+                      ? String(core.compose.export_error)
+                      : null,
+                },
+              };
               composeAudioForResponse = {
                 export_available: !!composed.audio.export_available,
                 export_id: typeof composed.audio.export_id === 'string' ? composed.audio.export_id : null,
@@ -236,6 +303,22 @@ function createStage4Router() {
                     ? String(composed.audio.export_error)
                     : null,
               };
+            } else {
+              composed = await groupComposeAdapter.composeGroupFromChartIds(normalizedChartIdsOrdered, {
+                groupId: bindingId,
+                relationalWeather: weather,
+              });
+              if (composed && composed.audio) {
+                composeAudioForResponse = {
+                  export_available: !!composed.audio.export_available,
+                  export_id: typeof composed.audio.export_id === 'string' ? composed.audio.export_id : null,
+                  export_attempted: !!composed.audio.export_attempted,
+                  export_error:
+                    composed.audio.export_error != null && composed.audio.export_error !== undefined
+                      ? String(composed.audio.export_error)
+                      : null,
+                };
+              }
             }
           } catch (err) {
             composeError = err;
@@ -287,6 +370,7 @@ function createStage4Router() {
             textPayload,
             weatherPayload: weatherPayloadForStorage,
             createdByUserId: viewerUserId,
+            ...(identity.seekerChartId ? { seekerChartId: identity.seekerChartId } : {}),
           };
           if (inside) {
             if (composeError && inside.artifactStatus === 'available') {
@@ -333,6 +417,7 @@ function createStage4Router() {
             chartIdsOrderedHash,
             canonicalDayBucket,
             transitSnapshotHash: winner?.transitSnapshotHash || snapshotFingerprint(transitSnapshot),
+            ...(identity.seekerChartId ? { seekerChartId: identity.seekerChartId } : {}),
           },
           freshness: buildRelationalFreshness(
             COMMUNITY_RELATIONAL_EXPRESSION_VERSION,

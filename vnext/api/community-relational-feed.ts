@@ -25,7 +25,7 @@ import { selectDisplayedFeedAspectForSortedRow } from './feed-displayed-aspect-v
  * v3: pair feed dedupes duplicate astradio_relationships rows (same charts + label) to viewer-owned binding_id.
  */
 export const COMMUNITY_RELATIONAL_FEED_SORT_VERSION = 'community_relational_feed_sort_v3';
-const COMMUNITY_RELATIONAL_EXPRESSION_VERSION = 'community_relational_expression_v2';
+const COMMUNITY_RELATIONAL_EXPRESSION_VERSION = 'community_relational_expression_v3';
 
 export interface TransitInputV1 {
   date: string;
@@ -120,9 +120,12 @@ type PgStore = {
     Array<{ campaignId: string; participantChartIds: string[]; contextKey?: string }>
   >;
   canonicalDayBucketFromTransitTs: (transitTs: string) => string;
+  getUserPrimaryChart: (userId: string) => Promise<string | undefined>;
   getCommunityRelationalWeatherStatusesForFeed: (input: {
     canonicalDayBucket: string;
     currentExpressionVersion?: string;
+    /** Pair artifact rows are seeker-scoped; required for correct pair status (groups ignore). */
+    viewerPrimaryChartId: string;
     identities: Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
   }) => Promise<Map<string, 'not_generated' | 'available' | 'partial' | 'failed'>>;
 };
@@ -354,6 +357,7 @@ export async function buildCommunityRelationalFeed(params: {
   pass1.sort(compareFeedRanking);
 
   const canonicalDayBucket = pgStore.canonicalDayBucketFromTransitTs(envelopeLock?.ts || '');
+  const viewerPrimaryChartId = (await pgStore.getUserPrimaryChart(userId)) || '';
   if (canonicalDayBucket) {
     const scoped = pass1
       .filter((x) => x.connection_kind === 'pair' || x.connection_kind === 'relational_group')
@@ -365,6 +369,7 @@ export async function buildCommunityRelationalFeed(params: {
     const statusByIdentity = await pgStore.getCommunityRelationalWeatherStatusesForFeed({
       canonicalDayBucket,
       currentExpressionVersion: COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
+      viewerPrimaryChartId,
       identities: scoped,
     });
     for (const item of pass1) {

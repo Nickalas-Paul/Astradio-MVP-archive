@@ -905,6 +905,9 @@ export function createCompatRouter(): import('express').Router {
         targetChartId: targetChartId || undefined,
       } as any);
 
+      if (!result.comparison) {
+        return res.status(500).json({ error: 'comparison_persist_failed' });
+      }
       const comparison = result.comparison as ComparisonWithRoles & { roles?: any };
       const seekerChartIdOut = comparison.seekerChartId || comparison.chartAId;
       const targetChartIdOut = comparison.targetChartId || comparison.chartBId;

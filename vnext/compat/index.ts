@@ -12,6 +12,11 @@ export {
   parseRelationshipModeInput,
   coerceRelationshipModeFromStorage,
 } from './types';
-export { createComparison } from './comparison-service';
-export type { CreateComparisonInput, CreateComparisonResult } from './comparison-service';
+export { createComparison, composeComparisonAggregateReading } from './comparison-service';
+export type {
+  CreateComparisonInput,
+  CreateComparisonResult,
+  ComposeComparisonAggregateReadingParams,
+  ComposeComparisonAggregateReadingResult,
+} from './comparison-service';
 export * as compatStorage from './storage';

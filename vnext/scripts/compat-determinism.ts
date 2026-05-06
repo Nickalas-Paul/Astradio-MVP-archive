@@ -9,7 +9,7 @@
 import { ComposeAPI } from '../api/compose';
 import type { EphemerisSnapshot } from '../contracts';
 import * as storage from '../compat/storage';
-import { createComparison } from '../compat/comparison-service';
+import { composeComparisonAggregateReading, createComparison } from '../compat/comparison-service';
 
 const FIXED_DATE = '2025-01-15';
 const FIXED_TIME = '12:00';
@@ -150,38 +150,64 @@ async function main(): Promise<void> {
     } else {
       console.log('[compat-determinism] OK: planHash identical', result1.planHash.slice(0, 16) + '...');
     }
-    const hash1 = result1.comparison.mergedFeatureHash;
-    const hash2 = result2.comparison.mergedFeatureHash;
-    if (hash1 && hash2 && hash1 !== hash2) {
-      console.error('[compat-determinism] FAIL: mergedFeatureHash differs:', hash1, 'vs', hash2);
+    if (!result1.comparison || !result2.comparison) {
+      console.error('[compat-determinism] FAIL: comparison missing from createComparison result');
       failed++;
-    } else if (hash1 && hash2) {
-      console.log('[compat-determinism] OK: mergedFeatureHash identical', hash1.slice(0, 16) + '...');
-    }
-    // Check compatibilityText structured equality where possible
-    const text1 = result1.comparison.compatibilityText;
-    const text2 = result2.comparison.compatibilityText;
-    if (typeof text1 === 'string' || typeof text2 === 'string') {
-      if (text1 !== text2) {
-        console.error('[compat-determinism] FAIL: compatibilityText string differs between runs');
-        failed++;
-      }
     } else {
-      const t1 = text1 as any;
-      const t2 = text2 as any;
-      const eq =
-        t1.short === t2.short &&
-        t1.long === t2.long &&
-        Array.isArray(t1.bullets) &&
-        Array.isArray(t2.bullets) &&
-        t1.bullets.length === t2.bullets.length &&
-        t1.bullets.every((b: string, i: number) => b === t2.bullets[i]);
-      if (!eq) {
-        console.error('[compat-determinism] FAIL: compatibilityText structured payload differs between runs');
+      const hash1 = result1.comparison.mergedFeatureHash;
+      const hash2 = result2.comparison.mergedFeatureHash;
+      if (hash1 && hash2 && hash1 !== hash2) {
+        console.error('[compat-determinism] FAIL: mergedFeatureHash differs:', hash1, 'vs', hash2);
         failed++;
-      } else {
-        console.log('[compat-determinism] OK: compatibilityText structured payload identical');
+      } else if (hash1 && hash2) {
+        console.log('[compat-determinism] OK: mergedFeatureHash identical', hash1.slice(0, 16) + '...');
       }
+      // Check compatibilityText structured equality where possible
+      const text1 = result1.comparison.compatibilityText;
+      const text2 = result2.comparison.compatibilityText;
+      if (typeof text1 === 'string' || typeof text2 === 'string') {
+        if (text1 !== text2) {
+          console.error('[compat-determinism] FAIL: compatibilityText string differs between runs');
+          failed++;
+        }
+      } else {
+        const t1 = text1 as any;
+        const t2 = text2 as any;
+        const eq =
+          t1.short === t2.short &&
+          t1.long === t2.long &&
+          Array.isArray(t1.bullets) &&
+          Array.isArray(t2.bullets) &&
+          t1.bullets.length === t2.bullets.length &&
+          t1.bullets.every((b: string, i: number) => b === t2.bullets[i]);
+        if (!eq) {
+          console.error('[compat-determinism] FAIL: compatibilityText structured payload differs between runs');
+          failed++;
+        } else {
+          console.log('[compat-determinism] OK: compatibilityText structured payload identical');
+        }
+      }
+    }
+
+    // --- 2b) Phase 6D: shared compose core matches createComparison planHash (regression guard) ---
+    const viaCore = await composeComparisonAggregateReading({
+      chartAId: chartA.id,
+      chartBId: chartB.id,
+      relationshipMode: 'friends',
+      seekerChartId: chartA.id,
+      targetChartId: chartB.id,
+      relationshipBindingId: null,
+    });
+    if (viaCore.compose.planHash !== result1.planHash) {
+      console.error(
+        '[compat-determinism] FAIL: composeComparisonAggregateReading planHash != createComparison:',
+        viaCore.compose.planHash,
+        'vs',
+        result1.planHash
+      );
+      failed++;
+    } else {
+      console.log('[compat-determinism] OK: composeComparisonAggregateReading planHash matches createComparison');
     }
   } catch (e) {
     console.error('[compat-determinism] Comparisons determinism error:', e);
