@@ -29,8 +29,9 @@
 import { ASPECT_CONFIG, type AspectTypeKey } from '../aspect-engine';
 import { bodyOrderIndex } from '../canonical-bodies';
 import { CORE_BODIES, type BodyKey } from '../canonical-bodies';
-import type { EphemerisSnapshot, SnapshotAspect } from '../contracts';
+import type { EphemerisSnapshot } from '../contracts';
 import { findBestDirectedCrossAspect } from './cross-chart-best-aspect';
+import type { DirectedSnapshotAspect } from './synastry-types';
 
 export type SynastryComputationMode = 'pair' | 'group_matrix';
 
@@ -78,7 +79,7 @@ export function buildSynastryDeterministicKey(params: {
 }
 
 type RankedHit = {
-  snapshotRow: SnapshotAspect;
+  snapshotRow: DirectedSnapshotAspect;
   exactness: number;
   priorityBase: number;
   orb: number;
@@ -135,7 +136,7 @@ function collectDirectedHits(
       });
       const dynamics = cfg.dynamics;
       const strength = Math.max(0, Math.min(1, best.exactness));
-      const row: SnapshotAspect = {
+      const row: DirectedSnapshotAspect = {
         bodyA: sb,
         bodyB: tb,
         type: best.type,
@@ -145,6 +146,8 @@ function collectDirectedHits(
         strength: Math.round(strength * 100) / 100,
         exactness: Math.round(best.exactness * 100) / 100,
         priorityBase: Math.round(priorityBase * 100) / 100,
+        sourceSlotIndex: sourceSlot,
+        targetSlotIndex: targetSlot,
       };
       out.push({
         snapshotRow: row,
@@ -159,11 +162,11 @@ function collectDirectedHits(
 }
 
 /**
- * Compute cross-chart synastry aspects for projection. Returns SnapshotAspect-shaped rows.
- * - **pair**: exactly two snapshots; both directed sweeps (0→1 and 1→0).
- * - **group_matrix**: full pairwise matrix; ranked and capped at 32 (R1).
- */
-export function computeSynastryAspects(params: ComputeSynastryAspectsParams): SnapshotAspect[] {
+ * Compute cross-chart synastry aspects for projection. Returns directed rows (`sourceSlotIndex` / `targetSlotIndex`).
+  * - **pair**: exactly two snapshots; both directed sweeps (0→1 and 1→0).
+  * - **group_matrix**: full pairwise matrix; ranked and capped at 32 (R1).
+  */
+export function computeSynastryAspects(params: ComputeSynastryAspectsParams): DirectedSnapshotAspect[] {
   const { snapshotsOrdered, mode } = params;
   const n = snapshotsOrdered.length;
 

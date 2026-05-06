@@ -1,14 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { LyriaAudio } from '../LyriaAudio';
 import { LocationFinder } from '../sandbox/LocationFinder';
+import { getApiBaseUrl } from '../../core/api-base';
 import { RELATIONSHIP_MODE_OPTIONS, type RelationshipMode } from '../../core/compat/relationshipModes';
 import {
   hasCompatibilityReadingSurface,
   type CompatibilityTextLike,
   type ExplanationLike,
 } from '../../lib/compatibility-reading-surface';
+
+const WheelCanvas = dynamic(
+  () => import('../WheelCanvas').then((m) => m.default),
+  { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
+);
+
+function snapshotSafeForWheel(snapshot: unknown): boolean {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  const o = snapshot as Record<string, unknown>;
+  const planets = o.planets ?? o.positions;
+  const houses = o.houses ?? o.cusps;
+  const hasPlanets = Array.isArray(planets) && planets.length > 0;
+  const hasHouses = Array.isArray(houses) && houses.length >= 12;
+  return hasPlanets || hasHouses;
+}
 
 type ChartInput = { label: string; date: string; time: string; lat: string; lon: string };
 
@@ -41,7 +58,15 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
     planHash?: string;
     compositionId?: string;
     audio?: { base64?: string };
+    /** Seeker / Chart A — wheel slot 0 */
+    seekerChartId: string;
+    /** Target / Chart B — wheel slot 1 */
+    targetChartId: string;
   } | null>(null);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
+  const [wheelSnapshots, setWheelSnapshots] = useState<[unknown | null, unknown | null]>([null, null]);
+  const [wheelLoading, setWheelLoading] = useState(false);
+  const [wheelError, setWheelError] = useState<string | null>(null);
 
   const createChart = async (input: ChartInput) => {
     const r = await fetch('/api/charts', {
@@ -131,13 +156,30 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
         const e = await r.json().catch(() => ({}));
         throw new Error(e?.error || `Comparisons API ${r.status}`);
       }
-      const data = await r.json();
+      const data = (await r.json()) as {
+        compatibilityText?: CompatibilityTextLike;
+        explanation?: ExplanationLike | { sections?: Array<{ title?: string; text?: string; bullets?: string[] }> };
+        planHash?: string;
+        compositionId?: string;
+        audio?: { base64?: string };
+        seekerChartId?: string;
+        targetChartId?: string;
+        chartAId?: string;
+        chartBId?: string;
+      };
+      const seekerChartId = String(data.seekerChartId ?? data.chartAId ?? aId ?? '').trim();
+      const targetChartId = String(data.targetChartId ?? data.chartBId ?? '').trim();
+      if (useInlineB && data.chartBId) {
+        setChartBId(data.chartBId);
+      }
       setResult({
         compatibilityText: data.compatibilityText ?? '',
         explanation: data.explanation,
         planHash: data.planHash,
         compositionId: data.compositionId,
         audio: data.audio,
+        seekerChartId,
+        targetChartId,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to generate comparison');
@@ -159,6 +201,70 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
     !showStructuredSections && (short || long || bullets.length > 0);
   const readingIncomplete = !!result && !hasSurface;
   const audioBase64 = result?.audio?.base64 ?? null;
+
+  const compareWheelSlots = useMemo(() => {
+    if (!result?.seekerChartId || !result?.targetChartId) return null;
+    return [
+      { label: 'Your chart', description: 'Seeker (Chart A)', snapshot: wheelSnapshots[0] },
+      { label: 'Their chart', description: 'Partner (Chart B)', snapshot: wheelSnapshots[1] },
+    ] as const;
+  }, [result?.seekerChartId, result?.targetChartId, wheelSnapshots]);
+
+  useEffect(() => {
+    setActiveSlotIndex(0);
+  }, [result?.planHash, result?.compositionId]);
+
+  useEffect(() => {
+    if (!result?.seekerChartId || !result?.targetChartId) {
+      setWheelSnapshots([null, null]);
+      setWheelLoading(false);
+      setWheelError(null);
+      return;
+    }
+    let cancelled = false;
+    setWheelLoading(true);
+    setWheelError(null);
+    const base = getApiBaseUrl() || '';
+    const chartUrl = (id: string) =>
+      `${base}/api/profile/chart?chartId=${encodeURIComponent(id)}`;
+    void Promise.all([
+      fetch(chartUrl(result.seekerChartId), { credentials: 'same-origin' }),
+      fetch(chartUrl(result.targetChartId), { credentials: 'same-origin' }),
+    ])
+      .then(async ([ra, rb]) => {
+        if (cancelled) return;
+        if (!ra.ok) {
+          const j = await ra.json().catch(() => ({}));
+          throw new Error(
+            typeof (j as { error?: string }).error === 'string'
+              ? (j as { error: string }).error
+              : `Seeker chart unavailable (${ra.status})`
+          );
+        }
+        if (!rb.ok) {
+          const j = await rb.json().catch(() => ({}));
+          throw new Error(
+            typeof (j as { error?: string }).error === 'string'
+              ? (j as { error: string }).error
+              : `Partner chart unavailable (${rb.status})`
+          );
+        }
+        const ja = (await ra.json()) as { snapshot?: unknown };
+        const jb = (await rb.json()) as { snapshot?: unknown };
+        if (cancelled) return;
+        setWheelSnapshots([ja.snapshot ?? null, jb.snapshot ?? null]);
+        setWheelLoading(false);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setWheelError(e instanceof Error ? e.message : 'Failed to load chart wheels');
+        setWheelSnapshots([null, null]);
+        setWheelLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result?.seekerChartId, result?.targetChartId]);
 
   return (
     <div className="card space-y-6">
@@ -322,6 +428,49 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
               Compatibility reading did not return text from the server. Try again, or contact support if this persists.
             </p>
+          )}
+          {compareWheelSlots && (
+            <div className="max-w-xl space-y-3">
+              <div className="flex gap-2 rounded-lg bg-bgElev p-1 border border-border">
+                {compareWheelSlots.map((slot, idx) => (
+                  <button
+                    key={slot.label}
+                    type="button"
+                    className={`flex-1 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-50 ${
+                      activeSlotIndex === idx
+                        ? 'bg-bg border border-border text-emerald'
+                        : 'text-subtext hover:bg-bg'
+                    }`}
+                    onClick={() => setActiveSlotIndex(idx as 0 | 1)}
+                    aria-pressed={activeSlotIndex === idx}
+                    disabled={wheelLoading}
+                  >
+                    <div className="text-sm font-medium">{slot.label}</div>
+                    <div className="text-xs text-subtext">{slot.description}</div>
+                  </button>
+                ))}
+              </div>
+              {wheelError && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  {wheelError}
+                </div>
+              )}
+              {wheelLoading ? (
+                <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
+              ) : snapshotSafeForWheel(compareWheelSlots[activeSlotIndex]?.snapshot) ? (
+                <WheelCanvas
+                  chartData={compareWheelSlots[activeSlotIndex]!.snapshot as any}
+                  isLoading={false}
+                  className="max-w-full"
+                />
+              ) : (
+                !wheelError && (
+                  <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+                    Wheel data not available for this chart yet.
+                  </div>
+                )
+              )}
+            </div>
           )}
           {showStructuredSections && (
             <div className="space-y-3 text-sm">

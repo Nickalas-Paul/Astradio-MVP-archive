@@ -1,4 +1,5 @@
 import type { EphemerisSnapshot, FeatureVec, SnapshotAspect } from '../contracts';
+import type { ComparisonSeekerContextV1, DirectedSnapshotAspect } from '../synastry/synastry-types';
 import type { AstroGuidance, MotionProfile } from '../astro/guidance';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import { astroSummaryFromSnapshot } from '../explainer/astro-summary-from-snapshot';
@@ -103,6 +104,7 @@ export function buildCanonicalReportForOverlay(params: {
   compose_seed: string;
   guidance: AstroGuidance & { motionProfile: MotionProfile };
   pair_interaction_aspects?: readonly SnapshotAspect[];
+  pair_interaction_aspects_v2?: readonly DirectedSnapshotAspect[];
 }): CanonicalReportObject {
   const p0 = slotFromSnapshot('primary', 0, params.natalSnapshot, params.natalFeatureVec);
   const p1 = slotFromSnapshot('secondary', 1, params.transitSnapshot, params.transitFeatureVec);
@@ -135,6 +137,9 @@ export function buildCanonicalReportForOverlay(params: {
     ...(params.pair_interaction_aspects != null
       ? { pair_interaction_aspects: params.pair_interaction_aspects }
       : {}),
+    ...(params.pair_interaction_aspects_v2 != null
+      ? { pair_interaction_aspects_v2: params.pair_interaction_aspects_v2 }
+      : {}),
   };
   return withObjectIdentityHash(base);
 }
@@ -151,6 +156,10 @@ export function buildCanonicalReportForAggregate(params: {
   relationalWeather?: RelationalWeatherStateV1 | null;
   /** Set by compose for `kind: 'comparison'` when synastry is computed (S3+). */
   pair_interaction_aspects?: readonly SnapshotAspect[];
+  /** Phase 6C — directed synastry rows (when computed). */
+  pair_interaction_aspects_v2?: readonly DirectedSnapshotAspect[];
+  /** Phase 6C — seeker/target mapping for comparison aggregates only. */
+  comparison_seeker_context_v1?: ComparisonSeekerContextV1;
 }): CanonicalReportObject {
   const slots: ParticipantSlot[] = params.participants.map((p, i) =>
     slotFromSnapshot(p.role, i, p.snapshot, p.featureVec)
@@ -178,6 +187,12 @@ export function buildCanonicalReportForAggregate(params: {
     gate_policy_version: 'audition-v2.3',
     ...(params.pair_interaction_aspects != null
       ? { pair_interaction_aspects: params.pair_interaction_aspects }
+      : {}),
+    ...(params.pair_interaction_aspects_v2 != null
+      ? { pair_interaction_aspects_v2: params.pair_interaction_aspects_v2 }
+      : {}),
+    ...(params.comparison_seeker_context_v1 != null
+      ? { comparison_seeker_context_v1: params.comparison_seeker_context_v1 }
       : {}),
   };
   return withObjectIdentityHash(base);

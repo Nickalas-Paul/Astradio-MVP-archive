@@ -90,8 +90,8 @@ function bandLabel(band: ClusterBand): string {
 function intentToConnectionMode(intent: RelationalIntent): RelationshipMode {
   if (intent === 'friend') return 'friends';
   if (intent === 'lover') return 'lovers';
-  if (intent === 'rival') return 'rivals';
-  return 'collaborator';
+  /** Phase 6C-Cleanup: rival/collaborator discovery intents → friends blend (deprecated relationship modes removed). */
+  return 'friends';
 }
 
 function firstSentence(text: string): string {

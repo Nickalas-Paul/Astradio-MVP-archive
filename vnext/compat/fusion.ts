@@ -9,13 +9,10 @@ import type { RelationshipMode } from './types';
 const FEATURE_LEN = 64;
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
-/** Default weights for blend_v1 */
+/** Default weights for blend_v1 — symmetric for all canonical modes (Phase 6C: deprecated asymmetric mentor weights removed). */
 const DEFAULT_WEIGHTS: Record<RelationshipMode, { wA: number; wB: number }> = {
   friends: { wA: 0.5, wB: 0.5 },
-  rivals: { wA: 0.5, wB: 0.5 },
   lovers: { wA: 0.5, wB: 0.5 },
-  mentor: { wA: 0.4, wB: 0.6 },
-  collaborator: { wA: 0.5, wB: 0.5 },
   neutral: { wA: 0.5, wB: 0.5 },
 };
 

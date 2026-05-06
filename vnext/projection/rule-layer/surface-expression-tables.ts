@@ -197,7 +197,7 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
     rule_id: 'P5A-W2-005-preface-observational-shared',
     surfaces: ['compat_pair'],
     provenances: ['preface'],
-    connection_modes: ['friends', 'lovers', 'rivals', 'neutral'],
+    connection_modes: ['friends', 'lovers', 'neutral'],
     match: {
       kind: 'whole_sentence',
       before: 'The sections stay observational.',
@@ -208,7 +208,7 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
     rule_id: 'P5A-W2-006-preface-situational-shared',
     surfaces: ['compat_pair'],
     provenances: ['preface'],
-    connection_modes: ['collaborator', 'lovers'],
+    connection_modes: ['friends', 'lovers'],
     match: {
       kind: 'whole_sentence',
       before: 'Language stays situational.',
@@ -316,18 +316,6 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
     replacement: '',
   },
   {
-    rule_id: 'P5A-W3-002-preface-collaborator-opener',
-    surfaces: ['compat_pair'],
-    provenances: ['preface'],
-    connection_modes: ['collaborator'],
-    match: {
-      kind: 'whole_sentence',
-      before: 'This connection starts from task coordination.',
-    },
-    replacement:
-      'This connection starts from task coordination, read as practical and bounded to the work at hand.',
-  },
-  {
     rule_id: 'P5A-W3-003-preface-friends-opener',
     surfaces: ['compat_pair'],
     provenances: ['preface'],
@@ -363,18 +351,6 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
       'This connection emphasizes reciprocity and intimacy cadence, read with steadier, plain language.',
   },
   {
-    rule_id: 'P5A-W3-006-preface-mentor-opener',
-    surfaces: ['compat_pair'],
-    provenances: ['preface'],
-    connection_modes: ['mentor'],
-    match: {
-      kind: 'whole_sentence',
-      before: 'This connection names asymmetric support timing.',
-    },
-    replacement:
-      'This connection names asymmetric support timing, honoring both sides without fixing real-world hierarchy.',
-  },
-  {
     rule_id: 'P5A-W3-007-preface-neutral-opener',
     surfaces: ['compat_pair'],
     provenances: ['preface'],
@@ -384,18 +360,6 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
       before: 'This connection keeps assumptions low.',
     },
     replacement: 'This connection keeps assumptions low, with steady, plain language.',
-  },
-  {
-    rule_id: 'P5A-W3-008-preface-rivals-opener',
-    surfaces: ['compat_pair'],
-    provenances: ['preface'],
-    connection_modes: ['rivals'],
-    match: {
-      kind: 'whole_sentence',
-      before: 'This connection names competitive charge and boundary pressure.',
-    },
-    replacement:
-      'This connection names competitive charge and boundary pressure, read as situational intensity.',
   },
   {
     rule_id: 'P5A-W3-009-synthesis-campaign-contrast-handling',

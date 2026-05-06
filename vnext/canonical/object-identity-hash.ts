@@ -35,6 +35,12 @@ export function computeCanonicalObjectIdentityHash(o: Omit<CanonicalReportObject
       : null,
     pair_interaction_aspects_digest:
       o.pair_interaction_aspects != null ? stableStringify([...o.pair_interaction_aspects]) : null,
+    pair_interaction_aspects_v2_digest:
+      o.pair_interaction_aspects_v2 != null ? stableStringify([...o.pair_interaction_aspects_v2]) : null,
+    comparison_seeker_context_v1_digest:
+      o.comparison_seeker_context_v1 != null
+        ? stableStringify(o.comparison_seeker_context_v1)
+        : null,
   };
   return crypto.createHash('sha256').update(stableStringify(payload), 'utf8').digest('hex');
 }

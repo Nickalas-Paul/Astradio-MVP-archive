@@ -23,10 +23,11 @@ export function mapLegacyIntentToRelational(s: string): RelationalIntent | null 
   const m: Record<string, RelationalIntent> = {
     friendship: 'friend',
     dating: 'lover',
-    collaboration: 'collaborator',
-    mentor: 'collaborator',
+    /** Phase 6C-Cleanup: work/learning paths map to friend (collaborator relationship mode removed). */
+    collaboration: 'friend',
+    mentor: 'friend',
     roommate: 'friend',
-    study: 'collaborator',
+    study: 'friend',
     friend: 'friend',
     lover: 'lover',
     rival: 'rival',

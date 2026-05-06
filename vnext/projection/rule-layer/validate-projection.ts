@@ -9,6 +9,16 @@ import { countAudioListenFamilyMatches } from './audio-lexicon';
 
 export function densityForSectionId(sectionId: string, defaultD: 'short' | 'medium' | 'long'): 'short' | 'medium' | 'long' {
   if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 'short';
+  /** Phase 6C — synastry library blocks use variable paragraphing; short density matches synthesis/MEP carve-outs. */
+  if (
+    sectionId === 'core_identity' ||
+    sectionId === 'personal_expression' ||
+    sectionId === 'growth_expansion' ||
+    sectionId === 'evolutionary_currents' ||
+    sectionId === 'no_activations'
+  ) {
+    return 'short';
+  }
   if (
     /^(audio_|connection_|ensemble_|feed_)/.test(sectionId) ||
     sectionId === 'audio_thread' ||
@@ -58,7 +68,8 @@ function totalReportSentences(sections: import('../projection-types').ProjectedE
 
 /** Section sentence caps (stable projection `id`s only; no schema key aliasing). */
 function sectionSentenceCap(sectionId: string): number | null {
-  if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 5;
+  /** Library-driven synastry synthesis (Phase 6C-Gamma) stacks multiple aspect paragraphs; keep ceiling above template-only synthesis. */
+  if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 18;
   if (sectionId.startsWith('depth_panel_')) return 2;
   if (sectionId === 'pressure_response') return 5;
   if (sectionId === 'feed_signal' || sectionId === 'feed_context') return 2;
@@ -83,6 +94,7 @@ function maxSectionsForSurface(surface: ProjectionSurface): number | null {
     case 'sandbox':
       return 8;
     case 'compat_pair':
+      return 24;
     case 'group':
       return 14;
     case 'feed':

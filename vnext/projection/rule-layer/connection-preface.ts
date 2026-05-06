@@ -56,29 +56,6 @@ const LOVERS_BUNDLES = [
   ],
 ];
 
-const RIVALS_BUNDLES = [
-  [
-    'This connection names competitive charge and boundary pressure.',
-    'Harmony is not assumed unless it clearly leads.',
-    'Framing stays descriptive without moral blame.',
-  ],
-  [
-    'This connection treats rivalry as charge, not character judgment.',
-    'The sections stay observational.',
-    'Avoid single-story collapse.',
-  ],
-  [
-    'Competitive charge is read as structural: edges can be sharp without turning either person into a villain type.',
-    'The copy below keeps boundary pressure visible and still avoids moral spectacle.',
-    'If collaboration appears, it has to win on evidence, not on a forced soft-focus.',
-  ],
-  [
-    'Rivalry language here is situational: it can spike and still be reported without a permanent scoreboard on character.',
-    'The following lines separate charge from identity so the interface stays testable in real time.',
-    'You can read contest without erasing the possibility of shared standards elsewhere.',
-  ],
-];
-
 const NEUTRAL_BUNDLES = [
   [
     'This connection keeps assumptions low.',
@@ -102,59 +79,14 @@ const NEUTRAL_BUNDLES = [
   ],
 ];
 
-const MENTOR_BUNDLES = [
-  [
-    'This connection names asymmetric support timing.',
-    'That does not fix hierarchy in real life.',
-    'Both sides stay visible below.',
-  ],
-  [
-    'This connection names guidance bandwidth without freezing roles.',
-    'The sections stay descriptive.',
-    'Care is honored without identity labels.',
-  ],
-  [
-    'Mentor-shaped bandwidth is treated as a timing read: one lane may lead without erasing the other’s agency.',
-    'The lines below show support edges without crowning a permanent “teacher” in the text.',
-    'Responsibility here is reportable, not a life sentence in either direction.',
-  ],
-  [
-    'This frame allows uneven exchange to show as mechanics while still keeping both figures in the room.',
-    'Narration stays observational: care can read strong without relabeling either person’s core.',
-    'If roles shift, the read can follow without pretending roles were always symmetric.',
-  ],
-];
-
-const COLLABORATOR_BUNDLES = [
-  [
-    'This connection starts from task coordination.',
-    'Friction may sit around ownership and phase fit.',
-    'Language stays situational.',
-  ],
-  [
-    'This connection does not assume chemistry explains task friction.',
-    'The sections stay descriptive.',
-    'Tasks stay human without identity-fixing.',
-  ],
-  [
-    'Task bridges are read as systems pressure: the issue may be the handoff, not the “type” of either partner.',
-    'The following text tracks deadlines and fit without smuggling a chemistry verdict into logistics.',
-    'If alignment returns, you can name it as data, not as a personality makeover.',
-  ],
-  [
-    'This frame allows parallel ownership: the copy can show split lanes while still sharing one work surface.',
-    'Responsibility loads are named where they show, without forcing a single scapegoat line.',
-    'Realignment language stays bounded to the task field so identity noise does not drown the fix.',
-  ],
-];
-
+/**
+ * Phase 6C-Cleanup: only canonical relationship modes (`friends`, `lovers`, `neutral`).
+ * Deprecated API values normalize to `friends` before projection; no separate rivals/mentor/collaborator bundles.
+ */
 const MODE_BUNDLES: Record<string, string[][]> = {
   friends: FRIENDS_BUNDLES,
   lovers: LOVERS_BUNDLES,
-  rivals: RIVALS_BUNDLES,
   neutral: NEUTRAL_BUNDLES,
-  mentor: MENTOR_BUNDLES,
-  collaborator: COLLABORATOR_BUNDLES,
 };
 
 const ENSEMBLE_BUNDLES = [
@@ -178,7 +110,9 @@ const ENSEMBLE_BUNDLES = [
 
 function openingForMode(mode: ConnectionMode, seed: string): string | null {
   if (!mode || mode === 'group') return null;
-  const bundles = MODE_BUNDLES[mode];
+  const m = mode as string;
+  const key = m === 'rivals' || m === 'mentor' || m === 'collaborator' ? 'friends' : m;
+  const bundles = MODE_BUNDLES[key];
   if (!bundles) return null;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;

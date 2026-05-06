@@ -171,8 +171,51 @@ function collapseListenInteriorPeriods(s: string): string {
   return t.endsWith('.') ? t : `${t}.`;
 }
 
-export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string {
+/** Phase A.3 — diagnostics when library merge falls back to legacy lexicon (no behavior change to returned strings). */
+export type AudioListenInstrumentationPayload = {
+  fallback: boolean;
+  fallbackReason: 'empty_parts' | 'semi_below_threshold' | null;
+  semiCount: number;
+  mergedLength: number;
+  partsCount: number;
+  ontologyCodes: {
+    tempo_band: string;
+    density_band: string;
+    arc_bias: string;
+    tension_bias: string;
+    relational_texture: string;
+  };
+  getAudioInsightHit: {
+    tempo_band: boolean;
+    density_band: boolean;
+    arc_bias: boolean;
+    tension_bias: boolean;
+    relational_texture: boolean;
+  };
+};
+
+function logAudioListenFallback(payload: AudioListenInstrumentationPayload): void {
+  if (typeof process === 'undefined') return;
+  if (process.env.AUDIO_INSIGHT_FALLBACK_LOG !== '1') return;
+  console.warn('[AUDIO_INSIGHT_FALLBACK]', JSON.stringify(payload));
+}
+
+/**
+ * Same listen summary as {@link fullPerceptualListenSummaryFromCore} plus instrumentation payload.
+ * Use for Phase A.3 coverage scripts and tests.
+ */
+export function audioListenSummaryInstrumentation(core: SemanticCore): {
+  text: string;
+  instrumentation: AudioListenInstrumentationPayload;
+} {
   const a = core.audio;
+  const ontologyCodes = {
+    tempo_band: a.tempo_band,
+    density_band: a.density_band,
+    arc_bias: a.arc_bias,
+    tension_bias: a.tension_bias,
+    relational_texture: a.relational_texture,
+  };
   const parts: string[] = [];
 
   const tempo = getAudioInsight(a.tempo_band);
@@ -190,18 +233,64 @@ export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string 
   const texture = getAudioInsight(a.relational_texture);
   if (texture) parts.push(texture.reading_text);
 
+  const getAudioInsightHit = {
+    tempo_band: !!getAudioInsight(a.tempo_band),
+    density_band: !!getAudioInsight(a.density_band),
+    arc_bias: !!getAudioInsight(a.arc_bias),
+    tension_bias: !!getAudioInsight(a.tension_bias),
+    relational_texture: !!getAudioInsight(a.relational_texture),
+  };
+
   const legacyFused = collapseListenInteriorPeriods(
     `${mapTempo(a.tempo_band)}; ${mapDensity(a.density_band)}; ${mapTensionBias(a.tension_bias)}; ${mapArc(
       a.arc_bias
     )}; ${mapTexture(a.relational_texture)}.`
   );
 
-  if (parts.length === 0) return legacyFused;
+  if (parts.length === 0) {
+    const instrumentation: AudioListenInstrumentationPayload = {
+      fallback: true,
+      fallbackReason: 'empty_parts',
+      semiCount: 0,
+      mergedLength: legacyFused.length,
+      partsCount: 0,
+      ontologyCodes,
+      getAudioInsightHit,
+    };
+    logAudioListenFallback(instrumentation);
+    return { text: legacyFused, instrumentation };
+  }
 
   const merged = collapseListenInteriorPeriods(parts.filter(Boolean).join('; '));
   const semiCount = (merged.match(/;\s+/g) ?? []).length;
-  if (semiCount < 4) return legacyFused;
-  return merged;
+  if (semiCount < 4) {
+    const instrumentation: AudioListenInstrumentationPayload = {
+      fallback: true,
+      fallbackReason: 'semi_below_threshold',
+      semiCount,
+      mergedLength: merged.length,
+      partsCount: parts.length,
+      ontologyCodes,
+      getAudioInsightHit,
+    };
+    logAudioListenFallback(instrumentation);
+    return { text: legacyFused, instrumentation };
+  }
+
+  const instrumentation: AudioListenInstrumentationPayload = {
+    fallback: false,
+    fallbackReason: null,
+    semiCount,
+    mergedLength: merged.length,
+    partsCount: parts.length,
+    ontologyCodes,
+    getAudioInsightHit,
+  };
+  return { text: merged, instrumentation };
+}
+
+export function fullPerceptualListenSummaryFromCore(core: SemanticCore): string {
+  return audioListenSummaryInstrumentation(core).text;
 }
 
 /** @deprecated for templates — use lightListenHintFromCore or fullPerceptualListenSummaryFromCore on owner. */

@@ -69,6 +69,7 @@ import {
 import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kill-list';
 import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
 import { buildPlacementKeys, PLANET_TIERS, type PlacementKey } from '../placement-keys';
+import type { DirectedSnapshotAspect } from '../../synastry/synastry-types';
 
 /**
  * S3 Mode 1 — single aspect source for insight-library MEP slice (no double-render):
@@ -453,14 +454,19 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
 
   if (surface === 'compat_pair') {
     return withDepths([
+      'core_identity',
+      'personal_expression',
+      'growth_expansion',
+      'evolutionary_currents',
+      'no_activations',
+      'synthesis_a',
+      'synthesis_b',
       'connection_structure',
       'relational_field',
       'relational_weather_v1',
       'signatures',
       'significance',
       'interaction_map',
-      'synthesis_a',
-      'synthesis_b',
       'musical',
       '__DEPTH__',
       'audio_staging',
@@ -889,6 +895,217 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
   return sections.length > 0 ? sections : buildMinimalOverlaySections();
 }
 
+function buildMinimalCompatSynastryActivationSections(): ProjectedExplanationSection[] {
+  const text =
+    'No seeker-to-partner activations matched the personal-planet tiers in this pass. The compatibility sections below still describe how your charts meet in the shared field.';
+  return [
+    {
+      id: 'no_activations',
+      title: 'Synastry Overview',
+      text,
+      bullets: [],
+      meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+    },
+  ];
+}
+
+/**
+ * Phase 6C — seeker-anchored synastry activation tiers (compat_pair). Mirrors overlay tiering; uses synastry library fields via `composeSynastryMepAspectParagraph`.
+ * Requires Alpha options: `pairInteractionAspectsV2`, `comparisonSeekerContextV1`, `snapshot` (seeker), `secondarySnapshot` (target).
+ */
+function assembleCompatActivationSections(options: ProjectionOptions): ProjectedExplanationSection[] {
+  const seekerSnap = options.snapshot;
+  const targetSnap = options.secondarySnapshot;
+  const v2 = options.pairInteractionAspectsV2;
+  const ctx = options.comparisonSeekerContextV1;
+  if (!seekerSnap || !targetSnap || !v2 || !ctx) {
+    return buildMinimalCompatSynastryActivationSections();
+  }
+
+  const connectionMode = options.connectionMode ?? 'none';
+  const romanticPairSurface =
+    connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+  const synVariant = romanticPairSurface ? 'romantic' : 'friendship';
+
+  const seekerDirected = v2.filter(
+    (a) =>
+      a.sourceSlotIndex === ctx.seekerSlotIndex && a.targetSlotIndex === ctx.targetSlotIndex
+  );
+  if (seekerDirected.length === 0) {
+    return buildMinimalCompatSynastryActivationSections();
+  }
+
+  const tiers: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    natalBodies: readonly string[];
+    depth: 'full' | 'medium' | 'concise';
+  }> = [
+    {
+      id: 'core_identity',
+      title: 'Core Identity Architecture',
+      subtitle: 'Fundamental Self-Expression in Relationship',
+      natalBodies: PLANET_TIERS.core_identity,
+      depth: 'full',
+    },
+    {
+      id: 'personal_expression',
+      title: 'Personal Expression',
+      subtitle: 'Communication, Values, and Drive Between You',
+      natalBodies: PLANET_TIERS.personal_expression,
+      depth: 'full',
+    },
+    {
+      id: 'growth_expansion',
+      title: 'Growth and Expansion',
+      subtitle: 'Long-Term Development and Structure',
+      natalBodies: PLANET_TIERS.growth_expansion,
+      depth: 'medium',
+    },
+    {
+      id: 'evolutionary_currents',
+      title: 'Evolutionary Currents',
+      subtitle: 'Generational and Transformative Forces',
+      natalBodies: PLANET_TIERS.evolutionary_currents,
+      depth: 'concise',
+    },
+  ];
+
+  const seekerPlacements = buildPlacementKeys(seekerSnap);
+  const targetPlacements = buildPlacementKeys(targetSnap);
+  const sections: ProjectedExplanationSection[] = [];
+
+  for (const tier of tiers) {
+    const tierAspects = seekerDirected.filter((aspect) =>
+      tier.natalBodies.includes(String(aspect.bodyA || '').toUpperCase())
+    );
+    if (tierAspects.length === 0) continue;
+
+    const activationsByPlanet = groupBy(tierAspects, (a) => String(a.bodyA || '').toUpperCase());
+    const planetNarratives: string[] = [];
+
+    for (const natalPlanet of tier.natalBodies) {
+      const aspects = activationsByPlanet[natalPlanet];
+      if (!aspects || aspects.length === 0) continue;
+
+      const natalPlacement = seekerPlacements.find((p) => p.planet === natalPlanet);
+      if (!natalPlacement) continue;
+
+      const natalSignInsight = getAspectInsight(natalPlacement.signKey);
+      const natalHouseInsight = getAspectInsight(natalPlacement.houseKey);
+      const natalPlacementCore = [natalSignInsight?.core, natalHouseInsight?.core]
+        .filter(Boolean)
+        .join(' ');
+      if (!natalPlacementCore) continue;
+
+      let planetText = `**Your ${formatPlanetName(natalPlanet)} in ${formatSignName(natalPlacement.sign)}, ${formatHouseName(natalPlacement.house)}**\n\n`;
+      if (tier.depth === 'full') {
+        planetText += `${natalPlacementCore}\n\n`;
+      } else if (tier.depth === 'medium') {
+        planetText += `${natalPlacementCore.split('.')[0]}.\n\n`;
+      } else {
+        planetText += `Your ${natalPlanet.toLowerCase()} placement.\n\n`;
+      }
+
+      for (const aspect of aspects) {
+        const theirPlanet = String(aspect.bodyB || '').toUpperCase();
+        const theirPlacement = targetPlacements.find((p) => p.planet === theirPlanet);
+        if (!theirPlacement) continue;
+
+        const aspectKey = buildAspectKey(
+          String(aspect.bodyA || ''),
+          String(aspect.bodyB || ''),
+          String(aspect.type || '')
+        );
+        if (isAspectLibraryKillListed(aspectKey)) continue;
+        const aspectInsight = getAspectInsight(aspectKey);
+        if (!aspectInsight) continue;
+
+        planetText += `Your ${natalPlanet.toLowerCase()} is activated by **their ${formatPlanetName(theirPlanet)} in ${formatSignName(theirPlacement.sign)}** (${formatHouseName(theirPlacement.house)}), forming a ${formatAspectName(String(aspect.type || ''))}. `;
+
+        planetText += `${composeSynastryMepAspectParagraph(aspectInsight, synVariant)}\n\n`;
+        planetText += '---\n\n';
+      }
+      planetNarratives.push(planetText.trim());
+    }
+
+    if (planetNarratives.length > 0) {
+      const text = `${tier.subtitle}\n\n${planetNarratives.join('\n\n')}`.trim();
+      sections.push({
+        id: tier.id,
+        title: tier.title,
+        text,
+        bullets: [],
+        meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+      });
+    }
+  }
+
+  return sections.length > 0 ? sections : buildMinimalCompatSynastryActivationSections();
+}
+
+/** Gamma — top N seeker→partner aspects per synthesis block (ranked). */
+const SYNASTRY_SYNTH_A_MAX = 6;
+const SYNASTRY_SYNTH_B_MAX = 6;
+
+/**
+ * Phase 6C-Gamma — library-driven synthesis bodies for compat_pair when V2 + seeker context exist.
+ */
+function buildSynastryLibrarySynthesisSectionBodies(
+  options: ProjectionOptions,
+  includeSynthesisB: boolean
+): { aText: string; bText: string | null } {
+  const v2 = options.pairInteractionAspectsV2;
+  const ctx = options.comparisonSeekerContextV1;
+  if (!v2 || !ctx) {
+    return { aText: '', bText: null };
+  }
+  const connectionMode = options.connectionMode ?? 'none';
+  const romanticPair = connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+  const variant = romanticPair ? 'romantic' : 'friendship';
+
+  const directed = v2.filter(
+    (a) => a.sourceSlotIndex === ctx.seekerSlotIndex && a.targetSlotIndex === ctx.targetSlotIndex
+  );
+
+  const ranked: { asp: DirectedSnapshotAspect; insight: AspectInsight }[] = [];
+  for (const asp of directed) {
+    const key = buildAspectKey(asp.bodyA, asp.bodyB, asp.type);
+    if (isAspectLibraryKillListed(key)) continue;
+    const insight = getAspectInsight(key);
+    if (!insight) continue;
+    ranked.push({ asp, insight });
+  }
+  ranked.sort((x, y) => {
+    const dex = (y.asp.exactness ?? 0) - (x.asp.exactness ?? 0);
+    if (dex !== 0) return dex;
+    const dpb = (y.asp.priorityBase ?? 0) - (x.asp.priorityBase ?? 0);
+    if (dpb !== 0) return dpb;
+    return (x.asp.orb ?? 99) - (y.asp.orb ?? 99);
+  });
+
+  const block = (slice: { asp: DirectedSnapshotAspect; insight: AspectInsight }[]) =>
+    slice
+      .map(({ asp, insight }) => {
+        const header = `**${formatPlanetName(String(asp.bodyA))} ${formatAspectName(String(asp.type))} ${formatPlanetName(String(asp.bodyB))}**`;
+        return `${header}\n\n${composeSynastryMepAspectParagraph(insight, variant)}`;
+      })
+      .join('\n\n');
+
+  const sliceA = ranked.slice(0, SYNASTRY_SYNTH_A_MAX);
+  const sliceB = includeSynthesisB
+    ? ranked.slice(SYNASTRY_SYNTH_A_MAX, SYNASTRY_SYNTH_A_MAX + SYNASTRY_SYNTH_B_MAX)
+    : [];
+
+  const fallbackA =
+    'The connection between these charts holds room to grow; the sections below spell out how your fields meet in practice.';
+  const aText = block(sliceA).trim() || fallbackA;
+  const bRaw = block(sliceB).trim();
+  const bText = includeSynthesisB && bRaw.length > 0 ? bRaw : null;
+  return { aText, bText };
+}
+
 export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedExplanationSection[] {
   const { core, seed, options, tierEff, surface, temporalBucket } = params;
   const schema = SURFACE_SCHEMAS[surface];
@@ -1036,27 +1253,32 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         .filter((ins): ins is AspectInsight => ins !== undefined);
       if (aspectInsights.length > 0) {
         const effSurface = options?.surface ?? surface;
-        const connectionMode = options?.connectionMode ?? 'none';
-        const romanticPairSurface =
-          connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
-        const context = romanticPairSurface ? 'romantic' : 'friendship';
-        mepAspectLibraryText = aspectInsights
-          .map((ins) => {
-            if (effSurface === 'feed') return ins.feed;
-            if (effSurface === 'compat_pair' || effSurface === 'group') {
-              return composeSynastryMepAspectParagraph(
-                ins,
-                context === 'romantic' ? 'romantic' : 'friendship'
-              );
-            }
-            if (effSurface === 'overlay_pair') {
-              const transitText = [ins.core_transit, ins.behavioral_transit].filter(Boolean).join(' ');
-              return transitText || [ins.core, ins.behavioral].filter(Boolean).join(' ');
-            }
-            return [ins.core, ins.behavioral].filter(Boolean).join(' ');
-          })
-          .filter(Boolean)
-          .join('\n\n');
+        /** Phase 6C-Gamma — synastry library already in activation tiers + synthesis; do not append on signatures. */
+        const skipCompatSynastryLibraryDup =
+          effSurface === 'compat_pair' && options.pairInteractionAspectsV2 != null;
+        if (!skipCompatSynastryLibraryDup) {
+          const connectionMode = options?.connectionMode ?? 'none';
+          const romanticPairSurface =
+            connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
+          const context = romanticPairSurface ? 'romantic' : 'friendship';
+          mepAspectLibraryText = aspectInsights
+            .map((ins) => {
+              if (effSurface === 'feed') return ins.feed;
+              if (effSurface === 'compat_pair' || effSurface === 'group') {
+                return composeSynastryMepAspectParagraph(
+                  ins,
+                  context === 'romantic' ? 'romantic' : 'friendship'
+                );
+              }
+              if (effSurface === 'overlay_pair') {
+                const transitText = [ins.core_transit, ins.behavioral_transit].filter(Boolean).join(' ');
+                return transitText || [ins.core, ins.behavioral].filter(Boolean).join(' ');
+              }
+              return [ins.core, ins.behavioral].filter(Boolean).join(' ');
+            })
+            .filter(Boolean)
+            .join('\n\n');
+        }
       }
     } else if (isMus) {
       const musRole: ClaimOptionalRole[] = [];
@@ -1276,6 +1498,66 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   for (const key of extraKeys) {
     if (key === 'audio_thread') continue;
     if (key === 'synthesis_a') {
+      if (
+        surface === 'compat_pair' &&
+        options.pairInteractionAspectsV2 != null &&
+        options.comparisonSeekerContextV1 != null
+      ) {
+        const includeB = extraKeys.includes('synthesis_b');
+        const { aText, bText } = buildSynastryLibrarySynthesisSectionBodies(options, includeB);
+
+        const tagA = taggedSectionBodyFromText(aText, 'template');
+        const enrichedA = enrichSectionTextWithTagged(
+          aText,
+          tagA,
+          [],
+          [],
+          'short',
+          `${seed}:synlibA`,
+          [],
+          reportPadUsed,
+          PAD_SENTENCES,
+          { feed: true }
+        );
+        out.push({
+          id: 'synthesis_a',
+          title: 'Synastry synthesis',
+          text: enrichedA.text,
+          meta: {
+            enrichDensity: 'short',
+            claimIdsReferenced: sortUniqueClaimIds(enrichedA.claimIds),
+            phaseD: true,
+            tagged: enrichedA.tagged,
+          },
+        });
+        if (includeB && bText != null) {
+          const tagB = taggedSectionBodyFromText(bText, 'template');
+          const enrichedB = enrichSectionTextWithTagged(
+            bText,
+            tagB,
+            [],
+            [],
+            'short',
+            `${seed}:synlibB`,
+            [],
+            reportPadUsed,
+            PAD_SENTENCES,
+            { feed: true }
+          );
+          out.push({
+            id: 'synthesis_b',
+            title: 'Extended synastry',
+            text: enrichedB.text,
+            meta: {
+              enrichDensity: 'short',
+              claimIdsReferenced: sortUniqueClaimIds(enrichedB.claimIds),
+              phaseD: true,
+              tagged: enrichedB.tagged,
+            },
+          });
+        }
+        continue;
+      }
       const synSecRole: ClaimOptionalRole[] = [];
       const synParaNorm: string[] = [];
       const synClaim = buildDisciplinedSynthesisClaimBodies(
@@ -1339,6 +1621,13 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       });
     }
     if (key === 'synthesis_b' && surface !== 'sandbox') {
+      if (
+        surface === 'compat_pair' &&
+        options.pairInteractionAspectsV2 != null &&
+        options.comparisonSeekerContextV1 != null
+      ) {
+        continue;
+      }
       const synBSecRole: ClaimOptionalRole[] = [];
       const synBParaNorm: string[] = [];
       const synClaim = buildDisciplinedSynthesisClaimBodies(
@@ -1802,7 +2091,15 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const placementSections =
     surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
 
-  let framed = applyConnectionPreface([...placementSections, ...out], {
+  /** Phase 6C — prepend seeker-anchored synastry activations when directed metadata + seeker context exist. */
+  const compatActivationSections =
+    surface === 'compat_pair' &&
+    options.pairInteractionAspectsV2 != null &&
+    options.comparisonSeekerContextV1 != null
+      ? assembleCompatActivationSections(options)
+      : [];
+
+  let framed = applyConnectionPreface([...compatActivationSections, ...placementSections, ...out], {
     surface,
     connectionMode: options.connectionMode,
     participantCount: options.participantCount,

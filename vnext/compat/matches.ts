@@ -79,8 +79,8 @@ function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchRe
 function modeToConnectionMode(mode: RelationalIntent): RelationshipMode {
   if (mode === 'friend') return 'friends';
   if (mode === 'lover') return 'lovers';
-  if (mode === 'rival') return 'rivals';
-  return 'collaborator';
+  /** Phase 6C-Cleanup: use friends for non-romantic intents (deprecated rivals/collaborator modes removed). */
+  return 'friends';
 }
 
 function firstSentence(text: string): string {

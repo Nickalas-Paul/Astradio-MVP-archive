@@ -376,7 +376,7 @@ function wave1ShippedTablesVerification(): void {
 
   const wave3a = SHIPPED_SURFACE_EXPRESSION_RULES.filter((r) => r.rule_id.includes('-W3-'));
   const wave3b = PHASE5B_RULES.filter((r) => r.rule_id.includes('-W3-'));
-  assert(wave3a.length === 14, `expected 14 shipped -W3- projection expression rules, got ${wave3a.length}`);
+  assert(wave3a.length === 11, `expected 11 shipped -W3- projection expression rules, got ${wave3a.length}`);
   assert(wave3b.length === 4, `expected 4 Wave 3 Phase5B rules, got ${wave3b.length}`);
   assert(wave3a.length + wave3b.length <= 22, 'Wave 3 new rule rows must stay within the 22-row cap (5A+5B)');
 
@@ -512,12 +512,15 @@ function wave1ShippedTablesVerification(): void {
   });
   assert(situOut[0]!.text.includes('in the moment'), 'situational preface rule applies for lovers');
 
-  const situRivalsOpts: ProjectionOptions = { ...prefaceOpts, connectionMode: 'rivals' };
-  const situRivalsOut = applySurfaceExpressionRulesWithTables([syntheticSection(situTagged)], situRivalsOpts, {
+  const situNeutralOpts: ProjectionOptions = { ...prefaceOpts, connectionMode: 'neutral' };
+  const situNeutralOut = applySurfaceExpressionRulesWithTables([syntheticSection(situTagged)], situNeutralOpts, {
     rules: SHIPPED_SURFACE_EXPRESSION_RULES,
     templateAllowlist: SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST,
   });
-  assert(situRivalsOut[0]!.text === reconstructTaggedSectionBody(situTagged).trim(), 'situational preface skipped for rivals');
+  assert(
+    situNeutralOut[0]!.text === reconstructTaggedSectionBody(situTagged).trim(),
+    'situational preface skipped for neutral (friends+lovers rule only)'
+  );
 
   const contBefore =
     'Recent turns have leaned toward naming things plainly and defining the line more clearly.';

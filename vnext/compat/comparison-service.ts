@@ -165,6 +165,8 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     compatClassCode: compatibility.classification.outputs.class_code,
     relationshipMode: input.relationshipMode,
     expansionTier: parseExpansionTier(input.expansionTier),
+    seekerChartId: chartA.id,
+    targetChartId: chartB.id,
   });
 
   const compatText: CompatibilityTextStructured = {

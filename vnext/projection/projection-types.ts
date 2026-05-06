@@ -8,6 +8,7 @@
 
 import type { RelationshipMode } from '../compat/types';
 import type { EphemerisSnapshot, SnapshotAspect } from '../contracts';
+import type { ComparisonSeekerContextV1, DirectedSnapshotAspect } from '../synastry/synastry-types';
 
 export type ExpansionTier = 'baseline' | 'expanded' | 'extended';
 
@@ -157,6 +158,10 @@ export type ProjectionOptions = {
   snapshotAspects?: readonly SnapshotAspect[];
   /** Synastry cross-chart aspects; when set with length ≥ 1, supersedes anchor snapshotAspects for library lookup. */
   pairInteractionAspects?: readonly SnapshotAspect[];
+  /** Phase 6C — directed synastry rows (with slot indices). When set, prefer for seeker-anchored assembly. */
+  pairInteractionAspectsV2?: readonly DirectedSnapshotAspect[];
+  /** Phase 6C — seeker/target chart mapping to participant slots (comparison aggregates). */
+  comparisonSeekerContextV1?: ComparisonSeekerContextV1;
   /** How pair_interaction_aspects were produced (projection-only discriminator). */
   synastry_context?: 'pair_comparison' | 'group_aggregate' | 'sandbox_override';
   /** Compatibility classification class_code for relational insight (compat surfaces). */

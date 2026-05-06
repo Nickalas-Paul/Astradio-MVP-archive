@@ -12,7 +12,7 @@ const INTENT_TO_RELATIONSHIP: Record<string, RelationshipMode> = {
   friendship: 'friends',
   dating: 'lovers',
   collaboration: 'friends',
-  mentor: 'mentor',
+  mentor: 'friends',
   roommate: 'friends',
   study: 'friends',
 };

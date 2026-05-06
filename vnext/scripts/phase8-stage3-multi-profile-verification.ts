@@ -344,7 +344,7 @@ async function laneB_orderedPairDeterminism(
     { label: 'C1->C3', seekerIdx: 0, targetIdx: 2 },
     { label: 'C3->C1', seekerIdx: 2, targetIdx: 0 },
   ];
-  const relationshipModes = ['friends', 'rivals'] as const;
+  const relationshipModes = ['friends', 'lovers'] as const;
 
   const createdByUser: Record<string, string> = {};
 

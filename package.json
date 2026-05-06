@@ -18,6 +18,8 @@
     "web:dev": "next dev apps/web -p 3000",
     "dev:all": "concurrently \"npm run engine:dev\" \"npm run web:dev\"",
     "db:migrate": "node scripts/migrate.js",
+    "db:inspect-schema": "tsx scripts/db-inspect-schema.ts",
+    "db:reset-user": "tsx scripts/db-reset-user.ts",
     "db:seed": "node scripts/seed.js",
     "verify:migration": "node scripts/verify-migration-sql.js",
     "smoke:phase4": "node scripts/phase4-smoke.js",
@@ -85,6 +87,8 @@
     "test:synthesis-audio-wrapper": "npm run vnext:build && node dist/vnext/vnext/scripts/test-synthesis-audio-wrapper.js",
     "test:unified-projection": "npm run vnext:build && node dist/vnext/vnext/scripts/test-unified-projection.js && node dist/vnext/vnext/scripts/gate-a-projection-identity.js && node dist/vnext/vnext/scripts/test-repetition-collapse-phase0.js && node dist/vnext/vnext/scripts/test-phase1-claim-expression.js && node dist/vnext/vnext/scripts/test-phase2-load.js && node dist/vnext/vnext/scripts/test-phase3-tagged-provenance.js && node dist/vnext/vnext/scripts/test-composition-phase4.js && node dist/vnext/vnext/scripts/test-phase4-expression-enforcement.js && node dist/vnext/vnext/scripts/test-phase5-expression-filters.js",
     "test:synastry-compute": "npm run vnext:build && node --test dist/vnext/vnext/synastry/synastry-compute.test.js",
+    "test:phase6c-beta-exit": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6c-beta-exit-validation.js",
+    "test:phase6c-cleanup": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6c-cleanup-validation.js",
     "audit:tier1-render": "npm run vnext:build && node dist/vnext/vnext/scripts/synastry-s5-tier1-audit-render.js",
     "fixture:synastry-s3-pre-post": "npm run vnext:build && node dist/vnext/vnext/scripts/synastry-fixture-pre-post.js",
     "fixture:synastry-s3-mode2-pre-post": "npm run vnext:build && node dist/vnext/vnext/scripts/synastry-s3-mode2-pre-post.js",
@@ -226,6 +230,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "nodemon": "^3.1.0",
     "ts-jest": "^29.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "undici": "^6.23.0"
   }

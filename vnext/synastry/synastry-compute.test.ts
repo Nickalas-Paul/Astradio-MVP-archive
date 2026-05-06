@@ -63,6 +63,13 @@ test('conjunction: same longitude for body pair across charts', () => {
   const out = computeSynastryAspects({ snapshotsOrdered: [a, b], mode: 'pair' });
   const sunSun = out.filter((x) => x.bodyA === 'sun' && x.bodyB === 'sun');
   assert.ok(sunSun.some((x) => x.type === 'conjunction' && x.orb === 0));
+  const dir = sunSun.find((x) => x.type === 'conjunction' && x.orb === 0)!;
+  assert.ok(
+    (dir.sourceSlotIndex === 0 && dir.targetSlotIndex === 1) ||
+      (dir.sourceSlotIndex === 1 && dir.targetSlotIndex === 0)
+  );
+  assert.strictEqual(typeof dir.sourceSlotIndex, 'number');
+  assert.strictEqual(typeof dir.targetSlotIndex, 'number');
 });
 
 test('five aspect types: geometry hits each type at tight orb', () => {

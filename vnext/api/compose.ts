@@ -47,6 +47,10 @@ import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '..
 import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import { computeSynastryAspects } from '../synastry/synastry-compute';
+import {
+  toLegacyPairInteractionAspect,
+  type ComparisonSeekerContextV1,
+} from '../synastry/synastry-types';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
@@ -82,6 +86,9 @@ export type AggregateCompositionInput =
       relationshipMode?: RelationshipMode;
       expansionTier?: ExpansionTier;
       output_kind?: 'full' | 'feed_card';
+      /** Phase 6C — Community seeker (Chart A) / target (Chart B) chart ids for directed synastry assembly. */
+      seekerChartId?: string;
+      targetChartId?: string;
     }
   | {
       kind: 'group';
@@ -95,6 +102,24 @@ export type AggregateCompositionInput =
       expansionTier?: ExpansionTier;
       output_kind?: 'full' | 'feed_card';
     };
+
+/** Phase 6C — maps UI seeker/target chart ids onto lexical slot order (snapLow = slot 0, snapHigh = slot 1). */
+function comparisonSeekerContextFromInput(
+  input: Extract<AggregateCompositionInput, { kind: 'comparison' }>
+): ComparisonSeekerContextV1 | undefined {
+  const seeker = input.seekerChartId;
+  const target = input.targetChartId;
+  if (!seeker || !target || seeker === target) return undefined;
+  const { chartIdLow, chartIdHigh } = input;
+  if (seeker !== chartIdLow && seeker !== chartIdHigh) return undefined;
+  if (target !== chartIdLow && target !== chartIdHigh) return undefined;
+  return {
+    seekerChartId: seeker,
+    targetChartId: target,
+    seekerSlotIndex: seeker === chartIdLow ? 0 : 1,
+    targetSlotIndex: target === chartIdLow ? 0 : 1,
+  };
+}
 
 export type AggregateComposeResult = {
   compose_kind: 'comparison_aggregate' | 'group_aggregate';
@@ -253,10 +278,11 @@ export class ComposeAPI {
       if (hasOverlayContext && canonicalInput.overlayNatalSnapshot) {
         const natalSnapshot = canonicalInput.overlayNatalSnapshot;
         const natalFeatureVec = encodeFeatures(natalSnapshot) as FeatureVec;
-        const overlaySynastry = computeSynastryAspects({
+        const overlayDirected = computeSynastryAspects({
           snapshotsOrdered: [natalSnapshot, architecture.snapshot],
           mode: 'pair',
         });
+        const overlayLegacy = overlayDirected.map((r) => toLegacyPairInteractionAspect(r));
         canonicalReport = buildCanonicalReportForOverlay({
           subject_ids: [payload.hash],
           natalSnapshot,
@@ -266,7 +292,8 @@ export class ComposeAPI {
           control_surface_hash: payload.hash,
           compose_seed: requestSeed,
           guidance: architecture.guidance,
-          pair_interaction_aspects: overlaySynastry,
+          pair_interaction_aspects: overlayLegacy,
+          pair_interaction_aspects_v2: overlayDirected,
         });
       } else {
         const surface_kind =
@@ -782,7 +809,7 @@ export class ComposeAPI {
      * - Group + 1 or 0 snapshots: skip (graceful; should not occur in production group compose).
      * - Group + ≥3 natals: `group_matrix` — full pairwise matrix, R1-ranked and capped inside the primitive.
      */
-    const pairInteractionAspects =
+    const directedSynastry =
       input.kind === 'comparison'
         ? computeSynastryAspects({
             snapshotsOrdered: [input.snapLow, input.snapHigh],
@@ -800,6 +827,14 @@ export class ComposeAPI {
               })
             : undefined;
 
+    const legacySynastry =
+      directedSynastry != null
+        ? directedSynastry.map((r) => toLegacyPairInteractionAspect(r))
+        : undefined;
+
+    const comparisonSeekerContextV1 =
+      input.kind === 'comparison' ? comparisonSeekerContextFromInput(input) : undefined;
+
     const canonicalReport = buildCanonicalReportForAggregate({
       kind: input.kind === 'comparison' ? 'comparison' : 'group',
       subject_ids: [payload.hash],
@@ -810,7 +845,11 @@ export class ComposeAPI {
       compose_seed: payload.hash,
       guidance: architecture.guidance,
       relationalWeather: input.relationalWeather ?? null,
-      ...(pairInteractionAspects != null ? { pair_interaction_aspects: pairInteractionAspects } : {}),
+      ...(legacySynastry != null ? { pair_interaction_aspects: legacySynastry } : {}),
+      ...(directedSynastry != null ? { pair_interaction_aspects_v2: directedSynastry } : {}),
+      ...(comparisonSeekerContextV1 != null
+        ? { comparison_seeker_context_v1: comparisonSeekerContextV1 }
+        : {}),
     });
     const semanticCore = interpretCanonicalReportObject(canonicalReport);
     const narrativePlan = buildCompositionNarrativePlan(payload, plan, semanticCore);
@@ -915,6 +954,9 @@ export class ComposeAPI {
           downgradedFrom: pvAgg?.downgradedFrom,
           projection_validation: pvAgg,
         },
+        ...(input.kind === 'comparison' && canonicalReport.pair_interaction_aspects_v2 != null
+          ? { assemblyVersion: 'compat_synastry_v2' as const }
+          : {}),
       },
     };
     const planHash = computePlanHash(plan);

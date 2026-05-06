@@ -11,7 +11,12 @@ import { buildProfileActiveStateProjection } from '../profile/profile-active-sta
 import { getCompatMatches } from './matches';
 import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
-import { RELATIONSHIP_MODES, type RelationshipMode } from './types';
+import {
+  RELATIONSHIP_MODES,
+  coerceRelationshipModeFromStorage,
+  parseRelationshipModeInput,
+  type RelationshipMode,
+} from './types';
 import { createGroupProfile, type GroupsProfileRequest } from '../api/community-groups';
 import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../api/compatibility-intent';
 import { populateChartVector } from './vector-cache';
@@ -43,10 +48,6 @@ type ComparisonWithRoles = Comparison & {
   seekerChartId?: string;
   targetChartId?: string;
 };
-
-function isRelationshipMode(s: string): s is RelationshipMode {
-  return RELATIONSHIP_MODES.includes(s as RelationshipMode);
-}
 
 function isCompatMode(s: string): s is RelationalIntent {
   return (RELATIONAL_INTENTS as readonly string[]).includes(s);
@@ -809,7 +810,14 @@ export function createCompatRouter(): import('express').Router {
     return res.status(404).json({ error: 'Chart not found', code: 'CHART_LOOKUP_AMBIGUOUS' });
   });
 
-  // POST /api/comparisons
+  /**
+   * POST /api/comparisons
+   *
+   * Relationship modes: canonical set `friends` | `lovers` | `neutral` (`vnext/compat/types`).
+   * Phase 6C soft-compat: body may still send `rivals` | `mentor` | `collaborator`; they normalize to `friends` via `parseRelationshipModeInput`.
+   *
+   * Future (~2 releases post-6C): plan to **reject** deprecated strings with HTTP 400 and e.g. `DEPRECATED_RELATIONSHIP_MODE` instead of normalizing — not enabled yet.
+   */
   router.post('/comparisons', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const body = req.body || {};
@@ -871,10 +879,15 @@ export function createCompatRouter(): import('express').Router {
           error: 'targetChartId or chartBId or chartBInline (date, time, lat, lon) required'
         });
       }
-      if (!relationshipMode || !isRelationshipMode(relationshipMode)) {
+      let normalizedRelationshipMode: RelationshipMode;
+      try {
+        normalizedRelationshipMode = parseRelationshipModeInput(relationshipMode);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Invalid relationshipMode';
         return res.status(400).json({
-          error: 'relationshipMode required',
-          allowed: RELATIONSHIP_MODES
+          error: msg,
+          allowed: [...RELATIONSHIP_MODES],
+          note: 'Legacy values rivals, mentor, collaborator are accepted and normalized to friends.',
         });
       }
 
@@ -882,7 +895,7 @@ export function createCompatRouter(): import('express').Router {
         chartAId: effectiveChartAId,
         chartBId: effectiveChartBId || undefined,
         chartBInline: chartBInlineInput,
-        relationshipMode,
+        relationshipMode: normalizedRelationshipMode,
         generateComposition: true,
         fusion: fusionInput,
         createdBy: createdBy || undefined,
@@ -905,7 +918,7 @@ export function createCompatRouter(): import('express').Router {
         ...comparison,
         seekerChartId: seekerChartIdOut,
         targetChartId: targetChartIdOut,
-        relationshipMode: comparison.relationshipMode,
+        relationshipMode: coerceRelationshipModeFromStorage(comparison.relationshipMode),
         roles: responseRoles,
         planHash: result.planHash,
         compositionId: result.compositionId,
@@ -949,7 +962,7 @@ export function createCompatRouter(): import('express').Router {
           ...comparison,
           seekerChartId,
           targetChartId,
-          relationshipMode: comparison.relationshipMode,
+          relationshipMode: coerceRelationshipModeFromStorage(comparison.relationshipMode),
           roles: rolesOut,
         };
       });
@@ -971,7 +984,7 @@ export function createCompatRouter(): import('express').Router {
       ...comparison,
       seekerChartId,
       targetChartId,
-      relationshipMode: comparison.relationshipMode,
+      relationshipMode: coerceRelationshipModeFromStorage(comparison.relationshipMode),
       roles: {
         seekerChartId,
         targetChartId
