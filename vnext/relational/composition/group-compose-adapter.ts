@@ -60,6 +60,10 @@ export async function composeGroupFromChartIds(
     expansionTier?: ExpansionTier;
     /** Same canonical pipeline; projection variant only. */
     output_kind?: 'full' | 'feed_card';
+    /** Phase 6E — optional YOUR labeling when paired with labelResolutionOwnerId. */
+    viewerChartId?: string;
+    /** Phase 6E — server owner id; YOUR requires chart ownership match. */
+    labelResolutionOwnerId?: string;
   }
 ): Promise<GroupComposeResult> {
   const ctx = await resolveRelationalConnectionFromChartIds(chartIdsInput, opts?.groupId);
@@ -85,11 +89,16 @@ export async function composeGroupFromChartIds(
     kind: 'group',
     anchorSnapshot,
     snapshotsOrdered,
+    chartIdsOrdered: chart_ids,
     composite: composite as import('../../contracts').FeatureVec,
     payload,
     relationalWeather: opts?.relationalWeather,
     expansionTier: opts?.expansionTier,
     output_kind: opts?.output_kind,
+    ...(opts?.viewerChartId ? { viewerChartId: opts.viewerChartId } : {}),
+    ...(opts?.labelResolutionOwnerId
+      ? { labelResolutionOwnerId: opts.labelResolutionOwnerId }
+      : {}),
   });
 
   const base64 = result.audio?.base64;

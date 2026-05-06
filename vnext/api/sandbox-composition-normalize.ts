@@ -62,6 +62,8 @@ export type SandboxCompositionInputV1 = {
    * compat class into aggregate projection. Default false: preview/exploration resolves skip classification.
    */
   commit_relational_classification?: boolean;
+  /** Phase 6E — optional; slot whose chart is labeled YOUR when server can validate ownership. */
+  viewer_chart_id?: string;
 };
 
 export type DerivedCompositionMode = 'single' | 'overlay' | 'pair_aggregate' | 'group_aggregate';
@@ -98,6 +100,8 @@ export type NormalizedCompositionSuccess = {
   transit_context?: OverlayTransitContextInput;
   binding?: CompositionBindingInput;
   compose_controls: Record<string, unknown>;
+  /** Phase 6E — trimmed chart id when provided on input. */
+  viewer_chart_id?: string;
 };
 
 export type NormalizedCompositionFailure = {
@@ -190,6 +194,11 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     input.output_kind === 'feed_card' ? 'feed_card' : 'full';
 
   const commit_relational_classification = input.commit_relational_classification === true;
+
+  const viewer_chart_id_raw =
+    typeof input.viewer_chart_id === 'string' && input.viewer_chart_id.trim()
+      ? input.viewer_chart_id.trim()
+      : undefined;
 
   const populatedIndices: number[] = [];
   for (let i = 0; i < input.slots.length; i++) {
@@ -327,6 +336,7 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     output_kind,
     seed: input.seed ?? null,
     commit_relational_classification,
+    ...(viewer_chart_id_raw ? { viewer_chart_id: viewer_chart_id_raw } : {}),
   };
 
   const canonical_input_hash = crypto.createHash('sha256').update(stableStringify(hashPayload), 'utf8').digest('hex');
@@ -344,5 +354,6 @@ export function normalizeCompositionInput(input: SandboxCompositionInputV1): Nor
     transit_context: tc,
     binding: input.binding,
     compose_controls: (input.compose_controls || {}) as Record<string, unknown>,
+    ...(viewer_chart_id_raw ? { viewer_chart_id: viewer_chart_id_raw } : {}),
   };
 }

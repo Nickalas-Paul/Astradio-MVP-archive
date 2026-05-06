@@ -51,6 +51,10 @@ import {
   toLegacyPairInteractionAspect,
   type ComparisonSeekerContextV1,
 } from '../synastry/synastry-types';
+import {
+  resolveParticipantLabels,
+  type AggregateParticipantLabelV1,
+} from '../relational/composition/resolve-participant-labels';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
@@ -101,6 +105,11 @@ export type AggregateCompositionInput =
       relationalWeather?: RelationalWeatherStateV1;
       expansionTier?: ExpansionTier;
       output_kind?: 'full' | 'feed_card';
+      /** Phase 6E — parallel to snapshotsOrdered (null = birth-only slot). */
+      chartIdsOrdered?: ReadonlyArray<string | null>;
+      viewerChartId?: string;
+      /** When set with viewerChartId, YOUR labeling requires chart.ownerId === this. */
+      labelResolutionOwnerId?: string;
     };
 
 /** Phase 6C — maps UI seeker/target chart ids onto lexical slot order (snapLow = slot 0, snapHigh = slot 1). */
@@ -859,11 +868,28 @@ export class ComposeAPI {
     const insightOptsAgg = insightProjectionOptionsFromCanonical(canonicalReport);
     const compatClassCodeAgg =
       input.kind === 'comparison' ? input.compatClassCode : undefined;
+
+    let aggregateParticipantLabelsV1: AggregateParticipantLabelV1[] | undefined;
+    if (input.kind === 'group') {
+      const ids = input.chartIdsOrdered;
+      if (ids && ids.length === input.snapshotsOrdered.length && ids.length > 0) {
+        aggregateParticipantLabelsV1 = await resolveParticipantLabels(ids, {
+          viewerChartId: input.viewerChartId,
+          labelResolutionOwnerId: input.labelResolutionOwnerId,
+        });
+      }
+    }
+
     const aggOutputKind = input.output_kind === 'feed_card' ? 'feed_card' : 'full';
+    const labelOpts =
+      aggregateParticipantLabelsV1 != null && aggregateParticipantLabelsV1.length > 0
+        ? { aggregateParticipantLabelsV1 }
+        : {};
     const projected =
       aggOutputKind === 'feed_card'
         ? projectFeedCardFromSemanticCore(semanticCore, payload.hash, {
             ...insightOptsAgg,
+            ...labelOpts,
             narrativePlan,
             aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
             connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
@@ -881,6 +907,7 @@ export class ComposeAPI {
             participantCount,
             aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
             ...insightOptsAgg,
+            ...labelOpts,
             compatClassCode: compatClassCodeAgg,
           });
 

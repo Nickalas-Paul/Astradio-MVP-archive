@@ -307,6 +307,7 @@ function createStage4Router() {
               composed = await groupComposeAdapter.composeGroupFromChartIds(normalizedChartIdsOrdered, {
                 groupId: bindingId,
                 relationalWeather: weather,
+                labelResolutionOwnerId: viewerUserId,
               });
               if (composed && composed.audio) {
                 composeAudioForResponse = {
@@ -525,7 +526,10 @@ function createStage4Router() {
       const okPair = await assertPairChartsAuthorizedForForecast(ownerUserId, relationship.id, chartIds);
       if (!okPair) return res.status(404).json({ error: 'not_found' });
 
-      const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, { groupId: relationship.id });
+      const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, {
+        groupId: relationship.id,
+        labelResolutionOwnerId: ownerUserId,
+      });
       const artifactPayload = {
         kind: 'pair',
         owner_user_id: ownerUserId,
@@ -696,7 +700,10 @@ function createStage4Router() {
       const okGroup = await assertGroupChartsAuthorizedForForecast(ownerUserId, req.params.id, chartIds);
       if (!okGroup) return res.status(404).json({ error: 'not_found' });
 
-      const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, { groupId: req.params.id });
+      const composed = await groupComposeAdapter.composeGroupFromChartIds(chartIds, {
+        groupId: req.params.id,
+        labelResolutionOwnerId: ownerUserId,
+      });
       const artifactPayload = {
         kind: 'group',
         owner_user_id: ownerUserId,

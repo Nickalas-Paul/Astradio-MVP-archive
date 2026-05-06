@@ -34,6 +34,7 @@ import { resolveOwnerId } from './owner-resolve';
 import { resolveGroupChartIds } from './groups/member-resolver';
 import { buildGroupReport } from './reports/group-report';
 import { composeGroupFromChartIds } from './composition/group-compose-adapter';
+import { getChartById } from '../compat/chart-store';
 
 async function requireOwner(req: Request, res: Response): Promise<string | null> {
   try {
@@ -609,6 +610,11 @@ function createRelationalRouter(): import('express').Router {
     const groupId = typeof body.groupId === 'string' ? body.groupId.trim() : '';
     const chartIdsInput = Array.isArray(body.chartIds) ? body.chartIds : undefined;
     const generateComposition = (body as { generateComposition?: boolean }).generateComposition;
+    const viewerChartIdRaw =
+      typeof (body as { viewerChartId?: string }).viewerChartId === 'string'
+        ? (body as { viewerChartId: string }).viewerChartId.trim()
+        : '';
+    const viewerChartId = viewerChartIdRaw.length > 0 ? viewerChartIdRaw : undefined;
 
     if (!groupId && (!chartIdsInput || !chartIdsInput.length)) {
       return res.status(400).json({
@@ -632,9 +638,27 @@ function createRelationalRouter(): import('express').Router {
         chartIds = (ids as string[]).map((id) => id.trim());
       }
 
+      if (viewerChartId) {
+        if (!chartIds.includes(viewerChartId)) {
+          return res.status(400).json({
+            error: 'validation_error',
+            message: 'viewerChartId must be one of the charts in this composition',
+          });
+        }
+        const vc = await getChartById(viewerChartId);
+        if (!vc || vc.ownerId !== ownerId) {
+          return res.status(403).json({
+            error: 'forbidden',
+            message: 'viewerChartId must name a chart you own',
+          });
+        }
+      }
+
       const result = await composeGroupFromChartIds(chartIds, {
         groupId: groupId || undefined,
         generateComposition: generateComposition === false ? false : undefined,
+        labelResolutionOwnerId: ownerId,
+        ...(viewerChartId ? { viewerChartId } : {}),
       });
       return res.status(200).json(result);
     } catch (e: unknown) {

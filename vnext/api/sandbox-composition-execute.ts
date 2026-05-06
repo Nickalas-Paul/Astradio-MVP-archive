@@ -31,6 +31,11 @@ import { ADDITIONAL_BODIES } from '../canonical-bodies';
 
 const SANDBOX_GROUP_SEED_VERSION = 'sandbox_group_v3';
 
+/** Optional server-injected context for Phase 6E label resolution (YOUR requires ownership proof). */
+export type ExecuteSandboxCompositionContext = {
+  labelResolutionOwnerId?: string;
+};
+
 export const SANDBOX_RESOLVE_ERROR_CODES = {
   ...SANDBOX_COMPOSITION_ERROR_CODES,
   CHART_NOT_FOUND: 'chart_not_found',
@@ -152,7 +157,10 @@ export function synastryNoticeForAsteroidLongitudeOverrides(
 /**
  * Resolve sandbox composition through canonical pipeline only.
  */
-export async function executeSandboxComposition(body: unknown): Promise<SandboxResolveResult> {
+export async function executeSandboxComposition(
+  body: unknown,
+  ctx?: ExecuteSandboxCompositionContext
+): Promise<SandboxResolveResult> {
   const input = body as SandboxCompositionInputV1;
   const normalized = normalizeCompositionInput(input);
   if (!normalized.ok) {
@@ -377,6 +385,7 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
       const groupSeed = buildSandboxGroupSeed(slotTokens, vectorHashesUi, input.binding?.group_id);
       const payload = vectorToControlPayload(composite, groupSeed);
 
+      const chartIdsOrdered = populated.map((r) => r.chart_id) as (string | null)[];
       const aggregate = await composeAPI.runAggregateComposition({
         kind: 'group',
         anchorSnapshot: overriddenSnaps[0],
@@ -384,6 +393,11 @@ export async function executeSandboxComposition(body: unknown): Promise<SandboxR
         memberFeatureVecs: memberVecs as FeatureVec[],
         composite,
         payload,
+        chartIdsOrdered,
+        ...(normalized.viewer_chart_id ? { viewerChartId: normalized.viewer_chart_id } : {}),
+        ...(ctx?.labelResolutionOwnerId
+          ? { labelResolutionOwnerId: ctx.labelResolutionOwnerId }
+          : {}),
         output_kind,
       });
 

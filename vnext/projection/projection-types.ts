@@ -9,6 +9,7 @@
 import type { RelationshipMode } from '../compat/types';
 import type { EphemerisSnapshot, SnapshotAspect } from '../contracts';
 import type { ComparisonSeekerContextV1, DirectedSnapshotAspect } from '../synastry/synastry-types';
+import type { AggregateParticipantLabelV1 } from '../relational/composition/resolve-participant-labels';
 
 export type ExpansionTier = 'baseline' | 'expanded' | 'extended';
 
@@ -172,6 +173,8 @@ export type ProjectionOptions = {
   snapshot?: EphemerisSnapshot;
   /** Optional secondary chart snapshot for overlay/transit activation assembly. */
   secondarySnapshot?: EphemerisSnapshot;
+  /** Phase 6E — group aggregate: display labels per participant slot (YOUR vs names vs Person N). */
+  aggregateParticipantLabelsV1?: readonly AggregateParticipantLabelV1[];
 };
 
 export type Phase4UnitRef = {
