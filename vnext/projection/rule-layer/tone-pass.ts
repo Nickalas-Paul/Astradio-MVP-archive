@@ -369,6 +369,10 @@ function mirrorToneTaggedBullets(
 
 export function runTonePassOnSections(sections: ProjectedExplanationSection[], core: SemanticCore): ProjectedExplanationSection[] {
   const linted = sections.map((sec) => {
+    /** Synastry library excerpts + structural headers/separators; hedge injection mangles every paragraph. */
+    if (sec.id === 'group_key_interactions_v1') {
+      return sec;
+    }
     const afterFlag = applyForbiddenToneFlags(sec.text, core);
     const body = lintSectionBody(afterFlag);
     const bulletsBefore = sec.bullets ?? [];
