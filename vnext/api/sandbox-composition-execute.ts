@@ -394,6 +394,7 @@ export async function executeSandboxComposition(
         composite,
         payload,
         chartIdsOrdered,
+        suppressEnsembleFraming: true,
         ...(normalized.viewer_chart_id ? { viewerChartId: normalized.viewer_chart_id } : {}),
         ...(ctx?.labelResolutionOwnerId
           ? { labelResolutionOwnerId: ctx.labelResolutionOwnerId }

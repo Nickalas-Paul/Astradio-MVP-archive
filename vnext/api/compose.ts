@@ -110,6 +110,8 @@ export type AggregateCompositionInput =
       viewerChartId?: string;
       /** When set with viewerChartId, YOUR labeling requires chart.ownerId === this. */
       labelResolutionOwnerId?: string;
+      /** Sandbox multi-chart: omit generic ensemble preface (projection-only). */
+      suppressEnsembleFraming?: boolean;
     };
 
 /** Phase 6C — maps UI seeker/target chart ids onto lexical slot order (snapLow = slot 0, snapHigh = slot 1). */
@@ -885,11 +887,16 @@ export class ComposeAPI {
       aggregateParticipantLabelsV1 != null && aggregateParticipantLabelsV1.length > 0
         ? { aggregateParticipantLabelsV1 }
         : {};
+    const suppressEnsembleFraming =
+      input.kind === 'group' && input.suppressEnsembleFraming === true
+        ? ({ suppressEnsembleFraming: true } as const)
+        : {};
     const projected =
       aggOutputKind === 'feed_card'
         ? projectFeedCardFromSemanticCore(semanticCore, payload.hash, {
             ...insightOptsAgg,
             ...labelOpts,
+            ...suppressEnsembleFraming,
             narrativePlan,
             aggregateKind: input.kind === 'comparison' ? 'comparison' : 'group',
             connectionMode: input.kind === 'comparison' ? input.relationshipMode : 'group',
@@ -908,6 +915,7 @@ export class ComposeAPI {
             aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
             ...insightOptsAgg,
             ...labelOpts,
+            ...suppressEnsembleFraming,
             compatClassCode: compatClassCodeAgg,
           });
 
