@@ -28,6 +28,7 @@ import {
 import type { ChartBInline, Comparison } from './types';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 import path from 'path';
+import { formatSandboxChartSearchLabel } from './chart-search-label';
 
 const express = require('express') as typeof import('express');
 const argon2 = require('argon2') as typeof import('argon2');
@@ -38,6 +39,17 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
   getUserAuthForLogin: (
     e: string
   ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
+  searchChartsAccessibleToUser: (
+    userId: string,
+    q: string,
+    limit: number
+  ) => Promise<
+    Array<{
+      chart: import('./types').Chart;
+      source: 'own' | 'connection';
+      ownerUser: { id: string; displayName?: string; handle?: string } | null;
+    }>
+  >;
 };
 function isChartTimezoneError(e: unknown): e is { message: string; code: string } {
   const c = (e as { code?: string })?.code;
@@ -222,6 +234,12 @@ async function attachPrimaryChartForNewUser(
 }
 
 const MIN_PASSWORD_LENGTH = 8;
+
+function chartSearchCallerUserId(req: import('express').Request): string {
+  const fromHeader = (req.headers['x-caller-user-id'] || '').toString().trim();
+  const fromQuery = req.query.userId != null ? String(req.query.userId).trim() : '';
+  return fromHeader || fromQuery || '';
+}
 
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
@@ -791,6 +809,49 @@ export function createCompatRouter(): import('express').Router {
       }
       console.error('[compat] POST /charts', e);
       return res.status(500).json({ error: e?.message || 'Failed to create chart' });
+    }
+  });
+
+  // GET /api/charts/search?q=&limit= — authenticated; own charts + peer charts from accepted relationships
+  router.get('/charts/search', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(503).json({ error: 'Chart search requires database' });
+      }
+      const userId = chartSearchCallerUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      const limitParam = req.query.limit != null ? Number(req.query.limit) : 10;
+      const rows = await astradioPgStore.searchChartsAccessibleToUser(userId, q, limitParam);
+      const results = rows.map((row) => {
+        const { chart, source, ownerUser } = row;
+        const bt =
+          chart.time && typeof chart.time === 'string' && chart.time.length >= 5
+            ? chart.time.slice(0, 5)
+            : null;
+        const handleOut =
+          ownerUser?.handle != null && String(ownerUser.handle).trim()
+            ? String(ownerUser.handle).trim().startsWith('@')
+              ? String(ownerUser.handle).trim()
+              : `@${String(ownerUser.handle).trim()}`
+            : null;
+        return {
+          chart_id: chart.id,
+          user_id: chart.ownerId || '',
+          display_name: ownerUser?.displayName ?? null,
+          handle: handleOut,
+          birth_date: chart.date,
+          birth_time: bt,
+          label: formatSandboxChartSearchLabel(chart, ownerUser),
+          source,
+        };
+      });
+      return res.status(200).json({ results });
+    } catch (e: unknown) {
+      console.error('[compat] GET /charts/search', e instanceof Error ? e.message : e);
+      return res.status(500).json({ error: 'Chart search failed' });
     }
   });
 
