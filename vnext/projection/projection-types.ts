@@ -175,6 +175,8 @@ export type ProjectionOptions = {
   secondarySnapshot?: EphemerisSnapshot;
   /** Phase 6E — group aggregate: display labels per participant slot (YOUR vs names vs Person N). */
   aggregateParticipantLabelsV1?: readonly AggregateParticipantLabelV1[];
+  /** When true, skip generic `ensemble_framing` preface (e.g. Sandbox multi-chart resolve). */
+  suppressEnsembleFraming?: boolean;
 };
 
 export type Phase4UnitRef = {

@@ -136,9 +136,10 @@ export function applyConnectionPreface(
     participantCount?: number;
     tier: ExpansionTier;
     seed: string;
+    suppressEnsembleFraming?: boolean;
   }
 ): ProjectedExplanationSection[] {
-  const { surface, connectionMode, participantCount = 0, seed } = opts;
+  const { surface, connectionMode, participantCount = 0, seed, suppressEnsembleFraming } = opts;
   const out = [...sections];
   if (surface === 'compat_pair' && connectionMode && connectionMode !== 'group') {
     const text = openingForMode(connectionMode, seed);
@@ -151,7 +152,7 @@ export function applyConnectionPreface(
       });
     }
   }
-  if (surface === 'group' && participantCount > 2) {
+  if (surface === 'group' && participantCount > 2 && !suppressEnsembleFraming) {
     const g = groupFieldOpening(participantCount, seed);
     if (g) {
       out.unshift({

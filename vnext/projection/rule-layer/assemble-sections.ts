@@ -945,12 +945,18 @@ function assembleGroupKeyInteractionsV1(
   const synVariant: 'romantic' | 'friendship' = romanticPairSurface ? 'romantic' : 'friendship';
 
   const blocks: string[] = [];
+  const seenUnorderedPairAndAspect = new Set<string>();
   for (const asp of v2) {
     if (blocks.length >= GROUP_KEY_INTERACTIONS_V1_MAX) break;
     const key = buildAspectKey(String(asp.bodyA), String(asp.bodyB), String(asp.type));
     if (isAspectLibraryKillListed(key)) continue;
+    const slotLo = Math.min(asp.sourceSlotIndex, asp.targetSlotIndex);
+    const slotHi = Math.max(asp.sourceSlotIndex, asp.targetSlotIndex);
+    const dedupeKey = `${slotLo}|${slotHi}|${key}`;
+    if (seenUnorderedPairAndAspect.has(dedupeKey)) continue;
     const insight = getAspectInsight(key);
     if (!insight) continue;
+    seenUnorderedPairAndAspect.add(dedupeKey);
     const src = labelAt(asp.sourceSlotIndex);
     const tgt = labelAt(asp.targetSlotIndex);
     const header = `${possessivePlanetPhrase(src, formatPlanetName(String(asp.bodyA)))} ${formatAspectName(String(asp.type))} ${possessivePlanetPhrase(tgt, formatPlanetName(String(asp.bodyB)))}`;
@@ -2191,6 +2197,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       participantCount: options.participantCount,
       tier: tierEff,
       seed,
+      suppressEnsembleFraming: options.suppressEnsembleFraming,
     }
   );
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);
