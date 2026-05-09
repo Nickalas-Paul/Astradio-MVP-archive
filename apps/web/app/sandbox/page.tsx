@@ -7,6 +7,7 @@ import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
+import { ChartSearchCombobox } from '../../src/components/sandbox/ChartSearchCombobox';
 import type {
   SandboxBirth,
   SandboxOverrides,
@@ -1479,30 +1480,27 @@ export default function SandboxPage() {
                 </div>
                 <p className="text-xs text-subtext mt-3">Composition slots and resolve payload stay in sync; the wheel follows the active slot.</p>
                 <div className="mt-4 pt-3 border-t border-border/60">
-                  <p className="text-xs font-medium text-text mb-1">Import chart by ID</p>
+                  <p className="text-xs font-medium text-text mb-1">Import chart</p>
                   <p className="text-xs text-subtext mb-2">
-                    Uses the same stored chart as community compatibility (<code className="text-[10px]">GET /api/charts/:id</code>). The{' '}
+                    Search by username, handle, or paste a chart ID. Uses the same stored chart as community compatibility (
+                    <code className="text-[10px]">GET /api/charts/:id</code>). The{' '}
                     <span className="font-medium text-text">active</span> slot stores <span className="font-medium text-text">chart_id</span> for resolve;
                     preview uses the same snapshot route as birth entry.
                   </p>
                   <div className="flex flex-wrap gap-2 items-center">
-                    <input
-                      type="text"
+                    <ChartSearchCombobox
                       value={chartIdImportInput}
-                      onChange={(e) => {
-                        setChartIdImportInput(e.target.value);
+                      onChange={(v) => {
+                        setChartIdImportInput(v);
                         if (importError) setImportError(null);
                       }}
-                      placeholder="Chart id"
                       disabled={importLoading}
-                      className="min-w-[12rem] flex-1 px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text font-mono"
-                      autoComplete="off"
                     />
                     <button
                       type="button"
                       onClick={() => void handleImportChartById()}
                       disabled={importLoading}
-                      className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text shrink-0"
                     >
                       {importLoading ? 'Importing…' : 'Import'}
                     </button>
