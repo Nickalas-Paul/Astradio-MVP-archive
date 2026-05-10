@@ -1782,35 +1782,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
-    if (key === 'trait_bridge' && surface === 'profile') {
-      const syn = pickVariant(seed + ':trait', [
-        `Trait bridge: elemental and tonal signals often travel together; changing context can shift which side shows up first.`,
-        `Trait bridge: structure in skills under stress may show before self-description; both tracks can be valid.`,
-      ]);
-      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:tb`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'trait_bridge',
-        title: 'Trait bridge',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
     if (key === 'interaction_map' && surface === 'compat_pair') {
       const syn = sparseCompat
         ? pickVariant(seed + ':im:sparse', [
