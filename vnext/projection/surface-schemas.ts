@@ -23,21 +23,21 @@ export const SURFACE_SCHEMAS: Record<ProjectionSurface, SurfaceSchemaDefinition>
   daily: {
     surface: 'daily',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 4,
+    baselineMinSections: 2,
     sections: medium,
     expansionSectionKeys: {
-      expanded: ['temporal_integration', 'synthesis_a'],
-      extended: ['temporal_integration', 'synthesis_a', 'synthesis_b', 'audio_thread'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a', 'synthesis_b'],
     },
   },
   profile: {
     surface: 'profile',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 6,
+    baselineMinSections: 2,
     sections: medium,
     expansionSectionKeys: {
-      expanded: ['trait_bridge', 'synthesis_a'],
-      extended: ['trait_bridge', 'synthesis_a', 'synthesis_b', 'contradiction', 'audio_thread'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a', 'synthesis_b'],
     },
   },
   sandbox: {
@@ -50,51 +50,51 @@ export const SURFACE_SCHEMAS: Record<ProjectionSurface, SurfaceSchemaDefinition>
       { sectionKey: 'configuration', density: 'medium', minClaimsReferenced: 2 },
     ],
     expansionSectionKeys: {
-      expanded: ['delta_emphasis'],
-      extended: ['delta_emphasis', 'synthesis_a'],
+      expanded: [],
+      extended: ['synthesis_a'],
     },
   },
   overlay_pair: {
     surface: 'overlay_pair',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 3,
+    baselineMinSections: 1,
     sections: [
       { sectionKey: 'natal_transit', density: 'medium', minClaimsReferenced: 2 },
       { sectionKey: 'bridge', density: 'medium', minClaimsReferenced: 2 },
     ],
     expansionSectionKeys: {
-      expanded: ['layering', 'synthesis_a'],
-      extended: ['layering', 'synthesis_a', 'audio_thread'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a'],
     },
   },
   compat_pair: {
     surface: 'compat_pair',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 6,
+    baselineMinSections: 2,
     sections: medium,
     expansionSectionKeys: {
-      expanded: ['interaction_map', 'synthesis_a'],
-      extended: ['interaction_map', 'synthesis_a', 'synthesis_b', 'contradiction', 'audio_thread'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a', 'synthesis_b'],
     },
   },
   group: {
     surface: 'group',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 6,
+    baselineMinSections: 2,
     sections: medium,
     expansionSectionKeys: {
-      expanded: ['field_distribution', 'synthesis_a'],
-      extended: ['field_distribution', 'synthesis_a', 'synthesis_b', 'subcluster', 'audio_thread'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a', 'synthesis_b'],
     },
   },
   campaign: {
     surface: 'campaign',
     baselineDensityDefault: 'medium',
-    baselineMinSections: 4,
+    baselineMinSections: 2,
     sections: medium,
     expansionSectionKeys: {
-      expanded: ['pressure_response', 'synthesis_a'],
-      extended: ['pressure_response', 'synthesis_a', 'synthesis_b'],
+      expanded: ['synthesis_a'],
+      extended: ['synthesis_a', 'synthesis_b'],
     },
   },
 };
