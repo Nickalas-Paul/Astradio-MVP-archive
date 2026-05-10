@@ -371,7 +371,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'evolutionary_currents',
       'aspects',
       'signatures',
-      'significance',
       'trait_bridge',
       'synthesis_a',
       'synthesis_b',
@@ -387,7 +386,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   if (surface === 'sandbox') {
     return withDepths([
       'aspects',
-      'significance',
       'delta_emphasis',
       'synthesis_a',
       'musical',
@@ -409,7 +407,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'relational_field',
       'relational_weather_v1',
       'aspects',
-      'significance',
       'interaction_map',
       'musical',
       '__DEPTH__',
@@ -425,7 +422,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'relational_field',
       'relational_weather_v1',
       'signatures',
-      'significance',
       'field_distribution',
       'synthesis_a',
       'synthesis_b',
@@ -1217,7 +1213,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
     const isFirstSupplementalSlot =
-      sec.id === 'significance' || (surface === 'daily' && idx === 1);
+      surface === 'daily' && idx === 1;
 
     if (isFirstSupplementalSlot) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];

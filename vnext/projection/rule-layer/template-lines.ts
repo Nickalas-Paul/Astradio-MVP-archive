@@ -85,14 +85,6 @@ export function lineForTemplate(
   const lp = listenPointerLine(`${seed}:lt`, ctx.surface);
 
   switch (templateId) {
-    case 'SECTION_SIGNIFICANCE':
-      return {
-        title: ctx.suppressAstrologyTitles ? 'Why it matters' : 'Personal Significance',
-        text: pickVariant(seed, [
-          `The ${tonal} mood and ${el} weight shape how impact lands. Moments can feel sharper or softer because of that mix.`,
-          `The personal punch comes from carrying ${el} qualities inside a ${tonal} mood. Stress and relief often route through that pairing.`,
-        ]),
-      };
     case 'SECTION_SKY_SUMMARY':
       return {
         title: 'Sky Summary',
@@ -118,24 +110,15 @@ export function lineForTemplate(
         title: 'Integration Prompt',
         text: `Integration balances ${el} drive with the ${tonal} frame.`,
       };
-    case 'SECTION_COMPARISON_BRIDGE':
-      return {
-        title: 'Bridge',
-        text: hasClaim(core, 'CROSS_TENSION_DELTA_HIGH')
-          ? `Tension habits differ enough that one single story may not fit both. Alternate language can help.`
-          : `Tension habits are close enough to share one listening arc without forcing sameness.`,
-      };
     default:
       return { title: 'Section', text: '' };
   }
 }
 
 export const idMap: Partial<Record<SectionTemplateId, string>> = {
-  SECTION_SIGNIFICANCE: 'significance',
   SECTION_SKY_SUMMARY: 'sky_summary',
   SECTION_PERSONAL_EMPHASIS: 'personal_emphasis',
   SECTION_LIKELY_EXPRESSIONS: 'likely_expressions',
   SECTION_WATCH_FORS: 'watch_fors',
   SECTION_INTEGRATION: 'integration_prompt',
-  SECTION_COMPARISON_BRIDGE: 'significance',
 };

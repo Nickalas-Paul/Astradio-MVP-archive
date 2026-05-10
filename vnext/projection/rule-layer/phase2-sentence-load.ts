@@ -446,7 +446,6 @@ export function injectAnchorPrefix(ctx: TemplateContext): string {
 export const PHASE2_ANCHORED_SECTION_IDS = new Set<string>([
   'signatures',
   'aspects',
-  'significance',
   'musical',
   'sky_summary',
   'personal_emphasis',
