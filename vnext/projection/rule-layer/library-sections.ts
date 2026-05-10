@@ -5,7 +5,7 @@ import type {
   ProjectionOptions,
   ProjectionSurface,
 } from '../projection-types';
-import { buildAspectKey, getAspectInsight } from '../insight-library/insight-library-index';
+import { buildAspectKey, getAspectInsight, getRelationalInsight } from '../insight-library/insight-library-index';
 import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kill-list';
 import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
 import { taggedSectionBodyFromText } from '../tagged-text';
@@ -61,6 +61,43 @@ export function assembleLibraryPlanetaryAspects(params: {
       text,
       meta: {
         tagged: taggedSectionBodyFromText(text, 'template'),
+      },
+    },
+  ];
+}
+
+export function assembleLibraryRelationalField(params: {
+  options: ProjectionOptions;
+  surface: ProjectionSurface;
+}): ProjectedExplanationSection[] {
+  const classCode = params.options.compatClassCode;
+  if (!classCode) return [];
+
+  const compatInsight = getRelationalInsight(classCode);
+  if (!compatInsight) return [];
+
+  const connectionMode = params.options.connectionMode ?? 'none';
+  const effSurface = params.options.surface ?? params.surface;
+  const romanticPairSurface =
+    params.surface !== 'group' &&
+    (connectionMode === 'lovers' || (connectionMode as string) === 'romantic');
+  const context = romanticPairSurface ? 'romantic' : (effSurface as string) === 'discovery' ? 'discovery' : 'friendship';
+  const contextText =
+    context === 'romantic'
+      ? compatInsight.romantic
+      : context === 'discovery'
+        ? compatInsight.discovery
+        : compatInsight.friendship;
+  const libraryText = [compatInsight.core, compatInsight.behavioral, contextText].filter(Boolean).join(' ');
+  if (!libraryText) return [];
+
+  return [
+    {
+      id: 'relational_field',
+      title: 'Relational Field',
+      text: libraryText,
+      meta: {
+        tagged: taggedSectionBodyFromText(libraryText, 'claim_body'),
       },
     },
   ];

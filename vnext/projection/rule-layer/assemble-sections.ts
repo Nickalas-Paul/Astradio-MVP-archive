@@ -32,7 +32,7 @@ import { selectDominantMechanismSignals } from './dominant-signal-selection';
 import { applySurfaceMechanismComposition } from './surface-mechanism-composition';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
-import { assembleLibraryPlanetaryAspects } from './library-sections';
+import { assembleLibraryPlanetaryAspects, assembleLibraryRelationalField } from './library-sections';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
 import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
@@ -444,17 +444,11 @@ export function buildEmphasisRawSections(
   const out: ProjectedExplanationSection[] = [];
   let i = 0;
   for (const tid of core.text.emphasis_order) {
-    if (
-      tid === 'SECTION_SIGNATURES' ||
-      tid === 'SECTION_COMPARISON_SIGNATURES' ||
-      tid === 'SECTION_MUSICAL' ||
-      tid === 'SECTION_MUSIC_TRANSLATION'
-    ) {
-      continue;
-    }
+    const id = idMap[tid];
+    if (!id) continue;
     const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`, templateCtx);
     out.push({
-      id: idMap[tid] ?? tid.toLowerCase(),
+      id,
       title,
       text,
       bullets,
@@ -1303,50 +1297,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     let finalText = text;
     let finalTagged = tagged;
 
-    /**
-     * Phase C prep: `SPARSE_CARD_*` ids will use core+behavioral only (intent in id). When wiring,
-     * confirm join here does not double-append `friendship`/`romantic` for those ids.
-     */
     if (relOnly) {
-      if (sec.id === 'relational_field') {
-        const classCode = options.compatClassCode;
-        if (surface === 'group' && !classCode) {
-          const neutral = getRelationalInsight('GROUP_RELATIONAL_FIELD_NEUTRAL');
-          if (neutral) {
-            const libraryText = [neutral.core, neutral.behavioral, neutral.friendship].filter(Boolean).join(' ');
-            if (libraryText) {
-              finalText = libraryText;
-              finalTagged = taggedSectionBodyFromText(libraryText, 'claim_body');
-            }
-          }
-        } else if (classCode) {
-          const compatInsight = getRelationalInsight(classCode);
-          if (compatInsight) {
-            const connectionMode = options?.connectionMode ?? 'none';
-            const effSurface = options?.surface ?? surface;
-            /** Dyadic romantic path; `surface === 'group'` never uses romantic here (downgrade to friendship). */
-            const romanticPairSurface =
-              surface !== 'group' &&
-              (connectionMode === 'lovers' || (connectionMode as string) === 'romantic');
-            const context = romanticPairSurface
-              ? 'romantic'
-              : (effSurface as string) === 'discovery'
-                ? 'discovery'
-                : 'friendship';
-            const contextText =
-              context === 'romantic'
-                ? compatInsight.romantic
-                : context === 'discovery'
-                  ? compatInsight.discovery
-                  : compatInsight.friendship;
-            const libraryText = [compatInsight.core, compatInsight.behavioral, contextText].filter(Boolean).join(' ');
-            if (libraryText) {
-              finalText = libraryText;
-              finalTagged = taggedSectionBodyFromText(libraryText, 'claim_body');
-            }
-          }
-        }
-      }
       if (sec.id === 'relational_weather_v1') {
         const themes: readonly string[] = options.relationalWeatherThemes ?? [];
         const primaryTheme = themes[0];
@@ -1575,6 +1526,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const groupKeyInteractionSections =
     surface === 'group' ? assembleGroupKeyInteractionsV1(options, seed, reportPadUsed, densityDefault) : [];
+  const relationalSections = assembleLibraryRelationalField({ options, surface });
   const aspectSections = assembleLibraryPlanetaryAspects({
     options,
     surface,
@@ -1583,7 +1535,14 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   });
 
   let framed = applyConnectionPreface(
-    [...compatActivationSections, ...placementSections, ...groupKeyInteractionSections, ...aspectSections, ...out],
+    [
+      ...compatActivationSections,
+      ...placementSections,
+      ...groupKeyInteractionSections,
+      ...relationalSections,
+      ...aspectSections,
+      ...out,
+    ],
     {
       surface,
       connectionMode: options.connectionMode,
