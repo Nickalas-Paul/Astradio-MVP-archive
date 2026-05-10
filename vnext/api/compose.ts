@@ -352,16 +352,31 @@ export class ComposeAPI {
         text: s.text,
         bullets: s.bullets,
       }));
-      const sig = dailyLike.find((x) => x.id === 'signatures' || x.id === 'sky_summary');
+      const sig = dailyLike.find(
+        (x) =>
+          x.id === 'aspects' ||
+          x.id === 'group_key_interactions_v1' ||
+          x.id === 'signatures' ||
+          x.id === 'sky_summary'
+      );
       const sigText = sig?.text ?? dailyLike[0]?.text ?? '';
-      const mus = dailyLike.find((x) => x.id === 'musical' || x.id === 'music_translation');
+      const mus = dailyLike.find(
+        (x) => x.id === 'audio_staging' || x.id === 'musical' || x.id === 'music_translation'
+      );
       const allLong = dailyLike.map((s) => s.text).filter(Boolean).join('\n\n');
       const text: any = {
         short: sigText,
         long: allLong || sigText,
         bullets: mus?.bullets ?? [],
         template_id: 'semantic-core-v1',
-        signatures: dailyLike.find((s) => s.id === 'signatures')?.text ?? sigText,
+        signatures:
+          dailyLike.find(
+            (s) =>
+              s.id === 'aspects' ||
+              s.id === 'group_key_interactions_v1' ||
+              s.id === 'signatures' ||
+              s.id === 'sky_summary'
+          )?.text ?? sigText,
         significance:
           dailyLike.find((s) => s.id === 'significance' || s.id === 'personal_emphasis')?.text ?? sigText,
         musicalParagraph: mus?.text ?? '',
@@ -919,13 +934,20 @@ export class ComposeAPI {
             compatClassCode: compatClassCodeAgg,
           });
 
-    const signaturesText = projected.find((s) => s.id === 'signatures' || s.id === 'relational_field')?.text || '';
+    const signaturesText =
+      projected.find(
+        (s) =>
+          s.id === 'aspects' ||
+          s.id === 'group_key_interactions_v1' ||
+          s.id === 'relational_field' ||
+          s.id === 'signatures'
+      )?.text || '';
     const significanceText = projected.find((s) => s.id === 'significance')?.text || '';
-    const musicalSection = projected.find((s) => s.id === 'musical');
+    const musicalSection = projected.find((s) => s.id === 'audio_staging' || s.id === 'musical');
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
     /** Do not join all sections: `short` is already the signatures/relational_field block; joining every section repeated it in `long` (Community + feed UI). */
-    const leadSectionIds = new Set(['signatures', 'relational_field']);
+    const leadSectionIds = new Set(['signatures', 'aspects', 'relational_field', 'group_key_interactions_v1']);
     const longBody = projected
       .filter((s) => !leadSectionIds.has(s.id))
       .map((s) => s.text)
