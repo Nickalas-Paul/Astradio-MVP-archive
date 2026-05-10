@@ -1782,41 +1782,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
-    if (key === 'interaction_map' && surface === 'compat_pair') {
-      const syn = sparseCompat
-        ? pickVariant(seed + ':im:sparse', [
-            `Interaction remains weak in this field, so coordination demand stays low and each person can keep independent timing.`,
-            `No strong shared push dominates this connection, so communication and decisions can proceed with light coordination pressure.`,
-            `This sparse exchange carries low interaction load, with minimal directional pressure on planning or role changes.`,
-          ])
-        : pickVariant(seed + ':im', [
-            `Interaction map: reinforcing patterns stabilize repeatable timing, escalating patterns increase urgency, cross-pressuring patterns pull decisions in competing directions, dissolving patterns diffuse shared structure, and transforming patterns reconfigure roles across communication and resource choices.`,
-            `Interaction map: reinforcing exchange aligns repeatable routines, escalating exchange amplifies pressure windows, cross-pressuring exchange creates competing directives, dissolving exchange weakens shared structure, and transforming exchange shifts role boundaries in real-world planning.`,
-          ]);
-      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:im`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'interaction_map',
-        title: 'Interaction map',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
   }
 
   let panelIdx = 0;
