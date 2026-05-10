@@ -1817,35 +1817,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         },
       });
     }
-    if (key === 'field_distribution' && surface === 'group') {
-      const syn = pickVariant(seed + ':fd', [
-        `Field distribution: emphasis often concentrates on a subset of people, which increases coordination load for decision timing and redistributes communication responsibility.`,
-        `Field distribution: support and friction can spread unevenly, restricting some resource channels while destabilizing timing in specific local domains.`,
-      ]);
-      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:fd`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'field_distribution',
-        title: 'Field distribution',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
     if (key === 'pressure_response' && surface === 'campaign') {
       const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr', options);
       const prTagged = taggedSectionBodyFromText(pr.text, 'synthesis_wrapper');
