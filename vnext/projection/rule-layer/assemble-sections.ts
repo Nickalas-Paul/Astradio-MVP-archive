@@ -1340,10 +1340,14 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         .filter((ins): ins is AspectInsight => ins !== undefined);
       if (aspectInsights.length > 0) {
         const effSurface = options?.surface ?? surface;
-        /** Phase 6C-Gamma — synastry library already in activation tiers + synthesis; do not append on signatures. */
-        const skipCompatSynastryLibraryDup =
-          effSurface === 'compat_pair' && options.pairInteractionAspectsV2 != null;
-        if (!skipCompatSynastryLibraryDup) {
+        /** Synastry library already rendered in dedicated sections; do not append duplicates to signatures. */
+        const skipSynastryLibraryDup =
+          (effSurface === 'compat_pair' && options.pairInteractionAspectsV2 != null) ||
+          (effSurface === 'group' &&
+            (options.participantCount ?? 0) > 2 &&
+            options.pairInteractionAspectsV2 != null &&
+            (options.aggregateParticipantLabelsV1?.length ?? 0) > 0);
+        if (!skipSynastryLibraryDup) {
           const connectionMode = options?.connectionMode ?? 'none';
           const romanticPairSurface =
             connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
