@@ -89,25 +89,6 @@ const MODE_BUNDLES: Record<string, string[][]> = {
   neutral: NEUTRAL_BUNDLES,
 };
 
-const ENSEMBLE_BUNDLES = [
-  [
-    'This group holds multiple voices; emphasis may spread unevenly.',
-    'The sections stay descriptive and keep emphasis legible at shared scale without collapsing to private detail.',
-  ],
-  [
-    'This group treats the room as shared space; local emphasis still varies person to person.',
-    'The following lines avoid crowning a single person as the “true” center of the field.',
-  ],
-  [
-    'A multi-voice pass keeps the roster visible: the blend is explicit, the private backstory is not smuggled in as fact.',
-    'If one lane spikes, the text still allows other lanes to register without being averaged away.',
-  ],
-  [
-    'The ensemble read tracks shared load and local hotspots; it is not a crowd verdict on any one name.',
-    'You can use this layout to see where the airtime goes before you pick a local zoom.',
-  ],
-];
-
 function openingForMode(mode: ConnectionMode, seed: string): string | null {
   if (!mode || mode === 'group') return null;
   const m = mode as string;
@@ -117,14 +98,6 @@ function openingForMode(mode: ConnectionMode, seed: string): string | null {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const pick = bundles[h % bundles.length];
-  return pick.join('\n\n');
-}
-
-function groupFieldOpening(participantCount: number, seed: string): string | null {
-  if (participantCount <= 2) return null;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const pick = ENSEMBLE_BUNDLES[h % ENSEMBLE_BUNDLES.length];
   return pick.join('\n\n');
 }
 
@@ -139,7 +112,7 @@ export function applyConnectionPreface(
     suppressEnsembleFraming?: boolean;
   }
 ): ProjectedExplanationSection[] {
-  const { surface, connectionMode, participantCount = 0, seed, suppressEnsembleFraming } = opts;
+  const { surface, connectionMode, seed } = opts;
   const out = [...sections];
   if (surface === 'compat_pair' && connectionMode && connectionMode !== 'group') {
     const text = openingForMode(connectionMode, seed);
@@ -149,17 +122,6 @@ export function applyConnectionPreface(
         title: 'Connection framing',
         text,
         meta: { claimIdsReferenced: [], phaseD: true, tagged: taggedSectionBodyFromText(text, 'preface') },
-      });
-    }
-  }
-  if (surface === 'group' && participantCount > 2 && !suppressEnsembleFraming) {
-    const g = groupFieldOpening(participantCount, seed);
-    if (g) {
-      out.unshift({
-        id: 'ensemble_framing',
-        title: 'Ensemble field',
-        text: g,
-        meta: { claimIdsReferenced: [], phaseD: true, tagged: taggedSectionBodyFromText(g, 'preface') },
       });
     }
   }
