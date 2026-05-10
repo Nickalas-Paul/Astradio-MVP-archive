@@ -53,8 +53,6 @@ import { enrichSectionTextWithTagged } from './assemble-section-tagged';
 import { sortUniqueClaimIds } from './section-ownership';
 import {
   reconstructTaggedSectionBody,
-  splitParasForTagged,
-  splitSentsForTagged,
   taggedSectionBodyFromText,
   taggedSectionFromTemplateLine,
 } from '../tagged-text';
@@ -79,57 +77,6 @@ function pickVariant(seed: string, variants: string[]): string {
 }
 
 const PAD_SENTENCES = reducedPadPool();
-
-const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
-
-function hashSeed(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return h >>> 0;
-}
-
-function countSentences(text: string): number {
-  const t = text.trim();
-  if (!t) return 0;
-  const chunks = t.split(/(?<=[.!?])\s+/).filter((s) => s.length > 0);
-  return Math.max(chunks.length, 1);
-}
-
-function nextFallbackSentence(seed: string, pool: string[], used?: Set<string>): string {
-  const list = pool.length ? pool : PAD_SENTENCES;
-  if (list.length === 0) return '';
-  const start = hashSeed(seed) % list.length;
-  for (let i = 0; i < list.length; i++) {
-    const candidate = list[(start + i) % list.length];
-    if (!used || !used.has(candidate)) {
-      used?.add(candidate);
-      return candidate;
-    }
-  }
-  const fallback = list[start];
-  used?.add(fallback);
-  return fallback;
-}
-
-function expandSentencesToMin(
-  text: string,
-  minSentences: number,
-  seed: string,
-  fallbackPool: string[] = PAD_SENTENCES,
-  usedFallback?: Set<string>,
-  maxPadIterations = 1
-): string {
-  let t = text.trim();
-  if (!t) t = nextFallbackSentence(`${seed}:base`, fallbackPool, usedFallback);
-  let n = countSentences(t);
-  let i = 0;
-  while (n < minSentences && i < maxPadIterations) {
-    t += ' ' + nextFallbackSentence(`${seed}:pad:${i}`, fallbackPool, usedFallback);
-    n = countSentences(t);
-    i++;
-  }
-  return t;
-}
 
 function splitIntoParagraphs(text: string): string[] {
   return text
@@ -458,29 +405,18 @@ export function buildEmphasisRawSections(
   return out;
 }
 
-function taggedFeedSignalBody(fullText: string): TaggedSectionBody {
-  const paras = splitParasForTagged(fullText);
-  return {
-    paragraphs: paras.map((p) => ({
-      sentences: splitSentsForTagged(p).map((t) => ({
-        text: t,
-        provenance: t === FEED_SCOPE_SENTENCE ? ('template' as const) : ('claim_body' as const),
-      })),
-    })),
-  };
-}
-
 export function buildFeedSections(
   core: SemanticCore,
   seed: string,
   options: ProjectionOptions
 ): ProjectedExplanationSection[] {
+  const sections: ProjectedExplanationSection[] = [];
   const sectionRoleDeque: ClaimOptionalRole[] = [];
   const paragraphNormDeque: string[] = [];
   const claimSlice = claimSentencesFromRange(
     core,
     0,
-    2,
+    1,
     `${seed}:feed:signal`,
     'feed',
     'baseline',
@@ -488,45 +424,41 @@ export function buildFeedSections(
     paragraphNormDeque,
     'feed_signal'
   );
-  const fallbackUsed = new Set<string>();
-  const t1Raw = expandSentencesToMin(claimSlice.text, 1, `${seed}:feed`, [FEED_SCOPE_SENTENCE], fallbackUsed, 0);
-  let feedSignalText = capToMaxSentences(t1Raw, 2);
   const feedSignalClaim = claimSlice.claimIds[0];
   const feedStructInsight = feedSignalClaim ? getStructuralInsight(feedSignalClaim) : undefined;
   if (feedStructInsight?.feed) {
-    feedSignalText = capToMaxSentences(feedStructInsight.feed + ' ' + feedSignalText, 2);
+    const feedSignalText = capToMaxSentences(feedStructInsight.feed, 2);
+    sections.push({
+      id: 'feed_signal',
+      title: 'Signal',
+      text: feedSignalText,
+      meta: {
+        enrichDensity: 'short',
+        claimIdsReferenced: sortUniqueClaimIds([feedSignalClaim]),
+        phaseD: true,
+        tagged: taggedSectionBodyFromText(feedSignalText, 'claim_body'),
+      },
+    });
   }
-  const s1: ProjectedExplanationSection = {
-    id: 'feed_signal',
-    title: 'Signal',
-    text: feedSignalText,
-    meta: {
-      enrichDensity: 'short',
-      claimIdsReferenced: sortUniqueClaimIds(claimSlice.claimIds),
-      phaseD: true,
-      tagged: taggedFeedSignalBody(feedSignalText),
-    },
-  };
+
   const feedThemes: readonly string[] = options.relationalWeatherThemes ?? [];
   const feedWeatherInsight = feedThemes[0] ? getRelationalInsight(feedThemes[0]) : undefined;
-  let feedContextText = FEED_SCOPE_SENTENCE;
-  let feedContextTagged = taggedSectionBodyFromText(FEED_SCOPE_SENTENCE, 'template');
   if (feedWeatherInsight?.feed) {
-    feedContextText = capToMaxSentences(feedWeatherInsight.feed, 2);
-    feedContextTagged = taggedSectionBodyFromText(feedContextText, 'claim_body');
+    const feedContextText = capToMaxSentences(feedWeatherInsight.feed, 2);
+    sections.push({
+      id: 'feed_context',
+      title: 'Scope',
+      text: feedContextText,
+      meta: {
+        enrichDensity: 'short',
+        claimIdsReferenced: [],
+        phaseD: true,
+        tagged: taggedSectionBodyFromText(feedContextText, 'claim_body'),
+      },
+    });
   }
-  const s2: ProjectedExplanationSection = {
-    id: 'feed_context',
-    title: 'Scope',
-    text: feedContextText,
-    meta: {
-      enrichDensity: 'short',
-      claimIdsReferenced: [],
-      phaseD: true,
-      tagged: feedContextTagged,
-    },
-  };
-  return [s1, s2];
+
+  return sections;
 }
 
 export type PhaseDAssemblyParams = {

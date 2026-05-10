@@ -31,8 +31,6 @@ export type SurfaceExpressionTemplateAllowlistEntry = {
   section_ids?: readonly string[];
 };
 
-const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
-
 /** Lexicographically sorted by rule_id at runtime; keep source sorted for diffs. */
 export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] = [
   {
@@ -612,13 +610,4 @@ export const SHIPPED_SURFACE_EXPRESSION_RULES: readonly SurfaceExpressionRule[] 
 ];
 
 /** Lexicographically sorted by exception_id at runtime. */
-export const SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST: readonly SurfaceExpressionTemplateAllowlistEntry[] = [
-  {
-    exception_id: 'P5A-W1-FEED-001-scope',
-    surface: 'feed',
-    match: { kind: 'whole_sentence', value: FEED_SCOPE_SENTENCE },
-    /** Non-expanding vs original `FEED_SCOPE_SENTENCE` (41 chars). */
-    replacement: 'This card stays tight by design.',
-    section_ids: ['feed_context'],
-  },
-];
+export const SHIPPED_SURFACE_EXPRESSION_TEMPLATE_ALLOWLIST: readonly SurfaceExpressionTemplateAllowlistEntry[] = [];
