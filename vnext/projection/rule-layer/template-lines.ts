@@ -60,6 +60,24 @@ export type TemplateContext = {
   readonly surface?: ProjectionSurface;
 };
 
+function aggregateFieldText(core: SemanticCore, seed: string, topology: TopologyClass): string {
+  const base =
+    'The ensemble merges several pictures. The words follow only what those pictures share, not private details from any single slot.';
+  if (topology === 'dyad') {
+    return pickVariant(`${seed}:agg:dyad`, [
+      `${base} The pair-weighted blend stays explicit.`,
+      `${base} The dyad blend stays explicit.`,
+    ]);
+  }
+  if (topology === 'field') {
+    return pickVariant(`${seed}:agg:field`, [
+      `${base} The many-voice blend stays explicit.`,
+      `${base} The wider-room blend stays explicit.`,
+    ]);
+  }
+  return base;
+}
+
 export function temporalIntegrationLine(bucket: TemporalVoiceBucket, seed: string): string {
   if (bucket === 'static') {
     return pickVariant(`${seed}:temp:static`, [
@@ -141,6 +159,11 @@ export function lineForTemplate(
           ? `Tension habits differ enough that one single story may not fit both. Alternate language can help.`
           : `Tension habits are close enough to share one listening arc without forcing sameness.`,
       };
+    case 'SECTION_AGGREGATE_FIELD':
+      return {
+        title: 'Composite field',
+        text: aggregateFieldText(core, seed, ctx.topologyClass),
+      };
     case 'SECTION_RELATIONAL_WEATHER': {
       const rel = core.relational;
       const bands = rel?.activation_profile?.length
@@ -164,5 +187,6 @@ export const idMap: Partial<Record<SectionTemplateId, string>> = {
   SECTION_WATCH_FORS: 'watch_fors',
   SECTION_INTEGRATION: 'integration_prompt',
   SECTION_COMPARISON_BRIDGE: 'significance',
+  SECTION_AGGREGATE_FIELD: 'relational_field',
   SECTION_RELATIONAL_WEATHER: 'relational_weather_v1',
 };
