@@ -102,3 +102,33 @@ export function assembleLibraryRelationalField(params: {
     },
   ];
 }
+
+export function assembleLibraryRelationalWeather(params: {
+  options: ProjectionOptions;
+  surface: ProjectionSurface;
+}): ProjectedExplanationSection[] {
+  const themes: readonly string[] = params.options.relationalWeatherThemes ?? [];
+  const primaryTheme = themes[0];
+  if (!primaryTheme) return [];
+
+  const weatherInsight = getRelationalInsight(primaryTheme);
+  if (!weatherInsight) return [];
+
+  const effSurface = params.options.surface ?? params.surface;
+  const weatherText =
+    effSurface === 'feed'
+      ? weatherInsight.feed
+      : [weatherInsight.core, weatherInsight.behavioral].filter(Boolean).join(' ');
+  if (!weatherText) return [];
+
+  return [
+    {
+      id: 'relational_weather_v1',
+      title: 'Relational Field (Structural)',
+      text: weatherText,
+      meta: {
+        tagged: taggedSectionBodyFromText(weatherText, 'claim_body'),
+      },
+    },
+  ];
+}

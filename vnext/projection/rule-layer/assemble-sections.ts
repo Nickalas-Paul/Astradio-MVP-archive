@@ -32,7 +32,11 @@ import { selectDominantMechanismSignals } from './dominant-signal-selection';
 import { applySurfaceMechanismComposition } from './surface-mechanism-composition';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
-import { assembleLibraryPlanetaryAspects, assembleLibraryRelationalField } from './library-sections';
+import {
+  assembleLibraryPlanetaryAspects,
+  assembleLibraryRelationalField,
+  assembleLibraryRelationalWeather,
+} from './library-sections';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
 import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
@@ -1214,7 +1218,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const usedWithinGroup = new Set<string>();
     const isFirstSupplementalSlot =
       sec.id === 'significance' || (surface === 'daily' && idx === 1);
-    const relOnly = sec.id === 'relational_field' || sec.id === 'relational_weather_v1';
 
     if (isFirstSupplementalSlot) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
@@ -1250,8 +1253,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         'synthesis_wrapper',
         bodyClaimIdsOut
       );
-    } else if (relOnly) {
-      /* template-only: relational field / weather (no MEP, no supplemental here) */
     } else {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
@@ -1294,29 +1295,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       reportPadUsed,
       PAD_SENTENCES
     );
-    let finalText = text;
-    let finalTagged = tagged;
-
-    if (relOnly) {
-      if (sec.id === 'relational_weather_v1') {
-        const themes: readonly string[] = options.relationalWeatherThemes ?? [];
-        const primaryTheme = themes[0];
-        if (primaryTheme) {
-          const weatherInsight = getRelationalInsight(primaryTheme);
-          if (weatherInsight) {
-            const effSurface = options?.surface ?? surface;
-            const weatherText =
-              effSurface === 'feed'
-                ? weatherInsight.feed
-                : [weatherInsight.core, weatherInsight.behavioral].join(' ');
-            if (weatherText) {
-              finalText = weatherText;
-              finalTagged = taggedSectionBodyFromText(weatherText, 'claim_body');
-            }
-          }
-        }
-      }
-    }
+    const finalText = text;
+    const finalTagged = tagged;
 
     const claimIdsReferenced = sortUniqueClaimIds(claimIds);
     return {
@@ -1527,6 +1507,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   const groupKeyInteractionSections =
     surface === 'group' ? assembleGroupKeyInteractionsV1(options, seed, reportPadUsed, densityDefault) : [];
   const relationalSections = assembleLibraryRelationalField({ options, surface });
+  const weatherSections = assembleLibraryRelationalWeather({ options, surface });
   const aspectSections = assembleLibraryPlanetaryAspects({
     options,
     surface,
@@ -1540,6 +1521,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       ...placementSections,
       ...groupKeyInteractionSections,
       ...relationalSections,
+      ...weatherSections,
       ...aspectSections,
       ...out,
     ],

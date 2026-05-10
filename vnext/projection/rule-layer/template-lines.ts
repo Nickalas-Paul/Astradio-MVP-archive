@@ -6,7 +6,6 @@
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type { SectionTemplateId } from '../../semantic/ontology-codes';
 import type { ClaimId } from '../../semantic/ontology-codes';
-import type { RelationalBandCode } from '../../semantic/ontology-codes';
 import type { TopologyClass } from './topology-classify';
 import type { TemporalVoiceBucket } from './temporal-classify';
 import type { ProjectionSurface } from '../projection-types';
@@ -36,21 +35,6 @@ function pickVariant(seed: string, variants: string[]): string {
     h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   }
   return variants[h % variants.length];
-}
-
-function humanRelBand(code: RelationalBandCode): string {
-  const m: Record<string, string> = {
-    REL_BAND_HARMONY_HIGH: 'cooperation feels strong',
-    REL_BAND_HARMONY_MED: 'cooperation feels moderate',
-    REL_BAND_HARMONY_LOW: 'cooperation feels muted',
-    REL_BAND_FRICTION_HIGH: 'friction feels pronounced',
-    REL_BAND_FRICTION_MED: 'friction feels workable',
-    REL_BAND_FRICTION_LOW: 'friction feels light',
-    REL_BAND_INTENSITY_HIGH: 'contact feels intense',
-    REL_BAND_INTENSITY_MED: 'contact feels moderate',
-    REL_BAND_INTENSITY_LOW: 'contact feels gentle',
-  };
-  return m[code] ?? 'a relational tone is present';
 }
 
 export type TemplateContext = {
@@ -141,16 +125,6 @@ export function lineForTemplate(
           ? `Tension habits differ enough that one single story may not fit both. Alternate language can help.`
           : `Tension habits are close enough to share one listening arc without forcing sameness.`,
       };
-    case 'SECTION_RELATIONAL_WEATHER': {
-      const rel = core.relational;
-      const bands = rel?.activation_profile?.length
-        ? rel.activation_profile.map((c) => humanRelBand(c as RelationalBandCode)).join(' · ')
-        : 'relational tones were not available for this pass';
-      return {
-        title: 'Relational field (structural)',
-        text: `Between people, the picture highlights: ${bands}.`,
-      };
-    }
     default:
       return { title: 'Section', text: '' };
   }
@@ -164,5 +138,4 @@ export const idMap: Partial<Record<SectionTemplateId, string>> = {
   SECTION_WATCH_FORS: 'watch_fors',
   SECTION_INTEGRATION: 'integration_prompt',
   SECTION_COMPARISON_BRIDGE: 'significance',
-  SECTION_RELATIONAL_WEATHER: 'relational_weather_v1',
 };
