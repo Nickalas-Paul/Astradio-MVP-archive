@@ -1874,37 +1874,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
   }
 
-  if (surface === 'profile' && tierEff === 'extended' && extraKeys.includes('contradiction') && tensionBlock) {
-    const con2 = pickVariant(seed + ':con2', [
-      `Contrast handling keeps constructive and challenging threads visible without forcing a single winner; the view stays multi-valued on purpose.`,
-    ]);
-    const baseTagged = taggedSectionBodyFromText(tensionBlock.text, 'synthesis_wrapper');
-    const extraTagged = taggedSectionBodyFromText(con2, 'synthesis_wrapper');
-    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-      tensionBlock.text,
-      baseTagged,
-      [con2],
-      [extraTagged],
-      densityDefault,
-      `${seed}:con`,
-      [],
-      reportPadUsed,
-      PAD_SENTENCES
-    );
-    out.push({
-      id: 'contradiction_map',
-      title: 'Contrast map',
-      text,
-      meta: {
-        enrichDensity: densityDefault,
-        /** Phase 3: omit claim-id refs from meta (tension can overlap MEP); body text unchanged. */
-        claimIdsReferenced: [],
-        phaseD: true,
-        tagged,
-      },
-    });
-  }
-
   if (tierEff === 'extended' && surface === 'group' && extraKeys.includes('subcluster')) {
     const syn = pickVariant(seed + ':sub', [
       `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot before the spread picture tightens.`,
