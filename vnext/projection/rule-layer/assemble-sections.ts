@@ -1874,35 +1874,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
   }
 
-  if (tierEff === 'extended' && surface === 'group' && extraKeys.includes('subcluster')) {
-    const syn = pickVariant(seed + ':sub', [
-      `Subcluster note: several threads may cluster on the same people; that cluster can act as a local hotspot before the spread picture tightens.`,
-    ]);
-    const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-      syn,
-      synTagged,
-      [],
-      [],
-      densityDefault,
-      `${seed}:sub`,
-      [],
-      reportPadUsed,
-      PAD_SENTENCES
-    );
-    out.push({
-      id: 'subcluster',
-      title: 'Subcluster',
-      text,
-      meta: {
-        enrichDensity: densityDefault,
-        claimIdsReferenced: sortUniqueClaimIds(claimIds),
-        phaseD: true,
-        tagged,
-      },
-    });
-  }
-
   let panelIdx = 0;
   while (out.length < schema.baselineMinSections - 1) {
     if (surface === 'sandbox') break;
