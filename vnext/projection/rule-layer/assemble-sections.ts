@@ -1872,35 +1872,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         },
       });
     }
-    if (key === 'delta_emphasis' && surface === 'sandbox') {
-      const syn = pickVariant(seed + ':de', [
-        `Sandbox delta: the picture changes when you move controls; compare against a known baseline chart outside the lab when you need a control.`,
-        `Sandbox delta: strong shifts can be sensitivity tests for edge configurations, not fixed life predictions.`,
-      ]);
-      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:de`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'delta_emphasis',
-        title: 'Sandbox note',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
   }
 
   if (surface === 'profile' && tierEff === 'extended' && extraKeys.includes('contradiction') && tensionBlock) {
