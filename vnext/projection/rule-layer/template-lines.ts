@@ -60,11 +60,6 @@ export type TemplateContext = {
   readonly surface?: ProjectionSurface;
 };
 
-function signaturesTitle(ctx: TemplateContext): string {
-  if (ctx.suppressAstrologyTitles) return 'What shows up';
-  return 'Astrological Signatures';
-}
-
 function aggregateFieldText(core: SemanticCore, seed: string, topology: TopologyClass): string {
   const base =
     'The ensemble merges several pictures. The words follow only what those pictures share, not private details from any single slot.';
@@ -124,23 +119,6 @@ export function lineForTemplate(
   const lp = listenPointerLine(`${seed}:lt`, ctx.surface);
 
   switch (templateId) {
-    case 'SECTION_SIGNATURES':
-      if (ctx.suppressAstrologyTitles) {
-        return {
-          title: signaturesTitle(ctx),
-          text: pickVariant(seed, [
-            `A ${tonal} mood carries ${el} weight. The situation asks you to notice how that mix lands today.\n\n${lp}`,
-            `The dominant feel is ${el} coloring through a ${tonal} mood.\n\n${lp}`,
-          ]),
-        };
-      }
-      return {
-        title: signaturesTitle(ctx),
-        text: pickVariant(seed, [
-          `The primary emphasis is ${el} coloring with a ${tonal} mood.\n\n${lp}`,
-          `Elemental weight centers on ${el} with ${tonal} shading.\n\n${lp}`,
-        ]),
-      };
     case 'SECTION_SIGNIFICANCE':
       return {
         title: ctx.suppressAstrologyTitles ? 'Why it matters' : 'Personal Significance',
@@ -174,13 +152,6 @@ export function lineForTemplate(
         title: 'Integration Prompt',
         text: `Integration balances ${el} drive with the ${tonal} frame.`,
       };
-    case 'SECTION_COMPARISON_SIGNATURES':
-      return {
-        title: 'Shared and Divergent Signatures',
-        text: hasClaim(core, 'CROSS_ELEMENT_DRIFT_HIGH')
-          ? `The two pictures diverge strongly in elemental mix. Keep comparisons honest instead of blending them away.`
-          : `The two pictures share enough ${el} thread to compare fairly, with contrast still visible.`,
-      };
     case 'SECTION_COMPARISON_BRIDGE':
       return {
         title: 'Bridge',
@@ -209,14 +180,12 @@ export function lineForTemplate(
 }
 
 export const idMap: Partial<Record<SectionTemplateId, string>> = {
-  SECTION_SIGNATURES: 'signatures',
   SECTION_SIGNIFICANCE: 'significance',
   SECTION_SKY_SUMMARY: 'sky_summary',
   SECTION_PERSONAL_EMPHASIS: 'personal_emphasis',
   SECTION_LIKELY_EXPRESSIONS: 'likely_expressions',
   SECTION_WATCH_FORS: 'watch_fors',
   SECTION_INTEGRATION: 'integration_prompt',
-  SECTION_COMPARISON_SIGNATURES: 'signatures',
   SECTION_COMPARISON_BRIDGE: 'significance',
   SECTION_AGGREGATE_FIELD: 'relational_field',
   SECTION_RELATIONAL_WEATHER: 'relational_weather_v1',

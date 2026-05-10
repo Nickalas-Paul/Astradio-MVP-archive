@@ -7,7 +7,7 @@
 // It is not a product concept, runtime layer, or Campaign feature.
 // Do not use this terminology in new implementation, planning, or design work.
 
-import type { EphemerisSnapshot, SnapshotAspect } from '../../contracts';
+import type { EphemerisSnapshot } from '../../contracts';
 import type { SemanticClaim, SemanticCore } from '../../semantic/semantic-core';
 import type {
   DensityClass,
@@ -21,9 +21,6 @@ import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
 import { densityForSurfaceBaseline, minClaimBodiesForDensity } from '../density-validate';
 import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
-  buildClaimMechanismExpressionParagraph,
-  buildControlledMechanismExpressionParagraph,
-  buildTensionIntegrationParagraph,
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
   buildDisciplinedSynthesisClaimBodies,
@@ -36,6 +33,7 @@ import { selectDominantMechanismSignals } from './dominant-signal-selection';
 import { applySurfaceMechanismComposition } from './surface-mechanism-composition';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
+import { assembleLibraryPlanetaryAspects } from './library-sections';
 import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
 import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
@@ -49,9 +47,8 @@ import {
   validatePhase2Sections,
 } from './phase2-sentence-load';
 import { enrichSectionTextWithTagged } from './assemble-section-tagged';
-import { sortUniqueClaimIds, splitMepBodyForTaggedParagraphs } from './section-ownership';
+import { sortUniqueClaimIds } from './section-ownership';
 import {
-  mergeTaggedSectionBodiesVertical,
   reconstructTaggedSectionBody,
   splitParasForTagged,
   splitSentsForTagged,
@@ -70,22 +67,6 @@ import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kil
 import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
 import { buildPlacementKeys, PLANET_TIERS, type PlacementKey } from '../placement-keys';
 import type { DirectedSnapshotAspect } from '../../synastry/synastry-types';
-
-/**
- * S3 Mode 1 — single aspect source for insight-library MEP slice (no double-render):
- *
- * **Primary:** `pairInteractionAspects` when defined and length ≥ 1 (cross-chart synastry).
- *
- * **Fallback — "synastry empty":** use anchor `snapshotAspects`. Trigger when synastry is omitted from
- * projection options, or lists zero hits (canonical may still store `pair_interaction_aspects: []`;
- * insightProjectionOptionsFromCanonical omits `pairInteractionAspects` so we land here). Same path as
- * pre-S3 anchor-only behavior. No user-visible signal when fallback applies (Mode 1).
- */
-function aspectsForInsightLibraryLookup(options: ProjectionOptions): readonly SnapshotAspect[] {
-  const syn = options.pairInteractionAspects;
-  if (syn != null && syn.length > 0) return syn;
-  return options.snapshotAspects ?? [];
-}
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -449,7 +430,15 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   }
 
   if (surface === 'sandbox') {
-    return withDepths(['significance', 'signatures', 'delta_emphasis', 'synthesis_a', 'musical', '__DEPTH__', 'audio_staging']);
+    return withDepths([
+      'aspects',
+      'significance',
+      'delta_emphasis',
+      'synthesis_a',
+      'musical',
+      '__DEPTH__',
+      'audio_staging',
+    ]);
   }
 
   if (surface === 'compat_pair') {
@@ -464,7 +453,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'connection_structure',
       'relational_field',
       'relational_weather_v1',
-      'signatures',
+      'aspects',
       'significance',
       'interaction_map',
       'musical',
@@ -504,7 +493,14 @@ export function buildEmphasisRawSections(
   const out: ProjectedExplanationSection[] = [];
   let i = 0;
   for (const tid of core.text.emphasis_order) {
-    if (tid === 'SECTION_MUSICAL' || tid === 'SECTION_MUSIC_TRANSLATION') continue;
+    if (
+      tid === 'SECTION_SIGNATURES' ||
+      tid === 'SECTION_COMPARISON_SIGNATURES' ||
+      tid === 'SECTION_MUSICAL' ||
+      tid === 'SECTION_MUSIC_TRANSLATION'
+    ) {
+      continue;
+    }
     const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`, templateCtx);
     out.push({
       id: idMap[tid] ?? tid.toLowerCase(),
@@ -1252,34 +1248,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const found = mechanismSliceView.find((c) => c.claim_id === id);
     if (found) dominantClaimsForDiscipline.push(found);
   }
-  const mepSectionRole: ClaimOptionalRole[] = [];
-  const mepParagraphNorm: string[] = [];
-  const mep =
-    options.mechanismExpressionDominantSignals === true
-      ? buildControlledMechanismExpressionParagraph(
-          core,
-          seed,
-          tierEff,
-          surface,
-          mepSectionRole,
-          mepParagraphNorm,
-          dominantIdsDiscipline,
-          'signatures',
-          mechanismSliceView
-        )
-      : buildClaimMechanismExpressionParagraph(
-          core,
-          seed,
-          tierEff,
-          surface,
-          mepSectionRole,
-          mepParagraphNorm,
-          'signatures',
-          mechanismSliceView
-        );
-  const mepOrdered = mep.orderedClaims;
-  const openingClause = tierOpeningClause(surface, tierEff, seed);
-  const tensionBlock = tierEff === 'baseline' ? null : buildTensionIntegrationParagraph(core, seed + ':ten');
   const campaignBaselineExtra =
     surface === 'campaign' && tierEff === 'baseline'
       ? buildCampaignPressureResponseParagraph(core, seed + ':camp:base', options)
@@ -1288,15 +1256,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp', options) : null;
 
   const globalExclusiveBodyClaimIds = new Set<string>();
-  /** MEP + synthesis + dominant — depth panels may not reintroduce these. */
+  /** Synthesis + dominant — depth panels may not reintroduce these. */
   const depthExcludeClaimIds = (): Set<string> => {
     const s = new Set<string>(globalExclusiveBodyClaimIds);
-    for (const id of mep.claimIds) s.add(id);
     for (const c of dominantClaimsForDiscipline) s.add(c.claim_id);
     return s;
   };
-
-  const emphasisHasSignatures = raw.some((s) => s.id === 'signatures');
 
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
     const d = densityForSectionId(sec.id, densityDefault);
@@ -1304,73 +1269,11 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const extrasTagged: TaggedSectionBody[] = [];
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
-    let mepAspectLibraryText: string | undefined;
-    /** Phase 3: MEP must stay on `signatures` (or first spine section when no signatures id, e.g. daily). */
-    const mepHere = sec.id === 'signatures' || (!emphasisHasSignatures && idx === 0);
     const isFirstSupplementalSlot =
       sec.id === 'significance' || (surface === 'daily' && idx === 1);
     const relOnly = sec.id === 'relational_field' || sec.id === 'relational_weather_v1';
 
-    if (mepHere) {
-      if (openingClause) {
-        extras.push(openingClause);
-        extrasTagged.push(taggedSectionBodyFromText(openingClause, 'tier_scaffold'));
-      }
-      for (const mepBlock of splitMepBodyForTaggedParagraphs(mep.text, mep.claimIds)) {
-        appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, mepBlock, 'claim_body', bodyClaimIdsOut);
-      }
-      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, tensionBlock, 'synthesis_wrapper', bodyClaimIdsOut);
-      if (surface === 'sandbox') {
-        const lab = pickVariant(`${seed}:sandbox:lab:${tierEff}`, [
-          'Sandbox framing: this picture reflects lab conditions you changed on purpose.',
-          'Sandbox framing: this lab pass emphasizes sensitivity to those changes, not fixed life conclusions.',
-        ]);
-        extras.push(lab);
-        extrasTagged.push(taggedSectionBodyFromText(lab, 'synthesis_wrapper'));
-      }
-      const rawAspects: readonly SnapshotAspect[] = aspectsForInsightLibraryLookup(options);
-      const aspectInsights: AspectInsight[] = rawAspects
-        .slice(0, 3)
-        .map((a) => {
-          const key = buildAspectKey(a.bodyA, a.bodyB, a.type);
-          if (isAspectLibraryKillListed(key)) return undefined;
-          return getAspectInsight(key);
-        })
-        .filter((ins): ins is AspectInsight => ins !== undefined);
-      if (aspectInsights.length > 0) {
-        const effSurface = options?.surface ?? surface;
-        /** Synastry library already rendered in dedicated sections; do not append duplicates to signatures. */
-        const skipSynastryLibraryDup =
-          (effSurface === 'compat_pair' && options.pairInteractionAspectsV2 != null) ||
-          (effSurface === 'group' &&
-            (options.participantCount ?? 0) > 2 &&
-            options.pairInteractionAspectsV2 != null &&
-            (options.aggregateParticipantLabelsV1?.length ?? 0) > 0);
-        if (!skipSynastryLibraryDup) {
-          const connectionMode = options?.connectionMode ?? 'none';
-          const romanticPairSurface =
-            connectionMode === 'lovers' || (connectionMode as string) === 'romantic';
-          const context = romanticPairSurface ? 'romantic' : 'friendship';
-          mepAspectLibraryText = aspectInsights
-            .map((ins) => {
-              if (effSurface === 'feed') return ins.feed;
-              if (effSurface === 'compat_pair' || effSurface === 'group') {
-                return composeSynastryMepAspectParagraph(
-                  ins,
-                  context === 'romantic' ? 'romantic' : 'friendship'
-                );
-              }
-              if (effSurface === 'overlay_pair') {
-                const transitText = [ins.core_transit, ins.behavioral_transit].filter(Boolean).join(' ');
-                return transitText || [ins.core, ins.behavioral].filter(Boolean).join(' ');
-              }
-              return [ins.core, ins.behavioral].filter(Boolean).join(' ');
-            })
-            .filter(Boolean)
-            .join('\n\n');
-        }
-      }
-    } else if (isFirstSupplementalSlot) {
+    if (isFirstSupplementalSlot) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
       const paragraphNormDeque: string[] = [];
       const pan = buildSupplementalPanel(
@@ -1451,13 +1354,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     let finalText = text;
     let finalTagged = tagged;
 
-    if (mepHere && mepAspectLibraryText) {
-      // Template (not claim_body): ANCHORED sections require scaffold/templates before claim_body runs (phase4 grammar).
-      const libTagged = taggedSectionBodyFromText(mepAspectLibraryText, 'template');
-      finalTagged = mergeTaggedSectionBodiesVertical(libTagged, tagged);
-      finalText = reconstructTaggedSectionBody(finalTagged);
-    }
-
     /**
      * Phase C prep: `SPARSE_CARD_*` ids will use core+behavioral only (intent in id). When wiring,
      * confirm join here does not double-append `friendship`/`romantic` for those ids.
@@ -1523,10 +1419,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
 
     const claimIdsReferenced = sortUniqueClaimIds(claimIds);
-    const profileMepSection = mepHere && surface === 'profile';
     return {
       ...sec,
-      ...(profileMepSection ? { id: 'aspects', title: 'Planetary Relationships' } : {}),
       text: finalText,
       meta: {
         ...sec.meta,
@@ -1877,9 +1771,15 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const groupKeyInteractionSections =
     surface === 'group' ? assembleGroupKeyInteractionsV1(options, seed, reportPadUsed, densityDefault) : [];
+  const aspectSections = assembleLibraryPlanetaryAspects({
+    options,
+    surface,
+    connectionMode: options.connectionMode,
+    maxAspects: 5,
+  });
 
   let framed = applyConnectionPreface(
-    [...compatActivationSections, ...placementSections, ...groupKeyInteractionSections, ...out],
+    [...compatActivationSections, ...placementSections, ...groupKeyInteractionSections, ...aspectSections, ...out],
     {
       surface,
       connectionMode: options.connectionMode,
