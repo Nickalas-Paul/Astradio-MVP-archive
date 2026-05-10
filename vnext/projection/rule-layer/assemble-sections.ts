@@ -30,7 +30,6 @@ import {
   claimSentencesFromRange,
   capToMaxSentences,
   synthesizeClaimSentences,
-  renderMechanismArcBlock,
 } from './claim-synthesize';
 import { claimWindow } from './claim-select';
 import { selectDominantMechanismSignals } from './dominant-signal-selection';
@@ -505,6 +504,7 @@ export function buildEmphasisRawSections(
   const out: ProjectedExplanationSection[] = [];
   let i = 0;
   for (const tid of core.text.emphasis_order) {
+    if (tid === 'SECTION_MUSICAL' || tid === 'SECTION_MUSIC_TRANSLATION') continue;
     const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`, templateCtx);
     out.push({
       id: idMap[tid] ?? tid.toLowerCase(),
@@ -1305,11 +1305,10 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const bodyClaimIdsOut: string[] = [];
     const usedWithinGroup = new Set<string>();
     let mepAspectLibraryText: string | undefined;
-    const isMus = sec.id === 'musical' || sec.id === 'music_translation';
     /** Phase 3: MEP must stay on `signatures` (or first spine section when no signatures id, e.g. daily). */
     const mepHere = sec.id === 'signatures' || (!emphasisHasSignatures && idx === 0);
     const isFirstSupplementalSlot =
-      sec.id === 'significance' || (surface === 'daily' && idx === 1 && !isMus);
+      sec.id === 'significance' || (surface === 'daily' && idx === 1);
     const relOnly = sec.id === 'relational_field' || sec.id === 'relational_weather_v1';
 
     if (mepHere) {
@@ -1370,30 +1369,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
             .filter(Boolean)
             .join('\n\n');
         }
-      }
-    } else if (isMus) {
-      const musRole: ClaimOptionalRole[] = [];
-      const musNorm: string[] = [];
-      const n = mepOrdered.length;
-      const musLines: string[] = [];
-      for (let mi = 0; mi < n; mi++) {
-        const c = mepOrdered[mi]!;
-        const block = renderMechanismArcBlock({
-          claim: c,
-          index: mi,
-          n,
-          sectionRoleDeque: musRole,
-          paragraphNormDeque: musNorm,
-          seed: `${seed}|${c.claim_id}|listen`,
-          sectionId: 'musical',
-          register: 'listen',
-        });
-        musLines.push(block.text);
-      }
-      const musicalJoined =
-        musLines.length > 0 ? synthesizeClaimSentences(musLines, mep.claimIds, `${seed}:mep`) : '';
-      for (const musBlock of splitMepBodyForTaggedParagraphs(musicalJoined, mep.claimIds)) {
-        appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, musBlock, 'claim_body', bodyClaimIdsOut);
       }
     } else if (isFirstSupplementalSlot) {
       const sectionRoleDeque: ClaimOptionalRole[] = [];
@@ -1459,11 +1434,8 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     const minNeed = minClaimBodiesForDensity(d);
     let effectiveDensity: 'short' | 'medium' | 'long' =
       bodyMeta.length < minNeed ? ('short' as const) : d;
-    if (isMus) {
-      effectiveDensity = 'short';
-    }
 
-    const claimIdsForEnrich = isMus ? [...mep.claimIds] : bodyMeta;
+    const claimIdsForEnrich = bodyMeta;
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
@@ -1550,13 +1522,12 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       }
     }
 
-    const claimIdsReferenced = isMus ? [...mep.claimIds] : sortUniqueClaimIds(claimIds);
+    const claimIdsReferenced = sortUniqueClaimIds(claimIds);
     const profileMepSection = mepHere && surface === 'profile';
     return {
       ...sec,
       ...(profileMepSection ? { id: 'aspects', title: 'Planetary Relationships' } : {}),
       text: finalText,
-      ...(isMus ? { bullets: undefined } : {}),
       meta: {
         ...sec.meta,
         claimIdsReferenced,

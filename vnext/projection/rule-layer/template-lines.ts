@@ -149,11 +149,6 @@ export function lineForTemplate(
           `The personal punch comes from carrying ${el} qualities inside a ${tonal} mood. Stress and relief often route through that pairing.`,
         ]),
       };
-    case 'SECTION_MUSICAL':
-      return {
-        title: ctx.suppressAstrologyTitles ? 'Listen metaphor' : 'Musical Identity and Flow',
-        text: '',
-      };
     case 'SECTION_SKY_SUMMARY':
       return {
         title: 'Sky Summary',
@@ -178,11 +173,6 @@ export function lineForTemplate(
       return {
         title: 'Integration Prompt',
         text: `Integration balances ${el} drive with the ${tonal} frame.`,
-      };
-    case 'SECTION_MUSIC_TRANSLATION':
-      return {
-        title: 'Music Translation',
-        text: '',
       };
     case 'SECTION_COMPARISON_SIGNATURES':
       return {
@@ -221,13 +211,11 @@ export function lineForTemplate(
 export const idMap: Partial<Record<SectionTemplateId, string>> = {
   SECTION_SIGNATURES: 'signatures',
   SECTION_SIGNIFICANCE: 'significance',
-  SECTION_MUSICAL: 'musical',
   SECTION_SKY_SUMMARY: 'sky_summary',
   SECTION_PERSONAL_EMPHASIS: 'personal_emphasis',
   SECTION_LIKELY_EXPRESSIONS: 'likely_expressions',
   SECTION_WATCH_FORS: 'watch_fors',
   SECTION_INTEGRATION: 'integration_prompt',
-  SECTION_MUSIC_TRANSLATION: 'music_translation',
   SECTION_COMPARISON_SIGNATURES: 'signatures',
   SECTION_COMPARISON_BRIDGE: 'significance',
   SECTION_AGGREGATE_FIELD: 'relational_field',
