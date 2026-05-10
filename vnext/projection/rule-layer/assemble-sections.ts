@@ -1817,32 +1817,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         },
       });
     }
-    if (key === 'pressure_response' && surface === 'campaign') {
-      const pr = buildCampaignPressureResponseParagraph(core, seed + ':pr', options);
-      const prTagged = taggedSectionBodyFromText(pr.text, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        pr.text,
-        prTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:pr`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'pressure_response',
-        title: 'Pressure → response',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
   }
 
   let panelIdx = 0;
