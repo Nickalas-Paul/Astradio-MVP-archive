@@ -2155,29 +2155,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     });
   }
 
-  if (surface !== 'sandbox' && tierEff === 'extended' && extraKeys.includes('audio_thread')) {
-    const bridge =
-      'Listen detail lives in “How this sounds (listen metaphor)” below; it mirrors the words above without repeating every clause.';
-    const bridgeTagged = taggedSectionBodyFromText(bridge, 'audio_thread');
-    const { text, tagged } = enrichSectionTextWithTagged(
-      bridge,
-      bridgeTagged,
-      [],
-      [],
-      'short',
-      `${seed}:at`,
-      [],
-      reportPadUsed,
-      PAD_SENTENCES
-    );
-    out.splice(Math.min(2, out.length), 0, {
-      id: 'audio_thread',
-      title: 'Audio thread',
-      text,
-      meta: { enrichDensity: 'short', claimIdsReferenced: [], phaseD: true, tagged },
-    });
-  }
-
   const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
   const placementSections =
     surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
