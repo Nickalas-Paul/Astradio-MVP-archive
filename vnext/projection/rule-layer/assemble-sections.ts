@@ -1782,32 +1782,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
       });
     }
-    if (key === 'temporal_integration' && surface === 'daily') {
-      const syn = temporalIntegrationLine(params.temporalBucket, `${seed}:temp`);
-      const synTagged = taggedSectionBodyFromText(syn, 'template');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:ti`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'temporal_integration',
-        title: 'Temporal integration',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
     if (key === 'trait_bridge' && surface === 'profile') {
       const syn = pickVariant(seed + ':trait', [
         `Trait bridge: elemental and tonal signals often travel together; changing context can shift which side shows up first.`,
