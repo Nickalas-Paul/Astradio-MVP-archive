@@ -1872,35 +1872,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         },
       });
     }
-    if (key === 'layering') {
-      const syn = pickVariant(seed + ':lay', [
-        `Layering: two time layers can disagree; treat them as two simultaneous pictures rather than one merged verdict.`,
-        `Layering: a short spike can sit on a longer personal arc; both can be true at different timescales.`,
-      ]);
-      const synTagged = taggedSectionBodyFromText(syn, 'synthesis_wrapper');
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        densityDefault,
-        `${seed}:lay`,
-        [],
-        reportPadUsed,
-        PAD_SENTENCES
-      );
-      out.push({
-        id: 'layering',
-        title: 'Layering (natal / sky)',
-        text,
-        meta: {
-          enrichDensity: densityDefault,
-          claimIdsReferenced: sortUniqueClaimIds(claimIds),
-          phaseD: true,
-          tagged,
-        },
-      });
-    }
     if (key === 'delta_emphasis' && surface === 'sandbox') {
       const syn = pickVariant(seed + ':de', [
         `Sandbox delta: the picture changes when you move controls; compare against a known baseline chart outside the lab when you need a control.`,
