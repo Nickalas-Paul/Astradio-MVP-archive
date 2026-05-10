@@ -23,7 +23,6 @@ import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
   buildCampaignPressureResponseParagraph,
   buildSupplementalPanel,
-  buildDisciplinedSynthesisClaimBodies,
   claimSentencesFromRange,
   capToMaxSentences,
   synthesizeClaimSentences,
@@ -52,7 +51,6 @@ import {
   reconstructTaggedSectionBody,
   splitParasForTagged,
   splitSentsForTagged,
-  taggedSectionBodyFromBlocks,
   taggedSectionBodyFromText,
   taggedSectionFromTemplateLine,
 } from '../tagged-text';
@@ -76,32 +74,6 @@ function pickVariant(seed: string, variants: string[]): string {
   return variants[h % variants.length];
 }
 
-function isSparseCompatibilityCase(core: SemanticCore, surface: ProjectionSurface): boolean {
-  if (surface !== 'compat_pair') return false;
-  const rel = core.relational?.activation_profile ?? [];
-  const hasIntensityLow = rel.includes('REL_BAND_INTENSITY_LOW');
-  const hasIntensityMed = rel.includes('REL_BAND_INTENSITY_MED');
-  const hasIntensityHigh = rel.includes('REL_BAND_INTENSITY_HIGH');
-  const hasFrictionLow = rel.includes('REL_BAND_FRICTION_LOW');
-  const hasHarmonyLow = rel.includes('REL_BAND_HARMONY_LOW');
-  const lowTension = core.audio.tension_bias === 'AUDIO_TENSION_LOW';
-  const medTension = core.audio.tension_bias === 'AUDIO_TENSION_MED';
-  const lowTexture =
-    core.audio.relational_texture === 'REL_TEXTURE_NEUTRAL' ||
-    core.audio.relational_texture === 'REL_TEXTURE_STATIC';
-  const lowDensity = core.audio.density_band === 'DENSITY_SPARSE' || core.audio.density_band === 'DENSITY_BALANCED';
-  const topStrength = core.claims.slice(0, 3).reduce((m, c) => Math.max(m, c.strength), 0);
-  const weakStructure = topStrength < 0.7;
-  const fewClaimEdges = (core.tension_harmony?.claim_edges?.length ?? 0) <= 1;
-  const weakInteraction = hasIntensityLow || (hasIntensityMed && !hasIntensityHigh);
-  const lowDirectionalPressure = lowTension || medTension;
-  return (
-    weakInteraction &&
-    lowDirectionalPressure &&
-    (lowDensity || lowTexture || hasFrictionLow || hasHarmonyLow || weakStructure || fewClaimEdges)
-  );
-}
-
 const PAD_SENTENCES = reducedPadPool();
 
 const FEED_SCOPE_SENTENCE = 'This card stays narrow by design.';
@@ -111,27 +83,6 @@ function hashSeed(seed: string): number {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return h >>> 0;
 }
-
-/**
- * Synthesis openers only (read register). Must stay disjoint from `AUDIO_LEXICON_CLAUSE_STRINGS`
- * in audio-lexicon (R3: one listen-family match per kind outside `audio_staging`). Exactly six each.
- */
-const SYNTH_WRAPPER_A: readonly string[] = [
-  `This read weaves side threads and mid-rank cues so a single dominant thread still leads.`,
-  `Here the phrasing darts between sub-claims, keeping a brisk alternation with one through-line in front.`,
-  `The case stacks several small moves; the central line returns before the section runs long.`,
-  `A wider cadence between beats lets side comments land, then the main line comes back in plain form.`,
-  `Tilted counterpoints now trade in sharper back-and-forth, yet the spine of the case stays nameable.`,
-  `Secondary material stays in orbit, echoing the headline without eclipsing the first-order point.`,
-];
-const SYNTH_WRAPPER_B: readonly string[] = [
-  `Second pass widens the field, roping in quieter side constraints that reweight the same headline, not dethroning it.`,
-  `A brisker recheck places different moderators up front, keeping the through-line while sharpening the visible edges.`,
-  `More subclaims are named in one field of view, so the felt busyness rises while the top line still reads as one path.`,
-  `A slower handoff from headline to detail gives more leg room, same through-line, calmer path back to the lead.`,
-  `Nuance comes through as give-and-take between lines, while the opening sentence of the case still governs the page.`,
-  `Hangers-on sit closer to the main line, nudging emphasis in place, without a rewrite of the first sentence.`,
-];
 
 function countSentences(text: string): number {
   const t = text.trim();
@@ -1181,9 +1132,7 @@ function buildSynastryLibrarySynthesisSectionBodies(
     ? ranked.slice(SYNASTRY_SYNTH_A_MAX, SYNASTRY_SYNTH_A_MAX + SYNASTRY_SYNTH_B_MAX)
     : [];
 
-  const fallbackA =
-    'The connection between these charts holds room to grow; the sections below spell out how your fields meet in practice.';
-  const aText = block(sliceA).trim() || fallbackA;
+  const aText = block(sliceA).trim();
   const bRaw = block(sliceB).trim();
   const bText = includeSynthesisB && bRaw.length > 0 ? bRaw : null;
   return { aText, bText };
@@ -1433,23 +1382,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   });
 
   const extraKeys = expansionKeysFor(surface, tierEff);
-  const coreAudio = core.audio;
-  const sparseCompat = isSparseCompatibilityCase(core, surface);
-  // Ordinal maps: TEMPO/DENSITY/TENSION bands → 0,1,2; ARC (four codes) and REL_TEXTURE (four codes) share buckets per inline rules.
-  const tempoOrdinal: 0 | 1 | 2 =
-    coreAudio.tempo_band === 'TEMPO_LOW' ? 0 : coreAudio.tempo_band === 'TEMPO_MED' ? 1 : 2; // TEMPO_HIGH
-  const densityOrdinal: 0 | 1 | 2 =
-    coreAudio.density_band === 'DENSITY_SPARSE' ? 0 : coreAudio.density_band === 'DENSITY_DENSE' ? 2 : 1; // DENSITY_BALANCED
-  const arcOrdinal: 0 | 1 | 2 =
-    coreAudio.arc_bias === 'ARC_CYCLIC' ? 1 : coreAudio.arc_bias === 'ARC_FALL' ? 2 : 0; // ARC_RISE & ARC_SURGE_RESOLVE → 0
-  const tensionOrdinal: 0 | 1 | 2 =
-    coreAudio.tension_bias === 'AUDIO_TENSION_LOW' ? 0 : coreAudio.tension_bias === 'AUDIO_TENSION_MED' ? 1 : 2; // HIGH
-  const textureOrdinal: 0 | 1 | 2 =
-    coreAudio.relational_texture === 'REL_TEXTURE_NEUTRAL' || coreAudio.relational_texture === 'REL_TEXTURE_STATIC'
-      ? 0
-      : coreAudio.relational_texture === 'REL_TEXTURE_FLUID'
-        ? 1
-        : 2; // REL_TEXTURE_CALL_RESPONSE
 
   for (const key of extraKeys) {
     if (key === 'audio_thread') continue;
@@ -1461,6 +1393,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       ) {
         const includeB = extraKeys.includes('synthesis_b');
         const { aText, bText } = buildSynastryLibrarySynthesisSectionBodies(options, includeB);
+        if (!aText.trim()) continue;
 
         const tagA = taggedSectionBodyFromText(aText, 'template');
         const enrichedA = enrichSectionTextWithTagged(
@@ -1514,138 +1447,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
         }
         continue;
       }
-      const synSecRole: ClaimOptionalRole[] = [];
-      const synParaNorm: string[] = [];
-      const synClaim = buildDisciplinedSynthesisClaimBodies(
-        core,
-        dominantClaimsForDiscipline,
-        2,
-        `${seed}:synA`,
-        surface,
-        tierEff,
-        synSecRole,
-        synParaNorm,
-        globalExclusiveBodyClaimIds,
-        'synthesis_a'
-      );
-      const baseKeyA = `${seed}|synthesis_a|${coreAudio.density_band}|${coreAudio.arc_bias}|${coreAudio.tension_bias}|${coreAudio.relational_texture}`;
-      const idxA =
-        (hashSeed(baseKeyA) +
-          tempoOrdinal +
-          densityOrdinal +
-          arcOrdinal +
-          tensionOrdinal +
-          textureOrdinal) %
-        6;
-      const wrap = sparseCompat
-        ? pickVariant(`${seed}:sparse:support`, [
-            'Interaction remains weak, so both people can keep independent decision timing with only light coordination demand.',
-            'Coordination pressure stays low in this sparse field, so each person can act independently without heavy synchronization.',
-            'The exchange remains lightly coupled, so planning and communication can proceed independently unless external pressure rises.',
-          ])
-        : SYNTH_WRAPPER_A[idxA]!;
-      const synBody = sparseCompat ? '' : capToMaxSentences(synClaim.text, 3);
-      const syn = [wrap, synBody].filter((x) => x.trim().length > 0).join('\n\n');
-      const synTagged =
-        synBody.trim().length > 0
-          ? taggedSectionBodyFromBlocks([
-              { text: wrap, provenance: 'synthesis_wrapper' },
-              { text: synBody, provenance: 'claim_body' },
-            ])
-          : taggedSectionBodyFromText(wrap, 'synthesis_wrapper');
-      const synBodyMeta = sortUniqueClaimIds(synClaim.claimIds);
-      for (const id of synBodyMeta) {
-        globalExclusiveBodyClaimIds.add(id);
-      }
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        'short',
-        `${seed}:synbody`,
-        synBodyMeta,
-        reportPadUsed,
-        PAD_SENTENCES,
-        { feed: true }
-      );
-      out.push({
-        id: 'synthesis_a',
-        title: 'Synthesis',
-        text,
-        meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
-      });
     }
-    if (key === 'synthesis_b' && surface !== 'sandbox') {
-      if (
-        surface === 'compat_pair' &&
-        options.pairInteractionAspectsV2 != null &&
-        options.comparisonSeekerContextV1 != null
-      ) {
-        continue;
-      }
-      const synBSecRole: ClaimOptionalRole[] = [];
-      const synBParaNorm: string[] = [];
-      const synClaim = buildDisciplinedSynthesisClaimBodies(
-        core,
-        dominantClaimsForDiscipline,
-        3,
-        `${seed}:synB`,
-        surface,
-        tierEff,
-        synBSecRole,
-        synBParaNorm,
-        globalExclusiveBodyClaimIds,
-        'synthesis_b'
-      );
-      const baseKeyB = `${seed}|synthesis_b|${coreAudio.density_band}|${coreAudio.arc_bias}|${coreAudio.tension_bias}|${coreAudio.relational_texture}`;
-      const idxB =
-        (hashSeed(baseKeyB) +
-          tempoOrdinal +
-          densityOrdinal +
-          arcOrdinal +
-          tensionOrdinal +
-          textureOrdinal) %
-        6;
-      const wrapB =
-        sparseCompat && surface === 'compat_pair'
-          ? pickVariant(`${seed}:sparse:limit`, [
-              'Directional pressure stays low, so urgency remains limited and role shifts are not strongly forced.',
-              'Low interaction pressure keeps escalation demand minimal, with little need to reorganize roles or pacing.',
-              'With weak coupling in the field, directional pressure stays light and conflict urgency remains contained.',
-            ])
-          : SYNTH_WRAPPER_B[idxB]!;
-      const synBodyB = sparseCompat && surface === 'compat_pair' ? '' : capToMaxSentences(synClaim.text, 3);
-      const syn = [wrapB, synBodyB].filter((x) => x.trim().length > 0).join('\n\n');
-      const synTagged =
-        synBodyB.trim().length > 0
-          ? taggedSectionBodyFromBlocks([
-              { text: wrapB, provenance: 'synthesis_wrapper' },
-              { text: synBodyB, provenance: 'claim_body' },
-            ])
-          : taggedSectionBodyFromText(wrapB, 'synthesis_wrapper');
-      const synBodyMetaB = sortUniqueClaimIds(synClaim.claimIds);
-      for (const id of synBodyMetaB) {
-        globalExclusiveBodyClaimIds.add(id);
-      }
-      const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-        syn,
-        synTagged,
-        [],
-        [],
-        'short',
-        `${seed}:synb`,
-        synBodyMetaB,
-        reportPadUsed,
-        PAD_SENTENCES,
-        { feed: true }
-      );
-      out.push({
-        id: 'synthesis_b',
-        title: 'Extended synthesis',
-        text,
-        meta: { enrichDensity: 'short', claimIdsReferenced: sortUniqueClaimIds(claimIds), phaseD: true, tagged },
-      });
+    if (key === 'synthesis_b') {
+      continue;
     }
   }
 

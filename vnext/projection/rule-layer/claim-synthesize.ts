@@ -520,52 +520,6 @@ function pickSupportingFromMechanismSlice(
   return sortClaimsDeterministic(acc).slice(0, need);
 }
 
-/**
- * Synthesis claim bodies: tier ladder on the mechanism slice only; no drift `claim_body`.
- */
-export function buildDisciplinedSynthesisClaimBodies(
-  core: SemanticCore,
-  dominantClaims: readonly SemanticClaim[],
-  maxCount: number,
-  seed: string,
-  surface: ProjectionSurface,
-  tier: ExpansionTier,
-  sectionRoleDeque: ClaimOptionalRole[],
-  paragraphNormDeque: string[],
-  excludeClaimIds: ReadonlySet<string>,
-  sectionId: string
-): { text: string; claimIds: string[] } {
-  const excl = excludeClaimIds;
-  let chosen: SemanticClaim[] = [];
-  for (const maxT of [2, 3, 4] as const) {
-    const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excl, maxT, maxCount);
-    if (batch.length >= maxCount) {
-      chosen = batch;
-      break;
-    }
-    if (batch.length > chosen.length) chosen = batch;
-  }
-  const lines: string[] = [];
-  const ids: string[] = [];
-  let localIndex = 0;
-  for (const c of chosen) {
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex,
-      seed: `${seed}|${c.claim_id}|syn`,
-      surface,
-      tier,
-      sectionRoleDeque,
-      paragraphNormDeque,
-      sectionId,
-    });
-    localIndex++;
-    lines.push(block.text);
-    ids.push(c.claim_id);
-  }
-  return { text: synthesizeClaimSentences(lines, ids, `${seed}:synrng`), claimIds: ids };
-}
-
 export function buildClaimMechanismExpressionParagraph(
   core: SemanticCore,
   seed: string,
