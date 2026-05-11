@@ -6,15 +6,12 @@ import type { SemanticCore, SemanticClaim } from '../../semantic/semantic-core';
 import type { ClaimId } from '../../semantic/ontology-codes';
 import type {
   CampaignExpressionDigest,
-  DensityClass,
   ExpansionTier,
-  Phase4ContentSourcePath,
   ProjectionOptions,
   ProjectionSurface,
 } from '../projection-types';
 import { campaignContinuityFromDigest } from '../campaign-lens-contract';
 import { campaignExpressionDigestFromOptions } from '../campaign-expression-digest-guard';
-import { minClaimBodiesForDensity } from '../density-validate';
 import { projectionNormSentence } from './repetition-collapse-phase0';
 import {
   applyStrengthInterpolation,
@@ -30,8 +27,6 @@ import { listenVariantsForArcRole } from './claim-listen-variants';
 import { pickInterClaimGlue } from './claim-inter-claim-glue';
 import { claimWindow } from './claim-select';
 import { reinforcementTier, sortClaimsDeterministic } from './claim-discipline';
-import { contextualPadSet, reducedPadPool } from './phase2-sentence-load';
-import { getStructuralInsight } from '../insight-library/insight-library-index';
 
 function pickVariant(seed: string, variants: string[]): string {
   if (variants.length === 0) return '';
@@ -675,142 +670,6 @@ export function buildTensionIntegrationParagraph(
     `This picture mixes supportive and challenging emphases; many people with this mix find that integration works best when neither side is forced to "win." Keep pacing cues tied to the main listen read below. That shapes how repair and forward motion take turns as the contrast lands.`,
   ]);
   return { text, claimIds: cIds };
-}
-
-function renderCoreOnlyLine(
-  claim: SemanticClaim,
-  seed: string,
-  sectionId: string,
-  paragraphNormDeque: string[],
-  slotIndex: number
-): string {
-  const id = claim.claim_id as ClaimId;
-  const bundle = getClaimExpressionBundle(id);
-  return selectPhraseFromRoleVariants({
-    variants: bundle.core,
-    claimId: id,
-    role: 'core',
-    slotKind: 'panel_core_shortform',
-    seed,
-    claim,
-    paragraphNormDeque,
-    sectionId,
-    slotIndex,
-  });
-}
-
-export function buildSupplementalPanel(
-  core: SemanticCore,
-  seed: string,
-  sectionId: string,
-  panelIndex: number,
-  tier: ExpansionTier,
-  surface: ProjectionSurface,
-  sectionRoleDeque: ClaimOptionalRole[],
-  paragraphNormDeque: string[],
-  excludeClaimIds: ReadonlySet<string>,
-  sectionDensity: DensityClass,
-  dominantClaims: readonly SemanticClaim[]
-): { title: string; text: string; claimIds: string[]; phase4_source_path?: Phase4ContentSourcePath } {
-  const minOrig = minClaimBodiesForDensity(sectionDensity);
-  const minShort = minClaimBodiesForDensity('short');
-
-  let chosen: SemanticClaim[] | null = null;
-  for (const maxT of [2, 3, 4] as const) {
-    const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, maxT, minOrig);
-    if (batch.length >= minOrig) {
-      chosen = batch;
-      break;
-    }
-  }
-  if (!chosen) {
-    for (const maxT of [2, 3, 4] as const) {
-      const batch = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, maxT, minShort);
-      if (batch.length >= minShort) {
-        chosen = batch;
-        break;
-      }
-    }
-  }
-  if (!chosen) {
-    chosen = pickSupportingFromMechanismSlice(core, tier, dominantClaims, excludeClaimIds, 4, minShort);
-  }
-
-  for (const c of chosen!) {
-    const insight = getStructuralInsight(String(c.claim_id));
-    if (insight) {
-      const body =
-        surface === 'feed'
-          ? insight.feed
-          : [insight.core, insight.behavioral].filter(Boolean).join(' ');
-      const trimmed = body.trim();
-      if (trimmed) {
-        return {
-          title: `Pattern note ${panelIndex + 1}`,
-          text: capToMaxSentences(trimmed, 2),
-          claimIds: [c.claim_id],
-        };
-      }
-    }
-  }
-
-  const lines: string[] = [];
-  const ids: string[] = [];
-  let localIndex = 0;
-  for (const c of chosen!) {
-    const block = renderClaimExpressionBlock({
-      claim: c,
-      localIndex,
-      seed: `${seed}|${c.claim_id}|panel:${panelIndex}|${localIndex}`,
-      surface,
-      tier,
-      sectionRoleDeque,
-      paragraphNormDeque,
-      sectionId,
-    });
-    localIndex++;
-    lines.push(block.text);
-    ids.push(c.claim_id);
-  }
-
-  if (lines.length > 0) {
-    const raw =
-      synthesizeClaimSentences(lines, ids, `${seed}:pan:${panelIndex}`) ||
-      pickVariant(seed, [
-        'This picture includes additional emphasis that may show up subtly in how the pattern lands rather than as a single headline.',
-      ]);
-    const text = capToMaxSentences(raw, 2);
-    return {
-      title: `Pattern note ${panelIndex + 1}`,
-      text,
-      claimIds: ids,
-      phase4_source_path: 'claim_slice',
-    };
-  }
-
-  const W = claimWindow(tier);
-  for (const c of sortClaimsDeterministic(core.claims.slice(0, W).filter((x) => !excludeClaimIds.has(x.claim_id)))) {
-    if (reinforcementTier(c, dominantClaims, core) === null) continue;
-    const t = renderCoreOnlyLine(c, seed, sectionId, paragraphNormDeque, panelIndex);
-    if (t.trim().length > 0) {
-      return {
-        title: `Pattern note ${panelIndex + 1}`,
-        text: capToMaxSentences(t, 2),
-        claimIds: [c.claim_id],
-        phase4_source_path: 'shortform',
-      };
-    }
-  }
-
-  const pool = reducedPadPool();
-  const pIdx = hash32(`${seed}|reduced_pad|${sectionId}|${panelIndex}`) % pool.length;
-  const padLine = pool[pIdx]!;
-  return {
-    title: `Pattern note ${panelIndex + 1}`,
-    text: capToMaxSentences(padLine, 2),
-    claimIds: [],
-    phase4_source_path: contextualPadSet.has(padLine) ? 'contextual_pad' : 'neutral_pad',
-  };
 }
 
 /** Campaign moment: Entry (situational) → Contact (geometry + shape/visibility + optional group) → Pressure Lock (constraint + optional continuity). */

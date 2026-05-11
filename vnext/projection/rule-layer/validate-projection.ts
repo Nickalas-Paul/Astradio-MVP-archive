@@ -22,8 +22,7 @@ export function densityForSectionId(sectionId: string, defaultD: 'short' | 'medi
   }
   if (
     /^(audio_|connection_|ensemble_|feed_)/.test(sectionId) ||
-    sectionId === 'audio_thread' ||
-    sectionId.startsWith('depth_panel_')
+    sectionId === 'audio_thread'
   ) {
     return 'short';
   }
@@ -72,7 +71,6 @@ function sectionSentenceCap(sectionId: string): number | null {
   /** Library-driven synastry synthesis (Phase 6C-Gamma) stacks multiple aspect paragraphs; keep ceiling above template-only synthesis. */
   if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 18;
   if (sectionId === 'group_key_interactions_v1') return 72;
-  if (sectionId.startsWith('depth_panel_')) return 2;
   if (sectionId === 'pressure_response') return 5;
   if (sectionId === 'feed_signal' || sectionId === 'feed_context') return 2;
   return null;
@@ -80,7 +78,6 @@ function sectionSentenceCap(sectionId: string): number | null {
 
 function sectionClauseCap(sectionId: string): number | null {
   if (sectionId === 'synthesis_a' || sectionId === 'synthesis_b') return 2;
-  if (sectionId.startsWith('depth_panel_')) return 2;
   if (sectionId === 'pressure_response') return 3;
   return null;
 }

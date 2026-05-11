@@ -70,7 +70,6 @@ export type SectionKind =
   | 'CONTRADICTION'
   | 'SUBCLUSTER'
   | 'WRAPPER_ONLY'
-  | 'DEPTH'
   | 'AUDIO_STAGING'
   | 'AUDIO_THREAD'
   | 'RELATIONAL_AGG'
@@ -114,7 +113,6 @@ export function sectionKind(section: ProjectedExplanationSection, surface: Proje
   ) {
     return 'WRAPPER_ONLY';
   }
-  if (/^depth_panel_\d+$/.test(id)) return 'DEPTH';
   if (id === 'audio_staging') return 'AUDIO_STAGING';
   if (id === 'audio_thread') return 'AUDIO_THREAD';
   if (id === 'relational_field' && (surface === 'compat_pair' || surface === 'group')) return 'RELATIONAL_AGG';
@@ -228,16 +226,6 @@ function acceptsSwPd(s: ProvenanceType[]): boolean {
   if (!onlySymbols(s, new Set<ProvenanceType>(['synthesis_wrapper', 'padding']))) return false;
   return matchesBlocks(s, [
     { sym: 'synthesis_wrapper', min: 1, max: -1 },
-    { sym: 'padding', min: 0, max: -1 },
-  ]);
-}
-
-function acceptsDepth(s: ProvenanceType[]): boolean {
-  if (!onlySymbols(s, new Set<ProvenanceType>(['claim_body', 'padding']))) return false;
-  // Supplemental fill panels may be pad-only when no claims remain (still valid copy).
-  if (matchesBlocks(s, [{ sym: 'padding', min: 1, max: -1 }])) return true;
-  return matchesBlocks(s, [
-    { sym: 'claim_body', min: 1, max: -1 },
     { sym: 'padding', min: 0, max: -1 },
   ]);
 }
@@ -438,8 +426,6 @@ function grammarAccepts(kind: SectionKind, syms: ProvenanceType[]): boolean {
     case 'SUBCLUSTER':
     case 'WRAPPER_ONLY':
       return acceptsSwPd(syms);
-    case 'DEPTH':
-      return acceptsDepth(syms);
     case 'AUDIO_STAGING':
       return acceptsAudioStaging(syms);
     case 'AUDIO_THREAD':
@@ -479,8 +465,6 @@ function grammarAcceptsOrdered(kind: SectionKind, syms: ProvenanceType[]): boole
     case 'SUBCLUSTER':
     case 'WRAPPER_ONLY':
       return acceptsSwPd(syms);
-    case 'DEPTH':
-      return acceptsDepth(syms);
     case 'AUDIO_STAGING':
       return acceptsAudioStaging(syms);
     case 'AUDIO_THREAD':

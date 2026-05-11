@@ -18,18 +18,13 @@ import type {
   TaggedSectionBody,
 } from '../projection-types';
 import { SURFACE_SCHEMAS, expansionKeysFor } from '../surface-schemas';
-import { densityForSurfaceBaseline, minClaimBodiesForDensity } from '../density-validate';
+import { densityForSurfaceBaseline } from '../density-validate';
 import type { ClaimOptionalRole } from './claim-expression-bundles';
 import {
-  buildCampaignPressureResponseParagraph,
-  buildSupplementalPanel,
   claimSentencesFromRange,
   capToMaxSentences,
   synthesizeClaimSentences,
 } from './claim-synthesize';
-import { claimWindow } from './claim-select';
-import { selectDominantMechanismSignals } from './dominant-signal-selection';
-import { applySurfaceMechanismComposition } from './surface-mechanism-composition';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import {
@@ -161,35 +156,6 @@ function appendSectionGroupBlock(
   }
 }
 
-/**
- * Appends a block to section extras. Only `provenance === 'claim_body'` ids are recorded in
- * `bodyClaimIdsOut` (actual `renderClaimExpressionBlock` usage — mep and supplemental panels).
- * Non-claim_body blocks always append when non-null (synthesis_wrapper, tier_scaffold, padding).
- */
-function appendSectionGroupTagged(
-  extras: string[],
-  extrasTagged: TaggedSectionBody[],
-  usedWithinGroup: Set<string>,
-  block: { text: string; claimIds: string[] } | null,
-  provenance: import('../projection-types').ProvenanceType,
-  bodyClaimIdsOut: string[]
-): void {
-  if (!block) return;
-  if (provenance === 'claim_body') {
-    const fresh = block.claimIds.filter((id) => !usedWithinGroup.has(id));
-    if (fresh.length === 0 && block.claimIds.length > 0) return;
-    extras.push(block.text);
-    extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
-    for (const id of fresh) {
-      usedWithinGroup.add(id);
-      bodyClaimIdsOut.push(id);
-    }
-    return;
-  }
-  extras.push(block.text);
-  extrasTagged.push(taggedSectionBodyFromText(block.text, provenance));
-}
-
 function applyAggregateSurfaceIdentityOverrides(
   sections: ProjectedExplanationSection[],
   surface: ProjectionSurface,
@@ -272,12 +238,6 @@ function pluckId(m: Map<string, ProjectedExplanationSection[]>, id: string): Pro
   return a;
 }
 
-function depthPanelSectionsSorted(sections: ProjectedExplanationSection[]): ProjectedExplanationSection[] {
-  return sections
-    .filter((s) => /^depth_panel_\d+$/.test(s.id))
-    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-}
-
 /**
  * Phase 3 — deterministic final section order; does not change section bodies (only array order;
  * for sandbox, also strips disallowed ids before ordering).
@@ -290,19 +250,12 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
     surface === 'sandbox' ? sections.filter((s) => !SANDBOX_STRIP_SECTION_IDS.has(s.id)) : sections.slice();
   if (base.length === 0) return base;
 
-  const depthSorted = depthPanelSectionsSorted(base);
-  const m = bySectionIdBucket(
-    base.filter((s) => !/^depth_panel_\d+$/.test(s.id))
-  );
+  const m = bySectionIdBucket(base);
 
-  const withDepths = (order: (string | '__DEPTH__')[]): ProjectedExplanationSection[] => {
+  const withOrder = (order: string[]): ProjectedExplanationSection[] => {
     const out: ProjectedExplanationSection[] = [];
     for (const id of order) {
-      if (id === '__DEPTH__') {
-        out.push(...depthSorted);
-        continue;
-      }
-      out.push(...pluckId(m, id as string));
+      out.push(...pluckId(m, id));
     }
     for (const [, arr] of m) {
       for (const s of arr) out.push(s);
@@ -311,7 +264,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   };
 
   if (surface === 'profile') {
-    const o = withDepths([
+    const o = withOrder([
       'core_identity',
       'personal_expression',
       'growth_expansion',
@@ -323,7 +276,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'synthesis_b',
       'musical',
       'contradiction_map',
-      '__DEPTH__',
       'audio_staging',
       'audio_thread',
     ]);
@@ -331,18 +283,17 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   }
 
   if (surface === 'sandbox') {
-    return withDepths([
+    return withOrder([
       'aspects',
       'delta_emphasis',
       'synthesis_a',
       'musical',
-      '__DEPTH__',
       'audio_staging',
     ]);
   }
 
   if (surface === 'compat_pair') {
-    return withDepths([
+    return withOrder([
       'core_identity',
       'personal_expression',
       'growth_expansion',
@@ -356,14 +307,13 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'aspects',
       'interaction_map',
       'musical',
-      '__DEPTH__',
       'audio_staging',
       'audio_thread',
     ]);
   }
 
   if (surface === 'group') {
-    return withDepths([
+    return withOrder([
       'ensemble_framing',
       'group_key_interactions_v1',
       'relational_field',
@@ -374,7 +324,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'synthesis_b',
       'subcluster',
       'musical',
-      '__DEPTH__',
       'audio_staging',
       'audio_thread',
     ]);
@@ -1107,121 +1056,23 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     };
   });
 
-  const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
-  const window = claimWindow(tierEff);
-  const baseSlice = core.claims.slice(0, window);
-  const { claims: mechanismSliceView } = applySurfaceMechanismComposition(baseSlice, {
-    surface,
-    tier: tierEff,
-    seed,
-    options,
-  });
-  const dominantIdsDiscipline = selectDominantMechanismSignals(mechanismSliceView, tierEff);
-  const dominantClaimsForDiscipline: SemanticClaim[] = [];
-  for (const id of dominantIdsDiscipline) {
-    const found = mechanismSliceView.find((c) => c.claim_id === id);
-    if (found) dominantClaimsForDiscipline.push(found);
-  }
-  const campaignBaselineExtra =
-    surface === 'campaign' && tierEff === 'baseline'
-      ? buildCampaignPressureResponseParagraph(core, seed + ':camp:base', options)
-      : null;
-  const campaignExpandedExtra =
-    surface === 'campaign' && tierEff !== 'baseline' ? buildCampaignPressureResponseParagraph(core, seed + ':camp', options) : null;
-
-  const globalExclusiveBodyClaimIds = new Set<string>();
-  /** Synthesis + dominant — depth panels may not reintroduce these. */
-  const depthExcludeClaimIds = (): Set<string> => {
-    const s = new Set<string>(globalExclusiveBodyClaimIds);
-    for (const c of dominantClaimsForDiscipline) s.add(c.claim_id);
-    return s;
-  };
 
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
-    const d = densityForSectionId(sec.id, densityDefault);
-    const extras: string[] = [];
-    const extrasTagged: TaggedSectionBody[] = [];
-    const bodyClaimIdsOut: string[] = [];
-    const usedWithinGroup = new Set<string>();
-    const isFirstSupplementalSlot =
-      surface === 'daily' && idx === 1;
-
-    if (isFirstSupplementalSlot) {
-      const sectionRoleDeque: ClaimOptionalRole[] = [];
-      const paragraphNormDeque: string[] = [];
-      const pan = buildSupplementalPanel(
-        core,
-        `${seed}:s1`,
-        sec.id,
-        0,
-        tierEff,
-        surface,
-        sectionRoleDeque,
-        paragraphNormDeque,
-        globalExclusiveBodyClaimIds,
-        d,
-        dominantClaimsForDiscipline
-      );
-      const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
-      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
-      appendSectionGroupTagged(
-        extras,
-        extrasTagged,
-        usedWithinGroup,
-        campaignBaselineExtra,
-        'synthesis_wrapper',
-        bodyClaimIdsOut
-      );
-      appendSectionGroupTagged(
-        extras,
-        extrasTagged,
-        usedWithinGroup,
-        campaignExpandedExtra,
-        'synthesis_wrapper',
-        bodyClaimIdsOut
-      );
-    } else {
-      const sectionRoleDeque: ClaimOptionalRole[] = [];
-      const paragraphNormDeque: string[] = [];
-      const pan = buildSupplementalPanel(
-        core,
-        `${seed}:sx`,
-        sec.id,
-        idx,
-        tierEff,
-        surface,
-        sectionRoleDeque,
-        paragraphNormDeque,
-        globalExclusiveBodyClaimIds,
-        d,
-        dominantClaimsForDiscipline
-      );
-      const panProv = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
-      appendSectionGroupTagged(extras, extrasTagged, usedWithinGroup, pan, panProv, bodyClaimIdsOut);
-    }
-
-    const bodyMeta = sortUniqueClaimIds(bodyClaimIdsOut);
-    for (const id of bodyMeta) {
-      globalExclusiveBodyClaimIds.add(id);
-    }
-
-    const minNeed = minClaimBodiesForDensity(d);
-    let effectiveDensity: 'short' | 'medium' | 'long' =
-      bodyMeta.length < minNeed ? ('short' as const) : d;
-
-    const claimIdsForEnrich = bodyMeta;
+    const effectiveDensity = 'short' as const;
+    const claimIdsForEnrich = sortUniqueClaimIds(sec.meta?.claimIdsReferenced ?? []);
 
     const { text, claimIds, tagged } = enrichSectionTextWithTagged(
       sec.text,
       sec.meta!.tagged!,
-      extras,
-      extrasTagged,
+      [],
+      [],
       effectiveDensity,
       `${seed}:en:${sec.id}:${idx}`,
       claimIdsForEnrich,
       reportPadUsed,
-      PAD_SENTENCES
+      PAD_SENTENCES,
+      { feed: true }
     );
     const finalText = text;
     const finalTagged = tagged;
@@ -1310,56 +1161,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     if (key === 'synthesis_b') {
       continue;
     }
-  }
-
-  let panelIdx = 0;
-  while (out.length < schema.baselineMinSections - 1) {
-    if (surface === 'sandbox') break;
-    const fillSecRole: ClaimOptionalRole[] = [];
-    const fillParaNorm: string[] = [];
-    // Phase 3: depth panels exclude all prior claim use + MEP + dominant (no reintroduction).
-    const pan = buildSupplementalPanel(
-      core,
-      `${seed}:fillpanel`,
-      `depth_panel_${panelIdx}`,
-      panelIdx++,
-      tierEff,
-      surface,
-      fillSecRole,
-      fillParaNorm,
-      depthExcludeClaimIds(),
-      densityForSectionId('depth_panel_x', 'short'),
-      dominantClaimsForDiscipline
-    );
-    const panProvFill = pan.claimIds.length > 0 ? ('claim_body' as const) : ('padding' as const);
-    const panTagged = taggedSectionBodyFromText(pan.text, panProvFill);
-    const fillBodyMeta = sortUniqueClaimIds(pan.claimIds);
-    for (const id of fillBodyMeta) {
-      globalExclusiveBodyClaimIds.add(id);
-    }
-    const { text, claimIds, tagged } = enrichSectionTextWithTagged(
-      pan.text,
-      panTagged,
-      [],
-      [],
-      densityForSectionId('depth_panel_x', 'short'),
-      `${seed}:dp:${panelIdx}`,
-      fillBodyMeta,
-      reportPadUsed,
-      PAD_SENTENCES,
-      { feed: true }
-    );
-    out.push({
-      id: `depth_panel_${panelIdx}`,
-      title: pan.title,
-      text,
-      meta: {
-        enrichDensity: densityForSectionId('depth_panel_x', 'short'),
-        claimIdsReferenced: sortUniqueClaimIds(claimIds),
-        phaseD: true,
-        tagged,
-      },
-    });
   }
 
   const audio = buildAudioStagingBlock(core, tierEff, options.narrativePlan ?? null, surface);

@@ -64,15 +64,11 @@ const SECTION_RANK: Record<string, number> = {
   delta_emphasis: 48,
   contradiction_map: 49,
   subcluster: 50,
-  depth_panel_1: 55,
-  depth_panel_2: 56,
-  depth_panel_3: 57,
   relational_weather_v1: 16,
 };
 
 function sectionRank(id: string): number {
   if (SECTION_RANK[id] !== undefined) return SECTION_RANK[id];
-  if (id.startsWith('depth_panel_')) return 55;
   return 200;
 }
 
