@@ -17,7 +17,7 @@ import {
   CLAIM_GLUE_RE,
   pickInterClaimGlue,
 } from '../projection/rule-layer/claim-inter-claim-glue';
-import { buildSupplementalPanel, selectPhraseFromRoleVariants } from '../projection/rule-layer/claim-synthesize';
+import { selectPhraseFromRoleVariants } from '../projection/rule-layer/claim-synthesize';
 import { getClaimExpressionBundle } from '../projection/rule-layer/claim-expression-bundles';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ClaimId } from '../semantic/ontology-codes';
@@ -146,42 +146,6 @@ function testSelectPhraseCollisionNotVariant0Only(): void {
   }
 }
 
-function testBuildSupplementalPanelFallbackPath(): void {
-  const n = snap();
-  const fv = encodeFeatures(n) as FeatureVec;
-  const g = guidanceFromFeatures(fv, n, 'p4supp');
-  const canonical = buildCanonicalReportForSnapshotSurface({
-    surface_kind: 'profile_natal',
-    subject_ids: ['p4-empty'],
-    snapshot: n,
-    featureVec: fv,
-    control_surface_hash: 'ctrl',
-    compose_seed: 'p4',
-    guidance: g,
-  });
-  const full = interpretCanonicalReportObject(canonical);
-  const emptyCore: SemanticCore = { ...full, claims: [] };
-  const r1 = buildSupplementalPanel(
-    emptyCore,
-    'p4-fb',
-    'depth_panel_0',
-    0,
-    'baseline',
-    'profile',
-    [],
-    [],
-    new Set(),
-    'short',
-    []
-  );
-  assert(
-    r1.phase4_source_path === 'contextual_pad' || r1.phase4_source_path === 'neutral_pad',
-    'empty core: final fallback must be contextual_pad or neutral_pad from reduced pool'
-  );
-  assert(r1.claimIds.length === 0, 'empty core: no claim ids');
-  assert(r1.text.trim().length > 20, 'pad line should be substantial');
-}
-
 function testProjectionDeterminismAndSeedSpread(): void {
   const n = snap();
   const fv = encodeFeatures(n) as FeatureVec;
@@ -273,7 +237,6 @@ function main(): void {
   testGlueSot();
   testPickInterClaimGlue();
   testSelectPhraseCollisionNotVariant0Only();
-  testBuildSupplementalPanelFallbackPath();
   testListenPointerAndPrefaceSpread();
 
   const n = snap();

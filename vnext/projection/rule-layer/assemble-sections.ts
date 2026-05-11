@@ -1056,6 +1056,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     };
   });
 
+  const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();
 
   const out: ProjectedExplanationSection[] = raw.map((sec, idx) => {
