@@ -18,6 +18,11 @@ export interface DirectoryEligibleUser {
   handle?: string;
   chartId: string;
   label?: string;
+  /** Phase 7A discovery profile (when Postgres migration applied). */
+  bio?: string;
+  avatarUrl?: string;
+  discoverableAs?: string;
+  lookingFor?: string;
 }
 
 export type StorageAdapter = {

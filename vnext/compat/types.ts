@@ -61,6 +61,11 @@ export interface User {
   email?: string;
   createdAt: string;
   updatedAt: string;
+  /** Phase 7A+ (Postgres); optional in memory adapter. */
+  bio?: string;
+  avatarUrl?: string;
+  discoverableAs?: string;
+  lookingFor?: string;
 }
 
 export interface Chart {

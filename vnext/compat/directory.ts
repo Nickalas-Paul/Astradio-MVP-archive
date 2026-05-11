@@ -12,6 +12,10 @@ export interface DirectoryUser {
   chartId: string;
   label?: string;
   locationLabel?: string;
+  bio?: string;
+  avatarUrl?: string;
+  discoverableAs?: string;
+  lookingFor?: string;
 }
 
 export interface SearchDirectoryResult {
@@ -66,6 +70,10 @@ async function getDirectoryUsers(): Promise<DirectoryUser[]> {
     handle: e.handle,
     chartId: e.chartId,
     label: e.label,
+    bio: e.bio,
+    avatarUrl: e.avatarUrl,
+    discoverableAs: e.discoverableAs,
+    lookingFor: e.lookingFor,
   }));
   users.sort((a, b) => {
     const d = a.displayName.localeCompare(b.displayName);
