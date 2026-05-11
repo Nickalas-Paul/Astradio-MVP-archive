@@ -47,6 +47,13 @@ const SECTION_RANK: Record<string, number> = {
   relational_weather_v1: 16,
 };
 
+const HOME_LIBRARY_SECTION_IDS = new Set([
+  'today_sky_anchor',
+  'emotional_weather',
+  'active_pattern',
+  'sonic_signature',
+]);
+
 function sectionRank(id: string): number {
   if (SECTION_RANK[id] !== undefined) return SECTION_RANK[id];
   return 200;
@@ -366,7 +373,7 @@ function mirrorToneTaggedBullets(
 export function runTonePassOnSections(sections: ProjectedExplanationSection[], core: SemanticCore): ProjectedExplanationSection[] {
   const linted = sections.map((sec) => {
     /** Synastry library excerpts + structural headers/separators; hedge injection mangles every paragraph. */
-    if (sec.id === 'group_key_interactions_v1') {
+    if (sec.id === 'group_key_interactions_v1' || HOME_LIBRARY_SECTION_IDS.has(sec.id)) {
       return sec;
     }
     const afterFlag = applyForbiddenToneFlags(sec.text, core);

@@ -343,6 +343,7 @@ export class ComposeAPI {
               tier,
               narrativePlan,
               aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
+              snapshot: architecture.snapshot,
               ...insightOpts,
             });
 

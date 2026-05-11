@@ -28,6 +28,7 @@ import {
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import {
+  assembleHomeDailySections,
   assembleLibraryPlanetaryAspects,
   assembleLibraryRelationalField,
   assembleLibraryRelationalWeather,
@@ -998,8 +999,17 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     return assembleOverlayActivationSections(options);
   }
 
+  const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
+  if (surface === 'daily' && snapshotMaybe) {
+    return assembleHomeDailySections({
+      snapshot: snapshotMaybe,
+      core,
+      surface,
+    });
+  }
+
   // Phase 4A: template infrastructure removed.
-  // Part B will add the HOME daily library assembly path.
+  // HOME daily returns above through Phase 4B library assembly.
   const raw: ProjectedExplanationSection[] = [];
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
@@ -1168,7 +1178,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     });
   }
 
-  const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
   const placementSections =
     surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
 
