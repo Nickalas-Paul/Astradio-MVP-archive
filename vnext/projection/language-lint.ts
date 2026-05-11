@@ -55,7 +55,8 @@ export function lintParagraph(text: string): { text: string; violations: string[
 
   if (!HEDGE_RE.test(t)) {
     violations.push('missing_hedge');
-    t = `${LINT_HEDGE_PREFIX}${t}`;
+    // Phase 5: Hedge prefix removed.
+    // t = `${LINT_HEDGE_PREFIX}${t}`;
   }
 
   return { text: t, violations };
