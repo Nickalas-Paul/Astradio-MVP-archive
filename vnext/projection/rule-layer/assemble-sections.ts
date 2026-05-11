@@ -32,13 +32,9 @@ import {
   assembleLibraryRelationalField,
   assembleLibraryRelationalWeather,
 } from './library-sections';
-import { lineForTemplate, idMap, temporalIntegrationLine, type TemplateContext } from './template-lines';
 import { classifyTopology } from './topology-classify';
 import { densityForSectionId } from './validate-projection';
 import {
-  applyAnchorAndTemporalToSectionBody,
-  applyAnchorAndTemporalToTaggedSection,
-  assertTemplateHasNoLegacyAnchor,
   reducedPadPool,
   repairPhase2ParagraphLoads,
   repairTaggedPhase2ParagraphLoads,
@@ -49,7 +45,6 @@ import { sortUniqueClaimIds } from './section-ownership';
 import {
   reconstructTaggedSectionBody,
   taggedSectionBodyFromText,
-  taggedSectionFromTemplateLine,
 } from '../tagged-text';
 import {
   buildAspectKey,
@@ -330,28 +325,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   }
 
   return base;
-}
-
-export function buildEmphasisRawSections(
-  core: SemanticCore,
-  seed: string,
-  templateCtx: TemplateContext
-): ProjectedExplanationSection[] {
-  const out: ProjectedExplanationSection[] = [];
-  let i = 0;
-  for (const tid of core.text.emphasis_order) {
-    const id = idMap[tid];
-    if (!id) continue;
-    const { title, text, bullets } = lineForTemplate(tid, core, `${seed}:${i++}`, templateCtx);
-    out.push({
-      id,
-      title,
-      text,
-      bullets,
-      meta: { tagged: taggedSectionFromTemplateLine(text, bullets) },
-    });
-  }
-  return out;
 }
 
 export function buildFeedSections(
@@ -1014,7 +987,7 @@ function buildSynastryLibrarySynthesisSectionBodies(
 }
 
 export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedExplanationSection[] {
-  const { core, seed, options, tierEff, surface, temporalBucket } = params;
+  const { core, seed, options, tierEff, surface } = params;
   const schema = SURFACE_SCHEMAS[surface];
 
   if (surface === 'feed') {
@@ -1025,36 +998,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     return assembleOverlayActivationSections(options);
   }
 
-  const templateCtx: TemplateContext = {
-    suppressAstrologyTitles: surface === 'campaign',
-    topologyClass: classifyTopology(options),
-    temporalBucket,
-    surface,
-  };
-  const rawBuilt = buildEmphasisRawSections(core, seed, templateCtx);
-  const temporalLine =
-    temporalBucket !== 'static' ? temporalIntegrationLine(temporalBucket, `${seed}:anch-temp`) : null;
-  const raw = rawBuilt.map((sec) => {
-    assertTemplateHasNoLegacyAnchor(sec.text, sec.id);
-    const merged = applyAnchorAndTemporalToSectionBody(sec.id, sec.text, templateCtx, seed, temporalLine);
-    const mergedTagged = applyAnchorAndTemporalToTaggedSection(
-      sec.id,
-      sec.meta!.tagged!,
-      templateCtx,
-      temporalLine
-    );
-    if (merged !== reconstructTaggedSectionBody(mergedTagged)) {
-      throw new Error(`[Phase3] anchor/temporal text mismatch ${sec.id}`);
-    }
-    return {
-      ...sec,
-      text: repairPhase2ParagraphLoads(merged, 'template', sec.id),
-      meta: {
-        ...sec.meta,
-        tagged: repairTaggedPhase2ParagraphLoads(mergedTagged, 'template', sec.id),
-      },
-    };
-  });
+  // Phase 4A: template infrastructure removed.
+  // Part B will add the HOME daily library assembly path.
+  const raw: ProjectedExplanationSection[] = [];
 
   const densityDefault = densityForSurfaceBaseline(schema.baselineDensityDefault, tierEff);
   const reportPadUsed = new Set<string>();

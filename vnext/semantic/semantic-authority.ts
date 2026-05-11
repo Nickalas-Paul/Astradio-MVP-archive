@@ -18,7 +18,6 @@ import {
   type DerivationCode,
   type RelationalBandCode,
   type CrossChartDeltaCode,
-  type SectionTemplateId,
   type ToneFlagCode,
   type TempoBandCode,
   type DensityBandCode,
@@ -325,33 +324,10 @@ function relationalBlockFromWeather(w: NonNullable<CanonicalReportObject['relati
   return { activation_profile: bands, cross_chart_delta_codes: deltas };
 }
 
-function textEnvelopeForSurface(surface: CanonicalReportObject['surface_kind']): TextProjectionEnvelope {
-  if (surface === 'home_daily') {
-    const order: SectionTemplateId[] = [
-      'SECTION_SKY_SUMMARY',
-      'SECTION_PERSONAL_EMPHASIS',
-      'SECTION_LIKELY_EXPRESSIONS',
-      'SECTION_WATCH_FORS',
-      'SECTION_INTEGRATION',
-      'SECTION_MUSIC_TRANSLATION',
-    ];
-    return { section_eligibility: order, emphasis_order: order, forbidden_tone_flags: [] };
-  }
-  if (surface === 'comparison_pair') {
-    const order: SectionTemplateId[] = ['SECTION_COMPARISON_SIGNATURES', 'SECTION_COMPARISON_BRIDGE', 'SECTION_MUSICAL'];
-    return { section_eligibility: order, emphasis_order: order, forbidden_tone_flags: [] };
-  }
-  if (surface === 'overlay_aggregate') {
-    const order: SectionTemplateId[] = [
-      'SECTION_AGGREGATE_FIELD',
-      'SECTION_SIGNATURES',
-      'SECTION_SIGNIFICANCE',
-      'SECTION_MUSICAL',
-    ];
-    return { section_eligibility: order, emphasis_order: order, forbidden_tone_flags: [] };
-  }
-  const order: SectionTemplateId[] = ['SECTION_SIGNATURES', 'SECTION_SIGNIFICANCE', 'SECTION_MUSICAL'];
-  return { section_eligibility: order, emphasis_order: order, forbidden_tone_flags: [] };
+function textEnvelopeForSurface(): TextProjectionEnvelope {
+  // Phase 4A: template infrastructure removed. Surface-specific section
+  // assembly now lives outside SemanticCore.text; tone flags are added later.
+  return { section_eligibility: [], emphasis_order: [], forbidden_tone_flags: [] };
 }
 
 function toneFlagsFromSig(sig: ChartStructuralSignals): ToneFlagCode[] {
@@ -492,23 +468,11 @@ export function interpretCanonicalReportObject(o: CanonicalReportObject): Semant
     claim_edges: [],
   };
 
-  const textBase = textEnvelopeForSurface(o.surface_kind);
-  let text: TextProjectionEnvelope = {
+  const textBase = textEnvelopeForSurface();
+  const text: TextProjectionEnvelope = {
     ...textBase,
     forbidden_tone_flags: toneFlagsFromSig(anchorSig),
   };
-  if (o.relational_weather) {
-    const order = [...text.emphasis_order];
-    const mi = order.indexOf('SECTION_MUSICAL');
-    if (mi >= 0) order.splice(mi, 0, 'SECTION_RELATIONAL_WEATHER');
-    else order.push('SECTION_RELATIONAL_WEATHER');
-    const elig = new Set([...text.section_eligibility, 'SECTION_RELATIONAL_WEATHER' as SectionTemplateId]);
-    text = {
-      section_eligibility: [...elig],
-      emphasis_order: order,
-      forbidden_tone_flags: text.forbidden_tone_flags,
-    };
-  }
   const audio = audioEnvelopeFromSig(anchorSig);
 
   const provenance = buildProvenance(o.object_identity_hash, claims);

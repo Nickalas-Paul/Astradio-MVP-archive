@@ -71,15 +71,6 @@ export function taggedSectionBodyFromBlocks(blocks: { text: string; provenance: 
   return { paragraphs };
 }
 
-/** Template `lineForTemplate` body + optional bullets (all `template` provenance). */
-export function taggedSectionFromTemplateLine(text: string, bullets?: string[]): TaggedSectionBody {
-  const body = taggedSectionBodyFromText(text, 'template');
-  if (bullets?.length) {
-    body.bulletBlocks = bullets.map((b) => taggedSectionBodyFromText(b, 'template'));
-  }
-  return body;
-}
-
 export function mergeTaggedSectionBodiesVertical(a: TaggedSectionBody, b: TaggedSectionBody): TaggedSectionBody {
   const bulletBlocks =
     a.bulletBlocks?.length ? a.bulletBlocks : b.bulletBlocks?.length ? b.bulletBlocks : undefined;

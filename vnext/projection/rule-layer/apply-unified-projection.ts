@@ -16,10 +16,8 @@
 import type { SemanticCore } from '../../semantic/semantic-core';
 import type { ProjectionOptions, ProjectedExplanationSection } from '../projection-types';
 import { normalizeProjectionInput } from './normalize-input';
-import { classifyTopology } from './topology-classify';
 import { classifyTemporalVoice } from './temporal-classify';
-import type { TemplateContext } from './template-lines';
-import { buildEmphasisRawSections, assemblePhaseDSections } from './assemble-sections';
+import { assemblePhaseDSections } from './assemble-sections';
 import { applyCompositionPhase4 } from './composition-phase4';
 import { runTonePassOnSections } from './tone-pass';
 import { collapseRepetitionPhase0 } from './repetition-collapse-phase0';
@@ -29,8 +27,8 @@ import { assertAllSectionsTagged } from '../tagged-text';
 import { applySurfaceExpressionRules } from './surface-expression-engine';
 
 /**
- * Full projection: **Proj:** Phase D (legacy `phaseD` flag) by default — full post-template pipeline, not a product phase.
- * Set options.phaseD === false for raw template-only output (no tone/validation).
+ * Full projection: **Proj:** Phase D (legacy `phaseD` flag) by default — full projection pipeline, not a product phase.
+ * Raw template-only output was removed in Phase 4A.
  */
 export function applyUnifiedProjection(
   core: SemanticCore,
@@ -43,20 +41,8 @@ export function applyUnifiedProjection(
   }
 
   if (!options || options.phaseD === false) {
-    const surface = options?.surface ?? 'profile';
-    const ctx: TemplateContext = {
-      suppressAstrologyTitles: surface === 'campaign',
-      topologyClass: classifyTopology(
-        (options ?? {
-          surface,
-          phaseD: false,
-          tier: 'baseline',
-        }) as ProjectionOptions
-      ),
-      temporalBucket: classifyTemporalVoice(core),
-      surface,
-    };
-    return buildEmphasisRawSections(core, seed, ctx);
+    // Phase 4A: raw template mode removed.
+    return [];
   }
 
   const norm = normalizeProjectionInput(core, seed, options);

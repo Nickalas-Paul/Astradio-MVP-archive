@@ -23,7 +23,6 @@ import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ClaimId } from '../semantic/ontology-codes';
 import type { SemanticClaim, SemanticCore } from '../semantic/semantic-core';
 import { applyConnectionPreface } from '../projection/rule-layer/connection-preface';
-import { listenPointerLine } from '../projection/rule-layer/template-lines';
 
 /** Compiled to `dist/vnext/vnext/scripts/` — four levels up is repo root. */
 const GOLDEN_PATH = path.join(__dirname, '../../../..', 'vnext', 'eval', 'phase4-expression-golden-hashes.json');
@@ -214,12 +213,7 @@ function testRepetitionAcrossSections(sections: ReturnType<typeof projectTextFro
   assert(worst <= 3, `repetition audit: long norms should not appear >3 times in one pass (worst=${worst})`);
 }
 
-function testListenPointerAndPrefaceSpread(): void {
-  const s = new Set<string>();
-  for (let i = 0; i < 5; i++) {
-    s.add(listenPointerLine(`lp-seed-${i}`, 'profile'));
-  }
-  assert(s.size >= 2, 'listenPointerLine: multiple seeds should yield ≥2 pointer variants');
+function testPrefaceSpread(): void {
   const pre = new Set<string>();
   for (let m = 0; m < 8; m++) {
     const [first] = applyConnectionPreface([], {
@@ -237,7 +231,7 @@ function main(): void {
   testGlueSot();
   testPickInterClaimGlue();
   testSelectPhraseCollisionNotVariant0Only();
-  testListenPointerAndPrefaceSpread();
+  testPrefaceSpread();
 
   const n = snap();
   const fv = encodeFeatures(n) as FeatureVec;

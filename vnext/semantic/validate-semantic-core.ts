@@ -31,10 +31,6 @@ export function validateSemanticCore(core: SemanticCore): void {
       throw new SemanticCoreValidationError('claim_edges reference unknown claim_id');
     }
   }
-  const elig = new Set(core.text.section_eligibility);
-  for (const s of core.text.emphasis_order) {
-    if (!elig.has(s)) {
-      throw new SemanticCoreValidationError('emphasis_order must be subset of section_eligibility');
-    }
-  }
+  // Phase 4A: emphasis_order is deprecated with template infrastructure removal.
+  // It should remain empty, but validation no longer treats it as an assembly contract.
 }
