@@ -89,6 +89,22 @@ function isFusionParams(value: unknown): value is { wA: number; wB: number } {
   );
 }
 
+/** JSON `user` object for profile routes (Phase 7A: bio, discoverableAs, lookingFor, …). */
+function profileUserPayload(u: import('./types').User & { handle?: string }): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    id: u.id,
+    displayName: u.displayName,
+    handle: u.handle,
+  };
+  if (u.discoverable !== undefined) payload.discoverable = u.discoverable;
+  if (u.show_in_feed !== undefined) payload.show_in_feed = u.show_in_feed;
+  if (u.bio !== undefined && u.bio !== '') payload.bio = u.bio;
+  if (u.avatarUrl !== undefined && u.avatarUrl !== '') payload.avatarUrl = u.avatarUrl;
+  if (u.discoverableAs !== undefined) payload.discoverableAs = u.discoverableAs;
+  if (u.lookingFor !== undefined && u.lookingFor !== '') payload.lookingFor = u.lookingFor;
+  return payload;
+}
+
 function parseTransitInput(value: unknown): { date: string; time: string; lat: number; lon: number; timezone?: string } | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const candidate = value as Record<string, unknown>;
@@ -551,10 +567,7 @@ export function createCompatRouter(): import('express').Router {
       if (!u) return res.status(404).json({ error: 'User not found' });
       const chartId = await storage.getUserPrimaryChart(userId) || storage.DEFAULT_PROFILE_CHART_ID;
       const chart = await getChartById(chartId);
-      const userPayload: Record<string, unknown> = { id: u.id, displayName: u.displayName, handle: u.handle };
-      const uExt = u as unknown as { discoverable?: boolean; show_in_feed?: boolean };
-      if (uExt.discoverable !== undefined) userPayload.discoverable = uExt.discoverable;
-      if (uExt.show_in_feed !== undefined) userPayload.show_in_feed = uExt.show_in_feed;
+      const userPayload = profileUserPayload(u);
       return res.status(200).json({
         user: userPayload,
         primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
@@ -618,8 +631,9 @@ export function createCompatRouter(): import('express').Router {
         }
         throw e;
       }
+      const refreshed = await storage.getUser(proxyUserId);
       return res.status(201).json({
-        user: { id: u.id, displayName: u.displayName, handle: (u as { handle?: string }).handle },
+        user: profileUserPayload(refreshed ?? u),
         primaryChart: primaryChart
           ? {
               id: primaryChart.id,
@@ -652,11 +666,7 @@ export function createCompatRouter(): import('express').Router {
       if (!u) return res.status(404).json({ error: 'User not found' });
       await storage.updateUserDiscoverability(userId.trim(), { discoverable, show_in_feed });
       const updated = await storage.getUser(userId.trim());
-      const userPayload: Record<string, unknown> = { id: updated!.id, displayName: updated!.displayName, handle: (updated as { handle?: string }).handle };
-      const uExt = updated as unknown as { discoverable?: boolean; show_in_feed?: boolean };
-      if (uExt?.discoverable !== undefined) userPayload.discoverable = uExt.discoverable;
-      if (uExt?.show_in_feed !== undefined) userPayload.show_in_feed = uExt.show_in_feed;
-      return res.status(200).json({ user: userPayload });
+      return res.status(200).json({ user: profileUserPayload(updated!) });
     } catch (e: any) {
       console.error('[compat] PATCH /profile', e);
       return res.status(500).json({ error: e?.message || 'Failed to update profile' });
@@ -760,7 +770,7 @@ export function createCompatRouter(): import('express').Router {
       const chartId = await storage.getUserPrimaryChart(u.id) || storage.DEFAULT_PROFILE_CHART_ID;
       const chart = await getChartById(chartId);
       return res.status(200).json({
-        user: { id: u.id, displayName: u.displayName, handle: u.handle },
+        user: profileUserPayload(u),
         primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
       });
     } catch (e: any) {

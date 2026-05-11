@@ -61,6 +61,9 @@ export interface User {
   email?: string;
   createdAt: string;
   updatedAt: string;
+  /** Phase 8G (Postgres). */
+  discoverable?: boolean;
+  show_in_feed?: boolean;
   /** Phase 7A+ (Postgres); optional in memory adapter. */
   bio?: string;
   avatarUrl?: string;
