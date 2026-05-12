@@ -3,7 +3,7 @@
  * No independent scoring logic lives here.
  */
 
-import { getChartById } from './chart-store';
+import { getChartById, getChartSnapshotCached } from './chart-store';
 import * as storage from './storage';
 import type { DirectoryEligibleUser } from './storage';
 import { computeSynastryAspects } from '../synastry/synastry-compute';
@@ -19,7 +19,7 @@ import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
-import { fetchChartSnapshot } from '../core/architecture-engine';
+import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
@@ -76,20 +76,8 @@ function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchRe
   ];
 }
 
-async function loadChartSnapshot(chartId: string): Promise<EphemerisSnapshot> {
-  const chart = await getChartById(chartId);
-  if (!chart) throw new Error(`Chart not found: ${chartId}`);
-  return fetchChartSnapshot({
-    date: chart.date,
-    time: chart.time,
-    lat: chart.lat,
-    lon: chart.lon,
-    timezone: chart.timezone || 'UTC',
-  });
-}
-
 async function computeMatchSynastry(chartIdA: string, chartIdB: string): Promise<DirectedSnapshotAspect[]> {
-  const [snapA, snapB] = await Promise.all([loadChartSnapshot(chartIdA), loadChartSnapshot(chartIdB)]);
+  const [snapA, snapB] = await Promise.all([getChartSnapshotCached(chartIdA), getChartSnapshotCached(chartIdB)]);
   return computeSynastryAspects({
     snapshotsOrdered: [snapA, snapB],
     mode: 'pair',
@@ -133,6 +121,85 @@ async function generateCompatibilityBullets(
   };
 }
 
+/** Longitude for a core body from an ephemeris snapshot (lowercase names). */
+function lonForBody(snapshot: EphemerisSnapshot, body: string): number | null {
+  const key = body.toLowerCase();
+  for (const p of snapshot.planets || []) {
+    if (!p?.name) continue;
+    if (String(p.name).toLowerCase() !== key) continue;
+    if (typeof p.lon !== 'number' || !Number.isFinite(p.lon)) return null;
+    return p.lon;
+  }
+  return null;
+}
+
+/**
+ * Score an aspect type for relationship compatibility (higher = more harmonious).
+ */
+function scoreAspectType(aspectType: string | null | undefined): number {
+  if (!aspectType) return 0;
+  const scores: Record<string, number> = {
+    trine: 5,
+    sextile: 4,
+    conjunction: 3,
+    opposition: 2,
+    square: 1,
+  };
+  return scores[aspectType] ?? 0;
+}
+
+/**
+ * Fast Moon/Venus cross-chart screen (geometry only, no full synastry).
+ * `mode` nudges weights: friend → Moon emphasis; lover → Venus / cross emphasis.
+ */
+function scoreMoonVenusCompatibility(
+  userSnapshot: EphemerisSnapshot,
+  candidateSnapshot: EphemerisSnapshot,
+  mode: RelationalIntent
+): number {
+  const userMoon = lonForBody(userSnapshot, 'moon');
+  const userVenus = lonForBody(userSnapshot, 'venus');
+  const candMoon = lonForBody(candidateSnapshot, 'moon');
+  const candVenus = lonForBody(candidateSnapshot, 'venus');
+
+  if (userMoon == null || userVenus == null || candMoon == null || candVenus == null) {
+    return 0;
+  }
+
+  let total = 0;
+
+  const moonMoon = findBestDirectedCrossAspect(userMoon, candMoon);
+  if (moonMoon) {
+    let w = scoreAspectType(moonMoon.type) * 1.2;
+    if (mode === 'friend') w *= 1.1;
+    total += w;
+  }
+
+  const venusVenus = findBestDirectedCrossAspect(userVenus, candVenus);
+  if (venusVenus) {
+    let w = scoreAspectType(venusVenus.type);
+    if (mode === 'lover') w *= 1.15;
+    total += w;
+  }
+
+  const moonVenus = findBestDirectedCrossAspect(userMoon, candVenus);
+  if (moonVenus) {
+    let w = scoreAspectType(moonVenus.type) * 1.1;
+    if (mode === 'lover') w *= 1.05;
+    total += w;
+  }
+
+  const venusMoon = findBestDirectedCrossAspect(userVenus, candMoon);
+  if (venusMoon) {
+    let w = scoreAspectType(venusMoon.type) * 1.1;
+    if (mode === 'lover') w *= 1.05;
+    total += w;
+  }
+
+  return total;
+}
+
+const MAX_SYNASTRY_COMPUTATIONS = 10;
 async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligibleUser[]> {
   await storage.ensureDefaultProfileChart();
   let rows = await storage.listDirectoryEligibleUsers();
@@ -175,41 +242,90 @@ export async function getCompatMatches(
     return discoverableAs === visibilityType;
   });
 
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  console.log(`[matches] Pre-filtering ${candidates.length} candidates by Moon/Venus compatibility`);
+
+  let userSnapshot: EphemerisSnapshot;
+  try {
+    userSnapshot = await getChartSnapshotCached(chartId);
+  } catch (err) {
+    console.error('[matches] Failed to load user snapshot for pre-filtering:', err);
+    throw new Error('Unable to load your chart data');
+  }
+
+  const scoredCandidates = await Promise.all(
+    candidates.map(async (candidate) => {
+      let compatScore = 0;
+      try {
+        const candidateSnapshot = await getChartSnapshotCached(candidate.chartId);
+        compatScore = scoreMoonVenusCompatibility(userSnapshot, candidateSnapshot, mode);
+      } catch (err) {
+        console.warn(`[matches] Failed to score ${candidate.chartId}:`, err);
+        compatScore = 0;
+      }
+      return { ...candidate, moonVenusScore: compatScore };
+    })
+  );
+
+  scoredCandidates.sort((a, b) => {
+    if (b.moonVenusScore !== a.moonVenusScore) return b.moonVenusScore - a.moonVenusScore;
+    return a.chartId.localeCompare(b.chartId);
+  });
+
+  const topCandidates = scoredCandidates.slice(0, MAX_SYNASTRY_COMPUTATIONS);
+
+  console.log(
+    `[matches] Top ${topCandidates.length} by Moon/Venus score:`,
+    topCandidates.map((c) => `${c.displayName || c.userId} (${c.moonVenusScore.toFixed(1)})`).join(', ')
+  );
+
   const results: CompatMatchResult[] = [];
   const intentForBullets = mode === 'lover' ? 'partner' : 'friend';
 
-  for (const cand of candidates) {
-    const computed = await computeCompatibilitySystem({
-      chartIds: [chartId, cand.chartId],
-      relationshipBindingId: null,
-    });
-    const score = canonicalIntentRank(computed.scoring, mode);
-    const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
-    const explanationProfile = buildCompatibilityExplanationProfile({
-      field: computed.field,
-      scoring: computed.scoring,
-      classification: computed.classification,
-      intent: mode,
-    });
-    results.push({
-      userId: cand.userId,
-      chartId: cand.chartId,
-      displayName: cand.displayName || 'User',
-      score,
-      facets: facetsFromScoring(computed.scoring),
-      rationale: explanationProfile.intentFitSummary,
-      explanationProfile: {
-        ...explanationProfile,
-        primarySupports: [bullets.forYou],
-        secondarySupports: [bullets.forThem],
-        tensionsOrLimits: [bullets.together],
-      },
-      lastUpdated: new Date().toISOString(),
-      compatibilityFieldHash: computed.field.object_identity_hash,
-      bio: cand.bio,
-      avatarUrl: cand.avatarUrl,
-      lookingFor: cand.lookingFor,
-    });
+  for (let i = 0; i < topCandidates.length; i++) {
+    const cand = topCandidates[i]!;
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    try {
+      const computed = await computeCompatibilitySystem({
+        chartIds: [chartId, cand.chartId],
+        relationshipBindingId: null,
+      });
+      const score = canonicalIntentRank(computed.scoring, mode);
+      const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
+      const explanationProfile = buildCompatibilityExplanationProfile({
+        field: computed.field,
+        scoring: computed.scoring,
+        classification: computed.classification,
+        intent: mode,
+      });
+      results.push({
+        userId: cand.userId,
+        chartId: cand.chartId,
+        displayName: cand.displayName || 'User',
+        score,
+        facets: facetsFromScoring(computed.scoring),
+        rationale: explanationProfile.intentFitSummary,
+        explanationProfile: {
+          ...explanationProfile,
+          primarySupports: [bullets.forYou],
+          secondarySupports: [bullets.forThem],
+          tensionsOrLimits: [bullets.together],
+        },
+        lastUpdated: new Date().toISOString(),
+        compatibilityFieldHash: computed.field.object_identity_hash,
+        bio: cand.bio,
+        avatarUrl: cand.avatarUrl,
+        lookingFor: cand.lookingFor,
+      });
+      console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(score * 100).toFixed(0)}%`);
+    } catch (err) {
+      console.error(`[matches] Failed to compute synastry for ${cand.chartId}:`, err);
+    }
   }
 
   results.sort((a, b) => {

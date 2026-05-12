@@ -3,6 +3,8 @@
  * Used by personality, compat, and chart CRUD. Delegates to storage (async).
  */
 
+import type { EphemerisSnapshot } from '../contracts';
+import { fetchChartSnapshot } from '../core/architecture-engine';
 import type { Chart, ChartBInline } from './types';
 import * as storage from './storage';
 
@@ -25,6 +27,31 @@ export type ResolveChartInput =
 
 export async function getChartById(chartId: string): Promise<Chart | undefined> {
   return storage.getChart(chartId);
+}
+
+/**
+ * Ephemeris snapshot for a persisted chart: read adapter cache when present, else compute via engine and persist.
+ */
+export async function getChartSnapshotCached(chartId: string): Promise<EphemerisSnapshot> {
+  const adapter = storage.getStorage();
+  const row = adapter.getChartWithSnapshot ? await adapter.getChartWithSnapshot(chartId) : null;
+  const raw = row?.snapshot_json;
+  if (raw != null && typeof raw === 'object') {
+    return raw as EphemerisSnapshot;
+  }
+  const chart = await getChartById(chartId);
+  if (!chart) throw new Error(`Chart not found: ${chartId}`);
+  const snapshot = await fetchChartSnapshot({
+    date: chart.date,
+    time: chart.time,
+    lat: chart.lat,
+    lon: chart.lon,
+    timezone: chart.timezone || 'UTC',
+  });
+  if (adapter.updateChartSnapshot) {
+    await adapter.updateChartSnapshot(chartId, snapshot).catch(() => {});
+  }
+  return snapshot;
 }
 
 export async function createChart(input: ChartInput, ownerId?: string): Promise<Chart> {

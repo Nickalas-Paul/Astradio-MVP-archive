@@ -4,6 +4,7 @@
  * Call setStorage(adapter) before createCompatRouter() when using Postgres.
  */
 
+import type { EphemerisSnapshot } from '../contracts';
 import type { User, Chart, Comparison } from './types';
 import type { MatchCandidate } from './storage-adapter-types';
 export type { MatchCandidate } from './storage-adapter-types';
@@ -54,6 +55,9 @@ export type StorageAdapter = {
   listDirectoryEligibleUsers?: () => Promise<DirectoryEligibleUser[]>;
   /** Phase 8G: update discoverability / show_in_feed. Optional. */
   updateUserDiscoverability?: (userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }) => Promise<void>;
+  /** Ephemeris snapshot row (Postgres) or cache probe (memory); used by discovery pre-filter. */
+  getChartWithSnapshot?: (chartId: string) => Promise<{ snapshot_json?: EphemerisSnapshot | null } | null | undefined>;
+  updateChartSnapshot?: (chartId: string, snapshot: EphemerisSnapshot) => Promise<void>;
 };
 
 // Default to in-memory adapter in all runtimes (including Next).

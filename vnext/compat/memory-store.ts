@@ -3,6 +3,8 @@
  * All methods return Promises; data is lost on restart.
  */
 
+import type { EphemerisSnapshot } from '../contracts';
+import { fetchChartSnapshot } from '../core/architecture-engine';
 import type { User, Chart, Comparison } from './types';
 import type { MatchCandidate } from './storage-adapter-types';
 
@@ -21,6 +23,23 @@ const users = new Map<string, User & { handle?: string }>();
 const charts = new Map<string, Chart>();
 const comparisons = new Map<string, Comparison>();
 const userPrimaryChart = new Map<string, string>();
+/** In-memory ephemeris snapshot cache (parity with Postgres snapshot_json). */
+const chartEphemerisSnapshots = new Map<string, EphemerisSnapshot>();
+
+async function warmChartEphemerisSnapshot(chart: Chart): Promise<void> {
+  try {
+    const snapshot = await fetchChartSnapshot({
+      date: chart.date,
+      time: chart.time,
+      lat: chart.lat,
+      lon: chart.lon,
+      timezone: chart.timezone || 'UTC',
+    });
+    chartEphemerisSnapshots.set(chart.id, snapshot);
+  } catch {
+    // leave uncached; getChartSnapshotCached will compute on demand
+  }
+}
 
 export const DEFAULT_PROFILE_CHART_ID = 'chart_profile_default';
 
@@ -125,7 +144,20 @@ export async function createChart(input: {
     updatedAt: now(),
   };
   charts.set(id, chart);
+  await warmChartEphemerisSnapshot(chart);
   return chart;
+}
+
+export async function getChartWithSnapshot(
+  chartId: string
+): Promise<{ snapshot_json: EphemerisSnapshot | null } | null> {
+  if (!charts.has(chartId)) return null;
+  const snap = chartEphemerisSnapshots.get(chartId);
+  return { snapshot_json: snap ?? null };
+}
+
+export async function updateChartSnapshot(chartId: string, snapshot: EphemerisSnapshot): Promise<void> {
+  chartEphemerisSnapshots.set(chartId, snapshot);
 }
 
 export async function getChart(id: string): Promise<Chart | undefined> {
@@ -176,6 +208,8 @@ export async function updateChartBirthFields(
     updatedAt: now(),
   };
   charts.set(chartId, updated);
+  chartEphemerisSnapshots.delete(chartId);
+  await warmChartEphemerisSnapshot(updated);
   return updated;
 }
 
@@ -222,6 +256,7 @@ export async function ensureDefaultProfileChart(): Promise<Chart> {
     updatedAt: now(),
   };
   charts.set(DEFAULT_PROFILE_CHART_ID, chart);
+  await warmChartEphemerisSnapshot(chart);
   return chart;
 }
 
