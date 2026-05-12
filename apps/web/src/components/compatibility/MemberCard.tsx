@@ -15,11 +15,11 @@ export interface MemberCardMember {
     primarySupports: string[];
     secondarySupports: string[];
     tensionsOrLimits: string[];
-    contrastByIntent: {
+    contrastByIntent?: {
       friend: 'high' | 'moderate' | 'low';
       lover: 'high' | 'moderate' | 'low';
     };
-    anchors: string[];
+    anchors?: string[];
   };
 }
 
@@ -69,9 +69,6 @@ export function MemberCard({ member, seekerChartId, band }: MemberCardProps) {
             {member.explanationProfile.secondarySupports.slice(0, 2).map((line) => (
               <p key={`${member.chartId}-secondary-${line}`}>- {line}</p>
             ))}
-            {member.explanationProfile.anchors.length > 0 && (
-              <p>Anchors: {member.explanationProfile.anchors.join(', ')}</p>
-            )}
           </div>
         )}
         {member.chartId && (

@@ -63,7 +63,6 @@ export function CompatibilitySection({
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
   const [expandedChartId, setExpandedChartId] = useState<string | null>(null);
-  const [expandedAnchorsForChartId, setExpandedAnchorsForChartId] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
@@ -81,7 +80,6 @@ export function CompatibilitySection({
   useEffect(() => {
     setUserTriggered(false);
     setExpandedChartId(null);
-    setExpandedAnchorsForChartId(null);
   }, [chartId]);
 
   useEffect(() => {
@@ -196,19 +194,6 @@ export function CompatibilitySection({
     } finally {
       setRequestBusy(null);
     }
-  };
-
-  const groupedAnchorRows = (anchors: string[]): string[] => {
-    const groups = new Map<string, number>();
-    for (const raw of anchors) {
-      const value = String(raw || '').trim();
-      if (!value) continue;
-      const prefix = value.includes(':') ? value.split(':')[0] : value;
-      groups.set(prefix, (groups.get(prefix) ?? 0) + 1);
-    }
-    return Array.from(groups.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([k, n]) => `${k} (${n})`);
   };
 
   const intentRow =
@@ -402,43 +387,17 @@ export function CompatibilitySection({
                   ) : null}
 
                   {expandedChartId === match.chartId ? (
-                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-xs text-subtext space-y-2">
-                      <p className="font-medium text-text">{ep.intentFitSummary || match.rationale}</p>
-                      <div>
-                        <p className="font-medium text-text">Intent contrast</p>
-                        <p>Friend: {ep.contrastByIntent.friend}</p>
-                        <p>Partner: {ep.contrastByIntent.lover}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-text">Anchors</p>
-                        {(() => {
-                          const anchors = Array.isArray(ep.anchors) ? ep.anchors : [];
-                          const grouped = groupedAnchorRows(anchors);
-                          const expandedAnchors = expandedAnchorsForChartId === match.chartId;
-                          const visible = expandedAnchors ? grouped : grouped.slice(0, 4);
-                          return (
-                            <div className="space-y-1">
-                              {visible.length > 0 ? (
-                                <p>{visible.join(', ')}</p>
-                              ) : (
-                                <p>No anchors available</p>
-                              )}
-                              {grouped.length > 4 ? (
-                                <button
-                                  type="button"
-                                  className="text-emerald hover:underline"
-                                  onClick={() =>
-                                    setExpandedAnchorsForChartId((prev) =>
-                                      prev === match.chartId ? null : match.chartId
-                                    )
-                                  }
-                                >
-                                  {expandedAnchors ? 'Show fewer anchors' : `Show all anchors (${grouped.length})`}
-                                </button>
-                              ) : null}
-                            </div>
-                          );
-                        })()}
+                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-sm text-subtext space-y-2">
+                      <div className="space-y-1">
+                        <p>
+                          <span className="font-medium text-text">Why you match them:</span> {bullets.forThem}
+                        </p>
+                        <p>
+                          <span className="font-medium text-text">Why they match you:</span> {bullets.forYou}
+                        </p>
+                        <p>
+                          <span className="font-medium text-text">Why this works:</span> {bullets.together}
+                        </p>
                       </div>
                     </div>
                   ) : null}

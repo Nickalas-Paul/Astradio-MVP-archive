@@ -14,11 +14,11 @@ export interface ClusterMember {
     primarySupports: string[];
     secondarySupports: string[];
     tensionsOrLimits: string[];
-    contrastByIntent: {
+    contrastByIntent?: {
       friend: 'high' | 'moderate' | 'low';
       lover: 'high' | 'moderate' | 'low';
     };
-    anchors: string[];
+    anchors?: string[];
   };
 }
 

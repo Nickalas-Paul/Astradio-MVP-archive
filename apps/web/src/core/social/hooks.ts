@@ -463,10 +463,6 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
   const m = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const epRaw = m.explanationProfile;
   const baseEp = epRaw && typeof epRaw === 'object' ? (epRaw as Record<string, unknown>) : {};
-  const contrastRaw =
-    baseEp.contrastByIntent && typeof baseEp.contrastByIntent === 'object'
-      ? (baseEp.contrastByIntent as Record<string, unknown>)
-      : {};
   const bucket = (v: unknown): 'high' | 'moderate' | 'low' => {
     const s = String(v || '').toLowerCase();
     return s === 'high' || s === 'moderate' || s === 'low' ? s : 'moderate';
@@ -478,11 +474,15 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
     primarySupports: Array.isArray(baseEp.primarySupports) ? baseEp.primarySupports.map(String) : [],
     secondarySupports: Array.isArray(baseEp.secondarySupports) ? baseEp.secondarySupports.map(String) : [],
     tensionsOrLimits: Array.isArray(baseEp.tensionsOrLimits) ? baseEp.tensionsOrLimits.map(String) : [],
-    contrastByIntent: {
-      friend: bucket(contrastRaw.friend),
-      lover: bucket(contrastRaw.lover),
-    },
-    anchors: Array.isArray(baseEp.anchors) ? baseEp.anchors.map(String) : [],
+    ...(baseEp.contrastByIntent && typeof baseEp.contrastByIntent === 'object'
+      ? {
+          contrastByIntent: {
+            friend: bucket((baseEp.contrastByIntent as Record<string, unknown>).friend),
+            lover: bucket((baseEp.contrastByIntent as Record<string, unknown>).lover),
+          },
+        }
+      : {}),
+    ...(Array.isArray(baseEp.anchors) ? { anchors: baseEp.anchors.map(String) } : {}),
   };
   const facets = Array.isArray(m.facets) ? (m.facets as CompatMatch['facets']) : [];
   return {

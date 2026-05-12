@@ -31,18 +31,18 @@ export type ScoreResult = {
   confidence: number;
 };
 
-/** Mirrors server `CompatibilityExplanationProfile` (discovery / matches API). */
+/** Mirrors server `CompatibilityExplanationProfile` (discovery / matches API). Debug fields optional when omitted by server. */
 export type CompatibilityExplanationProfile = {
   intent: 'friend' | 'lover';
   intentFitSummary: string;
   primarySupports: string[];
   secondarySupports: string[];
   tensionsOrLimits: string[];
-  contrastByIntent: {
+  contrastByIntent?: {
     friend: 'high' | 'moderate' | 'low';
     lover: 'high' | 'moderate' | 'low';
   };
-  anchors: string[];
+  anchors?: string[];
 };
 
 export type CompatMatch = {

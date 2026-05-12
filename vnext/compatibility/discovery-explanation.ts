@@ -22,6 +22,12 @@ export interface CompatibilityExplanationProfile {
   anchors: string[];
 }
 
+/** Discovery / matches API: synastry bullets only — no internal anchors or intent buckets. */
+export type CompatibilityExplanationProfilePublic = Pick<
+  CompatibilityExplanationProfile,
+  'intent' | 'intentFitSummary' | 'primarySupports' | 'secondarySupports' | 'tensionsOrLimits'
+>;
+
 type SignalLine = {
   text: string;
   anchor: string;

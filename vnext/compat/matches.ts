@@ -17,8 +17,7 @@ import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
-import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
-import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
+import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
@@ -31,7 +30,7 @@ export interface CompatMatchResult {
   score: number;
   facets: Array<{ id: string; name: string; weight: number; score: number; explanation: string }>;
   rationale: string;
-  explanationProfile: CompatibilityExplanationProfile;
+  explanationProfile: CompatibilityExplanationProfilePublic;
   lastUpdated: string;
   compatibilityFieldHash?: string;
   bio?: string;
@@ -90,8 +89,8 @@ async function generateCompatibilityBullets(
   intent: 'friend' | 'partner'
 ): Promise<{ forThem: string; forYou: string; together: string }> {
   const aspects = await computeMatchSynastry(chartIdA, chartIdB);
-
   const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
+
   const aToB = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
   const bToA = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
 
@@ -100,24 +99,63 @@ async function generateCompatibilityBullets(
   aToB.sort(sortByStrength);
   bToA.sort(sortByStrength);
 
+  const filterWithLibraryCoverage = (aspectList: DirectedSnapshotAspect[]): DirectedSnapshotAspect[] =>
+    aspectList.filter((aspect) => {
+      const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
+      return getAspectInsight(key) != null;
+    });
+
+  const aToBWithCoverage = filterWithLibraryCoverage(aToB);
+  const bToAWithCoverage = filterWithLibraryCoverage(bToA);
+
+  if (process.env.MATCHES_BULLET_DEBUG === '1') {
+    console.log(`[matches] Synastry aspects for ${chartIdA} + ${chartIdB}:`);
+    console.log(`  Total aspects: ${aspects.length}, Usable after kill-list: ${usable.length}`);
+    console.log(`  A→B with library coverage: ${aToBWithCoverage.length} of ${aToB.length}`);
+    console.log(`  B→A with library coverage: ${bToAWithCoverage.length} of ${bToA.length}`);
+    console.log(
+      `  Top A→B:`,
+      aToBWithCoverage.slice(0, 3).map((a) => `${a.bodyA} ${a.type} ${a.bodyB} (${(a.exactness ?? 0).toFixed(2)})`)
+    );
+    console.log(
+      `  Top B→A:`,
+      bToAWithCoverage.slice(0, 3).map((a) => `${a.bodyA} ${a.type} ${a.bodyB} (${(a.exactness ?? 0).toFixed(2)})`)
+    );
+    const skippedAToB = aToB.filter((a) => !aToBWithCoverage.includes(a)).slice(0, 3);
+    const skippedBToA = bToA.filter((a) => !bToAWithCoverage.includes(a)).slice(0, 3);
+    if (skippedAToB.length > 0) {
+      console.log(
+        `  Skipped A→B (no library):`,
+        skippedAToB.map((a) => buildAspectKey(a.bodyA, a.bodyB, a.type))
+      );
+    }
+    if (skippedBToA.length > 0) {
+      console.log(
+        `  Skipped B→A (no library):`,
+        skippedBToA.map((a) => buildAspectKey(a.bodyA, a.bodyB, a.type))
+      );
+    }
+  }
+
   const generateBullet = (aspect: DirectedSnapshotAspect | undefined): string => {
-    if (!aspect) return 'Aspect data unavailable for this connection.';
+    if (!aspect) return 'Astrological connection details unavailable.';
     const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
     const insight = getAspectInsight(key);
     if (!insight) {
-      return `${aspect.bodyA} ${aspect.type} ${aspect.bodyB} creates interaction between you.`;
+      console.warn(`[matches] Unexpected: aspect ${key} passed filter but has no library entry`);
+      return 'Astrological connection details unavailable.';
     }
     const variant = intent === 'partner' ? 'romantic' : 'friendship';
     const prose = composeSynastryMepAspectParagraph(insight, variant);
     const raw = prose.split('.')[0]?.trim() || '';
-    const firstSentence = raw ? `${raw}.` : 'Aspect data unavailable for this connection.';
+    const firstSentence = raw ? `${raw}.` : 'Astrological connection details unavailable.';
     return firstSentence.length > 200 ? `${firstSentence.slice(0, 197)}...` : firstSentence;
   };
 
   return {
-    forThem: generateBullet(aToB[0]),
-    forYou: generateBullet(bToA[0]),
-    together: generateBullet(aToB[1] ?? bToA[1]),
+    forThem: generateBullet(aToBWithCoverage[0]),
+    forYou: generateBullet(bToAWithCoverage[0]),
+    together: generateBullet(aToBWithCoverage[1] ?? bToAWithCoverage[1]),
   };
 }
 
@@ -297,25 +335,21 @@ export async function getCompatMatches(
       });
       const score = canonicalIntentRank(computed.scoring, mode);
       const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
-      const explanationProfile = buildCompatibilityExplanationProfile({
-        field: computed.field,
-        scoring: computed.scoring,
-        classification: computed.classification,
+      const explanationProfile: CompatibilityExplanationProfilePublic = {
         intent: mode,
-      });
+        intentFitSummary: '',
+        primarySupports: [bullets.forYou],
+        secondarySupports: [bullets.forThem],
+        tensionsOrLimits: [bullets.together],
+      };
       results.push({
         userId: cand.userId,
         chartId: cand.chartId,
         displayName: cand.displayName || 'User',
         score,
         facets: facetsFromScoring(computed.scoring),
-        rationale: explanationProfile.intentFitSummary,
-        explanationProfile: {
-          ...explanationProfile,
-          primarySupports: [bullets.forYou],
-          secondarySupports: [bullets.forThem],
-          tensionsOrLimits: [bullets.together],
-        },
+        rationale: `${Math.round(score * 100)}% match`,
+        explanationProfile,
         lastUpdated: new Date().toISOString(),
         compatibilityFieldHash: computed.field.object_identity_hash,
         bio: cand.bio,
