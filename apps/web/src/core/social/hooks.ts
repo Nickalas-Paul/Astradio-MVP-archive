@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getApiBaseUrl } from '../api-base';
 import { SocialAPI } from './mock-api';
 import type { User, Circle, LibraryItem, Playlist, Favorite, Session, UserActivity, LibraryStats } from './types';
-import type { CompatMatch } from '../compat/types';
+import type { CompatMatch, CompatibilityExplanationProfile } from '../compat/types';
 import type { RelationalIntent } from '../../lib/relational-intent';
 
 export function useFriends() {
@@ -459,6 +459,48 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
   return { users, nextCursor, loading, error, refresh: search };
 }
 
+function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): CompatMatch {
+  const m = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const epRaw = m.explanationProfile;
+  const baseEp = epRaw && typeof epRaw === 'object' ? (epRaw as Record<string, unknown>) : {};
+  const contrastRaw =
+    baseEp.contrastByIntent && typeof baseEp.contrastByIntent === 'object'
+      ? (baseEp.contrastByIntent as Record<string, unknown>)
+      : {};
+  const bucket = (v: unknown): 'high' | 'moderate' | 'low' => {
+    const s = String(v || '').toLowerCase();
+    return s === 'high' || s === 'moderate' || s === 'low' ? s : 'moderate';
+  };
+  const explanationProfile: CompatibilityExplanationProfile = {
+    intent:
+      baseEp.intent === 'lover' ? 'lover' : baseEp.intent === 'friend' ? 'friend' : mode === 'lover' ? 'lover' : 'friend',
+    intentFitSummary: String(baseEp.intentFitSummary ?? m.rationale ?? ''),
+    primarySupports: Array.isArray(baseEp.primarySupports) ? baseEp.primarySupports.map(String) : [],
+    secondarySupports: Array.isArray(baseEp.secondarySupports) ? baseEp.secondarySupports.map(String) : [],
+    tensionsOrLimits: Array.isArray(baseEp.tensionsOrLimits) ? baseEp.tensionsOrLimits.map(String) : [],
+    contrastByIntent: {
+      friend: bucket(contrastRaw.friend),
+      lover: bucket(contrastRaw.lover),
+    },
+    anchors: Array.isArray(baseEp.anchors) ? baseEp.anchors.map(String) : [],
+  };
+  const facets = Array.isArray(m.facets) ? (m.facets as CompatMatch['facets']) : [];
+  return {
+    userId: String(m.userId ?? ''),
+    chartId: String(m.chartId ?? ''),
+    displayName: String(m.displayName ?? m.userId ?? 'User'),
+    score: typeof m.score === 'number' && Number.isFinite(m.score) ? m.score : Number(m.score) || 0,
+    facets,
+    rationale: String(m.rationale ?? ''),
+    explanationProfile,
+    lastUpdated: String(m.lastUpdated ?? new Date().toISOString()),
+    compatibilityFieldHash: String(m.compatibilityFieldHash ?? ''),
+    ...(typeof m.bio === 'string' && m.bio.trim() ? { bio: m.bio } : {}),
+    ...(typeof m.avatarUrl === 'string' && m.avatarUrl.trim() ? { avatarUrl: m.avatarUrl } : {}),
+    ...(typeof m.lookingFor === 'string' && m.lookingFor.trim() ? { lookingFor: m.lookingFor } : {}),
+  };
+}
+
 // Compatibility hooks. Standard params: chartId, mode, limit, cursor. goal/pageSize accepted as backward-compat aliases (goal→mode, pageSize→limit).
 function goalToMode(goal?: string): RelationalIntent {
   if (goal === 'lover' || goal === 'romantic') return 'lover';
@@ -534,7 +576,8 @@ export function useCompat(params: {
       });
       if (!response.ok) throw new Error('Failed to fetch matches');
       const data = await response.json();
-      setMatches(Array.isArray(data.matches) ? data.matches : []);
+      const raw = Array.isArray(data.matches) ? data.matches : [];
+      setMatches(raw.map((row: unknown) => normalizeCompatMatchFromApi(row, effectiveMode)));
       setNextCursor(data.nextCursor);
       setResponseMode(typeof data.mode === 'string' ? data.mode : null);
       setError(null);

@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { RelationalCommunityFeed } from '../../src/components/community/RelationalCommunityFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
-import { UserSearchPanel } from '../../src/components/community/UserSearchPanel';
 import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
 import { SignalsPanel } from '../../src/components/community/SignalsPanel';
 import { useProfile } from '../../src/core/social/hooks';
@@ -273,22 +272,20 @@ function CommunityClientInner() {
           )}
 
           {activeTab === 'discovery' && (
-            <div className="max-w-4xl mx-auto space-y-10">
-              <section className="card space-y-3">
-                <h2 className="text-lg font-semibold text-text">Search by username</h2>
-                <p className="text-sm text-subtext">
-                  Search the directory by name or handle. Connection requests use the intent you select under Intentional Matching.
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-text mb-2">Discovery</h2>
+                <p className="text-subtext text-sm mb-6">
+                  Find meaningful connections based on astrological compatibility. Choose your intent and
+                  we&apos;ll show you the best matches.
                 </p>
-                <UserSearchPanel
-                  onInventoryRefresh={bumpCommunityInventory}
-                  relationshipKind={discoveryIntent}
-                />
-              </section>
+              </div>
 
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text mb-1">Intentional Matching</h2>
+                <h2 className="text-lg font-semibold text-text mb-1">Intentional matching</h2>
                 <p className="text-sm text-subtext max-w-2xl mb-2">
-                  Choose an intent, then find matches. Results load only after you click Find matches and appear directly below.
+                  Choose an intent, then find matches. Results load only after you click Find matches and appear
+                  directly below.
                 </p>
                 <CompatibilitySection
                   hasProfile={user !== null}

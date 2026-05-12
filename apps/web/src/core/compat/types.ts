@@ -31,26 +31,30 @@ export type ScoreResult = {
   confidence: number;
 };
 
+/** Mirrors server `CompatibilityExplanationProfile` (discovery / matches API). */
+export type CompatibilityExplanationProfile = {
+  intent: 'friend' | 'lover';
+  intentFitSummary: string;
+  primarySupports: string[];
+  secondarySupports: string[];
+  tensionsOrLimits: string[];
+  contrastByIntent: {
+    friend: 'high' | 'moderate' | 'low';
+    lover: 'high' | 'moderate' | 'low';
+  };
+  anchors: string[];
+};
+
 export type CompatMatch = {
   userId: string;
   chartId: ChartID;
-  displayName?: string;
+  displayName: string;
   score: number;
   facets: CompatFacet[];
   rationale: string;
-  explanationProfile?: {
-    intent: 'friend' | 'lover';
-    intentFitSummary: string;
-    primarySupports: string[];
-    secondarySupports: string[];
-    tensionsOrLimits: string[];
-    contrastByIntent: {
-      friend: 'high' | 'moderate' | 'low';
-      lover: 'high' | 'moderate' | 'low';
-    };
-    anchors: string[];
-  };
+  explanationProfile: CompatibilityExplanationProfile;
   lastUpdated: string;
+  compatibilityFieldHash: string;
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;

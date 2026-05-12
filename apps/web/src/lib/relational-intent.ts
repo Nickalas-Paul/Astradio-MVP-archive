@@ -4,7 +4,13 @@
  */
 export type RelationalIntent = 'friend' | 'lover';
 
+/** Short labels for chips and UI (lover → Partner in Discovery). */
+export const RELATIONAL_INTENT_LABELS: Record<RelationalIntent, string> = {
+  friend: 'Friend',
+  lover: 'Partner',
+};
+
 export const RELATIONAL_INTENT_OPTIONS: { value: RelationalIntent; label: string }[] = [
-  { value: 'friend', label: 'Friend' },
-  { value: 'lover', label: 'Lover' },
+  { value: 'friend', label: RELATIONAL_INTENT_LABELS.friend },
+  { value: 'lover', label: RELATIONAL_INTENT_LABELS.lover },
 ];

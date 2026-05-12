@@ -18,7 +18,7 @@ export function toBackendScope(scope: ScopeType): BackendScopeType {
   return scope === 'this_group' ? 'group' : scope;
 }
 
-export { RELATIONAL_INTENT_OPTIONS } from './relational-intent';
+export { RELATIONAL_INTENT_OPTIONS, RELATIONAL_INTENT_LABELS } from './relational-intent';
 export type { RelationalIntent } from './relational-intent';
 
 export function bandLabel(band: string): string {

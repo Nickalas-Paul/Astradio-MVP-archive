@@ -6,7 +6,7 @@ import { getApiBaseUrl } from '../core/api-base';
 import { useCompat, useCommunityInventory, type CommunityInventoryV1 } from '../core/social/hooks';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
-import type { RelationalIntent } from '../lib/relational-intent';
+import { RELATIONAL_INTENT_OPTIONS as MODES, type RelationalIntent } from '../lib/relational-intent';
 
 interface CompatibilitySectionProps {
   /** When false, show create-profile CTA first. When true, chartId may still be null (profile exists but no real chart). */
@@ -27,11 +27,6 @@ interface CompatibilitySectionProps {
   /** Increment to refetch GET /api/community/inventory (pending state source of truth). */
   inventoryRefreshSignal?: number;
 }
-
-const MODES: { value: RelationalIntent; label: string }[] = [
-  { value: 'friend', label: 'Friend' },
-  { value: 'lover', label: 'Lover' },
-];
 
 function pendingOutgoingForMatch(
   inventory: CommunityInventoryV1 | null,
@@ -203,25 +198,6 @@ export function CompatibilitySection({
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 0.8) return 'text-emerald';
-    if (score >= 0.6) return 'text-warning';
-    return 'text-danger';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 0.8) return 'Excellent';
-    if (score >= 0.6) return 'Good';
-    return 'Fair';
-  };
-
-  const facetLabelById: Record<string, string> = {
-    cohesion: 'Cohesion',
-    tension: 'Tension',
-    transformation: 'Transformation',
-    stability: 'Stability',
-  };
-
   const groupedAnchorRows = (anchors: string[]): string[] => {
     const groups = new Map<string, number>();
     for (const raw of anchors) {
@@ -357,138 +333,152 @@ export function CompatibilitySection({
         {matches.map((match, index) => {
           const pending = pendingOutgoingForMatch(inventory, match.userId, match.chartId, rankMode);
           const connDisabled = !currentUserId || requestBusy === match.chartId || pending;
-          const connLabel = pending ? 'Awaiting response' : requestBusy === match.chartId ? 'Sending…' : 'Request connection';
+          const connLabel = pending
+            ? 'Awaiting response'
+            : requestBusy === match.chartId
+              ? 'Sending…'
+              : 'Request connection';
+
+          const ep = match.explanationProfile;
+          const bullets = {
+            forYou: ep.primarySupports[0] || 'Compatibility insight unavailable',
+            forThem: ep.secondarySupports[0] || 'Compatibility insight unavailable',
+            together: ep.tensionsOrLimits[0] || 'Compatibility insight unavailable',
+          };
+
+          const initial =
+            (match.displayName || match.userId || '?').trim().charAt(0).toUpperCase() || '?';
+
           return (
             <motion.div
-              key={`${match.userId}-${match.chartId}`}
+              key={match.chartId}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className="p-4 bg-bgElev rounded-lg border border-border hover:border-emerald/50 transition-colors"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-violet to-emerald rounded-full flex items-center justify-center">
-                    <span className="text-bg font-bold text-sm">{match.userId.slice(-2).toUpperCase()}</span>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <h4 className="font-semibold text-text">{match.displayName}</h4>
+                    <span className="text-xs text-subtext">Chart {match.chartId.slice(-4)}</span>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-text">
-                      {match.displayName ?? `User ${match.userId.slice(-4)}`}
-                    </h4>
-                    <p className="text-xs text-subtext">Chart {match.chartId.slice(-4)}</p>
+
+                  {match.bio ? (
+                    <p className="text-sm text-subtext mb-3 line-clamp-2">{match.bio}</p>
+                  ) : null}
+
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
+                        ●
+                      </span>
+                      <p className="text-sm text-text flex-1 min-w-0">
+                        <span className="font-medium">Why you match them:</span> {bullets.forThem}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
+                        ●
+                      </span>
+                      <p className="text-sm text-text flex-1 min-w-0">
+                        <span className="font-medium">Why they match you:</span> {bullets.forYou}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
+                        ●
+                      </span>
+                      <p className="text-sm text-text flex-1 min-w-0">
+                        <span className="font-medium">Why this works:</span> {bullets.together}
+                      </p>
+                    </div>
+                  </div>
+
+                  {match.lookingFor ? (
+                    <div className="text-xs text-subtext italic border-l-2 border-emerald/30 pl-2 mb-3">
+                      &ldquo;{match.lookingFor}&rdquo;
+                    </div>
+                  ) : null}
+
+                  {expandedChartId === match.chartId ? (
+                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-xs text-subtext space-y-2">
+                      <p className="font-medium text-text">{ep.intentFitSummary || match.rationale}</p>
+                      <div>
+                        <p className="font-medium text-text">Intent contrast</p>
+                        <p>Friend: {ep.contrastByIntent.friend}</p>
+                        <p>Partner: {ep.contrastByIntent.lover}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-text">Anchors</p>
+                        {(() => {
+                          const anchors = Array.isArray(ep.anchors) ? ep.anchors : [];
+                          const grouped = groupedAnchorRows(anchors);
+                          const expandedAnchors = expandedAnchorsForChartId === match.chartId;
+                          const visible = expandedAnchors ? grouped : grouped.slice(0, 4);
+                          return (
+                            <div className="space-y-1">
+                              {visible.length > 0 ? (
+                                <p>{visible.join(', ')}</p>
+                              ) : (
+                                <p>No anchors available</p>
+                              )}
+                              {grouped.length > 4 ? (
+                                <button
+                                  type="button"
+                                  className="text-emerald hover:underline"
+                                  onClick={() =>
+                                    setExpandedAnchorsForChartId((prev) =>
+                                      prev === match.chartId ? null : match.chartId
+                                    )
+                                  }
+                                >
+                                  {expandedAnchors ? 'Show fewer anchors' : `Show all anchors (${grouped.length})`}
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
+                      disabled={connDisabled}
+                      className="px-4 py-2 bg-emerald text-bg rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-opacity"
+                    >
+                      {connLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleViewRationale(match.chartId);
+                        setExpandedChartId((prev) => (prev === match.chartId ? null : match.chartId));
+                      }}
+                      className="px-4 py-2 border border-border rounded-lg hover:border-emerald/50 text-sm font-medium transition-colors text-subtext hover:text-text"
+                    >
+                      {expandedChartId === match.chartId ? 'Hide profile' : 'View profile'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className={`text-lg font-bold ${getScoreColor(match.score)}`}>{Math.round(match.score * 100)}%</div>
-                  <div className="text-xs text-subtext">{getScoreLabel(match.score)}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                {match.facets.slice(0, 4).map((facet, facetIndex) => (
-                  <div key={`${match.chartId}-${facet.id}-${facetIndex}`} className="text-xs">
-                    <span className="text-subtext">{facetLabelById[facet.id] ?? facet.name}:</span>
-                    <span className="text-emerald ml-1">{Math.round((facet.score ?? match.score) * 100)}%</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mb-3">
-                <p className="text-xs text-subtext mb-1">{match.explanationProfile?.intentFitSummary ?? match.rationale}</p>
-                <div className="text-xs text-subtext space-y-1">
-                  <p>
-                    <span className="font-medium text-text">Support:</span>{' '}
-                    {match.explanationProfile?.primarySupports?.[0] ?? 'Support signal unavailable'}
-                  </p>
-                  <p>
-                    <span className="font-medium text-text">Limit:</span>{' '}
-                    {match.explanationProfile?.tensionsOrLimits?.[0] ?? 'Limit signal unavailable'}
-                  </p>
-                </div>
-              </div>
-
-              {expandedChartId === match.chartId && match.explanationProfile && (
-                <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-xs text-subtext space-y-2">
-                  <p className="font-medium text-text">{match.explanationProfile.intentFitSummary}</p>
-                  <div>
-                    <p className="font-medium text-text">Primary supports</p>
-                    {match.explanationProfile.primarySupports.slice(0, 2).map((line) => (
-                      <p key={`${match.chartId}-primary-${line}`}>- {line}</p>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text">Secondary supports</p>
-                    {match.explanationProfile.secondarySupports.slice(0, 2).map((line) => (
-                      <p key={`${match.chartId}-secondary-${line}`}>- {line}</p>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text">Tensions / limits</p>
-                    {match.explanationProfile.tensionsOrLimits.slice(0, 2).map((line) => (
-                      <p key={`${match.chartId}-limit-${line}`}>- {line}</p>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text">Intent contrast</p>
-                    <p>Friend: {match.explanationProfile.contrastByIntent.friend}</p>
-                    <p>Lover: {match.explanationProfile.contrastByIntent.lover}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text">Anchors</p>
-                    {(() => {
-                      const anchors = Array.isArray(match.explanationProfile.anchors)
-                        ? match.explanationProfile.anchors
-                        : [];
-                      const grouped = groupedAnchorRows(anchors);
-                      const expandedAnchors = expandedAnchorsForChartId === match.chartId;
-                      const visible = expandedAnchors ? grouped : grouped.slice(0, 4);
-                      return (
-                        <div className="space-y-1">
-                          {visible.length > 0 ? (
-                            <p>{visible.join(', ')}</p>
-                          ) : (
-                            <p>No anchors available</p>
-                          )}
-                          {grouped.length > 4 && (
-                            <button
-                              type="button"
-                              className="text-emerald hover:underline"
-                              onClick={() =>
-                                setExpandedAnchorsForChartId((prev) =>
-                                  prev === match.chartId ? null : match.chartId
-                                )
-                              }
-                            >
-                              {expandedAnchors ? 'Show fewer anchors' : `Show all anchors (${grouped.length})`}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
+                <div className="shrink-0">
+                  <div className="w-16 h-16 rounded-full bg-bgElev border border-border flex items-center justify-center text-xs overflow-hidden">
+                    {match.avatarUrl ? (
+                      <img
+                        src={match.avatarUrl}
+                        alt={match.displayName}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-text font-medium">{initial}</span>
+                    )}
                   </div>
                 </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
-                  disabled={connDisabled}
-                  className="flex-1 min-w-[140px] px-3 py-2 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-sm font-medium hover:bg-emerald/30 disabled:opacity-50"
-                >
-                  {connLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleViewRationale(match.chartId);
-                    setExpandedChartId((prev) => (prev === match.chartId ? null : match.chartId));
-                  }}
-                  className="px-3 py-2 bg-bgElev text-subtext rounded-lg hover:bg-border transition-colors text-sm"
-                >
-                  {expandedChartId === match.chartId ? 'Hide details' : 'Details'}
-                </button>
               </div>
             </motion.div>
           );
