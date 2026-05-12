@@ -462,8 +462,7 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
 // Compatibility hooks. Standard params: chartId, mode, limit, cursor. goal/pageSize accepted as backward-compat aliases (goal→mode, pageSize→limit).
 function goalToMode(goal?: string): RelationalIntent {
   if (goal === 'lover' || goal === 'romantic') return 'lover';
-  if (goal === 'rival') return 'rival';
-  if (goal === 'collaborator') return 'collaborator';
+  if (goal === 'rival' || goal === 'collaborator' || goal === 'mentor') return 'friend';
   return 'friend';
 }
 
@@ -473,8 +472,8 @@ export function useCompat(params: {
   cursor?: string;
   pageSize?: number;
   limit?: number;
-  /** @deprecated Use mode. Maps romantic→lover, rival→rival, else→friend */
-  goal?: 'friend' | 'romantic' | 'mentor' | 'rival';
+  /** @deprecated Use mode. Maps romantic→lover, legacy rival/mentor→friend, else→friend */
+  goal?: 'friend' | 'romantic' | 'mentor' | 'rival' | 'collaborator';
   facets?: string[];
   filters?: {
     distanceKm?: number;

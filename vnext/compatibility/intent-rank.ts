@@ -9,8 +9,6 @@ const INTENT_WEIGHTS: Record<
 > = {
   friend: { cohesion: 0.4, tension: 0.1, transformation: 0.15, stability: 0.35 },
   lover: { cohesion: 0.3, tension: 0.1, transformation: 0.4, stability: 0.2 },
-  rival: { cohesion: 0.25, tension: 0.35, transformation: 0.25, stability: 0.15 },
-  collaborator: { cohesion: 0.35, tension: 0.15, transformation: 0.15, stability: 0.35 },
 };
 
 function clamp01(x: number): number {

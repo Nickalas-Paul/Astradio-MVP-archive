@@ -5,6 +5,13 @@
 
 import { getChartById } from './chart-store';
 import * as storage from './storage';
+import type { DirectoryEligibleUser } from './storage';
+import { computeSynastryAspects } from '../synastry/synastry-compute';
+import { buildAspectKey, getAspectInsight } from '../projection/insight-library/insight-library-index';
+import { isAspectLibraryKillListed } from '../projection/insight-library/aspect-library-kill-list';
+import { composeSynastryMepAspectParagraph } from '../projection/insight-library/synastry-aspect-library-render';
+import type { DirectedSnapshotAspect } from '../synastry/synastry-types';
+import type { EphemerisSnapshot } from '../contracts';
 import { compatibilityFacetExplanation } from '../projection/insight/map-insight-unit-v1';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
@@ -13,16 +20,6 @@ import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { buildCompatibilityExplanationProfile } from '../compatibility/discovery-explanation';
 import { fetchChartSnapshot } from '../core/architecture-engine';
-import { encodeFeatures } from '../feature-encode';
-import type { FeatureVec } from '../contracts';
-import { mergeFeatureVectors } from './fusion';
-import { guidanceFromFeatures } from '../astro/guidance';
-import { buildCanonicalReportForAggregate } from '../canonical/build-from-compose-context';
-import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
-import { projectTextFromSemanticCore } from '../projection/text-projection';
-import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
-import { classifyCompatibilityScore } from '../compatibility/scoring';
-import type { RelationshipMode } from './types';
 
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
@@ -30,13 +27,16 @@ export type CompatMatchMode = RelationalIntent;
 export interface CompatMatchResult {
   userId: string;
   chartId: string;
-  displayName?: string;
+  displayName: string;
   score: number;
   facets: Array<{ id: string; name: string; weight: number; score: number; explanation: string }>;
   rationale: string;
   explanationProfile: CompatibilityExplanationProfile;
   lastUpdated: string;
   compatibilityFieldHash?: string;
+  bio?: string;
+  avatarUrl?: string;
+  lookingFor?: string;
 }
 
 function clampScore(x: number): number {
@@ -76,168 +76,79 @@ function facetsFromScoring(scoring: RelationalFieldScoreContract): CompatMatchRe
   ];
 }
 
-function modeToConnectionMode(mode: RelationalIntent): RelationshipMode {
-  if (mode === 'friend') return 'friends';
-  if (mode === 'lover') return 'lovers';
-  /** Phase 6C-Cleanup: use friends for non-romantic intents (deprecated rivals/collaborator modes removed). */
-  return 'friends';
+async function loadChartSnapshot(chartId: string): Promise<EphemerisSnapshot> {
+  const chart = await getChartById(chartId);
+  if (!chart) throw new Error(`Chart not found: ${chartId}`);
+  return fetchChartSnapshot({
+    date: chart.date,
+    time: chart.time,
+    lat: chart.lat,
+    lon: chart.lon,
+    timezone: chart.timezone || 'UTC',
+  });
 }
 
-function firstSentence(text: string): string {
-  const trimmed = String(text || '').trim();
-  if (!trimmed) return '';
-  const m = trimmed.match(/^[^.!?]+[.!?]?/);
-  return (m ? m[0] : trimmed).trim();
+async function computeMatchSynastry(chartIdA: string, chartIdB: string): Promise<DirectedSnapshotAspect[]> {
+  const [snapA, snapB] = await Promise.all([loadChartSnapshot(chartIdA), loadChartSnapshot(chartIdB)]);
+  return computeSynastryAspects({
+    snapshotsOrdered: [snapA, snapB],
+    mode: 'pair',
+  });
 }
 
-function projectedLineBySection(
-  sections: Array<{ id: string; text?: string }>,
-  sectionId: string
-): string {
-  const sec = sections.find((s) => s.id === sectionId);
-  return firstSentence(sec?.text ?? '');
-}
-
-function sparseCompatibilityLine(seed: string, kind: 'support' | 'limit' | 'secondary'): string {
-  const key = `${seed}:${kind}`;
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const idx = h >>> 0;
-  if (kind === 'support') {
-    return idx % 2 === 0
-      ? 'Interaction signal is weak, so each person tends to decide independently with limited coordination pressure.'
-      : 'No strong pair interaction dominates, so timing stays mostly independent and coordination remains light.';
-  }
-  if (kind === 'secondary') {
-    return idx % 2 === 0
-      ? 'Domain overlap is limited, so communication and resource decisions stay loosely coupled.'
-      : 'With low structural pull, planning and pacing stay parallel rather than tightly integrated.';
-  }
-  return idx % 2 === 0
-    ? 'Directional pressure is low, so escalation risk remains limited unless external constraints increase.'
-    : 'Low conflict loading keeps urgency muted, with minimal pressure to reorganize roles.';
-}
-
-function isSparseByScoring(scoring: RelationalFieldScoreContract): boolean {
-  const d = scoring.derived_indices;
-  const c = scoring.components;
-  return (
-    d.tension_index <= 0.56 &&
-    d.transformation_index <= 0.6 &&
-    c.pairwise_volatility_mean <= 0.5 &&
-    c.pairwise_friction_mean <= 0.56
-  );
-}
-
-function hasSystemMetaLanguage(text: string): boolean {
-  const t = String(text || '').toLowerCase();
-  return (
-    t.includes('interaction map:') ||
-    t.includes('subclaims') ||
-    t.includes('field of view') ||
-    t.includes('through-line') ||
-    t.includes('synthesis')
-  );
-}
-
-async function buildProjectedCompatibilityLines(
+async function generateCompatibilityBullets(
   chartIdA: string,
   chartIdB: string,
-  mode: RelationalIntent,
-  seed: string,
-  scoring: RelationalFieldScoreContract
-): Promise<{ primary: string[]; secondary: string[]; limits: string[] }> {
-  const [chartA, chartB] = await Promise.all([getChartById(chartIdA), getChartById(chartIdB)]);
-  if (!chartA || !chartB) {
-    return {
-      primary: [sparseCompatibilityLine(seed, 'support')],
-      secondary: [sparseCompatibilityLine(seed, 'secondary')],
-      limits: [sparseCompatibilityLine(seed, 'limit')],
-    };
-  }
-  const [snapA, snapB] = await Promise.all([
-    fetchChartSnapshot({
-      date: chartA.date,
-      time: chartA.time,
-      lat: chartA.lat,
-      lon: chartA.lon,
-      timezone: chartA.timezone,
-    }),
-    fetchChartSnapshot({
-      date: chartB.date,
-      time: chartB.time,
-      lat: chartB.lat,
-      lon: chartB.lon,
-      timezone: chartB.timezone,
-    }),
-  ]);
-  const vecA = encodeFeatures(snapA) as FeatureVec;
-  const vecB = encodeFeatures(snapB) as FeatureVec;
-  const merged = mergeFeatureVectors(vecA, vecB, { relationshipMode: modeToConnectionMode(mode) }) as FeatureVec;
-  const guidance = guidanceFromFeatures(merged, snapA, seed);
-  const canonical = buildCanonicalReportForAggregate({
-    kind: 'comparison',
-    subject_ids: [seed],
-    participants: [
-      { snapshot: snapA, featureVec: vecA, role: 'primary' },
-      { snapshot: snapB, featureVec: vecB, role: 'member_i' },
-    ],
-    composite: merged,
-    anchorIndex: 0,
-    control_surface_hash: seed,
-    compose_seed: seed,
-    guidance,
-    relationalWeather: null,
-  });
-  const core = interpretCanonicalReportObject(canonical);
-  const classification = classifyCompatibilityScore(scoring);
-  const insightOpts = insightProjectionOptionsFromCanonical(canonical);
-  const sections = projectTextFromSemanticCore(core, seed, {
-    phaseD: true,
-    surface: 'compat_pair',
-    tier: 'extended',
-    narrativePlan: null,
-    aggregateKind: 'comparison',
-    connectionMode: modeToConnectionMode(mode),
-    participantCount: 2,
-    ...insightOpts,
-    compatClassCode: classification.outputs.class_code,
-  });
+  intent: 'friend' | 'partner'
+): Promise<{ forThem: string; forYou: string; together: string }> {
+  const aspects = await computeMatchSynastry(chartIdA, chartIdB);
 
-  const supportLine =
-    projectedLineBySection(sections, 'interaction_map') ||
-    projectedLineBySection(sections, 'relational_field') ||
-    sparseCompatibilityLine(seed, 'support');
-  const secondaryLine =
-    projectedLineBySection(sections, 'synthesis_a') ||
-    projectedLineBySection(sections, 'significance') ||
-    sparseCompatibilityLine(seed, 'secondary');
-  const limitLine =
-    projectedLineBySection(sections, 'contradiction_map') ||
-    projectedLineBySection(sections, 'synthesis_b') ||
-    sparseCompatibilityLine(seed, 'limit');
+  const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
+  const aToB = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
+  const bToA = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
 
-  const sparseRoute = isSparseByScoring(scoring);
-  const badProjectionText =
-    hasSystemMetaLanguage(supportLine) ||
-    hasSystemMetaLanguage(secondaryLine) ||
-    hasSystemMetaLanguage(limitLine);
-  if (sparseRoute || badProjectionText) {
-    return {
-      primary: [sparseCompatibilityLine(seed, 'support')],
-      secondary: [sparseCompatibilityLine(seed, 'secondary')],
-      limits: [sparseCompatibilityLine(seed, 'limit')],
-    };
-  }
+  const sortByStrength = (x: DirectedSnapshotAspect, y: DirectedSnapshotAspect) =>
+    (y.exactness ?? 0) - (x.exactness ?? 0);
+  aToB.sort(sortByStrength);
+  bToA.sort(sortByStrength);
+
+  const generateBullet = (aspect: DirectedSnapshotAspect | undefined): string => {
+    if (!aspect) return 'Aspect data unavailable for this connection.';
+    const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
+    const insight = getAspectInsight(key);
+    if (!insight) {
+      return `${aspect.bodyA} ${aspect.type} ${aspect.bodyB} creates interaction between you.`;
+    }
+    const variant = intent === 'partner' ? 'romantic' : 'friendship';
+    const prose = composeSynastryMepAspectParagraph(insight, variant);
+    const raw = prose.split('.')[0]?.trim() || '';
+    const firstSentence = raw ? `${raw}.` : 'Aspect data unavailable for this connection.';
+    return firstSentence.length > 200 ? `${firstSentence.slice(0, 197)}...` : firstSentence;
+  };
 
   return {
-    primary: [supportLine],
-    secondary: [secondaryLine],
-    limits: [limitLine],
+    forThem: generateBullet(aToB[0]),
+    forYou: generateBullet(bToA[0]),
+    together: generateBullet(aToB[1] ?? bToA[1]),
   };
+}
+
+async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligibleUser[]> {
+  await storage.ensureDefaultProfileChart();
+  let rows = await storage.listDirectoryEligibleUsers();
+  if (rows.length === 0) {
+    const seeded = await storage.ensureMatchCandidateCharts();
+    rows = seeded.map((c) => ({
+      userId: c.userId,
+      displayName: c.displayName,
+      chartId: c.chartId,
+      discoverableAs: c.discoverableAs ?? 'both',
+      ...(c.bio ? { bio: c.bio } : {}),
+      ...(c.avatarUrl ? { avatarUrl: c.avatarUrl } : {}),
+      ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
+    }));
+  }
+  return rows.filter((r) => r.chartId !== chartId);
 }
 
 /**
@@ -252,8 +163,20 @@ export async function getCompatMatches(
   const chart = await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
 
-  const candidates = (await storage.ensureMatchCandidateCharts()).filter((c) => c.chartId !== chartId);
+  const requestingUserId = chart.ownerId ?? (await storage.getUserIdForPrimaryChart(chartId)) ?? '';
+  const visibilityType = mode === 'lover' ? 'partners' : 'friends';
+
+  const allCandidates = await directoryRowsForMatches(chartId);
+  const candidates = allCandidates.filter((candidate) => {
+    if (requestingUserId && candidate.userId === requestingUserId) return false;
+    const discoverableAs = candidate.discoverableAs || 'none';
+    if (discoverableAs === 'none') return false;
+    if (discoverableAs === 'both') return true;
+    return discoverableAs === visibilityType;
+  });
+
   const results: CompatMatchResult[] = [];
+  const intentForBullets = mode === 'lover' ? 'partner' : 'friend';
 
   for (const cand of candidates) {
     const computed = await computeCompatibilitySystem({
@@ -261,39 +184,34 @@ export async function getCompatMatches(
       relationshipBindingId: null,
     });
     const score = canonicalIntentRank(computed.scoring, mode);
+    const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
     const explanationProfile = buildCompatibilityExplanationProfile({
       field: computed.field,
       scoring: computed.scoring,
       classification: computed.classification,
       intent: mode,
     });
-    const projectedLines = await buildProjectedCompatibilityLines(
-      chartId,
-      cand.chartId,
-      mode,
-      computed.field.object_identity_hash,
-      computed.scoring
-    );
     results.push({
       userId: cand.userId,
       chartId: cand.chartId,
-      displayName: cand.displayName,
+      displayName: cand.displayName || 'User',
       score,
       facets: facetsFromScoring(computed.scoring),
       rationale: explanationProfile.intentFitSummary,
-      explanationProfile,
+      explanationProfile: {
+        ...explanationProfile,
+        primarySupports: [bullets.forYou],
+        secondarySupports: [bullets.forThem],
+        tensionsOrLimits: [bullets.together],
+      },
       lastUpdated: new Date().toISOString(),
       compatibilityFieldHash: computed.field.object_identity_hash,
+      bio: cand.bio,
+      avatarUrl: cand.avatarUrl,
+      lookingFor: cand.lookingFor,
     });
-    results[results.length - 1]!.explanationProfile = {
-      ...explanationProfile,
-      primarySupports: projectedLines.primary,
-      secondarySupports: projectedLines.secondary,
-      tensionsOrLimits: projectedLines.limits,
-    };
   }
 
-  // Stable sort: by score desc, then by chartId asc (deterministic tie-break)
   results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.chartId.localeCompare(b.chartId);

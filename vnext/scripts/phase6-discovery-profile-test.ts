@@ -168,9 +168,8 @@ function run(): void {
   assert.ok(friend.primarySupports[1].startsWith('Interaction signal'));
   assert.ok(friend.secondarySupports.length >= 1);
   assert.ok(friend.tensionsOrLimits.length >= 1);
-  assert.ok(friend.intentFitSummary.startsWith('Friend: '));
-  assert.ok(friend.intentFitSummary.includes('Rival:') || friend.intentFitSummary.includes('Lover:') || friend.intentFitSummary.includes('Collaborator:'));
-  assert.deepEqual(Object.keys(friend.contrastByIntent), ['friend', 'lover', 'collaborator', 'rival']);
+  assert.ok(friend.intentFitSummary.includes('Lover:') || friend.intentFitSummary.includes('Friend:'));
+  assert.deepEqual(Object.keys(friend.contrastByIntent), ['friend', 'lover']);
   assertAnchorsTyped(friend.anchors);
 
   const sparseFx = fixture();
@@ -184,20 +183,20 @@ function run(): void {
   });
   assert.ok(sparse.secondarySupports.includes('Limited structural signals available in this field'));
 
-  const rival = profile('rival');
-  assert.notDeepEqual(friend.primarySupports, rival.primarySupports);
+  const lover = profile('lover');
+  assert.notDeepEqual(friend.primarySupports, lover.primarySupports);
 
-  const repeat1 = profile('collaborator');
-  const repeat2 = profile('collaborator');
+  const repeat1 = profile('friend');
+  const repeat2 = profile('friend');
   assert.deepEqual(repeat1, repeat2);
 
   const lowFriction = profile('friend', { tension_index: 0.1, transformation_index: 0.2 });
   assert.ok(lowFriction.tensionsOrLimits.length >= 1);
 
-  const scores = ['friend', 'lover', 'collaborator', 'rival'].map((intent) =>
+  const scores = (['friend', 'lover'] as const).map((intent) =>
     bucketIntentFit(canonicalIntentRank(fixture().scoring, intent as RelationalIntent))
   );
-  assert.equal(scores.length, 4);
+  assert.equal(scores.length, 2);
 }
 
 run();

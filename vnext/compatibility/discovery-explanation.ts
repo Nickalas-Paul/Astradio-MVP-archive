@@ -53,15 +53,11 @@ const STRUCTURE_DOMAIN_TEMPLATES = [
 const INDEX_PRIORITY: Record<RelationalIntent, Array<keyof RelationalFieldScoreContract['derived_indices']>> = {
   friend: ['cohesion_index', 'stability_index', 'transformation_index', 'tension_index'],
   lover: ['cohesion_index', 'transformation_index', 'stability_index', 'tension_index'],
-  rival: ['tension_index', 'transformation_index', 'cohesion_index', 'stability_index'],
-  collaborator: ['stability_index', 'cohesion_index', 'transformation_index', 'tension_index'],
 };
 
 const INTERACTION_CATEGORY_PRIORITY: Record<RelationalIntent, string[]> = {
   friend: ['reinforcing', 'transforming', 'cross_pressuring', 'escalating', 'dissolving'],
   lover: ['transforming', 'reinforcing', 'cross_pressuring', 'escalating', 'dissolving'],
-  rival: ['escalating', 'cross_pressuring', 'transforming', 'dissolving', 'reinforcing'],
-  collaborator: ['reinforcing', 'cross_pressuring', 'transforming', 'escalating', 'dissolving'],
 };
 
 function stableHash(input: string): number {
@@ -289,14 +285,17 @@ function buildContrast(scoring: RelationalFieldScoreContract): ContrastByIntent 
   return {
     friend: bucketIntentFit(canonicalIntentRank(scoring, 'friend')),
     lover: bucketIntentFit(canonicalIntentRank(scoring, 'lover')),
-    collaborator: bucketIntentFit(canonicalIntentRank(scoring, 'collaborator')),
-    rival: bucketIntentFit(canonicalIntentRank(scoring, 'rival')),
   };
 }
 
 function buildIntentSummary(intent: RelationalIntent, contrast: ContrastByIntent): string {
   const selected = `${titleIntent(intent)}: ${titleBucket(contrast[intent])}.`;
   const others = RELATIONAL_INTENTS.filter((x) => x !== intent);
+  if (others.length === 0) return selected;
+  if (others.length === 1) {
+    const o = others[0]!;
+    return `${selected} ${titleIntent(o)}: ${titleBucket(contrast[o])}.`;
+  }
   const ordered = others
     .map((x) => ({ intent: x, bucket: contrast[x], score: canonicalBucketScore(contrast[x]) }))
     .sort((a, b) => a.score - b.score || a.intent.localeCompare(b.intent));

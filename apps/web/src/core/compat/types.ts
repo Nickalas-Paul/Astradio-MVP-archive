@@ -39,7 +39,7 @@ export type CompatMatch = {
   facets: CompatFacet[];
   rationale: string;
   explanationProfile?: {
-    intent: 'friend' | 'lover' | 'rival' | 'collaborator';
+    intent: 'friend' | 'lover';
     intentFitSummary: string;
     primarySupports: string[];
     secondarySupports: string[];
@@ -47,12 +47,13 @@ export type CompatMatch = {
     contrastByIntent: {
       friend: 'high' | 'moderate' | 'low';
       lover: 'high' | 'moderate' | 'low';
-      collaborator: 'high' | 'moderate' | 'low';
-      rival: 'high' | 'moderate' | 'low';
     };
     anchors: string[];
   };
   lastUpdated: string;
+  bio?: string;
+  avatarUrl?: string;
+  lookingFor?: string;
 };
 
 export type CompatCacheEntry = {

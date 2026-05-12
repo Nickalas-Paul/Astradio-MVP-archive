@@ -365,16 +365,17 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // GET /api/compat/matches?chartId=...&mode=friend|lover|rival&limit=...&cursor=... (cursor optional, stubbed for paging)
+  // GET /api/compat/matches?chartId=...&mode=friend|lover&limit=... (legacy rival/collaborator → friend)
   router.get('/compat/matches', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const chartId = (req.query.chartId as string) || undefined;
       if (!chartId) {
         return res.status(400).json({ error: 'chartId is required' });
       }
-      const mode: RelationalIntent = isCompatMode((req.query.mode as string) || '')
-        ? (req.query.mode as RelationalIntent)
-        : 'friend';
+      const rawMode = String(req.query.mode || '').trim().toLowerCase();
+      const mode: RelationalIntent = isCompatMode(rawMode)
+        ? (rawMode as RelationalIntent)
+        : mapLegacyIntentToRelational(rawMode) ?? 'friend';
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
       const matches = await getCompatMatches(chartId, mode, limit);
       const generatedAt = new Date().toISOString();
@@ -386,7 +387,7 @@ export function createCompatRouter(): import('express').Router {
         matches,
         generatedAt,
         version: COMPAT_RESPONSE_VERSION,
-        synastryEnabled: false,
+        synastryEnabled: true,
         matchesMock,
       });
     } catch (e: any) {

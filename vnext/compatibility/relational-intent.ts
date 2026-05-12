@@ -3,7 +3,7 @@
  * intent clusters, and connection request relationship_kind.
  */
 
-export const RELATIONAL_INTENTS = ['friend', 'lover', 'rival', 'collaborator'] as const;
+export const RELATIONAL_INTENTS = ['friend', 'lover'] as const;
 
 export type RelationalIntent = (typeof RELATIONAL_INTENTS)[number];
 
@@ -23,16 +23,16 @@ export function mapLegacyIntentToRelational(s: string): RelationalIntent | null 
   const m: Record<string, RelationalIntent> = {
     friendship: 'friend',
     dating: 'lover',
-    /** Phase 6C-Cleanup: work/learning paths map to friend (collaborator relationship mode removed). */
     collaboration: 'friend',
     mentor: 'friend',
     roommate: 'friend',
     study: 'friend',
     friend: 'friend',
     lover: 'lover',
-    rival: 'rival',
-    rivals: 'rival',
-    collaborator: 'collaborator',
+    /** Legacy discovery intents → friend (Phase 7A-2). */
+    rival: 'friend',
+    rivals: 'friend',
+    collaborator: 'friend',
   };
   const k = s.trim().toLowerCase();
   return m[k] ?? null;
@@ -41,6 +41,4 @@ export function mapLegacyIntentToRelational(s: string): RelationalIntent | null 
 export const RELATIONAL_INTENT_DISPLAY: Record<RelationalIntent, string> = {
   friend: 'Friend',
   lover: 'Lover',
-  rival: 'Rival',
-  collaborator: 'Collaborator',
 };

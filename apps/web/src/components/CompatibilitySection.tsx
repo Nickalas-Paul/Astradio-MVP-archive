@@ -31,8 +31,6 @@ interface CompatibilitySectionProps {
 const MODES: { value: RelationalIntent; label: string }[] = [
   { value: 'friend', label: 'Friend' },
   { value: 'lover', label: 'Lover' },
-  { value: 'rival', label: 'Rival' },
-  { value: 'collaborator', label: 'Collaborator' },
 ];
 
 function pendingOutgoingForMatch(
@@ -435,8 +433,6 @@ export function CompatibilitySection({
                     <p className="font-medium text-text">Intent contrast</p>
                     <p>Friend: {match.explanationProfile.contrastByIntent.friend}</p>
                     <p>Lover: {match.explanationProfile.contrastByIntent.lover}</p>
-                    <p>Collaborator: {match.explanationProfile.contrastByIntent.collaborator}</p>
-                    <p>Rival: {match.explanationProfile.contrastByIntent.rival}</p>
                   </div>
                   <div>
                     <p className="font-medium text-text">Anchors</p>

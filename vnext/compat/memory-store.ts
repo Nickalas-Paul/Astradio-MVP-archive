@@ -4,6 +4,7 @@
  */
 
 import type { User, Chart, Comparison } from './types';
+import type { MatchCandidate } from './storage-adapter-types';
 
 // Name used by compat storage for observability (e.g. logs).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,12 +32,6 @@ const MATCH_CANDIDATE_SPECS: Array<{ id: string; userId: string; displayName: st
   { id: 'chart_match_5', userId: 'usr_demo_5', displayName: 'Demo User 5', label: 'Natal 5', date: '1990-01-15', time: '06:00', lat: 37.7749, lon: -122.4194 },
 ];
 
-export interface MatchCandidate {
-  chartId: string;
-  userId: string;
-  displayName: string;
-}
-
 // Directory user for community search (Phase 8G, in-memory variant).
 export interface DirectoryEligibleUser {
   userId: string;
@@ -44,6 +39,10 @@ export interface DirectoryEligibleUser {
   handle?: string;
   chartId: string;
   label?: string;
+  bio?: string;
+  avatarUrl?: string;
+  discoverableAs?: string;
+  lookingFor?: string;
 }
 
 // Community in-memory (minimal for compat router; engine community routes use lib/pg-store)
@@ -82,6 +81,13 @@ export async function setUserPrimaryChart(userId: string, chartId: string): Prom
 
 export async function getUserPrimaryChart(userId: string): Promise<string | undefined> {
   return userPrimaryChart.get(userId);
+}
+
+export async function getUserIdForPrimaryChart(chartId: string): Promise<string | undefined> {
+  for (const [uid, cid] of userPrimaryChart.entries()) {
+    if (cid === chartId) return uid;
+  }
+  return undefined;
 }
 
 export async function createChart(input: {
@@ -233,6 +239,7 @@ export async function ensureMatchCandidateCharts(): Promise<MatchCandidate[]> {
         lat: spec.lat,
         lon: spec.lon,
       });
+      await setUserPrimaryChart(spec.userId, spec.id);
     }
     out.push({ chartId: spec.id, userId: spec.userId, displayName: spec.displayName });
   }
@@ -254,6 +261,10 @@ export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUse
       handle: u.handle,
       chartId,
       label: chart?.label,
+      discoverableAs: u.discoverableAs ?? 'both',
+      ...(u.bio ? { bio: u.bio } : {}),
+      ...(u.avatarUrl ? { avatarUrl: u.avatarUrl } : {}),
+      ...(u.lookingFor ? { lookingFor: u.lookingFor } : {}),
     });
   }
   list.sort((a, b) => {

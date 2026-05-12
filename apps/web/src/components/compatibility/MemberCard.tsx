@@ -18,8 +18,6 @@ export interface MemberCardMember {
     contrastByIntent: {
       friend: 'high' | 'moderate' | 'low';
       lover: 'high' | 'moderate' | 'low';
-      collaborator: 'high' | 'moderate' | 'low';
-      rival: 'high' | 'moderate' | 'low';
     };
     anchors: string[];
   };

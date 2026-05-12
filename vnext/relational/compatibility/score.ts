@@ -77,9 +77,9 @@ export function scoreWithIntent(
 
 function mapIntentProfileToRelationalIntent(slug: string): RelationalIntent {
   const lower = slug.toLowerCase();
-  if (lower.includes('rival')) return 'rival';
   if (lower.includes('lover') || lower.includes('dating')) return 'lover';
-  if (lower.includes('collaborator') || lower.includes('mentor') || lower.includes('collaboration')) return 'collaborator';
+  if (lower.includes('rival')) return 'friend';
+  if (lower.includes('collaborator') || lower.includes('mentor') || lower.includes('collaboration')) return 'friend';
   return 'friend';
 }
 

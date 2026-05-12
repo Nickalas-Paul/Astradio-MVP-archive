@@ -31,6 +31,8 @@ export type StorageAdapter = {
   getUserByHandle?: (handle: string) => Promise<(User & { handle?: string }) | undefined>;
   setUserPrimaryChart?: (userId: string, chartId: string) => Promise<void>;
   getUserPrimaryChart?: (userId: string) => Promise<string | undefined>;
+  /** Reverse lookup for seeker chart → user (Discovery excludes self). */
+  getUserIdForPrimaryChart?: (chartId: string) => Promise<string | undefined>;
   createChart: (input: any) => Promise<Chart>;
   /** Birth-field update for profile chart correction (owner-scoped). */
   updateChartBirthFields?: (
@@ -142,6 +144,11 @@ export async function getUserPrimaryChart(userId: string): Promise<string | unde
   return undefined;
 }
 
+export async function getUserIdForPrimaryChart(chartId: string): Promise<string | undefined> {
+  if (adapter.getUserIdForPrimaryChart) return adapter.getUserIdForPrimaryChart(chartId);
+  return undefined;
+}
+
 export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUser[]> {
   const debug = process.env.COMMUNITY_SEARCH_DEBUG === '1';
   const adapterAny = adapter as any;
@@ -162,6 +169,10 @@ export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUse
         displayName: c.displayName,
         chartId: c.chartId,
         label: chart?.label,
+        ...(c.bio ? { bio: c.bio } : {}),
+        ...(c.avatarUrl ? { avatarUrl: c.avatarUrl } : {}),
+        ...(c.discoverableAs != null ? { discoverableAs: c.discoverableAs } : {}),
+        ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
       });
     }
     eligible = users;
