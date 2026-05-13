@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getApiBaseUrl } from '../api-base';
 import { SocialAPI } from './mock-api';
 import type { User, Circle, LibraryItem, Playlist, Favorite, Session, UserActivity, LibraryStats } from './types';
-import type { CompatMatch, CompatibilityExplanationProfile } from '../compat/types';
+import type { CompatMatch, CompatibilityExplanationProfile, SynastryBulletLine } from '../compat/types';
 import type { RelationalIntent } from '../../lib/relational-intent';
 
 export function useFriends() {
@@ -467,6 +467,27 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
     const s = String(v || '').toLowerCase();
     return s === 'high' || s === 'moderate' || s === 'low' ? s : 'moderate';
   };
+  const parseBulletLine = (raw: unknown): SynastryBulletLine | null => {
+    if (!raw || typeof raw !== 'object') return null;
+    const o = raw as Record<string, unknown>;
+    const anchor = typeof o.anchor === 'string' ? o.anchor : '';
+    const text = typeof o.text === 'string' ? o.text : '';
+    if (!anchor && !text) return null;
+    return { anchor, text };
+  };
+
+  const sbRaw = baseEp.synastryBullets;
+  let synastryBullets: CompatibilityExplanationProfile['synastryBullets'];
+  if (sbRaw && typeof sbRaw === 'object') {
+    const o = sbRaw as Record<string, unknown>;
+    const forYou = parseBulletLine(o.forYou);
+    const forThem = parseBulletLine(o.forThem);
+    const together = parseBulletLine(o.together);
+    if (forYou && forThem && together) {
+      synastryBullets = { forYou, forThem, together };
+    }
+  }
+
   const explanationProfile: CompatibilityExplanationProfile = {
     intent:
       baseEp.intent === 'lover' ? 'lover' : baseEp.intent === 'friend' ? 'friend' : mode === 'lover' ? 'lover' : 'friend',
@@ -483,6 +504,7 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
         }
       : {}),
     ...(Array.isArray(baseEp.anchors) ? { anchors: baseEp.anchors.map(String) } : {}),
+    ...(synastryBullets ? { synastryBullets } : {}),
   };
   const facets = Array.isArray(m.facets) ? (m.facets as CompatMatch['facets']) : [];
   return {

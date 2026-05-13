@@ -22,11 +22,21 @@ export interface CompatibilityExplanationProfile {
   anchors: string[];
 }
 
+/** One discovery match card line: Feed-style anchor + prose (synastry library). */
+export type SynastryBulletLine = { anchor: string; text: string };
+
 /** Discovery / matches API: synastry bullets only — no internal anchors or intent buckets. */
 export type CompatibilityExplanationProfilePublic = Pick<
   CompatibilityExplanationProfile,
   'intent' | 'intentFitSummary' | 'primarySupports' | 'secondarySupports' | 'tensionsOrLimits'
->;
+> & {
+  /** When present, UI shows anchor above prose; string arrays remain text-only for backward compatibility. */
+  synastryBullets?: {
+    forYou: SynastryBulletLine;
+    forThem: SynastryBulletLine;
+    together: SynastryBulletLine;
+  };
+};
 
 type SignalLine = {
   text: string;

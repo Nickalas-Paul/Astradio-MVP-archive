@@ -86,17 +86,49 @@ async function generateCompatibilityBullets(
   chartIdA: string,
   chartIdB: string,
   intent: 'friend' | 'partner'
-): Promise<{ forThem: string; forYou: string; together: string }> {
+): Promise<{
+  forThem: { anchor: string; text: string };
+  forYou: { anchor: string; text: string };
+  together: { anchor: string; text: string };
+}> {
   const aspects = await computeMatchSynastry(chartIdA, chartIdB);
   const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
 
-  const aToB = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
-  const bToA = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
+  const aToBFull = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
+  const bToAFull = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
 
-  const sortByStrength = (x: DirectedSnapshotAspect, y: DirectedSnapshotAspect) =>
-    (y.exactness ?? 0) - (x.exactness ?? 0);
-  aToB.sort(sortByStrength);
-  bToA.sort(sortByStrength);
+  const PERSONAL_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus']);
+  const isPersonalBody = (b: string) => PERSONAL_PLANETS.has(String(b).toLowerCase());
+
+  const RELATIONAL_PRIORITY: ReadonlyArray<readonly [string, string]> = [
+    ['moon', 'moon'],
+    ['moon', 'venus'],
+    ['venus', 'venus'],
+    ['moon', 'mercury'],
+    ['venus', 'mercury'],
+    ['sun', 'moon'],
+    ['sun', 'venus'],
+    ['mercury', 'mercury'],
+    ['mars', 'venus'],
+    ['sun', 'mercury'],
+    ['sun', 'sun'],
+  ];
+
+  const getPriorityIndex = (bodyA: string, bodyB: string): number => {
+    const a = String(bodyA).toLowerCase();
+    const b = String(bodyB).toLowerCase();
+    const idx = RELATIONAL_PRIORITY.findIndex(
+      ([p1, p2]) => (p1 === a && p2 === b) || (p1 === b && p2 === a)
+    );
+    return idx === -1 ? 999 : idx;
+  };
+
+  const sortByRelationalPriority = (x: DirectedSnapshotAspect, y: DirectedSnapshotAspect) => {
+    const priorityX = getPriorityIndex(x.bodyA, x.bodyB);
+    const priorityY = getPriorityIndex(y.bodyA, y.bodyB);
+    if (priorityX !== priorityY) return priorityX - priorityY;
+    return (y.exactness ?? 0) - (x.exactness ?? 0);
+  };
 
   const filterWithLibraryCoverage = (aspectList: DirectedSnapshotAspect[]): DirectedSnapshotAspect[] =>
     aspectList.filter((aspect) => {
@@ -104,8 +136,25 @@ async function generateCompatibilityBullets(
       return getAspectInsight(key) != null;
     });
 
-  const aToBWithCoverage = filterWithLibraryCoverage(aToB);
-  const bToAWithCoverage = filterWithLibraryCoverage(bToA);
+  const personalOnly = usable.filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB));
+  let aToB = personalOnly.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
+  let bToA = personalOnly.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
+  aToB.sort(sortByRelationalPriority);
+  bToA.sort(sortByRelationalPriority);
+
+  let aToBWithCoverage = filterWithLibraryCoverage(aToB);
+  let bToAWithCoverage = filterWithLibraryCoverage(bToA);
+
+  if (aToBWithCoverage.length === 0 && aToBFull.length > 0) {
+    aToB = [...aToBFull];
+    aToB.sort(sortByRelationalPriority);
+    aToBWithCoverage = filterWithLibraryCoverage(aToB);
+  }
+  if (bToAWithCoverage.length === 0 && bToAFull.length > 0) {
+    bToA = [...bToAFull];
+    bToA.sort(sortByRelationalPriority);
+    bToAWithCoverage = filterWithLibraryCoverage(bToA);
+  }
 
   if (process.env.MATCHES_BULLET_DEBUG === '1') {
     console.log(`[matches] Synastry aspects for ${chartIdA} + ${chartIdB}:`);
@@ -136,14 +185,24 @@ async function generateCompatibilityBullets(
     }
   }
 
-  const generateBullet = (aspect: DirectedSnapshotAspect | undefined): string => {
-    if (!aspect) return 'Astrological connection details unavailable.';
+  const titleBody = (name: string) => {
+    const s = String(name || '').toLowerCase();
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  const generateBullet = (aspect: DirectedSnapshotAspect | undefined): { anchor: string; text: string } => {
+    if (!aspect) {
+      return { anchor: 'Aspect unavailable', text: 'Astrological connection details unavailable.' };
+    }
 
     const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
     const insight = getAspectInsight(key);
+    const anchor = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
+
     if (!insight) {
       console.warn(`[matches] Unexpected: aspect ${key} passed filter but has no library entry`);
-      return 'Astrological connection details unavailable.';
+      return { anchor, text: 'Astrological connection details unavailable.' };
     }
 
     const firstSentenceFrom = (paragraph: string | null | undefined): string | null => {
@@ -159,13 +218,13 @@ async function generateCompatibilityBullets(
         : (insight.friendship_synastry ?? insight.friendship ?? null);
 
     const fromVariant = firstSentenceFrom(variantText);
-    if (fromVariant) return fromVariant;
+    if (fromVariant) return { anchor, text: fromVariant };
 
     const coreText = insight.core_synastry ?? insight.core ?? null;
     const fromCore = firstSentenceFrom(coreText);
-    if (fromCore) return fromCore;
+    if (fromCore) return { anchor, text: fromCore };
 
-    return 'Astrological connection details unavailable.';
+    return { anchor, text: 'Astrological connection details unavailable.' };
   };
 
   return {
@@ -356,16 +415,21 @@ export async function getCompatMatches(
         console.log(
           `[matches] Bullets for ${cand.displayName ?? cand.userId} (seeker ${chartId} vs candidate ${cand.chartId}, bulletsIntent=${intentForBullets}):`
         );
-        console.log(`  forThem (A→B): ${clip(bullets.forThem, 60)}`);
-        console.log(`  forYou (B→A): ${clip(bullets.forYou, 60)}`);
-        console.log(`  together: ${clip(bullets.together, 60)}`);
+        console.log(`  forThem (A→B): ${clip(bullets.forThem.text, 60)}`);
+        console.log(`  forYou (B→A): ${clip(bullets.forYou.text, 60)}`);
+        console.log(`  together: ${clip(bullets.together.text, 60)}`);
       }
       const explanationProfile: CompatibilityExplanationProfilePublic = {
         intent: mode,
         intentFitSummary: '',
-        primarySupports: [bullets.forYou],
-        secondarySupports: [bullets.forThem],
-        tensionsOrLimits: [bullets.together],
+        primarySupports: [bullets.forYou.text],
+        secondarySupports: [bullets.forThem.text],
+        tensionsOrLimits: [bullets.together.text],
+        synastryBullets: {
+          forYou: bullets.forYou,
+          forThem: bullets.forThem,
+          together: bullets.together,
+        },
       };
       results.push({
         userId: cand.userId,

@@ -32,6 +32,8 @@ export type ScoreResult = {
 };
 
 /** Mirrors server `CompatibilityExplanationProfile` (discovery / matches API). Debug fields optional when omitted by server. */
+export type SynastryBulletLine = { anchor: string; text: string };
+
 export type CompatibilityExplanationProfile = {
   intent: 'friend' | 'lover';
   intentFitSummary: string;
@@ -43,6 +45,12 @@ export type CompatibilityExplanationProfile = {
     lover: 'high' | 'moderate' | 'low';
   };
   anchors?: string[];
+  /** Discovery card: anchor + prose per bullet (optional for older API payloads). */
+  synastryBullets?: {
+    forYou: SynastryBulletLine;
+    forThem: SynastryBulletLine;
+    together: SynastryBulletLine;
+  };
 };
 
 export type CompatMatch = {

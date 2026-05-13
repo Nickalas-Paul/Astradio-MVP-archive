@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../core/api-base';
 import { useCompat, useCommunityInventory, type CommunityInventoryV1 } from '../core/social/hooks';
+import type { CompatibilityExplanationProfile, SynastryBulletLine } from '../core/compat/types';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 import { RELATIONAL_INTENT_OPTIONS as MODES, type RelationalIntent } from '../lib/relational-intent';
@@ -26,6 +27,33 @@ interface CompatibilitySectionProps {
   onConnectionRequested?: () => void;
   /** Increment to refetch GET /api/community/inventory (pending state source of truth). */
   inventoryRefreshSignal?: number;
+}
+
+function discoveryBulletFromEp(
+  ep: CompatibilityExplanationProfile,
+  which: 'forYou' | 'forThem' | 'together'
+): SynastryBulletLine {
+  const structured = ep.synastryBullets?.[which];
+  if (structured?.text) return structured;
+  const fallback =
+    which === 'forYou'
+      ? ep.primarySupports[0]
+      : which === 'forThem'
+        ? ep.secondarySupports[0]
+        : ep.tensionsOrLimits[0];
+  return { anchor: '', text: fallback || 'Compatibility insight unavailable' };
+}
+
+function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
+  if (line.anchor) {
+    return (
+      <div className="min-w-0">
+        <div className="text-xs font-semibold text-subtext mb-1">{line.anchor}</div>
+        <div className="text-sm text-text">{line.text}</div>
+      </div>
+    );
+  }
+  return <div className="text-sm text-text min-w-0">{line.text}</div>;
 }
 
 function pendingOutgoingForMatch(
@@ -325,11 +353,9 @@ export function CompatibilitySection({
               : 'Request connection';
 
           const ep = match.explanationProfile;
-          const bullets = {
-            forYou: ep.primarySupports[0] || 'Compatibility insight unavailable',
-            forThem: ep.secondarySupports[0] || 'Compatibility insight unavailable',
-            together: ep.tensionsOrLimits[0] || 'Compatibility insight unavailable',
-          };
+          const forThemLine = discoveryBulletFromEp(ep, 'forThem');
+          const forYouLine = discoveryBulletFromEp(ep, 'forYou');
+          const togetherLine = discoveryBulletFromEp(ep, 'together');
 
           const initial =
             (match.displayName || match.userId || '?').trim().charAt(0).toUpperCase() || '?';
@@ -358,25 +384,34 @@ export function CompatibilitySection({
                       <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
                         ●
                       </span>
-                      <p className="text-sm text-text flex-1 min-w-0">
-                        <span className="font-medium">Why you match them:</span> {bullets.forThem}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-text mb-1">
+                          <span className="font-medium">Why you&apos;re good for them:</span>
+                        </p>
+                        <SynastryBulletBlock line={forThemLine} />
+                      </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
                         ●
                       </span>
-                      <p className="text-sm text-text flex-1 min-w-0">
-                        <span className="font-medium">Why they match you:</span> {bullets.forYou}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-text mb-1">
+                          <span className="font-medium">Why they&apos;re good for you:</span>
+                        </p>
+                        <SynastryBulletBlock line={forYouLine} />
+                      </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
                         ●
                       </span>
-                      <p className="text-sm text-text flex-1 min-w-0">
-                        <span className="font-medium">Why this works:</span> {bullets.together}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-text mb-1">
+                          <span className="font-medium">Why you&apos;re good together:</span>
+                        </p>
+                        <SynastryBulletBlock line={togetherLine} />
+                      </div>
                     </div>
                   </div>
 
@@ -387,17 +422,18 @@ export function CompatibilitySection({
                   ) : null}
 
                   {expandedChartId === match.chartId ? (
-                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-sm text-subtext space-y-2">
-                      <div className="space-y-1">
-                        <p>
-                          <span className="font-medium text-text">Why you match them:</span> {bullets.forThem}
-                        </p>
-                        <p>
-                          <span className="font-medium text-text">Why they match you:</span> {bullets.forYou}
-                        </p>
-                        <p>
-                          <span className="font-medium text-text">Why this works:</span> {bullets.together}
-                        </p>
+                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-sm text-subtext space-y-3">
+                      <div>
+                        <p className="font-medium text-text mb-1">Why you&apos;re good for them</p>
+                        <SynastryBulletBlock line={forThemLine} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-text mb-1">Why they&apos;re good for you</p>
+                        <SynastryBulletBlock line={forYouLine} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-text mb-1">Why you&apos;re good together</p>
+                        <SynastryBulletBlock line={togetherLine} />
                       </div>
                     </div>
                   ) : null}
