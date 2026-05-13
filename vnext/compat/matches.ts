@@ -335,6 +335,15 @@ export async function getCompatMatches(
       });
       const score = canonicalIntentRank(computed.scoring, mode);
       const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
+      if (process.env.MATCHES_BULLET_DEBUG === '1') {
+        const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}...`);
+        console.log(
+          `[matches] Bullets for ${cand.displayName ?? cand.userId} (seeker ${chartId} vs candidate ${cand.chartId}, bulletsIntent=${intentForBullets}):`
+        );
+        console.log(`  forThem (A→B): ${clip(bullets.forThem, 60)}`);
+        console.log(`  forYou (B→A): ${clip(bullets.forYou, 60)}`);
+        console.log(`  together: ${clip(bullets.together, 60)}`);
+      }
       const explanationProfile: CompatibilityExplanationProfilePublic = {
         intent: mode,
         intentFitSummary: '',
