@@ -9,7 +9,6 @@ import type { DirectoryEligibleUser } from './storage';
 import { computeSynastryAspects } from '../synastry/synastry-compute';
 import { buildAspectKey, getAspectInsight } from '../projection/insight-library/insight-library-index';
 import { isAspectLibraryKillListed } from '../projection/insight-library/aspect-library-kill-list';
-import { composeSynastryMepAspectParagraph } from '../projection/insight-library/synastry-aspect-library-render';
 import type { DirectedSnapshotAspect } from '../synastry/synastry-types';
 import type { EphemerisSnapshot } from '../contracts';
 import { compatibilityFacetExplanation } from '../projection/insight/map-insight-unit-v1';
@@ -139,17 +138,34 @@ async function generateCompatibilityBullets(
 
   const generateBullet = (aspect: DirectedSnapshotAspect | undefined): string => {
     if (!aspect) return 'Astrological connection details unavailable.';
+
     const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
     const insight = getAspectInsight(key);
     if (!insight) {
       console.warn(`[matches] Unexpected: aspect ${key} passed filter but has no library entry`);
       return 'Astrological connection details unavailable.';
     }
-    const variant = intent === 'partner' ? 'romantic' : 'friendship';
-    const prose = composeSynastryMepAspectParagraph(insight, variant);
-    const raw = prose.split('.')[0]?.trim() || '';
-    const firstSentence = raw ? `${raw}.` : 'Astrological connection details unavailable.';
-    return firstSentence.length > 200 ? `${firstSentence.slice(0, 197)}...` : firstSentence;
+
+    const firstSentenceFrom = (paragraph: string | null | undefined): string | null => {
+      if (!paragraph || typeof paragraph !== 'string') return null;
+      const raw = paragraph.split('.')[0]?.trim();
+      if (!raw) return null;
+      return raw.length <= 200 ? `${raw}.` : `${raw.slice(0, 197)}...`;
+    };
+
+    const variantText =
+      intent === 'partner'
+        ? (insight.romantic_synastry ?? insight.romantic ?? null)
+        : (insight.friendship_synastry ?? insight.friendship ?? null);
+
+    const fromVariant = firstSentenceFrom(variantText);
+    if (fromVariant) return fromVariant;
+
+    const coreText = insight.core_synastry ?? insight.core ?? null;
+    const fromCore = firstSentenceFrom(coreText);
+    if (fromCore) return fromCore;
+
+    return 'Astrological connection details unavailable.';
   };
 
   return {
