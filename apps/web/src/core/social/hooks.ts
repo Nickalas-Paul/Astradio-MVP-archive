@@ -461,7 +461,7 @@ export function useUserSearch(params: { q: string; limit?: number; cursor?: stri
 
 function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): CompatMatch {
   const m = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const epRaw = m.explanationProfile;
+  const epRaw = m.explanationProfile ?? m.explanation_profile;
   const baseEp = epRaw && typeof epRaw === 'object' ? (epRaw as Record<string, unknown>) : {};
   const bucket = (v: unknown): 'high' | 'moderate' | 'low' => {
     const s = String(v || '').toLowerCase();
@@ -476,12 +476,20 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
     return { anchor, text };
   };
 
-  const sbRaw = baseEp.synastryBullets;
+  const sbRaw =
+    baseEp.synastryBullets ??
+    baseEp.synastry_bullets ??
+    m.synastryBullets ??
+    m.synastry_bullets;
   let synastryBullets: CompatibilityExplanationProfile['synastryBullets'];
   if (sbRaw && typeof sbRaw === 'object') {
     const o = sbRaw as Record<string, unknown>;
-    const forYou = parseBulletLine(o.forYou);
-    const forThem = parseBulletLine(o.forThem);
+    const forYou =
+      parseBulletLine(o.forYou) ??
+      parseBulletLine(o.for_you);
+    const forThem =
+      parseBulletLine(o.forThem) ??
+      parseBulletLine(o.for_them);
     const together = parseBulletLine(o.together);
     if (forYou && forThem && together) {
       synastryBullets = { forYou, forThem, together };

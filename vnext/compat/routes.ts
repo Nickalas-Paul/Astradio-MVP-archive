@@ -380,6 +380,13 @@ export function createCompatRouter(): import('express').Router {
       const matches = await getCompatMatches(chartId, mode, limit);
       const generatedAt = new Date().toISOString();
       const matchesMock = process.env.VNEXT_MATCHES_MOCK === '1';
+      if (process.env.MATCHES_BULLET_DEBUG === '1' && Array.isArray(matches) && matches.length > 0) {
+        const ep0 = matches[0]?.explanationProfile as Record<string, unknown> | undefined;
+        console.log(
+          '[API_RESPONSE_DEBUG] first match explanationProfile.synastryBullets:',
+          JSON.stringify(ep0?.synastryBullets ?? null, null, 2)
+        );
+      }
       return res.status(200).json({
         chartId,
         mode,

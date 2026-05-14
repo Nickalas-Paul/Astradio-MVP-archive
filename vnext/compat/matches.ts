@@ -137,6 +137,23 @@ async function generateCompatibilityBullets(
     });
 
   const personalOnly = usable.filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB));
+  if (process.env.MATCHES_BULLET_DEBUG === '1') {
+    console.log('[BULLET_DEBUG] personal planet aspects (usable ∩ personal):', personalOnly.length);
+    console.log(
+      '[BULLET_DEBUG] first 3 personal aspects:',
+      JSON.stringify(
+        personalOnly.slice(0, 3).map((a) => ({
+          bodyA: a.bodyA,
+          bodyB: a.bodyB,
+          type: a.type,
+          exactness: a.exactness,
+          dir: `${a.sourceSlotIndex}→${a.targetSlotIndex}`,
+        })),
+        null,
+        2
+      )
+    );
+  }
   let aToB = personalOnly.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
   let bToA = personalOnly.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
   aToB.sort(sortByRelationalPriority);
@@ -227,11 +244,27 @@ async function generateCompatibilityBullets(
     return { anchor, text: 'Astrological connection details unavailable.' };
   };
 
-  return {
+  const out = {
     forThem: generateBullet(aToBWithCoverage[0]),
     forYou: generateBullet(bToAWithCoverage[0]),
     together: generateBullet(aToBWithCoverage[1] ?? bToAWithCoverage[1]),
   };
+  if (process.env.MATCHES_BULLET_DEBUG === '1') {
+    const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}…`);
+    console.log(
+      '[BULLET_DEBUG] generated bullets (anchor + text clip):',
+      JSON.stringify(
+        {
+          forThem: { anchor: out.forThem.anchor, text: clip(out.forThem.text, 50) },
+          forYou: { anchor: out.forYou.anchor, text: clip(out.forYou.text, 50) },
+          together: { anchor: out.together.anchor, text: clip(out.together.text, 50) },
+        },
+        null,
+        2
+      )
+    );
+  }
+  return out;
 }
 
 /** Longitude for a core body from an ephemeris snapshot (lowercase names). */
