@@ -1,4 +1,4 @@
-"""Apply Phase 3 Saturn (houses 1-12) and Uranus (houses 1-6) placement rewrites."""
+"""Apply Phase 3 outer-planet in-house placement rewrites (Saturn, Uranus, Neptune, Pluto)."""
 import re
 import sys
 from pathlib import Path
@@ -6,6 +6,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+from phase3_neptune_houses_data import UPDATES as NEPTUNE_UPDATES  # noqa: E402
+from phase3_pluto_houses_data import UPDATES as PLUTO_UPDATES  # noqa: E402
 from phase3_saturn_houses_data import UPDATES as SATURN_UPDATES  # noqa: E402
 from phase3_uranus_houses_data import UPDATES as URANUS_UPDATES  # noqa: E402
 
@@ -41,9 +43,9 @@ def apply_updates(path: Path, updates: dict[str, dict[str, str]]) -> int:
 
 
 def main() -> None:
-    merged = {**SATURN_UPDATES, **URANUS_UPDATES}
+    merged = {**SATURN_UPDATES, **URANUS_UPDATES, **NEPTUNE_UPDATES, **PLUTO_UPDATES}
     n = apply_updates(HOUSE_PATH, merged)
-    print(f"Updated {n} Saturn/Uranus house entries in {HOUSE_PATH.name}")
+    print(f"Updated {n} outer-planet house entries in {HOUSE_PATH.name}")
 
 
 if __name__ == "__main__":
