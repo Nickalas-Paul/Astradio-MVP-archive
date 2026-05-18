@@ -19,6 +19,16 @@ import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
+/** FNV-1a 32-bit hash for deterministic chart-pair seeding (Phase 2 diversity). */
+export function hash32(input: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
 
@@ -83,12 +93,15 @@ async function computeMatchSynastry(chartIdA: string, chartIdB: string): Promise
 }
 
 /**
- * Pick three distinct aspects for Discovery bullets, avoiding duplication.
- * Prefers high-priority aspects but ensures each bullet shows a different planet pair + aspect type.
+ * Pick three distinct aspects for Discovery bullets.
+ * Phase 2: chart-pair seeded top-N selection; optional batch dedupe soft-penalty.
  */
-function pickThreeDistinctAspects(
-  aToBList: DirectedSnapshotAspect[],
-  bToAList: DirectedSnapshotAspect[]
+export function pickThreeDistinctAspects(
+  aToBList: ReadonlyArray<DirectedSnapshotAspect>,
+  bToAList: ReadonlyArray<DirectedSnapshotAspect>,
+  chartIdA: string,
+  chartIdB: string,
+  batchUsedKeys?: Set<string>
 ): {
   forThem: DirectedSnapshotAspect | undefined;
   forYou: DirectedSnapshotAspect | undefined;
@@ -96,28 +109,40 @@ function pickThreeDistinctAspects(
 } {
   const usedKeys = new Set<string>();
 
-  const pickUnique = (list: DirectedSnapshotAspect[], startIdx: number = 0): DirectedSnapshotAspect | undefined => {
-    if (!list.length) return undefined;
-    for (let i = startIdx; i < list.length; i++) {
-      const aspect = list[i]!;
+  const pickFromTopN = (
+    list: ReadonlyArray<DirectedSnapshotAspect>,
+    startIdx: number,
+    seed: string,
+    topN = 7
+  ): DirectedSnapshotAspect | undefined => {
+    const candidates: DirectedSnapshotAspect[] = [];
+    for (let i = startIdx; i < list.length && candidates.length < topN; i++) {
+      const aspect = list[i];
+      if (!aspect) continue;
       const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
-      if (!usedKeys.has(key)) {
-        usedKeys.add(key);
-        return aspect;
+      if (usedKeys.has(key)) continue;
+      if (batchUsedKeys?.has(key)) {
+        const hasFreshLater = list.slice(i + 1).some((later) => {
+          const laterKey = buildAspectKey(later.bodyA, later.bodyB, later.type);
+          return !usedKeys.has(laterKey) && !batchUsedKeys.has(laterKey);
+        });
+        if (hasFreshLater) continue;
       }
+      candidates.push(aspect);
     }
-    return list[0];
+    if (candidates.length === 0) return undefined;
+    const idx = hash32(seed) % candidates.length;
+    const selected = candidates[idx]!;
+    usedKeys.add(buildAspectKey(selected.bodyA, selected.bodyB, selected.type));
+    return selected;
   };
 
-  const forThem = pickUnique(aToBList, 0);
-  const forYou = pickUnique(bToAList, 0);
-
-  let together = pickUnique(aToBList, 1);
+  const baseSeed = `${chartIdA}:${chartIdB}`;
+  const forThem = pickFromTopN(aToBList, 0, `${baseSeed}:forThem`);
+  const forYou = pickFromTopN(bToAList, 0, `${baseSeed}:forYou`);
+  let together = pickFromTopN(aToBList, 0, `${baseSeed}:together`);
   if (!together || usedKeys.size < 3) {
-    together = pickUnique(bToAList, 1) ?? together;
-  }
-  if (!together) {
-    together = pickUnique(aToBList, 0) ?? pickUnique(bToAList, 0);
+    together = pickFromTopN(bToAList, 0, `${baseSeed}:together:fallback`) ?? together;
   }
 
   return { forThem, forYou, together };
@@ -126,7 +151,8 @@ function pickThreeDistinctAspects(
 async function generateCompatibilityBullets(
   chartIdA: string,
   chartIdB: string,
-  intent: 'friend' | 'partner'
+  intent: 'friend' | 'partner',
+  batchUsedKeys?: Set<string>
 ): Promise<{
   forThem: { anchor: string; text: string };
   forYou: { anchor: string; text: string };
@@ -336,7 +362,21 @@ async function generateCompatibilityBullets(
     return { anchor: '', text: `${objectLine}—${selectedText}` };
   };
 
-  const selectedAspects = pickThreeDistinctAspects(aToBWithCoverage, bToAWithCoverage);
+  const selectedAspects = pickThreeDistinctAspects(
+    aToBWithCoverage,
+    bToAWithCoverage,
+    chartIdA,
+    chartIdB,
+    batchUsedKeys
+  );
+
+  if (batchUsedKeys) {
+    for (const aspect of [selectedAspects.forThem, selectedAspects.forYou, selectedAspects.together]) {
+      if (aspect) {
+        batchUsedKeys.add(buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type));
+      }
+    }
+  }
 
   const out = {
     forThem: generateBullet(selectedAspects.forThem),
@@ -524,6 +564,7 @@ export async function getCompatMatches(
 
   const results: CompatMatchResult[] = [];
   const intentForBullets = mode === 'lover' ? 'partner' : 'friend';
+  const batchUsedKeys = new Set<string>();
 
   for (let i = 0; i < topCandidates.length; i++) {
     const cand = topCandidates[i]!;
@@ -536,7 +577,12 @@ export async function getCompatMatches(
         relationshipBindingId: null,
       });
       const score = canonicalIntentRank(computed.scoring, mode);
-      const bullets = await generateCompatibilityBullets(chartId, cand.chartId, intentForBullets);
+      const bullets = await generateCompatibilityBullets(
+        chartId,
+        cand.chartId,
+        intentForBullets,
+        batchUsedKeys
+      );
       if (process.env.MATCHES_BULLET_DEBUG === '1') {
         const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}...`);
         console.log(
