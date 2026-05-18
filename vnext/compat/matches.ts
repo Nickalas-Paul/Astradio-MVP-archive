@@ -82,6 +82,47 @@ async function computeMatchSynastry(chartIdA: string, chartIdB: string): Promise
   });
 }
 
+/**
+ * Pick three distinct aspects for Discovery bullets, avoiding duplication.
+ * Prefers high-priority aspects but ensures each bullet shows a different planet pair + aspect type.
+ */
+function pickThreeDistinctAspects(
+  aToBList: DirectedSnapshotAspect[],
+  bToAList: DirectedSnapshotAspect[]
+): {
+  forThem: DirectedSnapshotAspect | undefined;
+  forYou: DirectedSnapshotAspect | undefined;
+  together: DirectedSnapshotAspect | undefined;
+} {
+  const usedKeys = new Set<string>();
+
+  const pickUnique = (list: DirectedSnapshotAspect[], startIdx: number = 0): DirectedSnapshotAspect | undefined => {
+    if (!list.length) return undefined;
+    for (let i = startIdx; i < list.length; i++) {
+      const aspect = list[i]!;
+      const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        return aspect;
+      }
+    }
+    return list[0];
+  };
+
+  const forThem = pickUnique(aToBList, 0);
+  const forYou = pickUnique(bToAList, 0);
+
+  let together = pickUnique(aToBList, 1);
+  if (!together || usedKeys.size < 3) {
+    together = pickUnique(bToAList, 1) ?? together;
+  }
+  if (!together) {
+    together = pickUnique(aToBList, 0) ?? pickUnique(bToAList, 0);
+  }
+
+  return { forThem, forYou, together };
+}
+
 async function generateCompatibilityBullets(
   chartIdA: string,
   chartIdB: string,
@@ -97,7 +138,7 @@ async function generateCompatibilityBullets(
   const aToBFull = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
   const bToAFull = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
 
-  const PERSONAL_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus']);
+  const PERSONAL_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus', 'mars']);
   const isPersonalBody = (b: string) => PERSONAL_PLANETS.has(String(b).toLowerCase());
 
   const RELATIONAL_PRIORITY: ReadonlyArray<readonly [string, string]> = [
@@ -210,44 +251,52 @@ async function generateCompatibilityBullets(
 
   const generateBullet = (aspect: DirectedSnapshotAspect | undefined): { anchor: string; text: string } => {
     if (!aspect) {
-      return { anchor: 'Aspect unavailable', text: 'Astrological connection details unavailable.' };
+      return { anchor: '', text: 'Astrological connection details unavailable.' };
     }
 
     const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
     const insight = getAspectInsight(key);
-    const anchor = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
+    const objectLine = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
 
     if (!insight) {
       console.warn(`[matches] Unexpected: aspect ${key} passed filter but has no library entry`);
-      return { anchor, text: 'Astrological connection details unavailable.' };
+      return { anchor: '', text: `${objectLine}—Astrological insight for this aspect is being prepared.` };
     }
 
-    const firstSentenceFrom = (paragraph: string | null | undefined): string | null => {
-      if (!paragraph || typeof paragraph !== 'string') return null;
-      const raw = paragraph.split('.')[0]?.trim();
-      if (!raw) return null;
-      return raw.length <= 200 ? `${raw}.` : `${raw.slice(0, 197)}...`;
-    };
+    const prose =
+      insight.behavioral_synastry ??
+      insight.core_synastry ??
+      (intent === 'partner' ? insight.romantic_synastry : insight.friendship_synastry) ??
+      insight.romantic_synastry ??
+      insight.friendship_synastry ??
+      insight.core;
 
-    const variantText =
-      intent === 'partner'
-        ? (insight.romantic_synastry ?? insight.romantic ?? null)
-        : (insight.friendship_synastry ?? insight.friendship ?? null);
+    if (!prose) {
+      return { anchor: '', text: `${objectLine}—Insight text unavailable.` };
+    }
 
-    const fromVariant = firstSentenceFrom(variantText);
-    if (fromVariant) return { anchor, text: fromVariant };
+    const sentences = prose.split(/\.\s+/).filter((s) => s.trim().length > 0);
+    const firstSentence = sentences[0] || '';
+    const isTechnicalLabel = /are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence);
 
-    const coreText = insight.core_synastry ?? insight.core ?? null;
-    const fromCore = firstSentenceFrom(coreText);
-    if (fromCore) return { anchor, text: fromCore };
+    let selectedText =
+      isTechnicalLabel && sentences.length > 1
+        ? `${sentences.slice(1, 4).join('. ')}.`
+        : `${sentences.slice(0, 3).join('. ')}.`;
 
-    return { anchor, text: 'Astrological connection details unavailable.' };
+    if (selectedText.length > 280) {
+      selectedText = `${selectedText.substring(0, 277)}...`;
+    }
+
+    return { anchor: '', text: `${objectLine}—${selectedText}` };
   };
 
+  const selectedAspects = pickThreeDistinctAspects(aToBWithCoverage, bToAWithCoverage);
+
   const out = {
-    forThem: generateBullet(aToBWithCoverage[0]),
-    forYou: generateBullet(bToAWithCoverage[0]),
-    together: generateBullet(aToBWithCoverage[1] ?? bToAWithCoverage[1]),
+    forThem: generateBullet(selectedAspects.forThem),
+    forYou: generateBullet(selectedAspects.forYou),
+    together: generateBullet(selectedAspects.together),
   };
   if (process.env.MATCHES_BULLET_DEBUG === '1') {
     const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}…`);
