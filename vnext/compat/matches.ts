@@ -148,6 +148,259 @@ export function pickThreeDistinctAspects(
   return { forThem, forYou, together };
 }
 
+const PERSONAL_PLANETS_FOR_BULLETS = new Set(['sun', 'moon', 'mercury', 'venus', 'mars']);
+
+const RELATIONAL_PRIORITY_FOR_BULLETS: ReadonlyArray<readonly [string, string]> = [
+  ['moon', 'moon'],
+  ['moon', 'venus'],
+  ['venus', 'venus'],
+  ['moon', 'mercury'],
+  ['venus', 'mercury'],
+  ['sun', 'moon'],
+  ['sun', 'venus'],
+  ['mercury', 'mercury'],
+  ['mars', 'venus'],
+  ['sun', 'mercury'],
+  ['sun', 'sun'],
+];
+
+function titleBodyForBullet(name: string): string {
+  const s = String(name || '').toLowerCase();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function getRelationalPriorityIndex(bodyA: string, bodyB: string): number {
+  const a = String(bodyA).toLowerCase();
+  const b = String(bodyB).toLowerCase();
+  const idx = RELATIONAL_PRIORITY_FOR_BULLETS.findIndex(
+    ([p1, p2]) => (p1 === a && p2 === b) || (p1 === b && p2 === a)
+  );
+  return idx === -1 ? 999 : idx;
+}
+
+function relationalScoreForAspect(aspect: DirectedSnapshotAspect): number {
+  const priorityIndex = getRelationalPriorityIndex(aspect.bodyA, aspect.bodyB);
+  const priorityWeight = priorityIndex >= 999 ? 0 : 1 - priorityIndex / RELATIONAL_PRIORITY_FOR_BULLETS.length;
+  return priorityWeight * 0.6 + (aspect.exactness ?? 0) * 0.4;
+}
+
+function sortAspectsByRelationalPriority(x: DirectedSnapshotAspect, y: DirectedSnapshotAspect): number {
+  return relationalScoreForAspect(y) - relationalScoreForAspect(x);
+}
+
+async function preparePersonalSynastryLists(
+  chartIdA: string,
+  chartIdB: string
+): Promise<{
+  aToBWithCoverage: DirectedSnapshotAspect[];
+  bToAWithCoverage: DirectedSnapshotAspect[];
+}> {
+  const aspects = await computeMatchSynastry(chartIdA, chartIdB);
+  const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
+  const isPersonalBody = (b: string) => PERSONAL_PLANETS_FOR_BULLETS.has(String(b).toLowerCase());
+
+  const aToBFull = usable.filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
+  const bToAFull = usable.filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
+
+  let aToB = usable
+    .filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB))
+    .filter((a) => a.sourceSlotIndex === 0 && a.targetSlotIndex === 1);
+  let bToA = usable
+    .filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB))
+    .filter((a) => a.sourceSlotIndex === 1 && a.targetSlotIndex === 0);
+  aToB.sort(sortAspectsByRelationalPriority);
+  bToA.sort(sortAspectsByRelationalPriority);
+
+  const filterWithLibraryCoverage = (aspectList: DirectedSnapshotAspect[]): DirectedSnapshotAspect[] =>
+    aspectList.filter((aspect) => getAspectInsight(buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type)) != null);
+
+  let aToBWithCoverage = filterWithLibraryCoverage(aToB);
+  let bToAWithCoverage = filterWithLibraryCoverage(bToA);
+
+  if (aToBWithCoverage.length === 0 && aToBFull.length > 0) {
+    aToB = aToBFull.filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB));
+    aToB.sort(sortAspectsByRelationalPriority);
+    aToBWithCoverage = filterWithLibraryCoverage(aToB);
+  }
+  if (bToAWithCoverage.length === 0 && bToAFull.length > 0) {
+    bToA = bToAFull.filter((a) => isPersonalBody(a.bodyA) && isPersonalBody(a.bodyB));
+    bToA.sort(sortAspectsByRelationalPriority);
+    bToAWithCoverage = filterWithLibraryCoverage(bToA);
+  }
+
+  return { aToBWithCoverage, bToAWithCoverage };
+}
+
+function formatAspectBullet(
+  aspect: DirectedSnapshotAspect | undefined,
+  intent: 'friend' | 'partner',
+  options?: { maxTextLength?: number }
+): { anchor: string; text: string } {
+  const maxTextLength = options?.maxTextLength ?? 280;
+  if (!aspect) {
+    return { anchor: '', text: 'Astrological connection details unavailable.' };
+  }
+
+  const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
+  const insight = getAspectInsight(key);
+  const formatVariant =
+    (aspect.bodyA.charCodeAt(0) + aspect.bodyB.charCodeAt(0) + aspect.type.length) % 4;
+  let objectLine: string;
+  switch (formatVariant) {
+    case 0:
+      objectLine = `Your ${titleBodyForBullet(aspect.bodyA)} meets their ${titleBodyForBullet(aspect.bodyB)} at ${aspect.type}`;
+      break;
+    case 1:
+      objectLine = `Your ${titleBodyForBullet(aspect.bodyA)} and their ${titleBodyForBullet(aspect.bodyB)} are ${aspect.type}`;
+      break;
+    case 2:
+      objectLine = `${titleBodyForBullet(aspect.bodyA)}-${titleBodyForBullet(aspect.bodyB)} ${aspect.type}`;
+      break;
+    case 3:
+      objectLine = `Your ${titleBodyForBullet(aspect.bodyA)} ${aspect.type} their ${titleBodyForBullet(aspect.bodyB)}`;
+      break;
+    default:
+      objectLine = `Your ${titleBodyForBullet(aspect.bodyA)} meets their ${titleBodyForBullet(aspect.bodyB)} at ${aspect.type}`;
+  }
+
+  if (!insight) {
+    return { anchor: '', text: `${objectLine}—Astrological insight for this aspect is being prepared.` };
+  }
+
+  const prose =
+    (intent === 'partner' ? insight.romantic_synastry : insight.friendship_synastry) ??
+    insight.behavioral_synastry ??
+    insight.core_synastry ??
+    insight.core;
+
+  if (!prose) {
+    return { anchor: '', text: `${objectLine}—Insight text unavailable.` };
+  }
+
+  const sentences = prose.split(/\.\s+/).filter((s) => s.trim().length > 0);
+  const firstSentence = sentences[0] || '';
+  const isTechnicalLabel =
+    /are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
+    /Your \w+ and their \w+ are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
+    /sixty degrees apart|ninety degrees apart|one hundred twenty degrees/i.test(firstSentence) ||
+    /in the same element(al family)?/i.test(firstSentence);
+
+  let startIdx = 0;
+  if (isTechnicalLabel && sentences.length > 1) {
+    const rotation =
+      aspect.type === 'square' || aspect.type === 'opposition'
+        ? 1
+        : 0;
+    startIdx = 1 + (rotation % Math.max(1, sentences.length - 3));
+  } else {
+    const rotation = aspect.type === 'square' || aspect.type === 'opposition' ? 1 : 0;
+    startIdx = rotation % Math.max(1, sentences.length - 2);
+  }
+
+  const endIdx = Math.min(startIdx + 3, sentences.length);
+  let selectedText = sentences.slice(startIdx, endIdx).join('. ');
+  if (!selectedText.endsWith('.')) selectedText += '.';
+
+  if (selectedText.length > maxTextLength) {
+    selectedText = `${selectedText.substring(0, maxTextLength - 3)}...`;
+  }
+
+  return { anchor: '', text: `${objectLine}—${selectedText}` };
+}
+
+export type ExtendedCompatBullet = {
+  label: string;
+  text: string;
+  key: string;
+};
+
+/**
+ * Extended compatibility bullets for profile view (8–10 aspects).
+ * Phase 6C-1: reuses Discovery selection quality; shows more depth on profile.
+ */
+export async function generateExtendedCompatibility(
+  chartIdA: string,
+  chartIdB: string,
+  intent: 'friend' | 'partner',
+  count = 10
+): Promise<ExtendedCompatBullet[]> {
+  const { aToBWithCoverage, bToAWithCoverage } = await preparePersonalSynastryLists(chartIdA, chartIdB);
+  const discovery = pickThreeDistinctAspects(aToBWithCoverage, bToAWithCoverage, chartIdA, chartIdB);
+
+  const discoveryLabels = [
+    "Why you're good for them",
+    "Why they're good for you",
+    "Why you're good together",
+  ] as const;
+  const discoveryAspects = [discovery.forThem, discovery.forYou, discovery.together];
+
+  const results: ExtendedCompatBullet[] = [];
+  const usedKeys = new Set<string>();
+
+  for (let i = 0; i < discoveryAspects.length; i++) {
+    const aspect = discoveryAspects[i];
+    if (!aspect) continue;
+    const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
+    if (usedKeys.has(key)) continue;
+    usedKeys.add(key);
+    const bullet = formatAspectBullet(aspect, intent, { maxTextLength: 1200 });
+    results.push({
+      label: discoveryLabels[i] ?? 'Connection',
+      text: bullet.text,
+      key,
+    });
+  }
+
+  let aIdx = 0;
+  let bIdx = 0;
+  while (results.length < count) {
+    const preferAToB = results.length % 2 === 0;
+    const list = preferAToB ? aToBWithCoverage : bToAWithCoverage;
+    let idx = preferAToB ? aIdx : bIdx;
+    let picked: DirectedSnapshotAspect | undefined;
+
+    while (idx < list.length) {
+      const candidate = list[idx]!;
+      const key = buildAspectKey(candidate.bodyA, candidate.bodyB, candidate.type);
+      idx++;
+      if (usedKeys.has(key)) continue;
+      picked = candidate;
+      if (preferAToB) aIdx = idx;
+      else bIdx = idx;
+      break;
+    }
+
+    if (!picked) {
+      const otherList = preferAToB ? bToAWithCoverage : aToBWithCoverage;
+      let otherIdx = preferAToB ? bIdx : aIdx;
+      while (otherIdx < otherList.length) {
+        const candidate = otherList[otherIdx]!;
+        const key = buildAspectKey(candidate.bodyA, candidate.bodyB, candidate.type);
+        otherIdx++;
+        if (usedKeys.has(key)) continue;
+        picked = candidate;
+        if (preferAToB) bIdx = otherIdx;
+        else aIdx = otherIdx;
+        break;
+      }
+    }
+
+    if (!picked) break;
+
+    const key = buildAspectKey(picked.bodyA, picked.bodyB, picked.type);
+    usedKeys.add(key);
+    const fromSeeker = picked.sourceSlotIndex === 0 && picked.targetSlotIndex === 1;
+    const label = fromSeeker
+      ? `Your ${titleBodyForBullet(picked.bodyA)} and their ${titleBodyForBullet(picked.bodyB)}`
+      : `Their ${titleBodyForBullet(picked.bodyA)} and your ${titleBodyForBullet(picked.bodyB)}`;
+    const bullet = formatAspectBullet(picked, intent, { maxTextLength: 1200 });
+    results.push({ label, text: bullet.text, key });
+  }
+
+  return results;
+}
+
 async function generateCompatibilityBullets(
   chartIdA: string,
   chartIdB: string,

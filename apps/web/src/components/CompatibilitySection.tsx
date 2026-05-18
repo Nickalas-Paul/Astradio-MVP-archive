@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../core/api-base';
 import { useCompat, useCommunityInventory, type CommunityInventoryV1 } from '../core/social/hooks';
@@ -86,11 +87,12 @@ export function CompatibilitySection({
   onConnectionRequested,
   inventoryRefreshSignal,
 }: CompatibilitySectionProps) {
+  const router = useRouter();
   const [internalMode, setInternalMode] = useState<RelationalIntent>('friend');
   const [userTriggered, setUserTriggered] = useState(false);
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
-  const [expandedChartId, setExpandedChartId] = useState<string | null>(null);
+  const [expandedChartId] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
@@ -107,7 +109,6 @@ export function CompatibilitySection({
 
   useEffect(() => {
     setUserTriggered(false);
-    setExpandedChartId(null);
   }, [chartId]);
 
   useEffect(() => {
@@ -451,11 +452,25 @@ export function CompatibilitySection({
                       type="button"
                       onClick={() => {
                         handleViewRationale(match.chartId);
-                        setExpandedChartId((prev) => (prev === match.chartId ? null : match.chartId));
+                        const bullets = ep.synastryBullets;
+                        if (bullets && typeof window !== 'undefined') {
+                          try {
+                            sessionStorage.setItem(
+                              `discovery-bullets:${match.userId}`,
+                              JSON.stringify(bullets)
+                            );
+                          } catch {
+                            /* ignore quota */
+                          }
+                        }
+                        const intentQs = rankMode === 'lover' ? 'partner' : 'friend';
+                        router.push(
+                          `/profile/${encodeURIComponent(match.userId)}?from=discovery&intent=${intentQs}&chartId=${encodeURIComponent(match.chartId)}`
+                        );
                       }}
                       className="px-4 py-2 border border-border rounded-lg hover:border-emerald/50 text-sm font-medium transition-colors text-subtext hover:text-text"
                     >
-                      {expandedChartId === match.chartId ? 'Hide profile' : 'View profile'}
+                      View profile
                     </button>
                   </div>
                 </div>

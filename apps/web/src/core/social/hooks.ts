@@ -278,6 +278,8 @@ export interface ProfileUser {
   id: string;
   displayName: string;
   handle?: string;
+  bio?: string;
+  avatarUrl?: string;
   /** Phase 8G: when true, profile appears in community search. Default true. */
   discoverable?: boolean;
   /** Phase 8G: when true, may appear in community feed. Default true. */

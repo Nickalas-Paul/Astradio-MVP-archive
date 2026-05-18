@@ -8,7 +8,7 @@ import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
-import { getCompatMatches } from './matches';
+import { generateExtendedCompatibility, getCompatMatches } from './matches';
 import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import {
@@ -398,9 +398,35 @@ export function createCompatRouter(): import('express').Router {
         matchesMock,
       });
     } catch (e: any) {
-      if (e?.message?.includes('not found')) return res.status(404).json({ error: e.message });
       console.error('[compat] GET /compat/matches', e);
-      return res.status(500).json({ error: e?.message || 'Failed to get matches' });
+      return res.status(500).json({ error: e?.message || 'Failed to get compatibility matches' });
+    }
+  });
+
+  // GET /api/compat/extended?seekerChartId=&targetChartId=&intent=friend|partner&count=
+  router.get('/compat/extended', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const seekerChartId = String(req.query.seekerChartId || '').trim();
+      const targetChartId = String(req.query.targetChartId || '').trim();
+      if (!seekerChartId || !targetChartId) {
+        return res.status(400).json({ error: 'seekerChartId and targetChartId are required' });
+      }
+      const rawIntent = String(req.query.intent || 'friend').trim().toLowerCase();
+      const intent: 'friend' | 'partner' = rawIntent === 'partner' || rawIntent === 'lover' ? 'partner' : 'friend';
+      const count = Math.min(15, Math.max(3, parseInt(String(req.query.count || '10'), 10) || 10));
+      const bullets = await generateExtendedCompatibility(seekerChartId, targetChartId, intent, count);
+      return res.status(200).json({
+        seekerChartId,
+        targetChartId,
+        intent,
+        count: bullets.length,
+        bullets,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      if (e?.message?.includes('not found')) return res.status(404).json({ error: e.message });
+      console.error('[compat] GET /compat/extended', e);
+      return res.status(500).json({ error: e?.message || 'Failed to get extended compatibility' });
     }
   });
 
