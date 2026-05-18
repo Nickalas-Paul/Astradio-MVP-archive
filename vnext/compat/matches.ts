@@ -263,12 +263,12 @@ async function generateCompatibilityBullets(
       return { anchor: '', text: `${objectLine}—Astrological insight for this aspect is being prepared.` };
     }
 
+    // Phase 4A: Prefer variant fields (romantic/friendship) which have Co-Star voice from May 14 rewrite.
+    // Phase 4B will rewrite behavioral/core to match, making them preferred again for depth.
     const prose =
+      (intent === 'partner' ? insight.romantic_synastry : insight.friendship_synastry) ??
       insight.behavioral_synastry ??
       insight.core_synastry ??
-      (intent === 'partner' ? insight.romantic_synastry : insight.friendship_synastry) ??
-      insight.romantic_synastry ??
-      insight.friendship_synastry ??
       insight.core;
 
     if (!prose) {
@@ -277,7 +277,11 @@ async function generateCompatibilityBullets(
 
     const sentences = prose.split(/\.\s+/).filter((s) => s.trim().length > 0);
     const firstSentence = sentences[0] || '';
-    const isTechnicalLabel = /are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence);
+    const isTechnicalLabel =
+      /are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
+      /Your \w+ and their \w+ are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
+      /sixty degrees apart|ninety degrees apart|one hundred twenty degrees/i.test(firstSentence) ||
+      /in the same element(al family)?/i.test(firstSentence);
 
     let selectedText =
       isTechnicalLabel && sentences.length > 1
