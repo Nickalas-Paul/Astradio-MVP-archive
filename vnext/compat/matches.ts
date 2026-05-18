@@ -164,11 +164,15 @@ async function generateCompatibilityBullets(
     return idx === -1 ? 999 : idx;
   };
 
+  const relationalScore = (aspect: DirectedSnapshotAspect): number => {
+    const priorityIndex = getPriorityIndex(aspect.bodyA, aspect.bodyB);
+    const priorityWeight = priorityIndex >= 999 ? 0 : 1 - priorityIndex / RELATIONAL_PRIORITY.length;
+    const exactnessWeight = aspect.exactness ?? 0;
+    return priorityWeight * 0.6 + exactnessWeight * 0.4;
+  };
+
   const sortByRelationalPriority = (x: DirectedSnapshotAspect, y: DirectedSnapshotAspect) => {
-    const priorityX = getPriorityIndex(x.bodyA, x.bodyB);
-    const priorityY = getPriorityIndex(y.bodyA, y.bodyB);
-    if (priorityX !== priorityY) return priorityX - priorityY;
-    return (y.exactness ?? 0) - (x.exactness ?? 0);
+    return relationalScore(y) - relationalScore(x);
   };
 
   const filterWithLibraryCoverage = (aspectList: DirectedSnapshotAspect[]): DirectedSnapshotAspect[] =>
@@ -256,7 +260,25 @@ async function generateCompatibilityBullets(
 
     const key = buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type);
     const insight = getAspectInsight(key);
-    const objectLine = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
+    const formatVariant =
+      (aspect.bodyA.charCodeAt(0) + aspect.bodyB.charCodeAt(0) + aspect.type.length) % 4;
+    let objectLine: string;
+    switch (formatVariant) {
+      case 0:
+        objectLine = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
+        break;
+      case 1:
+        objectLine = `Your ${titleBody(aspect.bodyA)} and their ${titleBody(aspect.bodyB)} are ${aspect.type}`;
+        break;
+      case 2:
+        objectLine = `${titleBody(aspect.bodyA)}-${titleBody(aspect.bodyB)} ${aspect.type}`;
+        break;
+      case 3:
+        objectLine = `Your ${titleBody(aspect.bodyA)} ${aspect.type} their ${titleBody(aspect.bodyB)}`;
+        break;
+      default:
+        objectLine = `Your ${titleBody(aspect.bodyA)} meets their ${titleBody(aspect.bodyB)} at ${aspect.type}`;
+    }
 
     if (!insight) {
       console.warn(`[matches] Unexpected: aspect ${key} passed filter but has no library entry`);
@@ -283,10 +305,29 @@ async function generateCompatibilityBullets(
       /sixty degrees apart|ninety degrees apart|one hundred twenty degrees/i.test(firstSentence) ||
       /in the same element(al family)?/i.test(firstSentence);
 
-    let selectedText =
-      isTechnicalLabel && sentences.length > 1
-        ? `${sentences.slice(1, 4).join('. ')}.`
-        : `${sentences.slice(0, 3).join('. ')}.`;
+    let startIdx = 0;
+    if (isTechnicalLabel && sentences.length > 1) {
+      const rotation =
+        aspect.type === 'conjunction'
+          ? 0
+          : aspect.type === 'sextile'
+            ? 0
+            : aspect.type === 'square'
+              ? 1
+              : aspect.type === 'trine'
+                ? 0
+                : aspect.type === 'opposition'
+                  ? 1
+                  : 0;
+      startIdx = 1 + (rotation % Math.max(1, sentences.length - 3));
+    } else {
+      const rotation = aspect.type === 'square' ? 1 : aspect.type === 'opposition' ? 1 : 0;
+      startIdx = rotation % Math.max(1, sentences.length - 2);
+    }
+
+    const endIdx = Math.min(startIdx + 3, sentences.length);
+    let selectedText = sentences.slice(startIdx, endIdx).join('. ');
+    if (!selectedText.endsWith('.')) selectedText += '.';
 
     if (selectedText.length > 280) {
       selectedText = `${selectedText.substring(0, 277)}...`;
