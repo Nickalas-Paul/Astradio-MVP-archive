@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { ProfileHeader } from '@/components/ProfileHeader';
+import { BriefIdentitySummary } from '@/components/BriefIdentitySummary';
 import { ProfileCompatibilityPanel } from '@/components/ProfileCompatibilityPanel';
 import { useProfile, useProfileChart } from '@/core/social/hooks';
+import type { ProfileChartSection } from '@/core/social/hooks';
 import type { SynastryBulletLine } from '@/core/compat/types';
 import type { RelationalIntent } from '@/lib/relational-intent';
 
@@ -53,6 +55,66 @@ function readDiscoveryBullets(userId: string): {
   }
 }
 
+function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
+  if (sections.length === 0) {
+    return (
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-sm text-subtext">Chart identity report unavailable for this profile.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-4">
+      <h2 className="text-lg font-semibold text-text">Core identity</h2>
+      {sections.map((section) => (
+        <div key={section.id} className="space-y-2">
+          {section.title ? <h3 className="text-sm font-medium text-text">{section.title}</h3> : null}
+          {section.text ? <p className="text-sm text-subtext leading-relaxed">{section.text}</p> : null}
+          {section.bullets?.length ? (
+            <ul className="list-disc list-inside text-sm text-subtext space-y-1">
+              {section.bullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ConnectionActions({
+  fromDiscovery,
+  isOwnProfile,
+}: {
+  fromDiscovery: boolean;
+  isOwnProfile: boolean;
+}) {
+  if (isOwnProfile) return null;
+
+  return (
+    <div className="flex flex-wrap gap-3 pt-2">
+      <button
+        type="button"
+        disabled
+        className="px-4 py-2 bg-emerald text-bg rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
+        title="Connection requests — Phase 6C-2"
+      >
+        Request connection
+      </button>
+      {fromDiscovery ? (
+        <Link
+          href="/community?tab=discovery"
+          className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-subtext hover:text-text hover:border-emerald/50 transition-colors"
+        >
+          Back to matches
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ProfileByHandlePage({ params }: { params: { handle: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,6 +146,10 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
   const isOwnProfile = Boolean(sessionUser?.id && targetUser?.id && sessionUser.id === targetUser.id);
   const showCompatibility =
     fromDiscovery && !isOwnProfile && Boolean(seekerChart?.id && targetChartId);
+
+  const fullNatalProfilePath = targetUser
+    ? `/profile/${encodeURIComponent(targetUser.handle || targetUser.id)}`
+    : '#';
 
   const loadProfile = useCallback(async () => {
     if (!param) {
@@ -142,7 +208,10 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
       <AppShell>
         <div className="max-w-3xl mx-auto p-6">
           <p className="text-red-500">User not found</p>
-          <Link href="/community?tab=discovery" className="text-emerald hover:underline mt-2 inline-block text-sm">
+          <Link
+            href="/community?tab=discovery"
+            className="text-emerald hover:underline mt-2 inline-block text-sm"
+          >
             ← Back to Discovery
           </Link>
         </div>
@@ -171,62 +240,46 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
           onEditProfile={isOwnProfile ? () => router.push('/profile') : undefined}
         />
 
-        {chartLoading ? (
-          <p className="text-sm text-subtext">Loading chart…</p>
-        ) : identitySections.length > 0 ? (
-          <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-4">
-            <h2 className="text-lg font-semibold text-text">Core identity</h2>
-            {identitySections.map((section) => (
-              <div key={section.id} className="space-y-2">
-                {section.title ? (
-                  <h3 className="text-sm font-medium text-text">{section.title}</h3>
-                ) : null}
-                {section.text ? <p className="text-sm text-subtext leading-relaxed">{section.text}</p> : null}
-                {section.bullets?.length ? (
-                  <ul className="list-disc list-inside text-sm text-subtext space-y-1">
-                    {section.bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ))}
-          </section>
-        ) : (
-          <section className="rounded-xl border border-border bg-surface-1 p-5">
-            <p className="text-sm text-subtext">Chart identity report unavailable for this profile.</p>
-          </section>
-        )}
+        {fromDiscovery && !isOwnProfile ? (
+          <>
+            <BriefIdentitySummary
+              chartData={chartExplainer}
+              sections={identitySections}
+              profilePath={fullNatalProfilePath}
+              loading={chartLoading}
+            />
 
-        {showCompatibility && seekerChart?.id && targetChartId ? (
-          <ProfileCompatibilityPanel
-            seekerChartId={seekerChart.id}
-            targetChartId={targetChartId}
-            intent={intent}
-            discoveryBullets={discoveryBullets}
-          />
-        ) : null}
-
-        {!isOwnProfile ? (
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button
-              type="button"
-              disabled
-              className="px-4 py-2 bg-emerald text-bg rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
-              title="Connection requests — Phase 6C-2"
-            >
-              Request connection
-            </button>
-            {fromDiscovery ? (
-              <Link
-                href="/community?tab=discovery"
-                className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-subtext hover:text-text hover:border-emerald/50 transition-colors"
-              >
-                Back to matches
-              </Link>
+            {showCompatibility && seekerChart?.id && targetChartId ? (
+              <ProfileCompatibilityPanel
+                seekerChartId={seekerChart.id}
+                targetChartId={targetChartId}
+                intent={intent}
+                discoveryBullets={discoveryBullets}
+              />
             ) : null}
-          </div>
-        ) : null}
+
+            <ConnectionActions fromDiscovery={fromDiscovery} isOwnProfile={isOwnProfile} />
+          </>
+        ) : (
+          <>
+            {chartLoading ? (
+              <p className="text-sm text-subtext">Loading chart…</p>
+            ) : (
+              <FullNatalReport sections={identitySections} />
+            )}
+
+            {showCompatibility && seekerChart?.id && targetChartId ? (
+              <ProfileCompatibilityPanel
+                seekerChartId={seekerChart.id}
+                targetChartId={targetChartId}
+                intent={intent}
+                discoveryBullets={discoveryBullets}
+              />
+            ) : null}
+
+            <ConnectionActions fromDiscovery={fromDiscovery} isOwnProfile={isOwnProfile} />
+          </>
+        )}
       </div>
     </AppShell>
   );
