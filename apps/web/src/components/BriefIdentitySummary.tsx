@@ -18,6 +18,8 @@ const SIGN_NAMES = [
   'Pisces',
 ] as const;
 
+const MAX_ESSENCE_CHARS = 280;
+
 function normLon(lon: number): number {
   let x = lon % 360;
   if (x < 0) x += 360;
@@ -57,12 +59,67 @@ function planetLon(snapshot: SnapshotLike | undefined, name: string): number | n
   return null;
 }
 
-export function extractFirstSentence(text: string | undefined): string {
-  if (!text?.trim()) return '';
-  const trimmed = text.trim();
-  const match = trimmed.match(/^[^.!?]+[.!?]/);
-  if (match) return match[0].trim();
-  return trimmed.length > 160 ? `${trimmed.slice(0, 157)}…` : trimmed;
+/** Strip markdown / section chrome from natal explainer prose. */
+function cleanMarkdownProse(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+.+$/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_{1,2}([^_]+)_{1,2}/g, '$1')
+    .replace(/^[A-Z][a-zA-Z0-9\s,'-]+$/gm, '')
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Second-person → third-person for compatibility profiles (describing the other person). */
+export function toThirdPersonVoice(sentence: string): string {
+  return sentence
+    .replace(/\bYourself\b/g, 'Themselves')
+    .replace(/\byourself\b/g, 'themselves')
+    .replace(/\bYour\b/g, 'Their')
+    .replace(/\byour\b/g, 'their')
+    .replace(/\bYou\b/g, 'They')
+    .replace(/\byou\b/g, 'they');
+}
+
+/**
+ * One Sun essence sentence in third-person voice.
+ * Prefers "Your Sun in {sign} means …" from core_identity, not the full section body.
+ */
+export function extractSunEssence(sections: ProfileChartSection[]): string {
+  const coreSection = sections.find((s) => s.id === 'core_identity');
+  const fullText = coreSection?.text ?? '';
+  if (!fullText.trim()) return '';
+
+  const signatureMatch = fullText.match(/Your Sun in [A-Za-z]+ means[^.!?]+[.!?]/i);
+  if (signatureMatch) {
+    return capEssence(toThirdPersonVoice(signatureMatch[0].replace(/\s+/g, ' ').trim()));
+  }
+
+  const cleaned = cleanMarkdownProse(fullText);
+  const sunSentence = cleaned.match(/Your Sun in [^.!?]+[.!?]/i);
+  if (sunSentence) {
+    return capEssence(toThirdPersonVoice(sunSentence[0].trim()));
+  }
+
+  const firstSentence = cleaned.match(/[^.!?]+[.!?]/);
+  if (firstSentence) {
+    const raw = firstSentence[0].trim();
+    if (/^your sun in/i.test(raw) || /^the foundation/i.test(raw)) {
+      return capEssence(toThirdPersonVoice(raw));
+    }
+  }
+
+  return '';
+}
+
+function capEssence(sentence: string): string {
+  if (sentence.length <= MAX_ESSENCE_CHARS) return sentence;
+  const cut = sentence.slice(0, MAX_ESSENCE_CHARS);
+  const lastSpace = cut.lastIndexOf(' ');
+  const base = lastSpace > 120 ? cut.slice(0, lastSpace) : cut;
+  return `${base.replace(/[,;:\s]+$/, '')}…`;
 }
 
 function placementLine(snapshot: SnapshotLike | undefined): string | null {
@@ -74,10 +131,9 @@ function placementLine(snapshot: SnapshotLike | undefined): string | null {
 
   const sunSign = lonToSign(sunLon);
   const moonSign = lonToSign(moonLon);
-  const sunHouse = Array.isArray(cusps) && cusps.length >= 12 ? lonToHouse(sunLon, cusps) : null;
-  const moonHouse = Array.isArray(cusps) && cusps.length >= 12 ? lonToHouse(moonLon, cusps) : null;
-  const risingSign =
-    Array.isArray(cusps) && cusps.length >= 12 ? lonToSign(cusps[0]!) : null;
+  const sunHouse = cusps.length >= 12 ? lonToHouse(sunLon, cusps) : null;
+  const moonHouse = cusps.length >= 12 ? lonToHouse(moonLon, cusps) : null;
+  const risingSign = cusps.length >= 12 ? lonToSign(cusps[0]!) : null;
 
   const sunPart = sunHouse ? `Sun in ${sunSign} (${ordinalHouse(sunHouse)})` : `Sun in ${sunSign}`;
   const moonPart = moonHouse ? `Moon in ${moonSign} (${ordinalHouse(moonHouse)})` : `Moon in ${moonSign}`;
@@ -87,9 +143,10 @@ function placementLine(snapshot: SnapshotLike | undefined): string | null {
 }
 
 function ordinalHouse(n: number): string {
-  const suffix =
-    n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n >= 4 && n <= 20 ? `${n}th` : `${n}th`;
-  return `${suffix} house`;
+  if (n === 1) return '1st';
+  if (n === 2) return '2nd';
+  if (n === 3) return '3rd';
+  return `${n}th`;
 }
 
 export interface BriefIdentitySummaryProps {
@@ -106,8 +163,7 @@ export function BriefIdentitySummary({
   loading = false,
 }: BriefIdentitySummaryProps) {
   const placements = placementLine(chartData?.snapshot);
-  const coreSection = sections.find((s) => s.id === 'core_identity');
-  const essence = extractFirstSentence(coreSection?.text);
+  const essence = extractSunEssence(sections);
 
   return (
     <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-3">
