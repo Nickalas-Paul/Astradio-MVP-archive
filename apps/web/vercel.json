@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd ../.. && npm install",
+  "installCommand": "npm install && cd ../.. && npm install --ignore-scripts",
   "buildCommand": "cd ../.. && npm run vnext:build && npm run test:deployment-sync && cd apps/web && npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs"
