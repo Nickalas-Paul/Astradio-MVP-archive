@@ -7,7 +7,6 @@ import {
   blendDiscoveryDailyScore,
   DISCOVERY_BASE_WEIGHT,
   DISCOVERY_TRANSIT_WEIGHT,
-  STRONG_TRANSIT_THRESHOLD,
 } from './transit-amplification';
 
 test('blendDiscoveryDailyScore uses 60/40 weights', () => {
@@ -24,6 +23,10 @@ test('blendDiscoveryDailyScore clamps to 0-1', () => {
   assert.strictEqual(blendDiscoveryDailyScore(0, 0), 0);
 });
 
-test('strong transit threshold constant', () => {
-  assert.strictEqual(STRONG_TRANSIT_THRESHOLD, 0.6);
+test('TransitAmplificationResult has score and topHits only', () => {
+  const sample: import('./transit-amplification').TransitAmplificationResult = {
+    score: 0.3,
+    topHits: [],
+  };
+  assert.strictEqual('hasStrongTransit' in sample, false);
 });

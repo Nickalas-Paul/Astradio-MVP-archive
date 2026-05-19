@@ -117,7 +117,6 @@ test('applyTransitFeedToSynastryBullets uses feed for aligned bullets only', () 
   assert.ok(libraryFeed?.includes('current sky'));
 
   const framed = applyTransitFeedToSynastryBullets(bullets, aspects, {
-    hasStrongTransit: true,
     topHits: [
       {
         transitBody: 'mars',
@@ -135,23 +134,35 @@ test('applyTransitFeedToSynastryBullets uses feed for aligned bullets only', () 
   assert.strictEqual(framed.together.text, bullets.together.text);
 });
 
-test('applyTransitFeedToSynastryBullets skips when no strong transit', () => {
+test('applyTransitFeedToSynastryBullets uses feed for weak transit when hits align', () => {
   const bullets = {
-    forThem: { anchor: '', text: 'A' },
+    forThem: { anchor: '', text: 'Your Venus meets their Mars at trine—warmth.' },
     forYou: { anchor: '', text: 'B' },
     together: { anchor: '', text: 'C' },
   };
   const framed = applyTransitFeedToSynastryBullets(bullets, { forThem: venusMarsAspect }, {
-    hasStrongTransit: false,
     topHits: [
       {
         transitBody: 'mars',
         natalBody: 'venus',
         memberChartId: 'c1',
         aspectType: 'conjunction',
-        weight: 1,
+        weight: 0.3,
       },
     ],
+  });
+  assert.ok(framed.forThem.text.includes('current sky'));
+  assert.ok(!framed.forThem.text.includes('Transit'));
+});
+
+test('applyTransitFeedToSynastryBullets skips when no hits', () => {
+  const bullets = {
+    forThem: { anchor: '', text: 'A' },
+    forYou: { anchor: '', text: 'B' },
+    together: { anchor: '', text: 'C' },
+  };
+  const framed = applyTransitFeedToSynastryBullets(bullets, { forThem: venusMarsAspect }, {
+    topHits: [],
   });
   assert.deepStrictEqual(framed, bullets);
 });

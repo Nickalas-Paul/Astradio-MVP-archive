@@ -22,7 +22,7 @@ test('toPublicCompatMatch strips scoring fields', () => {
       tensionsOrLimits: [],
     },
     lastUpdated: new Date().toISOString(),
-    _transitMeta: { hasStrongTransit: true, topHits: [] },
+    _transitMeta: { topHits: [] },
   };
   const pub = toPublicCompatMatch(full);
   assert.strictEqual('score' in pub, false);

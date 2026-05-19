@@ -13,7 +13,6 @@ import type { CrossAspectHitV1 } from '../relational/weather/types';
 
 export const DISCOVERY_BASE_WEIGHT = 0.6;
 export const DISCOVERY_TRANSIT_WEIGHT = 0.4;
-export const STRONG_TRANSIT_THRESHOLD = 0.6;
 
 export type TransitAmplificationResult = {
   score: number;
@@ -24,7 +23,6 @@ export type TransitAmplificationResult = {
     aspectType: string;
     weight: number;
   }>;
-  hasStrongTransit: boolean;
 };
 
 export function blendDiscoveryDailyScore(baseScore: number, transitScore: number): number {
@@ -87,7 +85,6 @@ export async function computeTransitAmplification(params: {
   const empty: TransitAmplificationResult = {
     score: 0,
     topHits: [],
-    hasStrongTransit: false,
   };
 
   try {
@@ -108,7 +105,6 @@ export async function computeTransitAmplification(params: {
     return {
       score,
       topHits,
-      hasStrongTransit: score > STRONG_TRANSIT_THRESHOLD,
     };
   } catch (e) {
     console.warn(

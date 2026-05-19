@@ -43,7 +43,6 @@ export type CompatMatchMode = RelationalIntent;
 
 /** Server-only; removed from GET /compat/matches JSON. */
 export type CompatMatchTransitMeta = {
-  hasStrongTransit: boolean;
   topHits: TransitAmplificationResult['topHits'];
 };
 
@@ -134,7 +133,7 @@ export function applyTransitFeedToSynastryBullets(
   },
   transitMeta?: CompatMatchTransitMeta
 ): typeof bullets {
-  if (!transitMeta?.hasStrongTransit || !transitMeta.topHits.length) {
+  if (!transitMeta?.topHits?.length) {
     return bullets;
   }
 
@@ -1073,7 +1072,6 @@ export async function getCompatMatches(
               ...match,
               dailyRankScore,
               _transitMeta: {
-                hasStrongTransit: transitAmp.hasStrongTransit,
                 topHits: transitAmp.topHits,
               },
             };
@@ -1090,7 +1088,7 @@ export async function getCompatMatches(
             dailyRankScore: number;
           };
           const match = rest as CompatMatchResult;
-          if (match._transitMeta?.hasStrongTransit && match.explanationProfile.synastryBullets) {
+          if (match._transitMeta?.topHits?.length && match.explanationProfile.synastryBullets) {
             const framed = applyTransitFeedToSynastryBullets(
               match.explanationProfile.synastryBullets,
               match._bulletAspects ?? {},
