@@ -3,7 +3,7 @@
  * For Vercel preview: set ENGINE_BASE_URL or API_BASE_URL in project env.
  */
 import { NextResponse } from 'next/server';
-import { getEngineBaseUrl } from '@/lib/engine-base';
+import { getEngineBaseUrl, shouldUseInProcessCompatApi } from '@/lib/engine-base';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +17,13 @@ export async function GET() {
   return NextResponse.json({
     engineBaseUrl: url,
     source,
-    hint: url === 'http://localhost:4000' && process.env.VERCEL
-      ? 'Set ENGINE_BASE_URL (or API_BASE_URL) in Vercel project env to your Render backend URL'
-      : null,
+    compatMatches: shouldUseInProcessCompatApi() ? 'in-process-vnext' : 'proxy',
+    vercelCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    hint:
+      shouldUseInProcessCompatApi()
+        ? 'compat/matches runs in-process on this deployment (unified commit)'
+        : url === 'http://localhost:4000' && process.env.VERCEL
+          ? 'Set ENGINE_BASE_URL for other API routes, or USE_IN_PROCESS_VNEXT=1 for unified compat'
+          : null,
   });
 }

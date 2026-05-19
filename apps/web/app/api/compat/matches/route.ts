@@ -1,14 +1,30 @@
 /**
- * Proxy to engine GET /api/compat/matches. Passes query string through (chartId, mode, limit, cursor).
+ * GET /api/compat/matches — in-process vnext on Vercel (unified deploy), else proxy to engine.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getEngineBaseUrl } from '@/lib/engine-base';
+import { getEngineBaseUrl, shouldUseInProcessCompatApi } from '@/lib/engine-base';
+import { handleCompatMatchesInProcess } from '@/server/compat-matches-handler';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+
+  if (shouldUseInProcessCompatApi()) {
+    try {
+      const { status, body } = await handleCompatMatchesInProcess(searchParams);
+      return NextResponse.json(body, { status });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('[api/compat/matches] in-process error:', message);
+      if (process.env.FORCE_IN_PROCESS_VNEXT === '1') {
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+      console.warn('[api/compat/matches] falling back to engine proxy');
+    }
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
     const qs = searchParams.toString();
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/compat/matches${qs ? `?${qs}` : ''}`);

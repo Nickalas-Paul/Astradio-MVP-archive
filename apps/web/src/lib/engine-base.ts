@@ -8,3 +8,15 @@ export function getEngineBaseUrl(): string {
     ''
   );
 }
+
+/**
+ * Run compat/matches in-process (compiled vnext) so Vercel UI + bullets share one commit.
+ * Set USE_EXTERNAL_ENGINE=1 or FORCE_ENGINE_PROXY=1 to keep proxying to Render.
+ */
+export function shouldUseInProcessCompatApi(): boolean {
+  if (process.env.FORCE_ENGINE_PROXY === '1') return false;
+  if (process.env.USE_EXTERNAL_ENGINE === '1') return false;
+  if (process.env.USE_IN_PROCESS_VNEXT === '1') return true;
+  if (process.env.VERCEL === '1') return true;
+  return false;
+}

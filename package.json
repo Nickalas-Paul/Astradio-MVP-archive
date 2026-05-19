@@ -55,6 +55,7 @@
     "ci:quality": "npm run ci:vnext && npm run test:pipeline && npm run ci-path-guard && npm run enforce-thresholds",
     "ci:full": "npm run ci:quality && npm run verify-teacher && npm run freeze-eval-set eval",
     "test:contract": "jest tests/engine-adapter.contract.test.ts",
+    "test:deployment-sync": "npm run vnext:build && jest --config tests/jest.deployment-sync.config.cjs --no-coverage",
     "test:identity-export-contract": "npx jest --config tests/jest.identity-export.config.cjs",
     "test:sandbox-surface": "jest --config tests/jest.sandbox.config.cjs --no-coverage",
     "test:chart-search-label": "jest --config tests/jest.chart-search.config.cjs --no-coverage",

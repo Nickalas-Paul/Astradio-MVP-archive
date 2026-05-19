@@ -9,6 +9,7 @@ import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
 import { generateExtendedCompatibility, getCompatMatches, toPublicCompatMatch } from './matches';
+import { getDeployMeta } from '../deploy-meta';
 import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import {
@@ -398,6 +399,7 @@ export function createCompatRouter(): import('express').Router {
         version: COMPAT_RESPONSE_VERSION,
         synastryEnabled: true,
         matchesMock,
+        _meta: getDeployMeta(),
       });
     } catch (e: any) {
       console.error('[compat] GET /compat/matches', e);

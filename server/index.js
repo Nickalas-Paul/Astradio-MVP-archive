@@ -1301,6 +1301,20 @@ app.get("/health", (req, res) => {
   res.json(payload);
 });
 
+const deployMetaMod = optionalRequire(path.join(vnextRoot, "deploy-meta"));
+app.get("/api/version", (_req, res) => {
+  if (deployMetaMod?.getDeployMeta) {
+    return res.json(deployMetaMod.getDeployMeta());
+  }
+  res.json({
+    commit: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || "unknown",
+    branch: process.env.RENDER_GIT_BRANCH || "unknown",
+    deployTarget: process.env.RENDER ? "render" : "local",
+    bulletSystem: "library-feed",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ML status (proof: tf_backend, model_sha, ml_used, inference_ms, model_path_hint)
 app.get("/api/ml-status", async (req, res) => {
   if (!healthMod?.getMLStatus) {

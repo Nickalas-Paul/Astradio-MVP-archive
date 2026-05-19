@@ -5,6 +5,14 @@ const nextConfig = {
   experimental: {
     // Allow importing shared server-only code (e.g. vnext/*) from outside apps/web.
     externalDir: true,
+    // Bundle compiled vnext + lib for in-process API routes on Vercel.
+    outputFileTracingIncludes: {
+      '/api/compat/matches': [
+        '../../dist/vnext/vnext/**/*',
+        '../../lib/**/*',
+      ],
+      '/api/version': ['../../dist/vnext/vnext/deploy-meta.js'],
+    },
   },
   // Proxy API requests to backend (Render or local). Build-time env sets destination.
   // API/chart are handled by Next route handlers (app/api/*/route.ts) which proxy to API_BASE_URL.
