@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../core/api-base';
+import {
+  calculateDiscoveryRequestsRemaining,
+  DiscoveryCarousel,
+} from './DiscoveryCarousel';
 import { useCompat, useCommunityInventory, type CommunityInventoryV1 } from '../core/social/hooks';
-import type { CompatibilityExplanationProfile, SynastryBulletLine } from '../core/compat/types';
+import type { CompatMatch } from '../core/compat/types';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 import { RELATIONAL_INTENT_OPTIONS as MODES, type RelationalIntent } from '../lib/relational-intent';
@@ -28,33 +31,6 @@ interface CompatibilitySectionProps {
   onConnectionRequested?: () => void;
   /** Increment to refetch GET /api/community/inventory (pending state source of truth). */
   inventoryRefreshSignal?: number;
-}
-
-function discoveryBulletFromEp(
-  ep: CompatibilityExplanationProfile,
-  which: 'forYou' | 'forThem' | 'together'
-): SynastryBulletLine {
-  const structured = ep.synastryBullets?.[which];
-  if (structured?.text) return structured;
-  const fallback =
-    which === 'forYou'
-      ? ep.primarySupports[0]
-      : which === 'forThem'
-        ? ep.secondarySupports[0]
-        : ep.tensionsOrLimits[0];
-  return { anchor: '', text: fallback || 'Compatibility insight unavailable' };
-}
-
-function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
-  if (line.anchor) {
-    return (
-      <div className="min-w-0">
-        <div className="text-xs font-semibold text-subtext mb-1">{line.anchor}</div>
-        <div className="text-sm text-text">{line.text}</div>
-      </div>
-    );
-  }
-  return <div className="text-sm text-text min-w-0">{line.text}</div>;
 }
 
 function pendingOutgoingForMatch(
@@ -92,7 +68,6 @@ export function CompatibilitySection({
   const [userTriggered, setUserTriggered] = useState(false);
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
   const [requestMsg, setRequestMsg] = useState<string | null>(null);
-  const [expandedChartId] = useState<string | null>(null);
   const mode = controlledMode ?? internalMode;
   const setMode = onModeChange ?? setInternalMode;
   const { data: inventory, refresh: refreshInventory } = useCommunityInventory();
@@ -105,7 +80,8 @@ export function CompatibilitySection({
   const rankMode: RelationalIntent = MODES.some((m) => m.value === responseMode)
     ? (responseMode as RelationalIntent)
     : mode;
-  const rankModeLabel = MODES.find((m) => m.value === rankMode)?.label ?? rankMode;
+  const pendingOutgoingCount = inventory?.pendingOutgoingIntents?.length ?? 0;
+  const requestsRemaining = calculateDiscoveryRequestsRemaining(pendingOutgoingCount);
 
   useEffect(() => {
     setUserTriggered(false);
@@ -182,9 +158,20 @@ export function CompatibilitySection({
     );
   }
 
-  const handleViewRationale = (targetChartId: string) => {
+  const handleViewProfile = (match: CompatMatch) => {
     trackFeatureUse('compatibility', 'view_rationale');
-    console.log('Viewing rationale for chart:', targetChartId);
+    const bullets = match.explanationProfile.synastryBullets;
+    if (bullets && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(`discovery-bullets:${match.userId}`, JSON.stringify(bullets));
+      } catch {
+        /* ignore quota */
+      }
+    }
+    const intentQs = rankMode === 'lover' ? 'partner' : 'friend';
+    router.push(
+      `/profile/${encodeURIComponent(match.userId)}?from=discovery&intent=${intentQs}&chartId=${encodeURIComponent(match.chartId)}`
+    );
   };
 
   const handleRequestConnection = async (match: { userId: string; chartId: string }) => {
@@ -267,21 +254,13 @@ export function CompatibilitySection({
     </div>
   );
 
-  const apiIntentBanner =
-    userTriggered && responseMode ? (
-      <p className="text-sm text-text mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">
-        <span className="font-medium">Results ranked for:</span>{' '}
-        {rankModeLabel}
-      </p>
-    ) : null;
-
   // Before explicit Find matches: no skeleton, list, or empty state for matches
   if (!userTriggered) {
     return (
       <div className={`card ${className}`}>
         {header}
         <p className="text-sm text-subtext">
-          Ranked matches load when you click Find matches. Change intent and click again to reload with a new mode.
+          Daily matches load when you click Find matches. Change intent and click again to refresh.
         </p>
       </div>
     );
@@ -291,12 +270,7 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
-        {apiIntentBanner}
-        <div className="space-y-3">
-          {Array.from({ length: limit }).map((_, i) => (
-            <div key={i} className="skeleton h-24 rounded-lg" />
-          ))}
-        </div>
+        <div className="max-w-lg mx-auto skeleton h-96 rounded-lg" />
       </div>
     );
   }
@@ -305,7 +279,6 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
-        {apiIntentBanner}
         <div className="text-center py-8">
           <p className="text-subtext text-sm">Unable to load compatibility matches</p>
         </div>
@@ -317,13 +290,17 @@ export function CompatibilitySection({
     return (
       <div className={`card ${className}`}>
         {header}
-        {apiIntentBanner}
-        <div className="text-center py-8">
-          <p className="text-subtext text-sm">No eligible matches</p>
-          <p className="text-xs text-subtext mt-1">
-            No candidates met the current criteria, or the directory has no eligible charts yet. Click Find matches again after adjusting intent if needed.
-          </p>
-        </div>
+        <DiscoveryCarousel
+          matches={[]}
+          intent={rankMode}
+          requestsRemaining={requestsRemaining}
+          pendingOutgoingCount={pendingOutgoingCount}
+          onViewProfile={handleViewProfile}
+          onRequestConnection={(m) => void handleRequestConnection(m)}
+          isConnectionPending={(m) => pendingOutgoingForMatch(inventory, m.userId, m.chartId, rankMode)}
+          connectionBusyChartId={requestBusy}
+          canRequestConnection={Boolean(currentUserId && chartId)}
+        />
       </div>
     );
   }
@@ -339,161 +316,20 @@ export function CompatibilitySection({
   return (
     <div className={`card ${className}`}>
       {header}
-      {apiIntentBanner}
       {requestMsg && (
         <p className="text-sm text-subtext mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">{requestMsg}</p>
       )}
-      <div className="space-y-4">
-        {matches.map((match, index) => {
-          const pending = pendingOutgoingForMatch(inventory, match.userId, match.chartId, rankMode);
-          const connDisabled = !currentUserId || requestBusy === match.chartId || pending;
-          const connLabel = pending
-            ? 'Awaiting response'
-            : requestBusy === match.chartId
-              ? 'Sending…'
-              : 'Request connection';
-
-          const ep = match.explanationProfile;
-          const forThemLine = discoveryBulletFromEp(ep, 'forThem');
-          const forYouLine = discoveryBulletFromEp(ep, 'forYou');
-          const togetherLine = discoveryBulletFromEp(ep, 'together');
-
-          const initial =
-            (match.displayName || match.userId || '?').trim().charAt(0).toUpperCase() || '?';
-
-          return (
-            <motion.div
-              key={match.chartId}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 bg-bgElev rounded-lg border border-border hover:border-emerald/50 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <h4 className="font-semibold text-text">{match.displayName}</h4>
-                    <span className="text-xs text-subtext">Chart {match.chartId.slice(-4)}</span>
-                  </div>
-
-                  {match.bio ? (
-                    <p className="text-sm text-subtext mb-3 line-clamp-2">{match.bio}</p>
-                  ) : null}
-
-                  <div className="space-y-2 mb-3">
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
-                        ●
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text mb-1">
-                          <span className="font-medium">Why you&apos;re good for them:</span>
-                        </p>
-                        <SynastryBulletBlock line={forThemLine} />
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
-                        ●
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text mb-1">
-                          <span className="font-medium">Why they&apos;re good for you:</span>
-                        </p>
-                        <SynastryBulletBlock line={forYouLine} />
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald text-xs mt-0.5 shrink-0" aria-hidden>
-                        ●
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text mb-1">
-                          <span className="font-medium">Why you&apos;re good together:</span>
-                        </p>
-                        <SynastryBulletBlock line={togetherLine} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {match.lookingFor ? (
-                    <div className="text-xs text-subtext italic border-l-2 border-emerald/30 pl-2 mb-3">
-                      &ldquo;{match.lookingFor}&rdquo;
-                    </div>
-                  ) : null}
-
-                  {expandedChartId === match.chartId ? (
-                    <div className="mb-3 rounded-lg border border-border bg-bg p-3 text-sm text-subtext space-y-3">
-                      <div>
-                        <p className="font-medium text-text mb-1">Why you&apos;re good for them</p>
-                        <SynastryBulletBlock line={forThemLine} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-text mb-1">Why they&apos;re good for you</p>
-                        <SynastryBulletBlock line={forYouLine} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-text mb-1">Why you&apos;re good together</p>
-                        <SynastryBulletBlock line={togetherLine} />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleRequestConnection({ userId: match.userId, chartId: match.chartId })}
-                      disabled={connDisabled}
-                      className="px-4 py-2 bg-emerald text-bg rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-opacity"
-                    >
-                      {connLabel}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleViewRationale(match.chartId);
-                        const bullets = ep.synastryBullets;
-                        if (bullets && typeof window !== 'undefined') {
-                          try {
-                            sessionStorage.setItem(
-                              `discovery-bullets:${match.userId}`,
-                              JSON.stringify(bullets)
-                            );
-                          } catch {
-                            /* ignore quota */
-                          }
-                        }
-                        const intentQs = rankMode === 'lover' ? 'partner' : 'friend';
-                        router.push(
-                          `/profile/${encodeURIComponent(match.userId)}?from=discovery&intent=${intentQs}&chartId=${encodeURIComponent(match.chartId)}`
-                        );
-                      }}
-                      className="px-4 py-2 border border-border rounded-lg hover:border-emerald/50 text-sm font-medium transition-colors text-subtext hover:text-text"
-                    >
-                      View profile
-                    </button>
-                  </div>
-                </div>
-
-                <div className="shrink-0">
-                  <div className="w-16 h-16 rounded-full bg-bgElev border border-border flex items-center justify-center text-xs overflow-hidden">
-                    {match.avatarUrl ? (
-                      <img
-                        src={match.avatarUrl}
-                        alt={match.displayName}
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span className="text-text font-medium">{initial}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+      <DiscoveryCarousel
+        matches={matches}
+        intent={rankMode}
+        requestsRemaining={requestsRemaining}
+        pendingOutgoingCount={pendingOutgoingCount}
+        onViewProfile={handleViewProfile}
+        onRequestConnection={(m) => void handleRequestConnection(m)}
+        isConnectionPending={(m) => pendingOutgoingForMatch(inventory, m.userId, m.chartId, rankMode)}
+        connectionBusyChartId={requestBusy}
+        canRequestConnection={Boolean(currentUserId && chartId)}
+      />
     </div>
   );
 }

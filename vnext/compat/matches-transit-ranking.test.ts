@@ -29,6 +29,7 @@ test('toPublicCompatMatch strips scoring fields', () => {
   assert.strictEqual('rationale' in pub, false);
   assert.strictEqual('facets' in pub, false);
   assert.strictEqual('_transitMeta' in pub, false);
+  assert.strictEqual('_bulletAspects' in pub, false);
   assert.strictEqual(pub.chartId, 'c1');
 });
 

@@ -46,6 +46,86 @@ export type CompatMatchTransitMeta = {
   topHits: TransitAmplificationResult['topHits'];
 };
 
+export type TransitFramingHit = {
+  transitBody: string;
+  natalBody: string;
+  aspectType: string;
+};
+
+function capitalizeBodyName(str: string): string {
+  const s = String(str || '').trim();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+/**
+ * Prefix synastry bullet prose when today's transits activate a body in the aspect pair.
+ */
+export function maybeFrameWithTransit(
+  bulletText: string,
+  aspect: DirectedSnapshotAspect | undefined,
+  transitHits: TransitFramingHit[] = []
+): string {
+  if (!aspect || transitHits.length === 0) {
+    return bulletText;
+  }
+
+  const bodyA = String(aspect.bodyA).toLowerCase();
+  const bodyB = String(aspect.bodyB).toLowerCase();
+
+  const relevantHit = transitHits.find((hit) => {
+    const natalBody = String(hit.natalBody).toLowerCase();
+    return natalBody === bodyA || natalBody === bodyB;
+  });
+
+  if (!relevantHit) {
+    return bulletText;
+  }
+
+  const baseProse = bulletText.includes('—')
+    ? bulletText.split('—').slice(1).join('—').trim()
+    : bulletText;
+
+  const transitBody = capitalizeBodyName(relevantHit.transitBody);
+  return `Transit ${transitBody} activates this connection today—${baseProse}`;
+}
+
+export function applyTransitFramingToSynastryBullets(
+  bullets: {
+    forThem: { anchor: string; text: string };
+    forYou: { anchor: string; text: string };
+    together: { anchor: string; text: string };
+  },
+  aspects: {
+    forThem?: DirectedSnapshotAspect;
+    forYou?: DirectedSnapshotAspect;
+    together?: DirectedSnapshotAspect;
+  },
+  transitMeta?: CompatMatchTransitMeta
+): typeof bullets {
+  if (!transitMeta?.hasStrongTransit || !transitMeta.topHits.length) {
+    return bullets;
+  }
+
+  const hits = transitMeta.topHits.map((h) => ({
+    transitBody: h.transitBody,
+    natalBody: h.natalBody,
+    aspectType: h.aspectType,
+  }));
+
+  return {
+    forThem: {
+      ...bullets.forThem,
+      text: maybeFrameWithTransit(bullets.forThem.text, aspects.forThem, hits),
+    },
+    forYou: {
+      ...bullets.forYou,
+      text: maybeFrameWithTransit(bullets.forYou.text, aspects.forYou, hits),
+    },
+    together: bullets.together,
+  };
+}
+
 export interface CompatMatchResult {
   userId: string;
   chartId: string;
@@ -61,6 +141,12 @@ export interface CompatMatchResult {
   lookingFor?: string;
   /** @internal Bullet framing only; never sent to clients. */
   _transitMeta?: CompatMatchTransitMeta;
+  /** @internal Aspect picks for transit bullet framing; never sent to clients. */
+  _bulletAspects?: {
+    forThem?: DirectedSnapshotAspect;
+    forYou?: DirectedSnapshotAspect;
+    together?: DirectedSnapshotAspect;
+  };
 }
 
 export type GetCompatMatchesOptions = {
@@ -429,9 +515,16 @@ async function generateCompatibilityBullets(
   intent: 'friend' | 'partner',
   batchUsedKeys?: Set<string>
 ): Promise<{
-  forThem: { anchor: string; text: string };
-  forYou: { anchor: string; text: string };
-  together: { anchor: string; text: string };
+  bullets: {
+    forThem: { anchor: string; text: string };
+    forYou: { anchor: string; text: string };
+    together: { anchor: string; text: string };
+  };
+  aspects: {
+    forThem?: DirectedSnapshotAspect;
+    forYou?: DirectedSnapshotAspect;
+    together?: DirectedSnapshotAspect;
+  };
 }> {
   const aspects = await computeMatchSynastry(chartIdA, chartIdB);
   const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
@@ -673,7 +766,7 @@ async function generateCompatibilityBullets(
       )
     );
   }
-  return out;
+  return { bullets: out, aspects: selectedAspects };
 }
 
 /** Longitude for a core body from an ephemeris snapshot (lowercase names). */
@@ -860,7 +953,7 @@ export async function getCompatMatches(
         relationshipBindingId: null,
       });
       const score = canonicalIntentRank(computed.scoring, mode);
-      const bullets = await generateCompatibilityBullets(
+      const { bullets, aspects: bulletAspects } = await generateCompatibilityBullets(
         chartId,
         cand.chartId,
         intentForBullets,
@@ -900,6 +993,7 @@ export async function getCompatMatches(
         bio: cand.bio,
         avatarUrl: cand.avatarUrl,
         lookingFor: cand.lookingFor,
+        _bulletAspects: bulletAspects,
       });
       console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(score * 100).toFixed(0)}%`);
     } catch (err) {
@@ -948,7 +1042,22 @@ export async function getCompatMatches(
           const { dailyRankScore: _dailyRankScore, ...rest } = row as CompatMatchResult & {
             dailyRankScore: number;
           };
-          return rest as CompatMatchResult;
+          const match = rest as CompatMatchResult;
+          if (match._transitMeta?.hasStrongTransit && match.explanationProfile.synastryBullets) {
+            const framed = applyTransitFramingToSynastryBullets(
+              match.explanationProfile.synastryBullets,
+              match._bulletAspects ?? {},
+              match._transitMeta
+            );
+            match.explanationProfile = {
+              ...match.explanationProfile,
+              primarySupports: [framed.forYou.text],
+              secondarySupports: [framed.forThem.text],
+              tensionsOrLimits: [framed.together.text],
+              synastryBullets: framed,
+            };
+          }
+          return match;
         });
       } catch (err) {
         console.warn('[matches] Transit daily ranking failed; using natal order', err);
@@ -977,8 +1086,15 @@ export async function getCompatMatches(
 /** Public API shape: prose only, no ranking math exposed. */
 export function toPublicCompatMatch(match: CompatMatchResult): Omit<
   CompatMatchResult,
-  'score' | 'rationale' | 'facets' | '_transitMeta'
+  'score' | 'rationale' | 'facets' | '_transitMeta' | '_bulletAspects'
 > {
-  const { score: _s, rationale: _r, facets: _f, _transitMeta: _t, ...publicFields } = match;
+  const {
+    score: _s,
+    rationale: _r,
+    facets: _f,
+    _transitMeta: _t,
+    _bulletAspects: _a,
+    ...publicFields
+  } = match;
   return publicFields;
 }
