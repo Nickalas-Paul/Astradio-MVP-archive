@@ -8,6 +8,7 @@ import * as storage from './storage';
 import type { DirectoryEligibleUser } from './storage';
 import { computeSynastryAspects } from '../synastry/synastry-compute';
 import { buildAspectKey, getAspectInsight } from '../projection/insight-library/insight-library-index';
+import type { AspectInsight } from '../projection/insight-library/insight-library-types';
 import { isAspectLibraryKillListed } from '../projection/insight-library/aspect-library-kill-list';
 import type { DirectedSnapshotAspect } from '../synastry/synastry-types';
 import type { EphemerisSnapshot } from '../contracts';
@@ -52,45 +53,75 @@ export type TransitFramingHit = {
   aspectType: string;
 };
 
-function capitalizeBodyName(str: string): string {
-  const s = String(str || '').trim();
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+/**
+ * Cap bullet text at maxLength for Discovery display; prefer sentence boundaries.
+ */
+export function capBulletText(text: string, maxLength = 280): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const truncated = text.slice(0, maxLength);
+  const lastPeriod = truncated.lastIndexOf('.');
+  const lastQuestion = truncated.lastIndexOf('?');
+  const lastExclamation = truncated.lastIndexOf('!');
+  const lastSentenceEnd = Math.max(lastPeriod, lastQuestion, lastExclamation);
+
+  if (lastSentenceEnd > maxLength * 0.7) {
+    return text.slice(0, lastSentenceEnd + 1).trim();
+  }
+
+  return `${truncated.trim()}…`;
 }
 
-/**
- * Prefix synastry bullet prose when today's transits activate a body in the aspect pair.
- */
-export function maybeFrameWithTransit(
-  bulletText: string,
+export function findRelevantTransitHit(
   aspect: DirectedSnapshotAspect | undefined,
-  transitHits: TransitFramingHit[] = []
-): string {
-  if (!aspect || transitHits.length === 0) {
-    return bulletText;
+  hits: TransitFramingHit[],
+  excludeHits: TransitFramingHit[] = []
+): TransitFramingHit | undefined {
+  if (!aspect || !hits.length) {
+    return undefined;
   }
 
   const bodyA = String(aspect.bodyA).toLowerCase();
   const bodyB = String(aspect.bodyB).toLowerCase();
+  const excludeSet = new Set(excludeHits);
 
-  const relevantHit = transitHits.find((hit) => {
+  return hits.find((hit) => {
+    if (excludeSet.has(hit)) return false;
     const natalBody = String(hit.natalBody).toLowerCase();
     return natalBody === bodyA || natalBody === bodyB;
   });
-
-  if (!relevantHit) {
-    return bulletText;
-  }
-
-  const baseProse = bulletText.includes('—')
-    ? bulletText.split('—').slice(1).join('—').trim()
-    : bulletText;
-
-  const transitBody = capitalizeBodyName(relevantHit.transitBody);
-  return `Transit ${transitBody} activates this connection today—${baseProse}`;
 }
 
-export function applyTransitFramingToSynastryBullets(
+/**
+ * Use library `feed` when today's transit hits a body in the synastry pair; else timeless prose.
+ */
+export function resolveTransitAwareBulletText(params: {
+  aspect: DirectedSnapshotAspect | undefined;
+  insight: AspectInsight | null | undefined;
+  transitHit?: TransitFramingHit;
+  timelessText: string;
+}): string {
+  const { aspect, insight, transitHit, timelessText } = params;
+
+  if (!insight || !aspect) {
+    return timelessText;
+  }
+
+  const bodyA = String(aspect.bodyA).toLowerCase();
+  const bodyB = String(aspect.bodyB).toLowerCase();
+  const hitNatalBody = transitHit?.natalBody ? String(transitHit.natalBody).toLowerCase() : '';
+  const hitMatchesAspect = hitNatalBody && (hitNatalBody === bodyA || hitNatalBody === bodyB);
+
+  if (hitMatchesAspect && insight.feed?.trim()) {
+    return capBulletText(insight.feed.trim());
+  }
+
+  return timelessText;
+}
+
+export function applyTransitFeedToSynastryBullets(
   bullets: {
     forThem: { anchor: string; text: string };
     forYou: { anchor: string; text: string };
@@ -107,20 +138,36 @@ export function applyTransitFramingToSynastryBullets(
     return bullets;
   }
 
-  const hits = transitMeta.topHits.map((h) => ({
+  const hits: TransitFramingHit[] = transitMeta.topHits.map((h) => ({
     transitBody: h.transitBody,
     natalBody: h.natalBody,
     aspectType: h.aspectType,
   }));
 
+  const forThemHit = findRelevantTransitHit(aspects.forThem, hits);
+  const forYouHit = findRelevantTransitHit(aspects.forYou, hits, forThemHit ? [forThemHit] : []);
+
+  const insightFor = (aspect?: DirectedSnapshotAspect) =>
+    aspect ? getAspectInsight(buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type)) : undefined;
+
   return {
     forThem: {
       ...bullets.forThem,
-      text: maybeFrameWithTransit(bullets.forThem.text, aspects.forThem, hits),
+      text: resolveTransitAwareBulletText({
+        aspect: aspects.forThem,
+        insight: insightFor(aspects.forThem),
+        transitHit: forThemHit,
+        timelessText: bullets.forThem.text,
+      }),
     },
     forYou: {
       ...bullets.forYou,
-      text: maybeFrameWithTransit(bullets.forYou.text, aspects.forYou, hits),
+      text: resolveTransitAwareBulletText({
+        aspect: aspects.forYou,
+        insight: insightFor(aspects.forYou),
+        transitHit: forYouHit,
+        timelessText: bullets.forYou.text,
+      }),
     },
     together: bullets.together,
   };
@@ -1044,7 +1091,7 @@ export async function getCompatMatches(
           };
           const match = rest as CompatMatchResult;
           if (match._transitMeta?.hasStrongTransit && match.explanationProfile.synastryBullets) {
-            const framed = applyTransitFramingToSynastryBullets(
+            const framed = applyTransitFeedToSynastryBullets(
               match.explanationProfile.synastryBullets,
               match._bulletAspects ?? {},
               match._transitMeta
