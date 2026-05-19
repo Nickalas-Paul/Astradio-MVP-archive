@@ -4,6 +4,7 @@ import type {
   PersistedCompatibilityRecord,
   RelationalFieldScoreContract,
 } from './contracts';
+import type { EphemerisSnapshot } from '../contracts';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import { buildCanonicalRelationalField, buildCompatibilityRecord } from './build-relational-field';
 import { classifyCompatibilityScore, scoreCompatibilityField } from './scoring';
@@ -21,12 +22,15 @@ export async function computeCompatibilitySystem(params: {
   chartIds: string[];
   relationshipBindingId?: string | null;
   transitInput?: { date: string; time: string; lat: number; lon: number; timezone?: string };
+  /** Pre-fetched c(T) snapshot (Discovery daily cache). */
+  cachedTransitSnapshot?: EphemerisSnapshot;
   computedAt?: string;
 }): Promise<CompatibilityComputationResult> {
   const { field, record, transit_weather } = await buildCompatibilityRecord({
     chartIds: params.chartIds,
     relationshipBindingId: params.relationshipBindingId ?? null,
     transitInput: params.transitInput,
+    cachedTransitSnapshot: params.cachedTransitSnapshot,
     computedAt: params.computedAt,
   });
   const scoring = scoreCompatibilityField(field);

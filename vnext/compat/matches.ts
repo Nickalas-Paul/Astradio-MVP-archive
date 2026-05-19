@@ -16,6 +16,14 @@ import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
+import type { DiscoveryTransitInput } from '../compatibility/daily-transit-cache';
+import { warmDailyTransitCache } from '../compatibility/daily-transit-cache';
+import {
+  blendDiscoveryDailyScore,
+  computeTransitAmplification,
+  resolveSeekerTransitInput,
+} from '../compatibility/transit-amplification';
+import type { TransitAmplificationResult } from '../compatibility/transit-amplification';
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
@@ -32,6 +40,12 @@ export function hash32(input: string): number {
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
 
+/** Server-only; removed from GET /compat/matches JSON. */
+export type CompatMatchTransitMeta = {
+  hasStrongTransit: boolean;
+  topHits: TransitAmplificationResult['topHits'];
+};
+
 export interface CompatMatchResult {
   userId: string;
   chartId: string;
@@ -45,7 +59,15 @@ export interface CompatMatchResult {
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;
+  /** @internal Bullet framing only; never sent to clients. */
+  _transitMeta?: CompatMatchTransitMeta;
 }
+
+export type GetCompatMatchesOptions = {
+  /** Default true unless ENABLE_TRANSIT_DISCOVERY=0 or includeTransits: false. */
+  includeTransits?: boolean;
+  transitInput?: DiscoveryTransitInput;
+};
 
 function clampScore(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -751,14 +773,22 @@ async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligib
   return rows.filter((r) => r.chartId !== chartId);
 }
 
+function transitDiscoveryEnabled(options?: GetCompatMatchesOptions): boolean {
+  if (options?.includeTransits === false) return false;
+  if (process.env.ENABLE_TRANSIT_DISCOVERY === '0') return false;
+  return true;
+}
+
 /**
  * Get compatibility matches for a chart.
  * Ranking only: the canonical field + unified scoring contract remain the single compute path.
+ * When transit discovery is enabled, final order uses 60% base + 40% daily transit activation (not exposed in API).
  */
 export async function getCompatMatches(
   chartId: string,
   mode: RelationalIntent,
-  limit: number
+  limit: number,
+  options?: GetCompatMatchesOptions
 ): Promise<CompatMatchResult[]> {
   const chart = await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
@@ -877,9 +907,78 @@ export async function getCompatMatches(
     }
   }
 
-  results.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.chartId.localeCompare(b.chartId);
-  });
-  return results.slice(0, limit);
+  let ranked = results;
+
+  if (transitDiscoveryEnabled(options) && ranked.length > 0) {
+    let effectiveTransitInput = options?.transitInput ?? null;
+    if (!effectiveTransitInput) {
+      effectiveTransitInput = await resolveSeekerTransitInput(chartId);
+    }
+
+    if (effectiveTransitInput) {
+      try {
+        const cachedTransit = await warmDailyTransitCache(effectiveTransitInput);
+        const withDaily = await Promise.all(
+          ranked.map(async (match) => {
+            const baseScore = match.score;
+            const transitAmp = await computeTransitAmplification({
+              seekerChartId: chartId,
+              candidateChartId: match.chartId,
+              transitInput: effectiveTransitInput!,
+              transitSnapshot: cachedTransit,
+            });
+            const dailyRankScore = blendDiscoveryDailyScore(baseScore, transitAmp.score);
+            return {
+              ...match,
+              dailyRankScore,
+              _transitMeta: {
+                hasStrongTransit: transitAmp.hasStrongTransit,
+                topHits: transitAmp.topHits,
+              },
+            };
+          })
+        );
+        withDaily.sort((a, b) => {
+          const da = (a as { dailyRankScore: number }).dailyRankScore;
+          const db = (b as { dailyRankScore: number }).dailyRankScore;
+          if (db !== da) return db - da;
+          return a.chartId.localeCompare(b.chartId);
+        });
+        ranked = withDaily.map((row) => {
+          const { dailyRankScore: _dailyRankScore, ...rest } = row as CompatMatchResult & {
+            dailyRankScore: number;
+          };
+          return rest as CompatMatchResult;
+        });
+      } catch (err) {
+        console.warn('[matches] Transit daily ranking failed; using natal order', err);
+        ranked.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.chartId.localeCompare(b.chartId);
+        });
+      }
+    } else {
+      console.warn('[matches] No seeker transit input; natal-only ranking');
+      ranked.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.chartId.localeCompare(b.chartId);
+      });
+    }
+  } else {
+    ranked.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.chartId.localeCompare(b.chartId);
+    });
+  }
+
+  return ranked.slice(0, limit);
+}
+
+/** Public API shape: prose only, no ranking math exposed. */
+export function toPublicCompatMatch(match: CompatMatchResult): Omit<
+  CompatMatchResult,
+  'score' | 'rationale' | 'facets' | '_transitMeta'
+> {
+  const { score: _s, rationale: _r, facets: _f, _transitMeta: _t, ...publicFields } = match;
+  return publicFields;
 }

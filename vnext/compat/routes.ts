@@ -8,7 +8,7 @@ import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
-import { generateExtendedCompatibility, getCompatMatches } from './matches';
+import { generateExtendedCompatibility, getCompatMatches, toPublicCompatMatch } from './matches';
 import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
 import { searchDirectoryUsers, isDirectoryChartId } from './directory';
 import {
@@ -377,7 +377,9 @@ export function createCompatRouter(): import('express').Router {
         ? (rawMode as RelationalIntent)
         : mapLegacyIntentToRelational(rawMode) ?? 'friend';
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
-      const matches = await getCompatMatches(chartId, mode, limit);
+      const includeTransits = String(req.query.includeTransits || '').trim() !== '0';
+      const matches = await getCompatMatches(chartId, mode, limit, { includeTransits });
+      const publicMatches = matches.map(toPublicCompatMatch);
       const generatedAt = new Date().toISOString();
       const matchesMock = process.env.VNEXT_MATCHES_MOCK === '1';
       if (process.env.MATCHES_BULLET_DEBUG === '1' && Array.isArray(matches) && matches.length > 0) {
@@ -391,7 +393,7 @@ export function createCompatRouter(): import('express').Router {
         chartId,
         mode,
         limit,
-        matches,
+        matches: publicMatches,
         generatedAt,
         version: COMPAT_RESPONSE_VERSION,
         synastryEnabled: true,

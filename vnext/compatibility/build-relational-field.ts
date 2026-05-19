@@ -341,8 +341,11 @@ async function buildActivationOverlay(params: {
   memberSnapshotsOrdered: EphemerisSnapshot[];
   vectorHashes: Record<string, string>;
   transitInput: { date: string; time: string; lat: number; lon: number; timezone?: string };
+  /** When set, skips ephemeris fetch (Discovery daily cache). */
+  transitSnapshot?: EphemerisSnapshot;
 }): Promise<{ overlay: RelationalActivationOverlay; weather: RelationalWeatherStateV1 }> {
-  const transitSnapshot = await fetchChartSnapshot(params.transitInput);
+  const transitSnapshot =
+    params.transitSnapshot ?? (await fetchChartSnapshot(params.transitInput));
   const weather = computeRelationalWeatherV1({
     connection: {
       kind: params.chart_ids_ordered.length === 2 ? 'pair' : 'group',
@@ -420,6 +423,7 @@ export async function buildCanonicalRelationalField(params: {
   chartIds: string[];
   bindingKey?: string;
   transitInput?: { date: string; time: string; lat: number; lon: number; timezone?: string };
+  cachedTransitSnapshot?: EphemerisSnapshot;
 }): Promise<{ field: CanonicalRelationalFieldObject; transit_weather: RelationalWeatherStateV1 | null }> {
   const chartIds = sortedUnique(params.chartIds);
   if (chartIds.length < 2) {
@@ -514,6 +518,7 @@ export async function buildCanonicalRelationalField(params: {
       memberSnapshotsOrdered: ctx.natalSnapshotsOrdered,
       vectorHashes: ctx.provenance.vector_hashes,
       transitInput: params.transitInput,
+      transitSnapshot: params.cachedTransitSnapshot,
     });
     activation_overlay = built.overlay;
     transit_weather = built.weather;
@@ -530,6 +535,7 @@ export async function buildCompatibilityRecord(params: {
   chartIds: string[];
   relationshipBindingId?: string | null;
   transitInput?: { date: string; time: string; lat: number; lon: number; timezone?: string };
+  cachedTransitSnapshot?: EphemerisSnapshot;
   computedAt?: string;
 }): Promise<{
   field: CanonicalRelationalFieldObject;
@@ -540,6 +546,7 @@ export async function buildCompatibilityRecord(params: {
     chartIds: params.chartIds,
     bindingKey: params.relationshipBindingId ?? undefined,
     transitInput: params.transitInput,
+    cachedTransitSnapshot: params.cachedTransitSnapshot,
   });
   const computedAt = params.computedAt ?? new Date().toISOString();
   return {
