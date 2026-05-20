@@ -7,6 +7,13 @@ import type { RelationalIntent } from '../lib/relational-intent';
 
 const MAX_OUTGOING_CONNECTION_REQUESTS = 3;
 
+/** Shown above each Discovery bullet; backend sets anchor (142ad8a+), UI fills if API is stale. */
+const DISCOVERY_BULLET_LABELS: Record<'forThem' | 'forYou' | 'together', string> = {
+  forThem: "Why you're good for them",
+  forYou: "Why they're good for you",
+  together: "Why you're good together",
+};
+
 export function calculateDiscoveryRequestsRemaining(pendingOutgoingCount: number): number {
   return Math.max(0, MAX_OUTGOING_CONNECTION_REQUESTS - pendingOutgoingCount);
 }
@@ -25,15 +32,21 @@ function discoveryBulletFromEp(
   ep: CompatibilityExplanationProfile,
   which: 'forYou' | 'forThem' | 'together'
 ): SynastryBulletLine {
+  const label = DISCOVERY_BULLET_LABELS[which];
   const structured = ep.synastryBullets?.[which];
-  if (structured?.text) return structured;
+  if (structured?.text) {
+    return {
+      anchor: structured.anchor?.trim() || label,
+      text: structured.text,
+    };
+  }
   const fallback =
     which === 'forYou'
       ? ep.primarySupports[0]
       : which === 'forThem'
         ? ep.secondarySupports[0]
         : ep.tensionsOrLimits[0];
-  return { anchor: '', text: fallback || 'Compatibility insight unavailable' };
+  return { anchor: label, text: fallback || 'Compatibility insight unavailable' };
 }
 
 function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
