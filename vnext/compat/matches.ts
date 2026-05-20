@@ -28,6 +28,12 @@ import type { TransitAmplificationResult } from '../compatibility/transit-amplif
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
+const DISCOVERY_BULLET_LABELS = {
+  forThem: "Why you're good for them",
+  forYou: "Why they're good for you",
+  together: "Why you're good together",
+} as const;
+
 /** FNV-1a 32-bit hash for deterministic chart-pair seeding (Phase 2 diversity). */
 export function hash32(input: string): number {
   let hash = 2166136261;
@@ -793,9 +799,9 @@ async function generateCompatibilityBullets(
   }
 
   const out = {
-    forThem: generateBullet(selectedAspects.forThem),
-    forYou: generateBullet(selectedAspects.forYou),
-    together: generateBullet(selectedAspects.together),
+    forThem: { ...generateBullet(selectedAspects.forThem), anchor: DISCOVERY_BULLET_LABELS.forThem },
+    forYou: { ...generateBullet(selectedAspects.forYou), anchor: DISCOVERY_BULLET_LABELS.forYou },
+    together: { ...generateBullet(selectedAspects.together), anchor: DISCOVERY_BULLET_LABELS.together },
   };
   if (process.env.MATCHES_BULLET_DEBUG === '1') {
     const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}…`);
