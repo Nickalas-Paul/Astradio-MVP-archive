@@ -7,7 +7,7 @@ export type DeployMeta = {
   commit: string;
   branch: string;
   deployTarget: string;
-  bulletSystem: 'library-feed';
+  bulletSystem: 'library-synastry';
   timestamp: string;
 };
 
@@ -36,7 +36,7 @@ export function getDeployMeta(): DeployMeta {
     commit,
     branch,
     deployTarget,
-    bulletSystem: 'library-feed',
+    bulletSystem: 'library-synastry',
     timestamp: new Date().toISOString(),
   };
 }

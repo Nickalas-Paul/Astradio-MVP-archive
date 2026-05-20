@@ -17,14 +17,6 @@ import { computeCompatibilitySystem } from '../compatibility/service';
 import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
-import type { DiscoveryTransitInput } from '../compatibility/daily-transit-cache';
-import { warmDailyTransitCache } from '../compatibility/daily-transit-cache';
-import {
-  blendDiscoveryDailyScore,
-  computeTransitAmplification,
-  resolveSeekerTransitInput,
-} from '../compatibility/transit-amplification';
-import type { TransitAmplificationResult } from '../compatibility/transit-amplification';
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 
@@ -47,137 +39,6 @@ export function hash32(input: string): number {
 /** @deprecated Use RelationalIntent from ../compatibility/relational-intent */
 export type CompatMatchMode = RelationalIntent;
 
-/** Server-only; removed from GET /compat/matches JSON. */
-export type CompatMatchTransitMeta = {
-  topHits: TransitAmplificationResult['topHits'];
-};
-
-export type TransitFramingHit = {
-  transitBody: string;
-  natalBody: string;
-  aspectType: string;
-};
-
-/**
- * Cap bullet text at maxLength for Discovery display; prefer sentence boundaries.
- */
-export function capBulletText(text: string, maxLength = 280): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  const truncated = text.slice(0, maxLength);
-  const lastPeriod = truncated.lastIndexOf('.');
-  const lastQuestion = truncated.lastIndexOf('?');
-  const lastExclamation = truncated.lastIndexOf('!');
-  const lastSentenceEnd = Math.max(lastPeriod, lastQuestion, lastExclamation);
-
-  if (lastSentenceEnd > maxLength * 0.7) {
-    return text.slice(0, lastSentenceEnd + 1).trim();
-  }
-
-  return `${truncated.trim()}…`;
-}
-
-export function findRelevantTransitHit(
-  aspect: DirectedSnapshotAspect | undefined,
-  hits: TransitFramingHit[],
-  excludeHits: TransitFramingHit[] = []
-): TransitFramingHit | undefined {
-  if (!aspect || !hits.length) {
-    return undefined;
-  }
-
-  const bodyA = String(aspect.bodyA).toLowerCase();
-  const bodyB = String(aspect.bodyB).toLowerCase();
-  const excludeSet = new Set(excludeHits);
-
-  return hits.find((hit) => {
-    if (excludeSet.has(hit)) return false;
-    const natalBody = String(hit.natalBody).toLowerCase();
-    return natalBody === bodyA || natalBody === bodyB;
-  });
-}
-
-/**
- * Use library `feed` when today's transit hits a body in the synastry pair; else timeless prose.
- */
-export function resolveTransitAwareBulletText(params: {
-  aspect: DirectedSnapshotAspect | undefined;
-  insight: AspectInsight | null | undefined;
-  transitHit?: TransitFramingHit;
-  timelessText: string;
-}): string {
-  const { aspect, insight, transitHit, timelessText } = params;
-
-  if (!insight || !aspect) {
-    return timelessText;
-  }
-
-  const bodyA = String(aspect.bodyA).toLowerCase();
-  const bodyB = String(aspect.bodyB).toLowerCase();
-  const hitNatalBody = transitHit?.natalBody ? String(transitHit.natalBody).toLowerCase() : '';
-  const hitMatchesAspect = hitNatalBody && (hitNatalBody === bodyA || hitNatalBody === bodyB);
-
-  if (hitMatchesAspect && insight.feed?.trim()) {
-    return capBulletText(insight.feed.trim());
-  }
-
-  return timelessText;
-}
-
-export function applyTransitFeedToSynastryBullets(
-  bullets: {
-    forThem: { anchor: string; text: string };
-    forYou: { anchor: string; text: string };
-    together: { anchor: string; text: string };
-  },
-  aspects: {
-    forThem?: DirectedSnapshotAspect;
-    forYou?: DirectedSnapshotAspect;
-    together?: DirectedSnapshotAspect;
-  },
-  transitMeta?: CompatMatchTransitMeta
-): typeof bullets {
-  if (!transitMeta?.topHits?.length) {
-    return bullets;
-  }
-
-  const hits: TransitFramingHit[] = transitMeta.topHits.map((h) => ({
-    transitBody: h.transitBody,
-    natalBody: h.natalBody,
-    aspectType: h.aspectType,
-  }));
-
-  const forThemHit = findRelevantTransitHit(aspects.forThem, hits);
-  const forYouHit = findRelevantTransitHit(aspects.forYou, hits, forThemHit ? [forThemHit] : []);
-
-  const insightFor = (aspect?: DirectedSnapshotAspect) =>
-    aspect ? getAspectInsight(buildAspectKey(aspect.bodyA, aspect.bodyB, aspect.type)) : undefined;
-
-  return {
-    forThem: {
-      ...bullets.forThem,
-      text: resolveTransitAwareBulletText({
-        aspect: aspects.forThem,
-        insight: insightFor(aspects.forThem),
-        transitHit: forThemHit,
-        timelessText: bullets.forThem.text,
-      }),
-    },
-    forYou: {
-      ...bullets.forYou,
-      text: resolveTransitAwareBulletText({
-        aspect: aspects.forYou,
-        insight: insightFor(aspects.forYou),
-        transitHit: forYouHit,
-        timelessText: bullets.forYou.text,
-      }),
-    },
-    together: bullets.together,
-  };
-}
-
 export interface CompatMatchResult {
   userId: string;
   chartId: string;
@@ -191,21 +52,7 @@ export interface CompatMatchResult {
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;
-  /** @internal Bullet framing only; never sent to clients. */
-  _transitMeta?: CompatMatchTransitMeta;
-  /** @internal Aspect picks for transit bullet framing; never sent to clients. */
-  _bulletAspects?: {
-    forThem?: DirectedSnapshotAspect;
-    forYou?: DirectedSnapshotAspect;
-    together?: DirectedSnapshotAspect;
-  };
 }
-
-export type GetCompatMatchesOptions = {
-  /** Default true unless ENABLE_TRANSIT_DISCOVERY=0 or includeTransits: false. */
-  includeTransits?: boolean;
-  transitInput?: DiscoveryTransitInput;
-};
 
 function clampScore(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -567,16 +414,9 @@ async function generateCompatibilityBullets(
   intent: 'friend' | 'partner',
   batchUsedKeys?: Set<string>
 ): Promise<{
-  bullets: {
-    forThem: { anchor: string; text: string };
-    forYou: { anchor: string; text: string };
-    together: { anchor: string; text: string };
-  };
-  aspects: {
-    forThem?: DirectedSnapshotAspect;
-    forYou?: DirectedSnapshotAspect;
-    together?: DirectedSnapshotAspect;
-  };
+  forThem: { anchor: string; text: string };
+  forYou: { anchor: string; text: string };
+  together: { anchor: string; text: string };
 }> {
   const aspects = await computeMatchSynastry(chartIdA, chartIdB);
   const usable = aspects.filter((a) => !isAspectLibraryKillListed(buildAspectKey(a.bodyA, a.bodyB, a.type)));
@@ -818,7 +658,7 @@ async function generateCompatibilityBullets(
       )
     );
   }
-  return { bullets: out, aspects: selectedAspects };
+  return out;
 }
 
 /** Longitude for a core body from an ephemeris snapshot (lowercase names). */
@@ -918,22 +758,14 @@ async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligib
   return rows.filter((r) => r.chartId !== chartId);
 }
 
-function transitDiscoveryEnabled(options?: GetCompatMatchesOptions): boolean {
-  if (options?.includeTransits === false) return false;
-  if (process.env.ENABLE_TRANSIT_DISCOVERY === '0') return false;
-  return true;
-}
-
 /**
  * Get compatibility matches for a chart.
- * Ranking only: the canonical field + unified scoring contract remain the single compute path.
- * When transit discovery is enabled, final order uses 60% base + 40% daily transit activation (not exposed in API).
+ * Ranking only: natal canonical field + canonicalIntentRank (stable across days).
  */
 export async function getCompatMatches(
   chartId: string,
   mode: RelationalIntent,
-  limit: number,
-  options?: GetCompatMatchesOptions
+  limit: number
 ): Promise<CompatMatchResult[]> {
   const chart = await getChartById(chartId);
   if (!chart) throw new Error(`Chart not found: ${chartId}`);
@@ -1005,7 +837,7 @@ export async function getCompatMatches(
         relationshipBindingId: null,
       });
       const score = canonicalIntentRank(computed.scoring, mode);
-      const { bullets, aspects: bulletAspects } = await generateCompatibilityBullets(
+      const bullets = await generateCompatibilityBullets(
         chartId,
         cand.chartId,
         intentForBullets,
@@ -1045,7 +877,6 @@ export async function getCompatMatches(
         bio: cand.bio,
         avatarUrl: cand.avatarUrl,
         lookingFor: cand.lookingFor,
-        _bulletAspects: bulletAspects,
       });
       console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(score * 100).toFixed(0)}%`);
     } catch (err) {
@@ -1053,99 +884,19 @@ export async function getCompatMatches(
     }
   }
 
-  let ranked = results;
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.chartId.localeCompare(b.chartId);
+  });
 
-  if (transitDiscoveryEnabled(options) && ranked.length > 0) {
-    let effectiveTransitInput = options?.transitInput ?? null;
-    if (!effectiveTransitInput) {
-      effectiveTransitInput = await resolveSeekerTransitInput(chartId);
-    }
-
-    if (effectiveTransitInput) {
-      try {
-        const cachedTransit = await warmDailyTransitCache(effectiveTransitInput);
-        const withDaily = await Promise.all(
-          ranked.map(async (match) => {
-            const baseScore = match.score;
-            const transitAmp = await computeTransitAmplification({
-              seekerChartId: chartId,
-              candidateChartId: match.chartId,
-              transitInput: effectiveTransitInput!,
-              transitSnapshot: cachedTransit,
-            });
-            const dailyRankScore = blendDiscoveryDailyScore(baseScore, transitAmp.score);
-            return {
-              ...match,
-              dailyRankScore,
-              _transitMeta: {
-                topHits: transitAmp.topHits,
-              },
-            };
-          })
-        );
-        withDaily.sort((a, b) => {
-          const da = (a as { dailyRankScore: number }).dailyRankScore;
-          const db = (b as { dailyRankScore: number }).dailyRankScore;
-          if (db !== da) return db - da;
-          return a.chartId.localeCompare(b.chartId);
-        });
-        ranked = withDaily.map((row) => {
-          const { dailyRankScore: _dailyRankScore, ...rest } = row as CompatMatchResult & {
-            dailyRankScore: number;
-          };
-          const match = rest as CompatMatchResult;
-          if (match._transitMeta?.topHits?.length && match.explanationProfile.synastryBullets) {
-            const framed = applyTransitFeedToSynastryBullets(
-              match.explanationProfile.synastryBullets,
-              match._bulletAspects ?? {},
-              match._transitMeta
-            );
-            match.explanationProfile = {
-              ...match.explanationProfile,
-              primarySupports: [framed.forYou.text],
-              secondarySupports: [framed.forThem.text],
-              tensionsOrLimits: [framed.together.text],
-              synastryBullets: framed,
-            };
-          }
-          return match;
-        });
-      } catch (err) {
-        console.warn('[matches] Transit daily ranking failed; using natal order', err);
-        ranked.sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          return a.chartId.localeCompare(b.chartId);
-        });
-      }
-    } else {
-      console.warn('[matches] No seeker transit input; natal-only ranking');
-      ranked.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.chartId.localeCompare(b.chartId);
-      });
-    }
-  } else {
-    ranked.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.chartId.localeCompare(b.chartId);
-    });
-  }
-
-  return ranked.slice(0, limit);
+  return results.slice(0, limit);
 }
 
 /** Public API shape: prose only, no ranking math exposed. */
 export function toPublicCompatMatch(match: CompatMatchResult): Omit<
   CompatMatchResult,
-  'score' | 'rationale' | 'facets' | '_transitMeta' | '_bulletAspects'
+  'score' | 'rationale' | 'facets'
 > {
-  const {
-    score: _s,
-    rationale: _r,
-    facets: _f,
-    _transitMeta: _t,
-    _bulletAspects: _a,
-    ...publicFields
-  } = match;
+  const { score: _s, rationale: _r, facets: _f, ...publicFields } = match;
   return publicFields;
 }

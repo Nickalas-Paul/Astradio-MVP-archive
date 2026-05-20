@@ -60,7 +60,6 @@ export type CompatMatchesModule = {
     chartId: string,
     mode: string,
     limit: number,
-    options?: { includeTransits?: boolean }
   ) => Promise<unknown[]>;
   toPublicCompatMatch: (match: unknown) => unknown;
 };

@@ -378,8 +378,7 @@ export function createCompatRouter(): import('express').Router {
         ? (rawMode as RelationalIntent)
         : mapLegacyIntentToRelational(rawMode) ?? 'friend';
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
-      const includeTransits = String(req.query.includeTransits || '').trim() !== '0';
-      const matches = await getCompatMatches(chartId, mode, limit, { includeTransits });
+      const matches = await getCompatMatches(chartId, mode, limit);
       const publicMatches = matches.map(toPublicCompatMatch);
       const generatedAt = new Date().toISOString();
       const matchesMock = process.env.VNEXT_MATCHES_MOCK === '1';

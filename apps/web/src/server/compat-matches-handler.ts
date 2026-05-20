@@ -47,15 +47,11 @@ export async function handleCompatMatchesInProcess(
 
   const mode = parseMode(String(searchParams.get('mode') || ''));
   const limit = Math.min(50, Math.max(1, parseInt(String(searchParams.get('limit') || '10'), 10) || 10));
-  const includeTransits = String(searchParams.get('includeTransits') || '').trim() !== '0';
-
   ensureVnextCompatBoot();
   const { getCompatMatches, toPublicCompatMatch } = loadCompatMatchesModule();
   const { getDeployMeta } = loadDeployMetaModule();
 
-  const matches = await getCompatMatches(chartId, mode as 'friend' | 'lover', limit, {
-    includeTransits,
-  });
+  const matches = await getCompatMatches(chartId, mode as 'friend' | 'lover', limit);
   const publicMatches = matches.map((m) => toPublicCompatMatch(m));
 
   if (process.env.MATCHES_BULLET_DEBUG === '1' && matches.length > 0) {

@@ -1,5 +1,5 @@
 /**
- * Ensures deploy metadata and library-feed bullet system are wired for unified deployments.
+ * Ensures deploy metadata and natal synastry bullet system are wired for unified deployments.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -14,14 +14,17 @@ describe('deployment sync', () => {
     const { getDeployMeta } = require(metaPath) as {
       getDeployMeta: () => { bulletSystem: string };
     };
-    expect(getDeployMeta().bulletSystem).toBe('library-feed');
+    expect(getDeployMeta().bulletSystem).toBe('library-synastry');
   });
 
-  it('matches module does not ship legacy transit template helper', () => {
+  it('matches module uses natal synastry bullets without Discovery transit amplification', () => {
     const matchesPath = path.join(vnextRoot, 'compat', 'matches.js');
     expect(fs.existsSync(matchesPath)).toBe(true);
     const src = fs.readFileSync(matchesPath, 'utf8');
     expect(src).not.toMatch(/activates this connection today/i);
-    expect(src).toContain('applyTransitFeedToSynastryBullets');
+    expect(src).not.toContain('applyTransitFeedToSynastryBullets');
+    expect(src).not.toContain('computeTransitAmplification');
+    expect(src).toContain('DISCOVERY_BULLET_LABELS');
+    expect(src).toContain('romantic_synastry');
   });
 });
