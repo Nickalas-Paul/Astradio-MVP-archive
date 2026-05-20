@@ -7,6 +7,7 @@ import { AppShell } from '@/components/AppShell';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { BriefIdentitySummary } from '@/components/BriefIdentitySummary';
 import { ProfileCompatibilityPanel } from '@/components/ProfileCompatibilityPanel';
+import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { useProfile, useProfileChart } from '@/core/social/hooks';
 import type { ProfileChartSection } from '@/core/social/hooks';
 import type { SynastryBulletLine } from '@/core/compat/types';
@@ -80,6 +81,33 @@ function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
           ) : null}
         </div>
       ))}
+    </section>
+  );
+}
+
+/**
+ * Natal soundtrack on Discovery profile preview.
+ * Uses identity_export_id from GET /api/profile/chart; WAV served via /api/exports/:id.
+ */
+function NatalSoundtrackSection({
+  exportId,
+  chartLoading,
+}: {
+  exportId: string | null | undefined;
+  chartLoading: boolean;
+}) {
+  return (
+    <section className="mb-8">
+      <h3 className="text-sm font-medium text-text mb-3">Their natal soundtrack</h3>
+      {chartLoading ? (
+        <p className="text-sm text-subtext">Loading chart…</p>
+      ) : exportId && /^[a-f0-9]{64}$/.test(exportId) ? (
+        <ValidatedExportAudioPlayer exportId={exportId} />
+      ) : (
+        <div className="bg-surface rounded-lg p-4">
+          <p className="text-sm text-subtext">Audio not yet available for this chart</p>
+        </div>
+      )}
     </section>
   );
 }
@@ -247,6 +275,11 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
               sections={identitySections}
               profilePath={fullNatalProfilePath}
               loading={chartLoading}
+            />
+
+            <NatalSoundtrackSection
+              exportId={chartExplainer?.identity_export_id}
+              chartLoading={chartLoading}
             />
 
             {showCompatibility && seekerChart?.id && targetChartId ? (
