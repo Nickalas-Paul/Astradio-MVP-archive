@@ -93,6 +93,7 @@
     "test:phase6c-cleanup": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6c-cleanup-validation.js",
     "test:phase6d-alpha-exit": "npm run vnext:build && node dist/vnext/vnext/scripts/phase6d-alpha-exit-validation.js",
     "test:beta-collapsed-cards": "npm run vnext:build && node --test tests/feed-collapsed-display-pair-beta.test.cjs",
+    "test:feed-aspect-selection": "npm run vnext:build && node --test tests/feed-aspect-selection.test.cjs",
     "test:compat-determinism": "npm run vnext:build && node dist/vnext/vnext/scripts/compat-determinism.js",
     "audit:tier1-render": "npm run vnext:build && node dist/vnext/vnext/scripts/synastry-s5-tier1-audit-render.js",
     "fixture:synastry-s3-pre-post": "npm run vnext:build && node dist/vnext/vnext/scripts/synastry-fixture-pre-post.js",

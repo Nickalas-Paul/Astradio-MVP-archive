@@ -1,79 +1,58 @@
 /**
- * Phase 6D Beta — pair collapsed activation lines (deterministic fallbacks).
+ * Phase 6D — pair collapsed cards (library feed text, exactly 3 lines).
  * Run: npm run test:beta-collapsed-cards
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 
-let mod;
+let display;
+let sel;
 try {
-  mod = require(path.join(__dirname, '../dist/vnext/vnext/api/feed-collapsed-display.js'));
+  display = require(path.join(__dirname, '../dist/vnext/vnext/api/feed-collapsed-display.js'));
+  sel = require(path.join(__dirname, '../dist/vnext/vnext/api/feed-aspect-selection-v1.js'));
 } catch {
-  mod = null;
+  display = null;
+  sel = null;
 }
 
-test(
-  'buildPairActivationLinesBeta returns three non-empty lines when hits empty',
-  { skip: !mod },
-  () => {
-    const lines = mod.buildPairActivationLinesBeta({
-      weather: { themes: { dominantThemes: ['mutability'] } },
-      topCrossAspects: [],
-      viewerPrimaryChartId: 'c_a',
-      partnerChartId: 'c_b',
-    });
-    assert.equal(lines.length, 3);
-    for (const ln of lines) {
-      assert.ok(ln.text && ln.text.trim().length > 0);
-      assert.ok(['you', 'them', 'shared'].includes(ln.member_scope));
-    }
-  }
-);
+function hit(overrides) {
+  return {
+    transitBody: 'jupiter',
+    natalBody: 'moon',
+    memberChartId: 'c_a',
+    type: 'trine',
+    orbDeg: 0.4,
+    exactness: 0.85,
+    dynamics: 'flowing',
+    weight: 0.85,
+    ...overrides,
+  };
+}
 
-test(
-  'buildPairActivationLinesBeta assigns YOUR/THEIR when hits exist',
-  { skip: !mod },
-  () => {
-    const hitYou = {
-      transitBody: 'mars',
-      natalBody: 'venus',
-      memberChartId: 'c_a',
-      type: 'square',
-      orbDeg: 0.3,
-      exactness: 0.9,
-      dynamics: 'tense',
-      weight: 1,
-    };
-    const hitThem = {
-      transitBody: 'jupiter',
-      natalBody: 'moon',
-      memberChartId: 'c_b',
-      type: 'trine',
-      orbDeg: 0.4,
-      exactness: 0.85,
-      dynamics: 'flowing',
-      weight: 1,
-    };
-    const hitExtra = {
-      transitBody: 'saturn',
-      natalBody: 'sun',
-      memberChartId: 'c_a',
-      type: 'sextile',
-      orbDeg: 0.5,
-      exactness: 0.8,
-      dynamics: 'supportive',
-      weight: 0.9,
-    };
-    const lines = mod.buildPairActivationLinesBeta({
-      weather: null,
-      topCrossAspects: [hitYou, hitThem, hitExtra],
-      viewerPrimaryChartId: 'c_a',
-      partnerChartId: 'c_b',
-    });
-    assert.match(lines[0].text, /YOUR/i);
-    assert.match(lines[1].text, /THEIR/i);
-    assert.ok(lines[2].text.length > 0);
-    assert.ok(lines[0].text.length <= 82);
+test('buildFeedCollapsedDisplayPairBetaV1 shows three library sentences', { skip: !display || !sel }, () => {
+  const pool = [
+    hit({ transitBody: 'jupiter', natalBody: 'moon', type: 'trine' }),
+    hit({ transitBody: 'mars', natalBody: 'venus', type: 'square', weight: 0.8 }),
+    hit({ transitBody: 'saturn', natalBody: 'sun', type: 'sextile', weight: 0.75 }),
+    hit({ transitBody: 'neptune', natalBody: 'mercury', type: 'opposition', weight: 0.5 }),
+  ];
+  const cardHits = sel.selectFeedAspectsForCard({ hits: pool, feedItemId: 'pair:beta' });
+  const out = display.buildFeedCollapsedDisplayPairBetaV1({
+    weather: null,
+    cardHits,
+    partnerChartLabel: 'Mabel QA',
+    connectionLabelFallback: 'Mabel QA',
+  });
+  assert.equal(out.activity_count, 3);
+  assert.equal(out.activation_lines.length, 3);
+  for (const ln of out.activation_lines) {
+    assert.ok(ln.text.length > 50, 'library feed should be multi-sentence');
+    assert.ok(!/YOUR|THEIR/.test(ln.text), 'no template YOUR/THEIR lines');
   }
-);
+  assert.ok(out.enhanced_title.includes('Mabel QA'));
+});
+
+test('buildFeedActivationLinesFromHits rejects wrong count', { skip: !display }, () => {
+  assert.throws(() => display.buildFeedActivationLinesFromHits([hit({})]), /expected 3 hits/);
+});

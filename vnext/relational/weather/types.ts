@@ -45,6 +45,8 @@ export type RelationalWeatherStateV1 = {
   };
   aspects: {
     topCrossAspects: CrossAspectHitV1[];
+    /** Larger pool for Community Feed library selection (scoring/themes still use topCrossAspects). */
+    feedCandidateAspects: CrossAspectHitV1[];
     counts: {
       supportive: number;
       tense: number;

@@ -14,24 +14,6 @@ interface RelationalCommunityFeedProps {
   className?: string;
 }
 
-/** Bold YOUR/THEIR without HTML injection (activation lines are server-built). */
-function MemberScopeFragment({ text }: { text: string }) {
-  const parts = text.split(/(YOUR|THEIR)/g);
-  return (
-    <>
-      {parts.map((p, i) =>
-        p === 'YOUR' || p === 'THEIR' ? (
-          <strong key={`${i}-${p}`} className="font-semibold text-emerald-700 dark:text-emerald-400">
-            {p}
-          </strong>
-        ) : (
-          <span key={`${i}-t`}>{p}</span>
-        )
-      )}
-    </>
-  );
-}
-
 export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
@@ -350,6 +332,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               cd &&
               Array.isArray(cd.activation_lines) &&
               cd.activation_lines.length === 3 &&
+              cd.activation_lines.every((l) => typeof l.text === 'string' && l.text.trim().length > 0) &&
               typeof cd.enhanced_title === 'string' &&
               cd.enhanced_title.trim().length > 0
                 ? cd.activation_lines
@@ -374,27 +357,26 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                       <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
                         {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
                       </h4>
-                      {activityCount != null ? (
-                        <p className="text-xs text-subtext max-w-full">
-                          {activityCount} transits highlighted today
-                        </p>
+                      {activityCount === 3 ? (
+                        <p className="text-xs text-subtext max-w-full">3 transits highlighted today</p>
                       ) : null}
                       <ul className="list-none space-y-1.5 pl-0 max-w-full">
                         {betaLines.map((line, idx) => (
-                          <li key={`${item.feed_item_id}-ln-${idx}`} className="flex gap-2 text-sm text-text leading-snug">
+                          <li
+                            key={`${item.feed_item_id}-ln-${idx}`}
+                            className="flex gap-2 text-sm text-text leading-relaxed"
+                          >
                             <span className="mt-1.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden>
                               ●
                             </span>
-                            <span className="min-w-0 break-words">
-                              <MemberScopeFragment text={line.text} />
-                            </span>
+                            <span className="min-w-0 break-words whitespace-normal">{line.text}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm text-text leading-snug">{primary}</p>
+                      <p className="text-sm text-text leading-relaxed max-w-full break-words">{primary}</p>
                       {micro ? (
                         <p className="text-xs font-medium text-subtext tracking-wide" aria-hidden="true">
                           {micro}

@@ -276,6 +276,13 @@ function finalizeFeedCollapsedBatch(items: RelationalCommunityFeedItem[]): Relat
 
   for (const item of items) {
     const cd = item.collapsed_display;
+    const hasLibraryPairLines =
+      item.connection_kind === 'pair' &&
+      cd &&
+      Array.isArray(cd.activation_lines) &&
+      cd.activation_lines.length === 3 &&
+      cd.activation_lines.every((l) => typeof l.text === 'string' && l.text.trim().length > 0);
+
     const primary =
       cd && typeof cd.primary_line === 'string'
         ? cd.primary_line
@@ -285,16 +292,18 @@ function finalizeFeedCollapsedBatch(items: RelationalCommunityFeedItem[]): Relat
       cd && typeof cd.activation_descriptor === 'string' ? cd.activation_descriptor : feedDescriptorCollapsedFallback();
 
     let surf: string | null = null;
-    let normalized = '';
-    let rot = 0;
-    const displayLines = { primary_line: primary, micro_tag: micro };
-    for (; rot < 3; rot++) {
-      surf = computeSurfacingForFeedItem(item, displayLines, rot);
-      if (surf === null) break;
-      normalized = normalizeSurfacingKey(surf);
-      if (!seenSurfacing.has(normalized)) {
-        seenSurfacing.add(normalized);
-        break;
+    if (!hasLibraryPairLines) {
+      let normalized = '';
+      let rot = 0;
+      const displayLines = { primary_line: primary, micro_tag: micro };
+      for (; rot < 3; rot++) {
+        surf = computeSurfacingForFeedItem(item, displayLines, rot);
+        if (surf === null) break;
+        normalized = normalizeSurfacingKey(surf);
+        if (!seenSurfacing.has(normalized)) {
+          seenSurfacing.add(normalized);
+          break;
+        }
       }
     }
 

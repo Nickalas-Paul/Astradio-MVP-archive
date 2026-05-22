@@ -23,7 +23,19 @@ import {
   type FeedCollapsedDisplayPairBetaV1,
   type FeedCollapsedDisplayV1,
 } from './feed-collapsed-display';
+import {
+  FeedAspectCoverageInvariantError,
+  pushKeysToWindow,
+  selectFeedAspectsForCard,
+} from './feed-aspect-selection-v1';
+import { filterFeedLibraryCovered } from '../projection/insight/feed-aspect-insight-v1';
 import { selectDisplayedFeedAspectForSortedRow } from './feed-displayed-aspect-v1';
+
+function feedSelectionPool(weather: RelationalWeatherStateV1 | null | undefined): CrossAspectHitV1[] {
+  const aspects = weather?.aspects;
+  if (!aspects) return [];
+  return aspects.feedCandidateAspects ?? aspects.topCrossAspects ?? [];
+}
 
 /**
  * Documented sort tuple id; bump when tuple definition changes.
@@ -181,39 +193,59 @@ export function applyFeedCollapsedDisplayPass2(
   for (let i = 0; i < sortedPass1.length; i++) {
     const row = sortedPass1[i]!;
     const weather = row.transit_weather;
-    const hits = weather?.aspects?.topCrossAspects ?? [];
-    let displayHit: CrossAspectHitV1 | undefined;
-    if (hits.length > 0) {
-      const sel = selectDisplayedFeedAspectForSortedRow({
-        hits,
-        recentKeyWindow: recentWindow,
-      });
-      displayHit = sel.hit;
-      recentWindow = sel.nextWindow;
-    }
+    const rawHits = feedSelectionPool(weather);
 
-    let collapsed_display: FeedCollapsedDisplayV1 | FeedCollapsedDisplayPairBetaV1;
     const usePairBeta =
       row.connection_kind === 'pair' &&
       viewerPc &&
       row.chart_ids_ordered.includes(viewerPc) &&
       row.chart_ids_ordered.length >= 2;
 
+    let collapsed_display: FeedCollapsedDisplayV1 | FeedCollapsedDisplayPairBetaV1;
+
     if (usePairBeta) {
-      const partnerChartId = row.chart_ids_ordered.find((id) => id !== viewerPc) ?? '';
-      const fallbackLab = connectionLabelFromIdentityLine(row.connection_identity_line);
-      const partnerLabel =
-        (partnerChartId && labelMap?.get(partnerChartId)?.trim()) || fallbackLab || 'Partner';
-      collapsed_display = buildFeedCollapsedDisplayPairBetaV1({
-        weather,
-        displayHit,
-        viewerPrimaryChartId: viewerPc,
-        partnerChartId,
-        partnerChartLabel: partnerLabel,
-        connectionLabelFallback: fallbackLab,
-      });
+      try {
+        const cardHits = selectFeedAspectsForCard({
+          hits: rawHits,
+          feedItemId: row.feed_item_id,
+          recentKeyWindow: recentWindow,
+        });
+        recentWindow = pushKeysToWindow(recentWindow, cardHits);
+
+        const partnerChartId = row.chart_ids_ordered.find((id) => id !== viewerPc) ?? '';
+        const fallbackLab = connectionLabelFromIdentityLine(row.connection_identity_line);
+        const partnerLabel =
+          (partnerChartId && labelMap?.get(partnerChartId)?.trim()) || fallbackLab || 'Partner';
+        collapsed_display = buildFeedCollapsedDisplayPairBetaV1({
+          weather,
+          cardHits,
+          partnerChartLabel: partnerLabel,
+          connectionLabelFallback: fallbackLab,
+        });
+      } catch (e) {
+        if (e instanceof FeedAspectCoverageInvariantError) {
+          console.error('[feed-invariant]', e.context);
+          continue;
+        }
+        throw e;
+      }
     } else {
-      collapsed_display = buildFeedCollapsedDisplayV1(weather, displayHit);
+      const covered = filterFeedLibraryCovered(rawHits);
+      if (covered.length === 0) {
+        console.error('[feed-invariant]', {
+          feedItemId: row.feed_item_id,
+          connection_kind: row.connection_kind,
+          reason: 'no_library_covered_aspects',
+          poolSize: rawHits.length,
+        });
+        continue;
+      }
+      const sel = selectDisplayedFeedAspectForSortedRow({
+        hits: covered,
+        recentKeyWindow: recentWindow,
+      });
+      recentWindow = sel.nextWindow;
+      collapsed_display = buildFeedCollapsedDisplayV1(weather, sel.hit);
     }
 
     const { transit_weather: _drop, ...rest } = row;

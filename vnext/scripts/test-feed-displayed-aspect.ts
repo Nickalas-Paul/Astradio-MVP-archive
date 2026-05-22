@@ -39,6 +39,7 @@ function mkWeather(top: CrossAspectHitV1[]): RelationalWeatherStateV1 {
     score: { raw: 0.3, significance: 0.3 },
     aspects: {
       topCrossAspects: top,
+      feedCandidateAspects: top,
       counts: { supportive: 0, tense: 0, amplifying: 0, polarizing: 0, flowing: 0 },
     },
     themes: { dominantThemes: [] },
@@ -145,7 +146,8 @@ function testFallbackTruth(): void {
     pass1Row('b', only, { ae: 0.89, or: 0.49, tb: 'b' }),
     pass1Row('c', only, { ae: 0.88, or: 0.48, tb: 'c' }),
   ];
-  const baseline = buildFeedCollapsedDisplayV1(only, undefined);
+  const hero = only.aspects.topCrossAspects[0]!;
+  const baseline = buildFeedCollapsedDisplayV1(only, hero);
   const out = applyFeedCollapsedDisplayPass2(pass1);
   for (const row of out) {
     assert.equal(row.collapsed_display.primary_line, baseline.primary_line);
@@ -272,10 +274,11 @@ function testTailParticipatesInDiversity(): void {
 function testFullFeedSeventeenItemsDiversity(): void {
   const dom = sunPlutoOpp;
   const pass1: CommunityRelationalFeedItemPass1V1[] = [];
+  const altNatals = ['Venus', 'Mars', 'Jupiter', 'Saturn', 'Moon', 'Mercury', 'Sun', 'Neptune', 'Uranus'];
   for (let i = 0; i < 17; i++) {
     const alt = hit({
       transitBody: 'Mercury',
-      natalBody: `Aux${i}`,
+      natalBody: altNatals[i % altNatals.length]!,
       memberChartId: 'c2',
       type: 'trine',
       orbDeg: 2,

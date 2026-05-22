@@ -111,6 +111,7 @@ export function computeRelationalWeatherV1(input: {
     score: { raw, significance },
     aspects: {
       topCrossAspects: sortTopCrossAspects(allHits, 14),
+      feedCandidateAspects: sortTopCrossAspects(allHits, 50),
       counts: countDynamics(allHits),
     },
     themes: {

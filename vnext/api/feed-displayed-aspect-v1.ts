@@ -14,8 +14,11 @@ export function feedDisplayedAspectKey(hit: CrossAspectHitV1): string {
 
 /**
  * Pick which hit to show for this feed row (after ranking order is fixed).
- * Scans topCrossAspects in existing sorted order; first hit whose display key is not in the
+ * Scans hits in existing sorted order; first hit whose display key is not in the
  * last W keys; if none, fallback to hits[0].
+ *
+ * Callers must pass a non-empty list pre-filtered with `filterFeedLibraryCovered`
+ * (typically from `feedCandidateAspects`).
  */
 export function selectDisplayedFeedAspectForSortedRow(input: {
   hits: CrossAspectHitV1[];

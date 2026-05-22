@@ -91,6 +91,7 @@ export function mkGroupWeather(
     score: { raw: 0.42, significance: 0.51 },
     aspects: {
       topCrossAspects: top,
+      feedCandidateAspects: top,
       counts: { supportive: 2, tense: 0, amplifying: 0, polarizing: 0, flowing: 1 },
     },
     themes: { dominantThemes: [`fixture_theme_${fixtureKey}`, 'coordination'] },
