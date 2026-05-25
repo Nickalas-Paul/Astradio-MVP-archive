@@ -1,5 +1,5 @@
 /**
- * Astradio Insight Library — Audio Envelope Descriptor Insights (Batch 5)
+ * Astradio Insight Library: Audio Envelope Descriptor Insights (Batch 5)
  *
  * 17 objects covering: tempo bands (3), density bands (3), arc biases (4),
  * tension biases (3), relational textures (4).

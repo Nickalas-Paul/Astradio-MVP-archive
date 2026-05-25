@@ -1,5 +1,5 @@
 /**
- * Astradio Insight Library — Type Definitions
+ * Astradio Insight Library: Type Definitions
  *
  * These interfaces define the shape of every object in the insight library.
  * The assembler imports from insight-library-index.ts, not directly from here.
@@ -123,7 +123,7 @@ export interface AspectInsight {
   readonly behavioral: string; // psychological / behavioral expression paragraph (natal frame)
   readonly friendship: string; // relational context: friendship variant (natal frame)
   readonly romantic: string;   // relational context: romantic variant (natal frame)
-  readonly feed: string;       // feed card line (transit-activated, 1–3 sentences)
+  readonly feed: string;       // feed card line (transit-activated, 1 to 3 sentences)
   readonly sonic: string;      // expanded sonic character description
 
   // Synastry-frame variants (cross-chart interpretation, used by compat_pair and group surfaces)

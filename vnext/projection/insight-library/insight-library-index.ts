@@ -1,5 +1,5 @@
 /**
- * Astradio Insight Library — Lookup Index
+ * Astradio Insight Library: Lookup Index
  *
  * Exports four lookup functions and the buildAspectKey helper.
  * This is the only file the assembler imports from.
@@ -194,7 +194,7 @@ const ASPECT_INSIGHTS: Readonly<Record<string, AspectInsight>> = {
  * Ordering rationale:
  *   - Outer/transpersonal planets first (Pluto → Jupiter), per traditional
  *     synastry convention where outer-on-personal is read with the outer named first.
- *   - Chiron between Saturn/Jupiter and the luminaries — reflects its Saturn-Uranus
+ *   - Chiron between Saturn/Jupiter and the luminaries , reflects its Saturn-Uranus
  *     orbital territory and its bridge function in chart interpretation.
  *   - Luminaries (Sun, Moon) before personal planets and asteroid-belt cluster.
  *   - Asteroid-belt cluster (Ceres, Pallas, Juno, Vesta) sits with the personal-feminine
@@ -288,7 +288,7 @@ export function getRelationalInsight(id: string): RelationalInsight | undefined 
 
 /**
  * Look up an audio descriptor by AudioProjectionEnvelope field value.
- * Pass core.audio.tempo_band, .density_band, .arc_bias,
+ * Pass core.audio.tempo_band.density_band.arc_bias,
  * .tension_bias, or .relational_texture directly. No transformation needed.
  * Returns undefined if the code is not covered.
  */

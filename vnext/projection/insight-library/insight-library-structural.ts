@@ -1,5 +1,5 @@
 /**
- * Astradio Insight Library — Structural Claim Insights (Batch 3)
+ * Astradio Insight Library: Structural Claim Insights (Batch 3)
  *
  * 22 objects covering: motion profiles (5), gravity profiles (5),
  * element dominance (4), tension bands (3), tonal polarity (3), luminary weight (3).

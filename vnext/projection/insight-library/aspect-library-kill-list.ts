@@ -1,5 +1,5 @@
 /**
- * Aspect insight library kill-list — keys with authored entries that must not surface
+ * Aspect insight library kill-list , keys with authored entries that must not surface
  * until copy passes Tier audit (see docs/SYNASTRY-S5-STAGE-A-SPECIFICATION.md).
  *
  * Stage B Tier 1 audit: docs/audit-logs/synastry-tier1-audit-v1.csv

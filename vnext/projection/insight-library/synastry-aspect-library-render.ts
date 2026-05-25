@@ -1,5 +1,5 @@
 /**
- * Synastry MEP aspect-library body composition — shared by assemble-sections and audit tooling.
+ * Synastry MEP aspect-library body composition , shared by assemble-sections and audit tooling.
  * Must stay aligned with compat_pair / group branch in assemblePhaseDSections.
  *
  * Selection rule: when an AspectInsight carries synastry-frame fields

@@ -1,5 +1,5 @@
 /**
- * Astradio Insight Library — Relational Insights (Batch 4)
+ * Astradio Insight Library: Relational Insights (Batch 4)
  *
  * 31 objects covering:
  *   - Compatibility field classifications (4): keyed by class_code from scoring.ts
