@@ -7,6 +7,7 @@ import {
   type CompatibilityTextLike,
   type ExplanationLike,
 } from '../../lib/compatibility-reading-surface';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 
 const INTENT_TO_RELATIONSHIP: Record<string, RelationshipMode> = {
   friendship: 'friends',
@@ -138,8 +139,10 @@ export function CompatibilityLensModal({
               <div className="space-y-3">
                 {sections.map((s, i) => (
                   <div key={i}>
-                    {s.title ? <h3 className="font-medium text-text mb-1">{s.title}</h3> : null}
-                    {s.text ? <p className="text-subtext whitespace-pre-wrap">{s.text}</p> : null}
+                    {s.title ? (
+                      <h2 className="reading-section-header mb-2 first:mt-0 text-lg">{s.title}</h2>
+                    ) : null}
+                    {s.text ? <IdentityMarkdown content={s.text} /> : null}
                     {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
                       <ul className="list-disc list-inside text-subtext space-y-1 mt-1">
                         {s.bullets.map((b, bi) => (
@@ -155,14 +158,14 @@ export function CompatibilityLensModal({
               <div className="space-y-4">
                 {short ? (
                   <div>
-                    <h3 className="font-medium text-text mb-1">Summary</h3>
-                    <p className="text-subtext whitespace-pre-wrap">{short}</p>
+                    <h2 className="reading-section-header mb-2 first:mt-0 text-lg">Summary</h2>
+                    <IdentityMarkdown content={short} />
                   </div>
                 ) : null}
                 {long ? (
                   <div>
-                    <h3 className="font-medium text-text mb-1">Details</h3>
-                    <p className="text-subtext whitespace-pre-wrap">{long}</p>
+                    <h2 className="reading-section-header mb-2 first:mt-0 text-lg">Details</h2>
+                    <IdentityMarkdown content={long} />
                   </div>
                 ) : null}
                 {bullets.length > 0 ? (

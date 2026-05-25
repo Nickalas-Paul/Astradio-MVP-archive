@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
@@ -67,8 +68,10 @@ function ExplainerSections({ explanation }: { explanation: unknown }) {
         const s = sec as { title?: string; id?: string; text?: string; content?: string; bullets?: string[] };
         return (
           <section key={i} className="rounded-lg border border-border bg-bgElev p-4">
-            <h3 className="text-lg font-semibold text-text mb-3">{s.title || s.id || `Section ${i + 1}`}</h3>
-            <div className="text-subtext text-sm leading-relaxed whitespace-pre-wrap">{s.text || s.content || ''}</div>
+            <h2 className="reading-section-header mb-3 first:mt-0">
+              {s.title || s.id || `Section ${i + 1}`}
+            </h2>
+            <IdentityMarkdown content={s.text || s.content || ''} />
             {s.bullets?.length ? (
               <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
                 {s.bullets.map((b: string, j: number) => (

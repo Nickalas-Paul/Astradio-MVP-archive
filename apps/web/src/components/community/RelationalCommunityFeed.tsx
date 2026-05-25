@@ -7,6 +7,7 @@ import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 
 interface RelationalCommunityFeedProps {
   userId: string | null;
@@ -462,7 +463,9 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                                 <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
                                   {EXPANDED_SLOT_LABELS[slot]}
                                 </h4>
-                                <p className="text-xs text-text whitespace-pre-wrap leading-relaxed">{body}</p>
+                                <div className="text-xs">
+                                  <IdentityMarkdown content={body} />
+                                </div>
                               </section>
                             );
                           })}

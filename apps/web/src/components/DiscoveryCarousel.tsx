@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompatMatch, CompatibilityExplanationProfile, SynastryBulletLine } from '../core/compat/types';
 import type { RelationalIntent } from '../lib/relational-intent';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 
 const MAX_OUTGOING_CONNECTION_REQUESTS = 3;
 
@@ -54,11 +55,17 @@ function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
     return (
       <div className="min-w-0">
         <div className="text-xs font-semibold text-subtext mb-1">{line.anchor}</div>
-        <div className="text-sm text-text">{line.text}</div>
+        <div className="text-sm">
+          <IdentityMarkdown content={line.text} />
+        </div>
       </div>
     );
   }
-  return <div className="text-sm text-text min-w-0">{line.text}</div>;
+  return (
+    <div className="text-sm min-w-0">
+      <IdentityMarkdown content={line.text} />
+    </div>
+  );
 }
 
 export interface DiscoveryCarouselProps {

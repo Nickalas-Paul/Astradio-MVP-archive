@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: { ignoreDuringBuilds: true },
+  eslint: { ignoreDuringBuilds: false },
   productionBrowserSourceMaps: true,
   experimental: {
     // Allow importing shared server-only code (e.g. vnext/*) from outside apps/web.
