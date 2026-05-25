@@ -198,9 +198,9 @@ function ExplainerSections({
     <div className="space-y-6">
       {sorted.map((sec) => (
         <section key={sec.id} className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="text-lg font-semibold text-text mb-3">
+          <h2 className="reading-section-header mb-3 first:mt-0">
             {SECTION_TITLES[sec.id] ?? sec.title}
-          </h3>
+          </h2>
           <IdentityMarkdown content={sec.text} />
           {sec.bullets && sec.bullets.length > 0 && (
             <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
