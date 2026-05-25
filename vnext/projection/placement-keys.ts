@@ -53,6 +53,19 @@ export function buildPlacementKeys(snapshot: EphemerisSnapshot): PlacementKey[] 
     });
   }
 
+  if (cusps.length >= 10 && typeof cusps[9] === 'number' && Number.isFinite(cusps[9])) {
+    const { sign, degInSign } = lonToSign(cusps[9]);
+    const mcSign = sign.toUpperCase();
+    keys.push({
+      planet: 'MC',
+      sign: mcSign,
+      house: 10,
+      signKey: `PLCMT_MC_${mcSign}`,
+      houseKey: `PLCMT_MC_${mcSign}_HOUSE10`,
+      degInSign,
+    });
+  }
+
   return keys;
 }
 
@@ -61,6 +74,7 @@ export function buildPlacementKeys(snapshot: EphemerisSnapshot): PlacementKey[] 
  */
 export const PLANET_TIERS = {
   core_identity: ['SUN', 'MOON', 'ASCENDANT'],
+  direction_foundation: ['MC', 'IC'],
   personal_expression: ['MERCURY', 'VENUS', 'MARS'],
   growth_expansion: ['JUPITER', 'SATURN'],
   evolutionary_currents: ['URANUS', 'NEPTUNE', 'PLUTO'],

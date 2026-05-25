@@ -55,7 +55,7 @@ import { SIGN_INSIGHTS } from './insight-library-signs';
 import { HOUSE_INSIGHTS } from './insight-library-houses';
 import { PLANET_IN_SIGN_INSIGHTS } from './insight-library-placements-sign';
 import { PLANET_IN_HOUSE_INSIGHTS } from './insight-library-placements-house';
-import { ASCENDANT_PLACEMENTS } from './insight-library-angles';
+import { ANGLE_PLACEMENTS } from './insight-library-angles';
 
 // ---------------------------------------------------------------------------
 // Phase 5A placement archetypes → AspectInsight-shaped rows for MEP compose + tier1 audit
@@ -155,7 +155,7 @@ function buildPlacementAspectInsights(): Record<string, AspectInsight> {
   for (const ins of Object.values(PLANET_IN_HOUSE_INSIGHTS) as PlanetInHouseInsight[]) {
     out[ins.key] = planetInHouseInsightToAspect(ins);
   }
-  for (const ins of Object.values(ASCENDANT_PLACEMENTS) as PlanetInSignInsight[]) {
+  for (const ins of Object.values(ANGLE_PLACEMENTS) as PlanetInSignInsight[]) {
     out[ins.key] = planetInSignInsightToAspect(ins);
   }
   return out;

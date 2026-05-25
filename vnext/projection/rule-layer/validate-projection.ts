@@ -12,6 +12,7 @@ export function densityForSectionId(sectionId: string, defaultD: 'short' | 'medi
   /** Phase 6C — synastry library blocks use variable paragraphing; short density matches synthesis/MEP carve-outs. */
   if (
     sectionId === 'core_identity' ||
+    sectionId === 'direction_foundation' ||
     sectionId === 'personal_expression' ||
     sectionId === 'growth_expansion' ||
     sectionId === 'evolutionary_currents' ||

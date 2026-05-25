@@ -132,6 +132,7 @@ const SECTION_ORDER: string[] = [
   'relational_field',
   'relational_weather_v1',
   'core_identity',
+  'direction_foundation',
   'personal_expression',
   'growth_expansion',
   'evolutionary_currents',
@@ -151,6 +152,7 @@ const SECTION_ORDER: string[] = [
 ];
 const SECTION_TITLES: Record<string, string> = {
   core_identity: 'Core Identity Architecture',
+  direction_foundation: 'Direction and Foundation',
   personal_expression: 'Personal Expression',
   growth_expansion: 'Growth and Expansion',
   evolutionary_currents: 'Evolutionary Currents',

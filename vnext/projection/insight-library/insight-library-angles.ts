@@ -1,6 +1,6 @@
 /**
- * Angle placements — Ascendant (and future MC/IC).
- * Keys: PLCMT_ASCENDANT_{SIGN}
+ * Angle placements — Ascendant, Midheaven (IC deferred to Batch A3).
+ * Keys: PLCMT_ASCENDANT_{SIGN}, PLCMT_MC_{SIGN}
  * Sign-only framing (angles are house cusps; no house subsection in Identity UI).
  */
 
@@ -162,4 +162,167 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     feed: `Your rising sign carries Pisces energy today. Presence reads gentle, porous, and imaginatively receptive.`,
     sonic: `Your Pisces Ascendant contributes flowing melodic dissolve, ethereal harmonic wash, and rhythm that moves like water without edges—the sound of permeable presence and transcendent empathy.`,
   },
+};
+
+export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
+  PLCMT_MC_ARIES: {
+    key: 'PLCMT_MC_ARIES',
+    planet: 'MC',
+    sign: 'ARIES',
+    title: 'Midheaven in Aries',
+    core: `Your Midheaven in Aries means your career direction and public image are organized around pioneering, leadership, and the courage to blaze new trails. You're building a legacy of first-mover action and independent achievement.`,
+    behavioral: `You pursue career goals with direct urgency, take professional risks others avoid, and build your reputation through visible initiative. When you're working toward achievement, you lead rather than follow, initiate rather than wait for consensus.`,
+    friendship: `In professional networks, your Aries Midheaven reads as the colleague who steps up first and names the bold move others were circling.`,
+    romantic: `In partnership, your public drive can show as a partner who wants shared goals to move fast and feel unmistakably chosen.`,
+    feed: `Your Midheaven carries Aries energy today. Public direction favors initiative, leadership, and visible first steps.`,
+    sonic: `Your Aries Midheaven contributes bold melodic ambition, bright harmonic authority, and rhythm that drives toward professional conquest—the sound of leadership and pioneering achievement.`,
+  },
+
+  PLCMT_MC_TAURUS: {
+    key: 'PLCMT_MC_TAURUS',
+    planet: 'MC',
+    sign: 'TAURUS',
+    title: 'Midheaven in Taurus',
+    core: `Your Midheaven in Taurus means your career direction and public image are organized around building lasting value, material security, and the patient accumulation of real achievement. You're constructing a legacy that endures through tangible contribution and unshakeable reliability.`,
+    behavioral: `You pursue career goals steadily and methodically, build reputation through consistent high-quality work, and achieve through refusing to be rushed past what takes time. When you're working toward mastery, you trust the process more than the timeline.`,
+    friendship: `In professional networks, your Taurus Midheaven reads as the builder others trust for quality, steadiness, and follow-through.`,
+    romantic: `In partnership, your public steadiness can show as a partner who equates love with reliability and tangible security over time.`,
+    feed: `Your Midheaven carries Taurus energy today. Public direction favors patience, quality, and durable results.`,
+    sonic: `Your Taurus Midheaven contributes rich harmonic abundance, sustained melodic building, and rhythm that is patient and grounded—the sound of enduring achievement and material mastery.`,
+  },
+
+  PLCMT_MC_GEMINI: {
+    key: 'PLCMT_MC_GEMINI',
+    planet: 'MC',
+    sign: 'GEMINI',
+    title: 'Midheaven in Gemini',
+    core: `Your Midheaven in Gemini means your career direction and public image are organized around communication, intellectual versatility, and the ability to connect disparate ideas. You're building a legacy through the power of words, information, and mental agility.`,
+    behavioral: `You pursue career goals through multiple channels simultaneously, build reputation through clever communication and intellectual range, and achieve by staying curious and adaptable. When you're working toward success, you're learning, teaching, and translating between different worlds.`,
+    friendship: `In professional networks, your Gemini Midheaven reads as the connector who translates between teams, ideas, and audiences with ease.`,
+    romantic: `In partnership, your public versatility can show as a partner who keeps the relationship mentally alive through conversation and shared learning.`,
+    feed: `Your Midheaven carries Gemini energy today. Public direction favors communication, curiosity, and agile exchange.`,
+    sonic: `Your Gemini Midheaven contributes nimble melodic conversation, airy harmonic exchange, and rhythm that is quick and articulate—the sound of intellectual achievement and communicative mastery.`,
+  },
+
+  PLCMT_MC_CANCER: {
+    key: 'PLCMT_MC_CANCER',
+    planet: 'MC',
+    sign: 'CANCER',
+    title: 'Midheaven in Cancer',
+    core: `Your Midheaven in Cancer means your career direction and public image are organized around nurturing, emotional intelligence, and creating sanctuary for others. You're building a legacy through care, protection, and the capacity to make people feel safe and seen.`,
+    behavioral: `You pursue career goals by tending to human needs, build reputation through genuine emotional attunement and protective leadership, and achieve by creating environments where others can thrive. When you're working toward your calling, you're mothering the world in your particular way.`,
+    friendship: `In professional networks, your Cancer Midheaven reads as the leader who protects the team and remembers what people need to feel secure.`,
+    romantic: `In partnership, your public care can show as a partner who builds home, safety, and emotional continuity into shared life.`,
+    feed: `Your Midheaven carries Cancer energy today. Public direction favors care, protection, and emotionally intelligent leadership.`,
+    sonic: `Your Cancer Midheaven contributes flowing emotional melody, warm harmonic shelter, and rhythm that nurtures and protects—the sound of caring leadership and emotional authority.`,
+  },
+
+  PLCMT_MC_LEO: {
+    key: 'PLCMT_MC_LEO',
+    planet: 'MC',
+    sign: 'LEO',
+    title: 'Midheaven in Leo',
+    core: `Your Midheaven in Leo means your career direction and public image are organized around creative self-expression, dignified leadership, and the courage to shine without apology. You're building a legacy through the radiance of your authentic presence and generous authority.`,
+    behavioral: `You pursue career goals with bold confidence, build reputation through dramatic excellence and magnetic presence, and achieve by taking center stage when your talents demand it. When you're working toward greatness, you're not dimming your light to make others comfortable.`,
+    friendship: `In professional networks, your Leo Midheaven reads as the figure others look to for vision, warmth, and visible excellence.`,
+    romantic: `In partnership, your public radiance can show as a partner who wants shared life to feel celebrated and proudly chosen.`,
+    feed: `Your Midheaven carries Leo energy today. Public direction favors creative leadership, visibility, and generous authority.`,
+    sonic: `Your Leo Midheaven contributes radiant melodic statements, warm harmonic confidence, and rhythm that commands attention—the sound of dignified achievement and creative authority.`,
+  },
+
+  PLCMT_MC_VIRGO: {
+    key: 'PLCMT_MC_VIRGO',
+    planet: 'MC',
+    sign: 'VIRGO',
+    title: 'Midheaven in Virgo',
+    core: `Your Midheaven in Virgo means your career direction and public image are organized around precision, useful service, and the mastery of technical skill. You're building a legacy of excellence through meticulous attention to craft and genuine utility.`,
+    behavioral: `You pursue career goals through continuous improvement, earn reputation by solving real problems better than anyone else, and achieve through patient refinement of skill. When you're working toward mastery, you focus on what actually works rather than what looks impressive.`,
+    friendship: `In professional networks, your Virgo Midheaven reads as the craftsperson others rely on when the details must be right.`,
+    romantic: `In partnership, your public precision can show as a partner who expresses care through practical competence and steady improvement.`,
+    feed: `Your Midheaven carries Virgo energy today. Public direction favors craft, service, and refined usefulness.`,
+    sonic: `Your Virgo Midheaven contributes precise melodic craft, intricate harmonic detail, and rhythm that perfects through careful iteration—the sound of technical mastery and useful service.`,
+  },
+
+  PLCMT_MC_LIBRA: {
+    key: 'PLCMT_MC_LIBRA',
+    planet: 'MC',
+    sign: 'LIBRA',
+    title: 'Midheaven in Libra',
+    core: `Your Midheaven in Libra means your career direction and public image are organized around creating beauty, facilitating fairness, and bringing disparate parties into balance. You're building a legacy through aesthetic refinement, diplomatic skill, and the capacity to see all sides.`,
+    behavioral: `You pursue career goals through partnership and collaboration, build reputation through graceful mediation and aesthetic judgment, and achieve by creating harmony where others see only conflict. When you're working toward your calling, you're making the world more beautiful and more just.`,
+    friendship: `In professional networks, your Libra Midheaven reads as the diplomat who elevates tone, design, and fair process.`,
+    romantic: `In partnership, your public grace can show as a partner who values balance, beauty, and mutual regard in shared ambition.`,
+    feed: `Your Midheaven carries Libra energy today. Public direction favors diplomacy, aesthetics, and relational balance.`,
+    sonic: `Your Libra Midheaven contributes balanced harmonic progressions, graceful melodic partnership, and rhythm that seeks equilibrium—the sound of diplomatic achievement and aesthetic authority.`,
+  },
+
+  PLCMT_MC_SCORPIO: {
+    key: 'PLCMT_MC_SCORPIO',
+    planet: 'MC',
+    sign: 'SCORPIO',
+    title: 'Midheaven in Scorpio',
+    core: `Your Midheaven in Scorpio means your career direction and public image are organized around transformation, psychological depth, and the courage to work with what others won't touch. You're building a legacy through your capacity to face darkness and emerge with power.`,
+    behavioral: `You pursue career goals with strategic intensity, build reputation through your willingness to go deeper than anyone else, and achieve through confronting what most people avoid. When you're working toward mastery, you're transforming both yourself and the systems you engage.`,
+    friendship: `In professional networks, your Scorpio Midheaven reads as the strategist others trust with what cannot be said aloud.`,
+    romantic: `In partnership, your public intensity can show as a partner who wants truth, depth, and loyalty beneath the surface story.`,
+    feed: `Your Midheaven carries Scorpio energy today. Public direction favors depth, transformation, and strategic power.`,
+    sonic: `Your Scorpio Midheaven contributes smoldering melodic intensity, dark harmonic depth, and rhythm that pulses with controlled power—the sound of transformative achievement and psychological authority.`,
+  },
+
+  PLCMT_MC_SAGITTARIUS: {
+    key: 'PLCMT_MC_SAGITTARIUS',
+    planet: 'MC',
+    sign: 'SAGITTARIUS',
+    title: 'Midheaven in Sagittarius',
+    core: `Your Midheaven in Sagittarius means your career direction and public image are organized around exploration, philosophical truth, and expanding beyond known boundaries. You're building a legacy through adventure, teaching, and the conviction that life's meaning is found in growth and discovery.`,
+    behavioral: `You pursue career goals with enthusiastic optimism, build reputation through bold vision and infectious belief in possibility, and achieve by taking risks others consider reckless. When you're working toward your calling, you're following truth wherever it leads, even when the destination is uncertain.`,
+    friendship: `In professional networks, your Sagittarius Midheaven reads as the visionary who widens the frame and invites others toward a bigger horizon.`,
+    romantic: `In partnership, your public optimism can show as a partner who wants shared life to keep expanding in meaning and adventure.`,
+    feed: `Your Midheaven carries Sagittarius energy today. Public direction favors vision, teaching, and bold exploration.`,
+    sonic: `Your Sagittarius Midheaven contributes soaring melodic range, expansive harmonic optimism, and rhythm that gallops toward the horizon—the sound of adventurous achievement and philosophical authority.`,
+  },
+
+  PLCMT_MC_CAPRICORN: {
+    key: 'PLCMT_MC_CAPRICORN',
+    planet: 'MC',
+    sign: 'CAPRICORN',
+    title: 'Midheaven in Capricorn',
+    core: `Your Midheaven in Capricorn means your career direction and public image are organized around mastery, enduring achievement, and the patient climb toward genuine authority. You're building a legacy that will outlast you through disciplined excellence and structural integrity.`,
+    behavioral: `You pursue career goals with serious determination, build reputation through demonstrated competence and unwavering reliability, and achieve by earning every step rather than taking shortcuts. When you're working toward mastery, you're constructing something that will stand the test of time.`,
+    friendship: `In professional networks, your Capricorn Midheaven reads as the authority others respect for competence and long-range judgment.`,
+    romantic: `In partnership, your public discipline can show as a partner who builds security through commitment, structure, and earned trust.`,
+    feed: `Your Midheaven carries Capricorn energy today. Public direction favors mastery, structure, and enduring achievement.`,
+    sonic: `Your Capricorn Midheaven contributes austere melodic structure, authoritative harmonic foundations, and rhythm that builds with patient discipline—the sound of earned mastery and enduring achievement.`,
+  },
+
+  PLCMT_MC_AQUARIUS: {
+    key: 'PLCMT_MC_AQUARIUS',
+    planet: 'MC',
+    sign: 'AQUARIUS',
+    title: 'Midheaven in Aquarius',
+    core: `Your Midheaven in Aquarius means your career direction and public image are organized around innovation, collective contribution, and the courage to work outside conventional systems. You're building a legacy through original thinking, technological advancement, or social reform that benefits the many rather than the few.`,
+    behavioral: `You pursue career goals through unconventional methods, build reputation through breakthrough ideas and principled independence, and achieve by refusing to conform to industry norms that don't serve progress. When you're working toward your calling, you're building the future rather than perfecting the present.`,
+    friendship: `In professional networks, your Aquarius Midheaven reads as the innovator who challenges norms in service of collective progress.`,
+    romantic: `In partnership, your public independence can show as a partner who values freedom, principle, and shared ideals over convention.`,
+    feed: `Your Midheaven carries Aquarius energy today. Public direction favors innovation, reform, and principled originality.`,
+    sonic: `Your Aquarius Midheaven contributes unexpected melodic innovation, progressive harmonic structures, and rhythm that breaks conventional patterns—the sound of revolutionary achievement and intellectual authority.`,
+  },
+
+  PLCMT_MC_PISCES: {
+    key: 'PLCMT_MC_PISCES',
+    planet: 'MC',
+    sign: 'PISCES',
+    title: 'Midheaven in Pisces',
+    core: `Your Midheaven in Pisces means your career direction and public image are organized around creative vision, compassionate service, and dissolving boundaries between self and collective need. You're building a legacy through art, healing, or work that serves something larger than individual ambition.`,
+    behavioral: `You pursue career goals through intuitive navigation rather than strategic planning, build reputation by responding to unspoken needs, and achieve through surrendering to flow rather than forcing outcomes. When you're working toward your calling, you're channeling something beyond yourself.`,
+    friendship: `In professional networks, your Pisces Midheaven reads as the empathic creative others turn to when the work needs soul as well as skill.`,
+    romantic: `In partnership, your public sensitivity can show as a partner who seeks spiritual or artistic union beyond practical roles alone.`,
+    feed: `Your Midheaven carries Pisces energy today. Public direction favors vision, compassion, and transcendent purpose.`,
+    sonic: `Your Pisces Midheaven contributes dreamlike melodic vision, dissolving harmonic boundaries, and rhythm that flows without edges—the sound of transcendent purpose and compassionate achievement.`,
+  },
+};
+
+export const ANGLE_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
+  ...ASCENDANT_PLACEMENTS,
+  ...MIDHEAVEN_PLACEMENTS,
 };

@@ -97,9 +97,13 @@ function testSonicContentPreservation() {
   const sections = profileSections('identity-sonic', snap(0));
   const placementText = sections
     .filter((s) =>
-      ['core_identity', 'personal_expression', 'growth_expansion', 'evolutionary_currents'].includes(
-        s.id
-      )
+      [
+        'core_identity',
+        'direction_foundation',
+        'personal_expression',
+        'growth_expansion',
+        'evolutionary_currents',
+      ].includes(s.id)
     )
     .map((s) => s.text)
     .join('\n');
@@ -107,8 +111,10 @@ function testSonicContentPreservation() {
     (placementText.match(/\*\*Sonic Signature\*\*/g) || []).length +
     (placementText.match(/\*\*Aesthetic Resonance\*\*/g) || []).length;
   const ascendantSonicCount = (placementText.match(/\*\*Physical Presence\*\*/g) || []).length;
+  const mcSonicCount = (placementText.match(/\*\*Legacy Sound\*\*/g) || []).length;
   assert.equal(sonicSectionCount, 20, `expected 20 planet sonic sections, got ${sonicSectionCount}`);
   assert.equal(ascendantSonicCount, 1, `expected 1 Ascendant sonic section, got ${ascendantSonicCount}`);
+  assert.equal(mcSonicCount, 1, `expected 1 Midheaven sonic section, got ${mcSonicCount}`);
 }
 
 function testAscendantInCoreIdentity() {
@@ -130,6 +136,31 @@ function testAscendantInCoreIdentity() {
 
   const insight = getAspectInsight('PLCMT_ASCENDANT_ARIES');
   assert.ok(insight?.core?.includes('Ascendant in Aries'));
+}
+
+function testMidheavenInDirectionFoundation() {
+  const sections = profileSections('identity-mc', snap(0));
+  const direction = sections.find((s) => s.id === 'direction_foundation');
+  assert.ok(direction?.text, 'direction_foundation section present');
+  const text = direction.text!;
+  assert.ok(text.includes('### Midheaven in Capricorn'), 'Midheaven block with sign (houses[9]=270)');
+  assert.ok(text.includes('**Public Direction**'), 'Midheaven Public Direction label');
+  assert.ok(text.includes('**Achievement Style**'), 'Midheaven Achievement Style label');
+  assert.ok(text.includes('**Legacy Sound**'), 'Midheaven Legacy Sound label');
+  const mcBlock = text.slice(text.indexOf('### Midheaven in'));
+  assert.ok(!mcBlock.includes('**How You Show Up**'), 'Midheaven has no house subsection');
+
+  const coreIdentity = sections.find((s) => s.id === 'core_identity');
+  const personal = sections.find((s) => s.id === 'personal_expression');
+  assert.ok(coreIdentity && direction && personal, 'tier sections exist');
+  const order = sections.map((s) => s.id);
+  const ci = order.indexOf('core_identity');
+  const df = order.indexOf('direction_foundation');
+  const pe = order.indexOf('personal_expression');
+  assert.ok(ci >= 0 && df > ci && pe > df, 'tier order: core_identity → direction_foundation → personal_expression');
+
+  const insight = getAspectInsight('PLCMT_MC_CAPRICORN');
+  assert.ok(insight?.core?.includes('Midheaven in Capricorn'));
 }
 
 function testAspectSentenceCaps() {
@@ -219,6 +250,7 @@ function main() {
   testPlacementSentenceCaps();
   testSonicContentPreservation();
   testAscendantInCoreIdentity();
+  testMidheavenInDirectionFoundation();
   testAspectSentenceCaps();
   testCharacterCountRange();
   testAudioStagingHiddenFromUi();

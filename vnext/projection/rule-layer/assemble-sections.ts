@@ -273,6 +273,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
   if (surface === 'profile') {
     const o = withOrder([
       'core_identity',
+      'direction_foundation',
       'personal_expression',
       'growth_expansion',
       'evolutionary_currents',
@@ -427,6 +428,16 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
   );
   sections.push(
     assemblePlacementTier({
+      tierId: 'direction_foundation',
+      title: 'Direction and Foundation',
+      subtitle: 'Public Calling and Private Roots',
+      planets: PLANET_TIERS.direction_foundation,
+      placementKeys,
+      depth: 'full',
+    })
+  );
+  sections.push(
+    assemblePlacementTier({
       tierId: 'personal_expression',
       title: 'Personal Expression',
       subtitle: 'How You Communicate, Connect, and Create',
@@ -473,10 +484,9 @@ function assemblePlacementTier(config: {
     const placement = config.placementKeys.find((pk) => pk.planet === planetName);
     if (!placement) continue;
 
-    const planetBlock =
-      placement.planet === 'ASCENDANT'
-        ? assembleAnglePlacement(placement)
-        : assemblePlanetPlacement(placement, config.depth);
+    const planetBlock = ANGLE_PLACEMENT_BODIES.has(placement.planet)
+      ? assembleAnglePlacement(placement)
+      : assemblePlanetPlacement(placement, config.depth);
     if (planetBlock) paragraphs.push(planetBlock);
   }
 
@@ -491,12 +501,34 @@ function assemblePlacementTier(config: {
   };
 }
 
+const ANGLE_PLACEMENT_BODIES = new Set(['ASCENDANT', 'MC', 'IC']);
+
+const ANGLE_DISPLAY_NAMES: Record<string, string> = {
+  ASCENDANT: 'Ascendant',
+  MC: 'Midheaven',
+  IC: 'IC',
+};
+
 function getAngleFieldLabels(planet: string): { core: string; behavioral: string; sonic: string } {
   if (planet === 'ASCENDANT') {
     return {
       core: 'First Impressions',
       behavioral: 'Natural Approach',
       sonic: 'Physical Presence',
+    };
+  }
+  if (planet === 'MC') {
+    return {
+      core: 'Public Direction',
+      behavioral: 'Achievement Style',
+      sonic: 'Legacy Sound',
+    };
+  }
+  if (planet === 'IC') {
+    return {
+      core: 'Emotional Foundation',
+      behavioral: 'Private Sanctuary',
+      sonic: 'Interior Resonance',
     };
   }
   return { core: '', behavioral: '', sonic: '' };
@@ -509,10 +541,7 @@ function assembleAnglePlacement(placement: PlacementKey): string | null {
   const labels = getAngleFieldLabels(placement.planet);
   if (!labels.core) return null;
 
-  const angleName =
-    placement.planet === 'ASCENDANT'
-      ? 'Ascendant'
-      : placement.planet.charAt(0).toUpperCase() + placement.planet.slice(1).toLowerCase();
+  const angleName = ANGLE_DISPLAY_NAMES[placement.planet] ?? placement.planet;
   const signDisplay = placement.sign.charAt(0).toUpperCase() + placement.sign.slice(1).toLowerCase();
 
   const parts: string[] = [];
