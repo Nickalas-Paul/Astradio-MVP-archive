@@ -112,9 +112,11 @@ function testSonicContentPreservation() {
     (placementText.match(/\*\*Aesthetic Resonance\*\*/g) || []).length;
   const ascendantSonicCount = (placementText.match(/\*\*Physical Presence\*\*/g) || []).length;
   const mcSonicCount = (placementText.match(/\*\*Legacy Sound\*\*/g) || []).length;
+  const icSonicCount = (placementText.match(/\*\*Interior Resonance\*\*/g) || []).length;
   assert.equal(sonicSectionCount, 20, `expected 20 planet sonic sections, got ${sonicSectionCount}`);
   assert.equal(ascendantSonicCount, 1, `expected 1 Ascendant sonic section, got ${ascendantSonicCount}`);
   assert.equal(mcSonicCount, 1, `expected 1 Midheaven sonic section, got ${mcSonicCount}`);
+  assert.equal(icSonicCount, 1, `expected 1 IC sonic section, got ${icSonicCount}`);
 }
 
 function testAscendantInCoreIdentity() {
@@ -161,6 +163,28 @@ function testMidheavenInDirectionFoundation() {
 
   const insight = getAspectInsight('PLCMT_MC_CAPRICORN');
   assert.ok(insight?.core?.includes('Midheaven in Capricorn'));
+}
+
+function testIcInDirectionFoundation() {
+  const sections = profileSections('identity-ic', snap(0));
+  const direction = sections.find((s) => s.id === 'direction_foundation');
+  assert.ok(direction?.text, 'direction_foundation section present');
+  const text = direction.text!;
+  assert.ok(text.includes('### Midheaven in Capricorn'), 'Midheaven block present');
+  assert.ok(text.includes('### IC in Cancer'), 'IC block with sign (houses[3]=90)');
+  assert.ok(text.includes('**Emotional Foundation**'), 'IC Emotional Foundation label');
+  assert.ok(text.includes('**Private Sanctuary**'), 'IC Private Sanctuary label');
+  assert.ok(text.includes('**Interior Resonance**'), 'IC Interior Resonance label');
+
+  const mcIdx = text.indexOf('### Midheaven in');
+  const icIdx = text.indexOf('### IC in');
+  assert.ok(mcIdx >= 0 && icIdx > mcIdx, 'MC before IC in direction_foundation');
+
+  const icBlock = text.slice(icIdx, text.indexOf('###', icIdx + 1) > icIdx ? text.indexOf('###', icIdx + 1) : text.length);
+  assert.ok(!icBlock.includes('**How You Show Up**'), 'IC has no house subsection');
+
+  const insight = getAspectInsight('PLCMT_IC_CANCER');
+  assert.ok(insight?.core?.includes('IC in Cancer'));
 }
 
 function testAspectSentenceCaps() {
@@ -251,6 +275,7 @@ function main() {
   testSonicContentPreservation();
   testAscendantInCoreIdentity();
   testMidheavenInDirectionFoundation();
+  testIcInDirectionFoundation();
   testAspectSentenceCaps();
   testCharacterCountRange();
   testAudioStagingHiddenFromUi();

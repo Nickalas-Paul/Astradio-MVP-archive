@@ -1,6 +1,6 @@
 /**
- * Angle placements — Ascendant, Midheaven (IC deferred to Batch A3).
- * Keys: PLCMT_ASCENDANT_{SIGN}, PLCMT_MC_{SIGN}
+ * Angle placements — Ascendant, Midheaven, IC (Imum Coeli).
+ * Keys: PLCMT_ASCENDANT_{SIGN}, PLCMT_MC_{SIGN}, PLCMT_IC_{SIGN}
  * Sign-only framing (angles are house cusps; no house subsection in Identity UI).
  */
 
@@ -322,7 +322,166 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
   },
 };
 
+export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
+  PLCMT_IC_ARIES: {
+    key: 'PLCMT_IC_ARIES',
+    planet: 'IC',
+    sign: 'ARIES',
+    title: 'IC in Aries',
+    core: `Your IC in Aries means your emotional foundation and sense of home are organized around independence, self-reliance, and the freedom to act without asking permission. Your roots are pioneering—you come from (or create) a foundation of courage and self-determination.`,
+    behavioral: `You create sanctuary through space to move freely, process emotions through physical action, and need your private life to support autonomy. When you're at home, you're recharging your capacity for independent action—home is where you remember you don't need anyone's permission.`,
+    friendship: `In private life, your Aries IC favors friends who respect your need for space and direct honesty without emotional games.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to feel like a base camp for independence, not a cage.`,
+    feed: `Your IC carries Aries energy today. Private foundation favors autonomy, courage, and self-reliant rest.`,
+    sonic: `Your Aries IC contributes bold foundational rhythm, bright interior energy, and the sound of self-reliant emotional grounding—what safety sounds like when it's built on courage.`,
+  },
+
+  PLCMT_IC_TAURUS: {
+    key: 'PLCMT_IC_TAURUS',
+    planet: 'IC',
+    sign: 'TAURUS',
+    title: 'IC in Taurus',
+    core: `Your IC in Taurus means your emotional foundation and sense of home are organized around physical comfort, material security, and sensory pleasure. Your roots are grounded—you come from (or create) a foundation of embodied stability and the right to rest.`,
+    behavioral: `You create sanctuary through beautiful spaces and physical comfort, process emotions through your body and senses, and need your private life to be a place of reliable pleasure. When you're at home, you're restoring your capacity for sensory presence—home is where your body can finally relax.`,
+    friendship: `In private life, your Taurus IC favors friends who share meals, comfort, and unhurried presence.`,
+    romantic: `In intimacy, your roots show as a partner who builds safety through touch, consistency, and tangible care.`,
+    feed: `Your IC carries Taurus energy today. Private foundation favors comfort, rest, and embodied stability.`,
+    sonic: `Your Taurus IC contributes rich harmonic grounding, warm melodic comfort, and rhythm that is slow and embodied—the sound of physical safety and sensory foundation.`,
+  },
+
+  PLCMT_IC_GEMINI: {
+    key: 'PLCMT_IC_GEMINI',
+    planet: 'IC',
+    sign: 'GEMINI',
+    title: 'IC in Gemini',
+    core: `Your IC in Gemini means your emotional foundation and sense of home are organized around mental stimulation, variety, and the freedom to stay curious. Your roots are intellectual—you come from (or create) a foundation of learning, communication, and mental agility.`,
+    behavioral: `You create sanctuary through books, conversation, and access to information, process emotions by talking them through or writing them out, and need your private life to keep your mind engaged. When you're at home, you're recharging your mental batteries—home is where you can think freely without judgment.`,
+    friendship: `In private life, your Gemini IC favors friends who talk, text, and keep your inner world mentally alive.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to be a place for conversation and curious exchange.`,
+    feed: `Your IC carries Gemini energy today. Private foundation favors mental stimulation and free thinking.`,
+    sonic: `Your Gemini IC contributes nimble interior melody, airy harmonic foundation, and rhythm that is conversational and light—the sound of mental sanctuary and intellectual grounding.`,
+  },
+
+  PLCMT_IC_CANCER: {
+    key: 'PLCMT_IC_CANCER',
+    planet: 'IC',
+    sign: 'CANCER',
+    title: 'IC in Cancer',
+    core: `Your IC in Cancer means your emotional foundation and sense of home are organized around nurturing, emotional safety, and the deep need to belong. Your roots are tender—you come from (or create) a foundation of care, protection, and the right to feel without censorship.`,
+    behavioral: `You create sanctuary through emotional warmth and protective privacy, process emotions through feeling them fully in safe containers, and need your private life to be a space where vulnerability is honored. When you're at home, you're restoring your capacity for emotional openness—home is where you can cry, rage, or melt without explanation.`,
+    friendship: `In private life, your Cancer IC favors friends who feel like family and honor emotional truth.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to be emotionally safe and deeply belonging.`,
+    feed: `Your IC carries Cancer energy today. Private foundation favors nurture, protection, and emotional honesty.`,
+    sonic: `Your Cancer IC contributes flowing emotional depth, warm harmonic shelter, and rhythm that ebbs and flows with feeling—the sound of emotional sanctuary and nurturing foundation.`,
+  },
+
+  PLCMT_IC_LEO: {
+    key: 'PLCMT_IC_LEO',
+    planet: 'IC',
+    sign: 'LEO',
+    title: 'IC in Leo',
+    core: `Your IC in Leo means your emotional foundation and sense of home are organized around creative self-expression, playful joy, and the right to take up space. Your roots are radiant—you come from (or create) a foundation of celebration, dignity, and the freedom to shine in private.`,
+    behavioral: `You create sanctuary through beauty, drama, and permission to be yourself fully, process emotions through creative expression and play, and need your private life to honor your specialness. When you're at home, you're recharging your inner light—home is where you can be as big as you actually are.`,
+    friendship: `In private life, your Leo IC favors friends who celebrate you and make private life feel special.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to feel warm, proud, and creatively alive.`,
+    feed: `Your IC carries Leo energy today. Private foundation favors joy, dignity, and expressive rest.`,
+    sonic: `Your Leo IC contributes radiant interior warmth, generous harmonic foundation, and rhythm that celebrates self—the sound of dignified sanctuary and creative grounding.`,
+  },
+
+  PLCMT_IC_VIRGO: {
+    key: 'PLCMT_IC_VIRGO',
+    planet: 'IC',
+    sign: 'VIRGO',
+    title: 'IC in Virgo',
+    core: `Your IC in Virgo means your emotional foundation and sense of home are organized around order, useful routine, and the right to perfect your private life. Your roots are practical—you come from (or create) a foundation of service, competence, and the belief that care is demonstrated through helpful action.`,
+    behavioral: `You create sanctuary through clean organization and useful rituals, process emotions by analyzing them and finding practical solutions, and need your private life to run efficiently. When you're at home, you're restoring your capacity for precision—home is where everything has its place and purpose.`,
+    friendship: `In private life, your Virgo IC favors friends who respect routines and show care through practical help.`,
+    romantic: `In intimacy, your roots show as a partner who restores safety through order, usefulness, and quiet competence.`,
+    feed: `Your IC carries Virgo energy today. Private foundation favors order, craft, and practical care.`,
+    sonic: `Your Virgo IC contributes precise interior rhythm, refined harmonic order, and melody that is careful and measured—the sound of organized sanctuary and practical foundation.`,
+  },
+
+  PLCMT_IC_LIBRA: {
+    key: 'PLCMT_IC_LIBRA',
+    planet: 'IC',
+    sign: 'LIBRA',
+    title: 'IC in Libra',
+    core: `Your IC in Libra means your emotional foundation and sense of home are organized around harmony, aesthetic beauty, and the presence of partnership or balanced relationship. Your roots are refined—you come from (or create) a foundation of grace, fairness, and relational equity.`,
+    behavioral: `You create sanctuary through beautiful environments and the presence of valued others, process emotions through dialogue and seeking balance, and need your private life to feel aesthetically pleasing and relationally fair. When you're at home, you're restoring your sense of harmony—home is where everything is in right proportion.`,
+    friendship: `In private life, your Libra IC favors friends who bring grace, fairness, and beautiful shared space.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to feel balanced, lovely, and mutually considerate.`,
+    feed: `Your IC carries Libra energy today. Private foundation favors harmony, beauty, and relational balance.`,
+    sonic: `Your Libra IC contributes balanced harmonic foundations, graceful interior melody, and rhythm that seeks equilibrium—the sound of harmonious emotional grounding and aesthetic sanctuary.`,
+  },
+
+  PLCMT_IC_SCORPIO: {
+    key: 'PLCMT_IC_SCORPIO',
+    planet: 'IC',
+    sign: 'SCORPIO',
+    title: 'IC in Scorpio',
+    core: `Your IC in Scorpio means your emotional foundation and sense of home are organized around intensity, psychological depth, and the right to privacy around transformation. Your roots are powerful—you come from (or create) a foundation of emotional extremity and the capacity to face darkness.`,
+    behavioral: `You create sanctuary through complete privacy and permission to feel everything without censoring, process emotions through diving into depth rather than skating surfaces, and need your private life to be completely protected from intrusion. When you're at home, you're regenerating your capacity for intensity—home is where you can be as deep as you need to be.`,
+    friendship: `In private life, your Scorpio IC favors friends who can hold depth, secrecy, and emotional truth without flinching.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to be a sealed container for transformation and trust.`,
+    feed: `Your IC carries Scorpio energy today. Private foundation favors depth, privacy, and regenerative feeling.`,
+    sonic: `Your Scorpio IC contributes dark harmonic depth, intense foundational power, and rhythm that pulses with emotional extremity—the sound of profound privacy and transformative emotional grounding.`,
+  },
+
+  PLCMT_IC_SAGITTARIUS: {
+    key: 'PLCMT_IC_SAGITTARIUS',
+    planet: 'IC',
+    sign: 'SAGITTARIUS',
+    title: 'IC in Sagittarius',
+    core: `Your IC in Sagittarius means your emotional foundation and sense of home are organized around freedom, philosophical meaning, and the space to explore without constraint. Your roots are adventurous—you come from (or create) a foundation of optimism, truth-seeking, and the belief that home is wherever you're free to roam.`,
+    behavioral: `You create sanctuary through open space and permission to follow curiosity, process emotions through finding their larger meaning, and need your private life to support expansion rather than containment. When you're at home, you're recharging your sense of possibility—home is where the doors and windows are always open.`,
+    friendship: `In private life, your Sagittarius IC favors friends who widen your world and honor your need for room to roam.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to feel spacious, honest, and oriented toward meaning.`,
+    feed: `Your IC carries Sagittarius energy today. Private foundation favors freedom, truth, and expansive rest.`,
+    sonic: `Your Sagittarius IC contributes expansive interior range, optimistic harmonic foundation, and rhythm that gallops freely—the sound of adventurous sanctuary and philosophical grounding.`,
+  },
+
+  PLCMT_IC_CAPRICORN: {
+    key: 'PLCMT_IC_CAPRICORN',
+    planet: 'IC',
+    sign: 'CAPRICORN',
+    title: 'IC in Capricorn',
+    core: `Your IC in Capricorn means your emotional foundation and sense of home are organized around structure, self-sufficiency, and the right to build something enduring in your private life. Your roots are disciplined—you come from (or create) a foundation of responsibility, maturity, and the belief that emotional stability is earned through effort.`,
+    behavioral: `You create sanctuary through reliable routines and self-sufficient systems, process emotions by taking responsibility for managing them, and need your private life to be well-structured and under your control. When you're at home, you're recharging your capacity for discipline—home is where you can maintain order without external demands.`,
+    friendship: `In private life, your Capricorn IC favors friends who respect boundaries, reliability, and mature steadiness.`,
+    romantic: `In intimacy, your roots show as a partner who builds safety through structure, duty, and earned trust over time.`,
+    feed: `Your IC carries Capricorn energy today. Private foundation favors structure, discipline, and self-sufficiency.`,
+    sonic: `Your Capricorn IC contributes austere foundational structure, disciplined harmonic grounding, and rhythm that is controlled and measured—the sound of self-sufficient sanctuary and earned emotional stability.`,
+  },
+
+  PLCMT_IC_AQUARIUS: {
+    key: 'PLCMT_IC_AQUARIUS',
+    planet: 'IC',
+    sign: 'AQUARIUS',
+    title: 'IC in Aquarius',
+    core: `Your IC in Aquarius means your emotional foundation and sense of home are organized around intellectual freedom, unconventional family structures, and the right to be different in private. Your roots are innovative—you come from (or create) a foundation of independence, progressive values, and the belief that home should support your uniqueness.`,
+    behavioral: `You create sanctuary through space that honors your individuality, process emotions by detaching and analyzing them objectively, and need your private life to be free from conventional expectations. When you're at home, you're recharging your capacity for originality—home is where you don't have to explain why you're wired differently.`,
+    friendship: `In private life, your Aquarius IC favors friends who accept your difference and keep expectations unconventional.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to honor freedom, principle, and nonconformity.`,
+    feed: `Your IC carries Aquarius energy today. Private foundation favors originality, detachment, and intellectual freedom.`,
+    sonic: `Your Aquarius IC contributes unexpected harmonic foundations, innovative interior rhythm, and melody that is both detached and unique—the sound of unconventional sanctuary and intellectual grounding.`,
+  },
+
+  PLCMT_IC_PISCES: {
+    key: 'PLCMT_IC_PISCES',
+    planet: 'IC',
+    sign: 'PISCES',
+    title: 'IC in Pisces',
+    core: `Your IC in Pisces means your emotional foundation and sense of home are organized around imaginative escape, spiritual connection, and dissolving into something larger than yourself. Your roots are mystical—you come from (or create) a foundation of dreams, compassion, and the belief that home is where boundaries can safely dissolve.`,
+    behavioral: `You create sanctuary through art, music, or spiritual practice, process emotions by letting them wash through you without resistance, and need your private life to be a refuge from harsh reality. When you're at home, you're restoring your capacity for transcendence—home is where you can disappear into the infinite.`,
+    friendship: `In private life, your Pisces IC favors friends who honor sensitivity, imagination, and compassionate retreat.`,
+    romantic: `In intimacy, your roots show as a partner who needs home to feel spiritually soft and emotionally permeable.`,
+    feed: `Your IC carries Pisces energy today. Private foundation favors dreams, compassion, and gentle dissolution.`,
+    sonic: `Your Pisces IC contributes dreamlike harmonic dissolve, ethereal interior flow, and rhythm that moves like water without edges—the sound of mystical sanctuary and boundless emotional foundation.`,
+  },
+};
+
 export const ANGLE_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
   ...ASCENDANT_PLACEMENTS,
   ...MIDHEAVEN_PLACEMENTS,
+  ...IC_PLACEMENTS,
 };

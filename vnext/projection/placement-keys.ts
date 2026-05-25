@@ -66,6 +66,19 @@ export function buildPlacementKeys(snapshot: EphemerisSnapshot): PlacementKey[] 
     });
   }
 
+  if (cusps.length >= 4 && typeof cusps[3] === 'number' && Number.isFinite(cusps[3])) {
+    const { sign, degInSign } = lonToSign(cusps[3]);
+    const icSign = sign.toUpperCase();
+    keys.push({
+      planet: 'IC',
+      sign: icSign,
+      house: 4,
+      signKey: `PLCMT_IC_${icSign}`,
+      houseKey: `PLCMT_IC_${icSign}_HOUSE4`,
+      degInSign,
+    });
+  }
+
   return keys;
 }
 
