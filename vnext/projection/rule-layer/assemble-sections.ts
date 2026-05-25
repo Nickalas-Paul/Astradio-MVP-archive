@@ -579,10 +579,10 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
   const transitSnapshot = options.secondarySnapshot;
   if (!natalSnapshot || !transitSnapshot) return buildMinimalOverlaySections();
 
-  const rawAspects = [
-    ...(options.pairInteractionAspectsV2 ?? []),
-    ...(options.pairInteractionAspects ?? []),
-  ];
+  const rawAspects =
+    options.pairInteractionAspectsV2 != null && options.pairInteractionAspectsV2.length > 0
+      ? [...options.pairInteractionAspectsV2]
+      : [...(options.pairInteractionAspects ?? [])];
   const natalToTransit = filterNatalToTransitAspects(rawAspects);
   if (natalToTransit.length === 0) return buildMinimalOverlaySections();
 
@@ -656,6 +656,7 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
     for (const natalPlanet of tier.natalBodies) {
       const activations = activationsByPlanet[natalPlanet];
       if (!activations || activations.length === 0) continue;
+      /** Only planets with a globally selected activation appear (≤ MAX_ACTIVATIONS_PER_DAY total). */
 
       const natalPlacement = natalPlacements.find((p) => p.planet === natalPlanet);
       if (!natalPlacement) continue;

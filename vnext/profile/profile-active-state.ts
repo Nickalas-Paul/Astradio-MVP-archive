@@ -177,10 +177,15 @@ export async function buildProfileActiveStateProjection(params: {
   const currentDatetime = `${params.calendarDate}T${timeNorm}:00`;
   const composeSeed = createHash('sha256').update(`${natalAnchor}|${transitContextFingerprint}|overlay`, 'utf8').digest('hex');
 
+  const chartTimeNorm =
+    typeof chart.time === 'string' && chart.time.length >= 5
+      ? chart.time.slice(0, 5)
+      : String(chart.time || '12:00').slice(0, 5);
   const overlayParams: NonNullable<ComposeRequest['overlayParams']> = {
     natalLatitude: chart.lat,
     natalLongitude: chart.lon,
-    natalDatetime: natalBundle.snapshot.ts,
+    /** Align with Identity tab: birth date/time from chart row, not snapshot.ts (avoids TZ/parsing drift). */
+    natalDatetime: `${chart.date}T${chartTimeNorm}:00`,
     natalTimezone: chart.timezone,
     currentLatitude: loc.lat,
     currentLongitude: loc.lon,

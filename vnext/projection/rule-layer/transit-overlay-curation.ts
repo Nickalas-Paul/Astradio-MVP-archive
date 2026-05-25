@@ -104,7 +104,7 @@ export function compareRankedActivations(a: RankedActivation, b: RankedActivatio
 export function rankTransitActivations(
   aspects: readonly DirectedSnapshotAspect[]
 ): RankedActivation[] {
-  const ranked: RankedActivation[] = [];
+  const byKey = new Map<string, RankedActivation>();
   for (const aspect of aspects) {
     const natalBody = String(aspect.bodyA || '').toUpperCase();
     const transitBody = String(aspect.bodyB || '').toUpperCase();
@@ -112,16 +112,20 @@ export function rankTransitActivations(
     if (!isLibraryEligibleActivation(natalBody, transitBody, String(aspect.type || ''))) continue;
 
     const aspectKey = buildAspectKey(natalBody, transitBody, String(aspect.type || ''));
-    ranked.push({
+    const candidate: RankedActivation = {
       aspect,
       natalBody,
       transitBody,
       aspectKey,
       tierPriority: getNatalBodyTierPriority(natalBody),
       priorityScore: aspect.priorityBase ?? aspect.exactness ?? 0,
-    });
+    };
+    const existing = byKey.get(aspectKey);
+    if (!existing || compareRankedActivations(candidate, existing) < 0) {
+      byKey.set(aspectKey, candidate);
+    }
   }
-  return ranked.sort(compareRankedActivations);
+  return [...byKey.values()].sort(compareRankedActivations);
 }
 
 export function applyDiversificationPenalty(

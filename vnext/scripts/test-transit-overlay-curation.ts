@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { capToMaxSentences } from '../projection/rule-layer/claim-synthesize';
+import { buildPlacementKeys } from '../projection/placement-keys';
 import {
   applyDiversificationPenalty,
   compareRankedActivations,
@@ -15,6 +16,7 @@ import {
   selectTopActivationsWithDiversity,
   sortRankedActivations,
 } from '../projection/rule-layer/transit-overlay-curation';
+import type { EphemerisSnapshot } from '../contracts';
 import type { AspectTypeKey } from '../aspect-engine';
 import type { DirectedSnapshotAspect } from '../synastry/synastry-types';
 
@@ -139,14 +141,106 @@ function testQuietSkyFallback() {
   assert.ok(selected.length <= 5);
 }
 
+function makeNatalTaurusSun10th(): EphemerisSnapshot {
+  const houses: [number, number, number, number, number, number, number, number, number, number, number, number] = [
+    0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330,
+  ];
+  return {
+    ts: '1990-05-15T12:00:00Z',
+    tz: 'America/Chicago',
+    lat: 29.4,
+    lon: -98.5,
+    houseSystem: 'placidus',
+    planets: [
+      { name: 'sun', lon: 285 },
+      { name: 'moon', lon: 288 },
+      { name: 'jupiter', lon: 100 },
+    ],
+    houses,
+    aspects: [],
+    moonPhase: 0.5,
+    dominantElements: { fire: 0, earth: 2, air: 0, water: 0 },
+  };
+}
+
+function makeTransitSkySun8th(): EphemerisSnapshot {
+  const houses: [number, number, number, number, number, number, number, number, number, number, number, number] = [
+    150, 180, 210, 240, 270, 300, 330, 0, 30, 60, 90, 120,
+  ];
+  return {
+    ts: '2026-05-24T12:00:00Z',
+    tz: 'America/Chicago',
+    lat: 29.4,
+    lon: -98.5,
+    houseSystem: 'placidus',
+    planets: [
+      { name: 'sun', lon: 350 },
+      { name: 'moon', lon: 20 },
+      { name: 'jupiter', lon: 200 },
+    ],
+    houses,
+    aspects: [],
+    moonPhase: 0.5,
+    dominantElements: { fire: 0, earth: 0, air: 1, water: 0 },
+  };
+}
+
+function testNatalPlacementUsesNatalSnapshot() {
+  const natal = makeNatalTaurusSun10th();
+  const transit = makeTransitSkySun8th();
+  const natalSun = buildPlacementKeys(natal).find((p) => p.planet === 'SUN');
+  const transitSun = buildPlacementKeys(transit).find((p) => p.planet === 'SUN');
+  assert.ok(natalSun && transitSun, 'placement keys exist');
+  assert.equal(natalSun.house, 10, 'natal Sun in 10th house');
+  assert.notEqual(transitSun.house, 10, 'transit cusps must not place Sun in 10th');
+  assert.notEqual(natalSun.house, transitSun.house, 'fixture: natal vs transit Sun houses differ');
+  /** Overlay header must use natal snapshot keys, not transit. */
+  assert.equal(natalSun.house, 10);
+}
+
+function testGlobalCapAndDedupe() {
+  const duped = [
+    directed('SUN', 'JUPITER', 'sextile', 0.9),
+    directed('SUN', 'JUPITER', 'sextile', 0.4),
+    directed('MOON', 'SATURN', 'square', 0.85),
+    directed('MERCURY', 'VENUS', 'trine', 0.8),
+    directed('MARS', 'PLUTO', 'opposition', 0.75),
+    directed('VENUS', 'NEPTUNE', 'conjunction', 0.7),
+    directed('JUPITER', 'URANUS', 'trine', 0.65),
+  ];
+  const ranked = rankTransitActivations(duped);
+  const keys = ranked.map((r) => r.aspectKey);
+  assert.equal(new Set(keys).size, keys.length, 'rank dedupes aspect keys');
+  const selected = selectTopActivationsWithDiversity(ranked, ranked, MAX_ACTIVATIONS_PER_DAY);
+  assert.ok(selected.length <= MAX_ACTIVATIONS_PER_DAY);
+}
+
+function testGlobalCapSelectionCount() {
+  const manyAspects: DirectedSnapshotAspect[] = [];
+  const bodies = ['SUN', 'MOON', 'MERCURY', 'VENUS', 'MARS'];
+  const trans = ['JUPITER', 'SATURN', 'URANUS', 'NEPTUNE', 'PLUTO'];
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = 0; j < trans.length; j++) {
+      manyAspects.push(directed(bodies[i]!, trans[j]!, 'trine', 0.9 - i * 0.05 - j * 0.01));
+    }
+  }
+  const filtered = filterNatalToTransitAspects(manyAspects);
+  const ranked = rankTransitActivations(filtered);
+  const selected = selectTopActivationsWithDiversity(ranked, ranked, MAX_ACTIVATIONS_PER_DAY);
+  assert.equal(selected.length, MAX_ACTIVATIONS_PER_DAY, 'busy sky still caps at 5 globally');
+}
+
 function main() {
   testSentenceCap();
   testDirectionFilter();
   testTierPriority();
   testRankingOrder();
   testGlobalCap();
+  testGlobalCapAndDedupe();
   testDiversificationPenalty();
   testQuietSkyFallback();
+  testNatalPlacementUsesNatalSnapshot();
+  testGlobalCapSelectionCount();
   console.log('[test-transit-overlay-curation] all tests passed');
 }
 

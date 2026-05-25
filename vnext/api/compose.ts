@@ -343,14 +343,18 @@ export class ComposeAPI {
               tier,
               narrativePlan,
               aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
-              snapshot: architecture.snapshot,
               ...insightOpts,
-              ...(projectionSurface === 'overlay_pair'
+              ...(projectionSurface === 'overlay_pair' && hasOverlayContext && canonicalInput.overlayNatalSnapshot
                 ? {
+                    /** Natal placements must use birth chart, not transit sky snapshot. */
+                    snapshot: insightOpts.snapshot ?? canonicalInput.overlayNatalSnapshot,
+                    secondarySnapshot: insightOpts.secondarySnapshot ?? architecture.snapshot,
                     transitCalendarDate: (request as ComposeRequest).transitCalendarDate,
                     transitDiversificationContext: (request as ComposeRequest).transitDiversificationContext ?? null,
                   }
-                : {}),
+                : {
+                    snapshot: architecture.snapshot,
+                  }),
             });
 
       const dailyLike = projected.map((s) => ({
