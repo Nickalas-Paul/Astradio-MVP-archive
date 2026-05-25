@@ -42,19 +42,15 @@ export function prepareIdentityMarkdown(text: string): string {
 
 const IDENTITY_MARKDOWN_COMPONENTS: Components = {
   h2: ({ children }) => (
-    <h2 className="text-xl font-bold text-text mb-4 mt-8 border-b border-border pb-2 first:mt-0">
-      {children}
-    </h2>
+    <h2 className="reading-section-header mt-8 first:mt-0">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-lg font-semibold text-text mb-3 mt-6 first:mt-0">{children}</h3>
+    <h3 className="text-xl font-serif font-semibold text-emerald-400 mt-6 mb-3 first:mt-0">{children}</h3>
   ),
   h4: ({ children }) => (
     <h4 className="text-base font-semibold text-emerald-400/90 mb-2 mt-4 first:mt-0">{children}</h4>
   ),
-  strong: ({ children }) => (
-    <strong className="font-semibold text-emerald-400/90 block mb-2 mt-4 first:mt-0">{children}</strong>
-  ),
+  strong: ({ children }) => <strong className="reading-field-label">{children}</strong>,
   p: ({ children }) => (
     <p className="text-subtext text-sm leading-relaxed mb-4 last:mb-0">{children}</p>
   ),

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ProfilePanel } from '@/components/community/ProfilePanel';
 import { ProfileHeader } from '@/components/ProfileHeader';
@@ -36,7 +37,9 @@ export default function ProfilePage() {
           />
         ) : null}
 
-        <ProfilePanel />
+        <Suspense fallback={<p className="text-sm text-subtext">Loading profile…</p>}>
+          <ProfilePanel />
+        </Suspense>
       </div>
     </AppShell>
   );

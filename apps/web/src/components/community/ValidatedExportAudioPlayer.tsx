@@ -64,7 +64,8 @@ export function ValidatedExportAudioPlayer({ exportId }: { exportId: string | nu
   }
   if (!url) return null;
   return (
-    <div className="pt-1">
+    <div className="pt-1 space-y-2">
+      <p className="text-sm text-text-secondary">Listen to this reading</p>
       <audio controls className="w-full max-w-md" src={url} preload="metadata" />
     </div>
   );

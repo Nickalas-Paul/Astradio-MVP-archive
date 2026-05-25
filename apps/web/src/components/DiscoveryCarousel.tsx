@@ -214,7 +214,7 @@ function MatchCard({
           type="button"
           onClick={onRequestConnection}
           disabled={connectionDisabled}
-          className="px-4 py-2 bg-emerald text-bg rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {connectionLabel}
         </button>
@@ -306,7 +306,7 @@ export function DiscoveryCarousel({
         <button
           type="button"
           onClick={() => router.push('/community?tab=connections')}
-          className="px-4 py-2 bg-emerald text-bg rounded-lg text-sm font-medium hover:opacity-90"
+          className="btn-primary text-sm"
         >
           View pending requests
         </button>

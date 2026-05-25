@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Lora } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const lora = Lora({ subsets: ['latin'], variable: '--font-lora' });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -23,11 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="aurora" className="starfield">
+    <html lang="en" data-theme="aurora" className={`${inter.variable} ${lora.variable} starfield`}>
       <head>
         {/* tfjs/wheel: use npm imports in page as needed. No legacy script tags. Lyria-only audio. */}
       </head>
-      <body className={`${inter.className} min-h-screen bg-bg text-text-primary antialiased`}>
+      <body className="min-h-screen bg-bg text-text-primary font-sans antialiased">
         {children}
       </body>
     </html>

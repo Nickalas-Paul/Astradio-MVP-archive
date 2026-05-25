@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useProfile, useProfileChart, useCommunityInventory, type ProfileChartSection } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
@@ -269,6 +270,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const chartId = realChart?.id ?? null;
   const { data: chartData, loading: chartLoading, error: chartError, refresh: refreshChart } = useProfileChart(chartId);
   const { data: communityInventory } = useCommunityInventory();
+  const searchParams = useSearchParams();
   const [profileSection, setProfileSection] = useState<'active' | 'identity' | 'library'>('active');
   const [activeDate, setActiveDate] = useState('');
   const [activeTime, setActiveTime] = useState('');
@@ -322,6 +324,13 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
     null,
   );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'active' || tab === 'identity' || tab === 'library') {
+      setProfileSection(tab);
+    }
+  }, [searchParams]);
 
   const activeWheelSlots = useMemo(() => {
     const id = activeResult?.identity as
@@ -1144,7 +1153,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               <button
                 type="button"
                 onClick={onSwitchToConnections}
-                className="px-5 py-2.5 rounded-full bg-emerald text-bg font-medium text-sm shadow-md hover:opacity-90 transition-opacity"
+                className="btn-primary text-sm"
               >
                 Find connections
               </button>
@@ -1224,7 +1233,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium"
+                    className="btn-primary text-sm"
                     disabled={activeLoading}
                     onClick={() => void loadActiveStateText()}
                   >
@@ -1232,7 +1241,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   </button>
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-lg border border-border text-sm"
+                    className="btn-audio text-sm"
                     disabled={activeAudioBusy || !activeResult}
                     onClick={() => void generateActiveAudio()}
                   >
@@ -1240,7 +1249,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   </button>
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-lg border border-border text-sm"
+                    className="btn-secondary text-sm"
                     disabled={!canSaveCurrentTransit()}
                     onClick={() => void saveActiveToLibrary()}
                   >
@@ -1286,7 +1295,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                   <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
                 )}
                 {activeAudioUrl && (
-                  <audio controls src={activeAudioUrl} className="w-full max-w-md" preload="metadata" />
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm text-text-secondary">Listen to this reading</p>
+                    <audio controls src={activeAudioUrl} className="w-full max-w-md" preload="metadata" />
+                  </div>
                 )}
               </>
             )}
@@ -1349,7 +1361,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               />
             )}
             {identityAudioUrl && (
-              <audio controls src={identityAudioUrl} className="w-full max-w-md mt-6" preload="metadata" />
+              <div className="mt-6 space-y-2">
+                <p className="text-sm text-text-secondary">Listen to this reading</p>
+                <audio controls src={identityAudioUrl} className="w-full max-w-md" preload="metadata" />
+              </div>
             )}
           </div>
         </div>
@@ -1523,7 +1538,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                         </p>
                       )}
                     {libraryDetailAudioUrl && (
-                      <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
+                      <div className="mt-2 space-y-2">
+                        <p className="text-sm text-text-secondary">Listen to this reading</p>
+                        <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
+                      </div>
                     )}
                   </div>
                 )}

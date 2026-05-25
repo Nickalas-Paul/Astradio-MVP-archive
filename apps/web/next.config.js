@@ -20,6 +20,15 @@ const nextConfig = {
   async rewrites() {
     return [];
   },
+  async redirects() {
+    return [
+      {
+        source: '/library',
+        destination: '/profile?tab=library',
+        permanent: false,
+      },
+    ];
+  },
   // Serve static files from public directory
   async headers() {
     return [

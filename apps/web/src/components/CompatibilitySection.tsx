@@ -110,7 +110,7 @@ export function CompatibilitySection({
           <button
             type="button"
             onClick={onSwitchToProfile}
-            className="mt-4 px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium hover:opacity-90"
+            className="mt-4 btn-primary text-sm"
           >
             Go to Profile to create one
           </button>
@@ -134,7 +134,7 @@ export function CompatibilitySection({
           <button
             type="button"
             onClick={onSwitchToProfile}
-            className="mt-4 px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium hover:opacity-90"
+            className="mt-4 btn-primary text-sm"
           >
             Add your natal chart
           </button>
@@ -238,7 +238,7 @@ export function CompatibilitySection({
         void run();
       }}
       disabled={loading}
-      className="px-3 py-1.5 rounded-lg text-sm bg-emerald text-bg font-medium hover:opacity-90 disabled:opacity-50"
+      className="btn-primary text-sm disabled:opacity-50"
     >
       {loading ? 'Loading…' : 'Find matches'}
     </button>

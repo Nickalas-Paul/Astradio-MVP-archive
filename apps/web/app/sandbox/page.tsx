@@ -1613,7 +1613,7 @@ export default function SandboxPage() {
                   <button
                     onClick={handleGenerate}
                     disabled={!canGenerate || generateLoading}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {generateLoading ? 'Resolving…' : 'Generate from current composition'}
                   </button>
@@ -1738,7 +1738,7 @@ export default function SandboxPage() {
                     {exportId ? (
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <button type="button" onClick={handleAudioPlay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+                          <button type="button" onClick={handleAudioPlay} className="btn-audio">
                             Play
                           </button>
                           <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">

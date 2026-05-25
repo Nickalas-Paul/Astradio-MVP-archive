@@ -1,12 +1,6 @@
-'use client';
-
-import { useEffect } from 'react';
 import { redirect } from 'next/navigation';
 
+/** MVP: library lives on Profile tab (post-beta may add /community/saved). */
 export default function LibraryRedirect() {
-  useEffect(() => {
-    redirect('/community/saved');
-  }, []);
-
-  return null;
+  redirect('/profile?tab=library');
 }
