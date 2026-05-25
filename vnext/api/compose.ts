@@ -345,6 +345,12 @@ export class ComposeAPI {
               aspectTension: typeof payload.aspect_tension === 'number' ? payload.aspect_tension : null,
               snapshot: architecture.snapshot,
               ...insightOpts,
+              ...(projectionSurface === 'overlay_pair'
+                ? {
+                    transitCalendarDate: (request as ComposeRequest).transitCalendarDate,
+                    transitDiversificationContext: (request as ComposeRequest).transitDiversificationContext ?? null,
+                  }
+                : {}),
             });
 
       const dailyLike = projected.map((s) => ({

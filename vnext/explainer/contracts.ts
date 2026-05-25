@@ -183,6 +183,16 @@ export interface ComposeRequest {
   /** When generateAudio is true, if set, response must match these hashes (determinism gate for second-step audio). */
   expectedPlanSha256?: string;
   expectedObjectIdentityHash?: string;
+  /** Overlay / profile active-state: YYYY-MM-DD for transit diversification persistence. */
+  transitCalendarDate?: string;
+  /** Overlay: prior generation aspect keys to penalize on repeat (cross-day diversity). */
+  transitDiversificationContext?: {
+    calendarDate: string;
+    aspectKeys: string[];
+    natalBodies: string[];
+    transitBodies: string[];
+    generatedAt: string;
+  } | null;
   /** Sandbox resolve: projection variant only; same canonical pipeline. */
   output_kind?: "full" | "feed_card";
   /** Ephemeris snapshot from sandbox preview (validated server-side). */

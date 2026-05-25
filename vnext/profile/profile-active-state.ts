@@ -19,6 +19,10 @@ import { getCanonicalLocationModule } from './load-canonical-location';
 import { buildProfileNatalProjectionFromChartInput, PROFILE_CONTRACT_VERSION } from './profile-natal-projection';
 import { snapshotFingerprint } from '../canonical/stable-json';
 import { hashSnapshot } from '../rpg/hash/snapshot-hash';
+import {
+  extractTransitCurationFromSections,
+  type TransitDiversificationContext,
+} from '../projection/rule-layer/transit-overlay-curation';
 
 export type ProfileActiveStateResult = {
   identity: {
@@ -60,7 +64,15 @@ function chartRowToNatalInput(chart: Chart): ChartInput {
 }
 
 function loadPgStore(): {
-  getProfileProjectionCache: (cacheKeyHash: string) => Promise<{ response_json: unknown; object_identity_hash: string } | null>;
+  getProfileProjectionCache: (cacheKeyHash: string) => Promise<{
+    response_json: unknown;
+    object_identity_hash: string;
+    diversification_context?: TransitDiversificationContext | null;
+  } | null>;
+  getPreviousTransitDiversificationContext: (
+    chartId: string,
+    beforeCalendarDate: string
+  ) => Promise<TransitDiversificationContext | null>;
   upsertProfileProjectionCache: (row: {
     cache_key_hash: string;
     user_id: string | null;
@@ -68,6 +80,7 @@ function loadPgStore(): {
     projection_kind: string;
     object_identity_hash: string;
     response_json: unknown;
+    diversification_context?: TransitDiversificationContext | null;
   }) => Promise<void>;
 } | null {
   if (!process.env.POSTGRES_URL) return null;
@@ -155,6 +168,12 @@ export async function buildProfileActiveStateProjection(params: {
     }
   }
 
+  const calendarDate = params.calendarDate.slice(0, 10);
+  const previousDiversification: TransitDiversificationContext | null =
+    pg && typeof pg.getPreviousTransitDiversificationContext === 'function'
+      ? await pg.getPreviousTransitDiversificationContext(params.chartId, calendarDate)
+      : null;
+
   const currentDatetime = `${params.calendarDate}T${timeNorm}:00`;
   const composeSeed = createHash('sha256').update(`${natalAnchor}|${transitContextFingerprint}|overlay`, 'utf8').digest('hex');
 
@@ -173,6 +192,8 @@ export async function buildProfileActiveStateProjection(params: {
     mode: 'overlay',
     overlayParams,
     seed: composeSeed,
+    transitCalendarDate: calendarDate,
+    transitDiversificationContext: previousDiversification,
     generateAudio,
     ...(generateAudio &&
     typeof params.expectedPlanSha256 === 'string' &&
@@ -226,6 +247,17 @@ export async function buildProfileActiveStateProjection(params: {
   };
 
   if (pg && !generateAudio) {
+    const explanation = composeResult.explanation as { sections?: Array<{ meta?: unknown }> } | undefined;
+    const diversification_context =
+      extractTransitCurationFromSections(explanation?.sections ?? []) ??
+      (previousDiversification
+        ? {
+            ...previousDiversification,
+            calendarDate,
+            generatedAt: new Date().toISOString(),
+          }
+        : null);
+
     await pg.upsertProfileProjectionCache({
       cache_key_hash: cacheKey,
       user_id: params.userId ?? null,
@@ -233,6 +265,7 @@ export async function buildProfileActiveStateProjection(params: {
       projection_kind: 'active',
       object_identity_hash,
       response_json: out,
+      diversification_context,
     });
   }
 

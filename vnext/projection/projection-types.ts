@@ -177,6 +177,10 @@ export type ProjectionOptions = {
   aggregateParticipantLabelsV1?: readonly AggregateParticipantLabelV1[];
   /** When true, skip generic `ensemble_framing` preface (e.g. Sandbox multi-chart resolve). */
   suppressEnsembleFraming?: boolean;
+  /** Profile overlay: prior day aspect keys for cross-day diversification (optional). */
+  transitDiversificationContext?: import('./rule-layer/transit-overlay-curation').TransitDiversificationContext | null;
+  /** Profile overlay: YYYY-MM-DD for transit snapshot (diversification persistence). */
+  transitCalendarDate?: string;
 };
 
 export type Phase4UnitRef = {
@@ -274,6 +278,15 @@ export type ProjectedExplanationSection = {
      * Phase 4 — last expression fallback path (assembly diagnostics). Optional; not hashed.
      */
     phase4_source_path?: Phase4ContentSourcePath;
+    /** Profile overlay: per-section curation metadata (not hashed). */
+    transitCuration?: {
+      aspectKeys: string[];
+      natalBodies: string[];
+      transitBodies: string[];
+      calendarDate: string;
+    };
+    /** Profile overlay: full-day selected activations for persistence. */
+    transitCurationFull?: import('./rule-layer/transit-overlay-curation').TransitDiversificationContext;
   };
 };
 

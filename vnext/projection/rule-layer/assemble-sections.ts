@@ -58,6 +58,16 @@ import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kil
 import { composeSynastryMepAspectParagraph } from '../insight-library/synastry-aspect-library-render';
 import { buildPlacementKeys, PLANET_TIERS, type PlacementKey } from '../placement-keys';
 import type { DirectedSnapshotAspect } from '../../synastry/synastry-types';
+import {
+  applyDiversificationPenalty,
+  diversificationContextFromSelected,
+  filterNatalToTransitAspects,
+  groupActivationsByTier,
+  MAX_ACTIVATIONS_PER_DAY,
+  rankTransitActivations,
+  selectTopActivationsWithDiversity,
+  sortRankedActivations,
+} from './transit-overlay-curation';
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -569,109 +579,113 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
   const transitSnapshot = options.secondarySnapshot;
   if (!natalSnapshot || !transitSnapshot) return buildMinimalOverlaySections();
 
-  const transitAspects = [...(options.pairInteractionAspects ?? [])];
-  if (transitAspects.length === 0) return buildMinimalOverlaySections();
+  const rawAspects = [
+    ...(options.pairInteractionAspectsV2 ?? []),
+    ...(options.pairInteractionAspects ?? []),
+  ];
+  const natalToTransit = filterNatalToTransitAspects(rawAspects);
+  if (natalToTransit.length === 0) return buildMinimalOverlaySections();
+
+  const unpenalizedRanked = rankTransitActivations(natalToTransit);
+  if (unpenalizedRanked.length === 0) return buildMinimalOverlaySections();
+
+  const penalized = applyDiversificationPenalty(
+    unpenalizedRanked,
+    options.transitDiversificationContext
+  );
+  const penalizedSorted = sortRankedActivations(penalized);
+  const unpenalizedSorted = sortRankedActivations(unpenalizedRanked);
+  const selected = selectTopActivationsWithDiversity(
+    penalizedSorted,
+    unpenalizedSorted,
+    MAX_ACTIVATIONS_PER_DAY
+  );
+  if (selected.length === 0) return buildMinimalOverlaySections();
+
+  const calendarDate =
+    options.transitCalendarDate?.slice(0, 10) ??
+    String(transitSnapshot.ts || '').slice(0, 10) ??
+    new Date().toISOString().slice(0, 10);
+  const curationMeta = diversificationContextFromSelected(selected, calendarDate);
 
   const tiers: Array<{
     id: string;
     title: string;
     subtitle: string;
     natalBodies: readonly string[];
-    depth: 'full' | 'medium' | 'concise';
   }> = [
     {
       id: 'core_identity',
       title: 'Core Identity Architecture',
       subtitle: 'Fundamental Self-Expression Under Current Influence',
       natalBodies: PLANET_TIERS.core_identity,
-      depth: 'full',
     },
     {
       id: 'personal_expression',
       title: 'Personal Expression',
       subtitle: 'Communication, Values, and Drive in Current Context',
       natalBodies: PLANET_TIERS.personal_expression,
-      depth: 'full',
     },
     {
       id: 'growth_expansion',
       title: 'Growth and Expansion',
       subtitle: 'Long-Term Development and Structure',
       natalBodies: PLANET_TIERS.growth_expansion,
-      depth: 'medium',
     },
     {
       id: 'evolutionary_currents',
       title: 'Evolutionary Currents',
       subtitle: 'Generational and Transformative Forces',
       natalBodies: PLANET_TIERS.evolutionary_currents,
-      depth: 'concise',
     },
   ];
 
   const natalPlacements = buildPlacementKeys(natalSnapshot);
   const transitPlacements = buildPlacementKeys(transitSnapshot);
+  const byTier = groupActivationsByTier(selected);
   const sections: ProjectedExplanationSection[] = [];
 
   for (const tier of tiers) {
-    const tierAspects = transitAspects.filter((aspect) =>
-      tier.natalBodies.includes(String(aspect.bodyA || '').toUpperCase())
-    );
-    if (tierAspects.length === 0) continue;
+    const tierActivations = byTier.get(tier.id) ?? [];
+    if (tierActivations.length === 0) continue;
 
-    const activationsByPlanet = groupBy(tierAspects, (a) => String(a.bodyA || '').toUpperCase());
+    const activationsByPlanet = groupBy(tierActivations, (a) => a.natalBody);
     const planetNarratives: string[] = [];
+    const tierAspectKeys: string[] = [];
 
     for (const natalPlanet of tier.natalBodies) {
-      const aspects = activationsByPlanet[natalPlanet];
-      if (!aspects || aspects.length === 0) continue;
+      const activations = activationsByPlanet[natalPlanet];
+      if (!activations || activations.length === 0) continue;
 
       const natalPlacement = natalPlacements.find((p) => p.planet === natalPlanet);
       if (!natalPlacement) continue;
 
       const natalSignInsight = getAspectInsight(natalPlacement.signKey);
-      const natalHouseInsight = getAspectInsight(natalPlacement.houseKey);
-      const natalPlacementCore = [natalSignInsight?.core, natalHouseInsight?.core]
-        .filter(Boolean)
-        .join(' ');
-      if (!natalPlacementCore) continue;
+      const natalAnchorText = capToMaxSentences(natalSignInsight?.core ?? '', 1);
+      if (!natalAnchorText) continue;
 
       let planetText = `**Your ${formatPlanetName(natalPlanet)} in ${formatSignName(natalPlacement.sign)}, ${formatHouseName(natalPlacement.house)}**\n\n`;
-      if (tier.depth === 'full') {
-        planetText += `${natalPlacementCore}\n\n`;
-      } else if (tier.depth === 'medium') {
-        planetText += `${natalPlacementCore.split('.')[0]}.\n\n`;
-      } else {
-        planetText += `Your ${natalPlanet.toLowerCase()} placement.\n\n`;
-      }
+      planetText += `${natalAnchorText}\n\n`;
 
-      for (const aspect of aspects) {
-        const transitPlanet = String(aspect.bodyB || '').toUpperCase();
+      for (const ranked of activations) {
+        const aspect = ranked.aspect;
+        const transitPlanet = ranked.transitBody;
         const transitPlacement = transitPlacements.find((p) => p.planet === transitPlanet);
         if (!transitPlacement) continue;
 
-        const aspectKey = buildAspectKey(String(aspect.bodyA || ''), String(aspect.bodyB || ''), String(aspect.type || ''));
-        const aspectInsight = getAspectInsight(aspectKey);
+        const aspectInsight = getAspectInsight(ranked.aspectKey);
         if (!aspectInsight) continue;
+
+        tierAspectKeys.push(ranked.aspectKey);
 
         planetText += `Your ${natalPlanet.toLowerCase()} is currently being activated by **transiting ${formatPlanetName(transitPlanet)} in ${formatSignName(transitPlacement.sign)}** (${formatHouseName(transitPlacement.house)}), forming a ${formatAspectName(String(aspect.type || ''))}. `;
 
-        const aspectText = [aspectInsight.core_transit || aspectInsight.core, aspectInsight.behavioral_transit || aspectInsight.behavioral]
-          .filter(Boolean)
-          .join(' ');
-        planetText += `${aspectText}\n\n`;
-
-        const transitSignInsight = getAspectInsight(transitPlacement.signKey);
-        const transitHouseInsight = getAspectInsight(transitPlacement.houseKey);
-        const transitPlacementCore = [transitSignInsight?.core, transitHouseInsight?.core]
-          .filter(Boolean)
-          .join(' ');
-        if (transitPlacementCore) {
-          if (tier.depth === 'full') {
-            planetText += `Transiting ${transitPlanet.toLowerCase()} ${transitPlacementCore}\n\n`;
-          } else if (tier.depth === 'medium') {
-            planetText += `Transiting ${transitPlanet.toLowerCase()} ${transitPlacementCore.split('.')[0]}.\n\n`;
-          }
+        const aspectText = capToMaxSentences(
+          aspectInsight.core_transit || aspectInsight.core || '',
+          2
+        );
+        if (aspectText) {
+          planetText += `${aspectText}\n\n`;
         }
         planetText += '---\n\n';
       }
@@ -685,12 +699,28 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
         title: tier.title,
         text,
         bullets: [],
-        meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+        meta: {
+          tagged: taggedSectionBodyFromText(text, 'template'),
+          transitCuration: {
+            aspectKeys: tierAspectKeys,
+            natalBodies: [...new Set(tierActivations.map((a) => a.natalBody))],
+            transitBodies: [...new Set(tierActivations.map((a) => a.transitBody))],
+            calendarDate,
+          },
+        },
       });
     }
   }
 
-  return sections.length > 0 ? sections : buildMinimalOverlaySections();
+  if (sections.length === 0) return buildMinimalOverlaySections();
+
+  for (const s of sections) {
+    if (s.meta && typeof s.meta === 'object') {
+      (s.meta as Record<string, unknown>).transitCurationFull = curationMeta;
+    }
+  }
+
+  return sections;
 }
 
 function buildMinimalCompatSynastryActivationSections(): ProjectedExplanationSection[] {
