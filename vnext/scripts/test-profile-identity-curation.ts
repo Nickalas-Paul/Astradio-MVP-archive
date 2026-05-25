@@ -106,7 +106,30 @@ function testSonicContentPreservation() {
   const sonicSectionCount =
     (placementText.match(/\*\*Sonic Signature\*\*/g) || []).length +
     (placementText.match(/\*\*Aesthetic Resonance\*\*/g) || []).length;
-  assert.equal(sonicSectionCount, 20, `expected 20 sonic sections, got ${sonicSectionCount}`);
+  const ascendantSonicCount = (placementText.match(/\*\*Physical Presence\*\*/g) || []).length;
+  assert.equal(sonicSectionCount, 20, `expected 20 planet sonic sections, got ${sonicSectionCount}`);
+  assert.equal(ascendantSonicCount, 1, `expected 1 Ascendant sonic section, got ${ascendantSonicCount}`);
+}
+
+function testAscendantInCoreIdentity() {
+  const sections = profileSections('identity-asc', snap(0));
+  const coreIdentity = sections.find((s) => s.id === 'core_identity');
+  assert.ok(coreIdentity?.text, 'core_identity section present');
+  const text = coreIdentity.text!;
+  assert.ok(text.includes('### Ascendant in Aries'), 'Ascendant block with sign');
+  assert.ok(text.includes('**First Impressions**'), 'Ascendant First Impressions label');
+  assert.ok(text.includes('**Natural Approach**'), 'Ascendant Natural Approach label');
+  assert.ok(text.includes('**Physical Presence**'), 'Ascendant Physical Presence label');
+  const sunIdx = text.indexOf('### Sun in');
+  const moonIdx = text.indexOf('### Moon in');
+  const ascIdx = text.indexOf('### Ascendant in');
+  assert.ok(sunIdx >= 0 && moonIdx > sunIdx && ascIdx > moonIdx, 'Big 3 order: Sun, Moon, Ascendant');
+  const nextHeading = text.indexOf('###', ascIdx + 1);
+  const ascBlock = text.slice(ascIdx, nextHeading > ascIdx ? nextHeading : text.length);
+  assert.ok(!ascBlock.includes('**How You Show Up**'), 'Ascendant has no house subsection');
+
+  const insight = getAspectInsight('PLCMT_ASCENDANT_ARIES');
+  assert.ok(insight?.core?.includes('Ascendant in Aries'));
 }
 
 function testAspectSentenceCaps() {
@@ -195,6 +218,7 @@ function testOverlayUnchanged() {
 function main() {
   testPlacementSentenceCaps();
   testSonicContentPreservation();
+  testAscendantInCoreIdentity();
   testAspectSentenceCaps();
   testCharacterCountRange();
   testAudioStagingHiddenFromUi();

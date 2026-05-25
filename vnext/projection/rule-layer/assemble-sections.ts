@@ -473,7 +473,10 @@ function assemblePlacementTier(config: {
     const placement = config.placementKeys.find((pk) => pk.planet === planetName);
     if (!placement) continue;
 
-    const planetBlock = assemblePlanetPlacement(placement, config.depth);
+    const planetBlock =
+      placement.planet === 'ASCENDANT'
+        ? assembleAnglePlacement(placement)
+        : assemblePlanetPlacement(placement, config.depth);
     if (planetBlock) paragraphs.push(planetBlock);
   }
 
@@ -486,6 +489,54 @@ function assemblePlacementTier(config: {
     bullets: [],
     meta: { tagged: taggedSectionBodyFromText(text, 'template') },
   };
+}
+
+function getAngleFieldLabels(planet: string): { core: string; behavioral: string; sonic: string } {
+  if (planet === 'ASCENDANT') {
+    return {
+      core: 'First Impressions',
+      behavioral: 'Natural Approach',
+      sonic: 'Physical Presence',
+    };
+  }
+  return { core: '', behavioral: '', sonic: '' };
+}
+
+function assembleAnglePlacement(placement: PlacementKey): string | null {
+  const signInsight = getAspectInsight(placement.signKey);
+  if (!signInsight) return null;
+
+  const labels = getAngleFieldLabels(placement.planet);
+  if (!labels.core) return null;
+
+  const angleName =
+    placement.planet === 'ASCENDANT'
+      ? 'Ascendant'
+      : placement.planet.charAt(0).toUpperCase() + placement.planet.slice(1).toLowerCase();
+  const signDisplay = placement.sign.charAt(0).toUpperCase() + placement.sign.slice(1).toLowerCase();
+
+  const parts: string[] = [];
+  parts.push(`### ${angleName} in ${signDisplay}`);
+
+  const coreText = capToMaxSentences(signInsight.core || '', 2);
+  if (coreText) {
+    parts.push(`**${labels.core}**`);
+    parts.push(coreText);
+  }
+
+  const behavioralText = capToMaxSentences(signInsight.behavioral || '', 2);
+  if (behavioralText) {
+    parts.push(`**${labels.behavioral}**`);
+    parts.push(behavioralText);
+  }
+
+  const sonicText = signInsight.sonic ? capToMaxSentences(signInsight.sonic, 1) : '';
+  if (sonicText) {
+    parts.push(`**${labels.sonic}**`);
+    parts.push(sonicText);
+  }
+
+  return parts.filter((p) => p && p.trim().length > 0).join('\n\n');
 }
 
 function assemblePlanetPlacement(placement: PlacementKey, _depth: 'full' | 'medium' | 'concise'): string | null {

@@ -40,6 +40,19 @@ export function buildPlacementKeys(snapshot: EphemerisSnapshot): PlacementKey[] 
     });
   }
 
+  if (cusps.length >= 1 && typeof cusps[0] === 'number' && Number.isFinite(cusps[0])) {
+    const { sign, degInSign } = lonToSign(cusps[0]);
+    const ascSign = sign.toUpperCase();
+    keys.push({
+      planet: 'ASCENDANT',
+      sign: ascSign,
+      house: 1,
+      signKey: `PLCMT_ASCENDANT_${ascSign}`,
+      houseKey: `PLCMT_ASCENDANT_${ascSign}_HOUSE1`,
+      degInSign,
+    });
+  }
+
   return keys;
 }
 
@@ -47,7 +60,7 @@ export function buildPlacementKeys(snapshot: EphemerisSnapshot): PlacementKey[] 
  * Planet priority for sectioning
  */
 export const PLANET_TIERS = {
-  core_identity: ['SUN', 'MOON'],
+  core_identity: ['SUN', 'MOON', 'ASCENDANT'],
   personal_expression: ['MERCURY', 'VENUS', 'MARS'],
   growth_expansion: ['JUPITER', 'SATURN'],
   evolutionary_currents: ['URANUS', 'NEPTUNE', 'PLUTO'],
