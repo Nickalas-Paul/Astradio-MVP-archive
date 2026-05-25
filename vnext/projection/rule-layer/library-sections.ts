@@ -209,7 +209,7 @@ export function assembleLibraryPlanetaryAspects(params: {
 
   if (paragraphs.length === 0) return [];
 
-  const text = paragraphs.join('\n\n---\n\n');
+  const text = paragraphs.join('\n\n');
   return [
     {
       id: 'aspects',

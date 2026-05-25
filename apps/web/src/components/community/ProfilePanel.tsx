@@ -1472,7 +1472,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
                                     <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
                                       {EXPANDED_SLOT_LABELS[slot]}
                                     </h4>
-                                    <p className="text-xs text-text whitespace-pre-wrap leading-relaxed">{body}</p>
+                                    <IdentityMarkdown content={body} />
                                   </section>
                                 );
                               })}
