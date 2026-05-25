@@ -13,6 +13,7 @@ import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 import { stripReadingPresentationNoise } from '../../lib/reading-presentation-filter';
+import { IdentityMarkdown } from '../shared/IdentityMarkdown';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 
@@ -199,9 +200,7 @@ function ExplainerSections({
           <h3 className="text-lg font-semibold text-text mb-3">
             {SECTION_TITLES[sec.id] ?? sec.title}
           </h3>
-          <div className="text-subtext text-sm leading-relaxed whitespace-pre-wrap">
-            {stripReadingPresentationNoise(sec.text)}
-          </div>
+          <IdentityMarkdown content={sec.text} />
           {sec.bullets && sec.bullets.length > 0 && (
             <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
               {sec.bullets.map((b, i) => (

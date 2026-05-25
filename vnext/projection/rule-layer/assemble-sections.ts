@@ -490,7 +490,7 @@ function assemblePlacementTier(config: {
     if (planetBlock) paragraphs.push(planetBlock);
   }
 
-  const body = paragraphs.join('\n\n---\n\n');
+  const body = paragraphs.join('\n\n');
   const text = config.subtitle ? `${config.subtitle}\n\n${body}`.trim() : body;
   return {
     id: config.tierId,
@@ -778,7 +778,6 @@ function assembleOverlayActivationSections(
         if (sonicText) {
           planetText += `${sonicText}\n\n`;
         }
-        planetText += '---\n\n';
       }
       planetNarratives.push(planetText.trim());
     }
@@ -894,7 +893,7 @@ function assembleGroupKeyInteractionsV1(
 
   if (blocks.length === 0) return [];
 
-  const combined = blocks.join('\n\n---\n\n');
+  const combined = blocks.join('\n\n');
   const synTagged = taggedSectionBodyFromText(combined, 'template');
   const d = densityForSectionId('group_key_interactions_v1', densityDefault);
   const { text, claimIds, tagged } = enrichSectionTextWithTagged(
@@ -1040,7 +1039,6 @@ function assembleCompatActivationSections(options: ProjectionOptions): Projected
         planetText += `Your ${natalPlanet.toLowerCase()} is activated by **their ${formatPlanetName(theirPlanet)} in ${formatSignName(theirPlacement.sign)}** (${formatHouseName(theirPlacement.house)}), forming a ${formatAspectName(String(aspect.type || ''))}. `;
 
         planetText += `${composeSynastryMepAspectParagraph(aspectInsight, synVariant)}\n\n`;
-        planetText += '---\n\n';
       }
       planetNarratives.push(planetText.trim());
     }
