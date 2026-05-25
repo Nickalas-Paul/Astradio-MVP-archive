@@ -197,6 +197,12 @@ export function assembleLibraryPlanetaryAspects(params: {
         return composeSynastryMepAspectParagraph(insight, romantic ? 'romantic' : 'friendship');
       }
 
+      if (params.surface === 'profile') {
+        const coreText = capToMaxSentences(insight.core || '', 2);
+        const behavioralText = capToMaxSentences(insight.behavioral || '', 1);
+        return [coreText, behavioralText].filter(Boolean).join(' ');
+      }
+
       return [insight.core, insight.behavioral].filter(Boolean).join(' ');
     })
     .filter((text): text is string => Boolean(text));

@@ -488,7 +488,7 @@ function assemblePlacementTier(config: {
   };
 }
 
-function assemblePlanetPlacement(placement: PlacementKey, depth: 'full' | 'medium' | 'concise'): string | null {
+function assemblePlanetPlacement(placement: PlacementKey, _depth: 'full' | 'medium' | 'concise'): string | null {
   const signInsight = getAspectInsight(placement.signKey);
   const houseInsight = getAspectInsight(placement.houseKey);
 
@@ -501,36 +501,38 @@ function assemblePlanetPlacement(placement: PlacementKey, depth: 'full' | 'mediu
   parts.push(`### ${planetDisplay} in ${signDisplay}, ${ordinal} House`);
 
   if (signInsight) {
-    if (depth === 'full' || depth === 'medium') {
+    const signCore = capToMaxSentences(signInsight.core || '', 2);
+    const signBehavioral = capToMaxSentences(signInsight.behavioral || '', 2);
+    const signSonic = signInsight.sonic ? capToMaxSentences(signInsight.sonic, 1) : '';
+    if (signCore) {
       parts.push('**Archetypal Expression**');
-      parts.push(signInsight.core || '');
+      parts.push(signCore);
+    }
+    if (signBehavioral) {
       parts.push('**Observable Patterns**');
-      parts.push(signInsight.behavioral || '');
-      if (depth === 'full') {
-        parts.push('**Sonic Signature**');
-        parts.push(signInsight.sonic || '');
-      }
-    } else {
-      parts.push(signInsight.core || '');
+      parts.push(signBehavioral);
+    }
+    if (signSonic) {
+      parts.push('**Sonic Signature**');
+      parts.push(signSonic);
     }
   }
 
   if (houseInsight) {
-    if (depth === 'full') {
+    const houseCore = capToMaxSentences(houseInsight.core || '', 2);
+    const houseBehavioral = capToMaxSentences(houseInsight.behavioral || '', 2);
+    const houseSonic = houseInsight.sonic ? capToMaxSentences(houseInsight.sonic, 1) : '';
+    if (houseCore) {
       parts.push('**Life Arena**');
-      parts.push(houseInsight.core || '');
+      parts.push(houseCore);
+    }
+    if (houseBehavioral) {
       parts.push('**Manifestation Context**');
-      parts.push(houseInsight.behavioral || '');
+      parts.push(houseBehavioral);
+    }
+    if (houseSonic) {
       parts.push('**Aesthetic Resonance**');
-      parts.push(houseInsight.sonic || '');
-    } else if (depth === 'medium') {
-      parts.push('**Life Arena**');
-      parts.push(houseInsight.core || '');
-      parts.push('**Manifestation Context**');
-      parts.push(houseInsight.behavioral || '');
-    } else {
-      parts.push('**Life Context**');
-      parts.push(houseInsight.core || '');
+      parts.push(houseSonic);
     }
   }
 

@@ -170,8 +170,21 @@ function sectionSortKey(id: string): number {
   return 200 + (id ? id.charCodeAt(0) : 0);
 }
 
-function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
-  const sorted = [...sections].sort((a, b) => {
+/** Identity tab: hide pipeline-only sections; raw data still used for audio generation. */
+export function filterIdentityDisplaySections<T extends { id: string }>(sections: readonly T[]): T[] {
+  return sections.filter((section) => section.id !== 'audio_staging');
+}
+
+function ExplainerSections({
+  sections,
+  hideSectionIds,
+}: {
+  sections: ProfileChartSection[];
+  hideSectionIds?: readonly string[];
+}) {
+  const hidden = hideSectionIds ? new Set(hideSectionIds) : null;
+  const visible = hidden ? sections.filter((s) => !hidden.has(s.id)) : sections;
+  const sorted = [...visible].sort((a, b) => {
     const da = sectionSortKey(a.id);
     const db = sectionSortKey(b.id);
     if (da !== db) return da - db;
@@ -1330,7 +1343,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               <p className="text-subtext text-sm">{error}</p>
             )}
             {hasExplainer && (
-              <ExplainerSections sections={chartData!.explainer.sections} />
+              <ExplainerSections
+                sections={filterIdentityDisplaySections(chartData!.explainer.sections)}
+              />
             )}
             {identityAudioUrl && (
               <audio controls src={identityAudioUrl} className="w-full max-w-md mt-6" preload="metadata" />
