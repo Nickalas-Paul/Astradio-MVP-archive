@@ -97,20 +97,31 @@ export function stripEmDashesInText(text: string): string {
   // Remaining em dashes
   s = s.replace(/—/g, ', ');
 
-  // Cleanup artifacts
+  // Cleanup artifacts (prose only — never collapse leading indentation)
   s = s.replace(/\.\s+\./g, '.');
   s = s.replace(/,\s+,/g, ', ');
   s = s.replace(/,\s+\./g, '.');
   s = s.replace(/\.\s+,/g, ',');
-  s = s.replace(/  +/g, ' ');
 
   return s;
+}
+
+/** Skip object spread lines so comma/newline structure is never altered. */
+function isProtectedLine(line: string): boolean {
+  const t = line.trim();
+  return /^\.\.\.[A-Z_]+\s*,?\s*$/.test(t);
+}
+
+function stripEmDashesInFileContent(content: string): string {
+  const lines = content.split('\n');
+  const out = lines.map((line) => (isProtectedLine(line) ? line : stripEmDashesInText(line)));
+  return out.join('\n');
 }
 
 function processFile(filePath: string, dryRun: boolean): { before: number; after: number } {
   const raw = fs.readFileSync(filePath, 'utf8');
   const before = (raw.match(/—|–/g) || []).length;
-  const next = stripEmDashesInText(raw);
+  const next = stripEmDashesInFileContent(raw);
   const after = (next.match(/—|–/g) || []).length;
   if (!dryRun && next !== raw) {
     fs.writeFileSync(filePath, next, 'utf8');

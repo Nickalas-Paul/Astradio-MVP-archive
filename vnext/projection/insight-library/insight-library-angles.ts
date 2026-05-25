@@ -1,5 +1,5 @@
 /**
- * Angle placements — Ascendant, Midheaven, IC (Imum Coeli).
+ * Angle placements . Ascendant, Midheaven, IC (Imum Coeli).
  * Keys: PLCMT_ASCENDANT_{SIGN}, PLCMT_MC_{SIGN}, PLCMT_IC_{SIGN}
  * Sign-only framing (angles are house cusps; no house subsection in Identity UI).
  */
@@ -13,11 +13,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'ARIES',
     title: 'Ascendant in Aries',
     core: `Your Ascendant in Aries means you present with immediate directness, forward momentum, and the energy of someone who acts first and reflects later. People experience you as pioneering, courageous, and refreshingly unfiltered in your approach to new situations.`,
-    behavioral: `You enter rooms with visible purpose, make quick decisions without waiting for group consensus, and naturally take initiative when situations require action. Your physical presence carries the quality of readiness—you look like someone who's about to do something rather than someone who's waiting for permission.`,
+    behavioral: `You enter rooms with visible purpose, make quick decisions without waiting for group consensus, and naturally take initiative when situations require action. Your physical presence carries the quality of readiness. You look like someone who's about to do something rather than someone who's waiting for permission.`,
     friendship: `In friendship, your Aries rising shows up as the friend who suggests the plan, speaks first, and keeps the bond moving. Others read your directness as enthusiasm rather than aggression when the connection is honest.`,
     romantic: `In romance, your Aries rising brings immediate chemistry and unmistakable pursuit energy. Partners feel chosen quickly and clearly; the opening movement of the relationship often sets its pace.`,
     feed: `Your rising sign carries Aries energy today. First impressions run hot, direct, and ready to initiate.`,
-    sonic: `Your Aries Ascendant contributes sharp melodic attacks, bright harmonic energy, and rhythm that initiates without hesitation—the sound of immediate presence and forward drive.`,
+    sonic: `Your Aries Ascendant contributes sharp melodic attacks, bright harmonic energy, and rhythm that initiates without hesitation. The sound of immediate presence and forward drive.`,
   },
 
   PLCMT_ASCENDANT_TAURUS: {
@@ -30,7 +30,7 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In friendship, your Taurus rising offers steady presence, tangible comfort, and patience with pacing. Friends experience you as someone who shows up consistently rather than dramatically.`,
     romantic: `In romance, your Taurus rising signals sensual calm and durability in first contact. Attraction builds through reliability and physical ease as much as through words.`,
     feed: `Your rising sign carries Taurus energy today. Presence reads grounded, patient, and physically reassuring.`,
-    sonic: `Your Taurus Ascendant contributes rich sustained tones, warm harmonic grounding, and rhythm that is patient and unhurried—the sound of physical presence and embodied certainty.`,
+    sonic: `Your Taurus Ascendant contributes rich sustained tones, warm harmonic grounding, and rhythm that is patient and unhurried. The sound of physical presence and embodied certainty.`,
   },
 
   PLCMT_ASCENDANT_GEMINI: {
@@ -39,11 +39,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'GEMINI',
     title: 'Ascendant in Gemini',
     core: `Your Ascendant in Gemini means you present with quick adaptability, intellectual curiosity, and the energy of someone who's always ready for the next conversation. People experience you as clever, sociable, and perpetually interested in learning what you don't already know.`,
-    behavioral: `You engage new situations through questions and observation, shift your presentation to match the context you're in, and naturally create connection through wit and verbal agility. Your physical presence is light and mobile—you look like someone who could pivot to something completely different at any moment.`,
+    behavioral: `You engage new situations through questions and observation, shift your presentation to match the context you're in, and naturally create connection through wit and verbal agility. Your physical presence is light and mobile. You look like someone who could pivot to something completely different at any moment.`,
     friendship: `In friendship, your Gemini rising sparks conversation, introduces ideas, and keeps social contact lively. Friends experience you as curious, witty, and easy to talk with on short notice.`,
     romantic: `In romance, your Gemini rising opens doors through words, humor, and mental rapport. Initial attraction often starts as fascination before it deepens.`,
     feed: `Your rising sign carries Gemini energy today. First contact favors conversation, curiosity, and quick mental exchange.`,
-    sonic: `Your Gemini Ascendant contributes nimble melodic movement, airy harmonic textures, and rhythm that is conversational and quick—the sound of mental agility and adaptive presence.`,
+    sonic: `Your Gemini Ascendant contributes nimble melodic movement, airy harmonic textures, and rhythm that is conversational and quick. The sound of mental agility and adaptive presence.`,
   },
 
   PLCMT_ASCENDANT_CANCER: {
@@ -56,7 +56,7 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In friendship, your Cancer rising offers warmth, attunement, and protective care. Friends feel met emotionally before they feel evaluated.`,
     romantic: `In romance, your Cancer rising signals tenderness and emotional safety in first meetings. Partners sense that vulnerability could be welcome here.`,
     feed: `Your rising sign carries Cancer energy today. Presence reads receptive, protective, and emotionally attuned.`,
-    sonic: `Your Cancer Ascendant contributes flowing melodic waves, warm harmonic shelter, and rhythm that ebbs and flows with emotional tides—the sound of receptive presence and protective care.`,
+    sonic: `Your Cancer Ascendant contributes flowing melodic waves, warm harmonic shelter, and rhythm that ebbs and flows with emotional tides. The sound of receptive presence and protective care.`,
   },
 
   PLCMT_ASCENDANT_LEO: {
@@ -69,7 +69,7 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In friendship, your Leo rising brings warmth, loyalty, and visible enjoyment of the bond. Friends feel celebrated when you turn your attention toward them.`,
     romantic: `In romance, your Leo rising radiates confident charm and generous attention. First encounters often feel theatrically alive and personally honoring.`,
     feed: `Your rising sign carries Leo energy today. First impressions run warm, visible, and self-assured.`,
-    sonic: `Your Leo Ascendant contributes bold melodic statements, radiant harmonic warmth, and rhythm that commands attention—the sound of dignified presence and generous self-expression.`,
+    sonic: `Your Leo Ascendant contributes bold melodic statements, radiant harmonic warmth, and rhythm that commands attention. The sound of dignified presence and generous self-expression.`,
   },
 
   PLCMT_ASCENDANT_VIRGO: {
@@ -78,11 +78,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'VIRGO',
     title: 'Ascendant in Virgo',
     core: `Your Ascendant in Virgo means you present with careful observation, practical modesty, and the energy of someone who's assessing how to be useful. People experience you as thoughtful, precise, and more interested in competence than performance.`,
-    behavioral: `You approach situations by noticing what needs fixing or organizing, present yourself with clean efficiency rather than dramatic flair, and naturally offer helpful observations even when not asked. Your physical presence is understated and functional—you look like someone who's here to work, not to be admired.`,
+    behavioral: `You approach situations by noticing what needs fixing or organizing, present yourself with clean efficiency rather than dramatic flair, and naturally offer helpful observations even when not asked. Your physical presence is understated and functional. You look like someone who's here to work, not to be admired.`,
     friendship: `In friendship, your Virgo rising shows up as practical help, thoughtful detail, and quiet reliability. Friends trust your observations even when you underplay yourself.`,
     romantic: `In romance, your Virgo rising signals discernment and understated care. Attraction grows through competence, attentiveness, and modest steadiness.`,
     feed: `Your rising sign carries Virgo energy today. Presence reads precise, helpful, and quietly competent.`,
-    sonic: `Your Virgo Ascendant contributes precise melodic detail, refined harmonic clarity, and rhythm that is efficient and measured—the sound of careful attention and practical presence.`,
+    sonic: `Your Virgo Ascendant contributes precise melodic detail, refined harmonic clarity, and rhythm that is efficient and measured. The sound of careful attention and practical presence.`,
   },
 
   PLCMT_ASCENDANT_LIBRA: {
@@ -91,11 +91,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'LIBRA',
     title: 'Ascendant in Libra',
     core: `Your Ascendant in Libra means you present with graceful diplomacy, aesthetic awareness, and the energy of someone who instinctively seeks balance and harmony. People experience you as charming, fair-minded, and naturally skilled at making others feel considered and valued.`,
-    behavioral: `You enter situations looking for the point of connection or agreement, adjust your presentation to create relational ease, and naturally mediate conflicts even when not directly involved. Your physical presence is poised and pleasing—you look like someone who cares how things (including yourself) are perceived.`,
+    behavioral: `You enter situations looking for the point of connection or agreement, adjust your presentation to create relational ease, and naturally mediate conflicts even when not directly involved. Your physical presence is poised and pleasing. You look like someone who cares how things (including yourself) are perceived.`,
     friendship: `In friendship, your Libra rising smooths friction, invites fairness, and keeps tone pleasant. Friends feel aesthetically and relationally considered.`,
     romantic: `In romance, your Libra rising opens with charm, balance, and mutual regard. First meetings often feel elegant and mutually attentive.`,
     feed: `Your rising sign carries Libra energy today. First contact favors harmony, grace, and relational balance.`,
-    sonic: `Your Libra Ascendant contributes balanced melodic phrases, harmonious chord progressions, and rhythm that seeks equilibrium—the sound of graceful presence and relational attunement.`,
+    sonic: `Your Libra Ascendant contributes balanced melodic phrases, harmonious chord progressions, and rhythm that seeks equilibrium. The sound of graceful presence and relational attunement.`,
   },
 
   PLCMT_ASCENDANT_SCORPIO: {
@@ -104,11 +104,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'SCORPIO',
     title: 'Ascendant in Scorpio',
     core: `Your Ascendant in Scorpio means you present with intense focus, psychological depth, and the energy of someone who sees through surfaces to what's hidden underneath. People experience you as powerful, private, and possessing a penetrating gaze that makes superficial conversation feel inadequate.`,
-    behavioral: `You approach new situations with strategic caution, reveal only what serves your purposes, and naturally command respect through sheer intensity rather than explicit assertion. Your physical presence is magnetically controlled—you look like someone who could handle whatever darkness the situation might reveal.`,
+    behavioral: `You approach new situations with strategic caution, reveal only what serves your purposes, and naturally command respect through sheer intensity rather than explicit assertion. Your physical presence is magnetically controlled. You look like someone who could handle whatever darkness the situation might reveal.`,
     friendship: `In friendship, your Scorpio rising signals loyalty, depth, and discretion. Friends sense that secrets could be safe and that you see more than you say.`,
     romantic: `In romance, your Scorpio rising carries magnetic restraint and emotional gravity. First contact often feels fated, private, or impossible to ignore.`,
     feed: `Your rising sign carries Scorpio energy today. Presence reads intense, perceptive, and strategically contained.`,
-    sonic: `Your Scorpio Ascendant contributes smoldering melodic intensity, dark harmonic depth, and rhythm that pulses with contained power—the sound of penetrating presence and strategic revelation.`,
+    sonic: `Your Scorpio Ascendant contributes smoldering melodic intensity, dark harmonic depth, and rhythm that pulses with contained power. The sound of penetrating presence and strategic revelation.`,
   },
 
   PLCMT_ASCENDANT_SAGITTARIUS: {
@@ -117,11 +117,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'SAGITTARIUS',
     title: 'Ascendant in Sagittarius',
     core: `Your Ascendant in Sagittarius means you present with expansive enthusiasm, philosophical curiosity, and the energy of someone who's always ready for the next adventure. People experience you as optimistic, blunt, and carrying yourself with the freedom of someone who doesn't take social convention too seriously.`,
-    behavioral: `You enter situations openly and without guile, speak your truth even when diplomacy might serve you better, and naturally inspire others through your genuine belief that life is meant to be explored. Your physical presence is unrestrained and broad—you look like someone who needs room to move and thinks borders are suggestions.`,
+    behavioral: `You enter situations openly and without guile, speak your truth even when diplomacy might serve you better, and naturally inspire others through your genuine belief that life is meant to be explored. Your physical presence is unrestrained and broad. You look like someone who needs room to move and thinks borders are suggestions.`,
     friendship: `In friendship, your Sagittarius rising brings humor, honesty, and appetite for experience. Friends feel invited into a larger world when you're around.`,
     romantic: `In romance, your Sagittarius rising signals openness, adventure, and candid warmth. First meetings can feel exciting and slightly unbounded.`,
     feed: `Your rising sign carries Sagittarius energy today. First impressions run open, blunt, and forward-looking.`,
-    sonic: `Your Sagittarius Ascendant contributes soaring melodic range, expansive harmonic openness, and rhythm that gallops toward the horizon—the sound of adventurous presence and philosophical freedom.`,
+    sonic: `Your Sagittarius Ascendant contributes soaring melodic range, expansive harmonic openness, and rhythm that gallops toward the horizon. The sound of adventurous presence and philosophical freedom.`,
   },
 
   PLCMT_ASCENDANT_CAPRICORN: {
@@ -134,7 +134,7 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In friendship, your Capricorn rising reads as dependable, reserved, and structurally loyal. Friends trust your judgment and your follow-through.`,
     romantic: `In romance, your Capricorn rising signals seriousness and earned trust. Attraction respects maturity, reliability, and demonstrated character.`,
     feed: `Your rising sign carries Capricorn energy today. Presence reads composed, authoritative, and purpose-driven.`,
-    sonic: `Your Capricorn Ascendant contributes austere melodic structure, authoritative harmonic foundations, and rhythm that builds with patient discipline—the sound of earned authority and enduring presence.`,
+    sonic: `Your Capricorn Ascendant contributes austere melodic structure, authoritative harmonic foundations, and rhythm that builds with patient discipline. The sound of earned authority and enduring presence.`,
   },
 
   PLCMT_ASCENDANT_AQUARIUS: {
@@ -143,11 +143,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'AQUARIUS',
     title: 'Ascendant in Aquarius',
     core: `Your Ascendant in Aquarius means you present with detached originality, intellectual independence, and the energy of someone who's operating on a frequency slightly different from everyone else. People experience you as unconventional, principled, and genuinely unbothered by whether your approach matches social norms.`,
-    behavioral: `You enter situations as an observer rather than a participant, present yourself as uniquely yourself without apology or explanation, and naturally challenge conventions through simply being who you are. Your physical presence is both friendly and remote—you look like someone who's here with you but also somewhere else entirely.`,
+    behavioral: `You enter situations as an observer rather than a participant, present yourself as uniquely yourself without apology or explanation, and naturally challenge conventions through simply being who you are. Your physical presence is both friendly and remote. You look like someone who's here with you but also somewhere else entirely.`,
     friendship: `In friendship, your Aquarius rising offers originality, principled honesty, and respectful distance. Friends feel accepted as individuals rather than managed.`,
     romantic: `In romance, your Aquarius rising signals friendship-first chemistry and unconventional pacing. First contact can feel intriguing and slightly unpredictable.`,
     feed: `Your rising sign carries Aquarius energy today. First impressions read original, principled, and lightly detached.`,
-    sonic: `Your Aquarius Ascendant contributes unexpected melodic intervals, innovative harmonic progressions, and rhythm that breaks conventional patterns—the sound of original presence and intellectual detachment.`,
+    sonic: `Your Aquarius Ascendant contributes unexpected melodic intervals, innovative harmonic progressions, and rhythm that breaks conventional patterns. The sound of original presence and intellectual detachment.`,
   },
 
   PLCMT_ASCENDANT_PISCES: {
@@ -156,11 +156,11 @@ export const ASCENDANT_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     sign: 'PISCES',
     title: 'Ascendant in Pisces',
     core: `Your Ascendant in Pisces means you present with gentle fluidity, emotional permeability, and the energy of someone whose boundaries are more porous than most. People experience you as compassionate, dreamy, and possessing an otherworldly quality that makes you seem like you're channeling something beyond yourself.`,
-    behavioral: `You approach situations by absorbing the emotional atmosphere, adapt your presentation to reflect what others need from you, and naturally dissolve barriers between yourself and whoever you're with. Your physical presence is soft and yielding—you look like someone who could dissolve into mist if the world gets too harsh.`,
+    behavioral: `You approach situations by absorbing the emotional atmosphere, adapt your presentation to reflect what others need from you, and naturally dissolve barriers between yourself and whoever you're with. Your physical presence is soft and yielding. You look like someone who could dissolve into mist if the world gets too harsh.`,
     friendship: `In friendship, your Pisces rising offers empathy, imaginative warmth, and nonjudgmental presence. Friends feel emotionally held without being fixed.`,
     romantic: `In romance, your Pisces rising signals softness, mystery, and romantic idealism in first contact. Partners sense depth beneath a gentle surface.`,
     feed: `Your rising sign carries Pisces energy today. Presence reads gentle, porous, and imaginatively receptive.`,
-    sonic: `Your Pisces Ascendant contributes flowing melodic dissolve, ethereal harmonic wash, and rhythm that moves like water without edges—the sound of permeable presence and transcendent empathy.`,
+    sonic: `Your Pisces Ascendant contributes flowing melodic dissolve, ethereal harmonic wash, and rhythm that moves like water without edges. The sound of permeable presence and transcendent empathy.`,
   },
 };
 
@@ -175,7 +175,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Aries Midheaven reads as the colleague who steps up first and names the bold move others were circling.`,
     romantic: `In partnership, your public drive can show as a partner who wants shared goals to move fast and feel unmistakably chosen.`,
     feed: `Your Midheaven carries Aries energy today. Public direction favors initiative, leadership, and visible first steps.`,
-    sonic: `Your Aries Midheaven contributes bold melodic ambition, bright harmonic authority, and rhythm that drives toward professional conquest—the sound of leadership and pioneering achievement.`,
+    sonic: `Your Aries Midheaven contributes bold melodic ambition, bright harmonic authority, and rhythm that drives toward professional conquest. The sound of leadership and pioneering achievement.`,
   },
 
   PLCMT_MC_TAURUS: {
@@ -188,7 +188,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Taurus Midheaven reads as the builder others trust for quality, steadiness, and follow-through.`,
     romantic: `In partnership, your public steadiness can show as a partner who equates love with reliability and tangible security over time.`,
     feed: `Your Midheaven carries Taurus energy today. Public direction favors patience, quality, and durable results.`,
-    sonic: `Your Taurus Midheaven contributes rich harmonic abundance, sustained melodic building, and rhythm that is patient and grounded—the sound of enduring achievement and material mastery.`,
+    sonic: `Your Taurus Midheaven contributes rich harmonic abundance, sustained melodic building, and rhythm that is patient and grounded. The sound of enduring achievement and material mastery.`,
   },
 
   PLCMT_MC_GEMINI: {
@@ -201,7 +201,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Gemini Midheaven reads as the connector who translates between teams, ideas, and audiences with ease.`,
     romantic: `In partnership, your public versatility can show as a partner who keeps the relationship mentally alive through conversation and shared learning.`,
     feed: `Your Midheaven carries Gemini energy today. Public direction favors communication, curiosity, and agile exchange.`,
-    sonic: `Your Gemini Midheaven contributes nimble melodic conversation, airy harmonic exchange, and rhythm that is quick and articulate—the sound of intellectual achievement and communicative mastery.`,
+    sonic: `Your Gemini Midheaven contributes nimble melodic conversation, airy harmonic exchange, and rhythm that is quick and articulate. The sound of intellectual achievement and communicative mastery.`,
   },
 
   PLCMT_MC_CANCER: {
@@ -214,7 +214,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Cancer Midheaven reads as the leader who protects the team and remembers what people need to feel secure.`,
     romantic: `In partnership, your public care can show as a partner who builds home, safety, and emotional continuity into shared life.`,
     feed: `Your Midheaven carries Cancer energy today. Public direction favors care, protection, and emotionally intelligent leadership.`,
-    sonic: `Your Cancer Midheaven contributes flowing emotional melody, warm harmonic shelter, and rhythm that nurtures and protects—the sound of caring leadership and emotional authority.`,
+    sonic: `Your Cancer Midheaven contributes flowing emotional melody, warm harmonic shelter, and rhythm that nurtures and protects. The sound of caring leadership and emotional authority.`,
   },
 
   PLCMT_MC_LEO: {
@@ -227,7 +227,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Leo Midheaven reads as the figure others look to for vision, warmth, and visible excellence.`,
     romantic: `In partnership, your public radiance can show as a partner who wants shared life to feel celebrated and proudly chosen.`,
     feed: `Your Midheaven carries Leo energy today. Public direction favors creative leadership, visibility, and generous authority.`,
-    sonic: `Your Leo Midheaven contributes radiant melodic statements, warm harmonic confidence, and rhythm that commands attention—the sound of dignified achievement and creative authority.`,
+    sonic: `Your Leo Midheaven contributes radiant melodic statements, warm harmonic confidence, and rhythm that commands attention. The sound of dignified achievement and creative authority.`,
   },
 
   PLCMT_MC_VIRGO: {
@@ -240,7 +240,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Virgo Midheaven reads as the craftsperson others rely on when the details must be right.`,
     romantic: `In partnership, your public precision can show as a partner who expresses care through practical competence and steady improvement.`,
     feed: `Your Midheaven carries Virgo energy today. Public direction favors craft, service, and refined usefulness.`,
-    sonic: `Your Virgo Midheaven contributes precise melodic craft, intricate harmonic detail, and rhythm that perfects through careful iteration—the sound of technical mastery and useful service.`,
+    sonic: `Your Virgo Midheaven contributes precise melodic craft, intricate harmonic detail, and rhythm that perfects through careful iteration. The sound of technical mastery and useful service.`,
   },
 
   PLCMT_MC_LIBRA: {
@@ -253,7 +253,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Libra Midheaven reads as the diplomat who elevates tone, design, and fair process.`,
     romantic: `In partnership, your public grace can show as a partner who values balance, beauty, and mutual regard in shared ambition.`,
     feed: `Your Midheaven carries Libra energy today. Public direction favors diplomacy, aesthetics, and relational balance.`,
-    sonic: `Your Libra Midheaven contributes balanced harmonic progressions, graceful melodic partnership, and rhythm that seeks equilibrium—the sound of diplomatic achievement and aesthetic authority.`,
+    sonic: `Your Libra Midheaven contributes balanced harmonic progressions, graceful melodic partnership, and rhythm that seeks equilibrium. The sound of diplomatic achievement and aesthetic authority.`,
   },
 
   PLCMT_MC_SCORPIO: {
@@ -266,7 +266,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Scorpio Midheaven reads as the strategist others trust with what cannot be said aloud.`,
     romantic: `In partnership, your public intensity can show as a partner who wants truth, depth, and loyalty beneath the surface story.`,
     feed: `Your Midheaven carries Scorpio energy today. Public direction favors depth, transformation, and strategic power.`,
-    sonic: `Your Scorpio Midheaven contributes smoldering melodic intensity, dark harmonic depth, and rhythm that pulses with controlled power—the sound of transformative achievement and psychological authority.`,
+    sonic: `Your Scorpio Midheaven contributes smoldering melodic intensity, dark harmonic depth, and rhythm that pulses with controlled power. The sound of transformative achievement and psychological authority.`,
   },
 
   PLCMT_MC_SAGITTARIUS: {
@@ -279,7 +279,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Sagittarius Midheaven reads as the visionary who widens the frame and invites others toward a bigger horizon.`,
     romantic: `In partnership, your public optimism can show as a partner who wants shared life to keep expanding in meaning and adventure.`,
     feed: `Your Midheaven carries Sagittarius energy today. Public direction favors vision, teaching, and bold exploration.`,
-    sonic: `Your Sagittarius Midheaven contributes soaring melodic range, expansive harmonic optimism, and rhythm that gallops toward the horizon—the sound of adventurous achievement and philosophical authority.`,
+    sonic: `Your Sagittarius Midheaven contributes soaring melodic range, expansive harmonic optimism, and rhythm that gallops toward the horizon. The sound of adventurous achievement and philosophical authority.`,
   },
 
   PLCMT_MC_CAPRICORN: {
@@ -292,7 +292,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Capricorn Midheaven reads as the authority others respect for competence and long-range judgment.`,
     romantic: `In partnership, your public discipline can show as a partner who builds security through commitment, structure, and earned trust.`,
     feed: `Your Midheaven carries Capricorn energy today. Public direction favors mastery, structure, and enduring achievement.`,
-    sonic: `Your Capricorn Midheaven contributes austere melodic structure, authoritative harmonic foundations, and rhythm that builds with patient discipline—the sound of earned mastery and enduring achievement.`,
+    sonic: `Your Capricorn Midheaven contributes austere melodic structure, authoritative harmonic foundations, and rhythm that builds with patient discipline. The sound of earned mastery and enduring achievement.`,
   },
 
   PLCMT_MC_AQUARIUS: {
@@ -305,7 +305,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Aquarius Midheaven reads as the innovator who challenges norms in service of collective progress.`,
     romantic: `In partnership, your public independence can show as a partner who values freedom, principle, and shared ideals over convention.`,
     feed: `Your Midheaven carries Aquarius energy today. Public direction favors innovation, reform, and principled originality.`,
-    sonic: `Your Aquarius Midheaven contributes unexpected melodic innovation, progressive harmonic structures, and rhythm that breaks conventional patterns—the sound of revolutionary achievement and intellectual authority.`,
+    sonic: `Your Aquarius Midheaven contributes unexpected melodic innovation, progressive harmonic structures, and rhythm that breaks conventional patterns. The sound of revolutionary achievement and intellectual authority.`,
   },
 
   PLCMT_MC_PISCES: {
@@ -318,7 +318,7 @@ export const MIDHEAVEN_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>>
     friendship: `In professional networks, your Pisces Midheaven reads as the empathic creative others turn to when the work needs soul as well as skill.`,
     romantic: `In partnership, your public sensitivity can show as a partner who seeks spiritual or artistic union beyond practical roles alone.`,
     feed: `Your Midheaven carries Pisces energy today. Public direction favors vision, compassion, and transcendent purpose.`,
-    sonic: `Your Pisces Midheaven contributes dreamlike melodic vision, dissolving harmonic boundaries, and rhythm that flows without edges—the sound of transcendent purpose and compassionate achievement.`,
+    sonic: `Your Pisces Midheaven contributes dreamlike melodic vision, dissolving harmonic boundaries, and rhythm that flows without edges. The sound of transcendent purpose and compassionate achievement.`,
   },
 };
 
@@ -328,12 +328,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'ARIES',
     title: 'IC in Aries',
-    core: `Your IC in Aries means your emotional foundation and sense of home are organized around independence, self-reliance, and the freedom to act without asking permission. Your roots are pioneering—you come from (or create) a foundation of courage and self-determination.`,
-    behavioral: `You create sanctuary through space to move freely, process emotions through physical action, and need your private life to support autonomy. When you're at home, you're recharging your capacity for independent action—home is where you remember you don't need anyone's permission.`,
+    core: `Your IC in Aries means your emotional foundation and sense of home are organized around independence, self-reliance, and the freedom to act without asking permission. Your roots are pioneering. You come from (or create) a foundation of courage and self-determination.`,
+    behavioral: `You create sanctuary through space to move freely, process emotions through physical action, and need your private life to support autonomy. When you're at home, you're recharging your capacity for independent action, home is where you remember you don't need anyone's permission.`,
     friendship: `In private life, your Aries IC favors friends who respect your need for space and direct honesty without emotional games.`,
     romantic: `In intimacy, your roots show as a partner who needs home to feel like a base camp for independence, not a cage.`,
     feed: `Your IC carries Aries energy today. Private foundation favors autonomy, courage, and self-reliant rest.`,
-    sonic: `Your Aries IC contributes bold foundational rhythm, bright interior energy, and the sound of self-reliant emotional grounding—what safety sounds like when it's built on courage.`,
+    sonic: `Your Aries IC contributes bold foundational rhythm, bright interior energy, and the sound of self-reliant emotional grounding. What safety sounds like when it's built on courage.`,
   },
 
   PLCMT_IC_TAURUS: {
@@ -341,12 +341,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'TAURUS',
     title: 'IC in Taurus',
-    core: `Your IC in Taurus means your emotional foundation and sense of home are organized around physical comfort, material security, and sensory pleasure. Your roots are grounded—you come from (or create) a foundation of embodied stability and the right to rest.`,
-    behavioral: `You create sanctuary through beautiful spaces and physical comfort, process emotions through your body and senses, and need your private life to be a place of reliable pleasure. When you're at home, you're restoring your capacity for sensory presence—home is where your body can finally relax.`,
+    core: `Your IC in Taurus means your emotional foundation and sense of home are organized around physical comfort, material security, and sensory pleasure. Your roots are grounded. You come from (or create) a foundation of embodied stability and the right to rest.`,
+    behavioral: `You create sanctuary through beautiful spaces and physical comfort, process emotions through your body and senses, and need your private life to be a place of reliable pleasure. When you're at home, you're restoring your capacity for sensory presence, home is where your body can finally relax.`,
     friendship: `In private life, your Taurus IC favors friends who share meals, comfort, and unhurried presence.`,
     romantic: `In intimacy, your roots show as a partner who builds safety through touch, consistency, and tangible care.`,
     feed: `Your IC carries Taurus energy today. Private foundation favors comfort, rest, and embodied stability.`,
-    sonic: `Your Taurus IC contributes rich harmonic grounding, warm melodic comfort, and rhythm that is slow and embodied—the sound of physical safety and sensory foundation.`,
+    sonic: `Your Taurus IC contributes rich harmonic grounding, warm melodic comfort, and rhythm that is slow and embodied. The sound of physical safety and sensory foundation.`,
   },
 
   PLCMT_IC_GEMINI: {
@@ -354,12 +354,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'GEMINI',
     title: 'IC in Gemini',
-    core: `Your IC in Gemini means your emotional foundation and sense of home are organized around mental stimulation, variety, and the freedom to stay curious. Your roots are intellectual—you come from (or create) a foundation of learning, communication, and mental agility.`,
-    behavioral: `You create sanctuary through books, conversation, and access to information, process emotions by talking them through or writing them out, and need your private life to keep your mind engaged. When you're at home, you're recharging your mental batteries—home is where you can think freely without judgment.`,
+    core: `Your IC in Gemini means your emotional foundation and sense of home are organized around mental stimulation, variety, and the freedom to stay curious. Your roots are intellectual. You come from (or create) a foundation of learning, communication, and mental agility.`,
+    behavioral: `You create sanctuary through books, conversation, and access to information, process emotions by talking them through or writing them out, and need your private life to keep your mind engaged. When you're at home, you're recharging your mental batteries, home is where you can think freely without judgment.`,
     friendship: `In private life, your Gemini IC favors friends who talk, text, and keep your inner world mentally alive.`,
     romantic: `In intimacy, your roots show as a partner who needs home to be a place for conversation and curious exchange.`,
     feed: `Your IC carries Gemini energy today. Private foundation favors mental stimulation and free thinking.`,
-    sonic: `Your Gemini IC contributes nimble interior melody, airy harmonic foundation, and rhythm that is conversational and light—the sound of mental sanctuary and intellectual grounding.`,
+    sonic: `Your Gemini IC contributes nimble interior melody, airy harmonic foundation, and rhythm that is conversational and light. The sound of mental sanctuary and intellectual grounding.`,
   },
 
   PLCMT_IC_CANCER: {
@@ -367,12 +367,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'CANCER',
     title: 'IC in Cancer',
-    core: `Your IC in Cancer means your emotional foundation and sense of home are organized around nurturing, emotional safety, and the deep need to belong. Your roots are tender—you come from (or create) a foundation of care, protection, and the right to feel without censorship.`,
-    behavioral: `You create sanctuary through emotional warmth and protective privacy, process emotions through feeling them fully in safe containers, and need your private life to be a space where vulnerability is honored. When you're at home, you're restoring your capacity for emotional openness—home is where you can cry, rage, or melt without explanation.`,
+    core: `Your IC in Cancer means your emotional foundation and sense of home are organized around nurturing, emotional safety, and the deep need to belong. Your roots are tender. You come from (or create) a foundation of care, protection, and the right to feel without censorship.`,
+    behavioral: `You create sanctuary through emotional warmth and protective privacy, process emotions through feeling them fully in safe containers, and need your private life to be a space where vulnerability is honored. When you're at home, you're restoring your capacity for emotional openness, home is where you can cry, rage, or melt without explanation.`,
     friendship: `In private life, your Cancer IC favors friends who feel like family and honor emotional truth.`,
     romantic: `In intimacy, your roots show as a partner who needs home to be emotionally safe and deeply belonging.`,
     feed: `Your IC carries Cancer energy today. Private foundation favors nurture, protection, and emotional honesty.`,
-    sonic: `Your Cancer IC contributes flowing emotional depth, warm harmonic shelter, and rhythm that ebbs and flows with feeling—the sound of emotional sanctuary and nurturing foundation.`,
+    sonic: `Your Cancer IC contributes flowing emotional depth, warm harmonic shelter, and rhythm that ebbs and flows with feeling. The sound of emotional sanctuary and nurturing foundation.`,
   },
 
   PLCMT_IC_LEO: {
@@ -380,12 +380,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'LEO',
     title: 'IC in Leo',
-    core: `Your IC in Leo means your emotional foundation and sense of home are organized around creative self-expression, playful joy, and the right to take up space. Your roots are radiant—you come from (or create) a foundation of celebration, dignity, and the freedom to shine in private.`,
-    behavioral: `You create sanctuary through beauty, drama, and permission to be yourself fully, process emotions through creative expression and play, and need your private life to honor your specialness. When you're at home, you're recharging your inner light—home is where you can be as big as you actually are.`,
+    core: `Your IC in Leo means your emotional foundation and sense of home are organized around creative self-expression, playful joy, and the right to take up space. Your roots are radiant. You come from (or create) a foundation of celebration, dignity, and the freedom to shine in private.`,
+    behavioral: `You create sanctuary through beauty, drama, and permission to be yourself fully, process emotions through creative expression and play, and need your private life to honor your specialness. When you're at home, you're recharging your inner light, home is where you can be as big as you actually are.`,
     friendship: `In private life, your Leo IC favors friends who celebrate you and make private life feel special.`,
     romantic: `In intimacy, your roots show as a partner who needs home to feel warm, proud, and creatively alive.`,
     feed: `Your IC carries Leo energy today. Private foundation favors joy, dignity, and expressive rest.`,
-    sonic: `Your Leo IC contributes radiant interior warmth, generous harmonic foundation, and rhythm that celebrates self—the sound of dignified sanctuary and creative grounding.`,
+    sonic: `Your Leo IC contributes radiant interior warmth, generous harmonic foundation, and rhythm that celebrates self. The sound of dignified sanctuary and creative grounding.`,
   },
 
   PLCMT_IC_VIRGO: {
@@ -393,12 +393,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'VIRGO',
     title: 'IC in Virgo',
-    core: `Your IC in Virgo means your emotional foundation and sense of home are organized around order, useful routine, and the right to perfect your private life. Your roots are practical—you come from (or create) a foundation of service, competence, and the belief that care is demonstrated through helpful action.`,
-    behavioral: `You create sanctuary through clean organization and useful rituals, process emotions by analyzing them and finding practical solutions, and need your private life to run efficiently. When you're at home, you're restoring your capacity for precision—home is where everything has its place and purpose.`,
+    core: `Your IC in Virgo means your emotional foundation and sense of home are organized around order, useful routine, and the right to perfect your private life. Your roots are practical. You come from (or create) a foundation of service, competence, and the belief that care is demonstrated through helpful action.`,
+    behavioral: `You create sanctuary through clean organization and useful rituals, process emotions by analyzing them and finding practical solutions, and need your private life to run efficiently. When you're at home, you're restoring your capacity for precision, home is where everything has its place and purpose.`,
     friendship: `In private life, your Virgo IC favors friends who respect routines and show care through practical help.`,
     romantic: `In intimacy, your roots show as a partner who restores safety through order, usefulness, and quiet competence.`,
     feed: `Your IC carries Virgo energy today. Private foundation favors order, craft, and practical care.`,
-    sonic: `Your Virgo IC contributes precise interior rhythm, refined harmonic order, and melody that is careful and measured—the sound of organized sanctuary and practical foundation.`,
+    sonic: `Your Virgo IC contributes precise interior rhythm, refined harmonic order, and melody that is careful and measured. The sound of organized sanctuary and practical foundation.`,
   },
 
   PLCMT_IC_LIBRA: {
@@ -406,12 +406,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'LIBRA',
     title: 'IC in Libra',
-    core: `Your IC in Libra means your emotional foundation and sense of home are organized around harmony, aesthetic beauty, and the presence of partnership or balanced relationship. Your roots are refined—you come from (or create) a foundation of grace, fairness, and relational equity.`,
-    behavioral: `You create sanctuary through beautiful environments and the presence of valued others, process emotions through dialogue and seeking balance, and need your private life to feel aesthetically pleasing and relationally fair. When you're at home, you're restoring your sense of harmony—home is where everything is in right proportion.`,
+    core: `Your IC in Libra means your emotional foundation and sense of home are organized around harmony, aesthetic beauty, and the presence of partnership or balanced relationship. Your roots are refined. You come from (or create) a foundation of grace, fairness, and relational equity.`,
+    behavioral: `You create sanctuary through beautiful environments and the presence of valued others, process emotions through dialogue and seeking balance, and need your private life to feel aesthetically pleasing and relationally fair. When you're at home, you're restoring your sense of harmony, home is where everything is in right proportion.`,
     friendship: `In private life, your Libra IC favors friends who bring grace, fairness, and beautiful shared space.`,
     romantic: `In intimacy, your roots show as a partner who needs home to feel balanced, lovely, and mutually considerate.`,
     feed: `Your IC carries Libra energy today. Private foundation favors harmony, beauty, and relational balance.`,
-    sonic: `Your Libra IC contributes balanced harmonic foundations, graceful interior melody, and rhythm that seeks equilibrium—the sound of harmonious emotional grounding and aesthetic sanctuary.`,
+    sonic: `Your Libra IC contributes balanced harmonic foundations, graceful interior melody, and rhythm that seeks equilibrium. The sound of harmonious emotional grounding and aesthetic sanctuary.`,
   },
 
   PLCMT_IC_SCORPIO: {
@@ -419,12 +419,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'SCORPIO',
     title: 'IC in Scorpio',
-    core: `Your IC in Scorpio means your emotional foundation and sense of home are organized around intensity, psychological depth, and the right to privacy around transformation. Your roots are powerful—you come from (or create) a foundation of emotional extremity and the capacity to face darkness.`,
-    behavioral: `You create sanctuary through complete privacy and permission to feel everything without censoring, process emotions through diving into depth rather than skating surfaces, and need your private life to be completely protected from intrusion. When you're at home, you're regenerating your capacity for intensity—home is where you can be as deep as you need to be.`,
+    core: `Your IC in Scorpio means your emotional foundation and sense of home are organized around intensity, psychological depth, and the right to privacy around transformation. Your roots are powerful. You come from (or create) a foundation of emotional extremity and the capacity to face darkness.`,
+    behavioral: `You create sanctuary through complete privacy and permission to feel everything without censoring, process emotions through diving into depth rather than skating surfaces, and need your private life to be completely protected from intrusion. When you're at home, you're regenerating your capacity for intensity, home is where you can be as deep as you need to be.`,
     friendship: `In private life, your Scorpio IC favors friends who can hold depth, secrecy, and emotional truth without flinching.`,
     romantic: `In intimacy, your roots show as a partner who needs home to be a sealed container for transformation and trust.`,
     feed: `Your IC carries Scorpio energy today. Private foundation favors depth, privacy, and regenerative feeling.`,
-    sonic: `Your Scorpio IC contributes dark harmonic depth, intense foundational power, and rhythm that pulses with emotional extremity—the sound of profound privacy and transformative emotional grounding.`,
+    sonic: `Your Scorpio IC contributes dark harmonic depth, intense foundational power, and rhythm that pulses with emotional extremity. The sound of profound privacy and transformative emotional grounding.`,
   },
 
   PLCMT_IC_SAGITTARIUS: {
@@ -432,12 +432,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'SAGITTARIUS',
     title: 'IC in Sagittarius',
-    core: `Your IC in Sagittarius means your emotional foundation and sense of home are organized around freedom, philosophical meaning, and the space to explore without constraint. Your roots are adventurous—you come from (or create) a foundation of optimism, truth-seeking, and the belief that home is wherever you're free to roam.`,
-    behavioral: `You create sanctuary through open space and permission to follow curiosity, process emotions through finding their larger meaning, and need your private life to support expansion rather than containment. When you're at home, you're recharging your sense of possibility—home is where the doors and windows are always open.`,
+    core: `Your IC in Sagittarius means your emotional foundation and sense of home are organized around freedom, philosophical meaning, and the space to explore without constraint. Your roots are adventurous. You come from (or create) a foundation of optimism, truth-seeking, and the belief that home is wherever you're free to roam.`,
+    behavioral: `You create sanctuary through open space and permission to follow curiosity, process emotions through finding their larger meaning, and need your private life to support expansion rather than containment. When you're at home, you're recharging your sense of possibility, home is where the doors and windows are always open.`,
     friendship: `In private life, your Sagittarius IC favors friends who widen your world and honor your need for room to roam.`,
     romantic: `In intimacy, your roots show as a partner who needs home to feel spacious, honest, and oriented toward meaning.`,
     feed: `Your IC carries Sagittarius energy today. Private foundation favors freedom, truth, and expansive rest.`,
-    sonic: `Your Sagittarius IC contributes expansive interior range, optimistic harmonic foundation, and rhythm that gallops freely—the sound of adventurous sanctuary and philosophical grounding.`,
+    sonic: `Your Sagittarius IC contributes expansive interior range, optimistic harmonic foundation, and rhythm that gallops freely. The sound of adventurous sanctuary and philosophical grounding.`,
   },
 
   PLCMT_IC_CAPRICORN: {
@@ -445,12 +445,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'CAPRICORN',
     title: 'IC in Capricorn',
-    core: `Your IC in Capricorn means your emotional foundation and sense of home are organized around structure, self-sufficiency, and the right to build something enduring in your private life. Your roots are disciplined—you come from (or create) a foundation of responsibility, maturity, and the belief that emotional stability is earned through effort.`,
-    behavioral: `You create sanctuary through reliable routines and self-sufficient systems, process emotions by taking responsibility for managing them, and need your private life to be well-structured and under your control. When you're at home, you're recharging your capacity for discipline—home is where you can maintain order without external demands.`,
+    core: `Your IC in Capricorn means your emotional foundation and sense of home are organized around structure, self-sufficiency, and the right to build something enduring in your private life. Your roots are disciplined. You come from (or create) a foundation of responsibility, maturity, and the belief that emotional stability is earned through effort.`,
+    behavioral: `You create sanctuary through reliable routines and self-sufficient systems, process emotions by taking responsibility for managing them, and need your private life to be well-structured and under your control. When you're at home, you're recharging your capacity for discipline, home is where you can maintain order without external demands.`,
     friendship: `In private life, your Capricorn IC favors friends who respect boundaries, reliability, and mature steadiness.`,
     romantic: `In intimacy, your roots show as a partner who builds safety through structure, duty, and earned trust over time.`,
     feed: `Your IC carries Capricorn energy today. Private foundation favors structure, discipline, and self-sufficiency.`,
-    sonic: `Your Capricorn IC contributes austere foundational structure, disciplined harmonic grounding, and rhythm that is controlled and measured—the sound of self-sufficient sanctuary and earned emotional stability.`,
+    sonic: `Your Capricorn IC contributes austere foundational structure, disciplined harmonic grounding, and rhythm that is controlled and measured. The sound of self-sufficient sanctuary and earned emotional stability.`,
   },
 
   PLCMT_IC_AQUARIUS: {
@@ -458,12 +458,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'AQUARIUS',
     title: 'IC in Aquarius',
-    core: `Your IC in Aquarius means your emotional foundation and sense of home are organized around intellectual freedom, unconventional family structures, and the right to be different in private. Your roots are innovative—you come from (or create) a foundation of independence, progressive values, and the belief that home should support your uniqueness.`,
-    behavioral: `You create sanctuary through space that honors your individuality, process emotions by detaching and analyzing them objectively, and need your private life to be free from conventional expectations. When you're at home, you're recharging your capacity for originality—home is where you don't have to explain why you're wired differently.`,
+    core: `Your IC in Aquarius means your emotional foundation and sense of home are organized around intellectual freedom, unconventional family structures, and the right to be different in private. Your roots are innovative. You come from (or create) a foundation of independence, progressive values, and the belief that home should support your uniqueness.`,
+    behavioral: `You create sanctuary through space that honors your individuality, process emotions by detaching and analyzing them objectively, and need your private life to be free from conventional expectations. When you're at home, you're recharging your capacity for originality, home is where you don't have to explain why you're wired differently.`,
     friendship: `In private life, your Aquarius IC favors friends who accept your difference and keep expectations unconventional.`,
     romantic: `In intimacy, your roots show as a partner who needs home to honor freedom, principle, and nonconformity.`,
     feed: `Your IC carries Aquarius energy today. Private foundation favors originality, detachment, and intellectual freedom.`,
-    sonic: `Your Aquarius IC contributes unexpected harmonic foundations, innovative interior rhythm, and melody that is both detached and unique—the sound of unconventional sanctuary and intellectual grounding.`,
+    sonic: `Your Aquarius IC contributes unexpected harmonic foundations, innovative interior rhythm, and melody that is both detached and unique. The sound of unconventional sanctuary and intellectual grounding.`,
   },
 
   PLCMT_IC_PISCES: {
@@ -471,12 +471,12 @@ export const IC_PLACEMENTS: Readonly<Record<string, PlanetInSignInsight>> = {
     planet: 'IC',
     sign: 'PISCES',
     title: 'IC in Pisces',
-    core: `Your IC in Pisces means your emotional foundation and sense of home are organized around imaginative escape, spiritual connection, and dissolving into something larger than yourself. Your roots are mystical—you come from (or create) a foundation of dreams, compassion, and the belief that home is where boundaries can safely dissolve.`,
-    behavioral: `You create sanctuary through art, music, or spiritual practice, process emotions by letting them wash through you without resistance, and need your private life to be a refuge from harsh reality. When you're at home, you're restoring your capacity for transcendence—home is where you can disappear into the infinite.`,
+    core: `Your IC in Pisces means your emotional foundation and sense of home are organized around imaginative escape, spiritual connection, and dissolving into something larger than yourself. Your roots are mystical. You come from (or create) a foundation of dreams, compassion, and the belief that home is where boundaries can safely dissolve.`,
+    behavioral: `You create sanctuary through art, music, or spiritual practice, process emotions by letting them wash through you without resistance, and need your private life to be a refuge from harsh reality. When you're at home, you're restoring your capacity for transcendence, home is where you can disappear into the infinite.`,
     friendship: `In private life, your Pisces IC favors friends who honor sensitivity, imagination, and compassionate retreat.`,
     romantic: `In intimacy, your roots show as a partner who needs home to feel spiritually soft and emotionally permeable.`,
     feed: `Your IC carries Pisces energy today. Private foundation favors dreams, compassion, and gentle dissolution.`,
-    sonic: `Your Pisces IC contributes dreamlike harmonic dissolve, ethereal interior flow, and rhythm that moves like water without edges—the sound of mystical sanctuary and boundless emotional foundation.`,
+    sonic: `Your Pisces IC contributes dreamlike harmonic dissolve, ethereal interior flow, and rhythm that moves like water without edges. The sound of mystical sanctuary and boundless emotional foundation.`,
   },
 };
 
