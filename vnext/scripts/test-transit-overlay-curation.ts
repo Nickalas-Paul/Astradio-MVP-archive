@@ -329,9 +329,10 @@ function testOverlaySonicAssembly() {
 
   const coreIdentity = sections.find((s) => s.id === 'core_identity');
   const activationText = coreIdentity?.text ?? '';
-  const sonicLineCount = (activationText.match(/\*\*Listen for:\*\*/g) || []).length;
-  assert.ok(sonicLineCount > 0, 'at least one sonic line present');
-  assert.ok(sonicLineCount <= MAX_ACTIVATIONS_PER_DAY, 'no more than max activations sonic lines');
+  const hasSonicVocabulary = /\b(melodic|harmonic|rhythm|pulse)\b/i.test(activationText);
+  assert.ok(hasSonicVocabulary, 'at least one activation includes sonic vocabulary');
+  const activationBlocks = (activationText.match(/---/g) || []).length;
+  assert.ok(activationBlocks <= MAX_ACTIVATIONS_PER_DAY, 'no more than max activation blocks');
 
   const todaysSound = sections.find((s) => s.id === 'todays_sound');
   assert.ok(todaysSound !== undefined, 'todays_sound section exists');

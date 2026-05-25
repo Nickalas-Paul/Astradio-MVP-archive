@@ -694,7 +694,7 @@ function assembleOverlayActivationSections(
         }
         const sonicText = capToMaxSentences(aspectInsight.sonic ?? '', 1);
         if (sonicText) {
-          planetText += `**Listen for:** ${sonicText}\n\n`;
+          planetText += `${sonicText}\n\n`;
         }
         planetText += '---\n\n';
       }
