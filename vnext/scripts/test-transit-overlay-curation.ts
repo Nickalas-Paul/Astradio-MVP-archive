@@ -4,7 +4,16 @@
  */
 
 import assert from 'node:assert/strict';
+import { encodeFeatures } from '../feature-encode';
+import type { FeatureVec } from '../contracts';
+import { guidanceFromFeatures } from '../astro/guidance';
+import { buildCanonicalReportForOverlay } from '../canonical/build-from-compose-context';
+import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { capToMaxSentences } from '../projection/rule-layer/claim-synthesize';
+import { assemblePhaseDSections } from '../projection/rule-layer/assemble-sections';
+import { buildTransitListenMetaphor } from '../projection/rule-layer/transit-listen-metaphor';
+import { normalizeProjectionInput } from '../projection/rule-layer/normalize-input';
+import { classifyTemporalVoice } from '../projection/rule-layer/temporal-classify';
 import { buildPlacementKeys } from '../projection/placement-keys';
 import {
   applyDiversificationPenalty,
@@ -46,6 +55,12 @@ function testSentenceCap() {
   const raw = 'Sentence 1. Sentence 2. Sentence 3. Sentence 4.';
   const capped = capToMaxSentences(raw, 2);
   assert.equal(capped, 'Sentence 1. Sentence 2.');
+}
+
+function testSonicCapOneSentence() {
+  const raw = 'Sentence 1. Sentence 2. Sentence 3. Sentence 4.';
+  const capped = capToMaxSentences(raw, 1);
+  assert.equal(capped, 'Sentence 1.');
 }
 
 function testDirectionFilter() {
@@ -138,7 +153,7 @@ function testQuietSkyFallback() {
   const sortedPen = sortRankedActivations(penalized);
   const selected = selectTopActivationsWithDiversity(sortedPen, ranked, 5);
   assert.ok(selected.length >= 1);
-  assert.ok(selected.length <= 5);
+  assert.ok(selected.length <= MAX_ACTIVATIONS_PER_DAY);
 }
 
 function makeNatalTaurusSun10th(): EphemerisSnapshot {
@@ -227,11 +242,134 @@ function testGlobalCapSelectionCount() {
   const filtered = filterNatalToTransitAspects(manyAspects);
   const ranked = rankTransitActivations(filtered);
   const selected = selectTopActivationsWithDiversity(ranked, ranked, MAX_ACTIVATIONS_PER_DAY);
-  assert.equal(selected.length, MAX_ACTIVATIONS_PER_DAY, 'busy sky still caps at 5 globally');
+  assert.equal(selected.length, MAX_ACTIVATIONS_PER_DAY, 'busy sky still caps at 3 globally');
+}
+
+function sumSectionCharacters(
+  sections: Array<{ text?: string; bullets?: string[] }>
+): number {
+  return sections.reduce((n, s) => n + (s.text?.length ?? 0) + (s.bullets?.join('').length ?? 0), 0);
+}
+
+function testBuildTransitListenMetaphor() {
+  const ranked = rankTransitActivations([directed('SUN', 'JUPITER', 'sextile', 0.9)]);
+  const core = interpretCanonicalReportObject(
+    buildCanonicalReportForOverlay({
+      subject_ids: ['sonic-test'],
+      natalSnapshot: makeNatalTaurusSun10th(),
+      natalFeatureVec: encodeFeatures(makeNatalTaurusSun10th()) as FeatureVec,
+      transitSnapshot: makeTransitSkySun8th(),
+      transitFeatureVec: encodeFeatures(makeTransitSkySun8th()) as FeatureVec,
+      control_surface_hash: 'sonic-test',
+      compose_seed: 'sonic-test',
+      guidance: guidanceFromFeatures(
+        encodeFeatures(makeNatalTaurusSun10th()) as FeatureVec,
+        makeNatalTaurusSun10th(),
+        'sonic-test'
+      ),
+    })
+  );
+  const text = buildTransitListenMetaphor(core, ranked);
+  assert.ok(text.length > 0, 'listen metaphor has content');
+  assert.ok(text.length <= 500, `listen metaphor <= 500 chars (got ${text.length})`);
+  assert.ok(text.includes("today's transits"), 'temporal framing present');
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  assert.ok(sentences.length <= 3, `at most 3 sentences (got ${sentences.length})`);
+}
+
+function testOverlaySonicAssembly() {
+  const natal = makeNatalTaurusSun10th();
+  const transit = makeTransitSkySun8th();
+  const fv = encodeFeatures(natal) as FeatureVec;
+  const fvt = encodeFeatures(transit) as FeatureVec;
+  const g = guidanceFromFeatures(fv, natal, 'overlay-sonic');
+  const core = interpretCanonicalReportObject(
+    buildCanonicalReportForOverlay({
+      subject_ids: ['overlay-sonic'],
+      natalSnapshot: natal,
+      natalFeatureVec: fv,
+      transitSnapshot: transit,
+      transitFeatureVec: fvt,
+      control_surface_hash: 'overlay-sonic',
+      compose_seed: 'overlay-sonic',
+      guidance: g,
+    })
+  );
+  const aspects: DirectedSnapshotAspect[] = [
+    directed('SUN', 'JUPITER', 'sextile', 0.95),
+    directed('SUN', 'SATURN', 'square', 0.94),
+    directed('SUN', 'URANUS', 'trine', 0.93),
+    directed('MOON', 'SATURN', 'square', 0.9),
+    directed('MERCURY', 'VENUS', 'trine', 0.85),
+    directed('MARS', 'PLUTO', 'opposition', 0.8),
+    directed('VENUS', 'NEPTUNE', 'conjunction', 0.75),
+  ];
+  const norm = normalizeProjectionInput(core, 'overlay-sonic', {
+    phaseD: true,
+    surface: 'overlay_pair',
+    tier: 'extended',
+  });
+  const sections = assemblePhaseDSections({
+    core,
+    seed: 'overlay-sonic',
+    options: {
+      phaseD: true,
+      surface: 'overlay_pair',
+      tier: 'extended',
+      snapshot: natal,
+      secondarySnapshot: transit,
+      pairInteractionAspectsV2: aspects,
+      transitCalendarDate: '2026-05-24',
+    },
+    tierMetaRequested: norm.tierMetaRequested,
+    tierEff: norm.tierEff,
+    surface: 'overlay_pair',
+    temporalBucket: classifyTemporalVoice(core),
+  });
+
+  const coreIdentity = sections.find((s) => s.id === 'core_identity');
+  const activationText = coreIdentity?.text ?? '';
+  const sonicLineCount = (activationText.match(/\*\*Listen for:\*\*/g) || []).length;
+  assert.ok(sonicLineCount > 0, 'at least one sonic line present');
+  assert.ok(sonicLineCount <= MAX_ACTIVATIONS_PER_DAY, 'no more than max activations sonic lines');
+
+  const todaysSound = sections.find((s) => s.id === 'todays_sound');
+  assert.ok(todaysSound !== undefined, 'todays_sound section exists');
+  assert.ok((todaysSound?.text?.length ?? 0) > 0, 'todays_sound has content');
+  assert.ok((todaysSound?.text?.length ?? 0) <= 500, 'todays_sound under 500 char ceiling');
+
+  const totalChars = sumSectionCharacters(sections);
+  assert.ok(totalChars <= 8000, `total chars ${totalChars} must not exceed 8k ceiling`);
+  assert.ok(totalChars >= 1200, `total chars ${totalChars} must include activations + sonic + closing`);
+}
+
+function testGracefulMissingSonic() {
+  const ranked = rankTransitActivations([directed('SUN', 'JUPITER', 'sextile', 0.9)]);
+  const core = interpretCanonicalReportObject(
+    buildCanonicalReportForOverlay({
+      subject_ids: ['no-sonic'],
+      natalSnapshot: makeNatalTaurusSun10th(),
+      natalFeatureVec: encodeFeatures(makeNatalTaurusSun10th()) as FeatureVec,
+      transitSnapshot: makeTransitSkySun8th(),
+      transitFeatureVec: encodeFeatures(makeTransitSkySun8th()) as FeatureVec,
+      control_surface_hash: 'no-sonic',
+      compose_seed: 'no-sonic',
+      guidance: guidanceFromFeatures(
+        encodeFeatures(makeNatalTaurusSun10th()) as FeatureVec,
+        makeNatalTaurusSun10th(),
+        'no-sonic'
+      ),
+    })
+  );
+  const text = buildTransitListenMetaphor(core, ranked);
+  assert.ok(text.length > 0, 'fallback listen text when clips present');
+  const empty = buildTransitListenMetaphor(core, []);
+  assert.ok(empty.includes("today's transits"), 'empty activations still temporal');
 }
 
 function main() {
   testSentenceCap();
+  testSonicCapOneSentence();
   testDirectionFilter();
   testTierPriority();
   testRankingOrder();
@@ -241,6 +379,9 @@ function main() {
   testQuietSkyFallback();
   testNatalPlacementUsesNatalSnapshot();
   testGlobalCapSelectionCount();
+  testBuildTransitListenMetaphor();
+  testOverlaySonicAssembly();
+  testGracefulMissingSonic();
   console.log('[test-transit-overlay-curation] all tests passed');
 }
 

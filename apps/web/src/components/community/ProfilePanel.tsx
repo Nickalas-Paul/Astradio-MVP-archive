@@ -145,6 +145,7 @@ const SECTION_ORDER: string[] = [
   'synthesis_b',
   'musical',
   'contradiction_map',
+  'todays_sound',
   'audio_staging',
   'audio_thread',
 ];
@@ -158,6 +159,7 @@ const SECTION_TITLES: Record<string, string> = {
   significance: 'Personal Significance',
   musical: 'Music Theory',
   relational_weather_v1: 'Current Activation',
+  todays_sound: "Today's Sound",
 };
 
 function sectionSortKey(id: string): number {

@@ -12,7 +12,7 @@ import { isAspectLibraryKillListed } from '../insight-library/aspect-library-kil
 import { PLANET_TIERS } from '../placement-keys';
 import type { DirectedSnapshotAspect } from '../../synastry/synastry-types';
 
-export const MAX_ACTIVATIONS_PER_DAY = 5 as const;
+export const MAX_ACTIVATIONS_PER_DAY = 3 as const;
 export const MIN_ACTIVATIONS_QUIET_FALLBACK = 3 as const;
 
 export type TransitDiversificationContext = {

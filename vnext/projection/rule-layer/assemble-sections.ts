@@ -68,6 +68,7 @@ import {
   selectTopActivationsWithDiversity,
   sortRankedActivations,
 } from './transit-overlay-curation';
+import { buildTransitListenMetaphor } from './transit-listen-metaphor';
 
 function pickVariant(seed: string, variants: string[]): string {
   let h = 0;
@@ -574,7 +575,10 @@ function buildMinimalOverlaySections(): ProjectedExplanationSection[] {
   ];
 }
 
-function assembleOverlayActivationSections(options: ProjectionOptions): ProjectedExplanationSection[] {
+function assembleOverlayActivationSections(
+  options: ProjectionOptions,
+  semanticCore: SemanticCore
+): ProjectedExplanationSection[] {
   const natalSnapshot = options.snapshot;
   const transitSnapshot = options.secondarySnapshot;
   if (!natalSnapshot || !transitSnapshot) return buildMinimalOverlaySections();
@@ -688,6 +692,10 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
         if (aspectText) {
           planetText += `${aspectText}\n\n`;
         }
+        const sonicText = capToMaxSentences(aspectInsight.sonic ?? '', 1);
+        if (sonicText) {
+          planetText += `**Listen for:** ${sonicText}\n\n`;
+        }
         planetText += '---\n\n';
       }
       planetNarratives.push(planetText.trim());
@@ -719,6 +727,17 @@ function assembleOverlayActivationSections(options: ProjectionOptions): Projecte
     if (s.meta && typeof s.meta === 'object') {
       (s.meta as Record<string, unknown>).transitCurationFull = curationMeta;
     }
+  }
+
+  const listenText = buildTransitListenMetaphor(semanticCore, selected);
+  if (listenText) {
+    sections.push({
+      id: 'todays_sound',
+      title: "Today's Sound",
+      text: listenText,
+      bullets: [],
+      meta: { tagged: taggedSectionBodyFromText(listenText, 'template') },
+    });
   }
 
   return sections;
@@ -1027,7 +1046,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   }
 
   if (surface === 'overlay_pair') {
-    return assembleOverlayActivationSections(options);
+    return assembleOverlayActivationSections(options, core);
   }
 
   const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
