@@ -7,6 +7,7 @@ import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import type { ProfilePrimaryChart } from '../../core/social/hooks';
+import { useUIStore } from '../../store';
 
 export type BirthChartSectionVariant = 'profile_onboarding' | 'manage';
 
@@ -23,6 +24,7 @@ export interface BirthChartSectionProps {
  * Birth chart create (onboarding) or update (manage). POST /api/profile unchanged.
  */
 export function BirthChartSection({ variant, refresh, refreshChart, primaryChart }: BirthChartSectionProps) {
+  const { addToast } = useUIStore();
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
 
   const [label, setLabel] = useState('');
@@ -98,6 +100,12 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
       await refresh();
       if (variant === 'manage') {
         await refreshChart();
+        addToast({
+          type: 'success',
+          title: 'Chart updated',
+          message: 'Head to your Identity tab to hear the new you.',
+          duration: 5000,
+        });
       }
     } finally {
       setSaving(false);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useProfileChart, type ProfilePrimaryChart } from '../../core/social/hooks';
@@ -15,6 +15,14 @@ const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
+
+type IdentityAudioState =
+  | 'no_chart'
+  | 'loading'
+  | 'available'
+  | 'missing'
+  | 'generating'
+  | 'error';
 
 export interface IdentityPanelProps {
   chartId: string | null;
@@ -32,6 +40,11 @@ export function IdentityPanel({
   const { data: chartData, loading: chartLoading, error: chartError, refresh: refreshChart } =
     useProfileChart(chartId);
   const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
+  const [audioState, setAudioState] = useState<IdentityAudioState>(
+    noRealChart ? 'no_chart' : 'loading',
+  );
+  const [audioGenerating, setAudioGenerating] = useState(false);
+  const [hadExportId, setHadExportId] = useState(false);
 
   useEffect(() => {
     if (!chartId) return;
@@ -39,18 +52,30 @@ export function IdentityPanel({
   }, [chartId, refreshChart]);
 
   useEffect(() => {
-    let cancelled = false;
-    const base = getApiBaseUrl();
-    const eid = chartData?.identity_export_id;
+    if (noRealChart) {
+      setAudioState('no_chart');
+      return;
+    }
+    if (!chartData) return;
+
+    const eid = chartData.identity_export_id;
+    const validEid = typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid);
 
     setIdentityAudioUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
 
-    if (!eid || typeof eid !== 'string' || !/^[a-f0-9]{64}$/.test(eid)) {
+    if (!validEid) {
+      setAudioState('missing');
       return undefined;
     }
+
+    setHadExportId(true);
+    setAudioState('loading');
+
+    let cancelled = false;
+    const base = getApiBaseUrl();
 
     void (async () => {
       try {
@@ -59,24 +84,71 @@ export function IdentityPanel({
           if (url) URL.revokeObjectURL(url);
           return;
         }
-        setIdentityAudioUrl(url);
+        if (url) {
+          setIdentityAudioUrl(url);
+          setAudioState('available');
+        } else {
+          setAudioState('missing');
+        }
       } catch {
-        /* Playback unavailable — Identity text still shown */
+        if (!cancelled) {
+          setAudioState('missing');
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+    };
+  }, [chartData?.identity_export_id, chartData, noRealChart]);
+
+  const handleGenerateIdentityAudio = useCallback(async () => {
+    setAudioGenerating(true);
+    setAudioState('generating');
+    try {
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/profile/identity-audio`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      const data = (await r.json().catch(() => ({}))) as {
+        identity_export_id?: string;
+        error?: string;
+      };
+      if (!r.ok) {
+        throw new Error(typeof data.error === 'string' ? data.error : 'Generation failed');
+      }
+      const eid = data.identity_export_id;
+      if (!eid || !/^[a-f0-9]{64}$/.test(eid)) {
+        throw new Error('No export ID returned');
+      }
+      await refreshChart();
+      const url = await blobUrlFromComposePayload(getApiBaseUrl(), { export_id: eid });
+      if (!url) {
+        throw new Error('Could not load generated audio');
+      }
       setIdentityAudioUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return null;
+        return url;
       });
-    };
-  }, [chartData?.identity_export_id]);
+      setHadExportId(true);
+      setAudioState('available');
+    } catch {
+      setAudioState('error');
+    } finally {
+      setAudioGenerating(false);
+    }
+  }, [refreshChart]);
 
   const loading = chartLoading;
   const error = chartError;
   const hasExplainer = chartData?.explainer?.sections?.length;
+
+  const missingMessage =
+    audioState === 'error'
+      ? 'Something went wrong. Try again.'
+      : hadExportId
+        ? 'Your chart was updated. Ready to hear the new you?'
+        : 'Generate a soundtrack from your natal chart.';
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
@@ -133,10 +205,42 @@ export function IdentityPanel({
             sections={filterIdentityDisplaySections(chartData!.explainer.sections)}
           />
         )}
-        {identityAudioUrl && (
-          <div className="mt-6 space-y-2">
-            <p className="text-sm text-text-secondary">Listen to this reading</p>
-            <audio controls src={identityAudioUrl} className="w-full max-w-md" preload="metadata" />
+
+        {!noRealChart && (
+          <div className="mt-6 pt-6 border-t border-border">
+            {audioState === 'loading' && (
+              <p className="text-sm text-subtext">Loading your soundtrack…</p>
+            )}
+
+            {audioState === 'available' && identityAudioUrl && (
+              <div className="space-y-2">
+                <p className="text-sm text-text-secondary">Listen to this reading</p>
+                <audio controls src={identityAudioUrl} className="w-full max-w-md" preload="metadata" />
+              </div>
+            )}
+
+            {(audioState === 'missing' || audioState === 'error') && (
+              <div className="space-y-3">
+                <p className="text-sm text-subtext">{missingMessage}</p>
+                <button
+                  type="button"
+                  className="btn-audio text-sm"
+                  disabled={audioGenerating}
+                  onClick={() => void handleGenerateIdentityAudio()}
+                >
+                  {audioGenerating ? 'Generating…' : 'Hear your chart'}
+                </button>
+              </div>
+            )}
+
+            {audioState === 'generating' && (
+              <div className="space-y-2">
+                <p className="text-sm text-subtext">Building your soundtrack…</p>
+                <button type="button" className="btn-audio text-sm" disabled>
+                  Generating…
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -37,27 +37,57 @@ export async function natalSnapshotFingerprintForChart(chart: Chart): Promise<st
 }
 
 /**
- * After primary chart attach/update: generate identity WAV/export when natal identity changed or chart is new.
+ * After first primary chart creation (registration): generate identity WAV/export when natal identity is new.
  * Does not throw — failures are logged; chart save must always succeed.
  */
 export async function persistProfileIdentityAudioAfterPrimaryAttach(
   chart: Chart,
   priorNatalFingerprint: string | null
 ): Promise<void> {
-  if (!chart.timezone?.trim()) return;
+  await runProfileIdentityAudioCompose(chart, priorNatalFingerprint, { logErrors: true });
+}
+
+/**
+ * User-initiated identity audio (Identity tab CTA). Awaits compose and returns export id or error.
+ * Pass priorNatalFingerprint `null` to force generation for current chart inputs.
+ */
+export async function generateProfileIdentityAudioForChart(
+  chart: Chart
+): Promise<{ identity_export_id: string | null; error?: string }> {
+  if (!chart.timezone?.trim()) {
+    return { identity_export_id: null, error: 'Chart timezone required for audio generation' };
+  }
+  const exportId = await runProfileIdentityAudioCompose(chart, null, { logErrors: false });
+  if (exportId) {
+    return { identity_export_id: exportId };
+  }
+  return {
+    identity_export_id: null,
+    error: 'Audio generation failed or export is disabled on the server',
+  };
+}
+
+async function runProfileIdentityAudioCompose(
+  chart: Chart,
+  priorNatalFingerprint: string | null,
+  opts: { logErrors: boolean }
+): Promise<string | null> {
+  if (!chart.timezone?.trim()) return null;
 
   const chartIn = chartRowToInput(chart);
   let bundle: Awaited<ReturnType<typeof buildProfileNatalProjectionFromChartInput>>;
   try {
     bundle = await buildProfileNatalProjectionFromChartInput(chartIn);
   } catch (e) {
-    console.warn('[compat] identity audio: projection bundle failed', e instanceof Error ? e.message : e);
-    return;
+    if (opts.logErrors) {
+      console.warn('[compat] identity audio: projection bundle failed', e instanceof Error ? e.message : e);
+    }
+    return null;
   }
 
   const newFp = bundle.natal_snapshot_fingerprint;
   const shouldGenerate = priorNatalFingerprint === null || priorNatalFingerprint !== newFp;
-  if (!shouldGenerate) return;
+  if (!shouldGenerate) return null;
 
   const tz = chart.timezone!.trim();
   const composeReq: ComposeRequest = {
@@ -79,8 +109,13 @@ export async function persistProfileIdentityAudioAfterPrimaryAttach(
     const exportId = (result as { export_id?: string | null }).export_id;
     if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
       await storage.setChartIdentityExportId(chart.id, exportId);
+      return exportId;
     }
+    return null;
   } catch (e) {
-    console.warn('[compat] identity audio: compose/export failed', e instanceof Error ? e.message : e);
+    if (opts.logErrors) {
+      console.warn('[compat] identity audio: compose/export failed', e instanceof Error ? e.message : e);
+    }
+    return null;
   }
 }

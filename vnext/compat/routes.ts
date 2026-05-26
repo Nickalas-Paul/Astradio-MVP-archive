@@ -23,6 +23,7 @@ import { computeCompatibilityIntent, type CompatibilityIntentRequest } from '../
 import { populateChartVector } from './vector-cache';
 import { ensureSeedCandidateVectors } from './seed-vectors';
 import {
+  generateProfileIdentityAudioForChart,
   natalSnapshotFingerprintForChart,
   persistProfileIdentityAudioAfterPrimaryAttach,
 } from './identity-audio';
@@ -170,6 +171,8 @@ async function attachPrimaryChartForNewUser(
   chartInput: ProfileChartBody | null | undefined
 ): Promise<import('./types').Chart | null> {
   let primaryChart: import('./types').Chart | null = null;
+  /** True when a new chart row was created (registration / first attach), not a Settings birth-field update. */
+  let createdNewPrimaryChart = false;
   /** Prior natal fingerprint when updating an existing primary chart; null = new chart / no fingerprint / fallback. */
   let priorNatalFingerprintForIdentityAudio: string | null = null;
   if (chartInput != null && typeof chartInput === 'object') {
@@ -215,6 +218,7 @@ async function attachPrimaryChartForNewUser(
         ownerId: userId,
         ...birthPayload,
       });
+      createdNewPrimaryChart = true;
       await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
       if (process.env.POSTGRES_URL) {
         populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
@@ -233,6 +237,7 @@ async function attachPrimaryChartForNewUser(
       lon: defaultChart.lon,
       timezone: defaultChart.timezone,
     });
+    createdNewPrimaryChart = true;
     await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
     if (process.env.POSTGRES_URL) {
       populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
@@ -240,7 +245,7 @@ async function attachPrimaryChartForNewUser(
       });
     }
   }
-  if (primaryChart) {
+  if (primaryChart && createdNewPrimaryChart) {
     void persistProfileIdentityAudioAfterPrimaryAttach(primaryChart, priorNatalFingerprintForIdentityAudio).catch(
       (err: unknown) => {
         console.warn('[compat] identity audio attach hook:', err instanceof Error ? err.message : err);
@@ -686,6 +691,35 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: unknown) {
       console.error('[compat] POST /profile/user-chart', e);
       return res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to save chart' });
+    }
+  });
+
+  // POST /api/profile/identity-audio — user-initiated natal identity soundtrack (Identity tab CTA).
+  router.post('/profile/identity-audio', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
+      }
+      const primaryChartId =
+        storage.getUserPrimaryChart != null ? await storage.getUserPrimaryChart(proxyUserId) : undefined;
+      if (!primaryChartId || primaryChartId === storage.DEFAULT_PROFILE_CHART_ID) {
+        return res.status(404).json({ error: 'No chart found' });
+      }
+      const chart = await storage.getChart(primaryChartId);
+      if (!chart || chart.ownerId !== proxyUserId) {
+        return res.status(404).json({ error: 'Chart not found' });
+      }
+      const result = await generateProfileIdentityAudioForChart(chart);
+      if (!result.identity_export_id) {
+        return res.status(502).json({
+          error: result.error || 'Audio generation failed',
+        });
+      }
+      return res.status(200).json({ identity_export_id: result.identity_export_id });
+    } catch (e: unknown) {
+      console.error('[compat] POST /profile/identity-audio', e);
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Audio generation failed' });
     }
   });
 
