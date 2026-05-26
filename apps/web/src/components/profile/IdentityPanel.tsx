@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useProfileChart, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { BirthChartSection } from './BirthChartSection';
 import { ExplainerSections } from './shared/ExplainerSections';
@@ -151,8 +150,8 @@ export function IdentityPanel({
         : 'Generate a soundtrack from your natal chart.';
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,400px)_1fr]">
-      <div>
+    <div className="grid gap-8 md:grid-cols-[2fr_3fr]">
+      <div className="space-y-4 min-w-0">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -177,37 +176,9 @@ export function IdentityPanel({
             {error || 'No chart data'}
           </div>
         )}
-        {!noRealChart && (
-          <p className="mt-4 text-xs text-subtext">
-            Birth chart data can be updated in{' '}
-            <Link href="/settings#birth-chart" className="text-emerald hover:underline">
-              Settings
-            </Link>
-            .
-          </p>
-        )}
-      </div>
-      <div className="min-w-0">
-        {noRealChart && (
-          <p className="text-subtext text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
-        )}
-        {loading && !chartData && !noRealChart && (
-          <div className="space-y-4">
-            <div className="h-20 bg-bgElev rounded animate-pulse" />
-            <div className="h-20 bg-bgElev rounded animate-pulse" />
-          </div>
-        )}
-        {error && !chartData && !noRealChart && (
-          <p className="text-subtext text-sm">{error}</p>
-        )}
-        {hasExplainer && (
-          <ExplainerSections
-            sections={filterIdentityDisplaySections(chartData!.explainer.sections)}
-          />
-        )}
 
         {!noRealChart && (
-          <div className="mt-6 pt-6 border-t border-border">
+          <>
             {audioState === 'loading' && (
               <p className="text-sm text-subtext">Loading your soundtrack…</p>
             )}
@@ -215,7 +186,7 @@ export function IdentityPanel({
             {audioState === 'available' && identityAudioUrl && (
               <div className="space-y-2">
                 <p className="text-sm text-text-secondary">Listen to this reading</p>
-                <audio controls src={identityAudioUrl} className="w-full max-w-md" preload="metadata" />
+                <audio controls src={identityAudioUrl} className="w-full" preload="metadata" />
               </div>
             )}
 
@@ -241,7 +212,27 @@ export function IdentityPanel({
                 </button>
               </div>
             )}
+          </>
+        )}
+      </div>
+
+      <div className="min-w-0">
+        {noRealChart && (
+          <p className="text-subtext text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
+        )}
+        {loading && !chartData && !noRealChart && (
+          <div className="space-y-4">
+            <div className="h-20 bg-bgElev rounded animate-pulse" />
+            <div className="h-20 bg-bgElev rounded animate-pulse" />
           </div>
+        )}
+        {error && !chartData && !noRealChart && (
+          <p className="text-subtext text-sm">{error}</p>
+        )}
+        {hasExplainer && (
+          <ExplainerSections
+            sections={filterIdentityDisplaySections(chartData!.explainer.sections)}
+          />
         )}
       </div>
     </div>
