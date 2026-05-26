@@ -64,6 +64,7 @@ export async function composeGroupFromChartIds(
     viewerChartId?: string;
     /** Phase 6E — server owner id; YOUR requires chart ownership match. */
     labelResolutionOwnerId?: string;
+    generateAudio?: boolean;
   }
 ): Promise<GroupComposeResult> {
   const ctx = await resolveRelationalConnectionFromChartIds(chartIdsInput, opts?.groupId);
@@ -99,6 +100,7 @@ export async function composeGroupFromChartIds(
     ...(opts?.labelResolutionOwnerId
       ? { labelResolutionOwnerId: opts.labelResolutionOwnerId }
       : {}),
+    generateAudio: opts?.generateAudio === true,
   });
 
   const base64 = result.audio?.base64;

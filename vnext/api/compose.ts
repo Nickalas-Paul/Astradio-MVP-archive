@@ -93,6 +93,8 @@ export type AggregateCompositionInput =
       /** Phase 6C — Community seeker (Chart A) / target (Chart B) chart ids for directed synastry assembly. */
       seekerChartId?: string;
       targetChartId?: string;
+      /** When false (default), skip Lyria export — text-only aggregate. */
+      generateAudio?: boolean;
     }
   | {
       kind: 'group';
@@ -112,6 +114,8 @@ export type AggregateCompositionInput =
       labelResolutionOwnerId?: string;
       /** Sandbox multi-chart: omit generic ensemble preface (projection-only). */
       suppressEnsembleFraming?: boolean;
+      /** When false (default), skip Lyria export — text-only aggregate. */
+      generateAudio?: boolean;
     };
 
 /** Phase 6C — maps UI seeker/target chart ids onto lexical slot order (snapLow = slot 0, snapHigh = slot 1). */
@@ -997,10 +1001,18 @@ export class ComposeAPI {
       ? 'aggregate_relational_weather_v1'
       : undefined;
 
-    const wavBundle = await runLyriaAlignedExportBlock(
-      (buf, sec) => this.validateRenderedWavDuration(buf, sec),
-      { plan, architecture, featureVec, payload, semanticCore, lyriaPromptProfile }
-    );
+    const generateAudio = input.generateAudio === true;
+    const wavBundle = generateAudio
+      ? await runLyriaAlignedExportBlock(
+          (buf, sec) => this.validateRenderedWavDuration(buf, sec),
+          { plan, architecture, featureVec, payload, semanticCore, lyriaPromptProfile }
+        )
+      : {
+          audio: { format: 'wav' as const, base64: '', sha256: '', latency_ms: 0, size_bytes: 0 },
+          audio_export_available: false,
+          export_attempted: false,
+          export_error: 'export_not_attempted' as const,
+        };
 
     const pvAgg = projected[projected.length - 1]?.meta?.projection_validation;
     const explanation = {

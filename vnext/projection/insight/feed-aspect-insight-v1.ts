@@ -52,23 +52,50 @@ export function aspectDisplayName(type: CrossAspectHitV1['type']): string {
   return ASPECT_VERB[type] ?? 'aspects';
 }
 
+const EXPANDED_SYNASTRY_MAX_SENTENCES = 5;
+
+function isTechnicalSynastryLead(sentence: string): boolean {
+  return (
+    /are (sextile|trine|square|opposition|conjunct)/i.test(sentence) ||
+    /Your \w+ and their \w+ are (sextile|trine|square|opposition|conjunct)/i.test(sentence) ||
+    /sixty degrees apart|ninety degrees apart|one hundred twenty degrees/i.test(sentence) ||
+    /in the same element(al family)?/i.test(sentence)
+  );
+}
+
 function pickSynastrySentences(prose: string, hit: CrossAspectHitV1): string {
   const sentences = prose.split(/\.\s+/).filter((s) => s.trim().length > 0);
   if (sentences.length === 0) return '';
 
   const firstSentence = sentences[0] || '';
-  const isTechnicalLabel =
-    /are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
-    /Your \w+ and their \w+ are (sextile|trine|square|opposition|conjunct)/i.test(firstSentence) ||
-    /sixty degrees apart|ninety degrees apart|one hundred twenty degrees/i.test(firstSentence) ||
-    /in the same element(al family)?/i.test(firstSentence);
-
   let startIdx = 0;
-  if (isTechnicalLabel && sentences.length > 1) {
+  if (isTechnicalSynastryLead(firstSentence) && sentences.length > 1) {
     startIdx = 1;
   }
 
   const slice = sentences.slice(startIdx, startIdx + 2);
+  let selected = slice.join('. ').trim();
+  if (selected && !selected.endsWith('.')) selected += '.';
+  return selected;
+}
+
+/** Expanded feed spotlight — full synastry depth (not collapsed cap). */
+export function composeFeedExpandedSynastryBody(
+  hit: CrossAspectHitV1,
+  intent: 'friend' | 'partner' = 'friend'
+): string {
+  const prose = synastryProseForHit(hit, intent);
+  if (!prose) return '';
+
+  const sentences = prose.split(/\.\s+/).filter((s) => s.trim().length > 0);
+  if (sentences.length === 0) return '';
+
+  let startIdx = 0;
+  if (isTechnicalSynastryLead(sentences[0] || '') && sentences.length > 1) {
+    startIdx = 1;
+  }
+
+  const slice = sentences.slice(startIdx, startIdx + EXPANDED_SYNASTRY_MAX_SENTENCES);
   let selected = slice.join('. ').trim();
   if (selected && !selected.endsWith('.')) selected += '.';
   return selected;

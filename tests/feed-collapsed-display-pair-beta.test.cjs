@@ -58,6 +58,8 @@ test('buildFeedCollapsedDisplayPairBetaV1 shows three directional activation lin
   for (const ln of out.activation_lines) {
     assert.ok(ln.text.length > 20, 'activation line should have prose');
     assert.ok(['you_bring', 'they_bring', 'tests_both'].includes(ln.role), 'each line has a role');
+    assert.ok(typeof ln.prefix === 'string' && ln.prefix.length > 10, 'directional prefix present');
+    assert.ok(typeof ln.expanded_text === 'string' && ln.expanded_text.length > 20, 'expanded synastry body present');
   }
   assert.ok(
     out.activation_lines.some((ln) =>

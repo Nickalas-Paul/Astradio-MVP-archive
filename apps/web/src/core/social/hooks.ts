@@ -715,9 +715,24 @@ export interface RelationalCommunityFeedItem {
     enhanced_title?: string;
     activity_count?: 3;
     activation_lines?: [
-      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
-      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
-      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
+      {
+        text: string;
+        role?: 'you_bring' | 'they_bring' | 'tests_both';
+        prefix?: string;
+        expanded_text?: string;
+      },
+      {
+        text: string;
+        role?: 'you_bring' | 'they_bring' | 'tests_both';
+        prefix?: string;
+        expanded_text?: string;
+      },
+      {
+        text: string;
+        role?: 'you_bring' | 'they_bring' | 'tests_both';
+        prefix?: string;
+        expanded_text?: string;
+      },
     ];
   };
   compatibility_field_hash: string;

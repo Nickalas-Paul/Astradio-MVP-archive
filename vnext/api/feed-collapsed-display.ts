@@ -7,7 +7,9 @@ import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import type { CategorizedFeedHit, FeedHitRole } from './feed-aspect-selection-v1';
 import { descriptorFromActivationMapped, fmtBody } from '../projection/insight/map-insight-unit-v1';
 import {
+  buildDirectionalPrefix,
   composeFeedActivationLine,
+  composeFeedExpandedSynastryBody,
   feedDisplayTextForHit,
 } from '../projection/insight/feed-aspect-insight-v1';
 import type { CrossAspectHitV1 } from '../relational/weather/types';
@@ -22,7 +24,12 @@ const ASPECT_SYM: Record<CrossAspectHitV1['type'], string> = {
 
 export type { FeedHitRole };
 
-export type FeedActivationLineV1 = { text: string; role: FeedHitRole };
+export type FeedActivationLineV1 = {
+  text: string;
+  role: FeedHitRole;
+  prefix: string;
+  expanded_text: string;
+};
 
 export type FeedCollapsedDisplayV1 = {
   primary_line: string;
@@ -71,10 +78,19 @@ export function buildFeedActivationLinesFromHits(
     throw new Error(`buildFeedActivationLinesFromHits: expected 3 hits, got ${hits.length}`);
   }
 
-  return hits.map((hit) => ({
-    text: composeFeedActivationLine(hit, viewerChartId, partnerChartId),
-    role: hit.role,
-  })) as FeedCollapsedPairBetaV1['activation_lines'];
+  return hits.map((hit) => {
+    const prefix = buildDirectionalPrefix(hit);
+    const expanded =
+      composeFeedExpandedSynastryBody(hit) ||
+      composeFeedActivationLine(hit, viewerChartId, partnerChartId).split('—').slice(1).join('—').trim() ||
+      composeFeedActivationLine(hit, viewerChartId, partnerChartId);
+    return {
+      text: composeFeedActivationLine(hit, viewerChartId, partnerChartId),
+      role: hit.role,
+      prefix,
+      expanded_text: expanded,
+    };
+  }) as FeedCollapsedPairBetaV1['activation_lines'];
 }
 
 export function buildFeedCollapsedDisplayPairBetaV1(input: {

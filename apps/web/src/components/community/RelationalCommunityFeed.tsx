@@ -8,11 +8,40 @@ import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 
+type FeedAudioUiState = 'idle' | 'generating' | 'ready' | 'error';
+
+type FeedAudioUi = {
+  state: FeedAudioUiState;
+  exportId: string | null;
+  error: string | null;
+};
+
 function getAudioExportId(artifact: Record<string, unknown> | undefined): string | null {
   const audio = artifact?.audio;
   if (!audio || typeof audio !== 'object') return null;
   const id = (audio as Record<string, unknown>).export_id;
   return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
+
+function activationLinePrefix(line: { text: string; prefix?: string }): string {
+  if (typeof line.prefix === 'string' && line.prefix.trim()) return line.prefix.trim();
+  const dash = line.text.indexOf('—');
+  if (dash > 0) return line.text.slice(0, dash).trim();
+  return '';
+}
+
+function activationLineExpandedBody(line: { text: string; expanded_text?: string }): string {
+  if (typeof line.expanded_text === 'string' && line.expanded_text.trim()) return line.expanded_text.trim();
+  const dash = line.text.indexOf('—');
+  if (dash > 0) return line.text.slice(dash + 1).trim();
+  return line.text;
+}
+
+function musicalParagraphFromArtifact(artifact: Record<string, unknown>): string {
+  const text = artifact.text;
+  if (!text || typeof text !== 'object' || Array.isArray(text)) return '';
+  const mp = (text as Record<string, unknown>).musicalParagraph;
+  return typeof mp === 'string' && mp.trim() ? mp.trim() : '';
 }
 
 function getRoleLabel(role: string | undefined): string {
@@ -40,6 +69,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
   const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
+  const [audioUiByFeedId, setAudioUiByFeedId] = useState<Record<string, FeedAudioUi>>({});
 
   /** Must run unconditionally — same hook order when loading vs loaded (Rules of Hooks). */
   const items = userId ? (data?.items ?? []) : [];
@@ -88,8 +118,11 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     tz?: string;
   };
 
-  const openAndRenderArtifact = async (item: (typeof items)[number]) => {
-    if (item.connection_kind === 'campaign_group') return;
+  const fetchForecastArtifact = async (
+    item: (typeof items)[number],
+    opts: { generateAudio: boolean; openPanel?: boolean }
+  ): Promise<string | null> => {
+    if (item.connection_kind === 'campaign_group') return null;
     const base = getApiBaseUrl();
     const transitDatetime = String(transitLock.ts || '').trim();
     const lat = Number(transitLock.lat);
@@ -97,7 +130,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     const timezone = String(transitLock.tz || 'UTC').trim();
     if (!transitDatetime || !Number.isFinite(lat) || !Number.isFinite(lon)) {
       setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Refresh the feed and try again.' }));
-      return;
+      return null;
     }
     const scopePath =
       item.connection_kind === 'pair'
@@ -109,10 +142,16 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
       transitLongitude: String(lon),
       transitTimezone: timezone,
       compose: '1',
+      generateAudio: opts.generateAudio ? '1' : '0',
     });
-    setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
-    setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
-    setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
+    const feedId = item.feed_item_id;
+    if (opts.openPanel) {
+      setOpenByFeedId((prev) => ({ ...prev, [feedId]: true }));
+    }
+    setBusyByFeedId((prev) => ({ ...prev, [feedId]: true }));
+    if (!opts.generateAudio) {
+      setSaveStatusByFeedId((prev) => ({ ...prev, [feedId]: '' }));
+    }
     try {
       const r = await fetch(`${base || ''}${scopePath}?${qs.toString()}`, {
         credentials: 'same-origin',
@@ -120,8 +159,15 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
       if (!r.ok) {
         const msg = typeof j.error === 'string' ? j.error : `Render failed (${r.status})`;
-        setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: msg }));
-        return;
+        if (opts.generateAudio) {
+          setAudioUiByFeedId((prev) => ({
+            ...prev,
+            [feedId]: { state: 'error', exportId: null, error: msg },
+          }));
+        } else {
+          setSaveStatusByFeedId((prev) => ({ ...prev, [feedId]: msg }));
+        }
+        return null;
       }
       const artifact = (j.artifact && typeof j.artifact === 'object' ? j.artifact : null) as
         | Record<string, unknown>
@@ -172,26 +218,73 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               : null,
         });
       }
-      setArtifactByFeedId((prev) => ({
-        ...prev,
-        [item.feed_item_id]: {
-          ...(artifact || {}),
-          weather,
-          dailyArtifactIdentity:
-            j && typeof j === 'object' && j.artifact && typeof j.artifact === 'object'
-              ? (j.artifact as Record<string, unknown>).dailyArtifactIdentity
-              : null,
-        },
-      }));
+      const stored: Record<string, unknown> = {
+        ...(artifact || {}),
+        weather,
+        dailyArtifactIdentity:
+          j && typeof j === 'object' && j.artifact && typeof j.artifact === 'object'
+            ? (j.artifact as Record<string, unknown>).dailyArtifactIdentity
+            : null,
+      };
+      setArtifactByFeedId((prev) => ({ ...prev, [feedId]: stored }));
+      const exportId = opts.generateAudio ? getAudioExportId(stored) : null;
+      if (opts.generateAudio) {
+        if (exportId) {
+          setAudioUiByFeedId((prev) => ({
+            ...prev,
+            [feedId]: { state: 'ready', exportId, error: null },
+          }));
+        } else {
+          const audioErr =
+            stored.audio &&
+            typeof stored.audio === 'object' &&
+            typeof (stored.audio as Record<string, unknown>).export_error === 'string'
+              ? String((stored.audio as Record<string, unknown>).export_error).trim()
+              : '';
+          setAudioUiByFeedId((prev) => ({
+            ...prev,
+            [feedId]: {
+              state: 'error',
+              exportId: null,
+              error: audioErr || 'Audio forecast could not be generated. Please try again.',
+            },
+          }));
+        }
+      } else {
+        setAudioUiByFeedId((prev) => ({
+          ...prev,
+          [feedId]: { state: 'idle', exportId: null, error: null },
+        }));
+      }
       await refresh();
+      return exportId;
     } catch (e) {
-      setSaveStatusByFeedId((prev) => ({
-        ...prev,
-        [item.feed_item_id]: e instanceof Error ? e.message : 'Render failed',
-      }));
+      const msg = e instanceof Error ? e.message : 'Render failed';
+      if (opts.generateAudio) {
+        setAudioUiByFeedId((prev) => ({
+          ...prev,
+          [feedId]: { state: 'error', exportId: null, error: msg },
+        }));
+      } else {
+        setSaveStatusByFeedId((prev) => ({ ...prev, [feedId]: msg }));
+      }
+      return null;
     } finally {
-      setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: false }));
+      setBusyByFeedId((prev) => ({ ...prev, [feedId]: false }));
     }
+  };
+
+  const openAndRenderArtifact = async (item: (typeof items)[number]) => {
+    await fetchForecastArtifact(item, { generateAudio: false, openPanel: true });
+  };
+
+  const generateFeedAudio = async (item: (typeof items)[number]) => {
+    const feedId = item.feed_item_id;
+    setAudioUiByFeedId((prev) => ({
+      ...prev,
+      [feedId]: { state: 'generating', exportId: null, error: null },
+    }));
+    await fetchForecastArtifact(item, { generateAudio: true });
   };
 
   const toggleExpandedFeed = (item: (typeof items)[number]) => {
@@ -500,18 +593,12 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
                           const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
                           const activationOnly = finalized.slots.activation?.trim() ?? '';
-                          const audioPolicy = finalized.audio_policy;
-                          const audioText =
-                            audioPolicy === 'full' ? (finalized.slots.audio?.trim() ?? '') : '';
-                          const audioStatusMessage =
-                            audioPolicy !== 'full' ? (finalized.slots.audio?.trim() ?? '') : '';
-                          const exportId = getAudioExportId(art);
-                          const audioError =
-                            art.audio &&
-                            typeof art.audio === 'object' &&
-                            typeof (art.audio as Record<string, unknown>).export_error === 'string'
-                              ? String((art.audio as Record<string, unknown>).export_error).trim()
-                              : '';
+                          const musicalParagraph = musicalParagraphFromArtifact(art);
+                          const audioUi = audioUiByFeedId[item.feed_item_id] ?? {
+                            state: 'idle' as const,
+                            exportId: null,
+                            error: null,
+                          };
 
                           return (
                             <div className="space-y-6">
@@ -525,7 +612,10 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                                       <h3 className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
                                         {getRoleLabel(line.role)}
                                       </h3>
-                                      <IdentityMarkdown content={line.text} />
+                                      {activationLinePrefix(line) ? (
+                                        <p className="text-sm text-subtext">{activationLinePrefix(line)}</p>
+                                      ) : null}
+                                      <IdentityMarkdown content={activationLineExpandedBody(line)} />
                                     </div>
                                   ))}
                                 </section>
@@ -547,26 +637,21 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
                               <section className="border-t border-border pt-6 space-y-3">
                                 <h2 className="reading-section-header mb-3">Hear today&apos;s forecast</h2>
-                                {audioText ? <IdentityMarkdown content={audioText} /> : null}
-                                {exportId ? (
+                                {musicalParagraph ? <IdentityMarkdown content={musicalParagraph} /> : null}
+                                {audioUi.state === 'ready' && audioUi.exportId ? (
                                   <div className="space-y-3">
                                     <p className="text-sm text-subtext">Your audio forecast is ready.</p>
-                                    <ValidatedExportAudioPlayer exportId={exportId} />
+                                    <ValidatedExportAudioPlayer exportId={audioUi.exportId} />
                                   </div>
                                 ) : (
                                   <div className="space-y-2">
-                                    {audioStatusMessage && audioPolicy !== 'full' ? (
-                                      <p className="text-sm text-subtext" role="status">
-                                        {audioStatusMessage}
-                                      </p>
-                                    ) : null}
                                     <button
                                       type="button"
                                       className="btn-audio mt-1"
-                                      onClick={() => void openAndRenderArtifact(item)}
-                                      disabled={busyByFeedId[item.feed_item_id]}
+                                      onClick={() => void generateFeedAudio(item)}
+                                      disabled={audioUi.state === 'generating' || busyByFeedId[item.feed_item_id]}
                                     >
-                                      {busyByFeedId[item.feed_item_id] ? (
+                                      {audioUi.state === 'generating' ? (
                                         <>
                                           <svg
                                             className="w-4 h-4 animate-spin"
@@ -588,7 +673,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                             />
                                           </svg>
-                                          Generating…
+                                          Generating forecast…
                                         </>
                                       ) : (
                                         <>
@@ -599,18 +684,13 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                                         </>
                                       )}
                                     </button>
-                                    {audioError ? (
+                                    {audioUi.state === 'error' && audioUi.error ? (
                                       <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
-                                        {audioError}
+                                        {audioUi.error}
                                       </p>
                                     ) : null}
                                   </div>
                                 )}
-                                {!exportId && audioPolicy === 'unavailable' && !busyByFeedId[item.feed_item_id] ? (
-                                  <p className="text-sm text-subtext">
-                                    Audio forecast unavailable for this connection.
-                                  </p>
-                                ) : null}
                               </section>
                             </div>
                           );

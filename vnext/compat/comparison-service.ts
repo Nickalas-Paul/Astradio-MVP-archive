@@ -85,6 +85,8 @@ export interface ComposeComparisonAggregateReadingParams {
   relationshipBindingId?: string | null;
   fusion?: { wA: number; wB: number };
   expansionTier?: ExpansionTier;
+  /** When true, run Lyria export during aggregate compose (feed audio opt-in). */
+  generateAudio?: boolean;
 }
 
 export interface ComposeComparisonAggregateReadingResult {
@@ -159,6 +161,7 @@ export async function composeComparisonAggregateReading(
     expansionTier: parseExpansionTier(params.expansionTier),
     seekerChartId: chartA.id,
     targetChartId: chartB.id,
+    generateAudio: params.generateAudio === true,
   });
 
   return { chartA, chartB, merged, compatibility, compose };

@@ -182,6 +182,40 @@ function createStage4Router() {
       const feedItem = buildCommunityFeedItemV1(weather, kind, bindingId, ctx.chartIdsOrdered);
 
       const wantCompose = String(req.query.compose || '').trim() === '1';
+      const generateAudio = String(req.query.generateAudio || '').trim() === '1';
+      const forecastResponseAudio = (exportJobId, composeAudio) => {
+        const base = {
+          format: 'wav',
+          sha256: '',
+          latency_ms: 0,
+          size_bytes: 0,
+          base64_present: false,
+        };
+        if (!generateAudio) {
+          return {
+            ...base,
+            export_available: false,
+            export_id: null,
+            export_attempted: false,
+            export_error: null,
+          };
+        }
+        const id =
+          (exportJobId && String(exportJobId).trim()) ||
+          (composeAudio && composeAudio.export_id && String(composeAudio.export_id).trim()) ||
+          null;
+        const err =
+          composeAudio && composeAudio.export_error != null && composeAudio.export_error !== undefined
+            ? String(composeAudio.export_error)
+            : null;
+        return {
+          ...base,
+          export_available: !!id || !!(composeAudio && composeAudio.export_available),
+          export_id: id,
+          export_attempted: !!id || !!(composeAudio && composeAudio.export_attempted),
+          export_error: id ? null : err,
+        };
+      };
       let artifact = null;
       if (wantCompose) {
         const identity =
@@ -205,36 +239,30 @@ function createStage4Router() {
           COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
           existingVersion
         );
+        const existingHasExport =
+          existing && existing.exportJobId != null && String(existing.exportJobId).trim() !== '';
         if (existing && existing.artifactStatus === 'available' && existingFreshness.isCurrent) {
-          artifact = {
-            planHash: existing.planHash || null,
-            compositionId: existing.compositionId || null,
-            text: existing.textPayload || null,
-            audioBase64: null,
-            audio: {
-              format: 'wav',
-              sha256: '',
-              latency_ms: 0,
-              size_bytes: 0,
-              base64_present: false,
-              export_available: !!existing.exportJobId,
-              export_id: existing.exportJobId || null,
-              export_attempted: !!existing.exportJobId,
-              export_error: null,
-            },
-            dailyArtifactIdentity: {
-              dailyArtifactId: existing.id,
-              scopeKind: identity.scopeKind,
-              bindingId: identity.bindingId,
-              chartIdsOrdered: ctx.chartIdsOrdered,
-              chartIdsOrderedHash,
-              canonicalDayBucket,
-              transitSnapshotHash: existing.transitSnapshotHash,
-              ...(identity.seekerChartId ? { seekerChartId: identity.seekerChartId } : {}),
-            },
-            freshness: existingFreshness,
-          };
-          return res.status(200).json({ weather, feedItem, artifact });
+          if (!generateAudio || existingHasExport) {
+            artifact = {
+              planHash: existing.planHash || null,
+              compositionId: existing.compositionId || null,
+              text: existing.textPayload || null,
+              audioBase64: null,
+              audio: forecastResponseAudio(existing.exportJobId, null),
+              dailyArtifactIdentity: {
+                dailyArtifactId: existing.id,
+                scopeKind: identity.scopeKind,
+                bindingId: identity.bindingId,
+                chartIdsOrdered: ctx.chartIdsOrdered,
+                chartIdsOrderedHash,
+                canonicalDayBucket,
+                transitSnapshotHash: existing.transitSnapshotHash,
+                ...(identity.seekerChartId ? { seekerChartId: identity.seekerChartId } : {}),
+              },
+              freshness: existingFreshness,
+            };
+            return res.status(200).json({ weather, feedItem, artifact });
+          }
         }
 
         /** Lyria compose metadata for response when daily row has no export_job_id (e.g. storage write failed). */
@@ -278,6 +306,7 @@ function createStage4Router() {
                 targetChartId: partnerChartId,
                 relationshipBindingId: relationshipId || bindingId,
                 expansionTier,
+                generateAudio,
               });
               composed = {
                 planHash: core.compose.planHash,
@@ -308,6 +337,7 @@ function createStage4Router() {
                 groupId: bindingId,
                 relationalWeather: weather,
                 labelResolutionOwnerId: viewerUserId,
+                generateAudio,
               });
               if (composed && composed.audio) {
                 composeAudioForResponse = {
@@ -324,10 +354,16 @@ function createStage4Router() {
           } catch (err) {
             composeError = err;
           }
-          const exportId =
+          const composedExportId =
             composed && composed.audio && typeof composed.audio.export_id === 'string' && composed.audio.export_id.trim()
               ? composed.audio.export_id.trim()
               : null;
+          const exportId =
+            generateAudio && composedExportId
+              ? composedExportId
+              : inside && inside.exportJobId && String(inside.exportJobId).trim()
+                ? String(inside.exportJobId).trim()
+                : null;
           const nextStatus = composeError ? 'failed' : toArtifactStatus(composed?.text, exportId);
           let textPayload = null;
           if (composed && composed.text != null && typeof composed.text === 'object' && !Array.isArray(composed.text)) {
@@ -391,25 +427,13 @@ function createStage4Router() {
           if (composeError) throw composeError;
           return fallback;
         });
-        const rowHasExport = winner?.exportJobId != null && String(winner.exportJobId).trim() !== '';
         const ac = composeAudioForResponse;
-        const showStorageError = !rowHasExport && ac && ac.export_error;
         artifact = {
           planHash: winner?.planHash || null,
           compositionId: winner?.compositionId || null,
           text: winner?.textPayload || null,
           audioBase64: null,
-          audio: {
-            format: 'wav',
-            sha256: '',
-            latency_ms: 0,
-            size_bytes: 0,
-            base64_present: false,
-            export_available: rowHasExport || !!(ac && ac.export_available),
-            export_id: rowHasExport ? String(winner.exportJobId).trim() : ac && ac.export_id ? String(ac.export_id).trim() : null,
-            export_attempted: rowHasExport ? true : !!(ac && ac.export_attempted),
-            export_error: showStorageError ? ac.export_error : null,
-          },
+          audio: forecastResponseAudio(winner?.exportJobId, ac),
           dailyArtifactIdentity: {
             dailyArtifactId: winner?.id || null,
             scopeKind: identity.scopeKind,

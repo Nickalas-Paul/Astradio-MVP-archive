@@ -17,6 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       'transitLongitude',
       'transitTimezone',
       'compose',
+      'generateAudio',
     ]) {
       const v = sp.get(key);
       if (v != null && v !== '') url.searchParams.set(key, v);
