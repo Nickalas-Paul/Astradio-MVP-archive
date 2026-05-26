@@ -5,9 +5,15 @@ import { useMemo, useState } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
-import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
-import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
+import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+
+function getAudioExportId(artifact: Record<string, unknown> | undefined): string | null {
+  const audio = artifact?.audio;
+  if (!audio || typeof audio !== 'object') return null;
+  const id = (audio as Record<string, unknown>).export_id;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
 
 function getRoleLabel(role: string | undefined): string {
   switch (role) {
@@ -104,6 +110,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
       transitTimezone: timezone,
       compose: '1',
     });
+    setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
     setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
     setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: '' }));
     try {
@@ -176,7 +183,6 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
               : null,
         },
       }));
-      setOpenByFeedId((prev) => ({ ...prev, [item.feed_item_id]: true }));
       await refresh();
     } catch (e) {
       setSaveStatusByFeedId((prev) => ({
@@ -186,6 +192,20 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
     } finally {
       setBusyByFeedId((prev) => ({ ...prev, [item.feed_item_id]: false }));
     }
+  };
+
+  const toggleExpandedFeed = (item: (typeof items)[number]) => {
+    if (item.connection_kind === 'campaign_group') return;
+    const id = item.feed_item_id;
+    if (openByFeedId[id]) {
+      setOpenByFeedId((prev) => ({ ...prev, [id]: false }));
+      return;
+    }
+    if (artifactByFeedId[id]) {
+      setOpenByFeedId((prev) => ({ ...prev, [id]: true }));
+      return;
+    }
+    void openAndRenderArtifact(item);
   };
 
   const saveArtifact = async (item: (typeof items)[number]) => {
@@ -425,105 +445,192 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                   {item.connection_kind !== 'campaign_group' && (
                     <button
                       type="button"
-                      className="text-emerald hover:underline font-medium disabled:opacity-50"
-                      onClick={() => void openAndRenderArtifact(item)}
-                      disabled={busyByFeedId[item.feed_item_id]}
+                      className="btn-secondary text-sm px-3 py-1.5 disabled:opacity-50"
+                      onClick={() => toggleExpandedFeed(item)}
+                      disabled={busyByFeedId[item.feed_item_id] && !openByFeedId[item.feed_item_id]}
                     >
-                      {busyByFeedId[item.feed_item_id] ? 'Opening…' : 'Open'}
+                      {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                        ? 'Loading…'
+                        : openByFeedId[item.feed_item_id]
+                          ? 'Collapse'
+                          : "View today's transits"}
                     </button>
                   )}
                 </div>
 
-                {openByFeedId[item.feed_item_id] && artifactByFeedId[item.feed_item_id] && (
-                  <div className="rounded border border-border/70 bg-bgElev p-3 space-y-3">
-                    <p className="text-xs font-semibold text-text">Connection reading</p>
-                    {(() => {
-                      const freshness =
-                        artifactByFeedId[item.feed_item_id].freshness &&
-                        typeof artifactByFeedId[item.feed_item_id].freshness === 'object'
-                          ? (artifactByFeedId[item.feed_item_id].freshness as Record<string, unknown>)
-                          : null;
-                      const isHistorical = freshness?.isHistorical === true;
-                      if (!isHistorical) return null;
-                      return (
-                        <p className="text-xs text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded px-2 py-1">
-                          Historical saved reading. Generated with an earlier expression version. Open again to refresh
-                          this connection.
-                        </p>
-                      );
-                    })()}
-                    {(() => {
-                      const art = artifactByFeedId[item.feed_item_id];
-                      const finalized = finalizeRelationalReadingSurfaces({
-                        kind: 'expanded_artifact',
-                        artifact: art,
-                        weather:
-                          art.weather && typeof art.weather === 'object' ? art.weather : undefined,
-                        context: { feed_item_id: item.feed_item_id, binding_id: item.binding_id },
-                      });
-                      const slots =
-                        finalized.kind === 'expanded_artifact'
-                          ? finalized.slots
-                          : ({ summary: '', support: '', tension: '', activation: '', whatToDo: '', audio: '' } as Record<
-                              ExpandedSlotId,
-                              string
-                            >);
-                      return (
-                        <div className="space-y-4">
-                          {EXPANDED_READING_RENDER_ORDER.map((slot) => {
-                            const body = slots[slot];
-                            if (!body?.trim()) return null;
-                            return (
-                              <section key={slot} className="space-y-1">
-                                <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
-                                  {EXPANDED_SLOT_LABELS[slot]}
-                                </h4>
-                                <div className="text-xs">
-                                  <IdentityMarkdown content={body} />
-                                </div>
+                {openByFeedId[item.feed_item_id] && (
+                  <div className="rounded border border-border/70 bg-bgElev p-4 space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-semibold text-text leading-snug">
+                        {cd?.enhanced_title?.trim() || identity}
+                      </h4>
+                      <p className="text-sm text-subtext">Today&apos;s transit weather report</p>
+                    </div>
+
+                    {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id] ? (
+                      <p className="text-sm text-subtext">Loading today&apos;s transits…</p>
+                    ) : null}
+
+                    {artifactByFeedId[item.feed_item_id] ? (
+                      <>
+                        {(() => {
+                          const art = artifactByFeedId[item.feed_item_id];
+                          const freshness =
+                            art.freshness && typeof art.freshness === 'object'
+                              ? (art.freshness as Record<string, unknown>)
+                              : null;
+                          if (freshness?.isHistorical !== true) return null;
+                          return (
+                            <p className="text-xs text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded px-2 py-1">
+                              Historical saved reading. Generated with an earlier expression version. Expand again to
+                              refresh this connection.
+                            </p>
+                          );
+                        })()}
+
+                        {(() => {
+                          const art = artifactByFeedId[item.feed_item_id];
+                          const finalized = finalizeRelationalReadingSurfaces({
+                            kind: 'expanded_artifact',
+                            artifact: art,
+                            weather: art.weather && typeof art.weather === 'object' ? art.weather : undefined,
+                            context: { feed_item_id: item.feed_item_id, binding_id: item.binding_id },
+                          });
+                          if (finalized.kind !== 'expanded_artifact') return null;
+
+                          const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
+                          const activationOnly = finalized.slots.activation?.trim() ?? '';
+                          const audioPolicy = finalized.audio_policy;
+                          const audioText =
+                            audioPolicy === 'full' ? (finalized.slots.audio?.trim() ?? '') : '';
+                          const audioStatusMessage =
+                            audioPolicy !== 'full' ? (finalized.slots.audio?.trim() ?? '') : '';
+                          const exportId = getAudioExportId(art);
+                          const audioError =
+                            art.audio &&
+                            typeof art.audio === 'object' &&
+                            typeof (art.audio as Record<string, unknown>).export_error === 'string'
+                              ? String((art.audio as Record<string, unknown>).export_error).trim()
+                              : '';
+
+                          return (
+                            <div className="space-y-6">
+                              {betaLines && betaLines.length === 3 ? (
+                                <section>
+                                  <h2 className="reading-section-header mb-3 first:mt-0">
+                                    Today&apos;s Transit Spotlight
+                                  </h2>
+                                  {betaLines.map((line, idx) => (
+                                    <div key={`${item.feed_item_id}-spot-${idx}`} className="space-y-2 mb-6 last:mb-0">
+                                      <h3 className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                        {getRoleLabel(line.role)}
+                                      </h3>
+                                      <IdentityMarkdown content={line.text} />
+                                    </div>
+                                  ))}
+                                </section>
+                              ) : activationOnly ? (
+                                <section>
+                                  <h2 className="reading-section-header mb-3 first:mt-0">
+                                    Today&apos;s Transit Spotlight
+                                  </h2>
+                                  <IdentityMarkdown content={activationOnly} />
+                                </section>
+                              ) : null}
+
+                              {whatToDo ? (
+                                <section>
+                                  <h2 className="reading-section-header mb-3">What To Do</h2>
+                                  <IdentityMarkdown content={whatToDo} />
+                                </section>
+                              ) : null}
+
+                              <section className="border-t border-border pt-6 space-y-3">
+                                <h2 className="reading-section-header mb-3">Hear today&apos;s forecast</h2>
+                                {audioText ? <IdentityMarkdown content={audioText} /> : null}
+                                {exportId ? (
+                                  <div className="space-y-3">
+                                    <p className="text-sm text-subtext">Your audio forecast is ready.</p>
+                                    <ValidatedExportAudioPlayer exportId={exportId} />
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {audioStatusMessage && audioPolicy !== 'full' ? (
+                                      <p className="text-sm text-subtext" role="status">
+                                        {audioStatusMessage}
+                                      </p>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      className="btn-audio mt-1"
+                                      onClick={() => void openAndRenderArtifact(item)}
+                                      disabled={busyByFeedId[item.feed_item_id]}
+                                    >
+                                      {busyByFeedId[item.feed_item_id] ? (
+                                        <>
+                                          <svg
+                                            className="w-4 h-4 animate-spin"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            aria-hidden
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            />
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                            />
+                                          </svg>
+                                          Generating…
+                                        </>
+                                      ) : (
+                                        <>
+                                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                                            <path d="M8 5v14l11-7z" />
+                                          </svg>
+                                          Generate audio forecast
+                                        </>
+                                      )}
+                                    </button>
+                                    {audioError ? (
+                                      <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
+                                        {audioError}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )}
+                                {!exportId && audioPolicy === 'unavailable' && !busyByFeedId[item.feed_item_id] ? (
+                                  <p className="text-sm text-subtext">
+                                    Audio forecast unavailable for this connection.
+                                  </p>
+                                ) : null}
                               </section>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                    <ValidatedExportAudioPlayer
-                      exportId={
-                        artifactByFeedId[item.feed_item_id].audio &&
-                        typeof artifactByFeedId[item.feed_item_id].audio === 'object' &&
-                        typeof (artifactByFeedId[item.feed_item_id].audio as Record<string, unknown>).export_id ===
-                        'string'
-                          ? ((artifactByFeedId[item.feed_item_id].audio as Record<string, unknown>).export_id as string)
-                          : null
-                      }
-                    />
-                    {(() => {
-                      const audio = artifactByFeedId[item.feed_item_id].audio;
-                      if (!audio || typeof audio !== 'object') return null;
-                      const a = audio as Record<string, unknown>;
-                      const ex = typeof a.export_error === 'string' && a.export_error.trim() ? a.export_error.trim() : '';
-                      const exId = typeof a.export_id === 'string' ? a.export_id.trim() : '';
-                      if (!ex || exId) return null;
-                      return (
-                        <p className="text-sm text-amber-600 dark:text-amber-300" role="status">
-                          Audio file was not stored for playback: {ex}. Inline generation may still have succeeded; refresh
-                          after storage is available.
-                        </p>
-                      );
-                    })()}
-                    {item.connection_kind !== 'campaign_group' && (
-                      <button
-                        type="button"
-                        className="px-2 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev disabled:opacity-50"
-                        onClick={() => void saveArtifact(item)}
-                        disabled={busyByFeedId[item.feed_item_id]}
-                      >
-                        {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
-                      </button>
-                    )}
-                    {saveStatusByFeedId[item.feed_item_id] && (
-                      <p className="text-xs text-subtext">{saveStatusByFeedId[item.feed_item_id]}</p>
-                    )}
+                            </div>
+                          );
+                        })()}
+
+                        {item.connection_kind !== 'campaign_group' && (
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev disabled:opacity-50"
+                            onClick={() => void saveArtifact(item)}
+                            disabled={busyByFeedId[item.feed_item_id]}
+                          >
+                            {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
+                          </button>
+                        )}
+                        {saveStatusByFeedId[item.feed_item_id] ? (
+                          <p className="text-xs text-subtext">{saveStatusByFeedId[item.feed_item_id]}</p>
+                        ) : null}
+                      </>
+                    ) : null}
                   </div>
                 )}
               </li>
