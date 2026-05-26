@@ -18,6 +18,38 @@ import { taggedSectionBodyFromText } from '../tagged-text';
 import { buildPlacementKeys, type PlacementKey } from '../placement-keys';
 import { capToMaxSentences } from './claim-synthesize';
 
+function formatPlanetName(planet: string): string {
+  const p = String(planet || '').toLowerCase();
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
+function formatAspectName(aspect: string): string {
+  return String(aspect || '').toLowerCase();
+}
+
+function buildAspectHeader(bodyA: string, type: string, bodyB: string): string {
+  return `### ${formatPlanetName(bodyA)} ${formatAspectName(type)} ${formatPlanetName(bodyB)}`;
+}
+
+function assembleProfileIdentityAspectBlock(
+  aspect: Pick<SnapshotAspect, 'bodyA' | 'bodyB' | 'type'>,
+  insight: NonNullable<ReturnType<typeof getAspectInsight>>,
+): string | null {
+  const synastryCore = insight.core_synastry || insight.core || '';
+  const synastryBehavioral = insight.behavioral_synastry || insight.behavioral || '';
+  const coreText = capToMaxSentences(synastryCore, 2);
+  const behavioralText = capToMaxSentences(synastryBehavioral, 1);
+  const body = [coreText, behavioralText].filter(Boolean).join('\n\n');
+  if (!body) return null;
+
+  const header = buildAspectHeader(
+    String(aspect.bodyA),
+    String(aspect.type),
+    String(aspect.bodyB),
+  );
+  return `${header}\n\n${body}`;
+}
+
 const HOME_PERSONAL_LANGUAGE_RE =
   /\b(your|yours|you|yourself|this person|these two|connection|between these|core_transit|behavioral_transit)\b/i;
 const HOME_OWNED_CHART_LANGUAGE_RE = /\b(the person|the person's|their|they|them|his|her)\b/i;
@@ -198,9 +230,7 @@ export function assembleLibraryPlanetaryAspects(params: {
       }
 
       if (params.surface === 'profile') {
-        const coreText = capToMaxSentences(insight.core || '', 2);
-        const behavioralText = capToMaxSentences(insight.behavioral || '', 1);
-        return [coreText, behavioralText].filter(Boolean).join(' ');
+        return assembleProfileIdentityAspectBlock(aspect, insight);
       }
 
       return [insight.core, insight.behavioral].filter(Boolean).join(' ');

@@ -212,6 +212,19 @@ function testAspectSentenceCaps() {
   assert.ok(cappedLen < uncappedLen, 'library aspect prose shorter when capped');
 }
 
+function testPlanetaryRelationshipsAspectHeaders() {
+  const sections = profileSections('identity-aspects', snap(0));
+  const aspects = sections.find((s) => s.id === 'aspects');
+  assert.ok(aspects?.text, 'aspects section present');
+  const text = aspects.text!;
+  assert.ok(text.includes('### Sun square Mars'), 'per-aspect header from snapshot order');
+  assert.match(text, /### .+ (square|trine|sextile|opposition|conjunction) .+/g, 'multiple aspect headers');
+  assert.ok(/\byour\b/i.test(text), 'synastry voice uses second person');
+  assert.ok(!/\bthe person\b/i.test(text), 'no third-person natal framing in aspects section');
+  const headerCount = (text.match(/^### /gm) || []).length;
+  assert.ok(headerCount >= 1 && headerCount <= 5, `expected 1-5 aspect blocks, got ${headerCount}`);
+}
+
 function testCharacterCountRange() {
   const totals = [snap(0), snap(3), snap(7)].map((chart, i) =>
     sumSectionCharacters(profileSections(`identity-chars-${i}`, chart))
@@ -277,6 +290,7 @@ function main() {
   testMidheavenInDirectionFoundation();
   testIcInDirectionFoundation();
   testAspectSentenceCaps();
+  testPlanetaryRelationshipsAspectHeaders();
   testCharacterCountRange();
   testAudioStagingHiddenFromUi();
   testOverlayUnchanged();
