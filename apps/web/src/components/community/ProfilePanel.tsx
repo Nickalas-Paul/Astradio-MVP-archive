@@ -5,260 +5,44 @@ import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useProfile, useProfileChart, useCommunityInventory, type ProfileChartSection } from '../../core/social/hooks';
+import { useProfile, useProfileChart, useCommunityInventory } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { BirthChartSection } from '../profile/BirthChartSection';
+import { ProfileAuthPanel } from '../profile/ProfileAuthPanel';
+import { ExplainerSections } from '../profile/shared/ExplainerSections';
+import { blobUrlFromComposePayload } from '../profile/shared/profile-audio-utils';
+import {
+  explanationFromCompatibilityText,
+  librarySourceLabel,
+  parseSandboxState,
+} from '../profile/shared/profile-library-utils';
+import {
+  filterIdentityDisplaySections,
+  mapExplanationToSections,
+} from '../profile/shared/profile-reading-utils';
+import {
+  isValidTransitLocationSource,
+  normalizeLocalTime,
+  parseSnapshotFingerprint,
+  sandboxStateCompleteForTransit,
+  SAVE_DUP_PREFIX,
+  snapshotSafeForWheel,
+} from '../profile/shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
-import { stripReadingPresentationNoise } from '../../lib/reading-presentation-filter';
 import { IdentityMarkdown } from '../shared/IdentityMarkdown';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 
-const SAVE_DUP_PREFIX = 'profile_transit_save_dup_v1|';
-
-function normalizeLocalTime(t: string): string {
-  return t.length === 5 ? t : t.slice(0, 5);
-}
-
-function parseSandboxState(raw: unknown): Record<string, unknown> | null {
-  if (!raw) return null;
-  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw as Record<string, unknown>;
-  if (typeof raw === 'string') {
-    try {
-      const p = JSON.parse(raw);
-      return typeof p === 'object' && p !== null && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function parseSnapshotFingerprint(raw: unknown): Record<string, unknown> | null {
-  if (typeof raw !== 'string' || raw.trim().length === 0) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {
-  const exp = explanation as { sections?: Array<Record<string, unknown>> } | undefined;
-  return (exp?.sections || []).map((x) => ({
-    id: String(x.sectionId ?? x.id ?? 'signatures'),
-    title: String(x.title ?? ''),
-    text: String(x.text ?? ''),
-    bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
-  }));
-}
-
-function explanationFromCompatibilityText(raw: unknown): { sections: Array<Record<string, unknown>> } {
-  if (typeof raw === 'string') {
-    return {
-      sections: [{ sectionId: 'community', title: 'Community artifact', text: raw }],
-    };
-  }
-  if (raw && typeof raw === 'object') {
-    const obj = raw as { short?: unknown; long?: unknown; bullets?: unknown };
-    const short = typeof obj.short === 'string' ? obj.short : '';
-    const long = typeof obj.long === 'string' ? obj.long : '';
-    const bullets = Array.isArray(obj.bullets) ? obj.bullets.map((b) => String(b)) : [];
-    const text = [short, long].filter(Boolean).join('\n\n');
-    return {
-      sections: [{ sectionId: 'community', title: 'Community artifact', text, bullets }],
-    };
-  }
-  return {
-    sections: [{ sectionId: 'community', title: 'Community artifact', text: '' }],
-  };
-}
-
-function librarySourceLabel(source: unknown): string {
-  const s = String(source || '').trim();
-  if (s === 'community_relationship') return 'Relationship artifact';
-  if (s === 'community_group') return 'Group relationship artifact';
-  if (s === 'community_relational_weather') return 'Connection reading';
-  if (s === 'profile_active') return 'Current transit';
-  if (s === 'profile_identity') return 'Identity';
-  return s || '—';
-}
-
-function isValidTransitLocationSource(s: unknown): s is CanonicalLocation['source'] {
-  return s === 'browser_geo' || s === 'geofinder';
-}
-
-function sandboxStateCompleteForTransit(
-  s: Record<string, unknown>,
-): s is {
-  kind: string;
-  chartId: string;
-  calendarDate: string;
-  localTime: string;
-  location: CanonicalLocation;
-} {
-  if (s.kind !== 'profile_active' || typeof s.chartId !== 'string') return false;
-  if (typeof s.calendarDate !== 'string' || typeof s.localTime !== 'string') return false;
-  const loc = s.location;
-  if (!loc || typeof loc !== 'object') return false;
-  const L = loc as Record<string, unknown>;
-  return (
-    isValidTransitLocationSource(L.source) &&
-    typeof L.label === 'string' &&
-    typeof L.lat === 'number' &&
-    Number.isFinite(L.lat) &&
-    typeof L.lon === 'number' &&
-    Number.isFinite(L.lon) &&
-    typeof L.timezone === 'string' &&
-    L.timezone.length > 0 &&
-    typeof L.resolvedAt === 'string' &&
-    L.resolvedAt.length > 0
-  );
-}
+export { filterIdentityDisplaySections } from '../profile/shared/profile-reading-utils';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
-
-/** Matches server `filterAndOrderPhase3Sections` / compat surfaces; unknown ids sort after known. */
-const SECTION_ORDER: string[] = [
-  'connection_structure',
-  'ensemble_framing',
-  'relational_field',
-  'relational_weather_v1',
-  'core_identity',
-  'direction_foundation',
-  'personal_expression',
-  'growth_expansion',
-  'evolutionary_currents',
-  'aspects',
-  'signatures',
-  'significance',
-  'trait_bridge',
-  'interaction_map',
-  'field_distribution',
-  'synthesis_a',
-  'synthesis_b',
-  'musical',
-  'contradiction_map',
-  'todays_sound',
-  'audio_staging',
-  'audio_thread',
-];
-const SECTION_TITLES: Record<string, string> = {
-  core_identity: 'Core Identity Architecture',
-  direction_foundation: 'Direction and Foundation',
-  personal_expression: 'Personal Expression',
-  growth_expansion: 'Growth and Expansion',
-  evolutionary_currents: 'Evolutionary Currents',
-  aspects: 'Planetary Relationships',
-  signatures: 'Astrology',
-  significance: 'Personal Significance',
-  musical: 'Music Theory',
-  relational_weather_v1: 'Current Activation',
-  todays_sound: "Today's Sound",
-};
-
-function sectionSortKey(id: string): number {
-  const i = SECTION_ORDER.indexOf(id);
-  if (i >= 0) return i;
-  const m = /^depth_panel_(\d+)$/.exec(id);
-  if (m) return SECTION_ORDER.length + parseInt(m[1]!, 10);
-  return 200 + (id ? id.charCodeAt(0) : 0);
-}
-
-/** Identity tab: hide pipeline-only sections; raw data still used for audio generation. */
-export function filterIdentityDisplaySections<T extends { id: string }>(sections: readonly T[]): T[] {
-  return sections.filter((section) => section.id !== 'audio_staging');
-}
-
-function ExplainerSections({
-  sections,
-  hideSectionIds,
-}: {
-  sections: ProfileChartSection[];
-  hideSectionIds?: readonly string[];
-}) {
-  const hidden = hideSectionIds ? new Set(hideSectionIds) : null;
-  const visible = hidden ? sections.filter((s) => !hidden.has(s.id)) : sections;
-  const sorted = [...visible].sort((a, b) => {
-    const da = sectionSortKey(a.id);
-    const db = sectionSortKey(b.id);
-    if (da !== db) return da - db;
-    return a.id.localeCompare(b.id, 'en');
-  });
-  return (
-    <div className="space-y-6">
-      {sorted.map((sec) => (
-        <section key={sec.id} className="rounded-lg border border-border bg-bgElev p-4">
-          <h2 className="reading-section-header mb-3 first:mt-0">
-            {SECTION_TITLES[sec.id] ?? sec.title}
-          </h2>
-          <IdentityMarkdown content={sec.text} />
-          {sec.bullets && sec.bullets.length > 0 && (
-            <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
-              {sec.bullets.map((b, i) => (
-                <li key={i}>{stripReadingPresentationNoise(b)}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function snapshotSafeForWheel(snapshot: unknown): boolean {
-  if (!snapshot || typeof snapshot !== 'object') return false;
-  const o = snapshot as Record<string, unknown>;
-  const planets = o.planets ?? o.positions;
-  const houses = o.houses ?? o.cusps;
-  const hasPlanets = Array.isArray(planets) && planets.length > 0;
-  const hasHouses = Array.isArray(houses) && houses.length >= 12;
-  return hasPlanets || hasHouses;
-}
-
-async function blobUrlFromComposePayload(
-  base: string,
-  composePayload: Record<string, unknown>
-): Promise<string | null> {
-  const audio = composePayload?.audio as Record<string, unknown> | undefined;
-  const base64 = audio?.base64;
-  if (typeof base64 === 'string' && base64.length > 0) {
-    try {
-      const bin = atob(base64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'audio/wav' });
-      return URL.createObjectURL(blob);
-    } catch {
-      return null;
-    }
-  }
-  const exportId = (composePayload?.export_id ?? audio?.export_id) as string | undefined;
-  if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
-    try {
-      const exportRes = await fetch(`${base || ''}/api/exports/${exportId}`, { credentials: 'same-origin' });
-      if (exportRes.ok) {
-        const ab = await exportRes.arrayBuffer();
-        if (ab.byteLength > 0) {
-          const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
-          return URL.createObjectURL(blob);
-        }
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
 
 export interface ProfilePanelProps {
   onSwitchToConnections?: () => void;
@@ -290,24 +74,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const [libraryRows, setLibraryRows] = useState<Array<Record<string, unknown>>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
-  const [createName, setCreateName] = useState('');
-  const [createHandle, setCreateHandle] = useState('');
-  const [createChartLabel, setCreateChartLabel] = useState('');
-  const [createChartDate, setCreateChartDate] = useState('');
-  const [createChartTime, setCreateChartTime] = useState('12:00');
-  const [createChartLat, setCreateChartLat] = useState('');
-  const [createChartLon, setCreateChartLon] = useState('');
-  const [createChartTz, setCreateChartTz] = useState('');
-  const [createChartLocationLabel, setCreateChartLocationLabel] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [authTab, setAuthTab] = useState<'register' | 'login'>('register');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [libraryOpenId, setLibraryOpenId] = useState<string | null>(null);
   const [libraryDetailLoading, setLibraryDetailLoading] = useState(false);
@@ -875,251 +641,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
   // No session: register or log in (account creation is POST /api/auth/register only).
   if (user === null) {
-    const chartPayload = {
-      label: createChartLabel.trim() || 'My Natal',
-      date: createChartDate,
-      time: createChartTime,
-      lat: Number(createChartLat),
-      lon: Number(createChartLon),
-      timezone: createChartTz.trim(),
-    };
-    const chartReady =
-      createChartDate &&
-      createChartTime &&
-      createChartLat !== '' &&
-      createChartLon !== '' &&
-      isPersistableChartTimezone(createChartTz) &&
-      Number.isFinite(Number(createChartLat)) &&
-      Number.isFinite(Number(createChartLon));
-    const canRegister =
-      registerEmail.trim().includes('@') &&
-      registerPassword.length >= 8 &&
-      createName.trim() &&
-      chartReady;
-    const canLogin = loginEmail.trim().includes('@') && loginPassword.length >= 1;
-
-    return (
-      <div className="max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card space-y-6"
-        >
-          <h2 className="text-xl font-semibold text-text">Sign in to Astradio</h2>
-          <p className="text-sm text-subtext">
-            Register with email and password, or log in to continue. Your natal chart is saved with your account.
-          </p>
-          <div className="flex gap-2 border-b border-border pb-2">
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
-                authTab === 'register' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
-              }`}
-              onClick={() => {
-                setAuthTab('register');
-                setAuthError(null);
-              }}
-            >
-              Register
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
-                authTab === 'login' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
-              }`}
-              onClick={() => {
-                setAuthTab('login');
-                setAuthError(null);
-              }}
-            >
-              Log in
-            </button>
-          </div>
-
-          {authTab === 'login' ? (
-            <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4 max-w-md">
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="Email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="input w-full"
-              />
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="Password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="input w-full"
-              />
-              {authError && <p className="text-red-500 text-xs">{authError}</p>}
-              <button
-                type="button"
-                disabled={authBusy || !canLogin}
-                className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
-                onClick={async () => {
-                  setAuthBusy(true);
-                  setAuthError(null);
-                  try {
-                    const r = await fetch('/api/auth/login', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'same-origin',
-                      body: JSON.stringify({
-                        email: loginEmail.trim(),
-                        password: loginPassword,
-                      }),
-                    });
-                    const data = await r.json().catch(() => ({}));
-                    if (!r.ok) {
-                      setAuthError(typeof data.error === 'string' ? data.error : 'Login failed');
-                      return;
-                    }
-                    setLoginPassword('');
-                    await refresh();
-                  } finally {
-                    setAuthBusy(false);
-                  }
-                }}
-              >
-                {authBusy ? 'Signing in…' : 'Log in'}
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <input
-                  type="email"
-                  autoComplete="email"
-                  placeholder="Email"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  className="input w-full"
-                />
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Password (min 8 characters)"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  className="input w-full"
-                />
-              </div>
-              <input
-                placeholder="Display name"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                className="input w-full"
-              />
-              <input
-                placeholder="Handle (optional)"
-                value={createHandle}
-                onChange={(e) => setCreateHandle(e.target.value)}
-                className="input w-full"
-              />
-              <div className="space-y-3 border-t border-border pt-4">
-                <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
-                <input
-                  placeholder="Label (e.g. My Natal)"
-                  value={createChartLabel}
-                  onChange={(e) => setCreateChartLabel(e.target.value)}
-                  className="input w-full"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={createChartDate}
-                    onChange={(e) => setCreateChartDate(e.target.value)}
-                    className="input w-full"
-                    required
-                  />
-                  <input
-                    type="time"
-                    value={createChartTime}
-                    onChange={(e) => setCreateChartTime(e.target.value)}
-                    className="input w-full"
-                    required
-                  />
-                </div>
-                <LocationFinder
-                  value={createChartLocationLabel}
-                  onSelect={(r) => {
-                    setCreateChartLocationLabel(r.label);
-                    setCreateChartLat(String(r.lat));
-                    setCreateChartLon(String(r.lon));
-                    setCreateChartTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
-                  }}
-                  onClear={() => {
-                    setCreateChartLocationLabel('');
-                    setCreateChartLat('');
-                    setCreateChartLon('');
-                    setCreateChartTz('');
-                  }}
-                  placeholder="Birth place (city, region, or address)"
-                />
-              </div>
-              {(createError || authError) && (
-                <p className="text-red-500 text-xs">{authError || createError}</p>
-              )}
-              <button
-                type="button"
-                disabled={creating || authBusy || !canRegister}
-                className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
-                onClick={async () => {
-                  setCreating(true);
-                  setCreateError(null);
-                  setAuthError(null);
-                  try {
-                    const body = {
-                      email: registerEmail.trim(),
-                      password: registerPassword,
-                      displayName: createName.trim(),
-                      handle: createHandle.trim() || undefined,
-                      chart: chartPayload,
-                    };
-                    const r = await fetch('/api/auth/register', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'same-origin',
-                      body: JSON.stringify(body),
-                    });
-                    const data = await r.json().catch(() => ({}));
-                    if (!r.ok) {
-                      const msg =
-                        typeof data.error === 'string'
-                          ? data.error
-                          : typeof data.message === 'string'
-                            ? data.message
-                            : 'Registration failed';
-                      setAuthError(msg);
-                      return;
-                    }
-                    const newChartId = data?.primaryChart?.id ?? null;
-                    setRegisterPassword('');
-                    setCreateName('');
-                    setCreateHandle('');
-                    setCreateChartLabel('');
-                    setCreateChartDate('');
-                    setCreateChartTime('12:00');
-                    setCreateChartLat('');
-                    setCreateChartLon('');
-                    setCreateChartTz('');
-                    setCreateChartLocationLabel('');
-                    await refresh();
-                  } finally {
-                    setCreating(false);
-                  }
-                }}
-              >
-                {creating || authBusy ? 'Creating account…' : 'Create account'}
-              </button>
-            </div>
-          )}
-        </motion.div>
-      </div>
-    );
+    return <ProfileAuthPanel onAuthSuccess={refresh} />;
   }
 
   const loading = chartLoading;
