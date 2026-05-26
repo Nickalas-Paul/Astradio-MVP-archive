@@ -343,8 +343,6 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
             const descriptor = row?.activation_descriptor ?? 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));
             const surfacingLine = row?.surfacing_explanation ?? null;
-            const activityCount =
-              cd && typeof cd.activity_count === 'number' ? cd.activity_count : null;
 
             return (
               <li
@@ -358,9 +356,6 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                       <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
                         {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
                       </h4>
-                      {activityCount === 3 ? (
-                        <p className="text-xs text-subtext max-w-full">3 transits highlighted today</p>
-                      ) : null}
                       <ul className="list-none space-y-1.5 pl-0 max-w-full">
                         {betaLines.map((line, idx) => (
                           <li
