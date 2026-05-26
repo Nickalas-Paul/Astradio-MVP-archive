@@ -714,7 +714,11 @@ export interface RelationalCommunityFeedItem {
     /** Phase 6D Beta — pair-only; exactly three library activation lines. */
     enhanced_title?: string;
     activity_count?: 3;
-    activation_lines?: [{ text: string }, { text: string }, { text: string }];
+    activation_lines?: [
+      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
+      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
+      { text: string; role?: 'you_bring' | 'they_bring' | 'tests_both' },
+    ];
   };
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;

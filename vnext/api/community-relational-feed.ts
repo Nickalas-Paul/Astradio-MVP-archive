@@ -205,14 +205,16 @@ export function applyFeedCollapsedDisplayPass2(
 
     if (usePairBeta) {
       try {
+        const partnerChartId = row.chart_ids_ordered.find((id) => id !== viewerPc) ?? '';
         const cardHits = selectFeedAspectsForCard({
           hits: rawHits,
           feedItemId: row.feed_item_id,
           recentKeyWindow: recentWindow,
+          viewerChartId: viewerPc,
+          partnerChartId,
         });
         recentWindow = pushKeysToWindow(recentWindow, cardHits);
 
-        const partnerChartId = row.chart_ids_ordered.find((id) => id !== viewerPc) ?? '';
         const fallbackLab = connectionLabelFromIdentityLine(row.connection_identity_line);
         const partnerLabel =
           (partnerChartId && labelMap?.get(partnerChartId)?.trim()) || fallbackLab || 'Partner';
@@ -221,6 +223,8 @@ export function applyFeedCollapsedDisplayPass2(
           cardHits,
           partnerChartLabel: partnerLabel,
           connectionLabelFallback: fallbackLab,
+          viewerChartId: viewerPc,
+          partnerChartId,
         });
       } catch (e) {
         if (e instanceof FeedAspectCoverageInvariantError) {

@@ -9,6 +9,19 @@ import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/c
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 
+function getRoleLabel(role: string | undefined): string {
+  switch (role) {
+    case 'you_bring':
+      return "What you're bringing";
+    case 'they_bring':
+      return "What they're bringing";
+    case 'tests_both':
+      return "What's testing you both";
+    default:
+      return 'Active today';
+  }
+}
+
 interface RelationalCommunityFeedProps {
   userId: string | null;
   primaryChart: ProfilePrimaryChart | null;
@@ -353,19 +366,26 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                   <p className="text-sm font-medium text-text">{identity}</p>
                   {betaLines && cd?.enhanced_title ? (
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
-                        {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
-                      </h4>
-                      <ul className="list-none space-y-1.5 pl-0 max-w-full">
+                      <div className="space-y-0.5">
+                        <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
+                          {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
+                        </h4>
+                        <p className="text-xs text-subtext">Today&apos;s transits shaping your connection</p>
+                      </div>
+                      <ul className="list-none space-y-3 pl-0 max-w-full">
                         {betaLines.map((line, idx) => (
-                          <li
-                            key={`${item.feed_item_id}-ln-${idx}`}
-                            className="flex gap-2 text-sm text-text leading-relaxed"
-                          >
-                            <span className="mt-1.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden>
-                              ●
-                            </span>
-                            <span className="min-w-0 break-words whitespace-normal">{line.text}</span>
+                          <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
+                            <p className="text-xs font-medium text-subtext uppercase tracking-wide">
+                              {getRoleLabel(line.role)}
+                            </p>
+                            <div className="flex items-start gap-2 text-sm text-text leading-relaxed">
+                              <span className="text-subtext mt-0.5 shrink-0" aria-hidden>
+                                •
+                              </span>
+                              <div className="min-w-0 break-words whitespace-normal">
+                                <IdentityMarkdown content={line.text} />
+                              </div>
+                            </div>
                           </li>
                         ))}
                       </ul>
