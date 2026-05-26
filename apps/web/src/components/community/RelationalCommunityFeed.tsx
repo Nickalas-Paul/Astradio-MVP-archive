@@ -37,13 +37,6 @@ function activationLineExpandedBody(line: { text: string; expanded_text?: string
   return line.text;
 }
 
-function musicalParagraphFromArtifact(artifact: Record<string, unknown>): string {
-  const text = artifact.text;
-  if (!text || typeof text !== 'object' || Array.isArray(text)) return '';
-  const mp = (text as Record<string, unknown>).musicalParagraph;
-  return typeof mp === 'string' && mp.trim() ? mp.trim() : '';
-}
-
 function getRoleLabel(role: string | undefined): string {
   switch (role) {
     case 'you_bring':
@@ -593,7 +586,10 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
                           const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
                           const activationOnly = finalized.slots.activation?.trim() ?? '';
-                          const musicalParagraph = musicalParagraphFromArtifact(art);
+                          const sonicForecast =
+                            typeof cd?.sonic_forecast_text === 'string' && cd.sonic_forecast_text.trim()
+                              ? cd.sonic_forecast_text.trim()
+                              : '';
                           const audioUi = audioUiByFeedId[item.feed_item_id] ?? {
                             state: 'idle' as const,
                             exportId: null,
@@ -637,7 +633,11 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
                               <section className="border-t border-border pt-6 space-y-3">
                                 <h2 className="reading-section-header mb-3">Hear today&apos;s forecast</h2>
-                                {musicalParagraph ? <IdentityMarkdown content={musicalParagraph} /> : null}
+                                {sonicForecast ? (
+                                  <div className="mb-1">
+                                    <IdentityMarkdown content={sonicForecast} />
+                                  </div>
+                                ) : null}
                                 {audioUi.state === 'ready' && audioUi.exportId ? (
                                   <div className="space-y-3">
                                     <p className="text-sm text-subtext">Your audio forecast is ready.</p>

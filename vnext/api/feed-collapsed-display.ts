@@ -10,6 +10,7 @@ import {
   buildDirectionalPrefix,
   composeFeedActivationLine,
   composeFeedExpandedSynastryBody,
+  composeFeedSonicForecast,
   feedDisplayTextForHit,
 } from '../projection/insight/feed-aspect-insight-v1';
 import type { CrossAspectHitV1 } from '../relational/weather/types';
@@ -42,6 +43,7 @@ export type FeedCollapsedPairBetaV1 = {
   enhanced_title: string;
   activity_count: 3;
   activation_lines: [FeedActivationLineV1, FeedActivationLineV1, FeedActivationLineV1];
+  sonic_forecast_text: string;
 };
 
 export type FeedCollapsedDisplayPairBetaV1 = FeedCollapsedDisplayV1 & FeedCollapsedPairBetaV1;
@@ -116,6 +118,7 @@ export function buildFeedCollapsedDisplayPairBetaV1(input: {
       input.viewerChartId,
       input.partnerChartId
     ),
+    sonic_forecast_text: composeFeedSonicForecast(input.cardHits),
   };
 }
 

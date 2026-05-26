@@ -52,7 +52,10 @@ export function aspectDisplayName(type: CrossAspectHitV1['type']): string {
   return ASPECT_VERB[type] ?? 'aspects';
 }
 
-const EXPANDED_SYNASTRY_MAX_SENTENCES = 5;
+const EXPANDED_SYNASTRY_MAX_SENTENCES = 7;
+
+const FEED_SONIC_FALLBACK =
+  "Today's transits create a distinct sonic signature between these charts.";
 
 function isTechnicalSynastryLead(sentence: string): boolean {
   return (
@@ -99,6 +102,28 @@ export function composeFeedExpandedSynastryBody(
   let selected = slice.join('. ').trim();
   if (selected && !selected.endsWith('.')) selected += '.';
   return selected;
+}
+
+/**
+ * Aspect-specific sonic forecast from the three feed activation hits (not pair-level envelope copy).
+ */
+export function composeFeedSonicForecast(hits: readonly CategorizedFeedHit[]): string {
+  const sonicClips: string[] = [];
+
+  for (const hit of hits) {
+    const key = feedAspectLibraryKey(hit);
+    const insight = getAspectInsight(key);
+    const sonic = insight?.sonic?.trim();
+    if (!sonic) continue;
+    const clipped = capToMaxSentences(sonic, 2);
+    if (clipped) sonicClips.push(clipped);
+  }
+
+  const combined = sonicClips.join(' ').trim();
+  if (!combined || combined.length < 50) {
+    return FEED_SONIC_FALLBACK;
+  }
+  return combined;
 }
 
 export function buildDirectionalPrefix(hit: CategorizedFeedHit): string {

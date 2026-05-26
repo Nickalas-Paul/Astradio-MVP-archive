@@ -734,6 +734,8 @@ export interface RelationalCommunityFeedItem {
         expanded_text?: string;
       },
     ];
+    /** Pair-only — aspect-specific sonic copy from the three active transits. */
+    sonic_forecast_text?: string;
   };
   compatibility_field_hash: string;
   relational_weather_state_hash: string | null;

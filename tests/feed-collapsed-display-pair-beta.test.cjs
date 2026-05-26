@@ -68,6 +68,8 @@ test('buildFeedCollapsedDisplayPairBetaV1 shows three directional activation lin
     'lines use directional transit framing'
   );
   assert.ok(out.enhanced_title.includes('Mabel QA'));
+  assert.ok(typeof out.sonic_forecast_text === 'string' && out.sonic_forecast_text.length > 20);
+  assert.ok(!/two voices meet/i.test(out.sonic_forecast_text), 'sonic forecast must not use generic pair listen lead');
 });
 
 test('buildFeedActivationLinesFromHits rejects wrong count', { skip: !display }, () => {
