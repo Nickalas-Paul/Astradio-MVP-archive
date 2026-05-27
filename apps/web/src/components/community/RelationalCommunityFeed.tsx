@@ -177,7 +177,7 @@ export function RelationalCommunityFeed({
     });
     const feedId = item.feed_item_id;
     if (opts.openPanel) {
-      setOpenByFeedId((prev) => ({ ...prev, [feedId]: true }));
+      setOpenByFeedId({ [feedId]: true });
     }
     setBusyByFeedId((prev) => ({ ...prev, [feedId]: true }));
     if (!opts.generateAudio) {
@@ -322,11 +322,11 @@ export function RelationalCommunityFeed({
     if (item.connection_kind === 'campaign_group') return;
     const id = item.feed_item_id;
     if (openByFeedId[id]) {
-      setOpenByFeedId((prev) => ({ ...prev, [id]: false }));
+      setOpenByFeedId({});
       return;
     }
     if (artifactByFeedId[id]) {
-      setOpenByFeedId((prev) => ({ ...prev, [id]: true }));
+      setOpenByFeedId({ [id]: true });
       return;
     }
     void openAndRenderArtifact(item);
@@ -515,97 +515,13 @@ export function RelationalCommunityFeed({
             return (
               <li key={item.feed_item_id}>
                 <Card
+                  key={`${item.feed_item_id}-${isExpanded ? 'expanded' : 'collapsed'}`}
                   elevation={isExpanded ? 'raised' : 'resting'}
                   padding={isExpanded ? 'p-6' : 'p-5'}
                   className={`space-y-4 ${isExpanded ? 'border-l-2 border-l-accent' : ''}`}
+                  aria-expanded={isExpanded}
                 >
-                  {!isExpanded ? (
-                    <>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1 min-w-0 flex-1">
-                          {isGroup ? (
-                            <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
-                              Group
-                            </p>
-                          ) : null}
-                          <h3 className="text-h4 font-semibold text-text-primary leading-snug break-words">
-                            {partnerName}
-                          </h3>
-                          <p className="text-caption text-text-muted">
-                            Today&apos;s transits shaping your connection
-                          </p>
-                        </div>
-                      </div>
-
-                      {betaLines && betaLines.length === 3 ? (
-                        <ul className="list-none space-y-3 pl-0">
-                          {betaLines.map((line, idx) => (
-                            <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
-                              <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
-                                {getRoleLabel(line.role)}
-                              </p>
-                              <div className="text-body-sm text-text-primary leading-relaxed min-w-0 break-words">
-                                <IdentityMarkdown content={line.text} />
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-body-sm text-text-primary leading-relaxed max-w-full break-words">
-                            {primary}
-                          </p>
-                          {micro ? (
-                            <p className="text-caption font-medium text-text-muted tracking-wide">{micro}</p>
-                          ) : null}
-                          {!betaLines ? (
-                            <p className="text-caption text-text-muted">{descriptor}</p>
-                          ) : null}
-                        </div>
-                      )}
-
-                      {surfacingLine ? (
-                        <p className="text-caption text-text-secondary leading-snug max-w-xl">{surfacingLine}</p>
-                      ) : null}
-
-                      <div
-                        className="h-1 rounded-full bg-border overflow-hidden max-w-[200px]"
-                        aria-hidden="true"
-                      >
-                        <div
-                          className="h-full bg-accent/40 rounded-full transition-[width]"
-                          style={{ width: `${rankBar * 100}%` }}
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push('/community?tab=connections&signals=1')}
-                        >
-                          Signals
-                        </Button>
-                        {canExpand ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleExpandedFeed(item)}
-                            disabled={busyByFeedId[item.feed_item_id]}
-                            loading={
-                              busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
-                            }
-                          >
-                            {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
-                              ? 'Loading…'
-                              : "View today's transits"}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </>
-                  ) : (
+                  {isExpanded ? (
                     <>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
@@ -814,6 +730,92 @@ export function RelationalCommunityFeed({
                           ) : null}
                         </>
                       ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          {isGroup ? (
+                            <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
+                              Group
+                            </p>
+                          ) : null}
+                          <h3 className="text-h4 font-semibold text-text-primary leading-snug break-words">
+                            {partnerName}
+                          </h3>
+                          <p className="text-caption text-text-muted">
+                            Today&apos;s transits shaping your connection
+                          </p>
+                        </div>
+                      </div>
+
+                      {betaLines && betaLines.length === 3 ? (
+                        <ul className="list-none space-y-3 pl-0">
+                          {betaLines.map((line, idx) => (
+                            <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
+                              <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
+                                {getRoleLabel(line.role)}
+                              </p>
+                              <div className="text-body-sm text-text-primary leading-relaxed min-w-0 break-words">
+                                <IdentityMarkdown content={line.text} />
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-body-sm text-text-primary leading-relaxed max-w-full break-words">
+                            {primary}
+                          </p>
+                          {micro ? (
+                            <p className="text-caption font-medium text-text-muted tracking-wide">{micro}</p>
+                          ) : null}
+                          {!betaLines ? (
+                            <p className="text-caption text-text-muted">{descriptor}</p>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {surfacingLine ? (
+                        <p className="text-caption text-text-secondary leading-snug max-w-xl">{surfacingLine}</p>
+                      ) : null}
+
+                      <div
+                        className="h-1 rounded-full bg-border overflow-hidden max-w-[200px]"
+                        aria-hidden="true"
+                      >
+                        <div
+                          className="h-full bg-accent/40 rounded-full transition-[width]"
+                          style={{ width: `${rankBar * 100}%` }}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push('/community?tab=connections&signals=1')}
+                        >
+                          Signals
+                        </Button>
+                        {canExpand ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleExpandedFeed(item)}
+                            disabled={busyByFeedId[item.feed_item_id]}
+                            loading={
+                              busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                            }
+                          >
+                            {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                              ? 'Loading…'
+                              : "View today's transits"}
+                          </Button>
+                        ) : null}
+                      </div>
                     </>
                   )}
                 </Card>
