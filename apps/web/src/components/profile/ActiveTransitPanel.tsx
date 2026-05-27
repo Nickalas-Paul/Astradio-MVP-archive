@@ -287,12 +287,12 @@ export function ActiveTransitPanel({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {!chartId || noRealChart ? (
         <p className="text-sm text-amber-600">Add a birth chart (Identity or Settings) to use Current Transit.</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 max-w-md">
+          <div className="grid grid-cols-2 gap-4 max-w-md">
             <InputField
               type="date"
               value={activeDate}

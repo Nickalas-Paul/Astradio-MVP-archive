@@ -16,7 +16,7 @@ export function ProfilePanelFooter({ user, onPrivacyUpdate }: ProfilePanelFooter
   }
 
   return (
-    <div className="border-t border-border pt-4 space-y-3">
+    <div className="space-y-4">
       <h3 className="text-sm font-semibold text-text">Community visibility</h3>
       <p className="text-xs text-subtext">Control how others can find you. Off = hidden from search or feed.</p>
       <div className="flex flex-wrap gap-6">

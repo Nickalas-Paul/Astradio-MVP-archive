@@ -294,7 +294,7 @@ function CommunityClientInner() {
           )}
 
           {activeTab === 'connections' && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-6">
               <SignalsPanel currentUserId={user?.id ?? null} />
               <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
               <div>

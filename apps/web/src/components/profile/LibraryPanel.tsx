@@ -300,7 +300,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   }, [shouldLoad, refreshLibrary]);
 
   return (
-<div className="space-y-3">
+<div className="space-y-4">
             <p className="text-sm text-subtext">
               Saved profile and community artifacts (text first; audio when export is available). Older engine versions are shown as historical snapshots.
             </p>
@@ -308,9 +308,9 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
               <p className="text-sm text-subtext">Loading…</p>
             ) : (
               <>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {libraryRows.map((row) => (
-                    <li key={String(row.id)} className="rounded border border-border p-3 text-sm flex flex-wrap items-center gap-2 justify-between">
+                    <li key={String(row.id)} className="rounded-lg border border-border p-4 text-sm flex flex-wrap items-center gap-2 justify-between">
                       <span>
                         <span className="text-subtext">{String(row.created_at)}</span>
                         {' · '}

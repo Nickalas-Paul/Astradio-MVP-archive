@@ -5,15 +5,21 @@ type CardElevation = 'flat' | 'resting' | 'raised' | 'floating';
 export interface CardProps extends HTMLAttributes<HTMLElement> {
   elevation?: CardElevation;
   as?: 'div' | 'section' | 'article';
+  /** Overrides default padding for this elevation (replaces .card p-4 on resting). */
   padding?: string;
 }
 
-const elevationClasses: Record<CardElevation, string> = {
+const RESTING_BASE = 'rounded-xl border border-border bg-surface-1 shadow-md';
+
+const elevationClasses: Record<Exclude<CardElevation, 'resting'>, string> = {
   flat: 'rounded-lg border border-border bg-bg',
-  resting: 'card',
-  raised: 'rounded-lg border border-border bg-bgElev shadow-md',
-  floating: 'rounded-xl border border-border bg-bgElev shadow-lg',
+  raised: 'rounded-lg border border-border bg-bgElev shadow-md p-4',
+  floating: 'rounded-xl border border-border bg-bgElev shadow-lg p-4',
 };
+
+function restingClass(padding?: string): string {
+  return padding ? `${RESTING_BASE} ${padding}` : 'card';
+}
 
 export const Card = forwardRef<HTMLElement, CardProps>(
   (
@@ -28,12 +34,14 @@ export const Card = forwardRef<HTMLElement, CardProps>(
     ref
   ) => {
     const Component = Tag as ElementType;
-    const padClass = padding ?? (elevation === 'resting' ? 'p-4' : '');
+    const elevClass = elevation === 'resting' ? restingClass(padding) : elevationClasses[elevation];
+    const padClass =
+      elevation !== 'resting' ? (padding ?? '') : '';
 
     return (
       <Component
         ref={ref}
-        className={`${elevationClasses[elevation]} ${padClass} ${className}`.trim()}
+        className={`${elevClass} ${padClass} ${className}`.trim()}
         {...props}
       >
         {children}

@@ -37,7 +37,7 @@
 /* Reusable components */
 @layer components {
   .card {
-    @apply rounded-xl border border-border bg-surface-1 shadow-md;
+    @apply rounded-xl border border-border bg-surface-1 shadow-md p-4;
   }
 
   .btn-primary {

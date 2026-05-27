@@ -693,7 +693,7 @@ export default function HomePage() {
       {/* Sky report + wheel */}
       <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
         <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
-          <Card elevation="resting" className="p-6">
+          <Card elevation="resting" padding="p-6">
             <h2 className="reading-section-header mb-4">Right now in the sky</h2>
             <ExplanationPanel
               embedded

@@ -144,7 +144,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           />
         </div>
 
-        <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
+        <div className="border-t border-border pt-6 mt-6">
+          <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
+        </div>
       </motion.div>
     </div>
   );

@@ -58,8 +58,12 @@ function PairWeatherPreview({
   if (err) return <p className="text-xs text-amber-600 dark:text-amber-400">{err}</p>;
   if (!feedItem?.weather) return <p className="text-xs text-subtext">Loading weather…</p>;
   const w = feedItem.weather;
+  if (process.env.NODE_ENV !== 'development') {
+    if (!w.themes?.length) return null;
+    return <p className="text-xs text-subtext">{w.themes.slice(0, 3).join(', ')}</p>;
+  }
   return (
-    <p className="text-xs text-subtext">
+    <p className="text-xs text-subtext font-mono">
       Weather: {(w.stateHash || '').slice(0, 12)}…
       {w.themes && w.themes.length > 0 ? ` · ${w.themes.slice(0, 3).join(', ')}` : null}
     </p>
@@ -286,7 +290,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             ) : (
               <ul className="space-y-3">
                 {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => (
-                  <li key={String(p.id)} className="p-3 rounded-lg border border-border bg-bgElev space-y-1">
+                  <li key={String(p.id)} className="p-4 rounded-lg border border-border bg-bgElev space-y-2">
                     <div className="text-sm font-medium text-text">
                       {(p.peerDisplayName as string) || 'Connection'}{' '}
                       {(p.peerHandle as string) ? (
@@ -301,7 +305,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Link
                         href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
-                        className="inline-flex px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light border border-accent/40 text-xs font-medium hover:bg-accent/30"
+                        className="btn-outline text-xs px-3 py-1.5"
                       >
                         Open connection
                       </Link>
@@ -322,7 +326,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
                   const gSlug = (g.slug as string | undefined) || (g.id as string);
                   return (
-                    <li key={String(g.id)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2">
+                    <li key={String(g.id)} className="p-4 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2">
                       <div>
                         {String(g.name)}{' '}
                         <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
@@ -334,7 +338,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/community/group/${encodeURIComponent(gSlug)}`}
-                          className="inline-flex px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light border border-accent/40 text-xs font-medium hover:bg-accent/30"
+                          className="btn-outline text-xs px-3 py-1.5"
                         >
                           Open group
                         </Link>
@@ -363,14 +367,15 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             )}
           </section>
 
-          {(data as CommunityInventoryV1).feedSkeleton?.length > 0 && (
+          {process.env.NODE_ENV === 'development' &&
+            (data as CommunityInventoryV1).feedSkeleton?.length > 0 && (
             <section className="rounded-lg border border-dashed border-border p-3 space-y-1">
               <h4 className="text-xs font-semibold text-subtext uppercase tracking-wide">Feed skeleton (no ranking)</h4>
               <p className="text-xs text-subtext">
                 {(data as CommunityInventoryV1).feedSkeleton.length} item(s) — deterministic sort keys for future FYP.
               </p>
             </section>
-          )}
+            )}
         </>
       )}
     </div>
