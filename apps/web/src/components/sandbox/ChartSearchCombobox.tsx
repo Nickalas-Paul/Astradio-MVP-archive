@@ -204,7 +204,7 @@ export function ChartSearchCombobox({
         className="w-full px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text font-mono"
       />
       {loading ? (
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-subtext">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-subtext">
           …
         </span>
       ) : null}
@@ -232,11 +232,11 @@ export function ChartSearchCombobox({
             >
               <span className="min-w-0 truncate">{result.label}</span>
               {result.source === 'own' ? (
-                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-[10px] text-subtext">
+                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-subtext">
                   Your chart
                 </span>
               ) : (
-                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-[10px] text-subtext">
+                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-subtext">
                   Connection
                 </span>
               )}

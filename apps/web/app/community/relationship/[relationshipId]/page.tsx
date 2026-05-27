@@ -220,7 +220,7 @@ export default function CommunityRelationshipArtifactPage() {
           <div>
             <p className="text-red-500">{loadError}</p>
             {loadError.includes('Sign in') ? null : (
-              <Link href="/community" className="text-emerald-500 hover:underline text-sm">
+              <Link href="/community" className="text-accent hover:underline text-sm">
                 Return to Community
               </Link>
             )}
@@ -230,7 +230,7 @@ export default function CommunityRelationshipArtifactPage() {
         {phase === 'ready' && relationship && (
           <>
             <header className="space-y-1">
-              <h1 className="text-2xl font-bold text-text">
+              <h1 className="text-h2 font-bold text-text">
                 {peer?.displayName || 'Connection'}
                 {peer?.handle ? <span className="text-subtext font-normal text-lg"> @{peer.handle}</span> : null}
               </h1>
