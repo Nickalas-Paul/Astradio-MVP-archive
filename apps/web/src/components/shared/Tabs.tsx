@@ -23,11 +23,11 @@ export interface TabsProps {
 function pillTabClass(active: boolean, compact: boolean): string {
   if (compact) {
     return active
-      ? 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors bg-emerald text-bg'
+      ? 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors bg-accent text-white'
       : 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors text-subtext hover:text-text';
   }
   return active
-    ? 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap bg-emerald text-bg shadow-md'
+    ? 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap bg-accent text-white shadow-md'
     : 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap text-subtext hover:text-text hover:bg-bgElev';
 }
 
@@ -108,7 +108,7 @@ export function Tabs({
             onClick={() => onTabChange(tab.id)}
             className={
               active
-                ? 'flex-1 rounded-md px-3 py-2 text-left transition-colors bg-bg border border-border text-emerald'
+                ? 'flex-1 rounded-md px-3 py-2 text-left transition-colors bg-bg border border-border text-accent-light'
                 : 'flex-1 rounded-md px-3 py-2 text-left transition-colors text-subtext hover:bg-bg'
             }
           >

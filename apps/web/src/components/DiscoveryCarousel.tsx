@@ -130,7 +130,7 @@ function CarouselFooter({
             role="tab"
             aria-selected={i === currentIndex}
             className={`h-2 w-2 rounded-full transition-all ${
-              i === currentIndex ? 'bg-emerald scale-125' : 'bg-border'
+              i === currentIndex ? 'bg-accent scale-125' : 'bg-border'
             }`}
           />
         ))}
@@ -195,7 +195,7 @@ function MatchCard({
         <ul className="space-y-3">
           {[forThemLine, forYouLine, togetherLine].map((line, idx) => (
             <li key={idx} className="flex items-start gap-2">
-              <span className="text-emerald text-xs mt-1 shrink-0" aria-hidden>
+              <span className="text-accent-light text-xs mt-1 shrink-0" aria-hidden>
                 ●
               </span>
               <SynastryBulletBlock line={line} />
@@ -205,7 +205,7 @@ function MatchCard({
       </div>
 
       {match.lookingFor ? (
-        <p className="text-xs text-subtext italic border-l-2 border-emerald/30 pl-2 mb-6">
+        <p className="text-xs text-subtext italic border-l-2 border-accent/30 pl-2 mb-6">
           &ldquo;{match.lookingFor}&rdquo;
         </p>
       ) : null}

@@ -322,7 +322,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-emerald px-3 py-1"
+                        className="text-xs text-accent-light px-3 py-1"
                         onClick={() => void openLibraryRow(String(row.id))}
                       >
                         View

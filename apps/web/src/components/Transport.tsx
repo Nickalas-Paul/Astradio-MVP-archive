@@ -73,7 +73,7 @@ export function Transport({
       {/* Play/Pause Button */}
       <button
         onClick={isPlaying ? onPause : onPlay}
-        className="w-10 h-10 bg-emerald hover:bg-emeraldMuted rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald focus:ring-offset-2 focus:ring-offset-bg"
+        className="w-10 h-10 bg-accent hover:bg-accent-hover rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? (
@@ -90,7 +90,7 @@ export function Transport({
       {/* Stop Button */}
       <button
         onClick={onStop}
-        className="w-8 h-8 text-subtext hover:text-text rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald focus:ring-offset-2 focus:ring-offset-bg"
+        className="w-8 h-8 text-subtext hover:text-text rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
         aria-label="Stop"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -113,14 +113,14 @@ export function Transport({
           className="w-full h-2 bg-border rounded-full cursor-pointer hover:h-3 transition-all duration-200"
         >
           <div
-            className="h-full bg-gradient-to-r from-emerald to-emeraldMuted rounded-full transition-all duration-200"
+            className="h-full bg-gradient-to-r from-accent to-accent-light rounded-full transition-all duration-200"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
         
         {/* Progress Handle */}
         <div
-          className="absolute top-1/2 w-4 h-4 bg-emerald rounded-full transform -translate-y-1/2 transition-all duration-200 hover:scale-110"
+          className="absolute top-1/2 w-4 h-4 bg-accent rounded-full transform -translate-y-1/2 transition-all duration-200 hover:scale-110"
           style={{ left: `calc(${progressPercentage}% - 8px)` }}
         />
       </div>

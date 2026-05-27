@@ -13,7 +13,7 @@ export default function AboutPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-6"
         >
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-text via-emerald to-violet bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-text via-accent-light to-violet bg-clip-text text-transparent">
             About Astradio
           </h1>
           <p className="text-xl text-subtext max-w-3xl mx-auto">
@@ -58,7 +58,7 @@ export default function AboutPage() {
           
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center space-y-4">
-              <div className="w-20 h-20 bg-emerald/20 border border-emerald rounded-full flex items-center justify-center mx-auto">
+              <div className="w-20 h-20 bg-accent-muted border border-accent rounded-full flex items-center justify-center mx-auto">
                 <span className="text-3xl">🌟</span>
               </div>
               <h3 className="text-xl font-semibold text-text">Astrological Analysis</h3>
@@ -105,7 +105,7 @@ export default function AboutPage() {
           
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-emerald">Backend</h3>
+              <h3 className="text-xl font-semibold text-accent-light">Backend</h3>
               <ul className="space-y-2 text-subtext">
                 <li>• <strong>Swiss Ephemeris:</strong> Precise astronomical calculations</li>
                 <li>• <strong>TensorFlow.js:</strong> Machine learning model inference</li>
@@ -141,7 +141,7 @@ export default function AboutPage() {
           
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald to-violet rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center">
                 <span className="text-bg font-bold text-xl">A</span>
               </div>
               <h3 className="text-xl font-semibold text-text">Astradio Team</h3>

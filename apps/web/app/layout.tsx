@@ -1,9 +1,19 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Lora } from 'next/font/google';
+import { Cormorant, Manrope } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora' });
+const manrope = Manrope({
+  subsets: ['latin'],
+  variable: '--font-manrope',
+  display: 'swap',
+});
+
+const cormorant = Cormorant({
+  subsets: ['latin'],
+  variable: '--font-cormorant',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -24,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="aurora" className={`${inter.variable} ${lora.variable} starfield`}>
+    <html lang="en" data-theme="aurora" className={`${manrope.variable} ${cormorant.variable} starfield`}>
       <head>
         {/* tfjs/wheel: use npm imports in page as needed. No legacy script tags. Lyria-only audio. */}
       </head>

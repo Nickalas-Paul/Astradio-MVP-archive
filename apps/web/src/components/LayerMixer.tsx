@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import type { LayerMixerProps, LayerMeta } from '../types';
 
 const layerConfig = {
-  melody: { label: 'Melody', icon: '🎵', color: 'emerald' },
+  melody: { label: 'Melody', icon: '🎵', color: 'accent' },
   harmony: { label: 'Harmony', icon: '🎼', color: 'violet' },
   rhythm: { label: 'Rhythm', icon: '🥁', color: 'warning' },
   texture: { label: 'Texture', icon: '🌊', color: 'success' },
@@ -177,7 +177,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: theme('colors.emerald');
+          background: theme('colors.accent.DEFAULT');
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
@@ -186,7 +186,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: theme('colors.emerald');
+          background: theme('colors.accent.DEFAULT');
           cursor: pointer;
           border: none;
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);

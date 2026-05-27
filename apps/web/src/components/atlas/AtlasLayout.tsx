@@ -60,7 +60,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     pathname === item.href
-                      ? 'bg-emerald/20 text-emerald'
+                      ? 'bg-accent-muted text-accent-light'
                       : 'text-subtext hover:text-text hover:bg-bgElev'
                   }`}
                 >

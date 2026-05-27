@@ -17,7 +17,7 @@ export function DateInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:border-emerald-400/60"
+        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-accent/60"
       />
     </label>
   );
@@ -36,7 +36,7 @@ export function TimeInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:border-emerald-400/60"
+        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-accent/60"
       />
     </label>
   );
@@ -56,7 +56,7 @@ export function LocationInput({
         placeholder="Current Location"
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:border-emerald-400/60"
+        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-accent/60"
       />
     </label>
   );

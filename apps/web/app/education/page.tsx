@@ -9,7 +9,7 @@ export default function EducationPage() {
     <div className="min-h-screen bg-[#0C1320] text-zinc-100">
       <header className="w-full border-b border-white/5 sticky top-0 z-40 bg-[#0C1320]/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-emerald-400 font-semibold tracking-wide">
+          <Link href="/" className="text-accent-light font-semibold tracking-wide">
             Astradio
           </Link>
           <nav className="text-sm">

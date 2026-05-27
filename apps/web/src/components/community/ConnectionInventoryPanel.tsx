@@ -301,7 +301,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Link
                         href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
-                        className="inline-flex px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30"
+                        className="inline-flex px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light border border-accent/40 text-xs font-medium hover:bg-accent/30"
                       >
                         Open connection
                       </Link>
@@ -334,7 +334,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/community/group/${encodeURIComponent(gSlug)}`}
-                          className="inline-flex px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald border border-emerald/40 text-xs font-medium hover:bg-emerald/30"
+                          className="inline-flex px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light border border-accent/40 text-xs font-medium hover:bg-accent/30"
                         >
                           Open group
                         </Link>

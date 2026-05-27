@@ -133,7 +133,7 @@ export function CampaignEntryClient() {
           <p className="text-sm text-subtext">Sign in to start or resume a campaign.</p>
           <Link
             href="/login"
-            className="inline-block rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald hover:bg-emerald-500/20"
+            className="inline-block rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent-light hover:bg-accent/20"
           >
             Go to sign in
           </Link>
@@ -163,7 +163,7 @@ export function CampaignEntryClient() {
               type="button"
               disabled={disableActions}
               onClick={onResume}
-              className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-left text-sm font-medium text-text hover:bg-emerald-500/25 disabled:opacity-50"
+              className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-3 text-left text-sm font-medium text-text hover:bg-accent/25 disabled:opacity-50"
             >
               {busy === 'resume' ? 'Opening…' : 'Resume campaign'}
               <span className="mt-1 block text-xs font-normal text-subtext">Opens your most recently updated campaign.</span>
@@ -204,7 +204,7 @@ export function CampaignEntryClient() {
         </div>
 
         <p className="text-xs text-subtext">
-          Group picker (choose a specific <code className="text-[11px]">groupId</code>) can replace the auto-only path later without changing access rules.
+          Group picker (choose a specific <code className="text-caption">groupId</code>) can replace the auto-only path later without changing access rules.
         </p>
       </div>
     </main>

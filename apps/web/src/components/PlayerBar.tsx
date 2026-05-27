@@ -17,7 +17,7 @@ export function PlayerBar() {
         <div className="flex items-center justify-between">
           {/* Track Info */}
           <div className="flex items-center space-x-4 min-w-0 flex-1">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald to-violet rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className="w-12 h-12 bg-gradient-to-br from-accent-light to-violet rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
               <span className="text-bg font-bold">♪</span>
             </div>
             <div className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ export function PlayerBar() {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: theme('colors.emerald');
+          background: theme('colors.accent.DEFAULT');
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
@@ -79,7 +79,7 @@ export function PlayerBar() {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: theme('colors.emerald');
+          background: theme('colors.accent.DEFAULT');
           cursor: pointer;
           border: none;
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);

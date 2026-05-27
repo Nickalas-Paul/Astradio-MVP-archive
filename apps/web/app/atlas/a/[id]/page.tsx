@@ -82,7 +82,7 @@ export default function AtlasArticlePage() {
             </p>
             <Link
               href="/atlas"
-              className="px-6 py-3 rounded-xl bg-emerald text-bg font-medium hover:bg-emeraldMuted transition-colors"
+              className="px-6 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
             >
               Back to Atlas
             </Link>
@@ -107,7 +107,7 @@ export default function AtlasArticlePage() {
 
   const getKindColor = (kind: string) => {
     switch (kind) {
-      case 'planet': return 'text-emerald';
+      case 'planet': return 'text-accent-light';
       case 'sign': return 'text-violet';
       case 'house': return 'text-warning';
       case 'aspect': return 'text-danger';
@@ -149,7 +149,7 @@ export default function AtlasArticlePage() {
               </p>
               <div className="flex items-center gap-4 text-sm text-subtext">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald rounded-full"></div>
+                  <div className="w-2 h-2 bg-accent rounded-full"></div>
                   <span>Read progress: {pct}%</span>
                 </div>
                 <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
@@ -163,7 +163,7 @@ export default function AtlasArticlePage() {
               }}
               className={`px-4 py-2 rounded-xl border transition-colors ${
                 has(article.id)
-                  ? 'bg-emerald border-emerald text-bg'
+                  ? 'bg-accent border-accent text-white'
                   : 'bg-bgElev border-border text-text hover:bg-border'
               }`}
             >
@@ -179,7 +179,7 @@ export default function AtlasArticlePage() {
             className="w-full bg-bgElev rounded-full h-2"
           >
             <div
-              className="bg-emerald h-2 rounded-full transition-all duration-300"
+              className="bg-accent h-2 rounded-full transition-all duration-300"
               style={{ width: `${pct}%` }}
             />
           </motion.div>
@@ -247,7 +247,7 @@ export default function AtlasArticlePage() {
                         <Link
                           key={linkId}
                           href={`/atlas/a/${linkId}`}
-                          className="text-sm underline hover:text-emerald transition-colors"
+                          className="text-sm underline hover:text-accent-light transition-colors"
                         >
                           {relatedArticle.title}
                         </Link>

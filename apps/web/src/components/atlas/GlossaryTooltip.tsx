@@ -68,7 +68,7 @@ export default function GlossaryTooltip({ term, children, className = '' }: Glos
     <span className="relative inline-block">
       <button
         ref={buttonRef}
-        className={`underline decoration-dotted decoration-emerald/50 hover:decoration-emerald transition-colors ${className}`}
+        className={`underline decoration-dotted decoration-accent-light/50 hover:decoration-accent-light transition-colors ${className}`}
         onClick={() => {
           setOpen(!open);
           if (!open) {
@@ -118,7 +118,7 @@ export default function GlossaryTooltip({ term, children, className = '' }: Glos
               <div className="pt-2 border-t border-border">
                 <a
                   href={`/atlas/a/${article.id}`}
-                  className="text-xs text-emerald hover:text-emeraldMuted transition-colors"
+                  className="text-xs text-accent-light hover:text-accent-light transition-colors"
                   onClick={() => setOpen(false)}
                 >
                   Read full article →

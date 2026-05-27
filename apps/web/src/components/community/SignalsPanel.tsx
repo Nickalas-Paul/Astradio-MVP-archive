@@ -85,7 +85,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           <h3 className="text-lg font-semibold text-text">Signals</h3>
           <p className="text-xs text-subtext">
             Purpose-driven prompts and acknowledgments. No DMs.{' '}
-            <Link href="/community?tab=feed" className="text-emerald hover:underline">
+            <Link href="/community?tab=feed" className="text-accent-light hover:underline">
               Feed
             </Link>{' '}
             links here when a response is needed.
@@ -121,7 +121,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
                 type="button"
                 disabled={busy === s.id}
                 onClick={() => react(s.id)}
-                className="px-3 py-1.5 rounded-lg bg-emerald/20 text-emerald text-sm border border-emerald/40 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light text-sm border border-accent/40 disabled:opacity-50"
               >
                 {busy === s.id ? '…' : 'Acknowledge'}
               </button>

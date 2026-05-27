@@ -31,7 +31,7 @@ export default function QuizWidget() {
           </p>
           <button
             onClick={startQuiz}
-            className="px-6 py-3 rounded-xl bg-emerald text-bg font-medium hover:bg-emeraldMuted transition-colors"
+            className="px-6 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
           >
             Start Quiz
           </button>
@@ -52,7 +52,7 @@ export default function QuizWidget() {
             {score >= 4 ? '🎉' : score >= 3 ? '👍' : '📚'}
           </div>
           <h3 className="text-lg font-semibold text-text">Quiz Complete!</h3>
-          <div className="text-2xl font-bold text-emerald">
+          <div className="text-2xl font-bold text-accent-light">
             {score}/5
           </div>
           <p className="text-sm text-subtext">
@@ -72,7 +72,7 @@ export default function QuizWidget() {
             </button>
             <button
               onClick={startQuiz}
-              className="px-4 py-2 rounded-lg bg-emerald text-bg hover:bg-emeraldMuted transition-colors"
+              className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
             >
               New Quiz
             </button>
@@ -100,7 +100,7 @@ export default function QuizWidget() {
       {/* Progress Bar */}
       <div className="w-full bg-bgElev rounded-full h-2">
         <div 
-          className="bg-emerald h-2 rounded-full transition-all duration-300"
+          className="bg-accent h-2 rounded-full transition-all duration-300"
           style={{ width: `${((currentIndex + 1) / 5) * 100}%` }}
         />
       </div>
@@ -186,7 +186,7 @@ export default function QuizWidget() {
           >
             <button
               onClick={nextQuestion}
-              className="w-full px-4 py-3 rounded-xl bg-emerald text-bg font-medium hover:bg-emeraldMuted transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
             >
               {currentIndex < 4 ? 'Next Question' : 'Finish Quiz'}
             </button>

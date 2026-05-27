@@ -63,7 +63,7 @@ export default function AtlasPage() {
             transition={{ duration: 0.3 }}
             className="text-center space-y-4"
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald to-violet leading-tight">
+            <h1 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent-light to-violet leading-tight">
               Astro Atlas
             </h1>
             <p className="text-lg text-subtext max-w-2xl mx-auto">
@@ -88,7 +88,7 @@ export default function AtlasPage() {
               />
               {loading && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="w-5 h-5 border-2 border-emerald border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
@@ -136,7 +136,7 @@ export default function AtlasPage() {
                     >
                       <Link
                         href={`/atlas/a/${article.id}`}
-                        className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-emerald/50 transition-colors group"
+                        className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-accent/50 transition-colors group"
                       >
                         <div className="flex items-start gap-3">
                           <div className="text-2xl flex-shrink-0">
@@ -150,7 +150,7 @@ export default function AtlasPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium text-text group-hover:text-emerald transition-colors">
+                              <h3 className="font-medium text-text group-hover:text-accent-light transition-colors">
                                 {article.title}
                               </h3>
                               <span className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-subtext">
@@ -200,14 +200,14 @@ export default function AtlasPage() {
                       {article && (
                         <Link
                           href={`/atlas/a/${article.id}`}
-                          className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-emerald/50 transition-colors group"
+                          className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-accent/50 transition-colors group"
                         >
                           <div className="text-2xl mb-2">
                             {article.kind === 'planet' && '🪐'}
                             {article.kind === 'aspect' && '⚡'}
                             {article.kind === 'house' && '🏠'}
                           </div>
-                          <h3 className="font-medium text-text group-hover:text-emerald transition-colors mb-1">
+                          <h3 className="font-medium text-text group-hover:text-accent-light transition-colors mb-1">
                             {article.title}
                           </h3>
                           <p className="text-sm text-subtext">
@@ -238,10 +238,10 @@ export default function AtlasPage() {
                       <div className="space-y-2">
                         <div className="font-medium">Begin your astrological journey</div>
                         <ul className="text-sm space-y-1">
-                          <li>• <Link href="/atlas/k/planet" className="underline hover:text-emerald">Planets</Link> carry motives and voices</li>
-                          <li>• <Link href="/atlas/k/sign" className="underline hover:text-emerald">Signs</Link> color expression</li>
-                          <li>• <Link href="/atlas/k/house" className="underline hover:text-emerald">Houses</Link> show life arenas</li>
-                          <li>• <Link href="/atlas/k/aspect" className="underline hover:text-emerald">Aspects</Link> connect the story</li>
+                          <li>• <Link href="/atlas/k/planet" className="underline hover:text-accent-light">Planets</Link> carry motives and voices</li>
+                          <li>• <Link href="/atlas/k/sign" className="underline hover:text-accent-light">Signs</Link> color expression</li>
+                          <li>• <Link href="/atlas/k/house" className="underline hover:text-accent-light">Houses</Link> show life arenas</li>
+                          <li>• <Link href="/atlas/k/aspect" className="underline hover:text-accent-light">Aspects</Link> connect the story</li>
                         </ul>
                       </div>
                     </Callout>

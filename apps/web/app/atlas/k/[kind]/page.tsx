@@ -126,7 +126,7 @@ export default function AtlasKindPage() {
                   >
                     <Link
                       href={`/atlas/a/${article.id}`}
-                      className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-emerald/50 transition-colors group h-full"
+                      className="block p-4 rounded-2xl border border-border bg-bgElev hover:border-accent/50 transition-colors group h-full"
                     >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">
@@ -147,7 +147,7 @@ export default function AtlasKindPage() {
                         </div>
 
                         <div>
-                          <h3 className="font-medium text-text group-hover:text-emerald transition-colors mb-1">
+                          <h3 className="font-medium text-text group-hover:text-accent-light transition-colors mb-1">
                             {article.title}
                           </h3>
                           {article.subtitle && (
@@ -200,12 +200,12 @@ export default function AtlasKindPage() {
                   <Link
                     key={otherKind}
                     href={`/atlas/k/${otherKind}`}
-                    className="p-3 rounded-xl border border-border bg-bgElev hover:border-emerald/50 transition-colors text-center group"
+                    className="p-3 rounded-xl border border-border bg-bgElev hover:border-accent/50 transition-colors text-center group"
                   >
                     <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">
                       {getKindIcon(otherKind)}
                     </div>
-                    <div className="text-sm font-medium text-text group-hover:text-emerald transition-colors capitalize">
+                    <div className="text-sm font-medium text-text group-hover:text-accent-light transition-colors capitalize">
                       {otherKind}
                     </div>
                   </Link>

@@ -11,7 +11,7 @@ interface CalloutProps {
 export default function Callout({ tone = 'info', children, className = '' }: CalloutProps) {
   const toneStyles = {
     info: 'border-violet bg-violet/10 text-violet',
-    tip: 'border-emerald bg-emerald/10 text-emerald',
+    tip: 'border-accent bg-accent/10 text-accent-light',
     warn: 'border-warning bg-warning/10 text-warning',
     success: 'border-success bg-success/10 text-success'
   };

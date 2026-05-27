@@ -41,7 +41,7 @@ export function ProfileHeader({ user, isOwnProfile, onEditProfile }: ProfileHead
           <button
             type="button"
             onClick={onEditProfile}
-            className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-text hover:border-emerald/50 transition-colors"
+            className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-text hover:border-accent/50 transition-colors"
           >
             Edit profile
           </button>

@@ -169,7 +169,7 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
         {variant === 'profile_onboarding' ? 'Save birth chart' : 'Save updated birth chart'}
       </Button>
       {variant === 'profile_onboarding' && (
-        <Link href="/sandbox" className="block text-sm text-emerald hover:underline">
+        <Link href="/sandbox" className="block text-sm text-accent-light hover:underline">
           Open Sandbox
         </Link>
       )}
