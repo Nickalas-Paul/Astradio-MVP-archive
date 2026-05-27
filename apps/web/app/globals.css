@@ -23,6 +23,7 @@
 *:focus-visible {
   outline: 2px solid #0e9696;
   outline-offset: 2px;
+  transition: outline-offset 120ms ease;
 }
 
 /* === Reduced Motion Support === */
@@ -38,6 +39,15 @@
 @layer components {
   .card {
     @apply rounded-xl border border-border bg-surface-1 shadow-md p-4;
+  }
+
+  .card-interactive {
+    @apply transition-all duration-base ease-aurora;
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   }
 
   .btn-primary {
@@ -72,7 +82,7 @@
   }
 
   .btn-ghost {
-    @apply inline-flex items-center gap-2 rounded-lg px-4 py-2
+    @apply inline-flex items-center justify-center text-center gap-2 rounded-lg px-4 py-2
            text-text-primary font-medium bg-transparent
            hover:bg-bgElev
            active:bg-surface-2
@@ -91,11 +101,31 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-audio:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-ghost:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .btn-outline:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
   .input {
     @apply w-full rounded-md bg-surface-0 border border-border
            px-3 py-2 text-text-primary placeholder:text-text-muted
            focus:outline-none focus:ring-2 focus:ring-accent/60
-           transition duration-fast ease-aurora;
+           transition-all duration-fast ease-aurora;
   }
 
   .reading-section-header {
@@ -116,4 +146,19 @@
 /* === Loading States === */
 .loading-spinner {
   @apply inline-block w-5 h-5 border-2 border-gray-300 border-t-accent rounded-full animate-spin;
+}
+
+@layer utilities {
+  @keyframes fade-in {
+    from {
+      opacity: 0.7;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 200ms ease-out both;
+  }
 }

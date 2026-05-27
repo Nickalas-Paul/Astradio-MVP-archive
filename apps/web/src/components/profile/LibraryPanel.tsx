@@ -310,7 +310,10 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
               <>
                 <ul className="space-y-3">
                   {libraryRows.map((row) => (
-                    <li key={String(row.id)} className="rounded-lg border border-border p-4 text-sm flex flex-wrap items-center gap-2 justify-between">
+                    <li
+                      key={String(row.id)}
+                      className="card-interactive rounded-lg border border-border p-4 text-sm flex flex-wrap items-center gap-2 justify-between"
+                    >
                       <span>
                         <span className="text-subtext">{String(row.created_at)}</span>
                         {' · '}

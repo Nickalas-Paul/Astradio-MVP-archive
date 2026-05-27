@@ -20,15 +20,18 @@ export interface TabsProps {
   className?: string;
 }
 
+const tabTransitionFast = 'transition-all duration-fast ease-aurora';
+const tabTransitionBase = 'transition-all duration-base ease-aurora';
+
 function pillTabClass(active: boolean, compact: boolean): string {
   if (compact) {
     return active
-      ? 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors bg-accent text-white'
-      : 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors text-text-secondary hover:text-text-primary';
+      ? `px-3 py-1.5 rounded-full text-sm font-medium ${tabTransitionBase} bg-accent text-white`
+      : `px-3 py-1.5 rounded-full text-sm font-medium ${tabTransitionBase} text-text-secondary hover:text-text-primary`;
   }
   return active
-    ? 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap bg-accent text-white shadow-md'
-    : 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap text-text-secondary hover:text-text-primary hover:bg-bgElev';
+    ? `px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} bg-accent text-white shadow-md`
+    : `px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} text-text-secondary hover:text-text-primary hover:bg-bgElev`;
 }
 
 function pillContainerClass(pillTrack: TabsProps['pillTrack']): string {
@@ -68,8 +71,8 @@ export function Tabs({
               onClick={() => onTabChange(tab.id)}
               className={
                 active
-                  ? 'px-4 py-2 text-sm font-medium text-text-primary border-b-2 border-accent -mb-px'
-                  : 'px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border-b-2 border-transparent -mb-px'
+                  ? `px-4 py-2 text-sm font-medium text-text-primary border-b-2 border-accent -mb-px ${tabTransitionFast}`
+                  : `px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border-b-2 border-transparent -mb-px ${tabTransitionFast}`
               }
             >
               {tab.label}
@@ -108,8 +111,8 @@ export function Tabs({
             onClick={() => onTabChange(tab.id)}
             className={
               active
-                ? 'flex-1 rounded-md px-3 py-2 text-left transition-colors bg-surface-2 text-text-primary'
-                : 'flex-1 rounded-md px-3 py-2 text-left transition-colors text-text-secondary hover:text-text-primary hover:bg-bg/50'
+                ? `flex-1 rounded-md px-3 py-2 text-left ${tabTransitionFast} bg-surface-2 text-text-primary`
+                : `flex-1 rounded-md px-3 py-2 text-left ${tabTransitionFast} text-text-secondary hover:text-text-primary hover:bg-bg/50`
             }
           >
             <div className="text-sm font-medium">{tab.label}</div>

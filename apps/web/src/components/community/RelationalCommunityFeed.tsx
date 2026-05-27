@@ -518,11 +518,11 @@ export function RelationalCommunityFeed({
                   key={`${item.feed_item_id}-${isExpanded ? 'expanded' : 'collapsed'}`}
                   elevation={isExpanded ? 'raised' : 'resting'}
                   padding={isExpanded ? 'p-6' : 'p-5'}
-                  className={`space-y-4 ${isExpanded ? 'border-l-2 border-l-accent' : ''}`}
+                  className={`space-y-4 ${isExpanded ? 'border-l-2 border-l-accent' : 'card-interactive'}`}
                   aria-expanded={isExpanded}
                 >
                   {isExpanded ? (
-                    <>
+                    <div key="expanded" className="animate-fade-in space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           {isGroup ? (
@@ -717,9 +717,9 @@ export function RelationalCommunityFeed({
                           ) : null}
                         </>
                       ) : null}
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div key="collapsed" className="animate-fade-in space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           {isGroup ? (
@@ -803,7 +803,7 @@ export function RelationalCommunityFeed({
                           </Button>
                         ) : null}
                       </div>
-                    </>
+                    </div>
                   )}
                 </Card>
               </li>

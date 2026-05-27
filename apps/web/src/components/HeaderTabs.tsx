@@ -12,9 +12,10 @@ const NAV = [
 ] as const;
 
 function linkClass(active: boolean): string {
+  const motion = 'transition-all duration-base ease-aurora';
   return active
-    ? 'px-3 py-1.5 rounded-xl bg-accent-muted border border-accent/40 text-accent-light'
-    : 'px-3 py-1.5 rounded-xl text-text-secondary border border-transparent hover:bg-white/5 hover:text-text-primary hover:border-white/10';
+    ? `px-3 py-1.5 rounded-xl bg-accent-muted border border-accent/40 text-accent-light ${motion}`
+    : `px-3 py-1.5 rounded-xl text-text-secondary border border-transparent hover:bg-white/5 hover:text-text-primary hover:border-white/10 ${motion}`;
 }
 
 function isNavActive(pathname: string, href: string): boolean {

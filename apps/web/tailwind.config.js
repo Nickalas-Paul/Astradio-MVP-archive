@@ -53,11 +53,11 @@ const config: Config = {
       },
       transitionDuration: {
         fast: '120ms',
-        base: '160ms',
-        slow: '200ms',
+        base: '200ms',
+        slow: '300ms',
       },
       transitionTimingFunction: {
-        aurora: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        aurora: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
       borderRadius: {
         '2xl': '1rem',

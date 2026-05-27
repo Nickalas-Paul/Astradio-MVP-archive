@@ -125,7 +125,7 @@ function CarouselNavButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 w-12 h-12 rounded-full border border-border bg-surface-1 flex items-center justify-center text-text-secondary hover:bg-bgElev hover:text-text-primary active:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-fast"
+      className="shrink-0 w-12 h-12 rounded-full border border-border bg-surface-1 flex items-center justify-center text-text-secondary hover:bg-bgElev hover:text-text-primary active:scale-[0.97] active:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-fast ease-aurora"
       aria-label={direction === 'prev' ? 'Previous match' : 'Next match'}
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -205,7 +205,11 @@ function MatchCard({
   const intentLabel = intent === 'lover' ? 'partner' : 'friend';
 
   return (
-    <Card elevation="raised" padding="p-6" className="match-card w-full max-w-lg mx-auto space-y-6">
+    <Card
+      elevation="raised"
+      padding="p-6"
+      className="match-card card-interactive w-full max-w-lg mx-auto space-y-6"
+    >
       <div className="flex flex-col items-center text-center">
         <div className="w-20 h-20 rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden mb-3">
           {match.avatarUrl ? (

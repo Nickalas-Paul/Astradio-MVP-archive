@@ -290,7 +290,10 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             ) : (
               <ul className="space-y-3">
                 {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => (
-                  <li key={String(p.id)} className="p-4 rounded-lg border border-border bg-bgElev space-y-2">
+                  <li
+                    key={String(p.id)}
+                    className="card-interactive p-4 rounded-lg border border-border bg-bgElev space-y-2"
+                  >
                     <div className="text-sm font-medium text-text">
                       {(p.peerDisplayName as string) || 'Connection'}{' '}
                       {(p.peerHandle as string) ? (
@@ -326,7 +329,10 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
                   const gSlug = (g.slug as string | undefined) || (g.id as string);
                   return (
-                    <li key={String(g.id)} className="p-4 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2">
+                    <li
+                      key={String(g.id)}
+                      className="card-interactive p-4 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2"
+                    >
                       <div>
                         {String(g.name)}{' '}
                         <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
