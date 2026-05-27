@@ -308,7 +308,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Link
                         href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
-                        className="btn-outline text-xs px-3 py-1.5"
+                        className="btn-outline text-xs px-3 py-2 min-h-[44px] inline-flex items-center justify-center w-full sm:w-auto"
                       >
                         Open connection
                       </Link>
@@ -344,7 +344,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/community/group/${encodeURIComponent(gSlug)}`}
-                          className="btn-outline text-xs px-3 py-1.5"
+                          className="btn-outline text-xs px-3 py-2 min-h-[44px] inline-flex items-center justify-center w-full sm:w-auto"
                         >
                           Open group
                         </Link>

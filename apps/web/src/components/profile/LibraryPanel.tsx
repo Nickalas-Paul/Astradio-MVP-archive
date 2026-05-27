@@ -312,7 +312,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                   {libraryRows.map((row) => (
                     <li
                       key={String(row.id)}
-                      className="card-interactive rounded-lg border border-border p-4 text-sm flex flex-wrap items-center gap-2 justify-between"
+                      className="card-interactive rounded-lg border border-border p-4 text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
                     >
                       <span>
                         <span className="text-subtext">{String(row.created_at)}</span>
@@ -325,7 +325,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-accent-light px-3 py-1"
+                        className="text-xs text-accent-light w-full sm:w-auto min-h-[44px] shrink-0"
                         onClick={() => void openLibraryRow(String(row.id))}
                       >
                         View

@@ -683,11 +683,12 @@ export function RelationalCommunityFeed({
                           })()}
 
                           {canExpand ? (
-                            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+                            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-center pt-2 border-t border-border">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
+                                className="w-full sm:w-auto min-h-[44px]"
                                 onClick={() => router.push('/community?tab=connections&signals=1')}
                               >
                                 Signals
@@ -696,6 +697,7 @@ export function RelationalCommunityFeed({
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                className="w-full sm:w-auto min-h-[44px]"
                                 onClick={() => void saveArtifact(item)}
                                 disabled={busyByFeedId[item.feed_item_id]}
                               >
@@ -705,6 +707,7 @@ export function RelationalCommunityFeed({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
+                                className="w-full sm:w-auto min-h-[44px]"
                                 onClick={() => toggleExpandedFeed(item)}
                               >
                                 Collapse
@@ -777,11 +780,12 @@ export function RelationalCommunityFeed({
                         />
                       </div>
 
-                      <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-center pt-2 border-t border-border">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
+                          className="w-full sm:w-auto min-h-[44px]"
                           onClick={() => router.push('/community?tab=connections&signals=1')}
                         >
                           Signals
@@ -791,6 +795,7 @@ export function RelationalCommunityFeed({
                             type="button"
                             variant="outline"
                             size="sm"
+                            className="w-full sm:w-auto min-h-[44px]"
                             onClick={() => toggleExpandedFeed(item)}
                             disabled={busyByFeedId[item.feed_item_id]}
                             loading={

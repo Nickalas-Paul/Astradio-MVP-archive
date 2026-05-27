@@ -223,6 +223,7 @@ export function CompatibilitySection({
       type="button"
       variant="primary"
       size="md"
+      className="w-full sm:w-auto min-h-[44px]"
       onClick={() => {
         setUserTriggered(true);
         void run();
@@ -235,11 +236,11 @@ export function CompatibilitySection({
   );
 
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-      <h3 className="text-h3 font-semibold text-text-primary">Compatibility matches</h3>
-      <div className="flex flex-wrap items-center gap-3">
-        {intentRow}
-        {findMatchesControl}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+      <h3 className="text-h3 font-semibold text-text-primary shrink-0">Compatibility matches</h3>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto min-w-0">
+        {intentRow ? <div className="overflow-x-auto scrollbar-hide w-full sm:w-auto">{intentRow}</div> : null}
+        <div className="w-full sm:w-auto shrink-0">{findMatchesControl}</div>
       </div>
     </div>
   );

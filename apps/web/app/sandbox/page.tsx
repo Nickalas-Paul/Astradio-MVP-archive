@@ -1416,7 +1416,7 @@ export default function SandboxPage() {
         )}
 
         {showComposerSurface && (
-          <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
                 <p className="text-sm font-semibold text-text mb-2">

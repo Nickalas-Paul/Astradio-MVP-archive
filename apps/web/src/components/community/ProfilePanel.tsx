@@ -70,9 +70,9 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card space-y-6"
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-text">{user.displayName}</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold text-text break-words">{user.displayName}</h2>
             {realChart && (
               <p className="text-sm text-subtext mt-1">
                 {primaryChart!.label} · {primaryChart!.date} {primaryChart!.time}
@@ -84,9 +84,15 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               </p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {onSwitchToConnections && realChart && (
-              <Button type="button" variant="primary" size="sm" onClick={onSwitchToConnections}>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                className="w-full sm:w-auto min-h-[44px]"
+                onClick={onSwitchToConnections}
+              >
                 Find connections
               </Button>
             )}
@@ -94,6 +100,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
               type="button"
               variant="ghost"
               size="sm"
+              className="w-full sm:w-auto min-h-[44px]"
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
                 await refresh();
@@ -106,6 +113,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
         <Tabs
           variant="underline"
+          className="-mx-1 px-1"
           ariaLabel="Profile sections"
           tabs={[
             { id: 'active', label: 'Current Transit' },

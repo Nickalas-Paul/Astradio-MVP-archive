@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 min-w-0 w-full">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -55,7 +55,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}

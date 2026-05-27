@@ -646,7 +646,7 @@ export default function HomePage() {
     <AppShell showPlayer={false} contentClassName="">
       {/* Hero + primary CTA */}
       <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
-        <h1 className="text-display md:text-display-lg font-serif text-text-primary">
+        <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
         <p className="text-body-sm md:text-body text-text-secondary max-w-xl mx-auto">
@@ -712,8 +712,8 @@ export default function HomePage() {
 
       {/* Secondary controls */}
       <section className="max-w-2xl mx-auto px-4 py-6">
-        <div className="flex flex-wrap items-end gap-4 justify-center">
-          <div className="space-y-1">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4 justify-center w-full max-w-md mx-auto">
+          <div className="space-y-1 w-full sm:w-auto">
             <label htmlFor="home-date" className="text-caption text-text-muted block">
               Date
             </label>
@@ -723,10 +723,10 @@ export default function HomePage() {
               value={dateStr}
               onChange={(e) => setDateStr(e.target.value)}
               disabled={isLoading}
-              className="input text-sm py-1.5 px-2 w-40"
+              className="input text-sm py-2 px-3 w-full sm:w-40 min-h-[44px]"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 w-full sm:w-auto">
             <label htmlFor="home-time" className="text-caption text-text-muted block">
               Time
             </label>
@@ -736,12 +736,12 @@ export default function HomePage() {
               value={timeStr}
               onChange={(e) => setTimeStr(e.target.value)}
               disabled={isLoading}
-              className="input text-sm py-1.5 px-2 w-32"
+              className="input text-sm py-2 px-3 w-full sm:w-32 min-h-[44px]"
             />
           </div>
-          <div className="space-y-1 min-w-[10rem]">
+          <div className="space-y-1 w-full sm:min-w-[10rem]">
             <span className="text-caption text-text-muted block">Location</span>
-            <span className="text-sm text-text-secondary block py-1.5">{locationLabel}</span>
+            <span className="text-sm text-text-secondary block py-2 break-words">{locationLabel}</span>
           </div>
         </div>
       </section>
@@ -755,7 +755,7 @@ export default function HomePage() {
           type="button"
           variant="outline"
           onClick={() => router.push('/profile')}
-          className="text-base px-8 py-3"
+          className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
         >
           Create your chart
         </Button>

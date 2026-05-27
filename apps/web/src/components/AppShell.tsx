@@ -22,14 +22,14 @@ export function AppShell({
   showContextRail,
   contextRailContent,
   showPlayer = true,
-  contentClassName = 'p-6',
+  contentClassName = 'p-4 md:p-6 safe-bottom',
 }: AppShellProps) {
   const { sidebarOpen } = useUIStore();
 
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
       <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-bg/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3 min-w-0">
           <Link href="/" className="text-accent-light font-semibold tracking-wide shrink-0">
             Astradio
           </Link>

@@ -27,8 +27,8 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'text-sm',
-  md: '',
+  sm: 'text-sm min-h-[44px]',
+  md: 'min-h-[44px]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

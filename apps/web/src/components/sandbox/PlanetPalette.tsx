@@ -37,7 +37,7 @@ export interface PlanetPaletteProps {
  */
 export function PlanetPalette({ overrides, selectedPlanet, onSelectPlanet }: PlanetPaletteProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
       <span className="text-sm text-subtext mr-1">Place:</span>
       {PLANET_ORDER.map((planet) => {
         const isPlaced = overrides.planets?.[planet] != null;
@@ -47,7 +47,7 @@ export function PlanetPalette({ overrides, selectedPlanet, onSelectPlanet }: Pla
             key={planet}
             type="button"
             onClick={() => onSelectPlanet(planet)}
-            className={`px-2 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            className={`px-2 py-2 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
               isSelected
                 ? 'bg-primary text-white border-primary'
                 : isPlaced

@@ -5,7 +5,7 @@
 /* Base theme */
 @layer base {
   :root, html, body {
-    @apply h-full m-0;
+    @apply h-full m-0 overflow-x-hidden;
     background: theme('colors.bg');
     color: theme('colors.text');
     font-family: theme('fontFamily.sans');
@@ -160,5 +160,24 @@
 
   .animate-fade-in {
     animation: fade-in 200ms ease-out both;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .touch-target {
+    @apply inline-flex items-center justify-center min-h-[44px] min-w-[44px];
+  }
+
+  @supports (padding: env(safe-area-inset-bottom)) {
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 }

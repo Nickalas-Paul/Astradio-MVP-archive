@@ -236,17 +236,20 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Tabs
-            variant="pill"
-            ariaLabel="Community sections"
-            tabs={tabs.map((tab) => ({
-              id: tab.id,
-              label: tab.label,
-              icon: tab.icon,
-            }))}
-            activeTab={activeTab}
-            onTabChange={(id) => setTab(id as CommunityTabId)}
-          />
+          <div className="-mx-2 px-2 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
+            <Tabs
+              variant="pill"
+              ariaLabel="Community sections"
+              className="min-w-max md:min-w-0"
+              tabs={tabs.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                icon: tab.icon,
+              }))}
+              activeTab={activeTab}
+              onTabChange={(id) => setTab(id as CommunityTabId)}
+            />
+          </div>
         </motion.div>
 
         <motion.div

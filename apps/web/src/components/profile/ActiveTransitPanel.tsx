@@ -292,7 +292,7 @@ export function ActiveTransitPanel({
         <p className="text-sm text-amber-600">Add a birth chart (Identity or Settings) to use Current Transit.</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 max-w-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md w-full">
             <InputField
               type="date"
               value={activeDate}
@@ -327,11 +327,12 @@ export function ActiveTransitPanel({
               placeholder="Current location (search)"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
             <Button
               type="button"
               variant="primary"
               size="sm"
+              className="w-full sm:w-auto min-h-[44px]"
               disabled={activeLoading}
               loading={activeLoading}
               onClick={() => void loadActiveStateText()}
@@ -342,6 +343,7 @@ export function ActiveTransitPanel({
               type="button"
               variant="audio"
               size="sm"
+              className="w-full sm:w-auto min-h-[44px]"
               disabled={activeAudioBusy || !activeResult}
               loading={activeAudioBusy}
               onClick={() => void generateActiveAudio()}
@@ -352,6 +354,7 @@ export function ActiveTransitPanel({
               type="button"
               variant="secondary"
               size="sm"
+              className="w-full sm:w-auto min-h-[44px]"
               disabled={!canSaveCurrentTransit()}
               onClick={() => void saveActiveToLibrary()}
             >
@@ -361,7 +364,7 @@ export function ActiveTransitPanel({
           {librarySaveError ? <p className="text-sm text-red-500">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-red-500">{activeError}</p>}
           {activeWheelSlots && (
-            <div className="max-w-xl space-y-3">
+            <div className="max-w-2xl mx-auto w-full space-y-3 min-w-0">
               <Tabs
                 variant="segmented"
                 ariaLabel="Transit wheel slot"

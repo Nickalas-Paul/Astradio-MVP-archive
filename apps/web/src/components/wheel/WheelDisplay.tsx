@@ -26,6 +26,7 @@ export function WheelDisplay({
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
+  const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
 
   useEffect(() => {
     const updateSize = () => {
@@ -40,6 +41,22 @@ export function WheelDisplay({
       return () => window.removeEventListener('resize', updateSize);
     }
   }, [maxSize]);
+
+  useEffect(() => {
+    if (!showAspectLines) {
+      setAspectLinesVisible(false);
+      return;
+    }
+    if (typeof window === 'undefined') {
+      setAspectLinesVisible(true);
+      return;
+    }
+    const mq = window.matchMedia('(min-width: 640px)');
+    const update = () => setAspectLinesVisible(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, [showAspectLines]);
 
   useEffect(() => {
     if (!chartData || isLoading) {
@@ -87,7 +104,7 @@ export function WheelDisplay({
               chart={normalized}
               size={wheelSize}
               aspects={aspects}
-              showAspectLines={showAspectLines}
+              showAspectLines={aspectLinesVisible}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">

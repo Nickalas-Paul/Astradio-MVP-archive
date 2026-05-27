@@ -125,7 +125,7 @@ function CarouselNavButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 w-12 h-12 rounded-full border border-border bg-surface-1 flex items-center justify-center text-text-secondary hover:bg-bgElev hover:text-text-primary active:scale-[0.97] active:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-fast ease-aurora"
+      className="hidden md:flex shrink-0 w-12 h-12 rounded-full border border-border bg-surface-1 items-center justify-center text-text-secondary hover:bg-bgElev hover:text-text-primary active:scale-[0.97] active:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-fast ease-aurora"
       aria-label={direction === 'prev' ? 'Previous match' : 'Next match'}
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -161,10 +161,17 @@ function CarouselFooter({
             aria-selected={i === currentIndex}
             aria-label={`Match ${i + 1} of ${totalMatches}`}
             onClick={() => onSelectIndex(i)}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-fast ${
-              i === currentIndex ? 'bg-accent-light scale-110' : 'bg-surface-2 hover:bg-surface-3'
+            className={`touch-target p-3 rounded-full transition-all duration-fast ${
+              i === currentIndex ? 'bg-accent-light' : 'bg-transparent hover:bg-surface-2/80'
             }`}
-          />
+          >
+            <span
+              className={`block w-2.5 h-2.5 rounded-full ${
+                i === currentIndex ? 'bg-accent-light scale-110' : 'bg-surface-2'
+              }`}
+              aria-hidden
+            />
+          </button>
         ))}
       </div>
       <p className="text-caption text-text-muted text-center">
@@ -208,7 +215,7 @@ function MatchCard({
     <Card
       elevation="raised"
       padding="p-6"
-      className="match-card card-interactive w-full max-w-lg mx-auto space-y-6"
+      className="match-card card-interactive w-full max-w-lg mx-auto px-1 sm:px-0 space-y-6"
     >
       <div className="flex flex-col items-center text-center">
         <div className="w-20 h-20 rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden mb-3">
@@ -243,15 +250,21 @@ function MatchCard({
         </p>
       ) : null}
 
-      <div className="flex gap-3">
-        <Button type="button" variant="outline" size="md" className="flex-1" onClick={onViewProfile}>
+      <div className="flex flex-col sm:flex-row gap-3 w-full">
+        <Button
+          type="button"
+          variant="outline"
+          size="md"
+          className="w-full sm:flex-1 min-h-[44px]"
+          onClick={onViewProfile}
+        >
           View profile
         </Button>
         <Button
           type="button"
           variant="primary"
           size="md"
-          className="flex-1"
+          className="w-full sm:flex-1 min-h-[44px]"
           onClick={onRequestConnection}
           disabled={connectionDisabled}
           loading={connectionLabel === 'Sending…'}
@@ -382,7 +395,7 @@ export function DiscoveryCarousel({
 
   return (
     <div
-      className="max-w-3xl mx-auto px-2"
+      className="max-w-3xl mx-auto px-3 sm:px-4"
       role="region"
       aria-label="Discovery matches carousel"
       aria-live="polite"
@@ -390,7 +403,7 @@ export function DiscoveryCarousel({
       <CosmicWeatherHeader />
 
       <div
-        className="relative flex items-center justify-center gap-3 min-h-[28rem]"
+        className="relative flex items-stretch md:items-center justify-center gap-2 md:gap-3 min-h-0 md:min-h-[28rem]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

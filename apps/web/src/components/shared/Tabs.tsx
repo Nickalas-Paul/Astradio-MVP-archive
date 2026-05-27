@@ -26,18 +26,18 @@ const tabTransitionBase = 'transition-all duration-base ease-aurora';
 function pillTabClass(active: boolean, compact: boolean): string {
   if (compact) {
     return active
-      ? `px-3 py-1.5 rounded-full text-sm font-medium ${tabTransitionBase} bg-accent text-white`
-      : `px-3 py-1.5 rounded-full text-sm font-medium ${tabTransitionBase} text-text-secondary hover:text-text-primary`;
+      ? `shrink-0 min-h-[44px] px-3 py-2 rounded-full text-sm font-medium ${tabTransitionBase} bg-accent text-white`
+      : `shrink-0 min-h-[44px] px-3 py-2 rounded-full text-sm font-medium ${tabTransitionBase} text-text-secondary hover:text-text-primary`;
   }
   return active
-    ? `px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} bg-accent text-white shadow-md`
-    : `px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} text-text-secondary hover:text-text-primary hover:bg-bgElev`;
+    ? `shrink-0 min-h-[44px] px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} bg-accent text-white shadow-md`
+    : `shrink-0 min-h-[44px] px-4 py-3 rounded-full text-sm font-medium whitespace-nowrap ${tabTransitionBase} text-text-secondary hover:text-text-primary hover:bg-bgElev`;
 }
 
 function pillContainerClass(pillTrack: TabsProps['pillTrack']): string {
   return pillTrack === 'compact'
-    ? 'flex rounded-full bg-bgElev border border-border p-0.5 flex-wrap'
-    : 'flex items-center justify-center gap-2 bg-surface-0 rounded-full p-2 shadow-soft border border-border overflow-x-auto';
+    ? 'flex rounded-full bg-bgElev border border-border p-0.5 flex-wrap gap-1'
+    : 'flex items-center gap-2 bg-surface-0 rounded-full p-2 shadow-soft border border-border overflow-x-auto scrollbar-hide w-full max-w-full';
 }
 
 export function Tabs({
@@ -51,10 +51,10 @@ export function Tabs({
 }: TabsProps) {
   const containerClass =
     variant === 'underline'
-      ? 'flex gap-2 border-b border-border'
+      ? 'flex gap-2 border-b border-border overflow-x-auto scrollbar-hide w-full max-w-full'
       : variant === 'pill'
         ? pillContainerClass(pillTrack)
-        : 'flex gap-2 rounded-lg bg-bgElev p-1 border border-border';
+        : 'flex gap-2 rounded-lg bg-bgElev p-1 border border-border w-full';
 
   return (
     <div role="tablist" aria-label={ariaLabel} className={`${containerClass} ${className}`.trim()}>
@@ -71,8 +71,8 @@ export function Tabs({
               onClick={() => onTabChange(tab.id)}
               className={
                 active
-                  ? `px-4 py-2 text-sm font-medium text-text-primary border-b-2 border-accent -mb-px ${tabTransitionFast}`
-                  : `px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border-b-2 border-transparent -mb-px ${tabTransitionFast}`
+                  ? `shrink-0 min-h-[44px] px-4 py-2 text-sm font-medium text-text-primary border-b-2 border-accent -mb-px ${tabTransitionFast}`
+                  : `shrink-0 min-h-[44px] px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border-b-2 border-transparent -mb-px ${tabTransitionFast}`
               }
             >
               {tab.label}
@@ -111,8 +111,8 @@ export function Tabs({
             onClick={() => onTabChange(tab.id)}
             className={
               active
-                ? `flex-1 rounded-md px-3 py-2 text-left ${tabTransitionFast} bg-surface-2 text-text-primary`
-                : `flex-1 rounded-md px-3 py-2 text-left ${tabTransitionFast} text-text-secondary hover:text-text-primary hover:bg-bg/50`
+                ? `flex-1 min-h-[44px] rounded-md px-3 py-2 text-left ${tabTransitionFast} bg-surface-2 text-text-primary`
+                : `flex-1 min-h-[44px] rounded-md px-3 py-2 text-left ${tabTransitionFast} text-text-secondary hover:text-text-primary hover:bg-bg/50`
             }
           >
             <div className="text-sm font-medium">{tab.label}</div>

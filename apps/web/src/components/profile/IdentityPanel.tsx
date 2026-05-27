@@ -152,7 +152,7 @@ export function IdentityPanel({
 
   return (
     <div className="space-y-8">
-      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full">
+      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full px-0">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -167,8 +167,8 @@ export function IdentityPanel({
             chartData={chartData.snapshot as any}
             isLoading={false}
             showAspectLines
-            maxSize={720}
-            className="w-full"
+            maxSize={480}
+            className="w-full max-w-2xl mx-auto"
           />
         ) : chartData?.snapshot ? (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
