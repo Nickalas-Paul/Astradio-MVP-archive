@@ -13,6 +13,7 @@ import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 import { RELATIONAL_INTENT_OPTIONS as MODES, type RelationalIntent } from '../lib/relational-intent';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 import { Tabs } from '@/components/shared/Tabs';
 
 interface CompatibilitySectionProps {
@@ -100,63 +101,55 @@ export function CompatibilitySection({
   // 1) No user profile → profile creation CTA
   if (!hasProfile) {
     return (
-      <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
-        <p className="text-subtext text-sm">
+      <Card elevation="resting" className={className}>
+        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <p className="text-body-sm text-text-secondary">
           Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to find compatible connections.
         </p>
         {controlledMode != null && (
-          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+          <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>
         )}
         {onSwitchToProfile && (
-          <button
-            type="button"
-            onClick={onSwitchToProfile}
-            className="mt-4 btn-primary text-sm"
-          >
+          <Button type="button" variant="primary" size="md" className="mt-4" onClick={onSwitchToProfile}>
             Go to Profile to create one
-          </button>
+          </Button>
         )}
-      </div>
+      </Card>
     );
   }
 
   // 2) Profile exists but no real chart → add natal chart
   if (!chartId) {
     return (
-      <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
-        <p className="text-subtext text-sm">
+      <Card elevation="resting" className={className}>
+        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <p className="text-body-sm text-text-secondary">
           Add your natal chart to your profile to see compatibility-driven matches. Go to the Profile tab and add your birth date, time, and birth place.
         </p>
         {controlledMode != null && (
-          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+          <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>
         )}
         {onSwitchToProfile && (
-          <button
-            type="button"
-            onClick={onSwitchToProfile}
-            className="mt-4 btn-primary text-sm"
-          >
+          <Button type="button" variant="primary" size="md" className="mt-4" onClick={onSwitchToProfile}>
             Add your natal chart
-          </button>
+          </Button>
         )}
-      </div>
+      </Card>
     );
   }
 
   // 3) Chart exists but compatibility disabled → truthful message
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
     return (
-      <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">Compatibility</h3>
-        <p className="text-subtext text-sm">
+      <Card elevation="resting" className={className}>
+        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <p className="text-body-sm text-text-secondary">
           You’re set up with a natal chart. Compatibility matching will be enabled in a future update.
         </p>
         {controlledMode != null && (
-          <p className="text-xs text-subtext mt-2">Looking for: {modeLabel}</p>
+          <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>
         )}
-      </div>
+      </Card>
     );
   }
 
@@ -229,7 +222,7 @@ export function CompatibilitySection({
     <Button
       type="button"
       variant="primary"
-      size="sm"
+      size="md"
       onClick={() => {
         setUserTriggered(true);
         void run();
@@ -243,8 +236,8 @@ export function CompatibilitySection({
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-      <h3 className="text-lg font-semibold text-text">Compatibility matches</h3>
-      <div className="flex flex-wrap items-center gap-2">
+      <h3 className="text-h3 font-semibold text-text-primary">Compatibility matches</h3>
+      <div className="flex flex-wrap items-center gap-3">
         {intentRow}
         {findMatchesControl}
       </div>
@@ -254,38 +247,38 @@ export function CompatibilitySection({
   // Before explicit Find matches: no skeleton, list, or empty state for matches
   if (!userTriggered) {
     return (
-      <div className={`card ${className}`}>
+      <Card elevation="resting" className={className}>
         {header}
-        <p className="text-sm text-subtext">
+        <p className="text-body-sm text-text-secondary">
           Daily matches load when you click Find matches. Change intent and click again to refresh.
         </p>
-      </div>
+      </Card>
     );
   }
 
   if (loading) {
     return (
-      <div className={`card ${className}`}>
+      <Card elevation="resting" className={className}>
         {header}
         <div className="max-w-lg mx-auto skeleton h-96 rounded-lg" />
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className={`card ${className}`}>
+      <Card elevation="resting" className={className}>
         {header}
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">Unable to load compatibility matches</p>
+          <p className="text-body-sm text-text-secondary">Unable to load compatibility matches</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (matches !== null && matches.length === 0) {
     return (
-      <div className={`card ${className}`}>
+      <Card elevation="resting" className={className}>
         {header}
         <DiscoveryCarousel
           matches={[]}
@@ -298,23 +291,25 @@ export function CompatibilitySection({
           connectionBusyChartId={requestBusy}
           canRequestConnection={Boolean(currentUserId && chartId)}
         />
-      </div>
+      </Card>
     );
   }
 
   if (!matches?.length) {
     return (
-      <div className={`card ${className}`}>
+      <Card elevation="resting" className={className}>
         {header}
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className={`card ${className}`}>
+    <Card elevation="resting" className={className}>
       {header}
       {requestMsg && (
-        <p className="text-sm text-subtext mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">{requestMsg}</p>
+        <p className="text-body-sm text-text-secondary mb-3 rounded-lg border border-border bg-bgElev px-3 py-2">
+          {requestMsg}
+        </p>
       )}
       <DiscoveryCarousel
         matches={matches}
@@ -327,6 +322,6 @@ export function CompatibilitySection({
         connectionBusyChartId={requestBusy}
         canRequestConnection={Boolean(currentUserId && chartId)}
       />
-    </div>
+    </Card>
   );
 }
