@@ -187,6 +187,32 @@ export class ComposeAPI {
   }
 
   /**
+   * Sky-mode cache key: hour-bucketed datetime + city-level coords; ignores generateAudio and locationMeta.resolvedAt.
+   */
+  private compositionCacheKeyForRequest(request: ComposeRequest): string {
+    const req = request as ComposeRequest & {
+      skyParams?: { latitude: number; longitude: number; datetime: string; timezone?: string };
+    };
+    if (req.mode === 'sky' && req.skyParams) {
+      const sp = req.skyParams;
+      let datetime = String(sp.datetime || '');
+      if (datetime.length >= 13) {
+        datetime = `${datetime.slice(0, 13)}:00:00`;
+      }
+      const lat = Math.round(sp.latitude * 10) / 10;
+      const lon = Math.round(sp.longitude * 10) / 10;
+      const tz =
+        typeof sp.timezone === 'string' && sp.timezone.trim() ? sp.timezone.trim() : 'UTC';
+      const normalized = {
+        mode: 'sky' as const,
+        skyParams: { latitude: lat, longitude: lon, datetime, timezone: tz },
+      };
+      return this.sha256(JSON.stringify(normalized) + this.runtimeModel);
+    }
+    return this.sha256(JSON.stringify(request) + this.runtimeModel);
+  }
+
+  /**
    * Main compose endpoint - generates audio + text from control-surface payload
    */
   async compose(request: ComposeRequest): Promise<ComposeResponse> {
@@ -198,9 +224,9 @@ export class ComposeAPI {
         (request as any) = { mode: 'sandbox', controls: {}, generateAudio: true };
       }
 
-      // Generate idempotency key from request + model version
-      const requestKey = this.sha256(JSON.stringify(request) + this.runtimeModel);
-      
+      const requestKey = this.compositionCacheKeyForRequest(request);
+      const wantAudio = (request as ComposeRequest).generateAudio === true;
+
       // Check cache for idempotent response, but never reuse cached exports that failed.
       if (this.compositionCache.has(requestKey)) {
         const cached = this.compositionCache.get(requestKey);
@@ -218,8 +244,15 @@ export class ComposeAPI {
             cachedAudio.export_error
           );
         } else {
-          console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
-          return cached;
+          const hasExport = Boolean(cached?.export_id && cached?.audio_export_available);
+          if (!wantAudio || hasExport) {
+            console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
+            return cached;
+          }
+          console.log(
+            '[COMPOSE] Cache hit without export; generating audio for key:',
+            requestKey.slice(0, 8)
+          );
         }
       }
       

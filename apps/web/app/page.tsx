@@ -12,6 +12,15 @@ import { Card } from '@/components/shared/Card';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
+import {
+  homeComposeCacheKey,
+  homeComposeTimeHour,
+  patchHomeComposeCacheExportId,
+  readHomeComposeCache,
+  writeHomeComposeCache,
+  type HomeComposeCacheEntry,
+  type HomeExplanationSection,
+} from '../src/core/home-compose-cache';
 import type { CanonicalLocation, GeoPermissionStatus } from '../src/types/location';
 
 /** Fallback when browser geolocation is denied or unavailable. */
@@ -53,14 +62,15 @@ export default function HomePage() {
   const [geoPermission, setGeoPermission] = useState<GeoPermissionStatus>('unknown');
   /** True when /api/profile returns a user — used to gate signed-in-only persistence. */
   const [signedInUserPresent, setSignedInUserPresent] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
   /** Lyria-only: explicit message when artifact missing or playback fails. */
   const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const audioBlobUrlRef = useRef<string | null>(null);
   const composeRequestKeyRef = useRef<string | null>(null);
   const composeInFlightRef = useRef(false);
+  const audioInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -133,30 +143,210 @@ export default function HomePage() {
     }
   }, []);
 
-  // 2) compose: gated on stable primitives only; single-flight per date/time/coords
+  const mapSections = useCallback((payload: Record<string, unknown>): HomeExplanationSection[] | null => {
+    const exp = payload.explanation as { sections?: Array<Record<string, unknown>> } | undefined;
+    if (!exp?.sections?.length) return null;
+    return exp.sections.map((s) => ({
+      sectionId: String(s.sectionId ?? s.id ?? ''),
+      title: String(s.title ?? ''),
+      text: typeof s.text === 'string' ? s.text : undefined,
+      bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
+    }));
+  }, []);
+
+  const loadWheelChart = useCallback(
+    async (composeTime: string, loc: CanonicalLocation, surfaceFallback: unknown) => {
+      let wheelSource: unknown = null;
+      try {
+        const tzParam =
+          loc.timezone && String(loc.timezone).trim()
+            ? `&timezone=${encodeURIComponent(loc.timezone.trim())}`
+            : '';
+        const snapRes = await fetch(
+          `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(
+            composeTime
+          )}&lat=${loc.lat}&lon=${loc.lon}${tzParam}`
+        );
+        if (snapRes.ok) {
+          const snapshot = await snapRes.json().catch(() => null);
+          wheelSource = snapshot ? normalizeChartForWheel(snapshot) : null;
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!wheelSource) wheelSource = surfaceFallback;
+      return wheelSource;
+    },
+    [dateStr]
+  );
+
+  const applyCacheEntry = useCallback((entry: HomeComposeCacheEntry) => {
+    setComposeHash(entry.composeHash);
+    setSpecVersion(entry.specVersion);
+    setAnalysisText(entry.analysisText);
+    setExplanationSections(entry.sections);
+    setExportId(entry.exportId);
+    setChartData(entry.chartData);
+    setEngineError(null);
+    setAudioUnavailableReason(null);
+    if (audioBlobUrlRef.current) {
+      URL.revokeObjectURL(audioBlobUrlRef.current);
+      audioBlobUrlRef.current = null;
+    }
+    setAudioUrl(null);
+    setIsPlaying(false);
+  }, []);
+
+  const applyComposePayload = useCallback(
+    async (
+      payload: Record<string, unknown>,
+      loc: CanonicalLocation,
+      composeTime: string,
+      options: { withAudio: boolean }
+    ): Promise<HomeComposeCacheEntry> => {
+      const responseSpec = (payload.explanation as { spec?: string } | undefined)?.spec;
+      if (responseSpec && responseSpec !== 'UnifiedSpecV1.1') {
+        throw new Error(`Unsupported spec version: ${responseSpec}`);
+      }
+      if (payload.engine_fallback) {
+        setEngineError('Engine unavailable - using fallback mode');
+      } else {
+        setEngineError(null);
+      }
+
+      const surface = payload.controlSurface ?? payload.controls ?? null;
+      const hash = (payload.controls as { hash?: string } | undefined)?.hash ?? (payload.hash as string) ?? '';
+      const sections = mapSections(payload);
+      let analysis = '';
+      if (payload.explanation && typeof (payload.explanation as { text?: string }).text === 'string') {
+        analysis = (payload.explanation as { text: string }).text;
+      }
+
+      if (payload.plan && typeof payload.plan === 'object') {
+        setComposePlan(payload.plan);
+      } else {
+        setComposePlan(null);
+      }
+      setComposeGenre((payload.controls as { genre?: string } | undefined)?.genre ?? 'house');
+
+      const wheelSource = await loadWheelChart(composeTime, loc, surface);
+      const exportIdFromPayload =
+        typeof payload.export_id === 'string' && payload.export_id.length > 0
+          ? payload.export_id
+          : null;
+
+      setComposeHash(hash);
+      setSpecVersion(responseSpec || null);
+      setAnalysisText(sections ? '' : analysis);
+      setExplanationSections(sections);
+      setChartData(wheelSource);
+      setExportId(exportIdFromPayload);
+
+      if (options.withAudio) {
+        setAudioUnavailableReason(null);
+        const audioMeta = payload.audio as Record<string, unknown> | undefined;
+        const isLyriaSuccess =
+          audioMeta?.provider_used === 'lyria' &&
+          (audioMeta?.export_error == null || audioMeta?.export_error === '');
+        let nextUrl: string | null = null;
+        if (typeof audioMeta?.url === 'string' && isLyriaSuccess) {
+          nextUrl = audioMeta.url as string;
+        } else if (
+          isLyriaSuccess &&
+          typeof audioMeta?.base64 === 'string' &&
+          (audioMeta.base64 as string).length > 0
+        ) {
+          try {
+            const bin = atob(audioMeta.base64 as string);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'audio/wav' });
+            nextUrl = URL.createObjectURL(blob);
+            audioBlobUrlRef.current = nextUrl;
+          } catch {
+            nextUrl = null;
+          }
+        } else if (exportIdFromPayload) {
+          try {
+            const base = getApiBaseUrl();
+            const exportRes = await fetch(`${base || ''}/api/exports/${exportIdFromPayload}`);
+            if (exportRes.ok) {
+              const ab = await exportRes.arrayBuffer();
+              if (ab.byteLength > 0) {
+                const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
+                nextUrl = URL.createObjectURL(blob);
+                audioBlobUrlRef.current = nextUrl;
+              }
+            }
+          } catch {
+            nextUrl = null;
+          }
+        }
+        if (!nextUrl && audioMeta?.export_error && audioMeta?.export_attempted) {
+          setAudioUnavailableReason(
+            `Audio unavailable (Lyria-only). Export failed: ${String(audioMeta.export_error)}.`
+          );
+        }
+        setAudioUrl(nextUrl);
+      } else {
+        if (audioBlobUrlRef.current) {
+          URL.revokeObjectURL(audioBlobUrlRef.current);
+          audioBlobUrlRef.current = null;
+        }
+        setAudioUrl(null);
+        setAudioUnavailableReason(null);
+      }
+
+      return {
+        sections,
+        analysisText: sections ? '' : analysis,
+        exportId: exportIdFromPayload,
+        chartData: wheelSource,
+        composeHash: hash,
+        specVersion: responseSpec || null,
+        cachedAt: Date.now(),
+      };
+    },
+    [loadWheelChart, mapSections]
+  );
+
+  // Text-only compose on load (no Lyria); sessionStorage cache per sky-moment hour bucket
   useEffect(() => {
-    const lat = location?.lat;
-    const lon = location?.lon;
-    if (!dateStr || !timeStr || lat == null || lon == null || !location) {
+    if (!location || !dateStr || !timeStr || location.lat == null || location.lon == null) {
       return;
     }
-    const stableKey = `${dateStr}|${timeStr}|${lat}|${lon}|${location?.timezone ?? ''}`;
-    if (composeInFlightRef.current && composeRequestKeyRef.current === stableKey) {
+    const stableLoc: CanonicalLocation = location;
+    const lat = stableLoc.lat;
+    const lon = stableLoc.lon;
+
+    const composeTime = homeComposeTimeHour(timeStr);
+    const cacheKey = homeComposeCacheKey(dateStr, timeStr, lat, lon);
+    const inFlightKey = `${cacheKey}|text`;
+
+    if (composeInFlightRef.current && composeRequestKeyRef.current === inFlightKey) {
       return;
     }
 
     let cancelled = false;
-    composeRequestKeyRef.current = stableKey;
+    composeRequestKeyRef.current = inFlightKey;
     composeInFlightRef.current = true;
 
     async function bootstrap() {
+      const cached = readHomeComposeCache(cacheKey);
+      if (cached) {
+        applyCacheEntry(cached);
+        setIsLoading(false);
+        composeInFlightRef.current = false;
+        return;
+      }
+
       setIsLoading(true);
       try {
-        const body: any = {
+        const body = {
           date: dateStr,
-          time: timeStr,
-          location,
-          generateAudio: true,
+          time: composeTime,
+          location: stableLoc,
+          generateAudio: false,
         };
 
         const startTime = performance.now();
@@ -167,147 +357,26 @@ export default function HomePage() {
           body: JSON.stringify(body),
         });
         const payload = await res.json();
-        const latency = performance.now() - startTime;
-        setComposeLatency(latency);
-        if (!cancelled) {
-          // Fail fast on spec version mismatch
-          const responseSpec = payload?.explanation?.spec;
-          if (responseSpec && responseSpec !== 'UnifiedSpecV1.1') {
-            setEngineError(`Unsupported spec version: ${responseSpec}. Expected UnifiedSpecV1.1`);
-            setIsLoading(false);
-            return;
-          }
-          
-          // Check for engine fallback (proxy failure)
-          if (payload?.engine_fallback) {
-            setEngineError('Engine unavailable - using fallback mode');
-          } else {
-            setEngineError(null);
-          }
-          
-          setSpecVersion(responseSpec || null);
-          // Backend returns "controls"; accept both controlSurface (legacy) and controls
-          const surface = payload?.controlSurface ?? payload?.controls ?? null;
-          setComposeHash(payload?.controls?.hash ?? payload?.hash ?? '');
-          setExportId(payload?.export_id ?? null);
-          if (payload?.explanation?.text) {
-            setAnalysisText(payload.explanation.text);
-            setExplanationSections(null);
-          } else if (payload?.explanation?.sections?.length) {
-            setExplanationSections(
-              payload.explanation.sections.map((s: Record<string, unknown>) => ({
-                sectionId: String(s.sectionId ?? s.id ?? ''),
-                title: String(s.title ?? ''),
-                text: typeof s.text === 'string' ? s.text : undefined,
-                bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
-              }))
-            );
-            setAnalysisText('');
-          } else {
-            setAnalysisText('');
-            setExplanationSections(null);
-          }
-          // Lyria-only: only treat as playable when provider_used is lyria and no export_error
-          setAudioUnavailableReason(null);
-          const audioMeta = payload?.audio;
-          const isLyriaSuccess =
-            audioMeta?.provider_used === 'lyria' &&
-            (audioMeta?.export_error == null || audioMeta?.export_error === '');
-          if (payload?.audio?.url && isLyriaSuccess) {
-            if (audioBlobUrlRef.current) {
-              URL.revokeObjectURL(audioBlobUrlRef.current);
-              audioBlobUrlRef.current = null;
-            }
-            setAudioUrl(payload.audio.url);
-          } else if (
-            isLyriaSuccess &&
-            payload?.audio?.base64 &&
-            typeof payload.audio.base64 === 'string' &&
-            payload.audio.base64.length > 0
-          ) {
-            try {
-              if (audioBlobUrlRef.current) {
-                URL.revokeObjectURL(audioBlobUrlRef.current);
-                audioBlobUrlRef.current = null;
-              }
-              const bin = atob(payload.audio.base64);
-              const bytes = new Uint8Array(bin.length);
-              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-              const blob = new Blob([bytes], { type: 'audio/wav' });
-              const blobUrl = URL.createObjectURL(blob);
-              audioBlobUrlRef.current = blobUrl;
-              setAudioUrl(blobUrl);
-            } catch (_) {
-              setAudioUrl(null);
-            }
-          } else {
-            if (audioBlobUrlRef.current) {
-              URL.revokeObjectURL(audioBlobUrlRef.current);
-              audioBlobUrlRef.current = null;
-            }
-            setAudioUrl(null);
-            if (audioMeta?.export_error && audioMeta?.export_attempted) {
-              setAudioUnavailableReason(`Audio unavailable (Lyria-only). Export failed: ${audioMeta.export_error}.`);
-            }
-          }
+        setComposeLatency(performance.now() - startTime);
+        if (cancelled) return;
 
-          // Store backend plan and genre (for browser performance engine / Tone fallback)
-          if (payload?.plan && typeof payload.plan === 'object') {
-            setComposePlan(payload.plan);
-          } else {
-            setComposePlan(null);
-          }
-          setComposeGenre(payload?.controls?.genre ?? 'house');
-
-          // Wheel geometry: prefer canonical EphemerisSnapshot via /api/chart-snapshot.
-          // Fallback to control-surface chart data only if snapshot request fails.
-          let wheelSource: any = null;
-          if (dateStr && timeStr && location) {
-            const lat = location.lat;
-            const lon = location.lon;
-            try {
-              const tzParam =
-                location.timezone && String(location.timezone).trim()
-                  ? `&timezone=${encodeURIComponent(location.timezone.trim())}`
-                  : '';
-              const snapRes = await fetch(
-                `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(
-                  timeStr
-                )}&lat=${lat}&lon=${lon}${tzParam}`
-              );
-              if (snapRes.ok) {
-                const snapshot = await snapRes.json().catch(() => null);
-                const normalized = snapshot ? normalizeChartForWheel(snapshot) : null;
-                if (normalized) {
-                  wheelSource = normalized;
-                }
-              }
-            } catch (_) {
-              // ignore, fall back to control-surface chart below
-            }
-          }
-
-          if (!wheelSource) {
-            wheelSource = surface;
-          }
-          setChartData(wheelSource);
-
-          // Location display is handled by locationLabel + reverse-geocode effect; compose always uses geo lat/lon
-        }
+        const entry = await applyComposePayload(payload, stableLoc, composeTime, { withAudio: false });
+        writeHomeComposeCache(cacheKey, entry);
       } catch (e) {
         console.error('[compose] failed', e);
+        if (!cancelled) setEngineError('Could not load sky report.');
       } finally {
         if (!cancelled) setIsLoading(false);
         composeInFlightRef.current = false;
       }
     }
 
-    bootstrap();
+    void bootstrap();
     return () => {
       cancelled = true;
       composeInFlightRef.current = false;
     };
-  }, [dateStr, timeStr, location?.lat, location?.lon, location?.timezone]);
+  }, [dateStr, timeStr, location?.lat, location?.lon, location?.timezone, applyCacheEntry, applyComposePayload]);
 
   // 2a) Persist canonical location for campaign daily / group anchor (signed-in only; skip anonymous 401 noise)
   const lastTransitSyncKey = useRef<string | null>(null);
@@ -378,6 +447,22 @@ export default function HomePage() {
     };
   }, [location?.lat, location?.lon]);
 
+  const resolveExportAudioUrl = useCallback(async (eid: string): Promise<string | null> => {
+    const base = getApiBaseUrl();
+    try {
+      const exportRes = await fetch(`${base || ''}/api/exports/${eid}`);
+      if (!exportRes.ok) return null;
+      const ab = await exportRes.arrayBuffer();
+      if (ab.byteLength === 0) return null;
+      const blob = new Blob([ab], { type: exportRes.headers.get('content-type') || 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      audioBlobUrlRef.current = url;
+      return url;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const playSoundtrack = useCallback(async () => {
     setAudioUnavailableReason(null);
     if (!audioUrl) {
@@ -402,13 +487,101 @@ export default function HomePage() {
   }, []);
 
   const handleTodaySoundtrack = useCallback(async () => {
-    setAudioEnabled(true);
     if (isPlaying) {
       stopSoundtrack();
       return;
     }
-    await playSoundtrack();
-  }, [isPlaying, playSoundtrack, stopSoundtrack]);
+
+    if (audioUrl) {
+      await playSoundtrack();
+      return;
+    }
+
+    if (!location || location.lat == null || location.lon == null || !dateStr || !timeStr) {
+      return;
+    }
+
+    const composeTime = homeComposeTimeHour(timeStr);
+    const cacheKey = homeComposeCacheKey(dateStr, timeStr, location.lat, location.lon);
+    const cached = readHomeComposeCache(cacheKey);
+
+    if (cached?.exportId) {
+      setAudioLoading(true);
+      try {
+        const url = await resolveExportAudioUrl(cached.exportId);
+        if (url) {
+          setExportId(cached.exportId);
+          setAudioUrl(url);
+          await playLyriaAudio({ url });
+          setIsPlaying(true);
+          return;
+        }
+      } finally {
+        setAudioLoading(false);
+      }
+    }
+
+    if (audioInFlightRef.current) return;
+    audioInFlightRef.current = true;
+    setAudioLoading(true);
+    setAudioUnavailableReason(null);
+
+    try {
+      const body = {
+        date: dateStr,
+        time: composeTime,
+        location,
+        generateAudio: true,
+      };
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base || ''}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const payload = await res.json();
+      const entry = await applyComposePayload(payload, location, composeTime, { withAudio: true });
+      const merged: HomeComposeCacheEntry = {
+        ...entry,
+        sections: entry.sections ?? cached?.sections ?? null,
+        chartData: entry.chartData ?? cached?.chartData ?? null,
+        analysisText: entry.analysisText || cached?.analysisText || '',
+        composeHash: entry.composeHash || cached?.composeHash || '',
+        specVersion: entry.specVersion ?? cached?.specVersion ?? null,
+      };
+      writeHomeComposeCache(cacheKey, merged);
+      if (merged.exportId) {
+        patchHomeComposeCacheExportId(cacheKey, merged.exportId);
+      }
+
+      const url =
+        audioBlobUrlRef.current ??
+        (merged.exportId ? await resolveExportAudioUrl(merged.exportId) : null);
+      if (url) {
+        setAudioUrl(url);
+        await playLyriaAudio({ url });
+        setIsPlaying(true);
+      } else {
+        setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Audio generation failed';
+      setAudioUnavailableReason(`Audio unavailable (Lyria-only). ${msg}`);
+    } finally {
+      setAudioLoading(false);
+      audioInFlightRef.current = false;
+    }
+  }, [
+    isPlaying,
+    audioUrl,
+    location,
+    dateStr,
+    timeStr,
+    playSoundtrack,
+    stopSoundtrack,
+    applyComposePayload,
+    resolveExportAudioUrl,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -454,21 +627,13 @@ export default function HomePage() {
             <Button
               type="button"
               variant="audio"
-              disabled={disabled}
+              disabled={disabled || audioLoading}
+              loading={audioLoading}
               onClick={() => void handleTodaySoundtrack()}
               className="text-lg px-10 py-4 w-full md:w-auto"
             >
               Today&apos;s Soundtrack
             </Button>
-          )}
-          {exportId && (
-            <a
-              href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
-              download={`${exportId}-30s.wav`}
-              className="text-sm text-text-muted hover:text-text-secondary underline underline-offset-2"
-            >
-              Download WAV (30s)
-            </a>
           )}
         </div>
 
