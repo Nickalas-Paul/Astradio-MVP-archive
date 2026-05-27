@@ -578,7 +578,6 @@ export function RelationalCommunityFeed({
                             });
                             if (finalized.kind !== 'expanded_artifact') return null;
 
-                            const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
                             const activationOnly = finalized.slots.activation?.trim() ?? '';
                             const sonicForecast =
                               typeof cd?.sonic_forecast_text === 'string' && cd.sonic_forecast_text.trim()
@@ -622,18 +621,6 @@ export function RelationalCommunityFeed({
                                         </div>
                                       )}
                                   </section>
-                                ) : null}
-
-                                {whatToDo ? (
-                                  <>
-                                    <div className="border-t border-border" aria-hidden />
-                                    <section className="space-y-3">
-                                      <h2 className="reading-section-header">What To Do</h2>
-                                      <div className="text-body text-text-primary leading-relaxed">
-                                        <IdentityMarkdown content={whatToDo} />
-                                      </div>
-                                    </section>
-                                  </>
                                 ) : null}
 
                                 <div className="border-t border-border" aria-hidden />
