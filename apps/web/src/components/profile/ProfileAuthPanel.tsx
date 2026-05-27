@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
+import { Button } from '@/components/shared/Button';
+import { InputField } from '@/components/shared/Input';
+import { Tabs } from '@/components/shared/Tabs';
+import { Card } from '@/components/shared/Card';
 
 export interface ProfileAuthPanelProps {
   onAuthSuccess: () => void | Promise<void>;
@@ -54,65 +58,49 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card space-y-6"
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="space-y-6">
         <h2 className="text-xl font-semibold text-text">Sign in to Astradio</h2>
         <p className="text-sm text-subtext">
           Register with email and password, or log in to continue. Your natal chart is saved with your account.
         </p>
-        <div className="flex gap-2 border-b border-border pb-2">
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
-              authTab === 'register' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
-            }`}
-            onClick={() => {
-              setAuthTab('register');
-              setAuthError(null);
-            }}
-          >
-            Register
-          </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
-              authTab === 'login' ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
-            }`}
-            onClick={() => {
-              setAuthTab('login');
-              setAuthError(null);
-            }}
-          >
-            Log in
-          </button>
-        </div>
+        <Tabs
+          variant="underline"
+          ariaLabel="Sign in or register"
+          tabs={[
+            { id: 'register', label: 'Register' },
+            { id: 'login', label: 'Log in' },
+          ]}
+          activeTab={authTab}
+          onTabChange={(id) => {
+            setAuthTab(id as 'register' | 'login');
+            setAuthError(null);
+          }}
+        />
 
         {authTab === 'login' ? (
           <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4 max-w-md">
-            <input
+            <InputField
               type="email"
               autoComplete="email"
               placeholder="Email"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              className="input w-full"
             />
-            <input
+            <InputField
               type="password"
               autoComplete="current-password"
               placeholder="Password"
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
-              className="input w-full"
             />
             {authError && <p className="text-red-500 text-xs">{authError}</p>}
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               disabled={authBusy || !canLogin}
-              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+              loading={authBusy}
               onClick={async () => {
                 setAuthBusy(true);
                 setAuthError(null);
@@ -138,62 +126,55 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                 }
               }}
             >
-              {authBusy ? 'Signing in…' : 'Log in'}
-            </button>
+              Log in
+            </Button>
           </div>
         ) : (
           <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
-              <input
+              <InputField
                 type="email"
                 autoComplete="email"
                 placeholder="Email"
                 value={registerEmail}
                 onChange={(e) => setRegisterEmail(e.target.value)}
-                className="input w-full"
               />
-              <input
+              <InputField
                 type="password"
                 autoComplete="new-password"
                 placeholder="Password (min 8 characters)"
                 value={registerPassword}
                 onChange={(e) => setRegisterPassword(e.target.value)}
-                className="input w-full"
               />
             </div>
-            <input
+            <InputField
               placeholder="Display name"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              className="input w-full"
             />
-            <input
+            <InputField
               placeholder="Handle (optional)"
               value={createHandle}
               onChange={(e) => setCreateHandle(e.target.value)}
-              className="input w-full"
             />
             <div className="space-y-3 border-t border-border pt-4">
               <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
-              <input
+              <InputField
                 placeholder="Label (e.g. My Natal)"
                 value={createChartLabel}
                 onChange={(e) => setCreateChartLabel(e.target.value)}
-                className="input w-full"
               />
               <div className="grid grid-cols-2 gap-2">
-                <input
+                <InputField
                   type="date"
                   value={createChartDate}
                   onChange={(e) => setCreateChartDate(e.target.value)}
-                  className="input w-full"
                   required
                 />
-                <input
+                <InputField
                   type="time"
                   value={createChartTime}
                   onChange={(e) => setCreateChartTime(e.target.value)}
-                  className="input w-full"
                   required
                 />
               </div>
@@ -217,10 +198,12 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
             {(createError || authError) && (
               <p className="text-red-500 text-xs">{authError || createError}</p>
             )}
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               disabled={creating || authBusy || !canRegister}
-              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+              loading={creating || authBusy}
               onClick={async () => {
                 setCreating(true);
                 setCreateError(null);
@@ -266,10 +249,11 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                 }
               }}
             >
-              {creating || authBusy ? 'Creating account…' : 'Create account'}
-            </button>
+              Create account
+            </Button>
           </div>
         )}
+        </Card>
       </motion.div>
     </div>
   );

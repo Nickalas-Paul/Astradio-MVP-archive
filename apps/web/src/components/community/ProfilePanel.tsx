@@ -10,6 +10,9 @@ import { ActiveTransitPanel } from '../profile/ActiveTransitPanel';
 import { IdentityPanel } from '../profile/IdentityPanel';
 import { LibraryPanel, type LibraryPanelHandle } from '../profile/LibraryPanel';
 import { ProfilePanelFooter } from '../profile/ProfilePanelFooter';
+import { Button } from '@/components/shared/Button';
+import { Tabs } from '@/components/shared/Tabs';
+import { Card } from '@/components/shared/Card';
 
 export { filterIdentityDisplaySections } from '../profile/shared/profile-reading-utils';
 
@@ -35,22 +38,22 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
   if (profileLoading) {
     return (
-      <div className="card space-y-6">
+      <Card className="space-y-6">
         <div className="h-8 w-48 bg-bgElev rounded animate-pulse" />
         <div className="aspect-square max-w-md bg-bgElev rounded-2xl animate-pulse" />
         <div className="space-y-4">
           <div className="h-4 bg-bgElev rounded w-full animate-pulse" />
           <div className="h-4 bg-bgElev rounded w-3/4 animate-pulse" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (profileError) {
     return (
-      <div className="card">
+      <Card>
         <p className="text-subtext text-sm">{profileError}</p>
-      </div>
+      </Card>
     );
   }
 
@@ -83,42 +86,35 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {onSwitchToConnections && realChart && (
-              <button
-                type="button"
-                onClick={onSwitchToConnections}
-                className="btn-primary text-sm"
-              >
+              <Button type="button" variant="primary" size="sm" onClick={onSwitchToConnections}>
                 Find connections
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
-              className="px-4 py-2 rounded-lg border border-border text-subtext text-sm hover:bg-bgElev"
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
                 await refresh();
               }}
             >
               Log out
-            </button>
+            </Button>
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-border pb-2" role="tablist">
-          {(['active', 'identity', 'library'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              className={`px-4 py-2 rounded-t-lg text-sm font-medium ${
-                profileSection === s ? 'bg-bgElev text-text border border-b-0 border-border' : 'text-subtext'
-              }`}
-              onClick={() => setProfileSection(s)}
-            >
-              {s === 'active' ? 'Current Transit' : s === 'identity' ? 'Identity' : 'Library'}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="underline"
+          ariaLabel="Profile sections"
+          tabs={[
+            { id: 'active', label: 'Current Transit' },
+            { id: 'identity', label: 'Identity' },
+            { id: 'library', label: 'Library' },
+          ]}
+          activeTab={profileSection}
+          onTabChange={(id) => setProfileSection(id as 'active' | 'identity' | 'library')}
+        />
 
         {profileSection === 'active' && (
           <ActiveTransitPanel

@@ -8,6 +8,8 @@ import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import type { ProfilePrimaryChart } from '../../core/social/hooks';
 import { useUIStore } from '../../store';
+import { Button } from '@/components/shared/Button';
+import { InputField } from '@/components/shared/Input';
 
 export type BirthChartSectionVariant = 'profile_onboarding' | 'manage';
 
@@ -130,15 +132,14 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
       {variant === 'profile_onboarding' && (
         <p className="text-xs text-subtext">Required for your natal wheel and Identity text.</p>
       )}
-      <input
+      <InputField
         placeholder="Label (e.g. My Natal)"
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        className="input w-full"
       />
       <div className="grid grid-cols-2 gap-2">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
-        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input w-full" />
+        <InputField type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <InputField type="time" value={time} onChange={(e) => setTime(e.target.value)} />
       </div>
       <LocationFinder
         value={locationLabel}
@@ -157,14 +158,16 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
         placeholder={variant === 'manage' ? 'Birth place (search to set timezone)' : 'Birth place (city, region, or address)'}
       />
       {error && <p className="text-red-500 text-xs">{error}</p>}
-      <button
+      <Button
         type="button"
+        variant="primary"
+        size="sm"
         disabled={saving}
-        className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+        loading={saving}
         onClick={() => void submit()}
       >
-        {saving ? 'Saving…' : variant === 'profile_onboarding' ? 'Save birth chart' : 'Save updated birth chart'}
-      </button>
+        {variant === 'profile_onboarding' ? 'Save birth chart' : 'Save updated birth chart'}
+      </Button>
       {variant === 'profile_onboarding' && (
         <Link href="/sandbox" className="block text-sm text-emerald hover:underline">
           Open Sandbox

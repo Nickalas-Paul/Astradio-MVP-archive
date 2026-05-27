@@ -16,6 +16,9 @@ import {
 import { getApiBaseUrl } from '../../core/api-base';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
+import { Button } from '@/components/shared/Button';
+import { Tabs } from '@/components/shared/Tabs';
+import { InputField } from '@/components/shared/Input';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -290,15 +293,13 @@ export function ActiveTransitPanel({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 max-w-md">
-            <input
+            <InputField
               type="date"
-              className="input w-full"
               value={activeDate}
               onChange={(e) => setActiveDate(e.target.value)}
             />
-            <input
+            <InputField
               type="time"
-              className="input w-full"
               value={activeTime}
               onChange={(e) => setActiveTime(e.target.value)}
             />
@@ -327,53 +328,51 @@ export function ActiveTransitPanel({
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
-              className="btn-primary text-sm"
+              variant="primary"
+              size="sm"
               disabled={activeLoading}
+              loading={activeLoading}
               onClick={() => void loadActiveStateText()}
             >
-              {activeLoading ? 'Loading…' : 'Generate transit report'}
-            </button>
-            <button
+              Generate transit report
+            </Button>
+            <Button
               type="button"
-              className="btn-audio text-sm"
+              variant="audio"
+              size="sm"
               disabled={activeAudioBusy || !activeResult}
+              loading={activeAudioBusy}
               onClick={() => void generateActiveAudio()}
             >
-              {activeAudioBusy ? 'Generating…' : 'Generate transit audio'}
-            </button>
-            <button
+              Generate transit audio
+            </Button>
+            <Button
               type="button"
-              className="btn-secondary text-sm"
+              variant="secondary"
+              size="sm"
               disabled={!canSaveCurrentTransit()}
               onClick={() => void saveActiveToLibrary()}
             >
               Save to Library
-            </button>
+            </Button>
           </div>
           {librarySaveError ? <p className="text-sm text-red-500">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-red-500">{activeError}</p>}
           {activeWheelSlots && (
             <div className="max-w-xl space-y-3">
-              <div className="flex gap-2 rounded-lg bg-bgElev p-1 border border-border">
-                {activeWheelSlots.map((slot, idx) => (
-                  <button
-                    key={slot.label}
-                    type="button"
-                    className={`flex-1 rounded-md px-3 py-2 text-left transition-colors ${
-                      activeSlotIndex === idx
-                        ? 'bg-bg border border-border text-emerald'
-                        : 'text-subtext hover:bg-bg'
-                    }`}
-                    onClick={() => setActiveSlotIndex(idx as 0 | 1)}
-                    aria-pressed={activeSlotIndex === idx}
-                  >
-                    <div className="text-sm font-medium">{slot.label}</div>
-                    <div className="text-xs text-subtext">{slot.description}</div>
-                  </button>
-                ))}
-              </div>
+              <Tabs
+                variant="segmented"
+                ariaLabel="Transit wheel slot"
+                tabs={activeWheelSlots.map((slot, idx) => ({
+                  id: String(idx),
+                  label: slot.label,
+                  description: slot.description,
+                }))}
+                activeTab={String(activeSlotIndex)}
+                onTabChange={(id) => setActiveSlotIndex(Number(id) as 0 | 1)}
+              />
               {snapshotSafeForWheel(activeWheelSlots[activeSlotIndex]?.snapshot) ? (
                 <WheelCanvas
                   chartData={activeWheelSlots[activeSlotIndex]!.snapshot as any}

@@ -6,6 +6,7 @@ import { useCompositionJob } from '../hooks/useCompositionJob';
 import { useChartsStore } from '../store';
 import { useUIStore } from '../store';
 import type { GenerateCardProps, CompositionRequest } from '../types';
+import { Button } from '@/components/shared/Button';
 
 const genres = [
   { id: 'ambient', label: '🌙 Ambient', description: 'Atmospheric and ethereal' },
@@ -160,25 +161,26 @@ export function GenerateCard({
         {/* Action Buttons */}
         <div className="flex space-x-3">
           {isCurrentlyGenerating ? (
-            <button
-              onClick={handleCancel}
-              className="btn-secondary flex-1"
-            >
+            <Button type="button" variant="secondary" className="flex-1" onClick={handleCancel}>
               Cancel Generation
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              type="button"
+              variant="primary"
+              className="flex-1"
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="btn-primary flex-1"
             >
               {stage === 'ready' ? 'Generate New Track' : 'Generate 30s Track'}
-            </button>
+            </Button>
           )}
-          
-          <button
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="px-4"
             onClick={() => setShowGenreDetails(!showGenreDetails)}
-            className="btn-ghost px-4"
             aria-label="Show genre details"
           >
             <svg 
@@ -189,7 +191,7 @@ export function GenerateCard({
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {/* Genre Details */}

@@ -12,6 +12,8 @@ import type { CompatMatch } from '../core/compat/types';
 import { isFeatureEnabled } from '../core/config/flags';
 import { trackFeatureUse } from '../core/telemetry';
 import { RELATIONAL_INTENT_OPTIONS as MODES, type RelationalIntent } from '../lib/relational-intent';
+import { Button } from '@/components/shared/Button';
+import { Tabs } from '@/components/shared/Tabs';
 
 interface CompatibilitySectionProps {
   /** When false, show create-profile CTA first. When true, chartId may still be null (profile exists but no real chart). */
@@ -212,36 +214,31 @@ export function CompatibilitySection({
     }
   };
 
-  const intentRow =
-    !hideIntentSelector ? (
-      <div className="flex rounded-full bg-bgElev border border-border p-0.5 flex-wrap">
-        {MODES.map((m) => (
-          <button
-            key={m.value}
-            type="button"
-            onClick={() => setMode(m.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              mode === m.value ? 'bg-emerald text-bg' : 'text-subtext hover:text-text'
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-    ) : null;
+  const intentRow = !hideIntentSelector ? (
+    <Tabs
+      variant="pill"
+      pillTrack="compact"
+      ariaLabel="Compatibility intent"
+      tabs={MODES.map((m) => ({ id: m.value, label: m.label }))}
+      activeTab={mode}
+      onTabChange={(id) => setMode(id as RelationalIntent)}
+    />
+  ) : null;
 
   const findMatchesControl = (
-    <button
+    <Button
       type="button"
+      variant="primary"
+      size="sm"
       onClick={() => {
         setUserTriggered(true);
         void run();
       }}
       disabled={loading}
-      className="btn-primary text-sm disabled:opacity-50"
+      loading={loading}
     >
-      {loading ? 'Loading…' : 'Find matches'}
-    </button>
+      Find matches
+    </Button>
   );
 
   const header = (

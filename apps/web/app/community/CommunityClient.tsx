@@ -13,6 +13,8 @@ import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
 import type { RelationalIntent } from '../../src/lib/relational-intent';
+import { Button } from '@/components/shared/Button';
+import { Tabs } from '@/components/shared/Tabs';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
@@ -105,13 +107,9 @@ function GroupsList({ userId }: { userId: string | null }) {
           onChange={(e) => setQuery(e.target.value)}
           className="input flex-1 min-w-[200px]"
         />
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium"
-        >
+        <Button type="button" variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
           Create group
-        </button>
+        </Button>
       </div>
       {createOpen && (
         <form onSubmit={onCreate} className="rounded-lg border border-border bg-surface-1 p-4 space-y-3">
@@ -237,25 +235,18 @@ function CommunityClientInner() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex items-center justify-center gap-2 bg-panel rounded-full p-2 shadow-soft border border-border overflow-x-auto"
         >
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setTab(tab.id)}
-              className={`px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-emerald text-bg shadow-md'
-                  : 'text-subtext hover:text-text hover:bg-bgElev'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </span>
-            </button>
-          ))}
+          <Tabs
+            variant="pill"
+            ariaLabel="Community sections"
+            tabs={tabs.map((tab) => ({
+              id: tab.id,
+              label: tab.label,
+              icon: tab.icon,
+            }))}
+            activeTab={activeTab}
+            onTabChange={(id) => setTab(id as CommunityTabId)}
+          />
         </motion.div>
 
         <motion.div

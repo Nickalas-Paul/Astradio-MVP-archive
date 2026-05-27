@@ -9,6 +9,7 @@ import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
 import { filterIdentityDisplaySections } from './shared/profile-reading-utils';
 import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
+import { Button } from '@/components/shared/Button';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -193,23 +194,25 @@ export function IdentityPanel({
             {(audioState === 'missing' || audioState === 'error') && (
               <div className="space-y-3">
                 <p className="text-sm text-subtext">{missingMessage}</p>
-                <button
+                <Button
                   type="button"
-                  className="btn-audio text-sm"
+                  variant="audio"
+                  size="sm"
                   disabled={audioGenerating}
+                  loading={audioGenerating}
                   onClick={() => void handleGenerateIdentityAudio()}
                 >
-                  {audioGenerating ? 'Generating…' : 'Hear your chart'}
-                </button>
+                  Hear your chart
+                </Button>
               </div>
             )}
 
             {audioState === 'generating' && (
               <div className="space-y-2">
                 <p className="text-sm text-subtext">Building your soundtrack…</p>
-                <button type="button" className="btn-audio text-sm" disabled>
+                <Button type="button" variant="audio" size="sm" disabled loading>
                   Generating…
-                </button>
+                </Button>
               </div>
             )}
           </>

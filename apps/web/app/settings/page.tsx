@@ -6,6 +6,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
+import { Button } from '@/components/shared/Button';
 
 export default function SettingsPage() {
   const { user, primaryChart, refresh } = useProfile();
@@ -199,12 +200,12 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <button className="btn-secondary w-full text-sm">
+                  <Button type="button" variant="secondary" size="sm" className="w-full">
                     Export Data
-                  </button>
-                  <button className="btn-secondary w-full text-sm">
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" className="w-full">
                     Import Data
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -224,20 +225,16 @@ export default function SettingsPage() {
                     This will reset all your preferences to their default values. 
                     This action cannot be undone.
                   </p>
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-danger border border-danger hover:bg-danger/10 w-full"
                     onClick={handleReset}
                     disabled={isResetting}
-                    className="btn-ghost text-danger border-danger hover:bg-danger/10 w-full"
+                    loading={isResetting}
                   >
-                    {isResetting ? (
-                      <>
-                        <div className="loading-spinner mr-2" />
-                        Resetting...
-                      </>
-                    ) : (
-                      'Reset Settings'
-                    )}
-                  </button>
+                    Reset Settings
+                  </Button>
                 </div>
               </div>
             </div>

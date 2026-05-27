@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
+import { Button } from '@/components/shared/Button';
 
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
@@ -196,14 +197,16 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       ) : null}
                     </span>
                     <div className="flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="primary"
+                        size="sm"
                         disabled={accepting === intent.id}
+                        loading={accepting === intent.id}
                         onClick={() => acceptIntent(String(intent.id))}
-                        className="px-3 py-1.5 rounded-lg bg-emerald text-bg text-sm disabled:opacity-50"
                       >
-                        {accepting === intent.id ? 'Accepting…' : 'Accept'}
-                      </button>
+                        Accept
+                      </Button>
                       <button
                         type="button"
                         disabled={declining === intent.id}
@@ -231,14 +234,16 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     <span className="text-sm text-subtext">
                       Group <span className="font-mono text-xs">{String(inv.groupId).slice(-10)}</span>
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="primary"
+                      size="sm"
                       disabled={acceptGroup === `${inv.groupId}:${inv.id}`}
+                      loading={acceptGroup === `${inv.groupId}:${inv.id}`}
                       onClick={() => acceptGroupInvite(String(inv.groupId), String(inv.id))}
-                      className="px-3 py-1.5 rounded-lg bg-emerald text-bg text-sm disabled:opacity-50"
                     >
-                      {acceptGroup === `${inv.groupId}:${inv.id}` ? 'Joining…' : 'Accept invite'}
-                    </button>
+                      Accept invite
+                    </Button>
                   </li>
                 ))}
               </ul>

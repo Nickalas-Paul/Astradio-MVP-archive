@@ -13,6 +13,7 @@ import { normalizeLocalTime, sandboxStateCompleteForTransit } from './shared/pro
 import { getApiBaseUrl } from '../../core/api-base';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 import { IdentityMarkdown } from '../shared/IdentityMarkdown';
+import { Button } from '@/components/shared/Button';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
 
@@ -317,13 +318,15 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         {' · '}
                         <span>{String(row.composition_type ?? '—')}</span>
                       </span>
-                      <button
+                      <Button
                         type="button"
-                        className="px-3 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-emerald px-3 py-1"
                         onClick={() => void openLibraryRow(String(row.id))}
                       >
                         View
-                      </button>
+                      </Button>
                     </li>
                   ))}
                   {libraryRows.length === 0 && <li className="text-subtext">Nothing saved yet.</li>}
@@ -334,9 +337,11 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       <p className="text-sm font-medium text-text">
                         {libraryDetailRow ? librarySourceLabel(libraryDetailRow.source) : 'Saved artifact'}
                       </p>
-                      <button
+                      <Button
                         type="button"
-                        className="text-xs text-subtext hover:text-text"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-subtext hover:text-text px-2 py-1"
                         onClick={() => {
                           setLibraryOpenId(null);
                           setLibraryDetailRow(null);
@@ -353,7 +358,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         }}
                       >
                         Close
-                      </button>
+                      </Button>
                     </div>
                     {libraryDetailLoading && <p className="text-sm text-subtext">Loading…</p>}
                     {libraryHistoricalArtifact && (

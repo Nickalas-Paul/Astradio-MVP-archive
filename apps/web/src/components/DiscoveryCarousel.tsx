@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CompatMatch, CompatibilityExplanationProfile, SynastryBulletLine } from '../core/compat/types';
 import type { RelationalIntent } from '../lib/relational-intent';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { Button } from '@/components/shared/Button';
 
 const MAX_OUTGOING_CONNECTION_REQUESTS = 3;
 
@@ -210,21 +211,18 @@ function MatchCard({
       ) : null}
 
       <div className="flex flex-wrap justify-center gap-3">
-        <button
-          type="button"
-          onClick={onViewProfile}
-          className="px-4 py-2 border border-border rounded-lg hover:border-emerald/50 text-sm font-medium text-subtext hover:text-text transition-colors"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onViewProfile}>
           View profile
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={onRequestConnection}
           disabled={connectionDisabled}
-          className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {connectionLabel}
-        </button>
+        </Button>
       </div>
       <p className="sr-only">Browsing as {intentLabel} intent</p>
     </article>
@@ -310,13 +308,14 @@ export function DiscoveryCarousel({
         <p className="text-sm text-subtext mb-6">
           You can send more when someone accepts, declines, or you cancel a pending request.
         </p>
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={() => router.push('/community?tab=connections')}
-          className="btn-primary text-sm"
         >
           View pending requests
-        </button>
+        </Button>
       </div>
     );
   }

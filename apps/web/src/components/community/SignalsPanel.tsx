@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getApiBaseUrl } from '../../core/api-base';
+import { Card } from '@/components/shared/Card';
 
 type SignalRow = {
   id: string;
@@ -78,7 +79,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
   }
 
   return (
-    <section className="card space-y-3">
+    <Card as="section" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold text-text">Signals</h3>
@@ -128,6 +129,6 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }
