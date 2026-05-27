@@ -27,8 +27,8 @@ import {
 } from './claim-synthesize';
 import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
+import { assembleHomeSkySections } from './home-sky-sections';
 import {
-  assembleHomeDailySections,
   assembleLibraryPlanetaryAspects,
   assembleLibraryRelationalField,
   assembleLibraryRelationalWeather,
@@ -1131,11 +1131,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const snapshotMaybe = (options as ProjectionOptions & { snapshot?: EphemerisSnapshot }).snapshot;
   if (surface === 'daily' && snapshotMaybe) {
-    return assembleHomeDailySections({
-      snapshot: snapshotMaybe,
-      core,
-      surface,
-    });
+    return assembleHomeSkySections(snapshotMaybe);
   }
 
   // Phase 4A: template infrastructure removed.

@@ -48,10 +48,9 @@ const SECTION_RANK: Record<string, number> = {
 };
 
 const HOME_LIBRARY_SECTION_IDS = new Set([
-  'today_sky_anchor',
+  'todays_sound',
+  'sky_anchor',
   'emotional_weather',
-  'active_pattern',
-  'sonic_signature',
 ]);
 
 function sectionRank(id: string): number {

@@ -372,7 +372,9 @@ export class ComposeAPI {
           x.id === 'aspects' ||
           x.id === 'group_key_interactions_v1' ||
           x.id === 'signatures' ||
-          x.id === 'sky_summary'
+          x.id === 'sky_summary' ||
+          x.id === 'todays_sound' ||
+          x.id === 'sky_anchor'
       );
       const sigText = sig?.text ?? dailyLike[0]?.text ?? '';
       const mus = dailyLike.find(
@@ -390,7 +392,9 @@ export class ComposeAPI {
               s.id === 'aspects' ||
               s.id === 'group_key_interactions_v1' ||
               s.id === 'signatures' ||
-              s.id === 'sky_summary'
+              s.id === 'sky_summary' ||
+              s.id === 'todays_sound' ||
+              s.id === 'sky_anchor'
           )?.text ?? sigText,
         significance:
           dailyLike.find((s) => s.id === 'significance' || s.id === 'personal_emphasis')?.text ?? sigText,
