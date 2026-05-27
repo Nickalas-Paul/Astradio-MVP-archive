@@ -13,11 +13,10 @@ import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
 import {
-  homeComposeCacheKey,
-  homeComposeTimeHour,
-  patchHomeComposeCacheExportId,
-  readHomeComposeCache,
-  writeHomeComposeCache,
+  getHomeCache,
+  HOME_DAILY_COMPOSE_TIME,
+  setHomeCache,
+  updateHomeCacheAudio,
   type HomeComposeCacheEntry,
   type HomeExplanationSection,
 } from '../src/core/home-compose-cache';
@@ -188,7 +187,11 @@ export default function HomePage() {
     setExportId(entry.exportId);
     setChartData(entry.chartData);
     setEngineError(null);
-    setAudioUnavailableReason(null);
+    setAudioUnavailableReason(
+      entry.audioFailed
+        ? 'Audio is temporarily unavailable. Try again tomorrow.'
+        : null
+    );
     if (audioBlobUrlRef.current) {
       URL.revokeObjectURL(audioBlobUrlRef.current);
       audioBlobUrlRef.current = null;
@@ -202,6 +205,7 @@ export default function HomePage() {
       payload: Record<string, unknown>,
       loc: CanonicalLocation,
       composeTime: string,
+      cacheDate: string,
       options: { withAudio: boolean }
     ): Promise<HomeComposeCacheEntry> => {
       const responseSpec = (payload.explanation as { spec?: string } | undefined)?.spec;
@@ -304,24 +308,37 @@ export default function HomePage() {
         chartData: wheelSource,
         composeHash: hash,
         specVersion: responseSpec || null,
+        date: cacheDate,
         cachedAt: Date.now(),
       };
     },
     [loadWheelChart, mapSections]
   );
 
-  // Text-only compose on load (no Lyria); sessionStorage cache per sky-moment hour bucket
+  // Wheel-only refresh when time changes (cheap snapshot GET; does not trigger compose).
   useEffect(() => {
-    if (!location || !dateStr || !timeStr || location.lat == null || location.lon == null) {
+    if (!location || location.lat == null || location.lon == null || !dateStr || !timeStr) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const wheel = await loadWheelChart(timeStr, location, chartData);
+      if (!cancelled && wheel) setChartData(wheel);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dateStr, timeStr, location?.lat, location?.lon, loadWheelChart]);
+
+  // Text-only compose on load (no Lyria); localStorage daily cache per date + location.
+  useEffect(() => {
+    if (!location || !dateStr || location.lat == null || location.lon == null) {
       return;
     }
     const stableLoc: CanonicalLocation = location;
     const lat = stableLoc.lat;
     const lon = stableLoc.lon;
-
-    const composeTime = homeComposeTimeHour(timeStr);
-    const cacheKey = homeComposeCacheKey(dateStr, timeStr, lat, lon);
-    const inFlightKey = `${cacheKey}|text`;
+    const inFlightKey = `${dateStr}_${lat}_${lon}|text`;
 
     if (composeInFlightRef.current && composeRequestKeyRef.current === inFlightKey) {
       return;
@@ -332,7 +349,7 @@ export default function HomePage() {
     composeInFlightRef.current = true;
 
     async function bootstrap() {
-      const cached = readHomeComposeCache(cacheKey);
+      const cached = getHomeCache(dateStr, lat, lon);
       if (cached) {
         applyCacheEntry(cached);
         setIsLoading(false);
@@ -344,7 +361,7 @@ export default function HomePage() {
       try {
         const body = {
           date: dateStr,
-          time: composeTime,
+          time: HOME_DAILY_COMPOSE_TIME,
           location: stableLoc,
           generateAudio: false,
         };
@@ -360,8 +377,19 @@ export default function HomePage() {
         setComposeLatency(performance.now() - startTime);
         if (cancelled) return;
 
-        const entry = await applyComposePayload(payload, stableLoc, composeTime, { withAudio: false });
-        writeHomeComposeCache(cacheKey, entry);
+        const entry = await applyComposePayload(
+          payload,
+          stableLoc,
+          HOME_DAILY_COMPOSE_TIME,
+          dateStr,
+          { withAudio: false }
+        );
+        setHomeCache(dateStr, lat, lon, {
+          ...entry,
+          date: dateStr,
+          audioFailed: false,
+          audioFailedReason: null,
+        });
       } catch (e) {
         console.error('[compose] failed', e);
         if (!cancelled) setEngineError('Could not load sky report.');
@@ -376,7 +404,7 @@ export default function HomePage() {
       cancelled = true;
       composeInFlightRef.current = false;
     };
-  }, [dateStr, timeStr, location?.lat, location?.lon, location?.timezone, applyCacheEntry, applyComposePayload]);
+  }, [dateStr, location?.lat, location?.lon, location?.timezone, applyCacheEntry, applyComposePayload]);
 
   // 2a) Persist canonical location for campaign daily / group anchor (signed-in only; skip anonymous 401 noise)
   const lastTransitSyncKey = useRef<string | null>(null);
@@ -497,16 +525,14 @@ export default function HomePage() {
       return;
     }
 
-    if (!location || location.lat == null || location.lon == null || !dateStr || !timeStr) {
+    if (!location || location.lat == null || location.lon == null || !dateStr) {
       return;
     }
 
-    const composeTime = homeComposeTimeHour(timeStr);
-    const cacheKey = homeComposeCacheKey(dateStr, timeStr, location.lat, location.lon);
-    const cached = readHomeComposeCache(cacheKey);
+    const cached = getHomeCache(dateStr, location.lat, location.lon);
 
     if (cached?.audioFailed) {
-      setAudioUnavailableReason('Audio is temporarily unavailable. Try again later.');
+      setAudioUnavailableReason('Audio is temporarily unavailable. Try again tomorrow.');
       return;
     }
 
@@ -534,7 +560,7 @@ export default function HomePage() {
     try {
       const body = {
         date: dateStr,
-        time: composeTime,
+        time: HOME_DAILY_COMPOSE_TIME,
         location,
         generateAudio: true,
       };
@@ -545,7 +571,13 @@ export default function HomePage() {
         body: JSON.stringify(body),
       });
       const payload = await res.json();
-      const entry = await applyComposePayload(payload, location, composeTime, { withAudio: true });
+      const entry = await applyComposePayload(
+        payload,
+        location,
+        HOME_DAILY_COMPOSE_TIME,
+        dateStr,
+        { withAudio: true }
+      );
       const merged: HomeComposeCacheEntry = {
         ...entry,
         sections: entry.sections ?? cached?.sections ?? null,
@@ -553,19 +585,16 @@ export default function HomePage() {
         analysisText: entry.analysisText || cached?.analysisText || '',
         composeHash: entry.composeHash || cached?.composeHash || '',
         specVersion: entry.specVersion ?? cached?.specVersion ?? null,
+        date: dateStr,
       };
       const exportErr =
         typeof payload?.audio?.export_error === 'string' ? payload.audio.export_error : null;
       const audioFailed = !merged.exportId;
-      writeHomeComposeCache(cacheKey, {
+      setHomeCache(dateStr, location.lat, location.lon, {
         ...merged,
-        ...(audioFailed
-          ? { audioFailed: true, audioFailedReason: exportErr ?? 'render_failed' }
-          : { audioFailed: false, audioFailedReason: null }),
+        audioFailed,
+        audioFailedReason: audioFailed ? exportErr ?? 'render_failed' : null,
       });
-      if (merged.exportId) {
-        patchHomeComposeCacheExportId(cacheKey, merged.exportId);
-      }
 
       const url =
         audioBlobUrlRef.current ??
@@ -574,14 +603,12 @@ export default function HomePage() {
         setAudioUrl(url);
         await playLyriaAudio({ url });
         setIsPlaying(true);
-      } else if (exportErr === 'lyria_recitation_blocked') {
-        setAudioUnavailableReason('Audio is temporarily unavailable. Try again later.');
       } else {
-        setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
+        setAudioUnavailableReason('Audio is temporarily unavailable. Try again tomorrow.');
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Audio generation failed';
-      setAudioUnavailableReason(`Audio unavailable (Lyria-only). ${msg}`);
+      updateHomeCacheAudio(dateStr, location.lat, location.lon, null, true, 'request_failed');
+      setAudioUnavailableReason('Audio is temporarily unavailable. Try again tomorrow.');
     } finally {
       setAudioLoading(false);
       audioInFlightRef.current = false;
@@ -591,7 +618,6 @@ export default function HomePage() {
     audioUrl,
     location,
     dateStr,
-    timeStr,
     playSoundtrack,
     stopSoundtrack,
     applyComposePayload,

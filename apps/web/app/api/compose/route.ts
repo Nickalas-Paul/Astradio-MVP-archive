@@ -16,6 +16,7 @@ const SkyClientComposeSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}$/),
   location: CanonicalLocationSchema,
+  generateAudio: z.boolean().optional(),
 });
 
 type SkyClientComposeBody = z.infer<typeof SkyClientComposeSchema>;
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
         );
       }
       const data: SkyClientComposeBody = validationResult.data;
-      const { date, time, location } = data;
+      const { date, time, location, generateAudio } = data;
       // Wall-clock calendar + time in the client's canonical IANA zone (same contract as Profile active-state / Campaign transit).
       const datetime = `${date}T${time}:00`;
       const latitude = location.lat;
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
           timezone: location.timezone,
         },
         locationMeta: location as CanonicalLocation,
-        generateAudio: true,
+        generateAudio: generateAudio === true,
       });
     }
 

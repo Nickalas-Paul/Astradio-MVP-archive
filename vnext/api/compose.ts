@@ -187,7 +187,7 @@ export class ComposeAPI {
   }
 
   /**
-   * Sky-mode cache key: hour-bucketed datetime + city-level coords; ignores generateAudio and locationMeta.resolvedAt.
+   * Sky-mode cache key: calendar date + city-level coords (no hour); ignores generateAudio and locationMeta.resolvedAt.
    */
   private compositionCacheKeyForRequest(request: ComposeRequest): string {
     const req = request as ComposeRequest & {
@@ -195,17 +195,20 @@ export class ComposeAPI {
     };
     if (req.mode === 'sky' && req.skyParams) {
       const sp = req.skyParams;
-      let datetime = String(sp.datetime || '');
-      if (datetime.length >= 13) {
-        datetime = `${datetime.slice(0, 13)}:00:00`;
-      }
+      const datetime = String(sp.datetime || '');
+      const dateOnly = datetime.length >= 10 ? datetime.slice(0, 10) : datetime;
       const lat = Math.round(sp.latitude * 10) / 10;
       const lon = Math.round(sp.longitude * 10) / 10;
       const tz =
         typeof sp.timezone === 'string' && sp.timezone.trim() ? sp.timezone.trim() : 'UTC';
       const normalized = {
         mode: 'sky' as const,
-        skyParams: { latitude: lat, longitude: lon, datetime, timezone: tz },
+        skyParams: {
+          latitude: lat,
+          longitude: lon,
+          datetime: `${dateOnly}T12:00:00`,
+          timezone: tz,
+        },
       };
       return this.sha256(JSON.stringify(normalized) + this.runtimeModel);
     }
