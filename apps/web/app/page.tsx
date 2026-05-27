@@ -1,20 +1,36 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 // use relative imports to avoid alias issues
 import { getApiBaseUrl } from '../src/core/api-base';
 import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
 import { AppShell } from '@/components/AppShell';
+import { Button } from '@/components/shared/Button';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { DateInput, TimeInput } from '../src/components/Inputs';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
 import type { CanonicalLocation, GeoPermissionStatus } from '../src/types/location';
 
+/** Fallback when browser geolocation is denied or unavailable. */
+function defaultSkyLocation(): CanonicalLocation {
+  const resolvedAt = new Date().toISOString();
+  return {
+    source: 'geofinder',
+    label: 'Texas, United States',
+    lat: 29.42,
+    lon: -98.49,
+    timezone: 'America/Chicago',
+    resolvedAt,
+  };
+}
+
 type ChartData = any;
 
 export default function HomePage() {
+  const router = useRouter();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [composeHash, setComposeHash] = useState<string>('');
@@ -36,6 +52,7 @@ export default function HomePage() {
   /** True when /api/profile returns a user — used to gate signed-in-only persistence. */
   const [signedInUserPresent, setSignedInUserPresent] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   /** Lyria-only: explicit message when artifact missing or playback fails. */
   const [audioUnavailableReason, setAudioUnavailableReason] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -76,6 +93,11 @@ export default function HomePage() {
     const mm = String(now.getMinutes()).padStart(2, '0');
     setTimeStr((prev) => prev || `${hh}:${mm}`);
 
+    const applyFallbackLocation = () => {
+      setGeoPermission('denied');
+      setLocation((prev) => prev ?? defaultSkyLocation());
+    };
+
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -99,14 +121,13 @@ export default function HomePage() {
           setLocation(baseLocation);
         },
         () => {
-          setGeoPermission('denied');
-          setLocation(null);
+          applyFallbackLocation();
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
       );
     } else {
       setGeoPermission('unavailable');
-      setLocation(null);
+      setLocation((prev) => prev ?? defaultSkyLocation());
     }
   }, []);
 
@@ -348,43 +369,59 @@ export default function HomePage() {
     };
   }, [location?.lat, location?.lon]);
 
-  // Lyria-only playback. Single path: playLyriaAudio(payload.audio) or fail-closed message.
+  const playSoundtrack = useCallback(async () => {
+    setAudioUnavailableReason(null);
+    if (!audioUrl) {
+      setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
+      return;
+    }
+    try {
+      const start = performance.now();
+      await playLyriaAudio({ url: audioUrl });
+      setAudioStartupTime(performance.now() - start);
+      setIsPlaying(true);
+    } catch (e) {
+      setIsPlaying(false);
+      const msg = e instanceof Error ? e.message : 'Playback failed';
+      setAudioUnavailableReason(`Audio unavailable (Lyria-only). ${msg}`);
+    }
+  }, [audioUrl]);
+
+  const stopSoundtrack = useCallback(() => {
+    stopLyriaPlayback();
+    setIsPlaying(false);
+  }, []);
+
+  const handleTodaySoundtrack = useCallback(async () => {
+    setAudioEnabled(true);
+    if (isPlaying) {
+      stopSoundtrack();
+      return;
+    }
+    await playSoundtrack();
+  }, [isPlaying, playSoundtrack, stopSoundtrack]);
+
   useEffect(() => {
-    async function handlePlay() {
-      setAudioUnavailableReason(null);
-      if (!audioUrl) {
-        setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
-        return;
-      }
-      try {
-        const start = performance.now();
-        await playLyriaAudio({ url: audioUrl });
-        setAudioStartupTime(performance.now() - start);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Playback failed';
-        setAudioUnavailableReason(`Audio unavailable (Lyria-only). ${msg}`);
-      }
-    }
-    function handleStop() {
-      stopLyriaPlayback();
-    }
-    window.addEventListener('astradio:play', handlePlay as any);
-    window.addEventListener('astradio:stop', handleStop as any);
     return () => {
-      window.removeEventListener('astradio:play', handlePlay as any);
-      window.removeEventListener('astradio:stop', handleStop as any);
-      handleStop();
+      stopLyriaPlayback();
     };
+  }, []);
+
+  useEffect(() => {
+    setIsPlaying(false);
   }, [audioUrl]);
 
   const disabled = isLoading || !chartData || !location;
 
   return (
     <AppShell showPlayer={false} contentClassName="">
-      <section className="mx-auto max-w-7xl px-4 pt-10 pb-6">
+      <section className="mx-auto max-w-7xl px-4 pt-10 pb-6 space-y-3">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Here's what today sounds like.
+          Astrology you can hear.
         </h1>
+        <p className="text-base md:text-lg text-zinc-400 max-w-2xl leading-relaxed">
+          The planets are always in motion. Every alignment carries a sound.
+        </p>
       </section>
 
       {/* Main: explainer (left) | wheel (right) */}
@@ -401,14 +438,6 @@ export default function HomePage() {
           <section className="lg:col-span-3">
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
               <WheelDisplay chartData={chartData} isLoading={isLoading} />
-              {/* Viz sync indicator */}
-              {chartData && !isLoading && (
-                <div className="mt-2 text-center">
-                  <p className="text-xs text-zinc-400">
-                    Visuals synced to this composition — coming soon
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Inputs row under wheel */}
@@ -421,49 +450,43 @@ export default function HomePage() {
                   {location
                     ? location.label
                     : geoPermission === 'denied'
-                      ? 'Location unavailable — allow location or set place from Profile'
+                      ? 'Using approximate location'
                       : 'Locating…'}
                 </span>
               </div>
             </div>
 
-            {/* Transport with audio gesture gating */}
-            <div className="mt-4 flex items-center gap-3">
-              {!audioEnabled ? (
-                <button
-                  className="px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50"
-                  disabled={disabled}
-                  onClick={() => setAudioEnabled(true)}
-                >
-                  Tap to Enable Audio
-                </button>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {isPlaying ? (
+                <Button type="button" variant="secondary" disabled={disabled} onClick={() => stopSoundtrack()}>
+                  Stop
+                </Button>
               ) : (
-                <>
-                  <button
-                    className="px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50"
-                    disabled={disabled}
-                    onClick={() => window.dispatchEvent(new CustomEvent('astradio:play'))}
-                  >
-                    Play
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 disabled:opacity-50"
-                    disabled={disabled}
-                    onClick={() => window.dispatchEvent(new CustomEvent('astradio:stop'))}
-                  >
-                    Stop
-                  </button>
-                  {exportId && (
-                    <a
-                      href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
-                      download={`${exportId}-30s.wav`}
-                      className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 inline-flex items-center justify-center"
-                    >
-                      Download WAV (30s)
-                    </a>
-                  )}
-                </>
+                <Button
+                  type="button"
+                  variant="audio"
+                  disabled={disabled}
+                  onClick={() => void handleTodaySoundtrack()}
+                >
+                  Today&apos;s Soundtrack
+                </Button>
               )}
+              {exportId && audioEnabled && (
+                <a
+                  href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+                  download={`${exportId}-30s.wav`}
+                  className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 inline-flex items-center justify-center text-sm"
+                >
+                  Download WAV (30s)
+                </a>
+              )}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+              <p className="text-sm text-zinc-300">Want to hear what your chart sounds like?</p>
+              <Button type="button" variant="outline" onClick={() => router.push('/profile')}>
+                Create your chart
+              </Button>
             </div>
 
             {/* Engine status and debug info */}

@@ -11,7 +11,7 @@ export function DateInput({
 }: { value: string; onChange: Cb; disabled?: boolean }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs text-zinc-400">Birth / Transit Date</span>
+      <span className="text-xs text-zinc-400">Date</span>
       <input
         type="date"
         value={value}
@@ -30,7 +30,7 @@ export function TimeInput({
 }: { value: string; onChange: Cb; disabled?: boolean }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs text-zinc-400">Birth / Transit Time</span>
+      <span className="text-xs text-zinc-400">Time</span>
       <input
         type="time"
         value={value}

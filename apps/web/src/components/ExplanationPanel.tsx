@@ -17,12 +17,17 @@ const DISPLAY_TITLES: Record<string, string> = {
   Bullets: "Musical Identity and Flow",
 };
 
-/** Canonical order for sections. */
+/** Canonical order for legacy explainer sections. */
 const SECTION_ORDER: string[] = [
   "Astrological Signatures",
   "Personal Significance",
   "Musical Identity and Flow",
 ];
+
+/** Home guest sky report section order (Phase 8C). */
+const HOME_SECTION_IDS: string[] = ['todays_sound', 'sky_anchor', 'emotional_weather'];
+
+const HOME_GRADIENT_SECTION_IDS = new Set(HOME_SECTION_IDS);
 
 interface ExplanationPanelProps {
   composeHash: string;
@@ -34,8 +39,10 @@ interface ExplanationPanelProps {
   className?: string;
 }
 
-const FALLBACK_LOADING = 'Loading astrological analysis...';
-const FALLBACK_DEFAULT = "Your natal chart combined with today's transits creates a unique musical signature. The planetary positions influence the tempo, harmony, and emotional tone of your personalized soundtrack.";
+const PANEL_TITLE = 'Right now in the sky';
+const FALLBACK_LOADING = 'Loading the sky report…';
+const FALLBACK_DEFAULT =
+  "Today's planetary alignment carries a distinct sonic character. Press play to hear what the sky sounds like right now.";
 
 /** Split text into paragraphs (blank-line or double newline). Backend uses "\n\n" for paragraph breaks so factor correspondence lines render as separate paragraphs. */
 function paragraphs(text: string): string[] {
@@ -64,6 +71,23 @@ function parseLegacyBullets(text: string): string[] {
     .filter(Boolean);
 }
 
+function sectionOrderKey(sec: ExplanationSection): number {
+  const id = sec.sectionId ?? '';
+  const homeIdx = HOME_SECTION_IDS.indexOf(id);
+  if (homeIdx >= 0) return homeIdx;
+  const title = DISPLAY_TITLES[sec.title] ?? DISPLAY_TITLES[id] ?? sec.title;
+  const legacyIdx = SECTION_ORDER.indexOf(title);
+  return legacyIdx >= 0 ? 100 + legacyIdx : 200;
+}
+
+function sectionHeadingClass(sec: ExplanationSection): string {
+  const id = sec.sectionId ?? '';
+  if (HOME_GRADIENT_SECTION_IDS.has(id)) {
+    return 'text-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent';
+  }
+  return 'text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2';
+}
+
 export function ExplanationPanel({
   composeHash,
   text,
@@ -76,7 +100,7 @@ export function ExplanationPanel({
   if (isLoading) {
     return (
       <div className={`space-y-4 ${className}`}>
-        <h3 className="text-lg font-semibold text-zinc-100">Astrological Analysis</h3>
+        <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
         <p className="text-zinc-400 leading-relaxed">{FALLBACK_LOADING}</p>
       </div>
     );
@@ -85,37 +109,31 @@ export function ExplanationPanel({
   if (hasSections) {
     const displayTitle = (s: ExplanationSection) =>
       DISPLAY_TITLES[s.title] ?? DISPLAY_TITLES[s.sectionId ?? ''] ?? s.title;
-    const orderKey = (s: ExplanationSection) => {
-      const t = displayTitle(s);
-      const i = SECTION_ORDER.indexOf(t);
-      return i >= 0 ? i : SECTION_ORDER.length;
-    };
-    const sorted = [...sections].sort((a, b) => orderKey(a) - orderKey(b));
+    const sorted = [...sections].sort((a, b) => sectionOrderKey(a) - sectionOrderKey(b));
     let previousText = '';
     return (
       <div className={`space-y-4 ${className}`}>
-        <h3 className="text-lg font-semibold text-zinc-100">Astrological Analysis</h3>
+        <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
         <div className="prose prose-invert max-w-none space-y-5">
           {sorted.map((sec, idx) => {
             const title = displayTitle(sec);
-            let text = sec.text ?? '';
-            if (previousText.startsWith('Tone:') && text.startsWith('Tone:')) {
-              text = dedupeTone(previousText, text);
+            let sectionText = sec.text ?? '';
+            if (previousText.startsWith('Tone:') && sectionText.startsWith('Tone:')) {
+              sectionText = dedupeTone(previousText, sectionText);
             }
             previousText = sec.text ?? '';
             const hasBullets = Array.isArray(sec.bullets) && sec.bullets.length > 0;
             const hasLegacyBulletText = !hasBullets && sec.text && /[•·]/.test(sec.text);
-            if (!text && !hasBullets && !hasLegacyBulletText) return null;
+            if (!sectionText && !hasBullets && !hasLegacyBulletText) return null;
             return (
               <section key={sec.sectionId ?? sec.title ?? idx}>
-                <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2">{title}</h4>
-                {text && (
+                <h4 className={sectionHeadingClass(sec)}>{title}</h4>
+                {sectionText && (
                   <div className="text-zinc-400 leading-relaxed space-y-2">
-                    {paragraphs(text).map((p, i) => (
+                    {paragraphs(sectionText).map((p, i) => (
                       <p key={i}>{p}</p>
                     ))}
-                    {/* Full section.text rendered; no truncation other than CSS */}
-                    {paragraphs(text).length === 0 && <p>{text}</p>}
+                    {paragraphs(sectionText).length === 0 && <p>{sectionText}</p>}
                   </div>
                 )}
                 {hasBullets && (
@@ -143,7 +161,7 @@ export function ExplanationPanel({
   const fallback = text && text.length > 0 ? text : composeHash ? FALLBACK_DEFAULT : FALLBACK_LOADING;
   return (
     <div className={`space-y-4 ${className}`}>
-      <h3 className="text-lg font-semibold text-zinc-100">Astrological Analysis</h3>
+      <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
       <div className="prose prose-invert max-w-none">
         <p className="text-zinc-400 leading-relaxed">{fallback}</p>
       </div>
