@@ -257,9 +257,9 @@ function CommunityClientInner() {
           className="w-full"
         >
           {activeTab === 'feed' && (
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <section className="max-w-4xl mx-auto" aria-label="Live transit feed">
               <RelationalCommunityFeed userId={user?.id ?? null} primaryChart={primaryChart} />
-            </div>
+            </section>
           )}
 
           {activeTab === 'discovery' && (

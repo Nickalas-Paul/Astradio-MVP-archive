@@ -1,12 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 
 type FeedAudioUiState = 'idle' | 'generating' | 'ready' | 'error';
 
@@ -54,9 +56,35 @@ interface RelationalCommunityFeedProps {
   userId: string | null;
   primaryChart: ProfilePrimaryChart | null;
   className?: string;
+  /** When true, page header (title + refresh) is rendered by the parent. */
+  hideHeader?: boolean;
 }
 
-export function RelationalCommunityFeed({ userId, primaryChart, className = '' }: RelationalCommunityFeedProps) {
+function FeedLoadingSkeleton() {
+  return (
+    <ul className="space-y-4" aria-busy="true" aria-label="Loading feed">
+      {[0, 1, 2].map((i) => (
+        <Card key={i} elevation="resting" padding="p-5" className="animate-pulse space-y-3">
+          <div className="h-5 bg-bgElev rounded w-2/5" />
+          <div className="h-3 bg-bgElev rounded w-3/5" />
+          <div className="space-y-2 pt-1">
+            <div className="h-3 bg-bgElev rounded w-full" />
+            <div className="h-3 bg-bgElev rounded w-5/6" />
+            <div className="h-3 bg-bgElev rounded w-4/5" />
+          </div>
+        </Card>
+      ))}
+    </ul>
+  );
+}
+
+export function RelationalCommunityFeed({
+  userId,
+  primaryChart,
+  className = '',
+  hideHeader = false,
+}: RelationalCommunityFeedProps) {
+  const router = useRouter();
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
@@ -81,14 +109,24 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
   if (!userId) {
     return (
-      <div className={`rounded-lg border border-border bg-surface-1 p-4 text-sm text-subtext ${className}`}>
+      <Card elevation="resting" padding="p-5" className={`text-body-sm text-text-secondary ${className}`}>
         Sign in to load the feed.
-      </div>
+      </Card>
     );
   }
 
   if (isLoading && !data) {
-    return <div className={`text-subtext text-sm p-4 ${className}`}>Loading feed…</div>;
+    return (
+      <div className={`space-y-4 ${className}`}>
+        {!hideHeader && (
+          <div className="space-y-1">
+            <h2 className="text-h2 font-semibold text-text-primary">Feed</h2>
+            <p className="text-body-sm text-text-secondary">Live Transit Feed</p>
+          </div>
+        )}
+        <FeedLoadingSkeleton />
+      </div>
+    );
   }
 
   if (error) {
@@ -97,9 +135,9 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         className={`rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-200 ${className}`}
       >
         {error}
-        <button type="button" onClick={() => refresh()} className="ml-3 underline text-accent-light">
+        <Button type="button" variant="ghost" size="sm" className="ml-2" onClick={() => refresh()}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -412,30 +450,33 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-lg font-semibold text-text">Feed</h3>
-          <p className="text-xs text-subtext mt-0.5">Live Transit Feed</p>
+      {!hideHeader && (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-h2 font-semibold text-text-primary">Feed</h2>
+            <p className="text-body-sm text-text-secondary">Live Transit Feed</p>
+            <p className="text-caption text-text-muted max-w-2xl">
+              Connections ranked by how active they are for you right now.
+            </p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => refresh()} disabled={isLoading}>
+            Refresh
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="text-sm text-accent-light hover:underline"
-        >
-          Refresh
-        </button>
-      </div>
-      <p className="text-xs text-subtext max-w-2xl">
-        Connections ranked by how active they are for you right now.{' '}
-        <Link href="/community?tab=connections" className="text-accent-light hover:underline">
-          Open Signals
-        </Link>{' '}
-        for structured actions.
-      </p>
-      {items.length === 0 ? (
-        <p className="text-sm text-subtext">No established connections yet. Use Discovery to request connections or join groups.</p>
-      ) : (
-        <ul className="space-y-3">
+      )}
+
+      {!isLoading && items.length === 0 ? (
+        <Card elevation="resting" padding="p-6" className="text-center">
+          <p className="text-body-sm text-text-secondary">
+            No active transits shaping your connections today.
+            <br />
+            Check back tomorrow.
+          </p>
+        </Card>
+      ) : null}
+
+      {items.length > 0 ? (
+        <ul className={`space-y-4 ${isLoading && data ? 'opacity-60 pointer-events-none' : ''}`}>
           {items.map((item) => {
             const identity =
               typeof item.connection_identity_line === 'string' && item.connection_identity_line.trim()
@@ -462,262 +503,325 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
             const descriptor = row?.activation_descriptor ?? 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));
             const surfacingLine = row?.surfacing_explanation ?? null;
+            const isExpanded = Boolean(openByFeedId[item.feed_item_id]);
+            const isGroup = item.connection_kind === 'relational_group';
+            const partnerName =
+              cd?.enhanced_title?.trim() ||
+              (typeof item.connection_identity_line === 'string' && item.connection_identity_line.trim()
+                ? item.connection_identity_line.trim()
+                : identity);
+            const canExpand = item.connection_kind !== 'campaign_group';
 
             return (
-              <li
-                key={item.feed_item_id}
-                className="rounded-lg border border-border bg-surface-1 p-4 space-y-3"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-text">{identity}</p>
-                  {betaLines && cd?.enhanced_title ? (
-                    <div className="space-y-2">
-                      <div className="space-y-0.5">
-                        <h4 className="text-sm font-semibold text-text leading-snug max-w-full">
-                          {cd.enhanced_title.length > 60 ? `${cd.enhanced_title.slice(0, 57)}…` : cd.enhanced_title}
-                        </h4>
-                        <p className="text-xs text-subtext">Today&apos;s transits shaping your connection</p>
-                      </div>
-                      <ul className="list-none space-y-3 pl-0 max-w-full">
-                        {betaLines.map((line, idx) => (
-                          <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
-                            <p className="text-xs font-medium text-subtext uppercase tracking-wide">
-                              {getRoleLabel(line.role)}
+              <li key={item.feed_item_id}>
+                <Card
+                  elevation={isExpanded ? 'raised' : 'resting'}
+                  padding={isExpanded ? 'p-6' : 'p-5'}
+                  className={`space-y-4 ${isExpanded ? 'border-l-2 border-l-accent' : ''}`}
+                >
+                  {!isExpanded ? (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          {isGroup ? (
+                            <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
+                              Group
                             </p>
-                            <div className="flex items-start gap-2 text-body text-text">
-                              <span className="text-subtext mt-0.5 shrink-0" aria-hidden>
-                                •
-                              </span>
-                              <div className="min-w-0 break-words whitespace-normal">
+                          ) : null}
+                          <h3 className="text-h4 font-semibold text-text-primary leading-snug break-words">
+                            {partnerName}
+                          </h3>
+                          <p className="text-caption text-text-muted">
+                            Today&apos;s transits shaping your connection
+                          </p>
+                        </div>
+                      </div>
+
+                      {betaLines && betaLines.length === 3 ? (
+                        <ul className="list-none space-y-3 pl-0">
+                          {betaLines.map((line, idx) => (
+                            <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
+                              <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
+                                {getRoleLabel(line.role)}
+                              </p>
+                              <div className="text-body-sm text-text-primary leading-relaxed min-w-0 break-words">
                                 <IdentityMarkdown content={line.text} />
                               </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-body-sm text-text-primary leading-relaxed max-w-full break-words">
+                            {primary}
+                          </p>
+                          {micro ? (
+                            <p className="text-caption font-medium text-text-muted tracking-wide">{micro}</p>
+                          ) : null}
+                          {!betaLines ? (
+                            <p className="text-caption text-text-muted">{descriptor}</p>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {surfacingLine ? (
+                        <p className="text-caption text-text-secondary leading-snug max-w-xl">{surfacingLine}</p>
+                      ) : null}
+
+                      <div
+                        className="h-1 rounded-full bg-border overflow-hidden max-w-[200px]"
+                        aria-hidden="true"
+                      >
+                        <div
+                          className="h-full bg-accent/40 rounded-full transition-[width]"
+                          style={{ width: `${rankBar * 100}%` }}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push('/community?tab=connections&signals=1')}
+                        >
+                          Signals
+                        </Button>
+                        {canExpand ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleExpandedFeed(item)}
+                            disabled={busyByFeedId[item.feed_item_id]}
+                            loading={
+                              busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                            }
+                          >
+                            {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                              ? 'Loading…'
+                              : "View today's transits"}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </>
                   ) : (
                     <>
-                      <p className="text-body text-text max-w-full break-words">{primary}</p>
-                      {micro ? (
-                        <p className="text-xs font-medium text-subtext tracking-wide" aria-hidden="true">
-                          {micro}
-                        </p>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          {isGroup ? (
+                            <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
+                              Group
+                            </p>
+                          ) : null}
+                          <h3 className="font-serif text-h3 font-semibold text-text-primary leading-snug break-words">
+                            {isGroup
+                              ? partnerName
+                              : `Your relationship with ${partnerName}`}
+                          </h3>
+                          <p className="text-body-sm text-text-secondary">Today&apos;s transit weather report</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleExpandedFeed(item)}
+                        >
+                          Collapse
+                        </Button>
+                      </div>
+
+                      {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id] ? (
+                        <p className="text-body-sm text-text-secondary">Loading today&apos;s transits…</p>
+                      ) : null}
+
+                      {artifactByFeedId[item.feed_item_id] ? (
+                        <>
+                          {(() => {
+                            const art = artifactByFeedId[item.feed_item_id];
+                            const freshness =
+                              art.freshness && typeof art.freshness === 'object'
+                                ? (art.freshness as Record<string, unknown>)
+                                : null;
+                            if (freshness?.isHistorical !== true) return null;
+                            return (
+                              <p className="text-caption text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2">
+                                Historical saved reading. Generated with an earlier expression version. Expand again to
+                                refresh this connection.
+                              </p>
+                            );
+                          })()}
+
+                          {(() => {
+                            const art = artifactByFeedId[item.feed_item_id];
+                            const finalized = finalizeRelationalReadingSurfaces({
+                              kind: 'expanded_artifact',
+                              artifact: art,
+                              weather: art.weather && typeof art.weather === 'object' ? art.weather : undefined,
+                              context: { feed_item_id: item.feed_item_id, binding_id: item.binding_id },
+                            });
+                            if (finalized.kind !== 'expanded_artifact') return null;
+
+                            const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
+                            const activationOnly = finalized.slots.activation?.trim() ?? '';
+                            const sonicForecast =
+                              typeof cd?.sonic_forecast_text === 'string' && cd.sonic_forecast_text.trim()
+                                ? cd.sonic_forecast_text.trim()
+                                : '';
+                            const audioUi = audioUiByFeedId[item.feed_item_id] ?? {
+                              state: 'idle' as const,
+                              exportId: null,
+                              error: null,
+                            };
+                            const hasSpotlight =
+                              (betaLines && betaLines.length === 3) || Boolean(activationOnly);
+
+                            return (
+                              <div className="space-y-6">
+                                {hasSpotlight ? (
+                                  <section className="space-y-4">
+                                    <h2 className="reading-section-header">Today&apos;s Transit Spotlight</h2>
+                                    {betaLines && betaLines.length === 3
+                                      ? betaLines.map((line, idx) => (
+                                          <div
+                                            key={`${item.feed_item_id}-spot-${idx}`}
+                                            className="space-y-2"
+                                          >
+                                            <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
+                                              {getRoleLabel(line.role)}
+                                            </p>
+                                            {activationLinePrefix(line) ? (
+                                              <p className="text-body-sm text-text-secondary">
+                                                {activationLinePrefix(line)}
+                                              </p>
+                                            ) : null}
+                                            <div className="text-body text-text-primary leading-relaxed">
+                                              <IdentityMarkdown content={activationLineExpandedBody(line)} />
+                                            </div>
+                                          </div>
+                                        ))
+                                      : (
+                                        <div className="text-body text-text-primary leading-relaxed">
+                                          <IdentityMarkdown content={activationOnly} />
+                                        </div>
+                                      )}
+                                  </section>
+                                ) : null}
+
+                                {whatToDo ? (
+                                  <>
+                                    <div className="border-t border-border" aria-hidden />
+                                    <section className="space-y-3">
+                                      <h2 className="reading-section-header">What To Do</h2>
+                                      <div className="text-body text-text-primary leading-relaxed">
+                                        <IdentityMarkdown content={whatToDo} />
+                                      </div>
+                                    </section>
+                                  </>
+                                ) : null}
+
+                                <div className="border-t border-border" aria-hidden />
+
+                                <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
+                                  <h2 className="reading-section-header">Hear today&apos;s forecast</h2>
+                                  {sonicForecast ? (
+                                    <div className="text-body-sm text-text-secondary leading-relaxed">
+                                      <IdentityMarkdown content={sonicForecast} />
+                                    </div>
+                                  ) : null}
+
+                                  {audioUi.state === 'ready' && audioUi.exportId ? (
+                                    <div className="space-y-3">
+                                      <p className="text-body-sm text-text-secondary">
+                                        Your audio forecast is ready.
+                                      </p>
+                                      <ValidatedExportAudioPlayer exportId={audioUi.exportId} />
+                                    </div>
+                                  ) : audioUi.state === 'generating' ? (
+                                    <Button
+                                      type="button"
+                                      variant="audio"
+                                      size="sm"
+                                      loading
+                                      disabled
+                                    >
+                                      Generating forecast…
+                                    </Button>
+                                  ) : audioUi.state === 'error' ? (
+                                    <div className="space-y-2">
+                                      <p className="text-body-sm text-amber-600 dark:text-amber-300" role="alert">
+                                        {audioUi.error ||
+                                          'Audio forecast unavailable. Try again tomorrow.'}
+                                      </p>
+                                      <Button
+                                        type="button"
+                                        variant="audio"
+                                        size="sm"
+                                        onClick={() => void generateFeedAudio(item)}
+                                        disabled={busyByFeedId[item.feed_item_id]}
+                                      >
+                                        Try again
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="audio"
+                                      size="sm"
+                                      onClick={() => void generateFeedAudio(item)}
+                                      disabled={busyByFeedId[item.feed_item_id]}
+                                    >
+                                      Generate audio forecast
+                                    </Button>
+                                  )}
+                                </section>
+                              </div>
+                            );
+                          })()}
+
+                          {canExpand ? (
+                            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push('/community?tab=connections&signals=1')}
+                              >
+                                Signals
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void saveArtifact(item)}
+                                disabled={busyByFeedId[item.feed_item_id]}
+                              >
+                                {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleExpandedFeed(item)}
+                              >
+                                Collapse
+                              </Button>
+                            </div>
+                          ) : null}
+
+                          {saveStatusByFeedId[item.feed_item_id] ? (
+                            <p className="text-caption text-text-muted">{saveStatusByFeedId[item.feed_item_id]}</p>
+                          ) : null}
+                        </>
                       ) : null}
                     </>
                   )}
-                  {!betaLines ? <p className="text-xs text-subtext">{descriptor}</p> : null}
-                  {surfacingLine ? (
-                    <p className="text-xs text-text/90 leading-snug max-w-xl">{surfacingLine}</p>
-                  ) : null}
-                  <div
-                    className="h-1 rounded-full bg-border overflow-hidden max-w-[200px]"
-                    aria-hidden="true"
-                    title=""
-                  >
-                    <div
-                      className="h-full bg-accent/50 rounded-full transition-[width]"
-                      style={{ width: `${rankBar * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3 text-xs items-center pt-1 border-t border-border/50">
-                  <Link
-                    href="/community?tab=connections&signals=1"
-                    className="text-accent-light hover:underline font-medium"
-                  >
-                    Signals
-                  </Link>
-                  {item.connection_kind !== 'campaign_group' && (
-                    <button
-                      type="button"
-                      className="btn-secondary text-sm px-3 py-1.5 disabled:opacity-50"
-                      onClick={() => toggleExpandedFeed(item)}
-                      disabled={busyByFeedId[item.feed_item_id] && !openByFeedId[item.feed_item_id]}
-                    >
-                      {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
-                        ? 'Loading…'
-                        : openByFeedId[item.feed_item_id]
-                          ? 'Collapse'
-                          : "View today's transits"}
-                    </button>
-                  )}
-                </div>
-
-                {openByFeedId[item.feed_item_id] && (
-                  <div className="rounded border border-border/70 bg-bgElev p-4 space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-lg font-semibold text-text leading-snug">
-                        {cd?.enhanced_title?.trim() || identity}
-                      </h4>
-                      <p className="text-sm text-subtext">Today&apos;s transit weather report</p>
-                    </div>
-
-                    {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id] ? (
-                      <p className="text-sm text-subtext">Loading today&apos;s transits…</p>
-                    ) : null}
-
-                    {artifactByFeedId[item.feed_item_id] ? (
-                      <>
-                        {(() => {
-                          const art = artifactByFeedId[item.feed_item_id];
-                          const freshness =
-                            art.freshness && typeof art.freshness === 'object'
-                              ? (art.freshness as Record<string, unknown>)
-                              : null;
-                          if (freshness?.isHistorical !== true) return null;
-                          return (
-                            <p className="text-xs text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded px-2 py-1">
-                              Historical saved reading. Generated with an earlier expression version. Expand again to
-                              refresh this connection.
-                            </p>
-                          );
-                        })()}
-
-                        {(() => {
-                          const art = artifactByFeedId[item.feed_item_id];
-                          const finalized = finalizeRelationalReadingSurfaces({
-                            kind: 'expanded_artifact',
-                            artifact: art,
-                            weather: art.weather && typeof art.weather === 'object' ? art.weather : undefined,
-                            context: { feed_item_id: item.feed_item_id, binding_id: item.binding_id },
-                          });
-                          if (finalized.kind !== 'expanded_artifact') return null;
-
-                          const whatToDo = finalized.slots.whatToDo?.trim() ?? '';
-                          const activationOnly = finalized.slots.activation?.trim() ?? '';
-                          const sonicForecast =
-                            typeof cd?.sonic_forecast_text === 'string' && cd.sonic_forecast_text.trim()
-                              ? cd.sonic_forecast_text.trim()
-                              : '';
-                          const audioUi = audioUiByFeedId[item.feed_item_id] ?? {
-                            state: 'idle' as const,
-                            exportId: null,
-                            error: null,
-                          };
-
-                          return (
-                            <div className="space-y-6">
-                              {betaLines && betaLines.length === 3 ? (
-                                <section>
-                                  <h2 className="reading-section-header mb-3 first:mt-0">
-                                    Today&apos;s Transit Spotlight
-                                  </h2>
-                                  {betaLines.map((line, idx) => (
-                                    <div key={`${item.feed_item_id}-spot-${idx}`} className="space-y-2 mb-6 last:mb-0">
-                                      <h3 className="text-base font-semibold text-accent-light">
-                                        {getRoleLabel(line.role)}
-                                      </h3>
-                                      {activationLinePrefix(line) ? (
-                                        <p className="text-sm text-subtext">{activationLinePrefix(line)}</p>
-                                      ) : null}
-                                      <IdentityMarkdown content={activationLineExpandedBody(line)} />
-                                    </div>
-                                  ))}
-                                </section>
-                              ) : activationOnly ? (
-                                <section>
-                                  <h2 className="reading-section-header mb-3 first:mt-0">
-                                    Today&apos;s Transit Spotlight
-                                  </h2>
-                                  <IdentityMarkdown content={activationOnly} />
-                                </section>
-                              ) : null}
-
-                              {whatToDo ? (
-                                <section>
-                                  <h2 className="reading-section-header mb-3">What To Do</h2>
-                                  <IdentityMarkdown content={whatToDo} />
-                                </section>
-                              ) : null}
-
-                              <section className="border-t border-border pt-6 space-y-3">
-                                <h2 className="reading-section-header mb-3">Hear today&apos;s forecast</h2>
-                                {sonicForecast ? (
-                                  <div className="mb-1">
-                                    <IdentityMarkdown content={sonicForecast} />
-                                  </div>
-                                ) : null}
-                                {audioUi.state === 'ready' && audioUi.exportId ? (
-                                  <div className="space-y-3">
-                                    <p className="text-sm text-subtext">Your audio forecast is ready.</p>
-                                    <ValidatedExportAudioPlayer exportId={audioUi.exportId} />
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2">
-                                    <button
-                                      type="button"
-                                      className="btn-audio mt-1"
-                                      onClick={() => void generateFeedAudio(item)}
-                                      disabled={audioUi.state === 'generating' || busyByFeedId[item.feed_item_id]}
-                                    >
-                                      {audioUi.state === 'generating' ? (
-                                        <>
-                                          <svg
-                                            className="w-4 h-4 animate-spin"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            aria-hidden
-                                          >
-                                            <circle
-                                              className="opacity-25"
-                                              cx="12"
-                                              cy="12"
-                                              r="10"
-                                              stroke="currentColor"
-                                              strokeWidth="4"
-                                            />
-                                            <path
-                                              className="opacity-75"
-                                              fill="currentColor"
-                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                            />
-                                          </svg>
-                                          Generating forecast…
-                                        </>
-                                      ) : (
-                                        <>
-                                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                            <path d="M8 5v14l11-7z" />
-                                          </svg>
-                                          Generate audio forecast
-                                        </>
-                                      )}
-                                    </button>
-                                    {audioUi.state === 'error' && audioUi.error ? (
-                                      <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
-                                        {audioUi.error}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                )}
-                              </section>
-                            </div>
-                          );
-                        })()}
-
-                        {item.connection_kind !== 'campaign_group' && (
-                          <button
-                            type="button"
-                            className="px-2 py-1 rounded border border-border text-xs text-accent-light hover:bg-bgElev disabled:opacity-50"
-                            onClick={() => void saveArtifact(item)}
-                            disabled={busyByFeedId[item.feed_item_id]}
-                          >
-                            {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
-                          </button>
-                        )}
-                        {saveStatusByFeedId[item.feed_item_id] ? (
-                          <p className="text-xs text-subtext">{saveStatusByFeedId[item.feed_item_id]}</p>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                )}
+                </Card>
               </li>
             );
           })}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }
