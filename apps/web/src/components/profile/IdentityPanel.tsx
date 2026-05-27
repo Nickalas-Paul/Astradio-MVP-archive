@@ -11,8 +11,8 @@ import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
 
-const WheelCanvas = dynamic(
-  () => import('../WheelCanvas').then((m) => m.default),
+const WheelDisplay = dynamic(
+  () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
 
@@ -151,8 +151,8 @@ export function IdentityPanel({
         : 'Generate a soundtrack from your natal chart.';
 
   return (
-    <div className="grid gap-8 md:grid-cols-[2fr_3fr]">
-      <div className="space-y-4 min-w-0">
+    <div className="grid gap-8 md:grid-cols-[3fr_2fr]">
+      <div className="space-y-4 min-w-0 w-full">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -163,10 +163,12 @@ export function IdentityPanel({
         ) : loading ? (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
         ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
-          <WheelCanvas
+          <WheelDisplay
             chartData={chartData.snapshot as any}
             isLoading={false}
-            className="max-w-full"
+            showAspectLines
+            maxSize={720}
+            className="w-full"
           />
         ) : chartData?.snapshot ? (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
