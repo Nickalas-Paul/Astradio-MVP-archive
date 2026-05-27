@@ -212,15 +212,31 @@ function testAspectSentenceCaps() {
   assert.ok(cappedLen < uncappedLen, 'library aspect prose shorter when capped');
 }
 
+/** Top-5 aspects limited to personal×personal pairs (Batch 1 core_self coverage). */
+function snapPersonalAspectsOnly(d = 0): EphemerisSnapshot {
+  const base = snap(d);
+  return {
+    ...base,
+    aspects: [
+      { bodyA: 'SUN', bodyB: 'MOON', type: 'trine', orb: 1.2, priorityBase: 0.9 },
+      { bodyA: 'SUN', bodyB: 'MARS', type: 'square', orb: 2.1, priorityBase: 0.85 },
+      { bodyA: 'MOON', bodyB: 'VENUS', type: 'trine', orb: 1.5, priorityBase: 0.8 },
+      { bodyA: 'MERCURY', bodyB: 'MARS', type: 'square', orb: 2.0, priorityBase: 0.75 },
+      { bodyA: 'VENUS', bodyB: 'MARS', type: 'sextile', orb: 1.8, priorityBase: 0.7 },
+    ],
+  };
+}
+
 function testPlanetaryRelationshipsAspectHeaders() {
-  const sections = profileSections('identity-aspects', snap(0));
+  const sections = profileSections('identity-aspects', snapPersonalAspectsOnly(0));
   const aspects = sections.find((s) => s.id === 'aspects');
   assert.ok(aspects?.text, 'aspects section present');
   const text = aspects.text!;
   assert.ok(text.includes('### Sun square Mars'), 'per-aspect header from snapshot order');
   assert.match(text, /### .+ (square|trine|sextile|opposition|conjunction) .+/g, 'multiple aspect headers');
-  assert.ok(/\byour\b/i.test(text), 'synastry voice uses second person');
+  assert.ok(/\byour\b/i.test(text), 'natal self voice uses second person');
   assert.ok(!/\bthe person\b/i.test(text), 'no third-person natal framing in aspects section');
+  assert.ok(!/\btheir\b/i.test(text), 'no cross-chart their language in Identity aspects');
   const headerCount = (text.match(/^### /gm) || []).length;
   assert.ok(headerCount >= 1 && headerCount <= 5, `expected 1-5 aspect blocks, got ${headerCount}`);
 }

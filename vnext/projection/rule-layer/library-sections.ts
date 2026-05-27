@@ -35,10 +35,11 @@ function assembleProfileIdentityAspectBlock(
   aspect: Pick<SnapshotAspect, 'bodyA' | 'bodyB' | 'type'>,
   insight: NonNullable<ReturnType<typeof getAspectInsight>>,
 ): string | null {
-  const synastryCore = insight.core_synastry || insight.core || '';
-  const synastryBehavioral = insight.behavioral_synastry || insight.behavioral || '';
-  const coreText = capToMaxSentences(synastryCore, 2);
-  const behavioralText = capToMaxSentences(synastryBehavioral, 1);
+  const selfCore = insight.core_self || insight.core_synastry || insight.core || '';
+  const selfBehavioral =
+    insight.behavioral_self || insight.behavioral_synastry || insight.behavioral || '';
+  const coreText = capToMaxSentences(selfCore, 2);
+  const behavioralText = capToMaxSentences(selfBehavioral, 1);
   const body = [coreText, behavioralText].filter(Boolean).join('\n\n');
   if (!body) return null;
 
