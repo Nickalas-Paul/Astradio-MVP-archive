@@ -505,6 +505,11 @@ export default function HomePage() {
     const cacheKey = homeComposeCacheKey(dateStr, timeStr, location.lat, location.lon);
     const cached = readHomeComposeCache(cacheKey);
 
+    if (cached?.audioFailed) {
+      setAudioUnavailableReason('Audio is temporarily unavailable. Try again later.');
+      return;
+    }
+
     if (cached?.exportId) {
       setAudioLoading(true);
       try {
@@ -549,7 +554,15 @@ export default function HomePage() {
         composeHash: entry.composeHash || cached?.composeHash || '',
         specVersion: entry.specVersion ?? cached?.specVersion ?? null,
       };
-      writeHomeComposeCache(cacheKey, merged);
+      const exportErr =
+        typeof payload?.audio?.export_error === 'string' ? payload.audio.export_error : null;
+      const audioFailed = !merged.exportId;
+      writeHomeComposeCache(cacheKey, {
+        ...merged,
+        ...(audioFailed
+          ? { audioFailed: true, audioFailedReason: exportErr ?? 'render_failed' }
+          : { audioFailed: false, audioFailedReason: null }),
+      });
       if (merged.exportId) {
         patchHomeComposeCacheExportId(cacheKey, merged.exportId);
       }
@@ -561,6 +574,8 @@ export default function HomePage() {
         setAudioUrl(url);
         await playLyriaAudio({ url });
         setIsPlaying(true);
+      } else if (exportErr === 'lyria_recitation_blocked') {
+        setAudioUnavailableReason('Audio is temporarily unavailable. Try again later.');
       } else {
         setAudioUnavailableReason('Audio unavailable (Lyria-only). No artifact returned from backend.');
       }

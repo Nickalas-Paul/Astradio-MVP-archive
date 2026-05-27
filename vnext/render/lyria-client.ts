@@ -377,9 +377,18 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
       console.warn('[LYRIA_ERROR]', JSON.stringify(meta));
     }
 
-    let err: Error & { code?: string; statusCode?: number } = new Error(`Lyria API error: ${status}`);
-    err.code = 'LYRIA_API_ERROR';
+    const recitationBlocked =
+      status === 400 &&
+      typeof meta.error_message === 'string' &&
+      meta.error_message.toLowerCase().includes('recitation');
+    let err: Error & { code?: string; statusCode?: number; reason?: string } = new Error(
+      recitationBlocked && meta.error_message
+        ? meta.error_message.slice(0, 400)
+        : `Lyria API error: ${status}`
+    );
+    err.code = recitationBlocked ? 'LYRIA_RECITATION_BLOCKED' : 'LYRIA_API_ERROR';
     err.statusCode = status;
+    if (recitationBlocked) err.reason = 'recitation';
     throw err;
   }
 

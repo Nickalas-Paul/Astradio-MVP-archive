@@ -17,6 +17,9 @@ export type HomeComposeCacheEntry = {
   composeHash: string;
   specVersion: string | null;
   cachedAt: number;
+  /** Set when a Lyria export was attempted and failed for this sky-moment. */
+  audioFailed?: boolean;
+  audioFailedReason?: string | null;
 };
 
 /** Round time to the hour for guest sky-moment bucketing. */

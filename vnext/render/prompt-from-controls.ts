@@ -407,7 +407,7 @@ const SPEC_KEY_ORDER: string[] = [
 export const LYRIA_SPEC_V1_KEY_ORDER: readonly string[] = SPEC_KEY_ORDER;
 
 /** Lyria prompt conditioning profile (audio export only; does not alter canonical or projection outputs). */
-export type LyriaPromptProfile = 'default' | 'aggregate_relational_weather_v1';
+export type LyriaPromptProfile = 'default' | 'aggregate_relational_weather_v1' | 'home_sky_minimal_v1';
 
 function primaryStem(token: string): string {
   const t = token.trim();
@@ -608,6 +608,60 @@ function buildLyriaSpecRowsFromNarrative(
   ];
 }
 
+/**
+ * Home sky: sparse tag set to reduce Lyria recitation-check triggers.
+ * Omits chart_identity_tags, facet_tags, and dense harmonic/register tokens.
+ */
+function buildLyriaSpecRowsHomeSkyMinimal(
+  payload: ControlSurfacePayload,
+  plan: Plan | { bpm?: number; key?: string } | undefined,
+  narrative: CompositionNarrativePlan
+): SpecRow[] {
+  const tempoNorm = typeof payload.tempo_norm === 'number' ? payload.tempo_norm : 0.5;
+  const density = typeof payload.density_level === 'number' ? payload.density_level : 0.5;
+  const tension = typeof payload.aspect_tension === 'number' ? payload.aspect_tension : 0.5;
+  const bpm =
+    plan && typeof (plan as Plan).bpm === 'number' ? (plan as Plan).bpm : Math.round(90 + tempoNorm * 60);
+
+  return [
+    { key: 'lyria_spec_v', value: '1' },
+    { key: 'duration_s', value: '30' },
+    { key: 'instrumental', value: '1' },
+    { key: 'constraints', value: CONSTRAINTS_FULL },
+    { key: 'genre_family', value: genreFamily(payload.genre) },
+    { key: 'tempo_class', value: tokenToSnake(tempoBucket(bpm)) },
+    { key: 'bpm', value: String(Math.round(bpm)) },
+    { key: 'density_ctrl', value: tokenToSnake(densityBucket(density)) },
+    { key: 'tension_ctrl', value: tokenToSnake(tensionBucket(tension)) },
+    { key: 'emphasis', value: 'balanced' },
+    { key: 'brightness', value: tokenToSnake(brightnessBucket(narrative.brightnessIndex)) },
+    { key: 'tonal', value: 'tonal_balanced' },
+    { key: 'element_primary', value: narrative.primaryElement },
+    { key: 'element_secondary', value: narrative.secondaryElement ?? 'none' },
+    { key: 'arc', value: narrative.arcShape },
+    { key: 'energy', value: narrative.energyCurve },
+    { key: 'peak', value: narrative.peakWindow },
+    { key: 'ending', value: narrative.endingStyle },
+    { key: 'density_profile', value: narrative.densityProfile },
+    { key: 'rhythm_drive', value: 'steady_rhythmic_flow' },
+    { key: 'syncopation', value: 'none' },
+    { key: 'harmonic', value: 'none' },
+    { key: 'harmonic_secondary', value: 'none' },
+    { key: 'rhythm_groove', value: 'none' },
+    { key: 'register_texture', value: 'none' },
+    { key: 'register_brightness', value: 'none' },
+    { key: 'stellium_active', value: '0' },
+    { key: 'stellium_element', value: 'none' },
+    { key: 'angular_houses', value: 'none' },
+    { key: 'luminary', value: narrative.luminaryDominance },
+    { key: 'aspects_trine_heavy', value: '0' },
+    { key: 'aspects_square_heavy', value: '0' },
+    { key: 'aspects_opposition_heavy', value: '0' },
+    { key: 'chart_identity_tags', value: 'none' },
+    { key: 'facet_tags', value: 'none' },
+  ];
+}
+
 /** Legacy path: no narrative plan — deterministic neutral facet defaults. */
 function buildLyriaSpecRowsLegacy(payload: ControlSurfacePayload, plan: Plan | { bpm?: number; key?: string } | undefined): SpecRow[] {
   const tempoNorm = typeof payload.tempo_norm === 'number' ? payload.tempo_norm : 0.5;
@@ -800,9 +854,14 @@ export function buildLyriaPrompt(
   narrative?: CompositionNarrativePlan,
   lyriaPromptProfile: LyriaPromptProfile = 'default'
 ): string {
-  let rows = narrative
-    ? buildLyriaSpecRowsFromNarrative(payload, plan, narrative)
-    : buildLyriaSpecRowsLegacy(payload, plan);
+  let rows =
+    lyriaPromptProfile === 'home_sky_minimal_v1'
+      ? narrative
+        ? buildLyriaSpecRowsHomeSkyMinimal(payload, plan, narrative)
+        : buildLyriaSpecRowsLegacy(payload, plan)
+      : narrative
+        ? buildLyriaSpecRowsFromNarrative(payload, plan, narrative)
+        : buildLyriaSpecRowsLegacy(payload, plan);
 
   if (lyriaPromptProfile === 'aggregate_relational_weather_v1') {
     rows = collapseRelationalWeatherLyriaTagBuckets(rows);

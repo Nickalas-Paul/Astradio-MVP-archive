@@ -28,6 +28,7 @@ export type ExportErrorCode =
   | 'export_not_attempted'
   | 'storage_unavailable'
   | 'render_failed'
+  | 'lyria_recitation_blocked'
   | 'provider_not_configured'
   | 'invalid_duration'
   | 'incomplete_wav_payload';
@@ -371,6 +372,8 @@ export async function runLyriaAlignedExportBlock(
       if (!fallbackSucceeded) {
         if (code === 'INCOMPLETE_WAV_PAYLOAD') {
           export_error = 'incomplete_wav_payload';
+        } else if (code === 'LYRIA_RECITATION_BLOCKED') {
+          export_error = 'lyria_recitation_blocked';
         } else if (export_error == null) {
           if (exportStep === 'provider') export_error = 'provider_not_configured';
           else if (exportStep === 'render') export_error = 'render_failed';

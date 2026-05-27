@@ -227,16 +227,19 @@ export class ComposeAPI {
       const requestKey = this.compositionCacheKeyForRequest(request);
       const wantAudio = (request as ComposeRequest).generateAudio === true;
 
-      // Check cache for idempotent response, but never reuse cached exports that failed.
+      const isSkyRequest = (request as ComposeRequest).mode === 'sky';
+
+      // Check cache for idempotent response. Sky mode caches failed exports to avoid Lyria retry storms.
       if (this.compositionCache.has(requestKey)) {
         const cached = this.compositionCache.get(requestKey);
         const cachedAudio = cached && cached.audio;
-        if (
+        const cachedExportFailed =
           cachedAudio &&
           cachedAudio.export_enabled === true &&
           cachedAudio.export_attempted === true &&
-          cachedAudio.export_error != null
-        ) {
+          cachedAudio.export_error != null;
+
+        if (cachedExportFailed && !isSkyRequest) {
           console.log(
             '[COMPOSE] Ignoring cached failed export for key:',
             requestKey.slice(0, 8),
@@ -245,8 +248,17 @@ export class ComposeAPI {
           );
         } else {
           const hasExport = Boolean(cached?.export_id && cached?.audio_export_available);
-          if (!wantAudio || hasExport) {
-            console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
+          if (!wantAudio || hasExport || (isSkyRequest && cachedExportFailed)) {
+            if (cachedExportFailed && isSkyRequest && wantAudio) {
+              console.log(
+                '[COMPOSE] Returning cached failed sky audio for key:',
+                requestKey.slice(0, 8),
+                'export_error=',
+                cachedAudio.export_error
+              );
+            } else {
+              console.log('[COMPOSE] Returning cached composition for key:', requestKey.slice(0, 8));
+            }
             return cached;
           }
           console.log(
@@ -468,6 +480,9 @@ export class ComposeAPI {
               semanticCore,
               ...(useLyriaProfileNatalIdentitySeed
                 ? { lyriaProfileNatalIdentity: { objectIdentityHash: canonicalReport.object_identity_hash } }
+                : {}),
+              ...((request as ComposeRequest).mode === 'sky' && enableDailyV1Text
+                ? { lyriaPromptProfile: 'home_sky_minimal_v1' as const }
                 : {}),
             }
           )
@@ -799,13 +814,18 @@ export class ComposeAPI {
         ...(audioDebug !== undefined && { audio_debug: audioDebug })
       } as any;
 
-      // Cache the response for idempotency, but do not cache failed exports so fixes can take effect.
+      // Cache the response for idempotency. Non-sky failed exports stay uncached so fixes can take effect.
       const audioMeta = (response as any).audio || {};
+      const exportFailed =
+        audioMeta.export_enabled === true &&
+        audioMeta.export_attempted === true &&
+        audioMeta.export_error != null;
       const shouldCache =
         !audioMeta ||
         audioMeta.export_enabled !== true ||
         audioMeta.export_attempted !== true ||
-        audioMeta.export_error == null;
+        audioMeta.export_error == null ||
+        (isSkyRequest && exportFailed);
       if (shouldCache) {
         this.compositionCache.set(requestKey, response);
         console.log('[COMPOSE] Cached composition for key:', requestKey.slice(0, 8));
