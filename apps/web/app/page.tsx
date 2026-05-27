@@ -8,9 +8,9 @@ import { getApiBaseUrl } from '../src/core/api-base';
 import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
-import { DateInput, TimeInput } from '../src/components/Inputs';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
 import type { CanonicalLocation, GeoPermissionStatus } from '../src/types/location';
 
@@ -36,7 +36,9 @@ export default function HomePage() {
   const [composeHash, setComposeHash] = useState<string>('');
   const [exportId, setExportId] = useState<string | null>(null);
   const [analysisText, setAnalysisText] = useState<string>('');
-  const [explanationSections, setExplanationSections] = useState<Array<{ title: string; text?: string; bullets?: string[] }> | null>(null);
+  const [explanationSections, setExplanationSections] = useState<
+    Array<{ sectionId?: string; title: string; text?: string; bullets?: string[] }> | null
+  >(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [composePlan, setComposePlan] = useState<any>(null);
   const [composeGenre, setComposeGenre] = useState<string>('house');
@@ -192,7 +194,14 @@ export default function HomePage() {
             setAnalysisText(payload.explanation.text);
             setExplanationSections(null);
           } else if (payload?.explanation?.sections?.length) {
-            setExplanationSections(payload.explanation.sections);
+            setExplanationSections(
+              payload.explanation.sections.map((s: Record<string, unknown>) => ({
+                sectionId: String(s.sectionId ?? s.id ?? ''),
+                title: String(s.title ?? ''),
+                text: typeof s.text === 'string' ? s.text : undefined,
+                bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
+              }))
+            );
             setAnalysisText('');
           } else {
             setAnalysisText('');
@@ -413,124 +422,151 @@ export default function HomePage() {
 
   const disabled = isLoading || !chartData || !location;
 
+  const locationLabel = location
+    ? location.label
+    : geoPermission === 'denied'
+      ? 'Using approximate location'
+      : 'Locating…';
+
   return (
     <AppShell showPlayer={false} contentClassName="">
-      <section className="mx-auto max-w-7xl px-4 pt-10 pb-6 space-y-3">
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+      {/* Hero + primary CTA */}
+      <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
+        <h1 className="text-4xl md:text-6xl font-serif font-bold text-text-primary leading-tight">
           Astrology you can hear.
         </h1>
-        <p className="text-base md:text-lg text-zinc-400 max-w-2xl leading-relaxed">
+        <p className="text-lg md:text-xl text-text-secondary max-w-xl mx-auto leading-relaxed">
           The planets are always in motion. Every alignment carries a sound.
         </p>
+
+        <div className="pt-4 flex flex-col items-center gap-3">
+          {isPlaying ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={disabled}
+              onClick={() => stopSoundtrack()}
+              className="text-lg px-10 py-4 w-full md:w-auto"
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="audio"
+              disabled={disabled}
+              onClick={() => void handleTodaySoundtrack()}
+              className="text-lg px-10 py-4 w-full md:w-auto"
+            >
+              Today&apos;s Soundtrack
+            </Button>
+          )}
+          {exportId && (
+            <a
+              href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
+              download={`${exportId}-30s.wav`}
+              className="text-sm text-text-muted hover:text-text-secondary underline underline-offset-2"
+            >
+              Download WAV (30s)
+            </a>
+          )}
+        </div>
+
+        {(audioUnavailableReason || engineError) && (
+          <div className="space-y-1 max-w-md mx-auto text-left">
+            {audioUnavailableReason && (
+              <p className="text-xs text-amber-400">⚠️ {audioUnavailableReason}</p>
+            )}
+            {engineError && <p className="text-xs text-red-400">⚠️ {engineError}</p>}
+          </div>
+        )}
       </section>
 
-      {/* Main: explainer (left) | wheel (right) */}
-      <main className="mx-auto max-w-7xl px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left: Text explainer */}
-          <aside className="lg:col-span-2">
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-              <ExplanationPanel composeHash={composeHash} text={analysisText} sections={explanationSections ?? undefined} isLoading={isLoading} />
-            </div>
-          </aside>
+      <div className="max-w-4xl mx-auto border-t border-border/30" />
 
-          {/* Right: Wheel */}
-          <section className="lg:col-span-3">
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-              <WheelDisplay chartData={chartData} isLoading={isLoading} />
-            </div>
+      {/* Sky report + wheel */}
+      <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+        <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
+          <Card elevation="resting" className="p-6">
+            <h2 className="reading-section-header mb-4">Right now in the sky</h2>
+            <ExplanationPanel
+              embedded
+              composeHash={composeHash}
+              text={analysisText}
+              sections={explanationSections ?? undefined}
+              isLoading={isLoading}
+            />
+          </Card>
 
-            {/* Inputs row under wheel */}
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <DateInput value={dateStr} onChange={setDateStr} disabled={isLoading} />
-              <TimeInput value={timeStr} onChange={setTimeStr} disabled={isLoading} />
-              <div className="flex flex-col text-xs text-subtext">
-                <span className="mb-1 font-medium text-text-primary">Location</span>
-                <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                  {location
-                    ? location.label
-                    : geoPermission === 'denied'
-                      ? 'Using approximate location'
-                      : 'Locating…'}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              {isPlaying ? (
-                <Button type="button" variant="secondary" disabled={disabled} onClick={() => stopSoundtrack()}>
-                  Stop
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="audio"
-                  disabled={disabled}
-                  onClick={() => void handleTodaySoundtrack()}
-                >
-                  Today&apos;s Soundtrack
-                </Button>
-              )}
-              {exportId && audioEnabled && (
-                <a
-                  href={`${getApiBaseUrl() || ''}/api/exports/${exportId}`}
-                  download={`${exportId}-30s.wav`}
-                  className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 inline-flex items-center justify-center text-sm"
-                >
-                  Download WAV (30s)
-                </a>
-              )}
-            </div>
-
-            <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-              <p className="text-sm text-zinc-300">Want to hear what your chart sounds like?</p>
-              <Button type="button" variant="outline" onClick={() => router.push('/profile')}>
-                Create your chart
-              </Button>
-            </div>
-
-            {/* Engine status and debug info */}
-            <div className="mt-2 space-y-1">
-              {audioUnavailableReason && (
-                <p className="text-xs text-amber-400">
-                  ⚠️ {audioUnavailableReason}
-                </p>
-              )}
-              {engineError && (
-                <p className="text-xs text-red-400">
-                  ⚠️ {engineError}
-                </p>
-              )}
-              {showDebugPanel && (
-                <p className="text-xs text-amber-400/90 font-mono">
-                  Audio: Lyria-only (no legacy engine)
-                </p>
-              )}
-              {specVersion && (
-                <p className="text-xs text-green-400">
-                  ✓ Spec: {specVersion}
-                </p>
-              )}
-              {composeLatency && (
-                <p className="text-xs text-blue-400">
-                  ⏱️ Compose: {composeLatency.toFixed(0)}ms
-                </p>
-              )}
-              {audioStartupTime && (
-                <p className="text-xs text-blue-400">
-                  🔊 Audio: {audioStartupTime.toFixed(0)}ms
-                </p>
-              )}
-              {showDebugPanel ? (
-                <p className="text-xs text-zinc-500">
-                  Geolocation permission: {geoPermission}
-                  {signedInUserPresent ? ' · transit context sync: on' : ' · transit context sync: off (sign in to persist)'}
-                </p>
-              ) : null}
-            </div>
-          </section>
+          <div className="min-w-0">
+            <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" />
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Secondary controls */}
+      <section className="max-w-2xl mx-auto px-4 py-6">
+        <div className="flex flex-wrap items-end gap-4 justify-center">
+          <div className="space-y-1">
+            <label htmlFor="home-date" className="text-xs text-text-muted block">
+              Date
+            </label>
+            <input
+              id="home-date"
+              type="date"
+              value={dateStr}
+              onChange={(e) => setDateStr(e.target.value)}
+              disabled={isLoading}
+              className="input text-sm py-1.5 px-2 w-40"
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="home-time" className="text-xs text-text-muted block">
+              Time
+            </label>
+            <input
+              id="home-time"
+              type="time"
+              value={timeStr}
+              onChange={(e) => setTimeStr(e.target.value)}
+              disabled={isLoading}
+              className="input text-sm py-1.5 px-2 w-32"
+            />
+          </div>
+          <div className="space-y-1 min-w-[10rem]">
+            <span className="text-xs text-text-muted block">Location</span>
+            <span className="text-sm text-text-secondary block py-1.5">{locationLabel}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-4xl mx-auto border-t border-border/30" />
+
+      {/* Sign-up funnel */}
+      <section className="max-w-xl mx-auto px-4 py-12 text-center space-y-4">
+        <p className="text-lg text-text-secondary">Want to hear what your chart sounds like?</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push('/profile')}
+          className="text-base px-8 py-3"
+        >
+          Create your chart
+        </Button>
+      </section>
+
+      {showDebugPanel && (
+        <div className="max-w-2xl mx-auto px-4 pb-8 text-xs text-text-muted text-center space-y-1 font-mono">
+          <p>Audio: Lyria-only (no legacy engine)</p>
+          {specVersion && <p>Spec: {specVersion}</p>}
+          {composeLatency != null && <p>Compose: {composeLatency.toFixed(0)}ms</p>}
+          {audioStartupTime != null && <p>Audio startup: {audioStartupTime.toFixed(0)}ms</p>}
+          <p>
+            Geolocation: {geoPermission}
+            {signedInUserPresent ? ' · transit sync: on' : ' · transit sync: off'}
+          </p>
+        </div>
+      )}
     </AppShell>
   );
 }

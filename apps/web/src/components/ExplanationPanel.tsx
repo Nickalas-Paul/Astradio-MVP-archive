@@ -37,6 +37,8 @@ interface ExplanationPanelProps {
   sections?: ExplanationSection[];
   isLoading?: boolean;
   className?: string;
+  /** When true, panel title is rendered by parent (e.g. Home Card header). */
+  embedded?: boolean;
 }
 
 const PANEL_TITLE = 'Right now in the sky';
@@ -80,8 +82,11 @@ function sectionOrderKey(sec: ExplanationSection): number {
   return legacyIdx >= 0 ? 100 + legacyIdx : 200;
 }
 
-function sectionHeadingClass(sec: ExplanationSection): string {
+function sectionHeadingClass(sec: ExplanationSection, embedded: boolean): string {
   const id = sec.sectionId ?? '';
+  if (embedded) {
+    return 'reading-field-label';
+  }
   if (HOME_GRADIENT_SECTION_IDS.has(id)) {
     return 'text-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent';
   }
@@ -94,14 +99,18 @@ export function ExplanationPanel({
   sections,
   isLoading = false,
   className = '',
+  embedded = false,
 }: ExplanationPanelProps) {
   const hasSections = Array.isArray(sections) && sections.length > 0;
+  const panelTitleClass = embedded
+    ? 'reading-section-header mb-4'
+    : 'text-lg font-semibold text-zinc-100';
 
   if (isLoading) {
     return (
       <div className={`space-y-4 ${className}`}>
-        <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
-        <p className="text-zinc-400 leading-relaxed">{FALLBACK_LOADING}</p>
+        {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
+        <p className="text-sm text-text-secondary leading-relaxed">{FALLBACK_LOADING}</p>
       </div>
     );
   }
@@ -113,8 +122,8 @@ export function ExplanationPanel({
     let previousText = '';
     return (
       <div className={`space-y-4 ${className}`}>
-        <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
-        <div className="prose prose-invert max-w-none space-y-5">
+        {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
+        <div className="prose prose-invert max-w-none">
           {sorted.map((sec, idx) => {
             const title = displayTitle(sec);
             let sectionText = sec.text ?? '';
@@ -126,10 +135,10 @@ export function ExplanationPanel({
             const hasLegacyBulletText = !hasBullets && sec.text && /[•·]/.test(sec.text);
             if (!sectionText && !hasBullets && !hasLegacyBulletText) return null;
             return (
-              <section key={sec.sectionId ?? sec.title ?? idx}>
-                <h4 className={sectionHeadingClass(sec)}>{title}</h4>
+              <section key={sec.sectionId ?? sec.title ?? idx} className="mb-6 last:mb-0">
+                <h4 className={sectionHeadingClass(sec, embedded)}>{title}</h4>
                 {sectionText && (
-                  <div className="text-zinc-400 leading-relaxed space-y-2">
+                  <div className="text-sm text-text-secondary leading-relaxed space-y-2">
                     {paragraphs(sectionText).map((p, i) => (
                       <p key={i}>{p}</p>
                     ))}
@@ -161,9 +170,9 @@ export function ExplanationPanel({
   const fallback = text && text.length > 0 ? text : composeHash ? FALLBACK_DEFAULT : FALLBACK_LOADING;
   return (
     <div className={`space-y-4 ${className}`}>
-      <h3 className="text-lg font-semibold text-zinc-100">{PANEL_TITLE}</h3>
+      {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
       <div className="prose prose-invert max-w-none">
-        <p className="text-zinc-400 leading-relaxed">{fallback}</p>
+        <p className="text-sm text-text-secondary leading-relaxed">{fallback}</p>
       </div>
     </div>
   );
