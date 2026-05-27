@@ -28,7 +28,7 @@ export const Card = forwardRef<HTMLElement, CardProps>(
     ref
   ) => {
     const Component = Tag as ElementType;
-    const padClass = padding ?? '';
+    const padClass = padding ?? (elevation === 'resting' ? 'p-4' : '');
 
     return (
       <Component

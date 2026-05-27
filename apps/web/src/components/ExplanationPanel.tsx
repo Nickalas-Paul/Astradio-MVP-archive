@@ -90,7 +90,7 @@ function sectionHeadingClass(sec: ExplanationSection, embedded: boolean): string
   if (HOME_GRADIENT_SECTION_IDS.has(id)) {
     return 'text-body-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-accent-light to-[#0bbfbf] bg-clip-text text-transparent';
   }
-  return 'text-body-sm font-medium uppercase tracking-wide text-zinc-300 mb-2';
+  return 'text-body-sm font-medium uppercase tracking-wide text-text-secondary mb-2';
 }
 
 export function ExplanationPanel({
@@ -104,7 +104,7 @@ export function ExplanationPanel({
   const hasSections = Array.isArray(sections) && sections.length > 0;
   const panelTitleClass = embedded
     ? 'reading-section-header mb-4'
-    : 'text-h4 font-semibold text-zinc-100';
+    : 'text-h4 font-semibold text-text-primary';
 
   if (isLoading) {
     return (
@@ -146,14 +146,14 @@ export function ExplanationPanel({
                   </div>
                 )}
                 {hasBullets && (
-                  <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed mt-2">
+                  <ul className="list-disc list-inside space-y-1 text-text-secondary leading-relaxed mt-2">
                     {sec.bullets!.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 )}
                 {hasLegacyBulletText && (
-                  <ul className="list-disc list-inside space-y-1 text-zinc-400 leading-relaxed mt-2">
+                  <ul className="list-disc list-inside space-y-1 text-text-secondary leading-relaxed mt-2">
                     {parseLegacyBullets(sec.text!).map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}

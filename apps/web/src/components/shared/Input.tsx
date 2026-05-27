@@ -13,7 +13,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
     return (
       <div className="flex flex-col gap-1">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-text">
+          <label htmlFor={inputId} className="text-body-sm font-medium text-text-primary">
             {label}
           </label>
         )}
@@ -23,7 +23,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
           className={`input ${error ? 'border-red-500 focus:ring-red-500/60' : ''} ${className}`.trim()}
           {...props}
         />
-        {hint && !error && <p className="text-xs text-subtext">{hint}</p>}
+        {hint && !error && <p className="text-caption text-text-muted">{hint}</p>}
         {error && <p className="text-xs text-red-500">{error}</p>}
       </div>
     );

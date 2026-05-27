@@ -24,17 +24,17 @@ function pillTabClass(active: boolean, compact: boolean): string {
   if (compact) {
     return active
       ? 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors bg-accent text-white'
-      : 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors text-subtext hover:text-text';
+      : 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors text-text-secondary hover:text-text-primary';
   }
   return active
     ? 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap bg-accent text-white shadow-md'
-    : 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap text-subtext hover:text-text hover:bg-bgElev';
+    : 'px-4 py-3 rounded-full text-sm font-medium transition-colors whitespace-nowrap text-text-secondary hover:text-text-primary hover:bg-bgElev';
 }
 
 function pillContainerClass(pillTrack: TabsProps['pillTrack']): string {
   return pillTrack === 'compact'
     ? 'flex rounded-full bg-bgElev border border-border p-0.5 flex-wrap'
-    : 'flex items-center justify-center gap-2 bg-panel rounded-full p-2 shadow-soft border border-border overflow-x-auto';
+    : 'flex items-center justify-center gap-2 bg-surface-0 rounded-full p-2 shadow-soft border border-border overflow-x-auto';
 }
 
 export function Tabs({
@@ -48,7 +48,7 @@ export function Tabs({
 }: TabsProps) {
   const containerClass =
     variant === 'underline'
-      ? 'flex gap-2 border-b border-border pb-2'
+      ? 'flex gap-2 border-b border-border'
       : variant === 'pill'
         ? pillContainerClass(pillTrack)
         : 'flex gap-2 rounded-lg bg-bgElev p-1 border border-border';
@@ -68,8 +68,8 @@ export function Tabs({
               onClick={() => onTabChange(tab.id)}
               className={
                 active
-                  ? 'px-4 py-2 rounded-t-lg text-sm font-medium bg-bgElev text-text border border-b-0 border-border'
-                  : 'px-4 py-2 rounded-t-lg text-sm font-medium text-subtext'
+                  ? 'px-4 py-2 text-sm font-medium text-text-primary border-b-2 border-accent -mb-px'
+                  : 'px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary border-b-2 border-transparent -mb-px'
               }
             >
               {tab.label}
@@ -108,12 +108,14 @@ export function Tabs({
             onClick={() => onTabChange(tab.id)}
             className={
               active
-                ? 'flex-1 rounded-md px-3 py-2 text-left transition-colors bg-bg border border-border text-accent-light'
-                : 'flex-1 rounded-md px-3 py-2 text-left transition-colors text-subtext hover:bg-bg'
+                ? 'flex-1 rounded-md px-3 py-2 text-left transition-colors bg-surface-2 text-text-primary'
+                : 'flex-1 rounded-md px-3 py-2 text-left transition-colors text-text-secondary hover:text-text-primary hover:bg-bg/50'
             }
           >
             <div className="text-sm font-medium">{tab.label}</div>
-            {tab.description ? <div className="text-xs text-subtext">{tab.description}</div> : null}
+            {tab.description ? (
+              <div className="text-xs text-text-secondary">{tab.description}</div>
+            ) : null}
           </button>
         );
       })}
