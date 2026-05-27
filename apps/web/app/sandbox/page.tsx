@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
-import { WheelCanvasBuilder } from '../../src/components/sandbox/WheelCanvasBuilder';
+import { WheelBuilder } from '@/components/wheel/WheelBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
 import { ChartSearchCombobox } from '../../src/components/sandbox/ChartSearchCombobox';
@@ -1548,7 +1548,7 @@ export default function SandboxPage() {
                   />
                 </div>
                 <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
-                  <WheelCanvasBuilder
+                  <WheelBuilder
                     snapshot={currentSnapshot}
                     overrides={overrides}
                     onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}

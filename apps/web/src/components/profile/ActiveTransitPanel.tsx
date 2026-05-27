@@ -20,8 +20,8 @@ import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { InputField } from '@/components/shared/Input';
 
-const WheelCanvas = dynamic(
-  () => import('../WheelCanvas').then((m) => m.default),
+const WheelDisplay = dynamic(
+  () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
 
@@ -374,7 +374,7 @@ export function ActiveTransitPanel({
                 onTabChange={(id) => setActiveSlotIndex(Number(id) as 0 | 1)}
               />
               {snapshotSafeForWheel(activeWheelSlots[activeSlotIndex]?.snapshot) ? (
-                <WheelCanvas
+                <WheelDisplay
                   chartData={activeWheelSlots[activeSlotIndex]!.snapshot as any}
                   isLoading={false}
                   className="max-w-full"

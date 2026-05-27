@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getApiBaseUrl } from '../src/core/api-base';
 import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
 import { AppShell } from '@/components/AppShell';
-import WheelCanvas from '../src/components/WheelCanvas';
+import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { DateInput, TimeInput } from '../src/components/Inputs';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
@@ -400,7 +400,7 @@ export default function HomePage() {
           {/* Right: Wheel */}
           <section className="lg:col-span-3">
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-              <WheelCanvas chartData={chartData} isLoading={isLoading} />
+              <WheelDisplay chartData={chartData} isLoading={isLoading} />
               {/* Viz sync indicator */}
               {chartData && !isLoading && (
                 <div className="mt-2 text-center">

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { AppShell } from '../../src/components/AppShell';
-import WheelCanvas from '../../src/components/WheelCanvas';
+import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import { GenerateCard } from '../../src/components/GenerateCard';
 import { ComparisonSwitcher } from '../../src/components/ComparisonSwitcher';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
@@ -170,7 +170,7 @@ export default function OverlayPage() {
                   Combined Chart View
                 </h2>
                 
-                <WheelCanvas 
+                <WheelDisplay
                   chartData={combinedChartData ?? undefined}
                   isLoading={!chartA || !chartB}
                   className="w-full"
