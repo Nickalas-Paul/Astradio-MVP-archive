@@ -1346,7 +1346,7 @@ export default function SandboxPage() {
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-text">Sandbox</h1>
+          <h1 className="text-h1 font-bold text-text">Sandbox</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
             Composition workspace: build the chart on the wheel and degree panel, add birth data when you need natal houses and ephemeris for resolve, then{' '}
             <span className="text-text font-medium">Generate</span> to run the canonical pipeline for what you see.
@@ -1458,7 +1458,7 @@ export default function SandboxPage() {
                             resolvePreviewBirthBySlotRef.current.clear();
                             dispatchComposition({ type: 'remove_slot', index: row.index });
                           }}
-                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-subtext text-[10px]"
+                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-subtext text-caption"
                           title="Remove slot"
                         >
                           Remove
@@ -1472,7 +1472,7 @@ export default function SandboxPage() {
                               void syncPreviewToActiveSlot();
                             }
                           }}
-                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-subtext text-[10px]"
+                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-subtext text-caption"
                           title="Clear slot"
                         >
                           Clear
@@ -1486,7 +1486,7 @@ export default function SandboxPage() {
                   <p className="text-xs font-medium text-text mb-1">Import chart</p>
                   <p className="text-xs text-subtext mb-2">
                     Search by username, handle, or paste a chart ID. Uses the same stored chart as community compatibility (
-                    <code className="text-[10px]">GET /api/charts/:id</code>). The{' '}
+                    <code className="text-caption">GET /api/charts/:id</code>). The{' '}
                     <span className="font-medium text-text">active</span> slot stores <span className="font-medium text-text">chart_id</span> for resolve;
                     preview uses the same snapshot route as birth entry.
                   </p>
@@ -1695,7 +1695,7 @@ export default function SandboxPage() {
                     {compositionFingerprintAtLastSeed != null &&
                       lastResolveSeedSlotIndex != null &&
                       lastResolveSeedCombinedHash != null && (
-                        <div className="mt-2 rounded border border-border/60 bg-bgElev/40 p-2 font-mono text-[11px] text-subtext space-y-1">
+                        <div className="mt-2 rounded border border-border/60 bg-bgElev/40 p-2 font-mono text-caption text-subtext space-y-1">
                           <p>
                             <span className="font-medium text-text">Resolve seed snapshot</span> used slot{' '}
                             <span className="text-text">{lastResolveSeedSlotIndex}</span>
@@ -1708,7 +1708,7 @@ export default function SandboxPage() {
                           </p>
                           <p>
                             <span className="font-medium text-text">Seed combined hash:</span>{' '}
-                            <code className="break-all text-[10px]">{lastResolveSeedCombinedHash}</code>
+                            <code className="break-all text-caption">{lastResolveSeedCombinedHash}</code>
                           </p>
                         </div>
                       )}
@@ -1765,7 +1765,7 @@ export default function SandboxPage() {
                           {exportUnavailableReason && <span className="ml-1">{exportUnavailableReason.summary}</span>}
                           {planHash && (
                             <span className="ml-1">
-                              Plan hash: <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
+                              Plan hash: <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
                             </span>
                           )}
                         </p>
@@ -1787,8 +1787,8 @@ export default function SandboxPage() {
                   <details className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3 group">
                     <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 text-subtext hover:text-text [&::-webkit-details-marker]:hidden">
                       <span className="font-semibold text-text">Provenance &amp; debug replay</span>
-                      <span className="text-[10px] uppercase tracking-wide text-subtext/90 group-open:hidden">Show secondary tools</span>
-                      <span className="text-[10px] uppercase tracking-wide text-subtext/90 hidden group-open:inline">Hide</span>
+                      <span className="text-caption uppercase tracking-wide text-subtext/90 group-open:hidden">Show secondary tools</span>
+                      <span className="text-caption uppercase tracking-wide text-subtext/90 hidden group-open:inline">Hide</span>
                     </summary>
                     <p className="mt-2 text-xs text-subtext">
                       Secondary only: export the last bundle or replay the <span className="font-medium text-text">exact JSON</span> from the previous resolve. This is not a second
@@ -1811,7 +1811,7 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">combinedHash:</span>{' '}
                         {lastCombinedHashUsed ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{lastCombinedHashUsed}</code>
+                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{lastCombinedHashUsed}</code>
                         ) : (
                           <span>—</span>
                         )}
@@ -1819,7 +1819,7 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">plan_sha256:</span>{' '}
                         {planHash ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{planHash}</code>
+                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{planHash}</code>
                         ) : (
                           <span>—</span>
                         )}
@@ -1827,14 +1827,14 @@ export default function SandboxPage() {
                       <div>
                         <span className="font-semibold">export_id:</span>{' '}
                         {exportId ? (
-                          <code className="text-[10px] bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{exportId}</code>
+                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{exportId}</code>
                         ) : (
                           <span>—</span>
                         )}
                       </div>
                     </div>
                     {replayStatus === 'mismatch' && <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>}
-                    {replayStatus === 'match' && <p className="text-xs text-emerald-400">Replay matched plan hash.</p>}
+                    {replayStatus === 'match' && <p className="text-xs text-accent-light">Replay matched plan hash.</p>}
                     {replayStatus === 'error' && replayError && <p className="text-xs text-red-400">{replayError}</p>}
                   </details>
                 )}

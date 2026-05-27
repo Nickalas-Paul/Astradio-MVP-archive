@@ -140,7 +140,7 @@ export function CompatibilityLensModal({
                 {sections.map((s, i) => (
                   <div key={i}>
                     {s.title ? (
-                      <h2 className="reading-section-header mb-2 first:mt-0 text-lg">{s.title}</h2>
+                      <h2 className="reading-section-header mb-2 first:mt-0">{s.title}</h2>
                     ) : null}
                     {s.text ? <IdentityMarkdown content={s.text} /> : null}
                     {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
@@ -158,13 +158,13 @@ export function CompatibilityLensModal({
               <div className="space-y-4">
                 {short ? (
                   <div>
-                    <h2 className="reading-section-header mb-2 first:mt-0 text-lg">Summary</h2>
+                    <h2 className="reading-section-header mb-2 first:mt-0">Summary</h2>
                     <IdentityMarkdown content={short} />
                   </div>
                 ) : null}
                 {long ? (
                   <div>
-                    <h2 className="reading-section-header mb-2 first:mt-0 text-lg">Details</h2>
+                    <h2 className="reading-section-header mb-2 first:mt-0">Details</h2>
                     <IdentityMarkdown content={long} />
                   </div>
                 ) : null}

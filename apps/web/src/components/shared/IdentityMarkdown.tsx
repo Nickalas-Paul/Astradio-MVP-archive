@@ -45,18 +45,18 @@ const IDENTITY_MARKDOWN_COMPONENTS: Components = {
     <h2 className="reading-section-header mt-8 first:mt-0">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-xl font-serif font-semibold text-emerald-400 mt-6 mb-3 first:mt-0">{children}</h3>
+    <h3 className="text-h3 font-serif text-accent-light mt-6 mb-3 first:mt-0">{children}</h3>
   ),
   h4: ({ children }) => (
-    <h4 className="text-base font-semibold text-emerald-400/90 mb-2 mt-4 first:mt-0">{children}</h4>
+    <h4 className="text-body font-semibold text-accent-light/90 mb-2 mt-4 first:mt-0">{children}</h4>
   ),
   strong: ({ children }) => <strong className="reading-field-label">{children}</strong>,
   p: ({ children }) => (
-    <p className="text-subtext text-sm leading-relaxed mb-4 last:mb-0">{children}</p>
+    <p className="text-body text-text-secondary mb-4 last:mb-0">{children}</p>
   ),
   hr: () => null,
   ul: ({ children }) => (
-    <ul className="list-disc list-inside text-subtext text-sm space-y-1 mb-4">{children}</ul>
+    <ul className="list-disc list-inside text-body text-text-secondary space-y-1 mb-4">{children}</ul>
   ),
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
   em: ({ children }) => <em className="text-subtext/80 italic">{children}</em>,

@@ -26,7 +26,7 @@ function BulletRow({ label, text }: { label: string; text: string }) {
   return (
     <div className="rounded-lg border border-border bg-bg p-4 space-y-2">
       <p className="text-xs font-semibold text-subtext uppercase tracking-wide">{label}</p>
-      <p className="text-sm text-text leading-relaxed">{text}</p>
+      <p className="text-body text-text">{text}</p>
     </div>
   );
 }

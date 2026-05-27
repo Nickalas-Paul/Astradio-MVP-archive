@@ -137,7 +137,7 @@ function GroupsList({ userId }: { userId: string | null }) {
             <button
               type="submit"
               disabled={creating}
-              className="px-4 py-2 rounded-lg bg-emerald text-bg text-sm font-medium disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-50"
             >
               Create
             </button>
@@ -218,13 +218,13 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-4xl font-bold text-text">Community</h1>
+          <h1 className="text-h1 font-bold text-text">Community</h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
             Feed, discovery, and connections — chart-based and deterministic.
           </p>
           <p className="text-sm text-subtext">
             Profile and saved tracks live under{' '}
-            <Link href="/profile" className="text-emerald hover:underline">
+            <Link href="/profile" className="text-accent-light hover:underline">
               Profile
             </Link>
             .

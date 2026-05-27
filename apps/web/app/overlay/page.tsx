@@ -131,7 +131,7 @@ export default function OverlayPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-4xl font-bold text-text">
+          <h1 className="text-h1 font-bold text-text">
             Chart Overlay
           </h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
@@ -179,7 +179,7 @@ export default function OverlayPage() {
                 {/* Chart Legend */}
                 <div className="flex items-center justify-center space-x-6 text-sm">
                   <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-emerald rounded-full"></div>
+                    <div className="w-3 h-3 bg-accent rounded-full"></div>
                     <span className="text-text">{chartA?.label || 'Chart A'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -200,7 +200,7 @@ export default function OverlayPage() {
                 <div className="p-3 bg-bgElev rounded-lg border border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-text">Conjunctions</span>
-                    <span className="text-sm text-emerald">3</span>
+                    <span className="text-sm text-accent-light">3</span>
                   </div>
                 </div>
                 
@@ -261,7 +261,7 @@ export default function OverlayPage() {
                       <p className="text-sm text-text">Natal × Today</p>
                       <p className="text-xs text-subtext">Ambient • 2 min ago</p>
                     </div>
-                    <button className="text-emerald hover:text-emeraldMuted">
+                    <button className="text-accent-light hover:text-accent-light">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -275,7 +275,7 @@ export default function OverlayPage() {
                       <p className="text-sm text-text">Today × Yesterday</p>
                       <p className="text-xs text-subtext">Jazz • 1 hour ago</p>
                     </div>
-                    <button className="text-emerald hover:text-emeraldMuted">
+                    <button className="text-accent-light hover:text-accent-light">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>

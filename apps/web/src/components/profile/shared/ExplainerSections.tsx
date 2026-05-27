@@ -27,7 +27,7 @@ export function ExplainerSections({
           </h2>
           <IdentityMarkdown content={sec.text} />
           {sec.bullets && sec.bullets.length > 0 && (
-            <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
+            <ul className="mt-3 list-disc list-inside text-body text-text-secondary space-y-1">
               {sec.bullets.map((b, i) => (
                 <li key={i}>{stripReadingPresentationNoise(b)}</li>
               ))}

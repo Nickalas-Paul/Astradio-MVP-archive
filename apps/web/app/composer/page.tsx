@@ -83,7 +83,7 @@ export default function ComposerPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-4xl font-bold text-text">
+          <h1 className="text-h1 font-bold text-text">
             Composer
           </h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
@@ -113,8 +113,8 @@ export default function ComposerPage() {
                   }}
                   className={`p-3 rounded-xl border text-center transition-all duration-200 ${
                     activeTab === genre.id
-                      ? 'border-emerald bg-emerald/10 text-emerald'
-                      : 'border-border bg-bg hover:bg-bgElev hover:border-emerald/50'
+                      ? 'border-accent bg-accent/10 text-accent-light'
+                      : 'border-border bg-bg hover:bg-bgElev hover:border-accent/50'
                   }`}
                   disabled={isGenerating}
                 >
@@ -187,7 +187,7 @@ export default function ComposerPage() {
               
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-emerald rounded-full"></div>
+                  <div className="w-2 h-2 bg-accent rounded-full"></div>
                   <span className="text-sm text-text">0:00 - Opening chord progression</span>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -203,7 +203,7 @@ export default function ComposerPage() {
                   <span className="text-sm text-text">0:45 - Texture layers build</span>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-emerald rounded-full"></div>
+                  <div className="w-2 h-2 bg-accent rounded-full"></div>
                   <span className="text-sm text-text">1:00 - Final cadence</span>
                 </div>
               </div>

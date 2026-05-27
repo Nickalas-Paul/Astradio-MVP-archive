@@ -88,9 +88,9 @@ function sectionHeadingClass(sec: ExplanationSection, embedded: boolean): string
     return 'reading-field-label';
   }
   if (HOME_GRADIENT_SECTION_IDS.has(id)) {
-    return 'text-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent';
+    return 'text-body-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-accent-light to-[#0bbfbf] bg-clip-text text-transparent';
   }
-  return 'text-sm font-medium uppercase tracking-wide text-zinc-300 mb-2';
+  return 'text-body-sm font-medium uppercase tracking-wide text-zinc-300 mb-2';
 }
 
 export function ExplanationPanel({
@@ -104,13 +104,13 @@ export function ExplanationPanel({
   const hasSections = Array.isArray(sections) && sections.length > 0;
   const panelTitleClass = embedded
     ? 'reading-section-header mb-4'
-    : 'text-lg font-semibold text-zinc-100';
+    : 'text-h4 font-semibold text-zinc-100';
 
   if (isLoading) {
     return (
       <div className={`space-y-4 ${className}`}>
         {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
-        <p className="text-sm text-text-secondary leading-relaxed">{FALLBACK_LOADING}</p>
+        <p className="text-body text-text-secondary">{FALLBACK_LOADING}</p>
       </div>
     );
   }
@@ -138,7 +138,7 @@ export function ExplanationPanel({
               <section key={sec.sectionId ?? sec.title ?? idx} className="mb-6 last:mb-0">
                 <h4 className={sectionHeadingClass(sec, embedded)}>{title}</h4>
                 {sectionText && (
-                  <div className="text-sm text-text-secondary leading-relaxed space-y-2">
+                  <div className="text-body text-text-secondary space-y-2">
                     {paragraphs(sectionText).map((p, i) => (
                       <p key={i}>{p}</p>
                     ))}
@@ -172,7 +172,7 @@ export function ExplanationPanel({
     <div className={`space-y-4 ${className}`}>
       {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
       <div className="prose prose-invert max-w-none">
-        <p className="text-sm text-text-secondary leading-relaxed">{fallback}</p>
+        <p className="text-body text-text-secondary">{fallback}</p>
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-4xl font-bold text-text">
+          <h1 className="text-h1 font-bold text-text">
             Settings
           </h1>
           <p className="text-lg text-subtext max-w-2xl mx-auto">
@@ -42,7 +42,7 @@ export default function SettingsPage() {
         </motion.div>
 
         <div id="birth-chart" className="card scroll-mt-8">
-          <h2 className="text-lg font-semibold text-text mb-4">Birth chart</h2>
+          <h2 className="text-h4 font-semibold text-text mb-4">Birth chart</h2>
           {!user ? (
             <p className="text-sm text-subtext">Sign in to manage your birth chart.</p>
           ) : (
@@ -65,7 +65,7 @@ export default function SettingsPage() {
           >
             {/* Theme Settings */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text mb-4">
                 Appearance
               </h2>
               
@@ -79,7 +79,7 @@ export default function SettingsPage() {
                       onClick={() => setTheme('dark')}
                       className={`p-3 rounded-xl border text-center transition-all ${
                         theme === 'dark'
-                          ? 'border-emerald bg-emerald/10 text-emerald'
+                          ? 'border-accent bg-accent/10 text-accent-light'
                           : 'border-border bg-bg hover:bg-bgElev'
                       }`}
                     >
@@ -90,7 +90,7 @@ export default function SettingsPage() {
                       onClick={() => setTheme('light')}
                       className={`p-3 rounded-xl border text-center transition-all ${
                         theme === 'light'
-                          ? 'border-emerald bg-emerald/10 text-emerald'
+                          ? 'border-accent bg-accent/10 text-accent-light'
                           : 'border-border bg-bg hover:bg-bgElev'
                       }`}
                       disabled
@@ -106,7 +106,7 @@ export default function SettingsPage() {
 
             {/* Audio Settings */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text mb-4">
                 Audio Quality
               </h2>
               
@@ -139,7 +139,7 @@ export default function SettingsPage() {
                       id="autoplay"
                       checked={settings.autoPlay}
                       onChange={(e) => updateSettings({ autoPlay: e.target.checked })}
-                      className="w-4 h-4 text-emerald bg-bg border-border rounded focus:ring-emerald focus:ring-2"
+                      className="w-4 h-4 text-accent-light bg-bg border-border rounded focus:ring-accent focus:ring-2"
                     />
                     <label htmlFor="autoplay" className="text-sm text-text">
                       Automatically play compositions when ready
@@ -159,7 +159,7 @@ export default function SettingsPage() {
           >
             {/* Language Settings */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text mb-4">
                 Language & Region
               </h2>
               
@@ -182,14 +182,14 @@ export default function SettingsPage() {
 
             {/* Account Settings */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text mb-4">
                 Account
               </h2>
               
               <div className="space-y-4">
                 <div className="p-4 bg-bgElev rounded-xl border border-border">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald to-violet rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center">
                       <span className="text-bg font-bold">A</span>
                     </div>
                     <div>
@@ -248,7 +248,7 @@ export default function SettingsPage() {
           transition={{ delay: 0.6 }}
           className="card"
         >
-          <h2 className="text-lg font-semibold text-text mb-4">
+          <h2 className="text-h4 font-semibold text-text mb-4">
             About Astradio
           </h2>
           
@@ -270,7 +270,7 @@ export default function SettingsPage() {
             
             <div>
               <h3 className="text-sm font-medium text-text mb-2">Support</h3>
-              <button className="text-sm text-emerald hover:text-emeraldMuted">
+              <button className="text-sm text-accent-light hover:text-accent-light">
                 Contact Support
               </button>
             </div>

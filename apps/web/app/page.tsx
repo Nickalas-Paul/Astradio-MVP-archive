@@ -646,10 +646,10 @@ export default function HomePage() {
     <AppShell showPlayer={false} contentClassName="">
       {/* Hero + primary CTA */}
       <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
-        <h1 className="text-4xl md:text-6xl font-serif font-bold text-text-primary leading-tight">
+        <h1 className="text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
-        <p className="text-lg md:text-xl text-text-secondary max-w-xl mx-auto leading-relaxed">
+        <p className="text-body-sm md:text-body text-text-secondary max-w-xl mx-auto">
           The planets are always in motion. Every alignment carries a sound.
         </p>
 
@@ -714,7 +714,7 @@ export default function HomePage() {
       <section className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex flex-wrap items-end gap-4 justify-center">
           <div className="space-y-1">
-            <label htmlFor="home-date" className="text-xs text-text-muted block">
+            <label htmlFor="home-date" className="text-caption text-text-muted block">
               Date
             </label>
             <input
@@ -727,7 +727,7 @@ export default function HomePage() {
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="home-time" className="text-xs text-text-muted block">
+            <label htmlFor="home-time" className="text-caption text-text-muted block">
               Time
             </label>
             <input
@@ -740,7 +740,7 @@ export default function HomePage() {
             />
           </div>
           <div className="space-y-1 min-w-[10rem]">
-            <span className="text-xs text-text-muted block">Location</span>
+            <span className="text-caption text-text-muted block">Location</span>
             <span className="text-sm text-text-secondary block py-1.5">{locationLabel}</span>
           </div>
         </div>

@@ -97,7 +97,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         className={`rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-200 ${className}`}
       >
         {error}
-        <button type="button" onClick={() => refresh()} className="ml-3 underline text-emerald-600 dark:text-emerald-400">
+        <button type="button" onClick={() => refresh()} className="ml-3 underline text-accent-light">
           Retry
         </button>
       </div>
@@ -420,14 +420,14 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
         <button
           type="button"
           onClick={() => refresh()}
-          className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+          className="text-sm text-accent-light hover:underline"
         >
           Refresh
         </button>
       </div>
       <p className="text-xs text-subtext max-w-2xl">
         Connections ranked by how active they are for you right now.{' '}
-        <Link href="/community?tab=connections" className="text-emerald hover:underline">
+        <Link href="/community?tab=connections" className="text-accent-light hover:underline">
           Open Signals
         </Link>{' '}
         for structured actions.
@@ -484,7 +484,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                             <p className="text-xs font-medium text-subtext uppercase tracking-wide">
                               {getRoleLabel(line.role)}
                             </p>
-                            <div className="flex items-start gap-2 text-sm text-text leading-relaxed">
+                            <div className="flex items-start gap-2 text-body text-text">
                               <span className="text-subtext mt-0.5 shrink-0" aria-hidden>
                                 •
                               </span>
@@ -498,7 +498,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm text-text leading-relaxed max-w-full break-words">{primary}</p>
+                      <p className="text-body text-text max-w-full break-words">{primary}</p>
                       {micro ? (
                         <p className="text-xs font-medium text-subtext tracking-wide" aria-hidden="true">
                           {micro}
@@ -516,7 +516,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                     title=""
                   >
                     <div
-                      className="h-full bg-emerald/50 rounded-full transition-[width]"
+                      className="h-full bg-accent/50 rounded-full transition-[width]"
                       style={{ width: `${rankBar * 100}%` }}
                     />
                   </div>
@@ -524,7 +524,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                 <div className="flex flex-wrap gap-3 text-xs items-center pt-1 border-t border-border/50">
                   <Link
                     href="/community?tab=connections&signals=1"
-                    className="text-emerald hover:underline font-medium"
+                    className="text-accent-light hover:underline font-medium"
                   >
                     Signals
                   </Link>
@@ -605,7 +605,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                                   </h2>
                                   {betaLines.map((line, idx) => (
                                     <div key={`${item.feed_item_id}-spot-${idx}`} className="space-y-2 mb-6 last:mb-0">
-                                      <h3 className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                      <h3 className="text-base font-semibold text-accent-light">
                                         {getRoleLabel(line.role)}
                                       </h3>
                                       {activationLinePrefix(line) ? (
@@ -699,7 +699,7 @@ export function RelationalCommunityFeed({ userId, primaryChart, className = '' }
                         {item.connection_kind !== 'campaign_group' && (
                           <button
                             type="button"
-                            className="px-2 py-1 rounded border border-border text-xs text-emerald hover:bg-bgElev disabled:opacity-50"
+                            className="px-2 py-1 rounded border border-border text-xs text-accent-light hover:bg-bgElev disabled:opacity-50"
                             onClick={() => void saveArtifact(item)}
                             disabled={busyByFeedId[item.feed_item_id]}
                           >

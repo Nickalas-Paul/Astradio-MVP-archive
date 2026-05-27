@@ -71,7 +71,7 @@ function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
       {sections.map((section) => (
         <div key={section.id} className="space-y-2">
           {section.title ? <h3 className="text-sm font-medium text-text">{section.title}</h3> : null}
-          {section.text ? <p className="text-sm text-subtext leading-relaxed">{section.text}</p> : null}
+          {section.text ? <p className="text-body text-text-secondary">{section.text}</p> : null}
           {section.bullets?.length ? (
             <ul className="list-disc list-inside text-sm text-subtext space-y-1">
               {section.bullets.map((b, i) => (
@@ -126,7 +126,7 @@ function ConnectionActions({
       <button
         type="button"
         disabled
-        className="px-4 py-2 bg-emerald text-bg rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
+        className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
         title="Connection requests — Phase 6C-2"
       >
         Request connection
@@ -134,7 +134,7 @@ function ConnectionActions({
       {fromDiscovery ? (
         <Link
           href="/community?tab=discovery"
-          className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-subtext hover:text-text hover:border-emerald/50 transition-colors"
+          className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-subtext hover:text-text hover:border-accent/50 transition-colors"
         >
           Back to matches
         </Link>
@@ -238,7 +238,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
           <p className="text-red-500">User not found</p>
           <Link
             href="/community?tab=discovery"
-            className="text-emerald hover:underline mt-2 inline-block text-sm"
+            className="text-accent-light hover:underline mt-2 inline-block text-sm"
           >
             ← Back to Discovery
           </Link>
