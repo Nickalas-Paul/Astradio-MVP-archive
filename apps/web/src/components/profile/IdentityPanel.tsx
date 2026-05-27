@@ -151,8 +151,8 @@ export function IdentityPanel({
         : 'Generate a soundtrack from your natal chart.';
 
   return (
-    <div className="grid gap-8 md:grid-cols-[3fr_2fr]">
-      <div className="space-y-4 min-w-0 w-full">
+    <div className="space-y-8">
+      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -221,7 +221,7 @@ export function IdentityPanel({
         )}
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 w-full">
         {noRealChart && (
           <p className="text-subtext text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
         )}
