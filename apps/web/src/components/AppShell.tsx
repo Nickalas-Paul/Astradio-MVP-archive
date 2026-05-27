@@ -11,14 +11,23 @@ interface AppShellProps {
   children: ReactNode;
   showContextRail?: boolean;
   contextRailContent?: ReactNode;
+  /** When false, hides the global PlayerBar (e.g. Home uses local Lyria transport). */
+  showPlayer?: boolean;
+  /** Padding/classes on the page content wrapper; default matches app routes. */
+  contentClassName?: string;
 }
 
-export function AppShell({ children, showContextRail, contextRailContent }: AppShellProps) {
-  const { sidebarOpen, setSidebarOpen } = useUIStore();
+export function AppShell({
+  children,
+  showContextRail,
+  contextRailContent,
+  showPlayer = true,
+  contentClassName = 'p-6',
+}: AppShellProps) {
+  const { sidebarOpen } = useUIStore();
 
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
-      {/* Header — same primary surface links as Home (HeaderTabs) */}
       <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-bg/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <Link href="/" className="text-emerald-400 font-semibold tracking-wide shrink-0">
@@ -27,25 +36,16 @@ export function AppShell({ children, showContextRail, contextRailContent }: AppS
           <HeaderTabs />
         </div>
       </header>
-      
-      {/* Main Content Area */}
+
       <main className="flex-1 flex">
-        {sidebarOpen && (
-          <aside className="w-80 bg-surface-1 border-r border-border p-6">
-            {showContextRail ? contextRailContent : null}
-          </aside>
+        {sidebarOpen && showContextRail && (
+          <aside className="w-80 bg-surface-1 border-r border-border p-6">{contextRailContent}</aside>
         )}
-        
-        {/* Page Content */}
-        <div className="flex-1 p-6">
-          {children}
-        </div>
+
+        <div className={`flex-1 ${contentClassName}`.trim()}>{children}</div>
       </main>
-      
-      {/* Floating Player Bar */}
-      <PlayerBar />
-      
-      {/* Toast Container */}
+
+      {showPlayer && <PlayerBar />}
       <ToastContainer />
     </div>
   );

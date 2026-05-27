@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 
 // use relative imports to avoid alias issues
 import { getApiBaseUrl } from '../src/core/api-base';
 import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
-import HeaderTabs from '../src/components/HeaderTabs';
+import { AppShell } from '@/components/AppShell';
 import WheelCanvas from '../src/components/WheelCanvas';
 import ExplanationPanel from '../src/components/ExplanationPanel';
 import { DateInput, TimeInput } from '../src/components/Inputs';
@@ -381,20 +380,7 @@ export default function HomePage() {
   const disabled = isLoading || !chartData || !location;
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      {/* Top nav */}
-      <header className="w-full border-b border-white/5 sticky top-0 z-40 bg-bg/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="text-emerald-400 font-semibold tracking-wide">
-              Astradio
-            </Link>
-            <HeaderTabs />
-          </div>
-        </div>
-      </header>
-
-      {/* Hero */}
+    <AppShell showPlayer={false} contentClassName="">
       <section className="mx-auto max-w-7xl px-4 pt-10 pb-6">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Here's what today sounds like.
@@ -430,7 +416,7 @@ export default function HomePage() {
               <DateInput value={dateStr} onChange={setDateStr} disabled={isLoading} />
               <TimeInput value={timeStr} onChange={setTimeStr} disabled={isLoading} />
               <div className="flex flex-col text-xs text-subtext">
-                <span className="mb-1 font-medium text-text">Location</span>
+                <span className="mb-1 font-medium text-text-primary">Location</span>
                 <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                   {location
                     ? location.label
@@ -521,9 +507,7 @@ export default function HomePage() {
             </div>
           </section>
         </div>
-
-        <div className="h-16" />
       </main>
-    </div>
+    </AppShell>
   );
 }
