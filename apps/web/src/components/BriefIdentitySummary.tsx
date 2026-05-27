@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ProfileChartSection } from '@/core/social/hooks';
+import { Card } from '@/components/shared/Card';
 
 const SIGN_NAMES = [
   'Aries',
@@ -166,31 +167,31 @@ export function BriefIdentitySummary({
   const essence = extractSunEssence(sections);
 
   return (
-    <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-subtext">About their chart</h2>
+    <Card elevation="flat" padding="p-4" className="space-y-4">
+      <h2 className="font-serif text-h3 font-semibold text-text-primary">About their chart</h2>
 
       {loading ? (
-        <p className="text-sm text-subtext">Loading chart summary…</p>
+        <p className="text-body-sm text-text-secondary">Loading chart summary…</p>
       ) : (
         <>
           {placements ? (
-            <p className="text-sm text-text font-medium leading-relaxed">{placements}</p>
+            <p className="text-body font-medium text-text-primary leading-relaxed">{placements}</p>
           ) : (
-            <p className="text-sm text-subtext">Chart placements unavailable.</p>
+            <p className="text-body-sm text-text-secondary">Chart placements unavailable.</p>
           )}
 
           {essence ? (
-            <p className="text-sm text-subtext leading-relaxed">{essence}</p>
+            <p className="text-body text-text-secondary leading-relaxed">{essence}</p>
           ) : null}
 
           <Link
             href={profilePath}
-            className="inline-block text-sm text-accent-light hover:underline font-medium"
+            className="inline-block text-body-sm text-accent-light hover:underline font-medium"
           >
             View complete natal chart →
           </Link>
         </>
       )}
-    </section>
+    </Card>
   );
 }

@@ -8,6 +8,8 @@ import { ProfileHeader } from '@/components/ProfileHeader';
 import { BriefIdentitySummary } from '@/components/BriefIdentitySummary';
 import { ProfileCompatibilityPanel } from '@/components/ProfileCompatibilityPanel';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 import { useProfile, useProfileChart } from '@/core/social/hooks';
 import type { ProfileChartSection } from '@/core/social/hooks';
 import type { SynastryBulletLine } from '@/core/compat/types';
@@ -59,21 +61,23 @@ function readDiscoveryBullets(userId: string): {
 function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
   if (sections.length === 0) {
     return (
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <p className="text-sm text-subtext">Chart identity report unavailable for this profile.</p>
-      </section>
+      <Card elevation="resting" padding="p-5">
+        <p className="text-body-sm text-text-secondary">Chart identity report unavailable for this profile.</p>
+      </Card>
     );
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-4">
-      <h2 className="text-lg font-semibold text-text">Core identity</h2>
+    <Card elevation="resting" padding="p-5" className="space-y-4">
+      <h2 className="font-serif text-h3 font-semibold text-text-primary">Core identity</h2>
       {sections.map((section) => (
         <div key={section.id} className="space-y-2">
-          {section.title ? <h3 className="text-sm font-medium text-text">{section.title}</h3> : null}
-          {section.text ? <p className="text-body text-text-secondary">{section.text}</p> : null}
+          {section.title ? (
+            <h3 className="text-h4 font-semibold text-text-primary">{section.title}</h3>
+          ) : null}
+          {section.text ? <p className="text-body text-text-secondary leading-relaxed">{section.text}</p> : null}
           {section.bullets?.length ? (
-            <ul className="list-disc list-inside text-sm text-subtext space-y-1">
+            <ul className="list-disc list-inside text-body-sm text-text-secondary space-y-1">
               {section.bullets.map((b, i) => (
                 <li key={i}>{b}</li>
               ))}
@@ -81,7 +85,7 @@ function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
           ) : null}
         </div>
       ))}
-    </section>
+    </Card>
   );
 }
 
@@ -97,47 +101,52 @@ function NatalSoundtrackSection({
   chartLoading: boolean;
 }) {
   return (
-    <section className="mb-8">
-      <h3 className="text-sm font-medium text-text mb-3">Their natal soundtrack</h3>
+    <Card elevation="flat" padding="p-4" className="space-y-4">
+      <h3 className="font-serif text-h3 font-semibold text-text-primary">Their natal soundtrack</h3>
       {chartLoading ? (
-        <p className="text-sm text-subtext">Loading chart…</p>
+        <p className="text-body-sm text-text-secondary">Loading chart…</p>
       ) : exportId && /^[a-f0-9]{64}$/.test(exportId) ? (
         <ValidatedExportAudioPlayer exportId={exportId} />
       ) : (
-        <div className="bg-surface rounded-lg p-4">
-          <p className="text-sm text-subtext">Audio not yet available for this chart</p>
-        </div>
+        <p className="text-body-sm text-accent-light">Sound unavailable</p>
       )}
-    </section>
+    </Card>
   );
 }
 
 function ConnectionActions({
   fromDiscovery,
   isOwnProfile,
+  onBackToMatches,
 }: {
   fromDiscovery: boolean;
   isOwnProfile: boolean;
+  onBackToMatches?: () => void;
 }) {
   if (isOwnProfile) return null;
 
   return (
-    <div className="flex flex-wrap gap-3 pt-2">
-      <button
+    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+      <Button
         type="button"
+        variant="primary"
+        size="md"
+        className="flex-1 sm:flex-none"
         disabled
-        className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
         title="Connection requests — Phase 6C-2"
       >
         Request connection
-      </button>
-      {fromDiscovery ? (
-        <Link
-          href="/community?tab=discovery"
-          className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-subtext hover:text-text hover:border-accent/50 transition-colors"
+      </Button>
+      {fromDiscovery && onBackToMatches ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="md"
+          className="flex-1 sm:flex-none"
+          onClick={onBackToMatches}
         >
           Back to matches
-        </Link>
+        </Button>
       ) : null}
     </div>
   );
@@ -226,7 +235,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
   if (profileLoading || (fromDiscovery && sessionLoading)) {
     return (
       <AppShell>
-        <div className="max-w-3xl mx-auto p-6 text-subtext">Loading profile…</div>
+        <div className="max-w-3xl mx-auto p-6 text-body-sm text-text-secondary">Loading profile…</div>
       </AppShell>
     );
   }
@@ -252,7 +261,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <Link
           href={fromDiscovery ? '/community?tab=discovery' : '/community'}
-          className="text-subtext hover:text-text text-sm inline-block"
+          className="text-body-sm text-accent-light hover:underline inline-block"
         >
           ← {fromDiscovery ? 'Back to matches' : 'Community'}
         </Link>
@@ -291,7 +300,11 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
               />
             ) : null}
 
-            <ConnectionActions fromDiscovery={fromDiscovery} isOwnProfile={isOwnProfile} />
+            <ConnectionActions
+              fromDiscovery={fromDiscovery}
+              isOwnProfile={isOwnProfile}
+              onBackToMatches={() => router.push('/community?tab=discovery')}
+            />
           </>
         ) : (
           <>
@@ -310,7 +323,11 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
               />
             ) : null}
 
-            <ConnectionActions fromDiscovery={fromDiscovery} isOwnProfile={isOwnProfile} />
+            <ConnectionActions
+              fromDiscovery={fromDiscovery}
+              isOwnProfile={isOwnProfile}
+              onBackToMatches={() => router.push('/community?tab=discovery')}
+            />
           </>
         )}
       </div>

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { getApiBaseUrl } from '../core/api-base';
 import type { RelationalIntent } from '../lib/relational-intent';
 import type { SynastryBulletLine } from '../core/compat/types';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { Card } from '@/components/shared/Card';
 
 export type ExtendedCompatBullet = {
   label: string;
@@ -24,10 +26,12 @@ export interface ProfileCompatibilityPanelProps {
 
 function BulletRow({ label, text }: { label: string; text: string }) {
   return (
-    <div className="rounded-lg border border-border bg-bg p-4 space-y-2">
-      <p className="text-xs font-semibold text-subtext uppercase tracking-wide">{label}</p>
-      <p className="text-body text-text">{text}</p>
-    </div>
+    <Card elevation="flat" padding="p-4" className="space-y-2">
+      <p className="text-caption font-medium uppercase tracking-wide text-accent-light">{label}</p>
+      <div className="text-body text-text-secondary leading-relaxed">
+        <IdentityMarkdown content={text} />
+      </div>
+    </Card>
   );
 }
 
@@ -95,25 +99,21 @@ export function ProfileCompatibilityPanel({
       lineText(discoveryBullets.forYou) ||
       lineText(discoveryBullets.together));
 
-  const discoveryKeys = new Set(
-    bullets.slice(0, 3).map((b) => b.key)
-  );
-  const additional = hasDiscovery
-    ? bullets.filter((b) => !discoveryKeys.has(b.key))
-    : bullets;
+  const discoveryKeys = new Set(bullets.slice(0, 3).map((b) => b.key));
+  const additional = hasDiscovery ? bullets.filter((b) => !discoveryKeys.has(b.key)) : bullets;
 
   return (
-    <section className="rounded-xl border border-border bg-surface-1 p-5 space-y-5">
-      <h2 className="text-lg font-semibold text-text">Why you&apos;re compatible</h2>
+    <Card elevation="resting" padding="p-5" className="space-y-6">
+      <h2 className="font-serif text-h3 font-semibold text-text-primary">Why you&apos;re compatible</h2>
 
-      {loading ? <p className="text-sm text-subtext">Loading synastry…</p> : null}
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      {loading ? <p className="text-body-sm text-text-secondary">Loading synastry…</p> : null}
+      {error ? <p className="text-body-sm text-red-500">{error}</p> : null}
 
       {!loading && !error ? (
         <>
           {hasDiscovery ? (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-text">Highlights</h3>
+            <div className="space-y-4">
+              <h3 className="text-h4 font-semibold text-text-primary">Highlights</h3>
               {lineText(discoveryBullets?.forThem) ? (
                 <BulletRow label="Why you're good for them" text={lineText(discoveryBullets?.forThem)} />
               ) : null}
@@ -127,14 +127,14 @@ export function ProfileCompatibilityPanel({
           ) : null}
 
           {additional.length > 0 ? (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-text">More about this connection</h3>
+            <div className="space-y-4">
+              <h3 className="text-h4 font-semibold text-text-primary">More about this connection</h3>
               {additional.map((b) => (
                 <BulletRow key={b.key} label={b.label} text={b.text} />
               ))}
             </div>
           ) : bullets.length > 0 && !hasDiscovery ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {bullets.map((b) => (
                 <BulletRow key={b.key} label={b.label} text={b.text} />
               ))}
@@ -142,6 +142,6 @@ export function ProfileCompatibilityPanel({
           ) : null}
         </>
       ) : null}
-    </section>
+    </Card>
   );
 }
