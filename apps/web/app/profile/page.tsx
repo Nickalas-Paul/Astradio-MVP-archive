@@ -3,12 +3,8 @@
 import { Suspense } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ProfilePanel } from '@/components/community/ProfilePanel';
-import { ProfileHeaderCard } from '@/components/profile/ProfileHeaderCard';
-import { useProfile } from '@/core/social/hooks';
 
 export default function ProfilePage() {
-  const { user, primaryChart, refresh } = useProfile();
-
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
@@ -19,10 +15,6 @@ export default function ProfilePage() {
           </p>
         </section>
 
-        {user ? (
-          <ProfileHeaderCard user={user} primaryChart={primaryChart} onProfileRefresh={refresh} />
-        ) : null}
-
         <Suspense fallback={<p className="text-sm text-subtext">Loading profile…</p>}>
           <ProfilePanel />
         </Suspense>
@@ -30,4 +22,3 @@ export default function ProfilePage() {
     </AppShell>
   );
 }
-

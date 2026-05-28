@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useProfile } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { ProfileAuthPanel } from '../profile/ProfileAuthPanel';
+import { ProfileHeaderCard } from '../profile/ProfileHeaderCard';
 import { ActiveTransitPanel } from '../profile/ActiveTransitPanel';
 import { IdentityPanel } from '../profile/IdentityPanel';
 import { LibraryPanel, type LibraryPanelHandle } from '../profile/LibraryPanel';
@@ -70,45 +71,38 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         animate={{ opacity: 1, y: 0 }}
         className="card space-y-6"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold text-text break-words">{user.displayName}</h2>
-            {realChart && (
-              <p className="text-sm text-subtext mt-1">
-                {primaryChart!.label} · {primaryChart!.date} {primaryChart!.time}
-              </p>
-            )}
-            {noRealChart && (
-              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                No chart linked. Add your birth chart when creating a profile, or use the Sandbox to build a chart.
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            {onSwitchToConnections && realChart && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                className="w-full sm:w-auto min-h-[44px]"
-                onClick={onSwitchToConnections}
-              >
-                Find connections
-              </Button>
-            )}
+        <ProfileHeaderCard user={user} primaryChart={primaryChart} onProfileRefresh={refresh} />
+
+        {noRealChart && (
+          <p className="text-sm text-amber-600 dark:text-amber-400 -mt-2">
+            No chart linked. Add your birth chart when creating a profile, or use the Sandbox to build a chart.
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-end gap-2">
+          {onSwitchToConnections && realChart && (
             <Button
               type="button"
-              variant="ghost"
+              variant="primary"
               size="sm"
               className="w-full sm:w-auto min-h-[44px]"
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-                await refresh();
-              }}
+              onClick={onSwitchToConnections}
             >
-              Log out
+              Find connections
             </Button>
-          </div>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full sm:w-auto min-h-[44px]"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+              await refresh();
+            }}
+          >
+            Log out
+          </Button>
         </div>
 
         <Tabs
