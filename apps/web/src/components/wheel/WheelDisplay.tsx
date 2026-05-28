@@ -70,10 +70,10 @@ export function WheelDisplay({
 
   if (isLoading) {
     return (
-      <div className={`wheel-container ${className}`}>
+      <div ref={containerRef} className={`wheel-container w-full ${className}`}>
         <div
-          ref={containerRef}
-          className="w-full aspect-square bg-bgElev border border-border rounded-2xl flex items-center justify-center"
+          className="mx-auto flex items-center justify-center bg-bgElev border border-border rounded-2xl"
+          style={{ width: wheelSize, height: wheelSize }}
         >
           <div className="text-center">
             <div className="loading-spinner mx-auto mb-4" />
@@ -85,51 +85,45 @@ export function WheelDisplay({
   }
 
   return (
-    <div className={`wheel-container ${className}`}>
+    <div ref={containerRef} className={`wheel-container w-full ${className}`}>
       <motion.div
-        ref={containerRef}
+        id="wheel"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full aspect-square bg-bgElev border border-border rounded-2xl overflow-hidden relative"
-        style={{ minHeight: wheelSize }}
+        className="mx-auto flex items-center justify-center bg-bgElev border border-border rounded-2xl overflow-hidden relative"
+        style={{ width: wheelSize, height: wheelSize }}
       >
-        <div
-          id="wheel"
-          className="w-full h-full flex items-center justify-center"
-          style={{ width: wheelSize, height: wheelSize, margin: '0 auto' }}
-        >
-          {normalized ? (
-            <WheelSvgCore
-              chart={normalized}
-              size={wheelSize}
-              aspects={aspects}
-              showAspectLines={aspectLinesVisible}
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-8 h-8 text-subtext"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-subtext text-sm">Waiting for chart data…</p>
-                <p className="text-xs text-subtext mt-1">Generate a chart to see the wheel</p>
+        {normalized ? (
+          <WheelSvgCore
+            chart={normalized}
+            size={wheelSize}
+            aspects={aspects}
+            showAspectLines={aspectLinesVisible}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-subtext"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
               </div>
+              <p className="text-subtext text-sm">Waiting for chart data…</p>
+              <p className="text-xs text-subtext mt-1">Generate a chart to see the wheel</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <div className="wheel-overlay" />
       </motion.div>
     </div>
