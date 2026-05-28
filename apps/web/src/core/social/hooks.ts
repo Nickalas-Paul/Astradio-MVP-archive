@@ -716,6 +716,8 @@ export interface RelationalCommunityFeedItem {
   connection_kind: string;
   binding_id: string;
   chart_ids_ordered: string[];
+  /** Pair-only: user ids parallel to chart_ids_ordered. */
+  participant_user_ids?: string[];
   /** User-facing identity line when provided by API (graceful fallback in UI if absent). */
   connection_identity_line?: string;
   collapsed_display?: {

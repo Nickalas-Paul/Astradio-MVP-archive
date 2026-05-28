@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../../core/api-base';
-import { useRelationalCommunityFeed, type ProfilePrimaryChart } from '../../core/social/hooks';
+import { useRelationalCommunityFeed, type ProfilePrimaryChart, type RelationalCommunityFeedItem } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
@@ -60,6 +59,34 @@ function pairRelationshipHeading(partnerLabel: string): string {
   return `Your relationship with ${t}`;
 }
 
+const FEED_SIGNAL_OPTIONS = [
+  { id: 'resonates', label: 'Resonates', hint: 'I recognize this energy between us' },
+  { id: 'feeling_this', label: 'Feeling this', hint: 'This transit is active for me right now' },
+  {
+    id: 'lets_pay_attention',
+    label: "Let's pay attention",
+    hint: 'I want us both to notice this one',
+  },
+  {
+    id: 'challenge_accepted',
+    label: 'Challenge accepted',
+    hint: 'For tense aspects testing the connection',
+  },
+] as const;
+
+type FeedSignalTemplateId = (typeof FEED_SIGNAL_OPTIONS)[number]['id'];
+
+function feedSignalRecipientUserId(
+  item: RelationalCommunityFeedItem,
+  viewerUserId: string
+): string | null {
+  if (item.connection_kind !== 'pair') return null;
+  const ids = item.participant_user_ids;
+  if (!ids?.length) return null;
+  const other = ids.find((id) => id !== viewerUserId);
+  return other ?? null;
+}
+
 interface RelationalCommunityFeedProps {
   userId: string | null;
   primaryChart: ProfilePrimaryChart | null;
@@ -92,13 +119,16 @@ export function RelationalCommunityFeed({
   className = '',
   hideHeader = false,
 }: RelationalCommunityFeedProps) {
-  const router = useRouter();
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
   const [busyByFeedId, setBusyByFeedId] = useState<Record<string, boolean>>({});
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
   const [audioUiByFeedId, setAudioUiByFeedId] = useState<Record<string, FeedAudioUi>>({});
+  const [signalPickerFeedId, setSignalPickerFeedId] = useState<string | null>(null);
+  const [signalSentFeedIds, setSignalSentFeedIds] = useState<Record<string, boolean>>({});
+  const [signalMessageByFeedId, setSignalMessageByFeedId] = useState<Record<string, string>>({});
+  const [signalBusyFeedId, setSignalBusyFeedId] = useState<string | null>(null);
 
   /** Must run unconditionally — same hook order when loading vs loaded (Rules of Hooks). */
   const items = userId ? (data?.items ?? []) : [];
@@ -155,6 +185,110 @@ export function RelationalCommunityFeed({
     lat?: number;
     lon?: number;
     tz?: string;
+  };
+
+  const sendFeedSignal = async (
+    item: RelationalCommunityFeedItem,
+    templateId: FeedSignalTemplateId
+  ) => {
+    if (!userId) return;
+    const recipientUserId = feedSignalRecipientUserId(item, userId);
+    if (!recipientUserId) {
+      setSignalMessageByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: 'Could not identify the other person in this connection.',
+      }));
+      setSignalPickerFeedId(null);
+      return;
+    }
+    setSignalBusyFeedId(item.feed_item_id);
+    try {
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/signals`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientUserId,
+          anchorType: 'feed_item',
+          anchorId: item.feed_item_id,
+          templateId,
+          bodyJson: { transitSnapshotHash: item.transit_snapshot_hash },
+        }),
+      });
+      if (r.status === 409) {
+        setSignalMessageByFeedId((prev) => ({
+          ...prev,
+          [item.feed_item_id]: 'Already signaled today',
+        }));
+        setSignalSentFeedIds((prev) => ({ ...prev, [item.feed_item_id]: true }));
+        setSignalPickerFeedId(null);
+        return;
+      }
+      const data = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) {
+        setSignalMessageByFeedId((prev) => ({
+          ...prev,
+          [item.feed_item_id]:
+            typeof data.error === 'string' ? data.error : 'Could not send signal.',
+        }));
+        return;
+      }
+      setSignalMessageByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Signal sent' }));
+      setSignalSentFeedIds((prev) => ({ ...prev, [item.feed_item_id]: true }));
+      setSignalPickerFeedId(null);
+    } finally {
+      setSignalBusyFeedId(null);
+    }
+  };
+
+  const renderFeedSignalBlock = (item: RelationalCommunityFeedItem) => {
+    if (!userId || item.connection_kind !== 'pair') return null;
+    if (!feedSignalRecipientUserId(item, userId)) return null;
+
+    const feedId = item.feed_item_id;
+    const sent = Boolean(signalSentFeedIds[feedId]);
+    const pickerOpen = signalPickerFeedId === feedId;
+    const busy = signalBusyFeedId === feedId;
+    const message = signalMessageByFeedId[feedId];
+
+    return (
+      <div className="w-full sm:w-auto flex flex-col gap-2 min-w-[min(100%,12rem)]">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full sm:w-auto min-h-[44px]"
+          disabled={sent || busy}
+          onClick={() => setSignalPickerFeedId(pickerOpen ? null : feedId)}
+        >
+          {sent ? 'Signal sent' : busy ? 'Sending…' : 'Signals'}
+        </Button>
+        {pickerOpen && !sent ? (
+          <ul className="space-y-2 list-none pl-0 w-full min-w-[min(100%,20rem)]">
+            {FEED_SIGNAL_OPTIONS.map((opt) => (
+              <li key={opt.id}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void sendFeedSignal(item, opt.id)}
+                  className="w-full text-left rounded-lg border border-border bg-bgElev px-3 py-2.5 min-h-[44px] hover:border-accent/50 transition-colors duration-fast disabled:opacity-50"
+                >
+                  <span className="text-body-sm font-medium text-text-primary font-sans block">
+                    {opt.label}
+                  </span>
+                  <span className="text-caption text-text-secondary font-sans">{opt.hint}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {message ? (
+          <p className="text-caption text-accent-light font-sans" role="status">
+            {message}
+          </p>
+        ) : null}
+      </div>
+    );
   };
 
   const fetchForecastArtifact = async (
@@ -689,35 +823,29 @@ export function RelationalCommunityFeed({
                           })()}
 
                           {canExpand ? (
-                            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-center pt-2 border-t border-border">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="w-full sm:w-auto min-h-[44px]"
-                                onClick={() => router.push('/community?tab=connections&signals=1')}
-                              >
-                                Signals
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full sm:w-auto min-h-[44px]"
-                                onClick={() => void saveArtifact(item)}
-                                disabled={busyByFeedId[item.feed_item_id]}
-                              >
-                                {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="w-full sm:w-auto min-h-[44px]"
-                                onClick={() => toggleExpandedFeed(item)}
-                              >
-                                Collapse
-                              </Button>
+                            <div className="flex flex-col gap-3 pt-2 border-t border-border">
+                              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-start">
+                                {renderFeedSignalBlock(item)}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full sm:w-auto min-h-[44px]"
+                                  onClick={() => void saveArtifact(item)}
+                                  disabled={busyByFeedId[item.feed_item_id]}
+                                >
+                                  {busyByFeedId[item.feed_item_id] ? 'Saving…' : 'Save to Library'}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full sm:w-auto min-h-[44px]"
+                                  onClick={() => toggleExpandedFeed(item)}
+                                >
+                                  Collapse
+                                </Button>
+                              </div>
                             </div>
                           ) : null}
 
@@ -786,33 +914,27 @@ export function RelationalCommunityFeed({
                         />
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-center pt-2 border-t border-border">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="w-full sm:w-auto min-h-[44px]"
-                          onClick={() => router.push('/community?tab=connections&signals=1')}
-                        >
-                          Signals
-                        </Button>
-                        {canExpand ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto min-h-[44px]"
-                            onClick={() => toggleExpandedFeed(item)}
-                            disabled={busyByFeedId[item.feed_item_id]}
-                            loading={
-                              busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
-                            }
-                          >
-                            {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
-                              ? 'Loading…'
-                              : "View today's transits"}
-                          </Button>
-                        ) : null}
+                      <div className="flex flex-col gap-3 pt-2 border-t border-border">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-start">
+                          {renderFeedSignalBlock(item)}
+                          {canExpand ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full sm:w-auto min-h-[44px]"
+                              onClick={() => toggleExpandedFeed(item)}
+                              disabled={busyByFeedId[item.feed_item_id]}
+                              loading={
+                                busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                              }
+                            >
+                              {busyByFeedId[item.feed_item_id] && !artifactByFeedId[item.feed_item_id]
+                                ? 'Loading…'
+                                : "View today's transits"}
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   )}

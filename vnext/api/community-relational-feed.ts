@@ -80,6 +80,8 @@ export interface CommunityRelationalFeedItemV1 {
   connection_kind: CommunityFeedConnectionKind;
   binding_id: string;
   chart_ids_ordered: string[];
+  /** Pair-only: user ids parallel to chart_ids_ordered (viewer + partner). */
+  participant_user_ids?: string[];
   /** User-facing line (e.g. You · label, Group · name). */
   connection_identity_line: string;
   /** Collapsed card: one sky signal + descriptor; pairs may include Phase 6D Beta three-line activation block. */
@@ -152,6 +154,8 @@ type PgStore = {
   ) => Promise<{ label?: string; ownerId?: string; owner_id?: string } | null | undefined>;
   /** Optional: resolve chart owner display name for feed card titles. */
   getUser?: (userId: string) => Promise<{ displayName?: string } | null | undefined>;
+  /** Optional: map primary chart id → user id (pair signal recipient resolution). */
+  getUserIdForPrimaryChart?: (chartId: string) => Promise<string | undefined>;
 };
 
 function connectionLabelFromIdentityLine(line: string): string {
@@ -164,6 +168,27 @@ function uniqueSortedChartIds(ids: string[]): string[] {
   return Array.from(new Set(ids.filter((x) => typeof x === 'string' && x.trim()))).sort((a, b) =>
     a.localeCompare(b, 'en')
   );
+}
+
+async function resolveParticipantUserIds(
+  chartIds: string[],
+  pgStore: PgStore
+): Promise<string[] | undefined> {
+  const participant_user_ids: string[] = [];
+  for (const chartId of chartIds) {
+    let uid: string | undefined;
+    if (typeof pgStore.getUserIdForPrimaryChart === 'function') {
+      uid = await pgStore.getUserIdForPrimaryChart(chartId);
+    }
+    if (!uid && typeof pgStore.getChart === 'function') {
+      const ch = await pgStore.getChart(chartId);
+      const owner = ch?.ownerId ?? ch?.owner_id;
+      if (owner) uid = String(owner).trim();
+    }
+    if (!uid) return undefined;
+    participant_user_ids.push(uid);
+  }
+  return participant_user_ids.length > 0 ? participant_user_ids : undefined;
 }
 
 function compareFeedRanking(
@@ -437,6 +462,14 @@ export async function buildCommunityRelationalFeed(params: {
       },
       artifactStatus: 'not_generated',
     });
+  }
+
+  for (const item of pass1) {
+    if (item.connection_kind !== 'pair') continue;
+    const participant_user_ids = await resolveParticipantUserIds(item.chart_ids_ordered, pgStore);
+    if (participant_user_ids) {
+      item.participant_user_ids = participant_user_ids;
+    }
   }
 
   pass1.sort(compareFeedRanking);

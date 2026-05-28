@@ -209,6 +209,45 @@ router.get('/community/signals', async (req, res) => {
   }
 });
 
+router.post('/community/signals', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const body = req.body || {};
+    const senderUserId = (body.userId && String(body.userId).trim()) || (await getDevUserId());
+    if (!senderUserId) return res.status(401).json({ error: 'userId required' });
+
+    const result = await pgStore.createSignal({
+      senderUserId,
+      recipientUserId: body.recipientUserId,
+      anchorType: body.anchorType,
+      anchorId: body.anchorId,
+      templateId: body.templateId,
+      bodyJson: body.bodyJson,
+    });
+
+    if (!result.ok) {
+      if (result.error === 'already_sent_today') {
+        return res.status(409).json({ error: 'already_sent_today' });
+      }
+      if (result.error === 'self_signal') {
+        return res.status(400).json({ error: 'cannot_signal_self' });
+      }
+      if (result.error === 'signals_table_missing') {
+        return res.status(501).json({ error: 'signals_unavailable' });
+      }
+      if (result.error === 'invalid_template' || result.error === 'invalid_anchor_type') {
+        return res.status(400).json({ error: result.error });
+      }
+      return res.status(400).json({ error: result.error || 'create_failed' });
+    }
+
+    return res.status(201).json({ signal: result.signal });
+  } catch (e) {
+    console.error('[community] POST /community/signals', e);
+    return res.status(500).json({ error: e?.message || 'create signal failed' });
+  }
+});
+
 router.post('/community/signals/:signalId/react', communityPostLimiter, async (req, res) => {
   try {
     if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
