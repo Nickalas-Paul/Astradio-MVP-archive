@@ -6,4 +6,5 @@ export interface MatchCandidate {
   avatarUrl?: string;
   discoverableAs?: string;
   lookingFor?: string;
+  chartHighlights?: string[];
 }

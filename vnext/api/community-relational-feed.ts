@@ -147,7 +147,11 @@ type PgStore = {
     identities: Array<{ scopeKind: 'pair' | 'group'; bindingId: string; chartIdsOrdered: string[] }>;
   }) => Promise<Map<string, 'not_generated' | 'available' | 'partial' | 'failed'>>;
   /** Optional: partner chart label for collapsed Beta title (pair connections). */
-  getChart?: (chartId: string) => Promise<{ label?: string } | null | undefined>;
+  getChart?: (
+    chartId: string
+  ) => Promise<{ label?: string; ownerId?: string; owner_id?: string } | null | undefined>;
+  /** Optional: resolve chart owner display name for feed card titles. */
+  getUser?: (userId: string) => Promise<{ displayName?: string } | null | undefined>;
 };
 
 function connectionLabelFromIdentityLine(line: string): string {
