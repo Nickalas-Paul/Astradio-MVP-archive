@@ -28,6 +28,10 @@ import {
   persistProfileIdentityAudioAfterPrimaryAttach,
 } from './identity-audio';
 import type { ChartBInline, Comparison } from './types';
+import {
+  hasProfilePersonalizationKeys,
+  parseProfilePersonalizationPatch,
+} from './profile-personalization';
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 import path from 'path';
 import { formatSandboxChartSearchLabel } from './chart-search-label';
@@ -104,6 +108,9 @@ function profileUserPayload(u: import('./types').User & { handle?: string }): Re
   if (u.avatarUrl !== undefined && u.avatarUrl !== '') payload.avatarUrl = u.avatarUrl;
   if (u.discoverableAs !== undefined) payload.discoverableAs = u.discoverableAs;
   if (u.lookingFor !== undefined && u.lookingFor !== '') payload.lookingFor = u.lookingFor;
+  if (u.chartHighlights !== undefined && u.chartHighlights.length > 0) {
+    payload.chartHighlights = u.chartHighlights;
+  }
   return payload;
 }
 
@@ -723,20 +730,60 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // PATCH /api/profile — update discoverability / feed visibility (Phase 8G). userId from x-proxy-session-user-id only (Next proxy).
+  // PATCH /api/profile — discoverability (8G) + personalization (9A-1). userId from x-proxy-session-user-id only.
   router.patch('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
-      const body = (req.body || {}) as { discoverable?: boolean; show_in_feed?: boolean };
-      const { discoverable, show_in_feed } = body;
-      const userId = proxyUserId;
-      const u = await storage.getUser(userId.trim());
+      const body = (req.body || {}) as Record<string, unknown>;
+      const userId = proxyUserId.trim();
+      const u = await storage.getUser(userId);
       if (!u) return res.status(404).json({ error: 'User not found' });
-      await storage.updateUserDiscoverability(userId.trim(), { discoverable, show_in_feed });
-      const updated = await storage.getUser(userId.trim());
+
+      const discoverable = body.discoverable;
+      const show_in_feed = body.show_in_feed;
+      const hasVisibility =
+        discoverable !== undefined || show_in_feed !== undefined;
+      const hasPersonalization = hasProfilePersonalizationKeys(body);
+
+      if (!hasVisibility && !hasPersonalization) {
+        return res.status(400).json({ error: 'no updatable fields provided' });
+      }
+
+      const updateOpts: Parameters<typeof storage.updateUserProfile>[1] = {};
+
+      if (hasVisibility) {
+        if (discoverable !== undefined && typeof discoverable !== 'boolean') {
+          return res.status(400).json({ error: 'discoverable must be a boolean' });
+        }
+        if (show_in_feed !== undefined && typeof show_in_feed !== 'boolean') {
+          return res.status(400).json({ error: 'show_in_feed must be a boolean' });
+        }
+        if (discoverable !== undefined) updateOpts.discoverable = discoverable;
+        if (show_in_feed !== undefined) updateOpts.show_in_feed = show_in_feed;
+      }
+
+      if (hasPersonalization) {
+        const parsed = parseProfilePersonalizationPatch(body);
+        if (!parsed.ok) {
+          return res.status(400).json({ error: parsed.error });
+        }
+        Object.assign(updateOpts, parsed.patch);
+      }
+
+      try {
+        await storage.updateUserProfile(userId, updateOpts);
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        if (err.code === 'CHART_HIGHLIGHTS_COLUMN_MISSING') {
+          return res.status(501).json({ error: 'chart_highlights_unavailable' });
+        }
+        throw e;
+      }
+
+      const updated = await storage.getUser(userId);
       return res.status(200).json({ user: profileUserPayload(updated!) });
     } catch (e: any) {
       console.error('[compat] PATCH /profile', e);

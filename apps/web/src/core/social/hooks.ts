@@ -280,6 +280,9 @@ export interface ProfileUser {
   handle?: string;
   bio?: string;
   avatarUrl?: string;
+  lookingFor?: string;
+  /** Phase 9A-1: up to 3 curated chart highlight strings. */
+  chartHighlights?: string[];
   /** Phase 8G: when true, profile appears in community search. Default true. */
   discoverable?: boolean;
   /** Phase 8G: when true, may appear in community feed. Default true. */

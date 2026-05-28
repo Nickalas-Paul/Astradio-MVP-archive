@@ -69,6 +69,8 @@ export interface User {
   avatarUrl?: string;
   discoverableAs?: string;
   lookingFor?: string;
+  /** Phase 9A-1: up to 3 curated chart highlight strings. */
+  chartHighlights?: string[];
 }
 
 export interface Chart {

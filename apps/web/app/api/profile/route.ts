@@ -122,7 +122,10 @@ export async function PATCH(req: NextRequest) {
   }
   try {
     const body = await req.json().catch(() => ({}));
-    const { discoverable, show_in_feed } = body as { discoverable?: boolean; show_in_feed?: boolean };
+    const patchBody =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? { ...(body as Record<string, unknown>) }
+        : {};
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile`, {
       method: 'PATCH',
@@ -130,7 +133,7 @@ export async function PATCH(req: NextRequest) {
         'Content-Type': 'application/json',
         'x-proxy-session-user-id': userId,
       },
-      body: JSON.stringify({ discoverable, show_in_feed }),
+      body: JSON.stringify(patchBody),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });

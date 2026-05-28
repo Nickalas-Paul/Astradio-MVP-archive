@@ -55,6 +55,18 @@ export type StorageAdapter = {
   listDirectoryEligibleUsers?: () => Promise<DirectoryEligibleUser[]>;
   /** Phase 8G: update discoverability / show_in_feed. Optional. */
   updateUserDiscoverability?: (userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }) => Promise<void>;
+  /** Phase 9A-1: profile personalization fields. Optional. */
+  updateUserProfile?: (
+    userId: string,
+    opts: {
+      displayName?: string;
+      bio?: string | null;
+      lookingFor?: string | null;
+      chartHighlights?: string[] | null;
+      discoverable?: boolean;
+      show_in_feed?: boolean;
+    }
+  ) => Promise<void>;
   /** Ephemeris snapshot row (Postgres) or cache probe (memory); used by discovery pre-filter. */
   getChartWithSnapshot?: (chartId: string) => Promise<{ snapshot_json?: EphemerisSnapshot | null } | null | undefined>;
   updateChartSnapshot?: (chartId: string, snapshot: EphemerisSnapshot) => Promise<void>;
@@ -206,4 +218,24 @@ export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUse
 
 export async function updateUserDiscoverability(userId: string, opts: { discoverable?: boolean; show_in_feed?: boolean }): Promise<void> {
   if (adapter.updateUserDiscoverability) return adapter.updateUserDiscoverability(userId, opts);
+}
+
+export async function updateUserProfile(
+  userId: string,
+  opts: {
+    displayName?: string;
+    bio?: string | null;
+    lookingFor?: string | null;
+    chartHighlights?: string[] | null;
+    discoverable?: boolean;
+    show_in_feed?: boolean;
+  }
+): Promise<void> {
+  if (adapter.updateUserProfile) return adapter.updateUserProfile(userId, opts);
+  if (adapter.updateUserDiscoverability && (opts.discoverable !== undefined || opts.show_in_feed !== undefined)) {
+    return adapter.updateUserDiscoverability(userId, {
+      discoverable: opts.discoverable,
+      show_in_feed: opts.show_in_feed,
+    });
+  }
 }

@@ -392,6 +392,48 @@ export async function createReport(input: { targetType: string; targetId: string
 export async function listReports(): Promise<any[]> {
   return [...reports.values()];
 }
+export async function updateUserProfile(
+  userId: string,
+  opts: {
+    displayName?: string;
+    bio?: string | null;
+    lookingFor?: string | null;
+    chartHighlights?: string[] | null;
+    discoverable?: boolean;
+    show_in_feed?: boolean;
+  }
+): Promise<void> {
+  const u = users.get(userId);
+  if (!u) return;
+  if (opts.displayName !== undefined) u.displayName = opts.displayName;
+  if (opts.bio !== undefined) {
+    if (opts.bio === null) delete u.bio;
+    else u.bio = opts.bio;
+  }
+  if (opts.lookingFor !== undefined) {
+    if (opts.lookingFor === null) delete u.lookingFor;
+    else u.lookingFor = opts.lookingFor;
+  }
+  if (opts.chartHighlights !== undefined) {
+    if (opts.chartHighlights === null || opts.chartHighlights.length === 0) {
+      delete u.chartHighlights;
+    } else {
+      u.chartHighlights = opts.chartHighlights;
+    }
+  }
+  if (opts.discoverable !== undefined) u.discoverable = opts.discoverable;
+  if (opts.show_in_feed !== undefined) u.show_in_feed = opts.show_in_feed;
+  u.updatedAt = now();
+  users.set(userId, u);
+}
+
+export async function updateUserDiscoverability(
+  userId: string,
+  opts: { discoverable?: boolean; show_in_feed?: boolean }
+): Promise<void> {
+  return updateUserProfile(userId, opts);
+}
+
 export async function ensureDevUser(): Promise<any> {
   let u = await getUserByHandle('@dev');
   if (!u) u = await createUser({ handle: '@dev', displayName: 'Dev User' });
