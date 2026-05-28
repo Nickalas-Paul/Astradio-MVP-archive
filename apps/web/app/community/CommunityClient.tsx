@@ -8,6 +8,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { RelationalCommunityFeed } from '../../src/components/community/RelationalCommunityFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
+import { DiscoveryUserSearch } from '../../src/components/community/DiscoveryUserSearch';
 import { SignalsPanel } from '../../src/components/community/SignalsPanel';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
@@ -274,6 +275,14 @@ function CommunityClientInner() {
                   we&apos;ll show you the best matches.
                 </p>
               </div>
+
+              <DiscoveryUserSearch
+                currentUserId={user?.id ?? null}
+                seekerChartId={seekerChartId}
+                intent={discoveryIntent}
+                onConnectionRequested={bumpCommunityInventory}
+                inventoryRefreshSignal={inventoryRefreshSignal}
+              />
 
               <section className="space-y-3">
                 <h2 className="text-lg font-semibold text-text mb-1">Intentional matching</h2>

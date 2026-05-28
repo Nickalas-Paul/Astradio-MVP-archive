@@ -122,6 +122,23 @@ router.post('/community/relational-feed', communityPostLimiter, async (req, res)
   }
 });
 
+router.get('/community/search', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req);
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    const q = req.query.q != null ? String(req.query.q).trim() : '';
+    if (q.length < 2) {
+      return res.json({ q, users: [] });
+    }
+    const users = await pgStore.searchUsers(q, userId);
+    return res.json({ q, users });
+  } catch (e) {
+    console.error('[community] GET /community/search', e);
+    return res.status(500).json({ error: e?.message || 'search failed' });
+  }
+});
+
 router.post('/community/connect-intent', communityPostLimiter, async (req, res) => {
   try {
     if (!pgStore) return res.status(501).json({ error: 'Connection intent storage unavailable' });

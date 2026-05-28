@@ -11,7 +11,7 @@ import { buildProfileActiveStateProjection } from '../profile/profile-active-sta
 import { generateExtendedCompatibility, getCompatMatches, toPublicCompatMatch } from './matches';
 import { getDeployMeta } from '../deploy-meta';
 import { RELATIONAL_INTENTS, type RelationalIntent, mapLegacyIntentToRelational } from '../compatibility/relational-intent';
-import { searchDirectoryUsers, isDirectoryChartId } from './directory';
+import { isDirectoryChartId } from './directory';
 import {
   RELATIONSHIP_MODES,
   coerceRelationshipModeFromStorage,
@@ -442,21 +442,6 @@ export function createCompatRouter(): import('express').Router {
       if (e?.message?.includes('not found')) return res.status(404).json({ error: e.message });
       console.error('[compat] GET /compat/extended', e);
       return res.status(500).json({ error: e?.message || 'Failed to get extended compatibility' });
-    }
-  });
-
-  // GET /api/community/search?q=&limit=&cursor= (directory search; seeded users only)
-  router.get('/community/search', async (req: import('express').Request, res: import('express').Response) => {
-    try {
-      const qRaw = req.query.q;
-      const q = typeof qRaw === 'string' ? qRaw : (Array.isArray(qRaw) && qRaw.length > 0 ? String(qRaw[0]) : '');
-      const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10));
-      const cursor = (req.query.cursor as string) || undefined;
-      const result = await searchDirectoryUsers({ q: q.trim(), limit, cursor });
-      return res.status(200).json(result);
-    } catch (e: any) {
-      console.error('[compat] GET /community/search', e);
-      return res.status(500).json({ error: e?.message || 'Search failed' });
     }
   });
 
