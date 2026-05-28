@@ -3,17 +3,11 @@
 import { Suspense } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ProfilePanel } from '@/components/community/ProfilePanel';
-import { ProfileHeader } from '@/components/ProfileHeader';
+import { ProfileHeaderCard } from '@/components/profile/ProfileHeaderCard';
 import { useProfile } from '@/core/social/hooks';
 
-function formatBirthData(chart: { date?: string; time?: string } | null): string | undefined {
-  if (!chart?.date) return undefined;
-  const time = chart.time?.slice(0, 5) || chart.time;
-  return time ? `${chart.date} · ${time}` : chart.date;
-}
-
 export default function ProfilePage() {
-  const { user, primaryChart } = useProfile();
+  const { user, primaryChart, refresh } = useProfile();
 
   return (
     <AppShell>
@@ -26,15 +20,7 @@ export default function ProfilePage() {
         </section>
 
         {user ? (
-          <ProfileHeader
-            user={{
-              displayName: user.displayName || user.id || 'You',
-              birthData: formatBirthData(primaryChart),
-              bio: user.bio,
-              photoUrl: user.avatarUrl,
-            }}
-            isOwnProfile
-          />
+          <ProfileHeaderCard user={user} primaryChart={primaryChart} onProfileRefresh={refresh} />
         ) : null}
 
         <Suspense fallback={<p className="text-sm text-subtext">Loading profile…</p>}>
