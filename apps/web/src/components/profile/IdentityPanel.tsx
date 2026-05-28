@@ -152,7 +152,7 @@ export function IdentityPanel({
 
   return (
     <div className="space-y-8">
-      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full px-0">
+      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full px-0 flex flex-col items-center">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -163,13 +163,15 @@ export function IdentityPanel({
         ) : loading ? (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
         ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
-          <WheelDisplay
-            chartData={chartData.snapshot as any}
-            isLoading={false}
-            showAspectLines
-            maxSize={480}
-            className="w-full max-w-2xl mx-auto"
-          />
+          <div className="w-full flex justify-center">
+            <WheelDisplay
+              chartData={chartData.snapshot as any}
+              isLoading={false}
+              showAspectLines
+              maxSize={480}
+              className="w-full max-w-2xl"
+            />
+          </div>
         ) : chartData?.snapshot ? (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
             Chart data received; add planets and houses for wheel view.
