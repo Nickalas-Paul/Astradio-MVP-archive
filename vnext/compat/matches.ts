@@ -52,6 +52,7 @@ export interface CompatMatchResult {
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;
+  chartHighlights?: string[];
 }
 
 function clampScore(x: number): number {
@@ -753,6 +754,7 @@ async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligib
       ...(c.bio ? { bio: c.bio } : {}),
       ...(c.avatarUrl ? { avatarUrl: c.avatarUrl } : {}),
       ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
+      ...(c.chartHighlights?.length ? { chartHighlights: c.chartHighlights } : {}),
     }));
   }
   return rows.filter((r) => r.chartId !== chartId);
@@ -877,6 +879,7 @@ export async function getCompatMatches(
         bio: cand.bio,
         avatarUrl: cand.avatarUrl,
         lookingFor: cand.lookingFor,
+        chartHighlights: cand.chartHighlights,
       });
       console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(score * 100).toFixed(0)}%`);
     } catch (err) {

@@ -23,6 +23,7 @@ import {
   type FeedCollapsedDisplayPairBetaV1,
   type FeedCollapsedDisplayV1,
 } from './feed-collapsed-display';
+import { preferPersonalizedPartnerLabel } from '../compat/profile-display-name';
 import {
   FeedAspectCoverageInvariantError,
   pushKeysToWindow,
@@ -470,12 +471,23 @@ export async function buildCommunityRelationalFeed(params: {
       if (!row.chart_ids_ordered.includes(viewerPrimaryChartId)) continue;
       const partnerId = row.chart_ids_ordered.find((id) => id !== viewerPrimaryChartId);
       if (!partnerId || partnerChartLabelByChartId.has(partnerId)) continue;
+      const fallbackLab = connectionLabelFromIdentityLine(row.connection_identity_line);
       try {
         const ch = await pgStore.getChart(partnerId);
-        const lab = ch && typeof ch.label === 'string' ? ch.label.trim() : '';
-        partnerChartLabelByChartId.set(partnerId, lab);
+        const chartLabel = ch && typeof ch.label === 'string' ? ch.label.trim() : '';
+        let ownerDisplayName: string | undefined;
+        const ownerId = ch?.ownerId ?? ch?.owner_id;
+        if (ownerId && typeof pgStore.getUser === 'function') {
+          const owner = await pgStore.getUser(String(ownerId));
+          ownerDisplayName =
+            owner && typeof owner.displayName === 'string' ? owner.displayName : undefined;
+        }
+        partnerChartLabelByChartId.set(
+          partnerId,
+          preferPersonalizedPartnerLabel(ownerDisplayName, chartLabel, fallbackLab)
+        );
       } catch {
-        partnerChartLabelByChartId.set(partnerId, '');
+        partnerChartLabelByChartId.set(partnerId, fallbackLab || '');
       }
     }
   }

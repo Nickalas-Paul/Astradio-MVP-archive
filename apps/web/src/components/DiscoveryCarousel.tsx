@@ -227,14 +227,28 @@ function MatchCard({
               referrerPolicy="no-referrer"
             />
           ) : (
-            <span className="text-h4 font-medium text-text-primary">{initial}</span>
+            <span className="font-serif text-h4 font-medium text-text-primary">{initial}</span>
           )}
         </div>
         <h3 className="font-serif text-h3 font-semibold text-text-primary">{match.displayName}</h3>
         {match.bio ? (
-          <p className="text-body-sm text-text-secondary mt-2 line-clamp-2 max-w-md">{match.bio}</p>
+          <p className="text-body-sm text-text-secondary mt-2 line-clamp-2 max-w-md font-sans">{match.bio}</p>
+        ) : null}
+        {match.chartHighlights && match.chartHighlights.length > 0 ? (
+          <ul className="flex flex-wrap justify-center gap-1.5 mt-3 max-w-md">
+            {match.chartHighlights.map((h) => (
+              <li
+                key={h}
+                className="text-caption px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans"
+              >
+                {h}
+              </li>
+            ))}
+          </ul>
         ) : null}
       </div>
+
+      <div className="border-t border-border" aria-hidden="true" />
 
       <ul className="space-y-4">
         {bullets.map((line, idx) => (
@@ -243,12 +257,6 @@ function MatchCard({
           </li>
         ))}
       </ul>
-
-      {match.lookingFor ? (
-        <p className="text-body-sm text-text-secondary italic border-l-2 border-accent/30 pl-3">
-          &ldquo;{match.lookingFor}&rdquo;
-        </p>
-      ) : null}
 
       <div className="flex flex-col sm:flex-row gap-3 w-full">
         <Button

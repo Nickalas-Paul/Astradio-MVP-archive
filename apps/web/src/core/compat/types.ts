@@ -66,6 +66,7 @@ export type CompatMatch = {
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;
+  chartHighlights?: string[];
 };
 
 export type CompatCacheEntry = {

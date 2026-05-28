@@ -533,6 +533,14 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
     ...(typeof m.bio === 'string' && m.bio.trim() ? { bio: m.bio } : {}),
     ...(typeof m.avatarUrl === 'string' && m.avatarUrl.trim() ? { avatarUrl: m.avatarUrl } : {}),
     ...(typeof m.lookingFor === 'string' && m.lookingFor.trim() ? { lookingFor: m.lookingFor } : {}),
+    ...(Array.isArray(m.chartHighlights)
+      ? (() => {
+          const highlights = (m.chartHighlights as unknown[])
+            .filter((h): h is string => typeof h === 'string' && h.trim().length > 0)
+            .map((h) => h.trim());
+          return highlights.length > 0 ? { chartHighlights: highlights } : {};
+        })()
+      : {}),
   };
 }
 

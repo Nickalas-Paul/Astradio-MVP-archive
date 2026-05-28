@@ -62,6 +62,7 @@ export interface DirectoryEligibleUser {
   avatarUrl?: string;
   discoverableAs?: string;
   lookingFor?: string;
+  chartHighlights?: string[];
 }
 
 // Community in-memory (minimal for compat router; engine community routes use lib/pg-store)
@@ -300,6 +301,7 @@ export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUse
       ...(u.bio ? { bio: u.bio } : {}),
       ...(u.avatarUrl ? { avatarUrl: u.avatarUrl } : {}),
       ...(u.lookingFor ? { lookingFor: u.lookingFor } : {}),
+      ...(u.chartHighlights?.length ? { chartHighlights: u.chartHighlights } : {}),
     });
   }
   list.sort((a, b) => {

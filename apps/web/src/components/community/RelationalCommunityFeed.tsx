@@ -52,6 +52,14 @@ function getRoleLabel(role: string | undefined): string {
   }
 }
 
+/** Pair card title — enhanced_title may already include the full relationship phrase. */
+function pairRelationshipHeading(partnerLabel: string): string {
+  const t = partnerLabel.trim();
+  if (!t) return 'Your relationship';
+  if (/^Your relationship with /i.test(t)) return t;
+  return `Your relationship with ${t}`;
+}
+
 interface RelationalCommunityFeedProps {
   userId: string | null;
   primaryChart: ProfilePrimaryChart | null;
@@ -531,9 +539,7 @@ export function RelationalCommunityFeed({
                             </p>
                           ) : null}
                           <h3 className="font-serif text-h3 font-semibold text-text-primary leading-snug break-words">
-                            {isGroup
-                              ? partnerName
-                              : `Your relationship with ${partnerName}`}
+                            {isGroup ? partnerName : pairRelationshipHeading(partnerName)}
                           </h3>
                           <p className="text-body-sm text-text-secondary">Today&apos;s transit weather report</p>
                         </div>
@@ -730,8 +736,8 @@ export function RelationalCommunityFeed({
                               Group
                             </p>
                           ) : null}
-                          <h3 className="text-h4 font-semibold text-text-primary leading-snug break-words">
-                            {partnerName}
+                          <h3 className="font-serif text-h4 font-semibold text-text-primary leading-snug break-words">
+                            {isGroup ? partnerName : pairRelationshipHeading(partnerName)}
                           </h3>
                           <p className="text-caption text-text-muted">
                             Today&apos;s transits shaping your connection

@@ -24,6 +24,7 @@ export interface DirectoryEligibleUser {
   avatarUrl?: string;
   discoverableAs?: string;
   lookingFor?: string;
+  chartHighlights?: string[];
 }
 
 export type StorageAdapter = {
@@ -189,6 +190,7 @@ export async function listDirectoryEligibleUsers(): Promise<DirectoryEligibleUse
         ...(c.avatarUrl ? { avatarUrl: c.avatarUrl } : {}),
         ...(c.discoverableAs != null ? { discoverableAs: c.discoverableAs } : {}),
         ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
+        ...(c.chartHighlights?.length ? { chartHighlights: c.chartHighlights } : {}),
       });
     }
     eligible = users;
