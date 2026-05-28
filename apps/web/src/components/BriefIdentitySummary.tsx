@@ -155,6 +155,8 @@ export interface BriefIdentitySummaryProps {
   sections: ProfileChartSection[];
   profilePath: string;
   loading?: boolean;
+  /** Hide "View complete natal chart" when already on the full profile page. */
+  showFullChartLink?: boolean;
 }
 
 export function BriefIdentitySummary({
@@ -162,6 +164,7 @@ export function BriefIdentitySummary({
   sections,
   profilePath,
   loading = false,
+  showFullChartLink = true,
 }: BriefIdentitySummaryProps) {
   const placements = placementLine(chartData?.snapshot);
   const essence = extractSunEssence(sections);
@@ -184,12 +187,14 @@ export function BriefIdentitySummary({
             <p className="text-body text-text-secondary leading-relaxed">{essence}</p>
           ) : null}
 
-          <Link
-            href={profilePath}
-            className="inline-block text-body-sm text-accent-light hover:underline font-medium"
-          >
-            View complete natal chart →
-          </Link>
+          {showFullChartLink ? (
+            <Link
+              href={profilePath}
+              className="inline-block text-body-sm text-accent-light hover:underline font-medium"
+            >
+              View complete natal chart →
+            </Link>
+          ) : null}
         </>
       )}
     </Card>

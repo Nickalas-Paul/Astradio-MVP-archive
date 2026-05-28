@@ -7,6 +7,9 @@ import { AppShell } from '@/components/AppShell';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { BriefIdentitySummary } from '@/components/BriefIdentitySummary';
 import { ProfileCompatibilityPanel } from '@/components/ProfileCompatibilityPanel';
+import { ProfilePersonalizationDisplay } from '@/components/profile/ProfilePersonalizationDisplay';
+import { ExplainerSections } from '@/components/profile/shared/ExplainerSections';
+import { filterIdentityDisplaySections } from '@/components/profile/shared/profile-reading-utils';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
@@ -20,6 +23,8 @@ type ProfileUser = {
   displayName?: string;
   handle?: string;
   bio?: string;
+  lookingFor?: string;
+  chartHighlights?: string[];
   avatarUrl?: string;
 };
 
@@ -58,8 +63,9 @@ function readDiscoveryBullets(userId: string): {
   }
 }
 
-function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
-  if (sections.length === 0) {
+function IdentityReadingSections({ sections }: { sections: ProfileChartSection[] }) {
+  const displaySections = filterIdentityDisplaySections(sections);
+  if (displaySections.length === 0) {
     return (
       <Card elevation="resting" padding="p-5">
         <p className="text-body-sm text-text-secondary">Chart identity report unavailable for this profile.</p>
@@ -67,26 +73,7 @@ function FullNatalReport({ sections }: { sections: ProfileChartSection[] }) {
     );
   }
 
-  return (
-    <Card elevation="resting" padding="p-5" className="space-y-4">
-      <h2 className="font-serif text-h3 font-semibold text-text-primary">Core identity</h2>
-      {sections.map((section) => (
-        <div key={section.id} className="space-y-2">
-          {section.title ? (
-            <h3 className="text-h4 font-semibold text-text-primary">{section.title}</h3>
-          ) : null}
-          {section.text ? <p className="text-body text-text-secondary leading-relaxed">{section.text}</p> : null}
-          {section.bullets?.length ? (
-            <ul className="list-disc list-inside text-body-sm text-text-secondary space-y-1">
-              {section.bullets.map((b, i) => (
-                <li key={i}>{b}</li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ))}
-    </Card>
-  );
+  return <ExplainerSections sections={displaySections} />;
 }
 
 /**
@@ -270,11 +257,16 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
           user={{
             displayName: targetUser.displayName || targetUser.id,
             birthData,
-            bio: targetUser.bio,
             photoUrl: targetUser.avatarUrl,
           }}
           isOwnProfile={isOwnProfile}
           onEditProfile={isOwnProfile ? () => router.push('/profile') : undefined}
+        />
+
+        <ProfilePersonalizationDisplay
+          bio={targetUser.bio}
+          lookingFor={targetUser.lookingFor}
+          chartHighlights={targetUser.chartHighlights}
         />
 
         {fromDiscovery && !isOwnProfile ? (
@@ -311,7 +303,15 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
             {chartLoading ? (
               <p className="text-sm text-subtext">Loading chart…</p>
             ) : (
-              <FullNatalReport sections={identitySections} />
+              <>
+                <BriefIdentitySummary
+                  chartData={chartExplainer}
+                  sections={identitySections}
+                  profilePath={fullNatalProfilePath}
+                  showFullChartLink={false}
+                />
+                <IdentityReadingSections sections={identitySections} />
+              </>
             )}
 
             {showCompatibility && seekerChart?.id && targetChartId ? (
