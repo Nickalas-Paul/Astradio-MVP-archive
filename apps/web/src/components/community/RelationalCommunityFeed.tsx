@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart, type RelationalCommunityFeedItem } from '../../core/social/hooks';
 import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
@@ -8,6 +8,10 @@ import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
+import {
+  formatSignalTemplateLabel,
+  isSignalCreatedTodayUtc,
+} from '@/lib/signal-display';
 
 type FeedAudioUiState = 'idle' | 'generating' | 'ready' | 'error';
 
@@ -126,9 +130,38 @@ export function RelationalCommunityFeed({
   const [saveStatusByFeedId, setSaveStatusByFeedId] = useState<Record<string, string>>({});
   const [audioUiByFeedId, setAudioUiByFeedId] = useState<Record<string, FeedAudioUi>>({});
   const [signalPickerFeedId, setSignalPickerFeedId] = useState<string | null>(null);
-  const [signalSentFeedIds, setSignalSentFeedIds] = useState<Record<string, boolean>>({});
+  const [sentSignalTemplateByFeedId, setSentSignalTemplateByFeedId] = useState<
+    Record<string, FeedSignalTemplateId>
+  >({});
   const [signalMessageByFeedId, setSignalMessageByFeedId] = useState<Record<string, string>>({});
   const [signalBusyFeedId, setSignalBusyFeedId] = useState<string | null>(null);
+
+  const loadSentSignalsForFeed = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const r = await fetch(`${getApiBaseUrl() || ''}/api/community/signals/sent`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const j = (await r.json().catch(() => ({}))) as {
+        items?: Array<{ anchorType?: string; anchorId?: string; templateId?: string; createdAt?: string }>;
+      };
+      if (!r.ok) return;
+      const map: Record<string, FeedSignalTemplateId> = {};
+      for (const s of j.items ?? []) {
+        if (s.anchorType !== 'feed_item' || !s.anchorId || !s.templateId) continue;
+        if (!isSignalCreatedTodayUtc(String(s.createdAt ?? ''))) continue;
+        map[s.anchorId] = s.templateId as FeedSignalTemplateId;
+      }
+      setSentSignalTemplateByFeedId(map);
+    } catch {
+      // non-blocking
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void loadSentSignalsForFeed();
+  }, [loadSentSignalsForFeed, data?.generated_at]);
 
   /** Must run unconditionally — same hook order when loading vs loaded (Rules of Hooks). */
   const items = userId ? (data?.items ?? []) : [];
@@ -216,11 +249,7 @@ export function RelationalCommunityFeed({
         }),
       });
       if (r.status === 409) {
-        setSignalMessageByFeedId((prev) => ({
-          ...prev,
-          [item.feed_item_id]: 'Already signaled today',
-        }));
-        setSignalSentFeedIds((prev) => ({ ...prev, [item.feed_item_id]: true }));
+        await loadSentSignalsForFeed();
         setSignalPickerFeedId(null);
         return;
       }
@@ -233,8 +262,15 @@ export function RelationalCommunityFeed({
         }));
         return;
       }
-      setSignalMessageByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Signal sent' }));
-      setSignalSentFeedIds((prev) => ({ ...prev, [item.feed_item_id]: true }));
+      setSentSignalTemplateByFeedId((prev) => ({
+        ...prev,
+        [item.feed_item_id]: templateId,
+      }));
+      setSignalMessageByFeedId((prev) => {
+        const next = { ...prev };
+        delete next[item.feed_item_id];
+        return next;
+      });
       setSignalPickerFeedId(null);
     } finally {
       setSignalBusyFeedId(null);
@@ -246,10 +282,11 @@ export function RelationalCommunityFeed({
     if (!feedSignalRecipientUserId(item, userId)) return null;
 
     const feedId = item.feed_item_id;
-    const sent = Boolean(signalSentFeedIds[feedId]);
+    const sentTemplateId = sentSignalTemplateByFeedId[feedId];
+    const sent = Boolean(sentTemplateId);
     const pickerOpen = signalPickerFeedId === feedId;
     const busy = signalBusyFeedId === feedId;
-    const message = signalMessageByFeedId[feedId];
+    const errorMessage = signalMessageByFeedId[feedId];
 
     return (
       <div className="w-full sm:w-auto flex flex-col gap-2 min-w-[min(100%,12rem)]">
@@ -263,6 +300,11 @@ export function RelationalCommunityFeed({
         >
           {sent ? 'Signal sent' : busy ? 'Sending…' : 'Signals'}
         </Button>
+        {sent && sentTemplateId ? (
+          <p className="text-caption text-text-secondary font-sans" role="status">
+            You sent: {formatSignalTemplateLabel(sentTemplateId)}
+          </p>
+        ) : null}
         {pickerOpen && !sent ? (
           <ul className="space-y-2 list-none pl-0 w-full min-w-[min(100%,20rem)]">
             {FEED_SIGNAL_OPTIONS.map((opt) => (
@@ -282,9 +324,9 @@ export function RelationalCommunityFeed({
             ))}
           </ul>
         ) : null}
-        {message ? (
-          <p className="text-caption text-accent-light font-sans" role="status">
-            {message}
+        {errorMessage ? (
+          <p className="text-caption text-amber-600 dark:text-amber-400 font-sans" role="alert">
+            {errorMessage}
           </p>
         ) : null}
       </div>

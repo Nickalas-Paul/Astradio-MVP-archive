@@ -209,6 +209,18 @@ router.get('/community/signals', async (req, res) => {
   }
 });
 
+router.get('/community/signals/sent', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req) || (await getDevUserId());
+    const items = await pgStore.listSignalsForSender(userId);
+    return res.json({ version: 'signals_v1', items });
+  } catch (e) {
+    console.error('[community] GET /community/signals/sent', e);
+    return res.status(500).json({ error: e?.message || 'signals_sent_failed' });
+  }
+});
+
 router.post('/community/signals', communityPostLimiter, async (req, res) => {
   try {
     if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
