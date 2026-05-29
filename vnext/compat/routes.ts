@@ -45,6 +45,17 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
   getUserAuthForLogin: (
     e: string
   ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
+  createEmailVerificationToken: (userId: string) => Promise<string>;
+  verifyEmailToken: (token: string) => Promise<{ valid: boolean; userId?: string; email?: string }>;
+  isEmailVerified: (userId: string) => Promise<boolean>;
+  getUserEmailVerificationByNormalizedEmail: (
+    emailNormalized: string
+  ) => Promise<{
+    id: string;
+    email: string;
+    emailVerified: boolean;
+    tokenExpiresAt: string | null;
+  } | null>;
   searchChartsAccessibleToUser: (
     userId: string,
     q: string,
@@ -57,6 +68,30 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
     }>
   >;
 };
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const emailUtil = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'email')) as {
+  sendEmail: (p: { to: string; subject: string; html: string }) => Promise<{ success: boolean; error?: string }>;
+  buildVerificationEmail: (verifyUrl: string) => { subject: string; html: string };
+};
+
+const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+
+function frontendBaseUrl(): string {
+  const raw = process.env.FRONTEND_URL || 'https://astradio.io';
+  return String(raw).trim().replace(/\/+$/, '') || 'https://astradio.io';
+}
+
+async function sendVerificationEmailForUser(userId: string, emailTo: string): Promise<void> {
+  const token = await astradioPgStore.createEmailVerificationToken(userId);
+  const verifyUrl = `${frontendBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  const { subject, html } = emailUtil.buildVerificationEmail(verifyUrl);
+  const result = await emailUtil.sendEmail({ to: emailTo, subject, html });
+  if (result.success) {
+    console.log('[compat] verification email sent', { userId, to: emailTo });
+  } else {
+    console.error('[compat] verification email failed', { userId, to: emailTo, error: result.error });
+  }
+}
 function isChartTimezoneError(e: unknown): e is { message: string; code: string } {
   const c = (e as { code?: string })?.code;
   return c === 'INVALID_CHART_TIMEZONE' || c === 'CHART_TIMEZONE_UNRESOLVABLE';
@@ -111,6 +146,7 @@ function profileUserPayload(u: import('./types').User & { handle?: string }): Re
   if (u.chartHighlights !== undefined && u.chartHighlights.length > 0) {
     payload.chartHighlights = u.chartHighlights;
   }
+  if (u.emailVerified !== undefined) payload.emailVerified = u.emailVerified;
   return payload;
 }
 
@@ -523,6 +559,12 @@ export function createCompatRouter(): import('express').Router {
         throw e;
       }
 
+      try {
+        await sendVerificationEmailForUser(user.id, emailRaw.trim());
+      } catch (emailErr) {
+        console.error('[compat] POST /auth/register verification email error', emailErr);
+      }
+
       let primaryChart: import('./types').Chart | null = null;
       try {
         primaryChart = await attachPrimaryChartForNewUser(user.id, chartInput ?? undefined);
@@ -538,7 +580,12 @@ export function createCompatRouter(): import('express').Router {
       }
 
       return res.status(201).json({
-        user: { id: user.id, displayName: user.displayName, handle: user.handle },
+        user: {
+          id: user.id,
+          displayName: user.displayName,
+          handle: user.handle,
+          emailVerified: false,
+        },
         primaryChart: primaryChart
           ? {
               id: primaryChart.id,
@@ -577,12 +624,67 @@ export function createCompatRouter(): import('express').Router {
       if (!ok) {
         return res.status(401).json({ error: 'invalid_credentials' });
       }
+      const verified = await astradioPgStore.isEmailVerified(row.id);
+      if (!verified) {
+        return res.status(403).json({ error: 'email_not_verified' });
+      }
       return res.status(200).json({
-        user: { id: row.id, displayName: row.displayName, handle: row.handle },
+        user: { id: row.id, displayName: row.displayName, handle: row.handle, emailVerified: true },
       });
     } catch (e: unknown) {
       console.error('[compat] POST /auth/login', e);
       return res.status(500).json({ error: 'Login failed' });
+    }
+  });
+
+  router.get('/auth/verify-email', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
+      if (!token) {
+        return res.status(400).json({ error: 'invalid_or_expired_token' });
+      }
+      const result = await astradioPgStore.verifyEmailToken(token);
+      if (!result.valid) {
+        return res.status(400).json({ error: 'invalid_or_expired_token' });
+      }
+      return res.status(200).json({ verified: true });
+    } catch (e: unknown) {
+      console.error('[compat] GET /auth/verify-email', e);
+      return res.status(500).json({ error: 'verification_failed' });
+    }
+  });
+
+  router.post('/auth/resend-verification', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const body = (req.body || {}) as { email?: string };
+      const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
+      if (!emailNormalized) {
+        return res.status(200).json({ sent: true });
+      }
+      const row = await astradioPgStore.getUserEmailVerificationByNormalizedEmail(emailNormalized);
+      if (!row || row.emailVerified) {
+        return res.status(200).json({ sent: true });
+      }
+      if (row.tokenExpiresAt) {
+        const expiresAt = new Date(row.tokenExpiresAt);
+        const createdApprox = expiresAt.getTime() - 24 * 60 * 60 * 1000;
+        if (Date.now() - createdApprox < EMAIL_VERIFICATION_RESEND_COOLDOWN_MS) {
+          return res.status(429).json({ error: 'wait_before_resend' });
+        }
+      }
+      const emailTo = row.email && String(row.email).trim() ? String(row.email).trim() : emailRaw;
+      await sendVerificationEmailForUser(row.id, emailTo);
+      return res.status(200).json({ sent: true });
+    } catch (e: unknown) {
+      console.error('[compat] POST /auth/resend-verification', e);
+      return res.status(500).json({ error: 'resend_failed' });
     }
   });
 

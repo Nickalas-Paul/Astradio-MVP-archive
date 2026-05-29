@@ -59,6 +59,8 @@ export interface User {
   id: string;
   displayName: string;
   email?: string;
+  /** Phase 9C: true after email verification link is used. */
+  emailVerified?: boolean;
   createdAt: string;
   updatedAt: string;
   /** Phase 8G (Postgres). */

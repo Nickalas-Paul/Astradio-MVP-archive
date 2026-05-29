@@ -13,6 +13,23 @@ export interface ProfileAuthPanelProps {
   onAuthSuccess: () => void | Promise<void>;
 }
 
+async function resendVerificationEmail(email: string): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch('/api/auth/resend-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ email: email.trim() }),
+  });
+  const data = (await r.json().catch(() => ({}))) as { error?: string };
+  if (r.status === 429 || data.error === 'wait_before_resend') {
+    return { ok: false, error: 'Please wait a couple of minutes before requesting another email.' };
+  }
+  if (!r.ok) {
+    return { ok: false, error: typeof data.error === 'string' ? data.error : 'Could not send verification email.' };
+  }
+  return { ok: true };
+}
+
 export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
   const [createName, setCreateName] = useState('');
   const [createHandle, setCreateHandle] = useState('');
@@ -32,6 +49,10 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
   const [loginPassword, setLoginPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [loginNeedsVerification, setLoginNeedsVerification] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
 
   const chartPayload = {
     label: createChartLabel.trim() || 'My Natal',
@@ -56,6 +77,66 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
     chartReady;
   const canLogin = loginEmail.trim().includes('@') && loginPassword.length >= 1;
 
+  const handleResend = async (email: string) => {
+    setResendBusy(true);
+    setResendNotice(null);
+    setAuthError(null);
+    try {
+      const result = await resendVerificationEmail(email);
+      if (!result.ok) {
+        setAuthError(result.error || 'Could not send verification email.');
+        return;
+      }
+      setResendNotice('Verification email sent — check your inbox.');
+    } finally {
+      setResendBusy(false);
+    }
+  };
+
+  if (pendingVerificationEmail) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="space-y-6 max-w-lg">
+            <h2 className="reading-section-header">Check your email</h2>
+            <p className="text-sm text-text">
+              Account created! Check your email for a verification link to get started.
+            </p>
+            <p className="text-xs text-subtext">We sent a link to {pendingVerificationEmail}.</p>
+            {resendNotice && <p className="text-sm text-accent">{resendNotice}</p>}
+            {authError && <p className="text-sm text-red-500">{authError}</p>}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={resendBusy}
+                loading={resendBusy}
+                onClick={() => void handleResend(pendingVerificationEmail)}
+              >
+                Resend verification email
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setPendingVerificationEmail(null);
+                  setAuthTab('login');
+                  setLoginEmail(pendingVerificationEmail);
+                  setResendNotice(null);
+                  setAuthError(null);
+                }}
+              >
+                Sign in
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -75,6 +156,8 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
           onTabChange={(id) => {
             setAuthTab(id as 'register' | 'login');
             setAuthError(null);
+            setLoginNeedsVerification(false);
+            setResendNotice(null);
           }}
         />
 
@@ -85,7 +168,10 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               autoComplete="email"
               placeholder="Email"
               value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
+              onChange={(e) => {
+                setLoginEmail(e.target.value);
+                setLoginNeedsVerification(false);
+              }}
             />
             <InputField
               type="password"
@@ -94,7 +180,27 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
             />
-            {authError && <p className="text-red-500 text-xs">{authError}</p>}
+            {loginNeedsVerification ? (
+              <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-sm text-text">
+                  Your email hasn&apos;t been verified yet. Check your inbox for a verification link.
+                </p>
+                {resendNotice && <p className="text-sm text-accent">{resendNotice}</p>}
+                {authError && <p className="text-sm text-red-500">{authError}</p>}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={resendBusy}
+                  loading={resendBusy}
+                  onClick={() => void handleResend(loginEmail)}
+                >
+                  Resend verification email
+                </Button>
+              </div>
+            ) : (
+              authError && <p className="text-red-500 text-xs">{authError}</p>
+            )}
             <Button
               type="button"
               variant="primary"
@@ -104,6 +210,8 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               onClick={async () => {
                 setAuthBusy(true);
                 setAuthError(null);
+                setLoginNeedsVerification(false);
+                setResendNotice(null);
                 try {
                   const r = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -115,6 +223,10 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                     }),
                   });
                   const data = await r.json().catch(() => ({}));
+                  if (r.status === 403 && data.error === 'email_not_verified') {
+                    setLoginNeedsVerification(true);
+                    return;
+                  }
                   if (!r.ok) {
                     setAuthError(typeof data.error === 'string' ? data.error : 'Login failed');
                     return;
@@ -233,6 +345,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                     setAuthError(msg);
                     return;
                   }
+                  const registeredEmail = registerEmail.trim();
                   setRegisterPassword('');
                   setCreateName('');
                   setCreateHandle('');
@@ -243,7 +356,8 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                   setCreateChartLon('');
                   setCreateChartTz('');
                   setCreateChartLocationLabel('');
-                  await onAuthSuccess();
+                  setRegisterEmail('');
+                  setPendingVerificationEmail(registeredEmail);
                 } finally {
                   setCreating(false);
                 }
@@ -251,6 +365,16 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
             >
               Create account
             </Button>
+            <p className="text-xs text-subtext">
+              Already verified?{' '}
+              <button
+                type="button"
+                className="text-accent hover:underline"
+                onClick={() => setAuthTab('login')}
+              >
+                Sign in
+              </button>
+            </p>
           </div>
         )}
         </Card>

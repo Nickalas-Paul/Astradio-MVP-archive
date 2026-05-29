@@ -1,6 +1,3 @@
-/**
- * Proxies POST /api/auth/register to engine. Does not set session — user verifies email then logs in.
- */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 
@@ -10,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/auth/register`, {
+    const r = await fetch(`${backend}/api/auth/resend-verification`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -19,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Register unavailable' },
+      { error: e instanceof Error ? e.message : 'Resend unavailable' },
       { status: 502 },
     );
   }

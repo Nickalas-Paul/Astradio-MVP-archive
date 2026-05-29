@@ -278,6 +278,7 @@ export interface ProfileUser {
   id: string;
   displayName: string;
   handle?: string;
+  emailVerified?: boolean;
   bio?: string;
   avatarUrl?: string;
   lookingFor?: string;
