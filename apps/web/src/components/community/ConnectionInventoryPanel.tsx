@@ -271,15 +271,27 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             <section className="space-y-2">
               <h4 className="text-sm font-semibold text-text">Outgoing requests</h4>
               <ul className="space-y-2">
-                {(data as CommunityInventoryV1).pendingOutgoingIntents.map((intent: Record<string, unknown>) => (
+                {(data as CommunityInventoryV1).pendingOutgoingIntents.map((intent: Record<string, unknown>) => {
+                  const toDisplayName =
+                    typeof intent.toDisplayName === 'string' && intent.toDisplayName.trim()
+                      ? intent.toDisplayName.trim()
+                      : typeof intent.to_display_name === 'string' && intent.to_display_name.trim()
+                        ? intent.to_display_name.trim()
+                        : null;
+                  const kindRaw = intent.relationshipKind ?? intent.relationship_kind;
+                  const kindLabel =
+                    typeof kindRaw === 'string' && kindRaw.trim()
+                      ? kindRaw.trim().charAt(0).toUpperCase() + kindRaw.trim().slice(1).toLowerCase()
+                      : null;
+                  return (
                   <li
                     key={String(intent.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
                   >
-                    <span className="text-sm text-subtext">
-                      To user <span className="font-mono text-xs">{String(intent.toUserId).slice(-8)}</span>
-                      {intent.relationshipKind ? (
-                        <span className="ml-2 text-xs capitalize">· {String(intent.relationshipKind)}</span>
+                    <span className="text-sm text-text">
+                      {toDisplayName ?? 'Unknown user'}
+                      {kindLabel ? (
+                        <span className="ml-2 text-xs text-subtext">· {kindLabel}</span>
                       ) : null}
                     </span>
                     <button
@@ -291,7 +303,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       {cancelling === intent.id ? '…' : 'Cancel'}
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           )}
