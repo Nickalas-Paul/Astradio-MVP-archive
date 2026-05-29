@@ -238,6 +238,38 @@ router.get('/community/signals/sent', async (req, res) => {
   }
 });
 
+router.get('/community/signals/history', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req);
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    const peerUserId = String(req.query.peerUserId || '').trim();
+    if (!peerUserId) return res.status(400).json({ error: 'peerUserId required' });
+    if (peerUserId === userId) return res.status(400).json({ error: 'invalid_peer' });
+    const signals = await pgStore.getSignalHistoryForConnection(userId, peerUserId);
+    const summary = await pgStore.getSignalHistorySummary(userId, peerUserId, signals);
+    return res.json({ version: 'signals_history_v1', summary, signals });
+  } catch (e) {
+    console.error('[community] GET /community/signals/history', e);
+    return res.status(500).json({ error: e?.message || 'signals_history_failed' });
+  }
+});
+
+router.get('/community/signals/recent', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req);
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    const limitRaw = parseInt(String(req.query.limit || '5'), 10);
+    const limit = Number.isFinite(limitRaw) ? limitRaw : 5;
+    const items = await pgStore.getRecentAcknowledgedSignals(userId, limit);
+    return res.json({ version: 'signals_recent_v1', items });
+  } catch (e) {
+    console.error('[community] GET /community/signals/recent', e);
+    return res.status(500).json({ error: e?.message || 'signals_recent_failed' });
+  }
+});
+
 router.post('/community/signals', communityPostLimiter, async (req, res) => {
   try {
     if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });

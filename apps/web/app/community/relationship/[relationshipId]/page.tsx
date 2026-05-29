@@ -9,7 +9,12 @@ import { getApiBaseUrl } from '@/core/api-base';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { Button } from '@/components/shared/Button';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
-import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
+import {
+  SignalHistorySection,
+  SignalRecentActivityList,
+  type SignalHistoryRow,
+  type SignalHistorySummary,
+} from '@/components/community/SignalHistorySection';
 
 type ReadingSection = { id?: string; title?: string; text?: string; bullets?: string[] };
 
@@ -63,6 +68,7 @@ function peerFromInventory(
   return {
     displayName: (p.peerDisplayName as string) || '',
     handle: (p.peerHandle as string) || '',
+    userId: typeof p.peerUserId === 'string' && p.peerUserId.trim() ? p.peerUserId.trim() : '',
   };
 }
 
@@ -98,7 +104,7 @@ export default function CommunityRelationshipArtifactPage() {
 
   const [relationship, setRelationship] = useState<RelationshipRow | null>(null);
   const [comparison, setComparison] = useState<ComparisonJson | null>(null);
-  const [peer, setPeer] = useState<{ displayName: string; handle: string } | null>(null);
+  const [peer, setPeer] = useState<{ displayName: string; handle: string; userId: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [materializeError, setMaterializeError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -107,6 +113,10 @@ export default function CommunityRelationshipArtifactPage() {
   const [audioUiState, setAudioUiState] = useState<ConnectionAudioUiState>('idle');
   const [audioExportId, setAudioExportId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [signalHistory, setSignalHistory] = useState<{
+    summary: SignalHistorySummary;
+    signals: SignalHistoryRow[];
+  } | null>(null);
 
   const materializeOnceRef = useRef(false);
 
@@ -145,6 +155,7 @@ export default function CommunityRelationshipArtifactPage() {
       setMaterializeError(null);
       setComparison(null);
       setRelationship(null);
+      setSignalHistory(null);
 
       await loadPairContext(relationshipId);
       if (cancelled) return;
@@ -201,6 +212,46 @@ export default function CommunityRelationshipArtifactPage() {
       cancelled = true;
     };
   }, [relationshipId, user?.id, profileLoading, loadPairContext]);
+
+  useEffect(() => {
+    if (!user?.id || !peer?.userId) {
+      setSignalHistory(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/community/signals/history?peerUserId=${encodeURIComponent(peer.userId)}`,
+          { credentials: 'same-origin', cache: 'no-store' }
+        );
+        if (cancelled) return;
+        if (!r.ok) {
+          setSignalHistory(null);
+          return;
+        }
+        const data = (await r.json()) as {
+          summary?: SignalHistorySummary;
+          signals?: SignalHistoryRow[];
+        };
+        if (cancelled) return;
+        const total = data.summary?.total ?? 0;
+        if (total > 0 && data.summary) {
+          setSignalHistory({
+            summary: data.summary,
+            signals: Array.isArray(data.signals) ? data.signals : [],
+          });
+        } else {
+          setSignalHistory(null);
+        }
+      } catch {
+        if (!cancelled) setSignalHistory(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, peer?.userId]);
 
   const exId =
     audioExportId ||
@@ -370,6 +421,15 @@ export default function CommunityRelationshipArtifactPage() {
                 )}
               </section>
             )}
+
+            {signalHistory && user?.id && peer?.userId ? (
+              <SignalHistorySection
+                peerDisplayName={peer.displayName || 'Connection'}
+                viewerUserId={user.id}
+                summary={signalHistory.summary}
+                signals={signalHistory.signals}
+              />
+            ) : null}
 
             {showConnectionAudio && (
               <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">

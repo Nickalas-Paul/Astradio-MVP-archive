@@ -41,6 +41,14 @@ export function formatSignalReceivedRelativeTime(iso: string): string {
   return formatSignalRelativeTime(iso, 'Received');
 }
 
+/** Neutral relative time for activity one-liners (no Sent/Received prefix). */
+export function formatSignalActivityRelativeTime(iso: string): string {
+  const raw = formatSignalRelativeTime(iso, 'Sent');
+  if (raw === 'Sent recently') return 'recently';
+  if (raw.startsWith('Sent ')) return raw.slice(5);
+  return raw;
+}
+
 function formatSignalRelativeTime(iso: string, prefix: 'Sent' | 'Received'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return `${prefix} recently`;
@@ -106,3 +114,35 @@ export function isSignalCreatedTodayUtc(iso: string): boolean {
   todayStart.setUTCHours(0, 0, 0, 0);
   return d >= todayStart;
 }
+
+export type SignalHistoryStatusLabel = 'Acknowledged' | 'Expired' | 'Open';
+
+export function signalHistoryStatusLabel(status: string, replyCount: number): SignalHistoryStatusLabel {
+  if (replyCount > 0) return 'Acknowledged';
+  if (status === 'expired' || status === 'closed') return 'Expired';
+  return 'Open';
+}
+
+export function formatSignalHistoryDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Unknown date';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export function formatSignalHistoryTimeSpan(oldestAt: string | null, newestAt: string | null): string {
+  if (!oldestAt || !newestAt) return '';
+  const oldest = new Date(oldestAt);
+  const newest = new Date(newestAt);
+  if (Number.isNaN(oldest.getTime()) || Number.isNaN(newest.getTime())) return '';
+  const diffMs = Math.abs(newest.getTime() - oldest.getTime());
+  const days = Math.floor(diffMs / 86_400_000);
+  if (days < 1) return 'today';
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'}`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? '' : 's'}`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years === 1 ? '' : 's'}`;
+}
+
+export const SIGNAL_TYPE_PILL_CLASS =
+  'text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans';

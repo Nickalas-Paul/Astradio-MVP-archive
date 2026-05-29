@@ -13,6 +13,7 @@ import {
   outgoingSignalStatusLabel,
   formatSignalAnchorContext,
 } from '@/lib/signal-display';
+import { SignalRecentActivityList } from '@/components/community/SignalHistorySection';
 
 type IncomingSignalRow = {
   id: string;
@@ -34,6 +35,13 @@ type OutgoingSignalRow = IncomingSignalRow & {
   recipientDisplayName: string;
 };
 
+type RecentActivityRow = {
+  id: string;
+  peerDisplayName?: string | null;
+  templateId: string;
+  createdAt: string;
+};
+
 const ACKNOWLEDGED_DISPLAY_MS = 2000;
 const ACKNOWLEDGED_FADE_MS = 500;
 
@@ -51,6 +59,7 @@ function resolveSenderDisplayName(s: IncomingSignalRow): string {
 export function SignalsPanel({ currentUserId }: { currentUserId: string | null }) {
   const [incoming, setIncoming] = useState<IncomingSignalRow[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingSignalRow[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -64,6 +73,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
     if (!currentUserId) {
       setIncoming([]);
       setOutgoing([]);
+      setRecentActivity([]);
       setLoading(false);
       return;
     }
@@ -71,16 +81,19 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
     setError(null);
     try {
       const base = getApiBaseUrl() || '';
-      const [inR, outR] = await Promise.all([
+      const [inR, outR, recentR] = await Promise.all([
         fetch(`${base}/api/community/signals`, { credentials: 'same-origin', cache: 'no-store' }),
         fetch(`${base}/api/community/signals/sent`, { credentials: 'same-origin', cache: 'no-store' }),
+        fetch(`${base}/api/community/signals/recent`, { credentials: 'same-origin', cache: 'no-store' }),
       ]);
       const inJ = await inR.json().catch(() => ({}));
       const outJ = await outR.json().catch(() => ({}));
+      const recentJ = await recentR.json().catch(() => ({}));
       if (!inR.ok) {
         setError(typeof inJ.error === 'string' ? inJ.error : `Signals ${inR.status}`);
         setIncoming([]);
         setOutgoing([]);
+        setRecentActivity([]);
         return;
       }
       const items = Array.isArray(inJ.items) ? (inJ.items as IncomingSignalRow[]) : [];
@@ -90,10 +103,16 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
       } else {
         setOutgoing([]);
       }
+      if (recentR.ok) {
+        setRecentActivity(Array.isArray(recentJ.items) ? (recentJ.items as RecentActivityRow[]) : []);
+      } else {
+        setRecentActivity([]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Signals failed');
       setIncoming([]);
       setOutgoing([]);
+      setRecentActivity([]);
     } finally {
       setLoading(false);
     }
@@ -154,9 +173,17 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           credentials: 'same-origin',
           cache: 'no-store',
         });
+        const recentR = await fetch(`${getApiBaseUrl() || ''}/api/community/signals/recent`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
         const outJ = await outR.json().catch(() => ({}));
+        const recentJ = await recentR.json().catch(() => ({}));
         if (outR.ok) {
           setOutgoing(Array.isArray(outJ.items) ? outJ.items : []);
+        }
+        if (recentR.ok) {
+          setRecentActivity(Array.isArray(recentJ.items) ? recentJ.items : []);
         }
       }
     } finally {
@@ -310,6 +337,15 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           })}
         </ul>
       </section>
+
+      {recentActivity.length > 0 ? (
+        <section className="space-y-3 border-t border-border pt-4">
+          <h4 className="text-caption font-medium uppercase tracking-wide text-text-secondary font-sans">
+            Recent activity
+          </h4>
+          <SignalRecentActivityList items={recentActivity} />
+        </section>
+      ) : null}
     </Card>
   );
 }
