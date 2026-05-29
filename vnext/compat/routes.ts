@@ -172,6 +172,22 @@ type ProfileChartBody = {
   tz?: string;
 };
 
+async function populateChartVectorWithRetry(chartId: string, snapshotHash?: string): Promise<void> {
+  if (!process.env.POSTGRES_URL) return;
+  try {
+    await populateChartVector(chartId, snapshotHash);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[compat] vector populate FAILED for chart:', chartId, msg);
+    try {
+      await populateChartVector(chartId, snapshotHash);
+    } catch (retryErr: unknown) {
+      const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+      console.error('[compat] vector populate RETRY FAILED for chart:', chartId, retryMsg);
+    }
+  }
+}
+
 /** Shared chart + primary link path for register and proxy-authenticated profile completion. */
 async function attachPrimaryChartForNewUser(
   userId: string,
@@ -211,11 +227,7 @@ async function attachPrimaryChartForNewUser(
         primaryChart = (await storage.updateChartBirthFields(existingPrimaryId, userId, birthPayload)) ?? null;
         if (primaryChart) {
           await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
-          if (process.env.POSTGRES_URL) {
-            populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
-              console.warn('[compat] vector populate after chart update:', err?.message);
-            });
-          }
+          await populateChartVectorWithRetry(primaryChart.id, primaryChart.snapshotHash);
         }
       }
     }
@@ -227,11 +239,7 @@ async function attachPrimaryChartForNewUser(
       });
       createdNewPrimaryChart = true;
       await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
-      if (process.env.POSTGRES_URL) {
-        populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
-          console.warn('[compat] vector populate after chart create:', err?.message);
-        });
-      }
+      await populateChartVectorWithRetry(primaryChart.id, primaryChart.snapshotHash);
     }
   } else {
     const defaultChart = await storage.ensureDefaultProfileChart();
@@ -246,11 +254,7 @@ async function attachPrimaryChartForNewUser(
     });
     createdNewPrimaryChart = true;
     await linkUserPrimaryChartWithRetry(userId, primaryChart.id);
-    if (process.env.POSTGRES_URL) {
-      populateChartVector(primaryChart.id, primaryChart.snapshotHash).catch((err: { message?: string }) => {
-        console.warn('[compat] vector populate after chart create:', err?.message);
-      });
-    }
+    await populateChartVectorWithRetry(primaryChart.id, primaryChart.snapshotHash);
   }
   if (primaryChart && createdNewPrimaryChart) {
     void persistProfileIdentityAudioAfterPrimaryAttach(primaryChart, priorNatalFingerprintForIdentityAudio).catch(

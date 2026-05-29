@@ -1,7 +1,8 @@
 /**
  * Phase 4 — Single write path for chart vectors.
- * Calls architecture-engine, persists to vector-store. Compat matches must NOT call this.
- * Vector population: on chart create/update or explicit call. Never auto-populate inside match lookup.
+ * Calls architecture-engine, persists to vector-store.
+ * Primary generation: chart create/update and registration (awaited with retry).
+ * Recovery: compat match pipeline may call populateChartVector once per request when vectors are missing (lazy backfill).
  */
 
 import { generateArchitecture, type ChartInput } from '../core/architecture-engine';

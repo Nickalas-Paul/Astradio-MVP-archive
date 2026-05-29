@@ -19,6 +19,8 @@ import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
+import { populateChartVector } from './vector-cache';
+import { MissingVectorsError } from '../relational/compatibility/multi-chart';
 
 const DISCOVERY_BULLET_LABELS = {
   forThem: "Why you're good for them",
@@ -827,63 +829,112 @@ export async function getCompatMatches(
   const results: CompatMatchResult[] = [];
   const intentForBullets = mode === 'lover' ? 'partner' : 'friend';
   const batchUsedKeys = new Set<string>();
+  const vectorBackfillAttempted = new Set<string>();
+
+  type ScoredCandidate = (typeof scoredCandidates)[number];
+
+  const buildMatchFromComputed = async (
+    cand: ScoredCandidate,
+    computed: Awaited<ReturnType<typeof computeCompatibilitySystem>>
+  ): Promise<CompatMatchResult> => {
+    const score = canonicalIntentRank(computed.scoring, mode);
+    const bullets = await generateCompatibilityBullets(
+      chartId,
+      cand.chartId,
+      intentForBullets,
+      batchUsedKeys
+    );
+    if (process.env.MATCHES_BULLET_DEBUG === '1') {
+      const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}...`);
+      console.log(
+        `[matches] Bullets for ${cand.displayName ?? cand.userId} (seeker ${chartId} vs candidate ${cand.chartId}, bulletsIntent=${intentForBullets}):`
+      );
+      console.log(`  forThem (A→B): ${clip(bullets.forThem.text, 60)}`);
+      console.log(`  forYou (B→A): ${clip(bullets.forYou.text, 60)}`);
+      console.log(`  together: ${clip(bullets.together.text, 60)}`);
+    }
+    const explanationProfile: CompatibilityExplanationProfilePublic = {
+      intent: mode,
+      intentFitSummary: '',
+      primarySupports: [bullets.forYou.text],
+      secondarySupports: [bullets.forThem.text],
+      tensionsOrLimits: [bullets.together.text],
+      synastryBullets: {
+        forYou: bullets.forYou,
+        forThem: bullets.forThem,
+        together: bullets.together,
+      },
+    };
+    return {
+      userId: cand.userId,
+      chartId: cand.chartId,
+      displayName: cand.displayName || 'User',
+      score,
+      facets: facetsFromScoring(computed.scoring),
+      rationale: `${Math.round(score * 100)}% match`,
+      explanationProfile,
+      lastUpdated: new Date().toISOString(),
+      compatibilityFieldHash: computed.field.object_identity_hash,
+      bio: cand.bio,
+      avatarUrl: cand.avatarUrl,
+      lookingFor: cand.lookingFor,
+      chartHighlights: cand.chartHighlights,
+    };
+  };
+
+  const computeCandidateMatch = async (cand: ScoredCandidate): Promise<CompatMatchResult | null> => {
+    const runCompute = () =>
+      computeCompatibilitySystem({
+        chartIds: [chartId, cand.chartId],
+        relationshipBindingId: null,
+      });
+
+    try {
+      return await buildMatchFromComputed(cand, await runCompute());
+    } catch (err) {
+      if (!(err instanceof MissingVectorsError)) {
+        console.error(`[matches] Failed to compute synastry for ${cand.chartId}:`, err);
+        return null;
+      }
+
+      let canRetry = true;
+      for (const missingChartId of err.missing_chart_ids) {
+        if (vectorBackfillAttempted.has(missingChartId)) {
+          canRetry = false;
+          continue;
+        }
+        vectorBackfillAttempted.add(missingChartId);
+        try {
+          await populateChartVector(missingChartId);
+        } catch (backfillErr) {
+          console.error(`[matches] lazy vector backfill failed for ${missingChartId}:`, backfillErr);
+          canRetry = false;
+        }
+      }
+
+      if (!canRetry) {
+        console.error(`[matches] Failed to compute synastry for ${cand.chartId}:`, err);
+        return null;
+      }
+
+      try {
+        return await buildMatchFromComputed(cand, await runCompute());
+      } catch (retryErr) {
+        console.error(`[matches] Failed to compute synastry for ${cand.chartId} after vector backfill:`, retryErr);
+        return null;
+      }
+    }
+  };
 
   for (let i = 0; i < topCandidates.length; i++) {
     const cand = topCandidates[i]!;
     if (i > 0) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    try {
-      const computed = await computeCompatibilitySystem({
-        chartIds: [chartId, cand.chartId],
-        relationshipBindingId: null,
-      });
-      const score = canonicalIntentRank(computed.scoring, mode);
-      const bullets = await generateCompatibilityBullets(
-        chartId,
-        cand.chartId,
-        intentForBullets,
-        batchUsedKeys
-      );
-      if (process.env.MATCHES_BULLET_DEBUG === '1') {
-        const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n)}...`);
-        console.log(
-          `[matches] Bullets for ${cand.displayName ?? cand.userId} (seeker ${chartId} vs candidate ${cand.chartId}, bulletsIntent=${intentForBullets}):`
-        );
-        console.log(`  forThem (A→B): ${clip(bullets.forThem.text, 60)}`);
-        console.log(`  forYou (B→A): ${clip(bullets.forYou.text, 60)}`);
-        console.log(`  together: ${clip(bullets.together.text, 60)}`);
-      }
-      const explanationProfile: CompatibilityExplanationProfilePublic = {
-        intent: mode,
-        intentFitSummary: '',
-        primarySupports: [bullets.forYou.text],
-        secondarySupports: [bullets.forThem.text],
-        tensionsOrLimits: [bullets.together.text],
-        synastryBullets: {
-          forYou: bullets.forYou,
-          forThem: bullets.forThem,
-          together: bullets.together,
-        },
-      };
-      results.push({
-        userId: cand.userId,
-        chartId: cand.chartId,
-        displayName: cand.displayName || 'User',
-        score,
-        facets: facetsFromScoring(computed.scoring),
-        rationale: `${Math.round(score * 100)}% match`,
-        explanationProfile,
-        lastUpdated: new Date().toISOString(),
-        compatibilityFieldHash: computed.field.object_identity_hash,
-        bio: cand.bio,
-        avatarUrl: cand.avatarUrl,
-        lookingFor: cand.lookingFor,
-        chartHighlights: cand.chartHighlights,
-      });
-      console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(score * 100).toFixed(0)}%`);
-    } catch (err) {
-      console.error(`[matches] Failed to compute synastry for ${cand.chartId}:`, err);
+    const match = await computeCandidateMatch(cand);
+    if (match) {
+      results.push(match);
+      console.log(`[matches] Computed synastry for ${cand.displayName || cand.userId}: ${(match.score * 100).toFixed(0)}%`);
     }
   }
 
