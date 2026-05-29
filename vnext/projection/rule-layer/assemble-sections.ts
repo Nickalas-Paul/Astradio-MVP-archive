@@ -923,6 +923,22 @@ function assembleGroupKeyInteractionsV1(
   ];
 }
 
+/** Personal planets only for connection activation blocks (outer planets omitted). */
+const COMPAT_ACTIVATION_PERSONAL_PLANETS = new Set(['SUN', 'MOON', 'MERCURY', 'VENUS', 'MARS']);
+const COMPAT_ACTIVATION_MAX_HITS_PER_PLANET = 2;
+
+function sortDirectedAspectByStrength(
+  a: Pick<DirectedSnapshotAspect, 'exactness' | 'orb' | 'strength'>,
+  b: Pick<DirectedSnapshotAspect, 'exactness' | 'orb' | 'strength'>
+): number {
+  const exA = typeof a.exactness === 'number' ? a.exactness : typeof a.strength === 'number' ? a.strength : 0;
+  const exB = typeof b.exactness === 'number' ? b.exactness : typeof b.strength === 'number' ? b.strength : 0;
+  if (exB !== exA) return exB - exA;
+  const orbA = typeof a.orb === 'number' ? a.orb : 999;
+  const orbB = typeof b.orb === 'number' ? b.orb : 999;
+  return orbA - orbB;
+}
+
 /**
  * Phase 6C — seeker-anchored synastry activation tiers (compat_pair). Mirrors overlay tiering; uses synastry library fields via `composeSynastryMepAspectParagraph`.
  * Requires Alpha options: `pairInteractionAspectsV2`, `comparisonSeekerContextV1`, `snapshot` (seeker), `secondarySnapshot` (target).
@@ -986,7 +1002,6 @@ function assembleCompatActivationSections(options: ProjectionOptions): Projected
     },
   ];
 
-  const seekerPlacements = buildPlacementKeys(seekerSnap);
   const targetPlacements = buildPlacementKeys(targetSnap);
   const sections: ProjectedExplanationSection[] = [];
 
@@ -1000,29 +1015,18 @@ function assembleCompatActivationSections(options: ProjectionOptions): Projected
     const planetNarratives: string[] = [];
 
     for (const natalPlanet of tier.natalBodies) {
+      if (!COMPAT_ACTIVATION_PERSONAL_PLANETS.has(natalPlanet)) continue;
+
       const aspects = activationsByPlanet[natalPlanet];
       if (!aspects || aspects.length === 0) continue;
 
-      const natalPlacement = seekerPlacements.find((p) => p.planet === natalPlanet);
-      if (!natalPlacement) continue;
+      const topAspects = [...aspects]
+        .sort(sortDirectedAspectByStrength)
+        .slice(0, COMPAT_ACTIVATION_MAX_HITS_PER_PLANET);
 
-      const natalSignInsight = getAspectInsight(natalPlacement.signKey);
-      const natalHouseInsight = getAspectInsight(natalPlacement.houseKey);
-      const natalPlacementCore = [natalSignInsight?.core, natalHouseInsight?.core]
-        .filter(Boolean)
-        .join(' ');
-      if (!natalPlacementCore) continue;
+      let planetText = '';
 
-      let planetText = `**Your ${formatPlanetName(natalPlanet)} in ${formatSignName(natalPlacement.sign)}, ${formatHouseName(natalPlacement.house)}**\n\n`;
-      if (tier.depth === 'full') {
-        planetText += `${natalPlacementCore}\n\n`;
-      } else if (tier.depth === 'medium') {
-        planetText += `${natalPlacementCore.split('.')[0]}.\n\n`;
-      } else {
-        planetText += `Your ${natalPlanet.toLowerCase()} placement.\n\n`;
-      }
-
-      for (const aspect of aspects) {
+      for (const aspect of topAspects) {
         const theirPlanet = String(aspect.bodyB || '').toUpperCase();
         const theirPlacement = targetPlacements.find((p) => p.planet === theirPlanet);
         if (!theirPlacement) continue;
@@ -1040,7 +1044,9 @@ function assembleCompatActivationSections(options: ProjectionOptions): Projected
 
         planetText += `${composeSynastryMepAspectParagraph(aspectInsight, synVariant)}\n\n`;
       }
-      planetNarratives.push(planetText.trim());
+      if (planetText.trim()) {
+        planetNarratives.push(planetText.trim());
+      }
     }
 
     if (planetNarratives.length > 0) {
@@ -1323,7 +1329,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     options,
     surface,
     connectionMode: options.connectionMode,
-    maxAspects: 5,
+    maxAspects: surface === 'compat_pair' ? 3 : 5,
   });
 
   let framed = applyConnectionPreface(

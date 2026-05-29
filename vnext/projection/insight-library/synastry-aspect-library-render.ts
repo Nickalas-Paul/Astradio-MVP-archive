@@ -1,35 +1,21 @@
 /**
  * Synastry MEP aspect-library body composition , shared by assemble-sections and audit tooling.
- * Must stay aligned with compat_pair / group branch in assemblePhaseDSections.
- *
- * Selection rule: when an AspectInsight carries synastry-frame fields
- * (core_synastry, behavioral_synastry, friendship_synastry, romantic_synastry),
- * those are preferred field-by-field over the natal-frame counterparts. Missing
- * synastry fields fall back to the natal field of the same role. This allows
- * incremental rollout of synastry content without breaking single-chart surfaces
- * (which never reach this compose path) or partially-authored entries.
+ * Connection readings (compat_pair): one core_synastry paragraph per hit for scannable length.
+ * Group surfaces still call this helper; only core_synastry (fallback core) is emitted.
  */
 import type { AspectInsight } from './insight-library-types';
 
 export type SynastryRelationalVariant = 'friendship' | 'romantic';
 
 /**
- * Same string as `assemble-sections.ts` MEP slice for `compat_pair` / `group`:
- * core + behavioral + (friendship | romantic), space-joined.
- *
- * Reads synastry-frame fields when present, falls back to natal-frame fields
- * otherwise. The kill-list mechanism in aspect-library-kill-list.ts continues
- * to suppress entries whose synastry content is not yet authored or has not
- * passed re-audit.
+ * Single focused synastry paragraph per aspect (core_synastry, else core).
+ * behavioral_synastry and friendship/romantic variant fields are omitted for connection readability.
  */
 export function composeSynastryMepAspectParagraph(
   ins: AspectInsight,
-  variant: SynastryRelationalVariant
+  _variant?: SynastryRelationalVariant
 ): string {
-  const core = ins.core_synastry ?? ins.core;
-  const behavioral = ins.behavioral_synastry ?? ins.behavioral;
-  const rel = variant === 'romantic'
-    ? (ins.romantic_synastry ?? ins.romantic)
-    : (ins.friendship_synastry ?? ins.friendship);
-  return [core, behavioral, rel].filter(Boolean).join(' ');
+  void _variant;
+  const core = ins.core_synastry ?? ins.core ?? '';
+  return String(core).trim();
 }
