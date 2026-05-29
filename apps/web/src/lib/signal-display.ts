@@ -5,31 +5,61 @@ const SIGNAL_TEMPLATE_LABELS: Record<string, string> = {
   challenge_accepted: 'Challenge accepted',
 };
 
+const SIGNAL_TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+  resonates: 'I recognize this energy between us',
+  feeling_this: 'This transit is active for me right now',
+  lets_pay_attention: 'They want you both to notice this one',
+  challenge_accepted: 'For tense aspects testing the connection',
+};
+
 export function formatSignalTemplateLabel(templateId: string): string {
   const key = templateId.trim();
   if (SIGNAL_TEMPLATE_LABELS[key]) return SIGNAL_TEMPLATE_LABELS[key]!;
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function formatSignalTemplateDescription(templateId: string): string {
+  const key = templateId.trim();
+  return SIGNAL_TEMPLATE_DESCRIPTIONS[key] || '';
+}
+
+export function formatSignalTemplateWithDescription(templateId: string): {
+  label: string;
+  description: string;
+} {
+  return {
+    label: formatSignalTemplateLabel(templateId),
+    description: formatSignalTemplateDescription(templateId),
+  };
+}
+
 export function formatSignalSentRelativeTime(iso: string): string {
+  return formatSignalRelativeTime(iso, 'Sent');
+}
+
+export function formatSignalReceivedRelativeTime(iso: string): string {
+  return formatSignalRelativeTime(iso, 'Received');
+}
+
+function formatSignalRelativeTime(iso: string, prefix: 'Sent' | 'Received'): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'Sent recently';
+  if (Number.isNaN(d.getTime())) return `${prefix} recently`;
 
   const diffMs = Date.now() - d.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return 'Sent just now';
-  if (diffMin < 60) return `Sent ${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+  if (diffMin < 1) return `${prefix} just now`;
+  if (diffMin < 60) return `${prefix} ${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
 
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `Sent ${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+  if (diffHr < 24) return `${prefix} ${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const sentDay = new Date(d);
   sentDay.setHours(0, 0, 0, 0);
-  if (sentDay.getTime() === today.getTime()) return 'Sent today';
+  if (sentDay.getTime() === today.getTime()) return `${prefix} today`;
 
-  return `Sent ${d.toLocaleDateString()}`;
+  return `${prefix} ${d.toLocaleDateString()}`;
 }
 
 export type OutgoingSignalStatusLabel = 'Awaiting response' | 'Acknowledged' | 'Expired';
@@ -50,6 +80,22 @@ export function formatSignalAnchorContext(anchorType: string, anchorId: string):
     return `Feed · ${id.slice(0, 20)}${id.length > 20 ? '…' : ''}`;
   }
   return `${anchorType} · ${id.slice(0, 24)}${id.length > 24 ? '…' : ''}`;
+}
+
+/** Recipient-facing transit anchor line (pair feed signals). */
+export function formatIncomingSignalTransitContext(
+  senderDisplayName: string | null | undefined,
+  anchorType: string,
+  anchorId: string
+): string {
+  const name =
+    typeof senderDisplayName === 'string' && senderDisplayName.trim()
+      ? senderDisplayName.trim()
+      : 'them';
+  if (anchorType === 'feed_item') {
+    return `About your connection with ${name}`;
+  }
+  return `About your connection with ${name}`;
 }
 
 /** UTC day start — matches server dedupe window for feed signal status. */

@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { getApiBaseUrl } from '../../core/api-base';
 import { Card } from '@/components/shared/Card';
+import { Button } from '@/components/shared/Button';
 import {
-  formatSignalAnchorContext,
+  formatIncomingSignalTransitContext,
+  formatSignalReceivedRelativeTime,
   formatSignalSentRelativeTime,
-  formatSignalTemplateLabel,
+  formatSignalTemplateWithDescription,
   outgoingSignalStatusLabel,
+  formatSignalAnchorContext,
 } from '@/lib/signal-display';
 
 type IncomingSignalRow = {
@@ -21,6 +24,9 @@ type IncomingSignalRow = {
   maxReplies: number;
   expiresAt: string;
   createdAt: string;
+  senderUserId?: string | null;
+  senderDisplayName?: string | null;
+  senderHandle?: string | null;
 };
 
 type OutgoingSignalRow = IncomingSignalRow & {
@@ -28,12 +34,31 @@ type OutgoingSignalRow = IncomingSignalRow & {
   recipientDisplayName: string;
 };
 
+const ACKNOWLEDGED_DISPLAY_MS = 2000;
+const ACKNOWLEDGED_FADE_MS = 500;
+
+function resolveSenderDisplayName(s: IncomingSignalRow): string {
+  if (typeof s.senderDisplayName === 'string' && s.senderDisplayName.trim()) {
+    return s.senderDisplayName.trim();
+  }
+  const body = s as IncomingSignalRow & { body?: { senderUserId?: string } };
+  if (body.body?.senderUserId) {
+    return 'Someone';
+  }
+  return 'Unknown sender';
+}
+
 export function SignalsPanel({ currentUserId }: { currentUserId: string | null }) {
   const [incoming, setIncoming] = useState<IncomingSignalRow[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingSignalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(() => new Set());
+  const [fadingIds, setFadingIds] = useState<Set<string>>(() => new Set());
+  const removeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const fadingIdsRef = useRef(fadingIds);
+  fadingIdsRef.current = fadingIds;
 
   const load = useCallback(async () => {
     if (!currentUserId) {
@@ -58,7 +83,8 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         setOutgoing([]);
         return;
       }
-      setIncoming(Array.isArray(inJ.items) ? inJ.items : []);
+      const items = Array.isArray(inJ.items) ? (inJ.items as IncomingSignalRow[]) : [];
+      setIncoming(items.filter((s) => !fadingIdsRef.current.has(s.id)));
       if (outR.ok) {
         setOutgoing(Array.isArray(outJ.items) ? outJ.items : []);
       } else {
@@ -77,6 +103,41 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const timers = removeTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  const scheduleRemoveAfterAck = (id: string) => {
+    const existing = removeTimersRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      setFadingIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setTimeout(() => {
+        setIncoming((prev) => prev.filter((s) => s.id !== id));
+        setAcknowledgedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setFadingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        removeTimersRef.current.delete(id);
+      }, ACKNOWLEDGED_FADE_MS);
+    }, ACKNOWLEDGED_DISPLAY_MS);
+    removeTimersRef.current.set(id, t);
+  };
+
   const react = async (id: string) => {
     setBusy(id);
     try {
@@ -86,7 +147,18 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      if (r.ok) await load();
+      if (r.ok) {
+        setAcknowledgedIds((prev) => new Set(prev).add(id));
+        scheduleRemoveAfterAck(id);
+        const outR = await fetch(`${getApiBaseUrl() || ''}/api/community/signals/sent`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const outJ = await outR.json().catch(() => ({}));
+        if (outR.ok) {
+          setOutgoing(Array.isArray(outJ.items) ? outJ.items : []);
+        }
+      }
     } finally {
       setBusy(null);
     }
@@ -129,35 +201,68 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         {loading && <p className="text-sm text-subtext">Loading…</p>}
         {error && <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
         {!loading && incoming.length === 0 && !error && (
-          <p className="text-sm text-subtext">No incoming signals.</p>
+          <p className="text-sm text-subtext">
+            No incoming signals. When someone acknowledges a transit between you, it will appear here.
+          </p>
         )}
-        <ul className="space-y-2">
-          {incoming.map((s) => (
-            <li
-              key={s.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-bgElev p-3 text-sm shadow-sm"
-            >
-              <div>
-                <span className="text-text font-medium">{formatSignalTemplateLabel(s.templateId)}</span>
-                <span className="text-subtext text-xs ml-2">
-                  {s.anchorType} · {s.anchorId.slice(0, 12)}…
-                </span>
-                <p className="text-xs text-subtext mt-1">
-                  Replies {s.replyCount}/{s.maxReplies} · expires {new Date(s.expiresAt).toLocaleString()}
-                </p>
-              </div>
-              {s.status === 'open' && s.replyCount < s.maxReplies && (
-                <button
-                  type="button"
-                  disabled={busy === s.id}
-                  onClick={() => void react(s.id)}
-                  className="px-3 py-1.5 rounded-lg bg-accent-muted text-accent-light text-sm border border-accent/40 disabled:opacity-50"
+        <ul className="space-y-3">
+          {incoming.map((s) => {
+            const senderName = resolveSenderDisplayName(s);
+            const { label, description } = formatSignalTemplateWithDescription(s.templateId);
+            const isAcknowledged = acknowledgedIds.has(s.id);
+            const isFading = fadingIds.has(s.id);
+            const canReact =
+              !isAcknowledged && s.status === 'open' && s.replyCount < s.maxReplies;
+
+            return (
+              <li
+                key={s.id}
+                className={`transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'}`}
+              >
+                <Card
+                  elevation="raised"
+                  padding="p-4"
+                  className="border-l-2 border-l-accent space-y-3"
                 >
-                  {busy === s.id ? '…' : 'Acknowledge'}
-                </button>
-              )}
-            </li>
-          ))}
+                  <div className="space-y-1">
+                    <p className="font-serif text-h3 font-semibold text-text-primary leading-snug">
+                      {senderName}
+                    </p>
+                    <p className="text-body-sm text-text-secondary font-sans">
+                      <span className="font-medium text-text-primary">{label}</span>
+                      {description ? (
+                        <span className="text-text-secondary"> — {description}</span>
+                      ) : null}
+                    </p>
+                    <p className="text-caption text-text-muted font-sans">
+                      {formatSignalReceivedRelativeTime(String(s.createdAt))}
+                    </p>
+                    <p className="text-caption text-text-muted font-sans">
+                      {formatIncomingSignalTransitContext(senderName, s.anchorType, s.anchorId)}
+                    </p>
+                  </div>
+
+                  {isAcknowledged ? (
+                    <p className="text-body-sm text-accent-light font-sans flex items-center gap-2">
+                      <span aria-hidden>✓</span>
+                      Acknowledged
+                    </p>
+                  ) : canReact ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      disabled={busy === s.id}
+                      loading={busy === s.id}
+                      onClick={() => void react(s.id)}
+                    >
+                      Acknowledge
+                    </Button>
+                  ) : null}
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -191,7 +296,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
                   </span>
                 </div>
                 <p className="text-body-sm text-text-secondary font-sans">
-                  {formatSignalTemplateLabel(s.templateId)}
+                  {formatSignalTemplateWithDescription(s.templateId).label}
                 </p>
                 <p className="text-caption text-text-muted font-sans">
                   {formatSignalSentRelativeTime(String(s.createdAt))}
