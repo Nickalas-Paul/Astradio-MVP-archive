@@ -9,9 +9,9 @@ import { getApiBaseUrl } from '@/core/api-base';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { Button } from '@/components/shared/Button';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
 import {
   SignalHistorySection,
-  SignalRecentActivityList,
   type SignalHistoryRow,
   type SignalHistorySummary,
 } from '@/components/community/SignalHistorySection';
