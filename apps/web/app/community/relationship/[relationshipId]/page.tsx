@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { useProfile } from '@/core/social/hooks';
 import { getApiBaseUrl } from '@/core/api-base';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { Button } from '@/components/shared/Button';
+import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
+
+type ReadingSection = { id?: string; title?: string; text?: string; bullets?: string[] };
 
 type RelationshipRow = {
   id: string;
@@ -23,11 +27,32 @@ type ComparisonJson = {
   relationshipMode?: string;
   compatibilityText?: { short?: string; long?: string; bullets?: string[] } | string;
   /** Present on POST create only; GET stored row is text-first. */
-  explanation?: { sections?: Array<{ title?: string; text?: string; bullets?: string[] }> };
+  explanation?: { sections?: ReadingSection[] };
   exportJobId?: string;
   planHash?: string;
   compositionId?: string;
 };
+
+type ConnectionAudioUiState = 'idle' | 'generating' | 'ready' | 'error';
+
+const EXPORT_ID_RE = /^[a-f0-9]{64}$/;
+
+function isSonicSection(section: ReadingSection): boolean {
+  if (section.id === 'audio_staging') return true;
+  if (section.title === 'How this sounds (listen metaphor)') return true;
+  const text = typeof section.text === 'string' ? section.text : '';
+  return text.includes("For this pair's listen") || text.includes('For this pair\u2019s listen');
+}
+
+function splitConnectionReadingSections(explanation: ComparisonJson['explanation']) {
+  const sections = Array.isArray(explanation?.sections) ? explanation!.sections! : [];
+  const sonic = sections.find(isSonicSection);
+  const reading = sections.filter((s) => !isSonicSection(s));
+  return {
+    readingSections: reading,
+    sonicText: typeof sonic?.text === 'string' && sonic.text.trim() ? sonic.text.trim() : null,
+  };
+}
 
 function peerFromInventory(
   inv: { pairs?: Array<Record<string, unknown>> } | null,
@@ -79,6 +104,9 @@ export default function CommunityRelationshipArtifactPage() {
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   /** null = idle or checking; true/false after HEAD /api/exports/:id (no full WAV). */
   const [exportReachable, setExportReachable] = useState<boolean | null>(null);
+  const [audioUiState, setAudioUiState] = useState<ConnectionAudioUiState>('idle');
+  const [audioExportId, setAudioExportId] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const materializeOnceRef = useRef(false);
 
@@ -175,13 +203,17 @@ export default function CommunityRelationshipArtifactPage() {
   }, [relationshipId, user?.id, profileLoading, loadPairContext]);
 
   const exId =
-    comparison && typeof comparison.exportJobId === 'string' && comparison.exportJobId.trim()
+    audioExportId ||
+    (comparison && typeof comparison.exportJobId === 'string' && comparison.exportJobId.trim()
       ? comparison.exportJobId.trim()
-      : null;
+      : null);
 
   useEffect(() => {
-    if (!exId || !/^[a-f0-9]{64}$/.test(exId)) {
+    if (!exId || !EXPORT_ID_RE.test(exId)) {
       setExportReachable(null);
+      if (!exId) {
+        setAudioUiState('idle');
+      }
       return;
     }
     let cancelled = false;
@@ -194,9 +226,16 @@ export default function CommunityRelationshipArtifactPage() {
           credentials: 'same-origin',
         });
         if (cancelled) return;
-        setExportReachable(r.status === 204 || r.status === 200);
+        const reachable = r.status === 204 || r.status === 200;
+        setExportReachable(reachable);
+        if (reachable) {
+          setAudioUiState('ready');
+          setAudioExportId(exId);
+        }
       } catch {
-        if (!cancelled) setExportReachable(false);
+        if (!cancelled) {
+          setExportReachable(false);
+        }
       }
     })();
     return () => {
@@ -204,10 +243,55 @@ export default function CommunityRelationshipArtifactPage() {
     };
   }, [exId]);
 
+  const handleGenerateConnectionAudio = useCallback(async () => {
+    if (!relationshipId) return;
+    setAudioUiState('generating');
+    setAudioError(null);
+    try {
+      const r = await fetch(`/api/relationships/${encodeURIComponent(relationshipId)}/audio`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      const data = (await r.json().catch(() => ({}))) as {
+        exportId?: string;
+        status?: string;
+        error?: string;
+        message?: string;
+      };
+      const exportId = typeof data.exportId === 'string' ? data.exportId.trim() : '';
+      if (!r.ok || !EXPORT_ID_RE.test(exportId)) {
+        setAudioUiState('error');
+        setAudioError(
+          typeof data.error === 'string'
+            ? data.error
+            : typeof data.message === 'string'
+              ? data.message
+              : 'Could not generate connection audio.'
+        );
+        return;
+      }
+      setAudioExportId(exportId);
+      setComparison((prev) => (prev ? { ...prev, exportJobId: exportId } : prev));
+      setAudioUiState('ready');
+      setExportReachable(null);
+    } catch {
+      setAudioUiState('error');
+      setAudioError('Could not generate connection audio.');
+    }
+  }, [relationshipId]);
+
   const { short, long, bullets } = comparison ? renderCompatText(comparison) : { short: '', long: '', bullets: [] as string[] };
+  const { readingSections, sonicText } = useMemo(
+    () => splitConnectionReadingSections(comparison?.explanation ?? null),
+    [comparison?.explanation]
+  );
   const hasReadingSurface = comparison
     ? hasCompatibilityReadingSurface(comparison.explanation ?? null, comparison.compatibilityText)
     : false;
+  const showConnectionAudio =
+    phase === 'ready' && !!comparison && hasReadingSurface && !!relationship?.comparisonId;
+  const audioReady = !!(exId && EXPORT_ID_RE.test(exId) && exportReachable === true);
+  const audioPlayerExportId = audioReady ? exId : null;
 
   return (
     <AppShell>
@@ -253,9 +337,9 @@ export default function CommunityRelationshipArtifactPage() {
             {comparison && hasReadingSurface && (
               <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
                 <h2 className="text-lg font-medium text-text">Reading</h2>
-                {Array.isArray(comparison.explanation?.sections) && comparison.explanation!.sections!.length > 0 ? (
+                {readingSections.length > 0 ? (
                   <div className="space-y-4">
-                    {comparison.explanation!.sections!.map((s, i) => (
+                    {readingSections.map((s, i) => (
                       <div key={i}>
                         {s.title ? <h3 className="text-sm font-medium text-text mb-1">{s.title}</h3> : null}
                         {s.text ? <p className="text-sm text-text whitespace-pre-wrap">{s.text}</p> : null}
@@ -287,18 +371,55 @@ export default function CommunityRelationshipArtifactPage() {
               </section>
             )}
 
+            {showConnectionAudio && (
+              <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
+                <h2 className="reading-section-header">Hear this connection</h2>
+                {sonicText ? (
+                  <div className="text-body-sm text-text-secondary leading-relaxed">
+                    <IdentityMarkdown content={sonicText} />
+                  </div>
+                ) : null}
+
+                {audioPlayerExportId ? (
+                  <div className="space-y-3">
+                    <p className="text-body-sm text-text-secondary">Your connection soundtrack is ready.</p>
+                    <ValidatedExportAudioPlayer exportId={audioPlayerExportId} />
+                  </div>
+                ) : audioUiState === 'generating' ? (
+                  <Button type="button" variant="audio" size="sm" loading disabled>
+                    Generating audio…
+                  </Button>
+                ) : audioUiState === 'error' ? (
+                  <div className="space-y-2">
+                    <p className="text-body-sm text-amber-600 dark:text-amber-300" role="alert">
+                      {audioError || 'Connection audio unavailable. Try again.'}
+                    </p>
+                    <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                      Try again
+                    </Button>
+                  </div>
+                ) : exId && exportReachable === false ? (
+                  <div className="space-y-2">
+                    <p className="text-body-sm text-amber-600 dark:text-amber-300">
+                      Sound record not in storage. Generate a new soundtrack.
+                    </p>
+                    <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                      Hear this connection
+                    </Button>
+                  </div>
+                ) : (
+                  <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                    Hear this connection
+                  </Button>
+                )}
+              </section>
+            )}
+
             {comparison && !hasReadingSurface && !materializeError && (
               <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
                 Stored reading text is missing or incomplete for this connection. Use “materialize” from the server or open
                 a new compatibility reading from Community.
               </p>
-            )}
-
-            {exId && exportReachable === true && (
-              <section className="space-y-2">
-                <h2 className="text-lg font-medium text-text">Sound</h2>
-                <ValidatedExportAudioPlayer exportId={exId} />
-              </section>
             )}
 
             {comparison?.planHash && String(comparison.planHash).length > 0 && !String(comparison.planHash).includes('__') ? (

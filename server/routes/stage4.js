@@ -608,6 +608,64 @@ function createStage4Router() {
     }
   });
 
+  router.post('/relationships/:id/audio', async (req, res) => {
+    const ownerUserId = requireOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const relationship = await pgStore.getRelationshipById(req.params.id);
+      if (!relationship || relationship.ownerUserId !== ownerUserId) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      const comparisonId = relationship.comparisonId;
+      if (!comparisonId) {
+        return res.status(400).json({
+          error: 'reading_not_materialized',
+          message: 'Materialize the reading before generating audio.',
+        });
+      }
+      const comparison = await pgStore.getComparison(comparisonId);
+      if (!comparison) {
+        return res.status(404).json({ error: 'comparison_not_found' });
+      }
+      const existingExport =
+        comparison.exportJobId != null ? String(comparison.exportJobId).trim() : '';
+      if (existingExport && /^[a-f0-9]{64}$/.test(existingExport)) {
+        return res.status(200).json({ exportId: existingExport, status: 'already_available' });
+      }
+      const relationshipMode = coerceRelationshipModeFromStorage(comparison.relationshipMode);
+      const core = await composeComparisonAggregateReading({
+        chartAId: comparison.chartAId,
+        chartBId: comparison.chartBId,
+        relationshipMode,
+        seekerChartId: comparison.chartAId,
+        targetChartId: comparison.chartBId,
+        relationshipBindingId: relationship.id,
+        generateAudio: true,
+      });
+      const exportId =
+        core.compose.export_id && String(core.compose.export_id).trim()
+          ? String(core.compose.export_id).trim()
+          : null;
+      if (!exportId) {
+        const exportError =
+          core.compose.export_error != null && core.compose.export_error !== undefined
+            ? String(core.compose.export_error)
+            : 'audio_generation_failed';
+        return res.status(502).json({
+          error: exportError,
+          export_attempted: !!core.compose.export_attempted,
+        });
+      }
+      await pgStore.updateComparisonExportJobIfEmpty(comparisonId, exportId);
+      return res.status(200).json({ exportId, status: 'generated' });
+    } catch (e) {
+      if (String(e?.message || '').includes('missing vectors')) {
+        return res.status(422).json({ error: 'missing_vectors' });
+      }
+      return res.status(500).json({ error: e?.message || 'audio_generation_failed' });
+    }
+  });
+
   router.get('/relationships/:id/forecast', async (req, res) => {
     const viewerUserId = requireOwner(req, res);
     if (!viewerUserId) return;
