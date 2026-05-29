@@ -189,15 +189,27 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
             <section className="space-y-2">
               <h4 className="text-sm font-semibold text-text">Incoming requests</h4>
               <ul className="space-y-2">
-                {(data as CommunityInventoryV1).pendingIncomingIntents.map((intent: Record<string, unknown>) => (
+                {(data as CommunityInventoryV1).pendingIncomingIntents.map((intent: Record<string, unknown>) => {
+                  const fromDisplayName =
+                    typeof intent.fromDisplayName === 'string' && intent.fromDisplayName.trim()
+                      ? intent.fromDisplayName.trim()
+                      : typeof intent.from_display_name === 'string' && intent.from_display_name.trim()
+                        ? intent.from_display_name.trim()
+                        : null;
+                  const kindRaw = intent.relationshipKind ?? intent.relationship_kind;
+                  const kindLabel =
+                    typeof kindRaw === 'string' && kindRaw.trim()
+                      ? kindRaw.trim().charAt(0).toUpperCase() + kindRaw.trim().slice(1).toLowerCase()
+                      : null;
+                  return (
                   <li
                     key={String(intent.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5"
                   >
                     <span className="text-sm text-text">
-                      From user <span className="font-mono text-xs">{String(intent.fromUserId).slice(-8)}</span>
-                      {intent.relationshipKind ? (
-                        <span className="ml-2 text-xs text-subtext capitalize">· {String(intent.relationshipKind)}</span>
+                      {fromDisplayName ?? 'Unknown user'}
+                      {kindLabel ? (
+                        <span className="ml-2 text-xs text-subtext">· {kindLabel}</span>
                       ) : null}
                     </span>
                     <div className="flex flex-wrap gap-2">
@@ -221,7 +233,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       </button>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           )}
