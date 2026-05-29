@@ -282,7 +282,7 @@ export default function CommunityRelationshipArtifactPage() {
 
   const { short, long, bullets } = comparison ? renderCompatText(comparison) : { short: '', long: '', bullets: [] as string[] };
   const { readingSections, sonicText } = useMemo(
-    () => splitConnectionReadingSections(comparison?.explanation ?? null),
+    () => splitConnectionReadingSections(comparison?.explanation),
     [comparison?.explanation]
   );
   const hasReadingSurface = comparison
