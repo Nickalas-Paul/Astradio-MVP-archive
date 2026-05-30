@@ -8,6 +8,15 @@ import { arcPath, pol } from './wheel-geometry';
 
 const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
+/** House index → angle label (professional chart wheel). */
+const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
+  0: 'ASC',
+  3: 'IC',
+  6: 'DSC',
+  9: 'MC',
+};
+
+const ANGLE_LABEL_FILL = '#00674f';
 const SOUTH_NODE_OPACITY = 0.45;
 
 export interface WheelSvgCoreProps {
@@ -77,15 +86,25 @@ export function WheelSvgCore({
                 strokeWidth={1}
                 opacity={1}
               />
-              <text
-                x={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).x}
-                y={pol((R_OUT + R_IN) / 2, (a0 + span / 2) % 360).y + 3}
-                textAnchor="middle"
-                fill={WHEEL_COLORS.houseNumberFill}
-                fontSize={10}
-              >
-                {i + 1}
-              </text>
+              {(() => {
+                const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
+                const labelLon = angleLabel != null ? a0 : (a0 + span / 2) % 360;
+                const labelR = angleLabel != null ? R_OUT - 2 : (R_OUT + R_IN) / 2;
+                const pt = pol(labelR, labelLon);
+                return (
+                  <text
+                    x={pt.x}
+                    y={pt.y + (angleLabel != null ? 4 : 3)}
+                    textAnchor="middle"
+                    fill={angleLabel != null ? ANGLE_LABEL_FILL : WHEEL_COLORS.houseNumberFill}
+                    fontSize={angleLabel != null ? 11 : 10}
+                    fontWeight={angleLabel != null ? 600 : 400}
+                    fontFamily={angleLabel != null ? 'var(--font-serif, Georgia, serif)' : undefined}
+                  >
+                    {angleLabel ?? String(i + 1)}
+                  </text>
+                );
+              })()}
             </g>
           );
         })}
