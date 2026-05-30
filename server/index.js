@@ -625,7 +625,7 @@ function calcPlacidusCusps(jd, lat, lon) {
 }
 
 // Phase 8H: body order for deterministic priorityBase (same as canonical-bodies)
-const BODY_ORDER_INDEX = { sun:0,moon:1,mercury:2,venus:3,mars:4,jupiter:5,saturn:6,uranus:7,neptune:8,pluto:9,chiron:10,ceres:11,pallas:12,juno:13,vesta:14 };
+const BODY_ORDER_INDEX = { sun:0,moon:1,mercury:2,venus:3,mars:4,jupiter:5,saturn:6,uranus:7,neptune:8,pluto:9,northNode:10,chiron:11,ceres:12,pallas:13,juno:14,vesta:15 };
 function bodyOrderIdx(name) { return BODY_ORDER_INDEX[name] != null ? BODY_ORDER_INDEX[name] : 999; }
 
 // Calculate aspects between all bodies (Phase 8H: deterministic orbs + dynamics/strength/exactness/priorityBase [+ optional motion]))
@@ -1235,7 +1235,7 @@ app.get("/chart", (req, res) => {
 });
 
 // EphemerisSnapshot-shaped JSON for ML feature encoding (sky mode). Phase 8H: canonical body set.
-const PLANET_ORDER = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto','chiron','ceres','pallas','juno','vesta'];
+const PLANET_ORDER = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto','northNode','chiron','ceres','pallas','juno','vesta'];
 function moonPhaseNorm(jd) {
   try {
     const sunResult = swe.swe_calc_ut(jd, swe.SE_SUN, swe.SEFLG_SWIEPH);

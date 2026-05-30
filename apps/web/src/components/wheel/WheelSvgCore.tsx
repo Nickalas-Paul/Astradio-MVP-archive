@@ -8,6 +8,8 @@ import { arcPath, pol } from './wheel-geometry';
 
 const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
+const SOUTH_NODE_OPACITY = 0.45;
+
 export interface WheelSvgCoreProps {
   chart: ChartForWheel;
   size: number;
@@ -144,6 +146,27 @@ export function WheelSvgCore({
             </text>
           );
         })}
+
+        {(() => {
+          const nnLon = positions.northNode ?? positions.northnode;
+          if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
+          const southLon = (nnLon + 180) % 360;
+          const p = pol(R_OUT - 10, southLon);
+          return (
+            <text
+              key="southNode-derived"
+              x={p.x}
+              y={p.y + 4}
+              textAnchor="middle"
+              fill={WHEEL_COLORS.planetGlyphFill}
+              fontSize={11}
+              opacity={SOUTH_NODE_OPACITY}
+              pointerEvents="none"
+            >
+              {PLANET_GLYPH.southNode}
+            </text>
+          );
+        })()}
       </g>
     </svg>
   );

@@ -95,6 +95,7 @@ export type AuditionResult = {
 // Phase 4A/8H: Sandbox Draft contract — canonical body set (core 10 + Chiron, Ceres, Pallas, Juno, Vesta)
 export type PlanetKey =
   | 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto'
+  | 'northNode'
   | 'chiron' | 'ceres' | 'pallas' | 'juno' | 'vesta';
 
 export type SandboxBirth = {

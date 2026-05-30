@@ -8,6 +8,7 @@ import type { CanonicalLocation } from './location';
 /** Phase 8H: canonical body set (core 10 + Chiron, Ceres, Pallas, Juno, Vesta). */
 export type PlanetKey =
   | 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto'
+  | 'northNode'
   | 'chiron' | 'ceres' | 'pallas' | 'juno' | 'vesta';
 
 export type SandboxBirth = {

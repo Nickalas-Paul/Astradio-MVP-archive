@@ -16,6 +16,7 @@ const PLANET_GLYPH: Record<string, string> = {
   uranus: '\u2645',
   neptune: '\u2646',
   pluto: '\u2647',
+  northNode: '\u260A',
   chiron: '\u26B7',
   ceres: '\u26B3',
   pallas: '\u26B4',

@@ -4,7 +4,7 @@
  * No surface should maintain its own silent body subset unless explicitly product-scoped and documented.
  */
 
-/** Core 10 + Chiron, Ceres, Pallas, Juno, Vesta */
+/** Core 10 + North Node + Chiron, Ceres, Pallas, Juno, Vesta */
 export const SUPPORTED_BODIES = [
   'sun',
   'moon',
@@ -16,6 +16,7 @@ export const SUPPORTED_BODIES = [
   'uranus',
   'neptune',
   'pluto',
+  'northNode',
   'chiron',
   'ceres',
   'pallas',
@@ -48,6 +49,7 @@ export const BODY_LABELS: Record<BodyKey, string> = {
   uranus: 'Uranus',
   neptune: 'Neptune',
   pluto: 'Pluto',
+  northNode: 'North Node',
   chiron: 'Chiron',
   ceres: 'Ceres',
   pallas: 'Pallas',
