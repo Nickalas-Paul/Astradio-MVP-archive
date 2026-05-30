@@ -388,9 +388,14 @@ export default function SandboxPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (seq !== activeSlotPreviewSeqRef.current) return;
+        const msg = (data?.error ?? data?.message) || `Snapshot failed: ${res.status}`;
+        if (res.status === 422) {
+          setSurfaceState('error');
+          setError(String(msg));
+        }
         dispatchComposition({
           type: 'preview_sync_error',
-          message: (data?.error ?? data?.message) || `Snapshot failed: ${res.status}`,
+          message: String(msg),
         });
         return;
       }
@@ -1558,6 +1563,11 @@ export default function SandboxPage() {
                     selectedPlanetForPlacement={paletteSelectedPlanet}
                   />
                 </div>
+                {preview.syncStatus === 'error' && preview.error ? (
+                  <p className="mt-3 text-xs text-red-400 border border-red-500/30 rounded-lg p-2.5 bg-red-500/5" role="alert">
+                    {preview.error}
+                  </p>
+                ) : null}
                 {resolveSynastryNotice === 'asteroids_excluded_v1' && (
                   <p
                     className="mt-3 text-xs text-amber-200/90 border border-amber-500/30 rounded-lg p-2.5 bg-amber-500/5"

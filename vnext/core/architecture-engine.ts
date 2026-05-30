@@ -20,6 +20,8 @@ export interface ChartInput {
   lon: number;
   /** IANA zone; when set, /api/chart-snapshot interprets date+time in this zone. */
   timezone?: string;
+  /** placidus | equal | koch — passed to chart-snapshot when set. */
+  houseSystem?: string;
 }
 
 export interface ArchitectureOutput {
@@ -45,21 +47,29 @@ export interface ArchitectureOutput {
 export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSnapshot> {
   const PORT = process.env.PORT || '4000';
   const base = process.env.API_BASE_URL || `http://localhost:${PORT}`;
-  const { date, time, lat, lon, timezone } = input;
+  const { date, time, lat, lon, timezone, houseSystem } = input;
   const timeStr = time.length === 5 ? time : time.slice(0, 5);
   const q = new URLSearchParams({ date, time: timeStr, lat: String(lat), lon: String(lon) });
   const tz = timezone && String(timezone).trim();
   if (tz) q.set('timezone', tz);
+  const hs = houseSystem && String(houseSystem).trim();
+  if (hs) q.set('houseSystem', hs);
   const headers: Record<string, string> = {};
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   if (bypass && typeof bypass === 'string' && bypass.trim()) {
     headers['x-vercel-protection-bypass'] = bypass.trim();
   }
   const r = await fetch(`${base}/api/chart-snapshot?${q}`, { headers });
+  const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
   if (!r.ok) {
-    throw new Error(`chart-snapshot failed: ${r.status} ${r.statusText}`);
+    const msg =
+      (typeof data.error === 'string' && data.error) ||
+      `chart-snapshot failed: ${r.status} ${r.statusText}`;
+    const err = new Error(msg) as Error & { status?: number };
+    err.status = r.status;
+    throw err;
   }
-  return r.json() as Promise<EphemerisSnapshot>;
+  return data as EphemerisSnapshot;
 }
 
 /**

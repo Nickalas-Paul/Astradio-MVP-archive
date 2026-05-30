@@ -21,12 +21,23 @@ async function fetchBaseSnapshot(birth: SandboxBirth): Promise<EphemerisSnapshot
     lat: String(birth.lat),
     lon: String(birth.lon),
   });
+  const tz = typeof birth.tz === 'string' ? birth.tz.trim() : '';
+  if (tz) params.set('timezone', tz);
+  const houseSystem = typeof birth.houseSystem === 'string' ? birth.houseSystem.trim() : '';
+  if (houseSystem) params.set('houseSystem', houseSystem);
   const url = `${base}/api/chart-snapshot?${params}`;
   const res = await fetch(url);
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    throw new Error(`Failed to fetch base snapshot: ${res.status} ${res.statusText}`);
+    const msg =
+      (typeof data.error === 'string' && data.error) ||
+      (typeof data.message === 'string' && data.message) ||
+      `Failed to fetch base snapshot: ${res.status} ${res.statusText}`;
+    const err = new Error(msg) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
-  return res.json();
+  return data as EphemerisSnapshot;
 }
 
 function extractCanonicalObjectHashFromCompose(compose: { explanation?: { meta?: { canonical_object_hash?: string } } }): string | null {
@@ -53,7 +64,14 @@ export function createSandboxRouter(): import('express').Router {
         return res.status(400).json({ error: msg });
       }
 
-      const baseSnapshot = await fetchBaseSnapshot(birth);
+      let baseSnapshot: EphemerisSnapshot;
+      try {
+        baseSnapshot = await fetchBaseSnapshot(birth);
+      } catch (fetchErr: unknown) {
+        const fe = fetchErr as Error & { status?: number };
+        const status = fe.status === 422 ? 422 : 500;
+        return res.status(status).json({ error: fe.message || 'Failed to fetch base snapshot' });
+      }
       const overriddenSnapshot = generateSnapshotWithOverrides(baseSnapshot, overrides);
 
       const birthHash = hashBirth(birth);

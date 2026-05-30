@@ -570,25 +570,58 @@ function calcPositions(jd, includeExtras = true){
   return { positions, speeds };
 }
 
-// Calculate Placidus house cusps
-function calcPlacidusCusps(jd, lat, lon) {
+/** Normalize UI/API house system id to canonical id used in snapshot JSON. */
+function normalizeHouseSystemId(raw) {
+  const s = (raw == null ? '' : String(raw)).trim().toLowerCase();
+  if (s === 'equal' || s === 'whole-sign' || s === 'wholesign') return 'equal';
+  if (s === 'koch') return 'koch';
+  if (s === 'placidus' || s === 'p') return 'placidus';
+  return 'placidus';
+}
+
+/** Swiss Ephemeris house system letter for swe_houses. */
+function sweHouseSystemLetter(houseSystemId) {
+  const id = normalizeHouseSystemId(houseSystemId);
+  if (id === 'equal') return 'E';
+  if (id === 'koch') return 'K';
+  return 'P';
+}
+
+const HOUSE_SYSTEM_FAILURE_MESSAGE =
+  'Placidus or Koch house calculation failed for this latitude. Please select Equal house system.';
+
+/**
+ * Calculate house cusps. Returns { ok: true, cusps, houseSystem } or { ok: false, status, error }.
+ * No silent equal-house fallback when Placidus/Koch was requested.
+ */
+function calcHouseCusps(jd, lat, lon, houseSystemInput) {
+  const houseSystem = normalizeHouseSystemId(houseSystemInput);
+  const sweFlag = sweHouseSystemLetter(houseSystem);
   try {
-    // Calculate ASC (Ascendant)
-    const result = swe.swe_houses(jd, lat, lon, 'P'); // 'P' for Placidus
-    
-    // Check if we have valid house data
+    const result = swe.swe_houses(jd, lat, lon, sweFlag);
     if (!result || !result.house || !Array.isArray(result.house) || result.house.length < 12) {
-      console.warn("Invalid house data from Swiss Ephemeris, falling back to equal house");
-      return Array.from({length:12}, (_,i) => i*30); // fallback to equal house
+      if (houseSystem === 'equal') {
+        return { ok: false, status: 500, error: 'Equal house calculation failed' };
+      }
+      return { ok: false, status: 422, error: HOUSE_SYSTEM_FAILURE_MESSAGE };
     }
-    
-    // The house array contains houses 1-12 directly (no need to slice)
     const cusps = result.house.slice(0, 12);
-    return cusps;
+    return { ok: true, cusps, houseSystem };
   } catch (e) {
-    console.error('Error calculating Placidus cusps:', e.message);
-    return Array.from({length:12}, (_,i) => i*30); // fallback to equal house
+    const msg = e && e.message ? e.message : String(e);
+    console.error(`Error calculating ${houseSystem} house cusps:`, msg);
+    if (houseSystem === 'equal') {
+      return { ok: false, status: 500, error: msg || 'Equal house calculation failed' };
+    }
+    return { ok: false, status: 422, error: HOUSE_SYSTEM_FAILURE_MESSAGE };
   }
+}
+
+/** @deprecated Use calcHouseCusps — kept for internal callers expecting cusps array only. */
+function calcPlacidusCusps(jd, lat, lon) {
+  const r = calcHouseCusps(jd, lat, lon, 'placidus');
+  if (!r.ok) return Array.from({ length: 12 }, (_, i) => i * 30);
+  return r.cusps;
 }
 
 // Phase 8H: body order for deterministic priorityBase (same as canonical-bodies)
@@ -1229,9 +1262,15 @@ app.get("/api/chart-snapshot", (req, res) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       return res.status(400).json({ error: "Valid lat/lon required" });
     }
+    const houseSystemParam = (req.query.houseSystem || req.query.house_system || "").toString().trim() || null;
     const jd = toJulianDayUT(date, time, lat, lon, timezoneParam);
     const { positions, speeds } = calcPositions(jd, true);
-    const cusps = calcPlacidusCusps(jd, lat, lon);
+    const houseResult = calcHouseCusps(jd, lat, lon, houseSystemParam);
+    if (!houseResult.ok) {
+      return res.status(houseResult.status).json({ error: houseResult.error });
+    }
+    const cusps = houseResult.cusps;
+    const houseSystemUsed = houseResult.houseSystem;
     const aspects = calcAspects(positions, speeds);
     const dominantElements = calcDominantElements(positions);
     const moonPhase = moonPhaseNorm(jd);
@@ -1271,7 +1310,7 @@ app.get("/api/chart-snapshot", (req, res) => {
       tz: tzUsed,
       lat,
       lon,
-      houseSystem: "placidus",
+      houseSystem: houseSystemUsed,
       planets,
       houses,
       aspects: aspects.map((a) => ({ bodyA: a.a, bodyB: a.b, type: a.type, orb: a.orb, exactAngle: a.exactAngle, dynamics: a.dynamics, strength: a.strength, exactness: a.exactness, priorityBase: a.priorityBase, motion: a.motion })),
