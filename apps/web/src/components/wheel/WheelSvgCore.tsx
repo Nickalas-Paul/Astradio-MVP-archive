@@ -16,7 +16,9 @@ const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
   9: 'MC',
 };
 
-const ANGLE_LABEL_FILL = '#00674f';
+/** Accent on dark house fill — brighter than brand #00674f for legibility on #1a2435. */
+const ANGLE_LABEL_FILL = '#5ec9a8';
+const ANGLE_LABEL_STROKE = 'rgba(232, 236, 241, 0.45)';
 const SOUTH_NODE_OPACITY = 0.45;
 
 export interface WheelSvgCoreProps {
@@ -87,22 +89,38 @@ export function WheelSvgCore({
                 opacity={1}
               />
               {(() => {
+                const midLon = (a0 + span / 2) % 360;
+                const midPt = pol((R_OUT + R_IN) / 2, midLon);
                 const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
-                const labelLon = angleLabel != null ? a0 : (a0 + span / 2) % 360;
-                const labelR = angleLabel != null ? R_OUT - 2 : (R_OUT + R_IN) / 2;
-                const pt = pol(labelR, labelLon);
+                const cuspPt = angleLabel != null ? pol(R_OUT - 8, a0) : null;
                 return (
-                  <text
-                    x={pt.x}
-                    y={pt.y + (angleLabel != null ? 4 : 3)}
-                    textAnchor="middle"
-                    fill={angleLabel != null ? ANGLE_LABEL_FILL : WHEEL_COLORS.houseNumberFill}
-                    fontSize={angleLabel != null ? 11 : 10}
-                    fontWeight={angleLabel != null ? 600 : 400}
-                    fontFamily={angleLabel != null ? 'var(--font-serif, Georgia, serif)' : undefined}
-                  >
-                    {angleLabel ?? String(i + 1)}
-                  </text>
+                  <>
+                    <text
+                      x={midPt.x}
+                      y={midPt.y + 3}
+                      textAnchor="middle"
+                      fill={WHEEL_COLORS.houseNumberFill}
+                      fontSize={10}
+                    >
+                      {i + 1}
+                    </text>
+                    {angleLabel != null && cuspPt != null ? (
+                      <text
+                        x={cuspPt.x}
+                        y={cuspPt.y + 4}
+                        textAnchor="middle"
+                        fill={ANGLE_LABEL_FILL}
+                        stroke={ANGLE_LABEL_STROKE}
+                        strokeWidth={0.6}
+                        paintOrder="stroke fill"
+                        fontSize={10}
+                        fontWeight={600}
+                        fontFamily="Georgia, 'Cormorant Garamond', serif"
+                      >
+                        {angleLabel}
+                      </text>
+                    ) : null}
+                  </>
                 );
               })()}
             </g>

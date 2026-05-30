@@ -605,13 +605,20 @@ export default function SandboxPage() {
   const handleResetAllOverrides = useCallback(() => {
     const model = compositionRef.current;
     const idx = getActiveSlotIndexFromCompositionInput(model.compositionInput);
+    const emptyOverrides = { planets: {} };
+    const hasBase = Boolean(model.preview.baseSnapshot);
     const bReset =
-      model.compositionInput.slots[idx]?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(idx) ?? undefined;
-    if (!bReset || !preview.baseSnapshot) return;
+      model.compositionInput.slots[idx]?.ephemeris_birth ??
+      resolvePreviewBirthBySlotRef.current.get(idx) ??
+      undefined;
+
     dispatchComposition({ type: 'reset_overrides_to_base' });
-    updateSnapshot(bReset, { planets: {} });
+
+    if (hasBase && bReset) {
+      void updateSnapshot(bReset, emptyOverrides);
+    }
     setSurfaceState('ready_builder');
-  }, [preview.baseSnapshot, updateSnapshot]);
+  }, [updateSnapshot]);
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
 

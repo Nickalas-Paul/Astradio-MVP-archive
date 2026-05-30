@@ -465,19 +465,20 @@ export function sandboxCompositionReducer(
     }
 
     case 'reset_overrides_to_base': {
-      const base = state.preview.baseSnapshot;
-      if (!base) return state;
       const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
       let slots = withSlotsEnsured(state.compositionInput.slots, idx);
       const prev = slots[idx] ?? { overrides: { planets: {} } };
       slots = [...slots];
       slots[idx] = { ...prev, overrides: { planets: {} } };
+      const base = state.preview.baseSnapshot;
       return {
         ...state,
         compositionInput: { ...state.compositionInput, slots, seed: undefined },
         preview: {
           ...state.preview,
-          overriddenSnapshot: base,
+          syncStatus: 'idle',
+          error: null,
+          overriddenSnapshot: base ?? null,
         },
       };
     }
