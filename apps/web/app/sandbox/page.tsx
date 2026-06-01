@@ -10,6 +10,8 @@ import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSa
 import { SandboxWheelPanel } from '../../src/components/sandbox/SandboxWheelPanel';
 import { SandboxSlotComposer } from '../../src/components/sandbox/SandboxSlotComposer';
 import { SandboxResolvePanel } from '../../src/components/sandbox/SandboxResolvePanel';
+import { SandboxAudioPanel } from '../../src/components/sandbox/SandboxAudioPanel';
+import { SandboxProvenancePanel } from '../../src/components/sandbox/SandboxProvenancePanel';
 import {
   activeSlotBirth,
   activeSlotOverrides,
@@ -74,12 +76,6 @@ export default function SandboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
-  const [replayLoading, setReplayLoading] = useState(false);
-  const [replayStatus, setReplayStatus] = useState<'idle' | 'match' | 'mismatch' | 'error'>('idle');
-  const [replayError, setReplayError] = useState<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
   const [savedList, setSavedList] = useState<Array<{ id: string; plan_hash: string; vector_hash: string; created_at: string; export_id?: string | null; source?: string | null }>>([]);
   const [listLoading, setListLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -660,10 +656,6 @@ export default function SandboxPage() {
     setGenerateLoading(true);
     setGenerateError(null);
     dispatchComposition({ type: 'resolve_cleared' });
-    setReplayStatus('idle');
-    setReplayError(null);
-    setDownloadError(null);
-    setPlaybackError(null);
     const el = audioRef.current;
     if (el) {
       el.pause();
@@ -806,98 +798,28 @@ export default function SandboxPage() {
     }
   }, [canGenerate]);
 
-  const handleReplay = useCallback(async () => {
+  const handleReplay = useCallback(async (): Promise<'match' | 'mismatch'> => {
     const lr = compositionModel.lastResolve;
     const body = lr?.source === 'live_resolve' ? lr.lastSubmittedResolveBody : null;
     if (!planHash || !body) {
-      setReplayError('Replay unavailable: missing last composition payload or plan hash from last generate.');
-      setReplayStatus('error');
-      return;
+      throw new Error('Replay unavailable: missing last composition payload or plan hash from last generate.');
     }
     const base = getApiBaseUrl();
-    setReplayLoading(true);
-    setReplayError(null);
-    setReplayStatus('idle');
-    try {
-      const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const resolveData = await resolveRes.json().catch(() => ({}));
-      if (!resolveRes.ok || resolveData.ok === false) {
-        setReplayError((resolveData.error ?? resolveData.message) || `Replay resolve: ${resolveRes.status}`);
-        setReplayStatus('error');
-        return;
-      }
-      const replayPlan = extractPlanSha256FromResolveResponse(resolveData as Record<string, unknown>);
-      if (!replayPlan) {
-        setReplayError('Replay resolve response missing plan_sha256');
-        setReplayStatus('error');
-        return;
-      }
-      setReplayStatus(replayPlan !== planHash ? 'mismatch' : 'match');
-    } catch (e) {
-      setReplayError(e instanceof Error ? e.message : 'Replay failed');
-      setReplayStatus('error');
-    } finally {
-      setReplayLoading(false);
+    const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const resolveData = await resolveRes.json().catch(() => ({}));
+    if (!resolveRes.ok || resolveData.ok === false) {
+      throw new Error((resolveData.error ?? resolveData.message) || `Replay resolve: ${resolveRes.status}`);
     }
+    const replayPlan = extractPlanSha256FromResolveResponse(resolveData as Record<string, unknown>);
+    if (!replayPlan) {
+      throw new Error('Replay resolve response missing plan_sha256');
+    }
+    return replayPlan !== planHash ? 'mismatch' : 'match';
   }, [planHash, compositionModel.lastResolve]);
-
-  const handleAudioPlay = useCallback(() => {
-    setPlaybackError(null);
-    const el = audioRef.current;
-    if (!el) return;
-    el.play().catch(() => {
-      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
-    });
-  }, []);
-  const handleAudioStop = useCallback(() => {
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
-    setPlaybackError(null);
-  }, []);
-  const handleAudioReplay = useCallback(() => {
-    setPlaybackError(null);
-    const el = audioRef.current;
-    if (!el) return;
-    el.pause();
-    el.currentTime = 0;
-    el.play().catch(() => {
-      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
-    });
-  }, []);
-
-  const handleDownloadWav = useCallback(async () => {
-    if (!exportId) return;
-    const base = getApiBaseUrl();
-    const url = `${base || ''}/api/exports/${exportId}`;
-    setDownloadError(null);
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        setDownloadError(`Download failed: ${res.status}`);
-        return;
-      }
-      const ct = (res.headers.get('content-type') || '').toLowerCase();
-      if (ct && !ct.includes('audio') && !ct.includes('wav')) {
-        setDownloadError('Download failed: response is not audio (wrong content-type).');
-        return;
-      }
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `astradio-sandbox-${exportId.slice(0, 8)}.wav`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch (e) {
-      setDownloadError(e instanceof Error ? e.message : 'Download failed');
-    }
-  }, [exportId]);
 
   const fetchSavedList = useCallback(async () => {
     setListLoading(true);
@@ -1225,12 +1147,6 @@ export default function SandboxPage() {
       ? displayCusps[0]!
       : undefined;
 
-  const replayNeedsSnapshot = Boolean(
-    compositionModel.lastResolve?.source === 'live_resolve' &&
-      compositionModel.lastResolve.lastSubmittedResolveBody &&
-      compositionModel.lastResolve.planSha256
-  );
-
   const showComposerSurface =
     surfaceState === 'ready_builder' ||
     surfaceState === 'syncing_overrides' ||
@@ -1379,107 +1295,23 @@ export default function SandboxPage() {
               />
                 <SandboxReportSections displayReport={displayReport} />
                 {hasGenerated && (
-                  <div className="mt-6 space-y-2">
-                    <h3 className="text-sm font-semibold text-text">Audio</h3>
-                    {exportId ? (
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button type="button" onClick={handleAudioPlay} className="btn-audio">
-                            Play
-                          </button>
-                          <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                            Stop
-                          </button>
-                          <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                            Restart
-                          </button>
-                          <button type="button" onClick={handleDownloadWav} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                            Download WAV
-                          </button>
-                        </div>
-                        <audio key={exportId} ref={audioRef} src={sandboxAudioSrc ?? undefined} controls className="max-w-full w-full" />
-                        {playbackError && <p className="text-xs text-red-400">{playbackError}</p>}
-                        {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <p className="text-xs text-subtext">
-                          Audio export unavailable.
-                          {exportUnavailableReason && <span className="ml-1">{exportUnavailableReason.summary}</span>}
-                          {planHash && (
-                            <span className="ml-1">
-                              Plan hash: <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
-                            </span>
-                          )}
-                        </p>
-                        {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
-                          <details className="text-xs text-subtext" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
-                            <summary className="cursor-pointer hover:text-text">Details</summary>
-                            <pre className="mt-1 p-2 bg-bgElev rounded border border-border/60 overflow-auto">
-                              {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message]
-                                .filter(Boolean)
-                                .join('\n')}
-                            </pre>
-                          </details>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <SandboxAudioPanel
+                    exportId={exportId}
+                    sandboxAudioSrc={sandboxAudioSrc}
+                    planHash={planHash}
+                    exportUnavailableReason={exportUnavailableReason}
+                    audioRef={audioRef}
+                  />
                 )}
                 {hasGenerated && (
-                  <details className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3 group">
-                    <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 text-subtext hover:text-text [&::-webkit-details-marker]:hidden">
-                      <span className="font-semibold text-text">Provenance &amp; debug replay</span>
-                      <span className="text-caption uppercase tracking-wide text-subtext/90 group-open:hidden">Show secondary tools</span>
-                      <span className="text-caption uppercase tracking-wide text-subtext/90 hidden group-open:inline">Hide</span>
-                    </summary>
-                    <p className="mt-2 text-xs text-subtext">
-                      Secondary only: export the last bundle or replay the <span className="font-medium text-text">exact JSON</span> from the previous resolve. This is not a second
-                      Generate and does <span className="font-medium text-text">not</span> use your current wheel—use{' '}
-                      <span className="font-medium text-text">Generate from current composition</span> for that.
-                    </p>
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-                      <button onClick={handleExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                        Export JSON
-                      </button>
-                      <button
-                        onClick={handleReplay}
-                        disabled={replayLoading || !replayNeedsSnapshot}
-                        className="px-3 py-1.5 text-xs rounded-lg border border-dashed border-border/80 bg-bgElev/60 hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-subtext"
-                      >
-                        {replayLoading ? 'Replaying…' : 'Replay last resolve payload'}
-                      </button>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <div>
-                        <span className="font-semibold">combinedHash:</span>{' '}
-                        {lastCombinedHashUsed ? (
-                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{lastCombinedHashUsed}</code>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </div>
-                      <div>
-                        <span className="font-semibold">plan_sha256:</span>{' '}
-                        {planHash ? (
-                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{planHash}</code>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </div>
-                      <div>
-                        <span className="font-semibold">export_id:</span>{' '}
-                        {exportId ? (
-                          <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60 break-all">{exportId}</code>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </div>
-                    </div>
-                    {replayStatus === 'mismatch' && <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>}
-                    {replayStatus === 'match' && <p className="text-xs text-accent-light">Replay matched plan hash.</p>}
-                    {replayStatus === 'error' && replayError && <p className="text-xs text-red-400">{replayError}</p>}
-                  </details>
+                  <SandboxProvenancePanel
+                    lastResolve={lastResolve}
+                    planHash={planHash}
+                    lastCombinedHashUsed={lastCombinedHashUsed}
+                    exportId={exportId}
+                    onExportJson={handleExportJson}
+                    onReplay={handleReplay}
+                  />
                 )}
               </div>
             </motion.div>
