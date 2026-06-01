@@ -3,12 +3,20 @@
 import { useState, useCallback, useRef, useEffect, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
-import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { WheelBuilder } from '@/components/wheel/WheelBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
 import { ChartSearchCombobox } from '../../src/components/sandbox/ChartSearchCombobox';
+import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
+import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSavedCompositions';
+import {
+  activeSlotBirth,
+  activeSlotOverrides,
+  buildLastResolveFromLoadedRow,
+  extractSandboxResolvePayload,
+  extractPlanSha256FromResolveResponse,
+} from './page-helpers';
 import type {
   SandboxBirth,
   SandboxOverrides,
@@ -16,7 +24,6 @@ import type {
   EphemerisSnapshot,
   SandboxReport,
   SandboxSnapshotMeta,
-  SandboxResolvedSession,
 } from '../../src/types/sandbox';
 import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
@@ -35,7 +42,6 @@ import {
   populatedSlotsAreAggregateEligible,
   slotWirePopulationKind,
   parsePersistedSandboxState,
-  type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 import { equalHouseCuspsFromAscendant } from '../../src/lib/equal-house-cusps';
@@ -59,163 +65,6 @@ type SandboxSurfaceState =
   | 'ready_report'
   | 'generating'
   | 'error';
-
-function ExplainerSections({ explanation }: { explanation: unknown }) {
-  const ex = explanation as { sections?: unknown } | null;
-  if (!ex?.sections) return null;
-  const sections = Array.isArray(ex.sections) ? ex.sections : [];
-  return (
-    <div className="space-y-6">
-      {sections.map((sec: unknown, i: number) => {
-        const s = sec as { title?: string; id?: string; text?: string; content?: string; bullets?: string[] };
-        return (
-          <section key={i} className="rounded-lg border border-border bg-bgElev p-4">
-            <h2 className="reading-section-header mb-3 first:mt-0">
-              {s.title || s.id || `Section ${i + 1}`}
-            </h2>
-            <IdentityMarkdown content={s.text || s.content || ''} />
-            {s.bullets?.length ? (
-              <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
-                {s.bullets.map((b: string, j: number) => (
-                  <li key={j}>{b}</li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-function activeSlotBirth(model: SandboxCompositionModelState): SandboxBirth | undefined {
-  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
-  return model.compositionInput.slots[i]?.ephemeris_birth;
-}
-
-function activeSlotOverrides(model: SandboxCompositionModelState): SandboxOverrides {
-  const i = getActiveSlotIndexFromCompositionInput(model.compositionInput);
-  return model.compositionInput.slots[i]?.overrides ?? { planets: {} };
-}
-
-function buildLastResolveFromLoadedRow(
-  comp: Record<string, unknown>,
-  parsed: ReturnType<typeof parsePersistedSandboxState>,
-  snapshot: EphemerisSnapshot | null
-): SandboxResolvedSession | null {
-  const report = (comp.report ?? null) as SandboxReport | null;
-  const planSha256 = typeof comp.plan_hash === 'string' ? comp.plan_hash : null;
-  const exportId = typeof comp.export_id === 'string' ? comp.export_id : null;
-  const combinedHashUsed =
-    typeof comp.seed === 'string' ? comp.seed : typeof comp.vector_hash === 'string' ? comp.vector_hash : null;
-
-  const body = parsed.lastSubmittedResolveBody;
-  if (body && planSha256) {
-    const full =
-      parsed.fullResolveResponse && Object.keys(parsed.fullResolveResponse).length > 0
-        ? parsed.fullResolveResponse
-        : ({} as Record<string, unknown>);
-    const env =
-      report && typeof report === 'object' && 'artifact_envelope' in report
-        ? (report as SandboxReport & { artifact_envelope?: Record<string, unknown> }).artifact_envelope
-        : undefined;
-    const canonicalSlotOrder = Array.isArray(full.canonical_slot_order)
-      ? (full.canonical_slot_order as string[])
-      : env && Array.isArray(env.canonical_slot_order)
-        ? (env.canonical_slot_order as string[])
-        : null;
-    const canonicalInputHash =
-      typeof full.canonical_input_hash === 'string'
-        ? full.canonical_input_hash
-        : env && typeof env.canonical_input_hash === 'string'
-          ? env.canonical_input_hash
-          : null;
-    const canonicalObjectHash =
-      report?.meta?.canonical_object_hash ??
-      (typeof full.canonical_object_hash === 'string' ? full.canonical_object_hash : null) ??
-      null;
-
-    const safeReport =
-      report ??
-      ({
-        features: [],
-        personality: null as unknown as SandboxReport['personality'],
-        guidance: null as unknown as SandboxReport['guidance'],
-        explanation: { spec: 'UnifiedSpecV1.1', sections: [] },
-        seed: combinedHashUsed ?? '',
-        meta: { combinedHash: combinedHashUsed ?? '' },
-      } as SandboxReport);
-
-    return {
-      source: 'live_resolve',
-      fullResponse: full,
-      lastSubmittedResolveBody: body,
-      snapshotUsed: snapshot,
-      combinedHashUsed: combinedHashUsed ?? '',
-      planSha256,
-      canonicalSlotOrder,
-      canonicalInputHash,
-      canonicalObjectHash,
-      report: safeReport,
-      exportId,
-      lastComposeProvider: null,
-      exportUnavailableReason: exportId ? null : { summary: 'Export unavailable' },
-    };
-  }
-
-  if (!report && !planSha256) return null;
-
-  return {
-    source: 'loaded_row',
-    report,
-    planSha256,
-    exportId,
-    combinedHashUsed,
-    lastSubmittedResolveBody: null,
-  };
-}
-
-/** Thin extraction only: one of compose | aggregate per response, never mixed. */
-function extractSandboxResolvePayload(resolveData: Record<string, unknown>): {
-  explanation: unknown;
-  planSha256: string;
-  exportId: string | null;
-  exportAvailable: boolean;
-} | null {
-  const compose = resolveData.compose;
-  const aggregate = resolveData.aggregate;
-  const source =
-    compose && typeof compose === 'object'
-      ? (compose as Record<string, unknown>)
-      : aggregate && typeof aggregate === 'object'
-        ? (aggregate as Record<string, unknown>)
-        : null;
-  if (!source) return null;
-  const explanation = source.explanation;
-  const hashes = source.hashes as { plan_sha256?: string } | undefined;
-  const planSha256 = hashes?.plan_sha256;
-  const exportIdRaw = source.export_id;
-  const exportId = typeof exportIdRaw === 'string' && exportIdRaw.length > 0 ? exportIdRaw : null;
-  const exportAvailable = exportId != null;
-  if (!explanation || typeof explanation !== 'object' || !planSha256 || typeof planSha256 !== 'string' || !planSha256.trim()) {
-    return null;
-  }
-  return { explanation, planSha256, exportId, exportAvailable };
-}
-
-function extractPlanSha256FromResolveResponse(resolveData: Record<string, unknown>): string | undefined {
-  const compose = resolveData.compose;
-  if (compose && typeof compose === 'object') {
-    const h = (compose as Record<string, unknown>).hashes as { plan_sha256?: string } | undefined;
-    if (typeof h?.plan_sha256 === 'string' && h.plan_sha256.trim()) return h.plan_sha256;
-  }
-  const aggregate = resolveData.aggregate;
-  if (aggregate && typeof aggregate === 'object') {
-    const h = (aggregate as Record<string, unknown>).hashes as { plan_sha256?: string } | undefined;
-    if (typeof h?.plan_sha256 === 'string' && h.plan_sha256.trim()) return h.plan_sha256;
-  }
-  return undefined;
-}
 
 export default function SandboxPage() {
   const [compositionModel, dispatchComposition] = useReducer(sandboxCompositionReducer, createInitialSandboxCompositionModelState());
@@ -1781,27 +1630,7 @@ export default function SandboxPage() {
                       )}
                   </div>
                 )}
-                {displayReport && (
-                  <div className="mt-6 space-y-4">
-                    {displayReport.personality && (
-                      <section className="rounded-lg border border-border bg-bgElev p-4">
-                        <h3 className="text-lg font-semibold text-text mb-3">Personality</h3>
-                        <div className="text-subtext text-sm">
-                          {displayReport.personality.summary || JSON.stringify(displayReport.personality, null, 2)}
-                        </div>
-                      </section>
-                    )}
-                    {displayReport.guidance && (
-                      <section className="rounded-lg border border-border bg-bgElev p-4">
-                        <h3 className="text-lg font-semibold text-text mb-3">Guidance</h3>
-                        <div className="text-subtext text-sm">
-                          {displayReport.guidance.advice || JSON.stringify(displayReport.guidance, null, 2)}
-                        </div>
-                      </section>
-                    )}
-                    {displayReport.explanation && <ExplainerSections explanation={displayReport.explanation} />}
-                  </div>
-                )}
+                <SandboxReportSections displayReport={displayReport} />
                 {hasGenerated && (
                   <div className="mt-6 space-y-2">
                     <h3 className="text-sm font-semibold text-text">Audio</h3>
@@ -1921,36 +1750,13 @@ export default function SandboxPage() {
                   onResetPlanet={handleResetPlanet}
                 />
               </div>
-              <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-text">Saved</h3>
-                  <button
-                    type="button"
-                    onClick={fetchSavedList}
-                    disabled={listLoading}
-                    className="px-2 py-1 text-xs rounded border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text"
-                  >
-                    {listLoading ? '…' : 'Refresh'}
-                  </button>
-                </div>
-                {listError && <p className="mb-2 text-xs text-red-400">{listError}</p>}
-                {savedList.length === 0 ? (
-                  <p className="text-xs text-subtext">No saved compositions. Generate then Save.</p>
-                ) : (
-                  <ul className="space-y-2 max-h-48 overflow-y-auto">
-                    {savedList.map((item) => (
-                      <li key={item.id} className="flex items-center justify-between gap-2 text-xs border border-border/60 rounded p-2 bg-bgElev/50">
-                        <span className="truncate text-subtext" title={item.id}>
-                          {item.plan_hash?.slice(0, 8) ?? item.id.slice(0, 8)} — {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
-                        </span>
-                        <button type="button" onClick={() => handleLoad(item.id)} className="flex-shrink-0 px-2 py-1 rounded border border-border bg-bgElev hover:bg-bgElev/80 text-text">
-                          Load
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <SandboxSavedCompositions
+                savedList={savedList}
+                listLoading={listLoading}
+                listError={listError}
+                onRefresh={fetchSavedList}
+                onLoad={handleLoad}
+              />
             </motion.div>
           </div>
         )}
