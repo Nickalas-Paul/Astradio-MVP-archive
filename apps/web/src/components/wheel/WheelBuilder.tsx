@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import type { EphemerisSnapshot, SandboxOverrides, PlanetKey } from '../../types/sandbox';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
 import { extractAspects } from './wheel-aspects';
-import { angleToLonDeg } from './wheel-geometry';
+import { angleToLonDeg, resolveAscendantLongitude } from './wheel-geometry';
 import {
   clampToHouse,
   getPlanetAtPoint,
@@ -92,6 +92,10 @@ export function WheelBuilder({
 
   const aspects = snapshot ? extractAspects(snapshot) : undefined;
 
+  const ascendantDeg = effectiveFreeBuild
+    ? freeBuildAsc
+    : resolveAscendantLongitude(normalized);
+
   const R_OUT = wheelSize / 2 - 4;
   const R_IN = R_OUT * 0.6;
   const cx = wheelSize / 2;
@@ -114,7 +118,7 @@ export function WheelBuilder({
     (e: React.PointerEvent<SVGSVGElement>) => {
       if (!svgRef.current) return;
       const { x, y } = pointerToViewBox(e);
-      const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions);
+      const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions, ascendantDeg);
       if (planet) {
         setDraggingPlanet(planet);
         if (constrainToHouse && normalized.cusps.length >= 12) {
@@ -131,7 +135,7 @@ export function WheelBuilder({
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist >= R_IN - 10 && dist <= R_OUT + 20) {
           const angle = Math.atan2(dy, dx);
-          const lonDeg = angleToLonDeg(angle);
+          const lonDeg = angleToLonDeg(angle, ascendantDeg);
           const toPlace =
             selectedPlanetForPlacement ??
             PLANET_ORDER.find((p) => positions[p] === undefined) ??
@@ -151,6 +155,7 @@ export function WheelBuilder({
       effectiveFreeBuild,
       selectedPlanetForPlacement,
       normalized.cusps,
+      ascendantDeg,
       onOverrideChange,
     ]
   );
@@ -162,7 +167,7 @@ export function WheelBuilder({
       const dx = x - cx;
       const dy = y - cy;
       const angle = Math.atan2(dy, dx);
-      let lonDeg = angleToLonDeg(angle);
+      let lonDeg = angleToLonDeg(angle, ascendantDeg);
       if (constrainToHouse && dragStartHouse !== null && normalized.cusps.length >= 12) {
         lonDeg = clampToHouse(lonDeg, dragStartHouse, normalized.cusps);
       }
@@ -177,6 +182,7 @@ export function WheelBuilder({
       constrainToHouse,
       dragStartHouse,
       normalized.cusps,
+      ascendantDeg,
     ]
   );
 
@@ -196,6 +202,7 @@ export function WheelBuilder({
       <WheelSvgCore
         chart={normalized}
         size={wheelSize}
+        ascendantLongitude={ascendantDeg}
         positions={positions}
         aspects={aspects}
         showAspectLines={showAspectLines}

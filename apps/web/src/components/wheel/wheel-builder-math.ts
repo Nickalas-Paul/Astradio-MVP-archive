@@ -11,6 +11,7 @@ export function getPlanetAtPoint(
   centerY: number,
   radius: number,
   positions: Record<string, number>,
+  ascendantDeg: number = 0,
   hitRadius: number = 15
 ): PlanetKey | null {
   const dx = x - centerX;
@@ -19,7 +20,7 @@ export function getPlanetAtPoint(
 
   if (dist > radius - hitRadius && dist < radius + hitRadius) {
     const angle = Math.atan2(dy, dx);
-    const clickLon = angleToLonDeg(angle);
+    const clickLon = angleToLonDeg(angle, ascendantDeg);
 
     let closest: PlanetKey | null = null;
     let minDist = Infinity;

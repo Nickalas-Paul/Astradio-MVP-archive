@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
 import { extractAspects } from './wheel-aspects';
+import { resolveAscendantLongitude } from './wheel-geometry';
 import { WheelSvgCore } from './WheelSvgCore';
 
 export interface WheelDisplayProps {
@@ -98,6 +99,7 @@ export function WheelDisplay({
           <WheelSvgCore
             chart={normalized}
             size={wheelSize}
+            ascendantLongitude={resolveAscendantLongitude(normalized)}
             aspects={aspects}
             showAspectLines={aspectLinesVisible}
           />

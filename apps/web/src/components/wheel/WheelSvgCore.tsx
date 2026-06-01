@@ -4,7 +4,7 @@ import type { Ref, PointerEvent } from 'react';
 import type { ChartForWheel } from '../../core/chart-adapter';
 import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 import { ASPECT_LINE_COLOR, PLANET_GLYPH, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
-import { arcPath, pol } from './wheel-geometry';
+import { arcPath, pol, resolveAscendantLongitude } from './wheel-geometry';
 
 const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
@@ -24,6 +24,8 @@ const SOUTH_NODE_OPACITY = 0.45;
 export interface WheelSvgCoreProps {
   chart: ChartForWheel;
   size: number;
+  /** H1 ecliptic longitude; defaults to chart.asc or cusps[0]. */
+  ascendantLongitude?: number;
   positions?: Record<string, number>;
   aspects?: WheelAspect[];
   showAspectLines?: boolean;
@@ -39,6 +41,7 @@ export interface WheelSvgCoreProps {
 export function WheelSvgCore({
   chart,
   size,
+  ascendantLongitude,
   positions: positionsOverride,
   aspects,
   showAspectLines = false,
@@ -51,6 +54,7 @@ export function WheelSvgCore({
   onPointerUp,
 }: WheelSvgCoreProps) {
   const positions = positionsOverride ?? chart.positions;
+  const asc = resolveAscendantLongitude(chart, ascendantLongitude);
   const R_OUT = size / 2 - 4;
   const R_IN = R_OUT * 0.6;
   const cx = size / 2;
@@ -77,12 +81,12 @@ export function WheelSvgCore({
         <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
 
         {chart.cusps.slice(0, 12).map((a0, i) => {
-          const a1 = chart.cusps[(i + 1) % 12];
+          const a1 = chart.cusps[(i + 1) % 12]!;
           const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
           return (
             <g key={i}>
               <path
-                d={arcPath(R_OUT, R_IN, a0, a0 + span)}
+                d={arcPath(R_OUT, R_IN, a0, a1, asc)}
                 fill={WHEEL_COLORS.houseFill}
                 stroke={WHEEL_COLORS.houseStroke}
                 strokeWidth={1}
@@ -90,9 +94,9 @@ export function WheelSvgCore({
               />
               {(() => {
                 const midLon = (a0 + span / 2) % 360;
-                const midPt = pol((R_OUT + R_IN) / 2, midLon);
+                const midPt = pol((R_OUT + R_IN) / 2, midLon, asc);
                 const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
-                const cuspPt = angleLabel != null ? pol(R_OUT - 8, a0) : null;
+                const cuspPt = angleLabel != null ? pol(R_OUT - 8, a0, asc) : null;
                 return (
                   <>
                     <text
@@ -141,8 +145,8 @@ export function WheelSvgCore({
               ) {
                 return null;
               }
-              const p1 = pol(R_OUT - 10, lonA);
-              const p2 = pol(R_OUT - 10, lonB);
+              const p1 = pol(R_OUT - 10, lonA, asc);
+              const p2 = pol(R_OUT - 10, lonB, asc);
               const color = ASPECT_LINE_COLOR[asp.type] ?? '#6a7a8a';
               return (
                 <line
@@ -162,7 +166,7 @@ export function WheelSvgCore({
         {planetNames.map((name) => {
           const deg = positions[name];
           if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;
-          const p = pol(R_OUT - 10, deg);
+          const p = pol(R_OUT - 10, deg, asc);
           const isHighlighted = planetHighlight === name;
           return (
             <text
@@ -188,7 +192,7 @@ export function WheelSvgCore({
           const nnLon = positions.northNode ?? positions.northnode;
           if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
           const southLon = (nnLon + 180) % 360;
-          const p = pol(R_OUT - 10, southLon);
+          const p = pol(R_OUT - 10, southLon, asc);
           return (
             <text
               key="southNode-derived"
