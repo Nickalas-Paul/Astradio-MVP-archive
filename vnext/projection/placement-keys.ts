@@ -90,5 +90,5 @@ export const PLANET_TIERS = {
   direction_foundation: ['MC', 'IC'],
   personal_expression: ['MERCURY', 'VENUS', 'MARS'],
   growth_expansion: ['JUPITER', 'SATURN'],
-  evolutionary_currents: ['URANUS', 'NEPTUNE', 'PLUTO'],
+  evolutionary_currents: ['URANUS', 'NEPTUNE', 'PLUTO', 'CHIRON'],
 } as const;
