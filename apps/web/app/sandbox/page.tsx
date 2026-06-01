@@ -4,12 +4,12 @@ import { useState, useCallback, useRef, useEffect, useReducer, useMemo } from 'r
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
-import { WheelBuilder } from '@/components/wheel/WheelBuilder';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
-import { PlanetPalette } from '../../src/components/sandbox/PlanetPalette';
-import { ChartSearchCombobox } from '../../src/components/sandbox/ChartSearchCombobox';
 import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
 import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSavedCompositions';
+import { SandboxWheelPanel } from '../../src/components/sandbox/SandboxWheelPanel';
+import { SandboxSlotComposer } from '../../src/components/sandbox/SandboxSlotComposer';
+import { SandboxResolvePanel } from '../../src/components/sandbox/SandboxResolvePanel';
 import {
   activeSlotBirth,
   activeSlotOverrides,
@@ -29,7 +29,6 @@ import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
 import {
   SANDBOX_COMPOSE_CONTROLS,
-  SANDBOX_MAX_SLOTS,
   createInitialSandboxCompositionModelState,
   normalizeSandboxOverrides,
   roundSandboxDegree,
@@ -73,8 +72,6 @@ export default function SandboxPage() {
 
   const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('ready_builder');
   const [error, setError] = useState<string | null>(null);
-  const [constrainToHouse, setConstrainToHouse] = useState(true);
-  const [showAspectLines, setShowAspectLines] = useState(true);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
   const [replayLoading, setReplayLoading] = useState(false);
@@ -90,12 +87,6 @@ export default function SandboxPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
-  const [chartIdImportInput, setChartIdImportInput] = useState('');
-  /** Canonical chart id from combobox selection (input may show display name only). */
-  const [pendingImportChartId, setPendingImportChartId] = useState<string | null>(null);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
   /** Last successful Generate: which slot supplied the preflight snapshot seed (first populated index). */
   const [lastResolveSeedSlotIndex, setLastResolveSeedSlotIndex] = useState<number | null>(null);
   /** Combined hash from that snapshot (matches POST body `seed`). */
@@ -346,32 +337,26 @@ export default function SandboxPage() {
     }
   }, []);
 
-  const handleImportChartById = useCallback(async () => {
-    const fromPending = pendingImportChartId?.trim() ?? '';
-    const fromInput = chartIdImportInput.trim();
-    const rawId = fromPending || (fromInput.startsWith('chart_') ? fromInput : '');
-    if (!rawId) {
-      setImportError('Search for a chart and pick a result, or paste a chart ID');
-      return;
+  const handleImportChartById = useCallback(async (rawId: string) => {
+    const trimmed = rawId.trim();
+    if (!trimmed) {
+      throw new Error('Search for a chart and pick a result, or paste a chart ID');
     }
-    setImportLoading(true);
-    setImportError(null);
     setGenerateError(null);
     setSurfaceState('loading_base');
     try {
       const base = getApiBaseUrl();
-      const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(rawId)}`);
+      const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(trimmed)}`);
       const chartData = await chartRes.json().catch(() => ({}));
       if (!chartRes.ok) {
         setSurfaceState('ready_builder');
-        setImportError(
+        throw new Error(
           (typeof chartData?.error === 'string' && chartData.error) ||
             (typeof chartData?.message === 'string' && chartData.message) ||
             `Chart request failed (${chartRes.status})`,
         );
-        return;
       }
-      const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : rawId;
+      const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : trimmed;
       const chartDisplayName = chartApiOwnerDisplayLabel(
         chartData && typeof chartData === 'object' ? (chartData as Record<string, unknown>) : {}
       );
@@ -390,8 +375,7 @@ export default function SandboxPage() {
       const snapData = await snapRes.json().catch(() => ({}));
       if (!snapRes.ok) {
         setSurfaceState('ready_builder');
-        setImportError((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
-        return;
+        throw new Error((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
       }
       let baseSnapshot: EphemerisSnapshot | undefined;
       if (hasPreservedPlanetOverrides) {
@@ -403,8 +387,7 @@ export default function SandboxPage() {
         const baseD = await baseRes.json().catch(() => ({}));
         if (!baseRes.ok) {
           setSurfaceState('ready_builder');
-          setImportError((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
-          return;
+          throw new Error((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
         }
         baseSnapshot = baseD.snapshot as EphemerisSnapshot;
       }
@@ -417,16 +400,12 @@ export default function SandboxPage() {
         ...(baseSnapshot ? { baseSnapshot } : {}),
         advanceToNewSlot: true,
       });
-      setChartIdImportInput('');
-      setPendingImportChartId(null);
       setSurfaceState('ready_builder');
     } catch (e) {
       setSurfaceState('ready_builder');
-      setImportError(e instanceof Error ? e.message : 'Import failed');
-    } finally {
-      setImportLoading(false);
+      throw e instanceof Error ? e : new Error('Import failed');
     }
-  }, [chartIdImportInput, pendingImportChartId]);
+  }, []);
 
   const handleOverrideChange = useCallback(
     (planet: PlanetKey, lonDeg: number | null) => {
@@ -489,6 +468,23 @@ export default function SandboxPage() {
   }, [updateSnapshot]);
 
   const handleResetPlanet = useCallback((planet: PlanetKey) => handleOverrideChange(planet, null), [handleOverrideChange]);
+
+  const handleRemoveSlot = useCallback((index: number) => {
+    activeSlotPreviewSeqRef.current += 1;
+    resolvePreviewBirthBySlotRef.current.clear();
+    dispatchComposition({ type: 'remove_slot', index });
+  }, []);
+
+  const handleClearSlot = useCallback(
+    (index: number) => {
+      resolvePreviewBirthBySlotRef.current.delete(index);
+      dispatchComposition({ type: 'clear_slot', index });
+      if (index === compositionRef.current.compositionInput.active_slot_index) {
+        void syncPreviewToActiveSlot();
+      }
+    },
+    [syncPreviewToActiveSlot],
+  );
 
   const populatedSlotIndices = useMemo(
     () => getPopulatedSlotIndicesFromCompositionInput(compositionModel.compositionInput),
@@ -1317,172 +1313,28 @@ export default function SandboxPage() {
         {showComposerSurface && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div className="card">
-                <p className="text-sm font-semibold text-text mb-2">
-                  Slots: <span className="font-normal text-subtext">{compositionModel.compositionInput.slots.length}</span> · active:{' '}
-                  <span className="font-mono text-text">{compositionModel.compositionInput.active_slot_index}</span>
-                </p>
-                <button
-                  type="button"
-                  disabled={compositionModel.compositionInput.slots.length >= SANDBOX_MAX_SLOTS}
-                  onClick={() => dispatchComposition({ type: 'add_slot' })}
-                  className="mb-3 px-2 py-1 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text disabled:opacity-50"
-                  title={
-                    compositionModel.compositionInput.slots.length >= SANDBOX_MAX_SLOTS
-                      ? `Maximum ${SANDBOX_MAX_SLOTS} slots`
-                      : undefined
-                  }
-                >
-                  Add slot
-                </button>
-                <div className="flex flex-wrap gap-2">
-                  {slotProjectionRows.map((row) => {
-                    const active = row.index === compositionModel.compositionInput.active_slot_index;
-                    const nSlots = compositionModel.compositionInput.slots.length;
-                    return (
-                      <div
-                        key={row.index}
-                        className={`flex flex-wrap items-center gap-1 rounded-lg border px-2 py-1.5 text-xs max-w-full ${
-                          active
-                            ? row.isManualStyle
-                              ? 'border-primary border-dashed bg-primary/5'
-                              : 'border-primary bg-primary/10'
-                            : row.isManualStyle
-                              ? 'border-dashed border-border/80 bg-transparent'
-                              : 'border-border bg-bgElev/50'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => dispatchComposition({ type: 'set_active_slot', index: row.index })}
-                          className="text-left min-w-0 flex-1 truncate"
-                        >
-                          <span className="text-text">{row.chipText}</span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={nSlots <= 1}
-                          onClick={() => {
-                            activeSlotPreviewSeqRef.current += 1;
-                            resolvePreviewBirthBySlotRef.current.clear();
-                            dispatchComposition({ type: 'remove_slot', index: row.index });
-                          }}
-                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-subtext text-caption"
-                          title="Remove slot"
-                        >
-                          Remove
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            resolvePreviewBirthBySlotRef.current.delete(row.index);
-                            dispatchComposition({ type: 'clear_slot', index: row.index });
-                            if (row.index === compositionModel.compositionInput.active_slot_index) {
-                              void syncPreviewToActiveSlot();
-                            }
-                          }}
-                          className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-subtext text-caption"
-                          title="Clear slot"
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-subtext mt-3">Composition slots and resolve payload stay in sync; the wheel follows the active slot.</p>
-                <div className="mt-4 pt-3 border-t border-border/60">
-                  <p className="text-xs font-medium text-text mb-1">Import chart</p>
-                  <p className="text-xs text-subtext mb-2">
-                    Search by name or handle, then import into the active slot. After a successful import, a new empty slot
-                    is added so you can load another chart.
-                  </p>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <ChartSearchCombobox
-                      value={chartIdImportInput}
-                      onChange={(v) => {
-                        setChartIdImportInput(v);
-                        setPendingImportChartId(null);
-                        if (importError) setImportError(null);
-                      }}
-                      onSelectChartId={(id) => setPendingImportChartId(id)}
-                      disabled={importLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleImportChartById()}
-                      disabled={importLoading}
-                      className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 disabled:opacity-50 text-text shrink-0"
-                    >
-                      {importLoading ? 'Importing…' : 'Import'}
-                    </button>
-                  </div>
-                  {importError ? <p className="text-xs text-red-400 mt-2">{importError}</p> : null}
-                </div>
-              </div>
+              <SandboxSlotComposer
+                compositionInput={compositionModel.compositionInput}
+                slotProjectionRows={slotProjectionRows}
+                onSetActiveSlot={(i) => dispatchComposition({ type: 'set_active_slot', index: i })}
+                onAddSlot={() => dispatchComposition({ type: 'add_slot' })}
+                onRemoveSlot={handleRemoveSlot}
+                onClearSlot={handleClearSlot}
+                onImportChart={handleImportChartById}
+              />
 
-              <div className="card">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-text">Wheel</h2>
-                    <p className="text-sm text-subtext mt-1">
-                      Drag planets or use degree inputs. Without birth data, the wheel uses a neutral layout; after birth, house cusps follow the natal chart.
-                    </p>
-                    <p className="text-xs text-subtext mt-1">
-                      Ephemeris preview for active slot {compositionModel.compositionInput.active_slot_index}—positions here are not the resolved
-                      report or audio output.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-subtext">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={constrainToHouse} onChange={(e) => setConstrainToHouse(e.target.checked)} className="rounded" />
-                      Constrain to house
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={showAspectLines} onChange={(e) => setShowAspectLines(e.target.checked)} className="rounded" />
-                      Aspect lines
-                    </label>
-                  </div>
-                  {Object.keys(overrides.planets).length > 0 && (
-                    <button onClick={handleResetAllOverrides} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">
-                      Reset All
-                    </button>
-                  )}
-                </div>
-                <div className="mb-4">
-                  <PlanetPalette
-                    overrides={overrides}
-                    selectedPlanet={paletteSelectedPlanet}
-                    onSelectPlanet={setPaletteSelectedPlanet}
-                  />
-                </div>
-                <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
-                  <WheelBuilder
-                    snapshot={isFreeBuildWheel ? null : currentSnapshot}
-                    overrides={overrides}
-                    onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}
-                    isUpdating={surfaceState === 'syncing_overrides'}
-                    constrainToHouse={constrainToHouse}
-                    freeBuild={isFreeBuildWheel}
-                    ascendantOverrideDeg={freeBuildAscDeg}
-                    showAspectLines={showAspectLines}
-                    selectedPlanetForPlacement={paletteSelectedPlanet}
-                  />
-                </div>
-                {preview.syncStatus === 'error' && preview.error ? (
-                  <p className="mt-3 text-xs text-red-400 border border-red-500/30 rounded-lg p-2.5 bg-red-500/5" role="alert">
-                    {preview.error}
-                  </p>
-                ) : null}
-                {resolveSynastryNotice === 'asteroids_excluded_v1' && (
-                  <p
-                    className="mt-3 text-xs text-amber-200/90 border border-amber-500/30 rounded-lg p-2.5 bg-amber-500/5"
-                    role="status"
-                  >
-                    Asteroid placements aren&apos;t included in relationship-aspect lines yet. Sun-Pluto positions drive those lines.
-                  </p>
-                )}
-              </div>
+              <SandboxWheelPanel
+                currentSnapshot={currentSnapshot}
+                overrides={overrides}
+                isUpdating={surfaceState === 'syncing_overrides'}
+                synastryNotice={resolveSynastryNotice ?? null}
+                freeBuild={isFreeBuildWheel}
+                ascendantOverrideDeg={freeBuildAscDeg}
+                activeSlotIndex={compositionModel.compositionInput.active_slot_index}
+                previewSyncError={preview.syncStatus === 'error' && preview.error ? preview.error : null}
+                onOverrideChange={handleOverrideChange}
+                onResetAll={handleResetAllOverrides}
+              />
 
               {!birth && (
                 <div className="card max-w-2xl">
@@ -1496,140 +1348,35 @@ export default function SandboxPage() {
               )}
 
               <div className="card">
-                <h2 className="text-xl font-semibold text-text mb-1">Resolve composition</h2>
-                <p className="text-xs text-subtext mb-2">
-                  <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
-                  <span className="font-medium text-text">occupied</span> slot in <span className="font-medium text-text">ascending slot index order</span>{' '}
-                  (empty rows are ignored). Each slot may be a stored <span className="font-medium text-text">chart_id</span> or{' '}
-                  <span className="font-medium text-text">ephemeris_birth</span>, with per-slot overrides applied for resolve. One slot → single compose; two
-                  occupied slots → pair aggregate; three or more → group aggregate. The wheel preview still follows the active slot only.
-                </p>
-                {populatedSlotIndices.length > 0 ? (
-                  <p className="text-xs text-subtext mb-4 font-mono">
-                    Membership: {populatedSlotIndices.length} occupied (indices {populatedSlotIndices.join(', ')})
-                    {isMultiChartAggregate ? ' · seed snapshot uses first occupied slot only; all slots participate in resolve' : ''}
-                  </p>
-                ) : (
-                  <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>
-                )}
-                {pairAggregateWithTwoChartIds && (
-                  <label className="flex items-start gap-2 mb-3 text-xs text-subtext cursor-pointer select-none max-w-xl">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={compositionModel.compositionInput.commit_relational_classification === true}
-                      onChange={(e) =>
-                        dispatchComposition({ type: 'set_commit_relational_classification', value: e.target.checked })
-                      }
-                    />
-                    <span>
-                      Commit relational classification (Friend/Lover lens). Off for preview; turn on when generating a full
-                      reading so compatibility classification runs on two saved charts.
-                    </span>
-                  </label>
-                )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!canGenerate || generateLoading}
-                    className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generateLoading ? 'Resolving…' : 'Generate from current composition'}
-                  </button>
-                  {canSave && (
-                    <button
-                      onClick={handleSave}
-                      disabled={saveLoading}
-                      className="px-4 py-2 bg-bgElev border border-border rounded-lg font-medium hover:bg-bgElev/80 disabled:opacity-50 text-text"
-                    >
-                      {saveLoading ? 'Saving…' : 'Save'}
-                    </button>
-                  )}
-                </div>
-                {saveError && <p className="mt-2 text-xs text-red-400">{saveError}</p>}
-                {!canGenerate && (
-                  <div className="mt-3 text-xs text-subtext">
-                    <p className="mb-1 text-text font-medium">Resolve unavailable until:</p>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      {generateDisabledReasons.map((reason, idx) => (
-                        <li key={idx}>{reason}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {hasGenerated && (
-                  <div className="mt-4 grid gap-2 text-xs text-subtext sm:grid-cols-3">
-                    <div>
-                      <span className="font-semibold">Chart:</span>{' '}
-                      {generateLoading ? 'Generating…' : generateError?.chart ? 'Failed' : 'OK'}
-                    </div>
-                    <div>
-                      <span className="font-semibold">Report:</span>{' '}
-                      {generateLoading ? 'Generating…' : generateError?.report ? 'Failed' : displayReport ? 'OK' : 'Not run'}
-                    </div>
-                    <div>
-                      <span className="font-semibold">Audio:</span>{' '}
-                      {generateLoading ? 'Generating…' : generateError?.audio ? 'Failed' : exportId ? 'Ready' : 'Export unavailable'}
-                    </div>
-                  </div>
-                )}
-                {generateError && (generateError.chart || generateError.report || generateError.audio) && (
-                  <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                    {generateError.chart && <p>Chart: {generateError.chart}</p>}
-                    {generateError.report && <p>Report: {generateError.report}</p>}
-                    {generateError.audio && <p>Audio: {generateError.audio}</p>}
-                  </div>
-                )}
-                {(canonicalSlotOrder?.length || canonicalInputHash) && (
-                  <div className="mt-4 text-xs text-subtext font-mono space-y-1 border border-border rounded-lg p-3 bg-bgElev/50">
-                    {canonicalSlotOrder && canonicalSlotOrder.length > 0 && (
-                      <p>
-                        <span className="text-text font-medium">Canonical order:</span> {canonicalSlotOrder.join(' → ')}
-                      </p>
-                    )}
-                    {canonicalInputHash && (
-                      <p>
-                        <span className="text-text font-medium">canonical_input_hash:</span> {canonicalInputHash.slice(0, 32)}…
-                      </p>
-                    )}
-                  </div>
-                )}
-                {hasGenerated && (
-                  <div className="mt-6 space-y-1">
-                    <p className="text-xs text-subtext font-medium text-text">Last generated (report / audio)</p>
-                    <p className="text-xs text-subtext">
-                      From the last successful resolve. If you edited the wheel afterward, use <span className="font-medium text-text">Generate from current composition</span>{' '}
-                      above—do not rely on this block as the live composition.
-                    </p>
-                    {(resolveOutputStaleVsPreview || resolveDocumentStaleVsLastResolve) && (
-                      <p className="text-xs text-amber-500/90">
-                        {resolveDocumentStaleVsLastResolve
-                          ? 'Composition document changed since last resolve—Generate again before trusting this output.'
-                          : 'Output does not reflect current preview.'}
-                      </p>
-                    )}
-                    {compositionFingerprintAtLastSeed != null &&
-                      lastResolveSeedSlotIndex != null &&
-                      lastResolveSeedCombinedHash != null && (
-                        <div className="mt-2 rounded border border-border/60 bg-bgElev/40 p-2 font-mono text-caption text-subtext space-y-1">
-                          <p>
-                            <span className="font-medium text-text">Resolve seed snapshot</span> used slot{' '}
-                            <span className="text-text">{lastResolveSeedSlotIndex}</span>
-                            {compositionModel.compositionInput.active_slot_index !== lastResolveSeedSlotIndex ? (
-                              <span className="text-amber-400/90">
-                                {' '}
-                                (active slot is {compositionModel.compositionInput.active_slot_index}; wheel preview follows active slot.)
-                              </span>
-                            ) : null}
-                          </p>
-                          <p>
-                            <span className="font-medium text-text">Seed combined hash:</span>{' '}
-                            <code className="break-all text-caption">{lastResolveSeedCombinedHash}</code>
-                          </p>
-                        </div>
-                      )}
-                  </div>
-                )}
+              <SandboxResolvePanel
+                canGenerate={canGenerate}
+                generateDisabledReasons={generateDisabledReasons}
+                generateLoading={generateLoading}
+                generateError={generateError}
+                hasGenerated={hasGenerated}
+                compositionInput={compositionModel.compositionInput}
+                saveLoading={saveLoading}
+                saveError={saveError}
+                canSave={canSave}
+                displayReport={displayReport}
+                exportId={exportId}
+                populatedSlotIndices={populatedSlotIndices}
+                isMultiChartAggregate={isMultiChartAggregate}
+                canonicalSlotOrder={canonicalSlotOrder}
+                canonicalInputHash={canonicalInputHash}
+                lastResolveSeedSlotIndex={lastResolveSeedSlotIndex}
+                lastResolveSeedCombinedHash={lastResolveSeedCombinedHash}
+                compositionFingerprintAtLastSeed={compositionFingerprintAtLastSeed}
+                resolveOutputStaleVsPreview={resolveOutputStaleVsPreview}
+                resolveDocumentStaleVsLastResolve={resolveDocumentStaleVsLastResolve}
+                showRelationalClassification={pairAggregateWithTwoChartIds}
+                commitRelationalClassification={compositionModel.compositionInput.commit_relational_classification === true}
+                onToggleRelationalClassification={(value) =>
+                  dispatchComposition({ type: 'set_commit_relational_classification', value })
+                }
+                onGenerate={handleGenerate}
+                onSave={handleSave}
+              />
                 <SandboxReportSections displayReport={displayReport} />
                 {hasGenerated && (
                   <div className="mt-6 space-y-2">
