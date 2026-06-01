@@ -1494,17 +1494,21 @@ export default function SandboxPage() {
                       <div
                         key={row.index}
                         className={`flex flex-wrap items-center gap-1 rounded-lg border px-2 py-1.5 text-xs max-w-full ${
-                          active ? 'border-primary bg-primary/10' : 'border-border bg-bgElev/50'
+                          active
+                            ? row.isManualStyle
+                              ? 'border-primary border-dashed bg-primary/5'
+                              : 'border-primary bg-primary/10'
+                            : row.isManualStyle
+                              ? 'border-dashed border-border/80 bg-transparent'
+                              : 'border-border bg-bgElev/50'
                         }`}
                       >
                         <button
                           type="button"
                           onClick={() => dispatchComposition({ type: 'set_active_slot', index: row.index })}
-                          className="text-left min-w-0 flex-1"
+                          className="text-left min-w-0 flex-1 truncate"
                         >
-                          <span className="font-mono text-subtext">#{row.index}</span>{' '}
-                          <span className="text-text">{row.chipLabel}</span>
-                          {row.summary ? <span className="text-subtext"> · {row.summary}</span> : null}
+                          <span className="text-text">{row.chipText}</span>
                         </button>
                         <button
                           type="button"

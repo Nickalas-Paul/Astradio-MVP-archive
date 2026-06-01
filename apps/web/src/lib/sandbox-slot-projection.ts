@@ -10,20 +10,21 @@ export type SlotContentKind = 'empty' | 'birth' | 'chart' | 'incomplete' | 'inva
 export type SlotProjectionRow = {
   index: number;
   kind: SlotContentKind;
-  /** Short chip title (Chart, Birth, Free build, …). */
-  chipLabel: string;
-  /** Detail after the middle dot; omit when empty. */
-  summary: string;
+  /** Single user-facing label on the chip (no slot index or "Chart ·" prefix). */
+  chipText: string;
+  /** Outlined chip style for manual / free-build slots. */
+  isManualStyle?: boolean;
 };
 
-function slotHasPlanetOverrides(slot: SandboxCompositionInputState['slots'][number]): boolean {
-  return Object.keys(slot.overrides?.planets ?? {}).length > 0;
-}
-
-function chartSlotDisplaySummary(slot: SandboxCompositionInputState['slots'][number]): string {
+function chartSlotDisplayName(slot: SandboxCompositionInputState['slots'][number]): string {
   const stored = typeof slot.chart_display_name === 'string' ? slot.chart_display_name.trim() : '';
   if (stored) return stored;
   return 'Imported chart';
+}
+
+function manualChipText(manualOrdinal: number, manualCount: number): string {
+  if (manualCount <= 1) return 'Manual';
+  return `Manual ${manualOrdinal}`;
 }
 
 /**
@@ -31,22 +32,27 @@ function chartSlotDisplaySummary(slot: SandboxCompositionInputState['slots'][num
  */
 export function projectSlotsFromCompositionInput(input: SandboxCompositionInputState): SlotProjectionRow[] {
   const { slots } = input;
+
+  const manualIndices: number[] = [];
+  for (let i = 0; i < slots.length; i++) {
+    if (slotWirePopulationKind(slots[i]) === 'empty') manualIndices.push(i);
+  }
+  const manualCount = manualIndices.length;
+
   return slots.map((slot, index) => {
     const k = slotWirePopulationKind(slot);
     if (k === 'invalid') {
       return {
         index,
         kind: 'invalid_wire' as const,
-        chipLabel: 'Invalid',
-        summary: 'chart + birth',
+        chipText: 'Invalid',
       };
     }
     if (k === 'chart_id') {
       return {
         index,
         kind: 'chart' as const,
-        chipLabel: 'Chart',
-        summary: chartSlotDisplaySummary(slot),
+        chipText: chartSlotDisplayName(slot),
       };
     }
     if (k === 'birth_incomplete') {
@@ -55,8 +61,7 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
       return {
         index,
         kind: 'incomplete' as const,
-        chipLabel: 'Birth',
-        summary: b ? `${b.date} ${timeShort} (add location)` : 'Incomplete birth',
+        chipText: b ? `${b.date} ${timeShort} (add location)` : 'Incomplete birth',
       };
     }
     if (k === 'ephemeris_birth') {
@@ -65,23 +70,15 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
       return {
         index,
         kind: 'birth' as const,
-        chipLabel: 'Birth',
-        summary: `${b.date} ${timeShort}`,
+        chipText: `${b.date} ${timeShort}`,
       };
     }
-    if (slotHasPlanetOverrides(slot)) {
-      return {
-        index,
-        kind: 'empty' as const,
-        chipLabel: 'Free build',
-        summary: '',
-      };
-    }
+    const manualOrdinal = manualIndices.indexOf(index) + 1;
     return {
       index,
       kind: 'empty' as const,
-      chipLabel: 'Manual',
-      summary: '',
+      chipText: manualChipText(manualOrdinal, manualCount),
+      isManualStyle: true,
     };
   });
 }
