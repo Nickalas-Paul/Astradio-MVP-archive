@@ -62,6 +62,8 @@ export type SandboxSnapshotMeta = {
 /** One slot in the wire body for POST /api/sandbox/resolve (BFF normalizes nested birth). */
 export type SandboxCompositionSlotWire = {
   chart_id?: string;
+  /** UI-only label from chart owner (not sent to resolve). */
+  chart_display_name?: string;
   ephemeris_birth?: SandboxBirth;
   overrides?: SandboxOverrides;
 };

@@ -14,6 +14,9 @@ import type {
   SandboxCompositionInputState,
 } from '../types/sandbox';
 
+/** Max composition slots in Sandbox UI (import auto-advance respects this cap). */
+export const SANDBOX_MAX_SLOTS = 8;
+
 export const SANDBOX_COMPOSE_CONTROLS = {
   arc_shape: 0.5,
   density_level: 0.6,
@@ -275,9 +278,12 @@ export type SandboxCompositionAction =
   | {
       type: 'import_chart_id_success';
       chartId: string;
+      chartDisplayName?: string;
       snapshot: EphemerisSnapshot;
       meta: SandboxSnapshotMeta;
       baseSnapshot?: EphemerisSnapshot;
+      /** After import, append an empty slot and activate it (default true). */
+      advanceToNewSlot?: boolean;
     }
   | {
       type: 'overrides_changed';
@@ -423,13 +429,29 @@ export function sandboxCompositionReducer(
       const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
       let slots = withSlotsEnsured(state.compositionInput.slots, idx);
       const preserved = normalizeSandboxOverrides(slots[idx]?.overrides ?? { planets: {} });
+      const displayName = action.chartDisplayName?.trim();
       slots = [...slots];
-      slots[idx] = { chart_id: action.chartId.trim(), overrides: preserved };
+      slots[idx] = {
+        chart_id: action.chartId.trim(),
+        ...(displayName ? { chart_display_name: displayName } : {}),
+        overrides: preserved,
+      };
+      let active_slot_index = idx;
+      const shouldAdvance = action.advanceToNewSlot !== false;
+      if (shouldAdvance && slots.length < SANDBOX_MAX_SLOTS) {
+        slots = [...slots, { overrides: { planets: {} } }];
+        active_slot_index = slots.length - 1;
+      }
       const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
         lastResolve: null,
-        compositionInput: { ...state.compositionInput, slots, seed: undefined },
+        compositionInput: {
+          ...state.compositionInput,
+          slots,
+          active_slot_index,
+          seed: undefined,
+        },
         preview: {
           ...state.preview,
           syncStatus: 'idle',
@@ -494,6 +516,7 @@ export function sandboxCompositionReducer(
     }
 
     case 'add_slot': {
+      if (state.compositionInput.slots.length >= SANDBOX_MAX_SLOTS) return state;
       const slots = [...state.compositionInput.slots, { overrides: { planets: {} } }];
       return {
         ...state,

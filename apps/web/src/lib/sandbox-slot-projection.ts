@@ -10,9 +10,21 @@ export type SlotContentKind = 'empty' | 'birth' | 'chart' | 'incomplete' | 'inva
 export type SlotProjectionRow = {
   index: number;
   kind: SlotContentKind;
-  /** Short label for UI; not a second identity. */
+  /** Short chip title (Chart, Birth, Free build, …). */
+  chipLabel: string;
+  /** Detail after the middle dot; omit when empty. */
   summary: string;
 };
+
+function slotHasPlanetOverrides(slot: SandboxCompositionInputState['slots'][number]): boolean {
+  return Object.keys(slot.overrides?.planets ?? {}).length > 0;
+}
+
+function chartSlotDisplaySummary(slot: SandboxCompositionInputState['slots'][number]): string {
+  const stored = typeof slot.chart_display_name === 'string' ? slot.chart_display_name.trim() : '';
+  if (stored) return stored;
+  return 'Imported chart';
+}
 
 /**
  * Derive one row per slot from the composition document only.
@@ -25,15 +37,16 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
       return {
         index,
         kind: 'invalid_wire' as const,
-        summary: 'Invalid (chart + birth)',
+        chipLabel: 'Invalid',
+        summary: 'chart + birth',
       };
     }
     if (k === 'chart_id') {
-      const id = String(slot.chart_id).trim();
       return {
         index,
         kind: 'chart' as const,
-        summary: id.length > 14 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id,
+        chipLabel: 'Chart',
+        summary: chartSlotDisplaySummary(slot),
       };
     }
     if (k === 'birth_incomplete') {
@@ -42,6 +55,7 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
       return {
         index,
         kind: 'incomplete' as const,
+        chipLabel: 'Birth',
         summary: b ? `${b.date} ${timeShort} (add location)` : 'Incomplete birth',
       };
     }
@@ -51,13 +65,23 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
       return {
         index,
         kind: 'birth' as const,
+        chipLabel: 'Birth',
         summary: `${b.date} ${timeShort}`,
+      };
+    }
+    if (slotHasPlanetOverrides(slot)) {
+      return {
+        index,
+        kind: 'empty' as const,
+        chipLabel: 'Free build',
+        summary: '',
       };
     }
     return {
       index,
       kind: 'empty' as const,
-      summary: '—',
+      chipLabel: 'Manual',
+      summary: '',
     };
   });
 }

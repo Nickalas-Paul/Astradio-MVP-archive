@@ -53,6 +53,31 @@ export function wireBirthToEngineBirth(wire: z.infer<typeof SandboxBirthWireSche
  * Map GET /api/charts/:id (engine Chart) into Sandbox birth wire for snapshot preview only.
  * chart_id remains the canonical slot identity for resolve.
  */
+/** User-facing label for a chart import (never the raw chart_id). */
+export function chartApiOwnerDisplayLabel(chart: Record<string, unknown>): string {
+  const displayName =
+    (typeof chart.ownerDisplayName === 'string' && chart.ownerDisplayName.trim()) ||
+    (typeof chart.owner_display_name === 'string' && chart.owner_display_name.trim()) ||
+    (typeof chart.display_name === 'string' && chart.display_name.trim()) ||
+    '';
+  if (displayName) return displayName;
+
+  const handleRaw =
+    (typeof chart.ownerHandle === 'string' && chart.ownerHandle.trim()) ||
+    (typeof chart.owner_handle === 'string' && chart.owner_handle.trim()) ||
+    (typeof chart.handle === 'string' && chart.handle.trim()) ||
+    '';
+  if (handleRaw) {
+    const h = handleRaw.trim();
+    return h.startsWith('@') ? h : `@${h}`;
+  }
+
+  const chartLabel = typeof chart.label === 'string' ? chart.label.trim() : '';
+  if (chartLabel && !chartLabel.startsWith('chart_')) return chartLabel;
+
+  return 'Imported chart';
+}
+
 export function chartApiRecordToSandboxBirthWire(chart: {
   date: string;
   time: string;

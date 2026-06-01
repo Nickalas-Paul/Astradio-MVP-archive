@@ -34,7 +34,7 @@ export function ChartSearchCombobox({
   onChange,
   onSelectChartId,
   disabled,
-  placeholder = 'Search by username, handle, or chart ID',
+  placeholder = 'Search by name or handle',
 }: ChartSearchComboboxProps) {
   const [results, setResults] = useState<ChartSearchResultItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -66,7 +66,7 @@ export function ChartSearchCombobox({
             ? 'Sign in to search charts.'
             : typeof (data as { error?: string }).error === 'string'
               ? (data as { error: string }).error
-              : 'Search unavailable. Enter chart ID to continue.';
+              : 'Search unavailable.';
         throw new Error(msg);
       }
       const raw = (data as { results?: ChartSearchResultItem[] }).results;
@@ -75,7 +75,7 @@ export function ChartSearchCombobox({
       setOpen(true);
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return;
-      setError(e instanceof Error ? e.message : 'Search unavailable. Enter chart ID to continue.');
+      setError(e instanceof Error ? e.message : 'Search unavailable.');
       setResults([]);
       setOpen(false);
     } finally {
@@ -130,7 +130,7 @@ export function ChartSearchCombobox({
 
   const selectResult = useCallback(
     (item: ChartSearchResultItem) => {
-      onChange(item.chart_id);
+      onChange(item.label);
       onSelectChartId?.(item.chart_id);
       setOpen(false);
       setActiveIndex(-1);
@@ -201,7 +201,7 @@ export function ChartSearchCombobox({
         aria-expanded={open}
         aria-autocomplete="list"
         aria-controls="chart-search-results"
-        className="w-full px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text font-mono"
+        className="w-full px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text"
       />
       {loading ? (
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-subtext">
@@ -243,12 +243,10 @@ export function ChartSearchCombobox({
             </button>
           ))}
           {showEmptyHint ? (
-            <div className="px-3 py-2.5 text-xs text-subtext">
-              No charts found. Try entering chart ID directly.
-            </div>
+            <div className="px-3 py-2.5 text-xs text-subtext">No charts found. Try a different name or handle.</div>
           ) : null}
           {showRecentEmpty ? (
-            <div className="px-3 py-2.5 text-xs text-subtext">No saved charts yet. Enter a chart ID to import.</div>
+            <div className="px-3 py-2.5 text-xs text-subtext">No saved charts yet. Sign in or connect with others to import charts.</div>
           ) : null}
         </div>
       ) : null}

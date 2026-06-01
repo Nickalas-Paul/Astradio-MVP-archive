@@ -22,6 +22,7 @@ import { getApiBaseUrl } from '../../src/core/api-base';
 import { getPlayableLyriaUrl } from '../../src/core/audio/lyria-playback';
 import {
   SANDBOX_COMPOSE_CONTROLS,
+  SANDBOX_MAX_SLOTS,
   createInitialSandboxCompositionModelState,
   normalizeSandboxOverrides,
   roundSandboxDegree,
@@ -37,7 +38,7 @@ import {
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
-import { chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
+import { chartApiOwnerDisplayLabel, chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
 import {
   fingerprintCompositionInputExcludingSeed,
   fingerprintResolveBodyExcludingSeed,
@@ -241,6 +242,8 @@ export default function SandboxPage() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
   const [chartIdImportInput, setChartIdImportInput] = useState('');
+  /** Canonical chart id from combobox selection (input may show display name only). */
+  const [pendingImportChartId, setPendingImportChartId] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   /** Last successful Generate: which slot supplied the preflight snapshot seed (first populated index). */
@@ -494,9 +497,11 @@ export default function SandboxPage() {
   }, []);
 
   const handleImportChartById = useCallback(async () => {
-    const rawId = chartIdImportInput.trim();
+    const fromPending = pendingImportChartId?.trim() ?? '';
+    const fromInput = chartIdImportInput.trim();
+    const rawId = fromPending || (fromInput.startsWith('chart_') ? fromInput : '');
     if (!rawId) {
-      setImportError('Enter a chart ID');
+      setImportError('Search for a chart and pick a result, or paste a chart ID');
       return;
     }
     setImportLoading(true);
@@ -517,6 +522,9 @@ export default function SandboxPage() {
         return;
       }
       const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : rawId;
+      const chartDisplayName = chartApiOwnerDisplayLabel(
+        chartData && typeof chartData === 'object' ? (chartData as Record<string, unknown>) : {}
+      );
       const wire = chartApiRecordToSandboxBirthWire(chartData);
       resolvePreviewBirthBySlotRef.current.set(
         getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),
@@ -553,11 +561,14 @@ export default function SandboxPage() {
       dispatchComposition({
         type: 'import_chart_id_success',
         chartId: chartIdCanonical,
+        chartDisplayName,
         snapshot: snapData.snapshot as EphemerisSnapshot,
         meta: snapData.meta as SandboxSnapshotMeta,
         ...(baseSnapshot ? { baseSnapshot } : {}),
+        advanceToNewSlot: true,
       });
       setChartIdImportInput('');
+      setPendingImportChartId(null);
       setSurfaceState('ready_builder');
     } catch (e) {
       setSurfaceState('ready_builder');
@@ -565,7 +576,7 @@ export default function SandboxPage() {
     } finally {
       setImportLoading(false);
     }
-  }, [chartIdImportInput]);
+  }, [chartIdImportInput, pendingImportChartId]);
 
   const handleOverrideChange = useCallback(
     (planet: PlanetKey, lonDeg: number | null) => {
@@ -1437,8 +1448,14 @@ export default function SandboxPage() {
                 </p>
                 <button
                   type="button"
+                  disabled={compositionModel.compositionInput.slots.length >= SANDBOX_MAX_SLOTS}
                   onClick={() => dispatchComposition({ type: 'add_slot' })}
-                  className="mb-3 px-2 py-1 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text"
+                  className="mb-3 px-2 py-1 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text disabled:opacity-50"
+                  title={
+                    compositionModel.compositionInput.slots.length >= SANDBOX_MAX_SLOTS
+                      ? `Maximum ${SANDBOX_MAX_SLOTS} slots`
+                      : undefined
+                  }
                 >
                   Add slot
                 </button>
@@ -1459,8 +1476,8 @@ export default function SandboxPage() {
                           className="text-left min-w-0 flex-1"
                         >
                           <span className="font-mono text-subtext">#{row.index}</span>{' '}
-                          <span className="text-text capitalize">{row.kind}</span>
-                          <span className="text-subtext"> · {row.summary}</span>
+                          <span className="text-text">{row.chipLabel}</span>
+                          {row.summary ? <span className="text-subtext"> · {row.summary}</span> : null}
                         </button>
                         <button
                           type="button"
@@ -1497,18 +1514,18 @@ export default function SandboxPage() {
                 <div className="mt-4 pt-3 border-t border-border/60">
                   <p className="text-xs font-medium text-text mb-1">Import chart</p>
                   <p className="text-xs text-subtext mb-2">
-                    Search by username, handle, or paste a chart ID. Uses the same stored chart as community compatibility (
-                    <code className="text-caption">GET /api/charts/:id</code>). The{' '}
-                    <span className="font-medium text-text">active</span> slot stores <span className="font-medium text-text">chart_id</span> for resolve;
-                    preview uses the same snapshot route as birth entry.
+                    Search by name or handle, then import into the active slot. After a successful import, a new empty slot
+                    is added so you can load another chart.
                   </p>
                   <div className="flex flex-wrap gap-2 items-center">
                     <ChartSearchCombobox
                       value={chartIdImportInput}
                       onChange={(v) => {
                         setChartIdImportInput(v);
+                        setPendingImportChartId(null);
                         if (importError) setImportError(null);
                       }}
+                      onSelectChartId={(id) => setPendingImportChartId(id)}
                       disabled={importLoading}
                     />
                     <button
