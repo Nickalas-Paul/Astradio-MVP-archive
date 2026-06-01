@@ -38,6 +38,7 @@ import {
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
+import { equalHouseCuspsFromAscendant } from '../../src/lib/equal-house-cusps';
 import { chartApiOwnerDisplayLabel, chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
 import {
   fingerprintCompositionInputExcludingSeed,
@@ -613,6 +614,10 @@ export default function SandboxPage() {
     [updateSnapshot]
   );
 
+  const handleAscendantChange = useCallback((lonDeg: number) => {
+    dispatchComposition({ type: 'free_build_asc_changed', lonDeg });
+  }, []);
+
   const handleResetAllOverrides = useCallback(() => {
     const model = compositionRef.current;
     const idx = getActiveSlotIndexFromCompositionInput(model.compositionInput);
@@ -620,10 +625,13 @@ export default function SandboxPage() {
     const hasBase = Boolean(model.preview.baseSnapshot);
     const bReset =
       model.compositionInput.slots[idx]?.ephemeris_birth ??
-      resolvePreviewBirthBySlotRef.current.get(idx) ??
-      undefined;
+      resolvePreviewBirthBySlotRef.current.get(idx) ?? undefined;
+    const isFreeBuildSlot = slotWirePopulationKind(model.compositionInput.slots[idx] ?? { overrides: { planets: {} } }) === 'empty';
 
     dispatchComposition({ type: 'reset_overrides_to_base' });
+    if (isFreeBuildSlot) {
+      dispatchComposition({ type: 'free_build_asc_changed', lonDeg: 0, slotIndex: idx });
+    }
 
     if (hasBase && bReset) {
       void updateSnapshot(bReset, emptyOverrides);
@@ -1353,6 +1361,25 @@ export default function SandboxPage() {
   if (preview.baseSnapshot) for (const p of preview.baseSnapshot.planets) basePositions[p.name] = p.lon;
   const cusps = currentSnapshot?.houses ?? [];
 
+  const activeSlotIdx = getActiveSlotIndexFromCompositionInput(compositionModel.compositionInput);
+  const activeSlotWire = compositionModel.compositionInput.slots[activeSlotIdx];
+  const activeSlotKind = slotWirePopulationKind(activeSlotWire ?? { overrides: { planets: {} } });
+  const isFreeBuildWheel = activeSlotKind === 'empty';
+  const freeBuildAscDeg =
+    typeof activeSlotWire?.free_build_asc_deg === 'number' && Number.isFinite(activeSlotWire.free_build_asc_deg)
+      ? activeSlotWire.free_build_asc_deg
+      : 0;
+  const displayCusps: number[] | undefined = isFreeBuildWheel
+    ? equalHouseCuspsFromAscendant(freeBuildAscDeg)
+    : cusps.length === 12
+      ? cusps
+      : undefined;
+  const ascendantLonForPanel = isFreeBuildWheel
+    ? freeBuildAscDeg
+    : displayCusps != null
+      ? displayCusps[0]!
+      : undefined;
+
   const replayNeedsSnapshot = Boolean(
     compositionModel.lastResolve?.source === 'live_resolve' &&
       compositionModel.lastResolve.lastSubmittedResolveBody &&
@@ -1578,11 +1605,13 @@ export default function SandboxPage() {
                 </div>
                 <div className="w-full aspect-square bg-bgElev border border-border rounded-2xl p-4 relative">
                   <WheelBuilder
-                    snapshot={currentSnapshot}
+                    snapshot={isFreeBuildWheel ? null : currentSnapshot}
                     overrides={overrides}
                     onOverrideChange={(planet, lonDeg) => handleOverrideChange(planet, lonDeg)}
                     isUpdating={surfaceState === 'syncing_overrides'}
                     constrainToHouse={constrainToHouse}
+                    freeBuild={isFreeBuildWheel}
+                    ascendantOverrideDeg={freeBuildAscDeg}
                     showAspectLines={showAspectLines}
                     selectedPlanetForPlacement={paletteSelectedPlanet}
                   />
@@ -1877,7 +1906,16 @@ export default function SandboxPage() {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="card">
-                <DegreePanel overrides={overrides} basePositions={basePositions} cusps={cusps.length === 12 ? cusps : undefined} onOverrideChange={handleOverrideChange} onResetPlanet={handleResetPlanet} />
+                <DegreePanel
+                  overrides={overrides}
+                  basePositions={basePositions}
+                  cusps={displayCusps}
+                  ascendantLon={ascendantLonForPanel}
+                  ascendantEditable={isFreeBuildWheel}
+                  onAscendantChange={handleAscendantChange}
+                  onOverrideChange={handleOverrideChange}
+                  onResetPlanet={handleResetPlanet}
+                />
               </div>
               <div className="card">
                 <div className="flex items-center justify-between mb-3">

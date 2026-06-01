@@ -11,6 +11,7 @@ import {
   houseIndexForLongitude,
   PLANET_ORDER,
 } from './wheel-builder-math';
+import { equalHouseCuspsFromAscendant } from '../../lib/equal-house-cusps';
 import { WheelSvgCore } from './WheelSvgCore';
 
 export interface WheelBuilderProps {
@@ -20,13 +21,15 @@ export interface WheelBuilderProps {
   isUpdating?: boolean;
   constrainToHouse?: boolean;
   freeBuild?: boolean;
+  /** Free-build equal-house ASC (ecliptic longitude). Default 0° Aries. */
+  ascendantOverrideDeg?: number;
   selectedPlanetForPlacement?: PlanetKey | null;
   showAspectLines?: boolean;
 }
 
 const EQUAL_HOUSE_BLANK: ChartForWheel = {
   positions: {},
-  cusps: Array.from({ length: 12 }, (_, i) => i * 30),
+  cusps: equalHouseCuspsFromAscendant(0),
 };
 
 export function WheelBuilder({
@@ -36,10 +39,15 @@ export function WheelBuilder({
   isUpdating = false,
   constrainToHouse = true,
   freeBuild = false,
+  ascendantOverrideDeg = 0,
   selectedPlanetForPlacement = null,
   showAspectLines = true,
 }: WheelBuilderProps) {
   const effectiveFreeBuild = freeBuild || snapshot == null;
+  const freeBuildAsc =
+    typeof ascendantOverrideDeg === 'number' && Number.isFinite(ascendantOverrideDeg)
+      ? ascendantOverrideDeg
+      : 0;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
   const [dragStartHouse, setDragStartHouse] = useState<number | null>(null);
@@ -65,7 +73,7 @@ export function WheelBuilder({
         for (const [planet, override] of Object.entries(overrides.planets)) {
           if (override && Number.isFinite(override.lonDeg)) positions[planet] = override.lonDeg;
         }
-        const cusps = Array.from({ length: 12 }, (_, i) => i * 30);
+        const cusps = equalHouseCuspsFromAscendant(freeBuildAsc);
         return { positions, cusps };
       })()
     : null;
@@ -109,8 +117,7 @@ export function WheelBuilder({
       const planet = getPlanetAtPoint(x, y, cx, cy, R_OUT, positions);
       if (planet) {
         setDraggingPlanet(planet);
-        const useConstrain = effectiveFreeBuild ? false : constrainToHouse;
-        if (useConstrain && normalized.cusps.length >= 12) {
+        if (constrainToHouse && normalized.cusps.length >= 12) {
           const houseIdx = houseIndexForLongitude(positions[planet] ?? 0, normalized.cusps);
           setDragStartHouse(houseIdx);
         } else {
@@ -156,8 +163,7 @@ export function WheelBuilder({
       const dy = y - cy;
       const angle = Math.atan2(dy, dx);
       let lonDeg = angleToLonDeg(angle);
-      const useConstrain = effectiveFreeBuild ? false : constrainToHouse;
-      if (useConstrain && dragStartHouse !== null && normalized.cusps.length >= 12) {
+      if (constrainToHouse && dragStartHouse !== null && normalized.cusps.length >= 12) {
         lonDeg = clampToHouse(lonDeg, dragStartHouse, normalized.cusps);
       }
       onOverrideChange(draggingPlanet, lonDeg);
@@ -169,7 +175,6 @@ export function WheelBuilder({
       cy,
       onOverrideChange,
       constrainToHouse,
-      effectiveFreeBuild,
       dragStartHouse,
       normalized.cusps,
     ]
@@ -213,7 +218,7 @@ export function WheelBuilder({
             ? 'Click the wheel to place it. Or drag a planet to move it.'
             : Object.keys(positions).length === 0
               ? 'Select a planet above, then click the wheel to place it.'
-              : 'Equal house (reference). Add birth data for actual house positions.'}
+              : 'Equal house from the Ascendant control. Add birth data for computed cusps.'}
         </p>
       )}
     </div>

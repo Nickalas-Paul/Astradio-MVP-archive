@@ -332,6 +332,7 @@ export type SandboxCompositionAction =
   | { type: 'add_slot' }
   | { type: 'remove_slot'; index: number }
   | { type: 'clear_slot'; index: number }
+  | { type: 'free_build_asc_changed'; lonDeg: number; slotIndex?: number }
   | { type: 'preview_clear' }
   | { type: 'set_commit_relational_classification'; value: boolean };
 
@@ -406,9 +407,11 @@ export function sandboxCompositionReducer(
     case 'birth_first_snapshot_success': {
       const idx = getActiveSlotIndexFromCompositionInput(state.compositionInput);
       let slots = withSlotsEnsured(state.compositionInput.slots, idx);
-      const preserved = normalizeSandboxOverrides(slots[idx]?.overrides ?? { planets: {} });
+      const prevSlot = slots[idx] ?? { overrides: { planets: {} } };
+      const preserved = normalizeSandboxOverrides(prevSlot.overrides ?? { planets: {} });
       slots = [...slots];
-      slots[idx] = { ephemeris_birth: action.birth, overrides: preserved };
+      const { free_build_asc_deg: _dropAsc, ...prevWithoutAsc } = prevSlot;
+      slots[idx] = { ...prevWithoutAsc, ephemeris_birth: action.birth, overrides: preserved };
       const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
@@ -554,6 +557,21 @@ export function sandboxCompositionReducer(
       return {
         ...state,
         lastResolve: null,
+        compositionInput: { ...state.compositionInput, slots, seed: undefined },
+      };
+    }
+
+    case 'free_build_asc_changed': {
+      const idx =
+        action.slotIndex !== undefined
+          ? Math.max(0, Math.min(action.slotIndex, Math.max(0, state.compositionInput.slots.length - 1)))
+          : getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      let slots = withSlotsEnsured(state.compositionInput.slots, idx);
+      const prev = slots[idx] ?? { overrides: { planets: {} } };
+      slots = [...slots];
+      slots[idx] = { ...prev, free_build_asc_deg: roundSandboxDegree(action.lonDeg) };
+      return {
+        ...state,
         compositionInput: { ...state.compositionInput, slots, seed: undefined },
       };
     }

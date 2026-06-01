@@ -64,6 +64,8 @@ export type SandboxCompositionSlotWire = {
   chart_id?: string;
   /** UI-only label from chart owner (not sent to resolve). */
   chart_display_name?: string;
+  /** Free-build only: rotates equal-house cusps on the wheel (not sent to snapshot/resolve). */
+  free_build_asc_deg?: number;
   ephemeris_birth?: SandboxBirth;
   overrides?: SandboxOverrides;
 };

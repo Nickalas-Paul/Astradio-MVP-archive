@@ -2,32 +2,10 @@
 
 import type { SandboxOverrides, PlanetKey } from '../../types/sandbox';
 import { BODY_DISPLAY_ORDER, BODY_LABELS } from '../../../../../vnext/canonical-bodies';
+import { lonToSignDeg, roundZodiacDegree, SIGN_NAMES, signDegToLon } from '../../lib/zodiac-degrees';
 
 const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
 const PLANET_LABELS: Record<PlanetKey, string> = { ...BODY_LABELS } as Record<PlanetKey, string>;
-
-const SIGN_NAMES = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
-
-/** Internal storage is 0–360° (canonical longitude). User-facing is sign + 0–29° (and minutes). */
-function lonToSignDeg(lonDeg: number): { signIdx: number; sign: string; deg: number; min: number } {
-  const n = ((lonDeg % 360) + 360) % 360;
-  const signIdx = Math.floor(n / 30) % 12;
-  const degInSign = n % 30;
-  const deg = Math.floor(degInSign);
-  const min = Math.round((degInSign - deg) * 60);
-  return {
-    signIdx,
-    sign: SIGN_NAMES[signIdx],
-    deg,
-    min,
-  };
-}
-
-/** Convert astrology-native (sign + degree within sign + minutes) to canonical 0–360 longitude. */
-function signDegToLon(signIdx: number, deg: number, min: number): number {
-  const d = Math.max(0, Math.min(29, deg)) + Math.max(0, Math.min(59, min)) / 60;
-  return (signIdx % 12) * 30 + d;
-}
 
 function houseIndexForLongitude(lonDeg: number, cusps: number[]): number {
   if (cusps.length < 12) return 0;
@@ -35,7 +13,7 @@ function houseIndexForLongitude(lonDeg: number, cusps: number[]): number {
   for (let i = 0; i < 12; i++) {
     const start = cusps[i];
     const end = cusps[(i + 1) % 12];
-    const inRange = end > start ? (lon >= start && lon < end) : (lon >= start || lon < end);
+    const inRange = end > start ? lon >= start && lon < end : lon >= start || lon < end;
     if (inRange) return i;
   }
   return 0;
@@ -48,29 +26,141 @@ export interface DegreePanelProps {
   cusps?: number[];
   onOverrideChange: (planet: PlanetKey, lonDeg: number | null) => void;
   onResetPlanet?: (planet: PlanetKey) => void;
+  /** Ascendant row: editable in free-build, read-only when birth chart cusps exist */
+  ascendantLon?: number;
+  ascendantEditable?: boolean;
+  onAscendantChange?: (lonDeg: number) => void;
 }
 
-/**
- * Canonical degree rounding: 0.1° precision for determinism
- */
-function roundDegree(lonDeg: number): number {
-  return Math.round(lonDeg * 10) / 10;
+function DegreeInputs({
+  label,
+  lonDeg,
+  disabled,
+  onLonChange,
+  houseNum,
+}: {
+  label: string;
+  lonDeg: number;
+  disabled?: boolean;
+  onLonChange: (lon: number) => void;
+  houseNum: number | null;
+}) {
+  const { signIdx, deg, min } = lonToSignDeg(lonDeg);
+  const inputClass = disabled
+    ? 'px-2 py-1 bg-bg/50 border border-border/60 rounded text-subtext text-sm min-w-[7rem] cursor-not-allowed'
+    : 'px-2 py-1 bg-bg border border-border rounded text-text text-sm min-w-[7rem]';
+  const numClass = disabled
+    ? 'w-12 px-2 py-1 bg-bg/50 border border-border/60 rounded text-subtext text-sm cursor-not-allowed'
+    : 'w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        aria-label={`${label} sign`}
+        value={signIdx}
+        disabled={disabled}
+        onChange={(e) => {
+          const nextIdx = parseInt(e.target.value, 10);
+          if (!Number.isFinite(nextIdx) || nextIdx < 0 || nextIdx > 11) return;
+          const { deg: d, min: m } = lonToSignDeg(lonDeg);
+          onLonChange(roundZodiacDegree(signDegToLon(nextIdx, d, m)));
+        }}
+        className={inputClass}
+      >
+        {SIGN_NAMES.map((name, i) => (
+          <option key={name} value={i}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <input
+        type="number"
+        min={0}
+        max={29}
+        step={1}
+        aria-label={`${label} degree in sign`}
+        value={deg}
+        disabled={disabled}
+        onChange={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!Number.isFinite(val) || val < 0 || val > 29) return;
+          const { signIdx: si, min: m } = lonToSignDeg(lonDeg);
+          onLonChange(roundZodiacDegree(signDegToLon(si, val, m)));
+        }}
+        className={numClass}
+      />
+      <span className="text-xs text-subtext">°</span>
+      <input
+        type="number"
+        min={0}
+        max={59}
+        step={1}
+        aria-label={`${label} minutes`}
+        value={min}
+        disabled={disabled}
+        onChange={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!Number.isFinite(val) || val < 0 || val > 59) return;
+          const { signIdx: si, deg: d } = lonToSignDeg(lonDeg);
+          onLonChange(roundZodiacDegree(signDegToLon(si, d, val)));
+        }}
+        className={numClass}
+      />
+      <span className="text-xs text-subtext">′</span>
+      {houseNum != null && <span className="text-xs text-subtext/80">· House {houseNum}</span>}
+    </div>
+  );
 }
 
 /**
  * Planet degree editor. Internal state: canonical longitude 0–360°.
  * User-facing: sign + 0–29° within sign + minutes. Conversion at boundary only.
  */
-export function DegreePanel({ overrides, basePositions, cusps, onOverrideChange, onResetPlanet }: DegreePanelProps) {
+export function DegreePanel({
+  overrides,
+  basePositions,
+  cusps,
+  onOverrideChange,
+  onResetPlanet,
+  ascendantLon,
+  ascendantEditable = false,
+  onAscendantChange,
+}: DegreePanelProps) {
+  const showAscRow = ascendantLon != null && Number.isFinite(ascendantLon);
+  const ascHouseNum =
+    showAscRow && cusps && cusps.length === 12 ? houseIndexForLongitude(ascendantLon!, cusps) + 1 : null;
+
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-text mb-3">Planet Degrees</h3>
       <p className="text-xs text-subtext mb-2">Sign, degree in sign (0–29°), and minutes. Values stored as longitude 0–360°.</p>
+
+      {showAscRow ? (
+        <div
+          className={`flex items-center gap-3 p-2 rounded-lg border ${
+            ascendantEditable ? 'bg-bgElev border-border' : 'bg-bgElev/60 border-border/60'
+          }`}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-medium text-text w-20">Ascendant</span>
+              {!ascendantEditable && <span className="text-xs text-subtext">(from birth chart)</span>}
+            </div>
+            <DegreeInputs
+              label="Ascendant"
+              lonDeg={ascendantLon!}
+              disabled={!ascendantEditable}
+              onLonChange={(lon) => onAscendantChange?.(lon)}
+              houseNum={ascHouseNum}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {PLANET_ORDER.filter((p) => p !== 'northNode').map((planet) => {
         const override = overrides.planets[planet];
         const baseLon = basePositions?.[planet];
         const currentLon = override?.lonDeg ?? baseLon ?? 0;
-        const { sign, deg, min } = lonToSignDeg(currentLon);
         const hasOverride = override !== undefined;
         const houseNum = cusps && cusps.length === 12 ? houseIndexForLongitude(currentLon, cusps) + 1 : null;
 
@@ -79,71 +169,20 @@ export function DegreePanel({ overrides, basePositions, cusps, onOverrideChange,
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium text-text w-20">{PLANET_LABELS[planet]}</span>
-                {hasOverride && (
-                  <span className="text-xs text-yellow-400">(overridden)</span>
-                )}
+                {hasOverride && <span className="text-xs text-yellow-400">(overridden)</span>}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label={`${PLANET_LABELS[planet]} sign`}
-                  value={lonToSignDeg(currentLon).signIdx}
-                  onChange={(e) => {
-                    const signIdx = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(signIdx) || signIdx < 0 || signIdx > 11) return;
-                    const { deg, min } = lonToSignDeg(currentLon);
-                    onOverrideChange(planet, roundDegree(signDegToLon(signIdx, deg, min)));
-                  }}
-                  className="px-2 py-1 bg-bg border border-border rounded text-text text-sm min-w-[7rem]"
-                >
-                  {SIGN_NAMES.map((name, i) => (
-                    <option key={name} value={i}>{name}</option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min={0}
-                  max={29}
-                  step={1}
-                  aria-label={`${PLANET_LABELS[planet]} degree in sign`}
-                  value={lonToSignDeg(currentLon).deg}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(val) || val < 0 || val > 29) return;
-                    const { signIdx, min } = lonToSignDeg(currentLon);
-                    onOverrideChange(planet, roundDegree(signDegToLon(signIdx, val, min)));
-                  }}
-                  className="w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm"
-                />
-                <span className="text-xs text-subtext">°</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  step={1}
-                  aria-label={`${PLANET_LABELS[planet]} minutes`}
-                  value={lonToSignDeg(currentLon).min}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(val) || val < 0 || val > 59) return;
-                    const { signIdx, deg } = lonToSignDeg(currentLon);
-                    onOverrideChange(planet, roundDegree(signDegToLon(signIdx, deg, val)));
-                  }}
-                  className="w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm"
-                />
-                <span className="text-xs text-subtext">′</span>
-                {houseNum != null && (
-                  <span className="text-xs text-subtext/80">· House {houseNum}</span>
-                )}
-              </div>
+              <DegreeInputs
+                label={PLANET_LABELS[planet]}
+                lonDeg={currentLon}
+                onLonChange={(lon) => onOverrideChange(planet, lon)}
+                houseNum={houseNum}
+              />
             </div>
             {hasOverride && (
               <button
                 onClick={() => {
-                  if (onResetPlanet) {
-                    onResetPlanet(planet);
-                  } else {
-                    onOverrideChange(planet, null);
-                  }
+                  if (onResetPlanet) onResetPlanet(planet);
+                  else onOverrideChange(planet, null);
                 }}
                 className="px-2 py-1 text-xs text-subtext hover:text-text border border-border rounded"
                 title="Reset to base position"
@@ -161,7 +200,6 @@ export function DegreePanel({ overrides, basePositions, cusps, onOverrideChange,
         const nnLon = nnOverride?.lonDeg ?? nnBase;
         if (nnLon == null || !Number.isFinite(nnLon)) return null;
         const hasOverride = nnOverride !== undefined;
-        const { sign, deg, min } = lonToSignDeg(nnLon);
         const houseNum = cusps && cusps.length === 12 ? houseIndexForLongitude(nnLon, cusps) + 1 : null;
         const southLon = (nnLon + 180) % 360;
         const south = lonToSignDeg(southLon);
@@ -174,58 +212,12 @@ export function DegreePanel({ overrides, basePositions, cusps, onOverrideChange,
                   <span className="text-sm font-medium text-text w-20">North Node</span>
                   {hasOverride && <span className="text-xs text-yellow-400">(overridden)</span>}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    aria-label="North Node sign"
-                    value={lonToSignDeg(nnLon).signIdx}
-                    onChange={(e) => {
-                      const signIdx = parseInt(e.target.value, 10);
-                      if (!Number.isFinite(signIdx) || signIdx < 0 || signIdx > 11) return;
-                      const { deg, min } = lonToSignDeg(nnLon);
-                      onOverrideChange('northNode', roundDegree(signDegToLon(signIdx, deg, min)));
-                    }}
-                    className="px-2 py-1 bg-bg border border-border rounded text-text text-sm min-w-[7rem]"
-                  >
-                    {SIGN_NAMES.map((name, i) => (
-                      <option key={name} value={i}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={0}
-                    max={29}
-                    step={1}
-                    aria-label="North Node degree in sign"
-                    value={deg}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!Number.isFinite(val) || val < 0 || val > 29) return;
-                      const { signIdx, min } = lonToSignDeg(nnLon);
-                      onOverrideChange('northNode', roundDegree(signDegToLon(signIdx, val, min)));
-                    }}
-                    className="w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm"
-                  />
-                  <span className="text-xs text-subtext">°</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={59}
-                    step={1}
-                    aria-label="North Node minutes"
-                    value={min}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!Number.isFinite(val) || val < 0 || val > 59) return;
-                      const { signIdx, deg } = lonToSignDeg(nnLon);
-                      onOverrideChange('northNode', roundDegree(signDegToLon(signIdx, deg, val)));
-                    }}
-                    className="w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm"
-                  />
-                  <span className="text-xs text-subtext">′</span>
-                  {houseNum != null && <span className="text-xs text-subtext/80">· House {houseNum}</span>}
-                </div>
+                <DegreeInputs
+                  label="North Node"
+                  lonDeg={nnLon}
+                  onLonChange={(lon) => onOverrideChange('northNode', lon)}
+                  houseNum={houseNum}
+                />
               </div>
               {hasOverride && (
                 <button
