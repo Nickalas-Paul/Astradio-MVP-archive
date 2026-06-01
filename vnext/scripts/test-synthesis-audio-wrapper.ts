@@ -1,5 +1,5 @@
 /**
- * Synthesis wrapper alignment with `SemanticCore.audio` + R3 (no full audio lexicon outside `audio_staging`).
+ * Synthesis wrapper alignment with `SemanticCore.audio` + R3 (no full audio lexicon in projection text).
  * Run: npm run vnext:build && node dist/vnext/vnext/scripts/test-synthesis-audio-wrapper.js
  */
 import { encodeFeatures } from '../feature-encode';
@@ -56,11 +56,8 @@ function synthesisBody(sec: ProjectedExplanationSection | undefined): string {
   return parts.slice(1).join('\n\n').trim();
 }
 
-function r3ExcludingAudioStaging(sections: ProjectedExplanationSection[]): string {
-  return sections
-    .filter((s) => s.id !== 'audio_staging')
-    .map((s) => [s.text, ...(s.bullets ?? [])].join('\n'))
-    .join('\n');
+function r3ProjectionText(sections: ProjectedExplanationSection[]): string {
+  return sections.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n');
 }
 
 function assertNoFullLexiconSubstring(text: string, where: string): void {
@@ -139,7 +136,7 @@ function main(): void {
   validate(a1, surface, tier, fast);
   validate(runProjection(slow, seed, surface, tier), surface, tier, slow);
 
-  const r3 = r3ExcludingAudioStaging(a1);
+  const r3 = r3ProjectionText(a1);
   assertNoFullLexiconSubstring(r3, 'r3Text');
 
   console.log('[test-synthesis-audio-wrapper] OK');

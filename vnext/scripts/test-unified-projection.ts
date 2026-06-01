@@ -7,6 +7,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectFeedCardFromSemanticCore, projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection } from '../projection/projection-types';
 
@@ -102,18 +103,21 @@ function main(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
+  const insightOpts = insightProjectionOptionsFromCanonical(canonical);
 
   const a = projectTextFromSemanticCore(core, 'det-seed', {
     phaseD: true,
     surface: 'profile',
     tier: 'baseline',
     narrativePlan: null,
+    ...insightOpts,
   });
   const b = projectTextFromSemanticCore(core, 'det-seed', {
     phaseD: true,
     surface: 'profile',
     tier: 'baseline',
     narrativePlan: null,
+    ...insightOpts,
   });
   assert(JSON.stringify(a) === JSON.stringify(b), 'determinism: two runs must match');
 
@@ -123,6 +127,7 @@ function main(): void {
       surface: 'profile',
       tier: 'extended',
       narrativePlan: null,
+      ...insightOpts,
     })
   );
   const refsSeedB = allReferencedClaimIds(
@@ -131,6 +136,7 @@ function main(): void {
       surface: 'profile',
       tier: 'extended',
       narrativePlan: null,
+      ...insightOpts,
     })
   );
   assert(setsEqual(refsSeedA, refsSeedB), 'different projection seeds must not add/remove referenced claims');
@@ -142,6 +148,7 @@ function main(): void {
     surface: 'campaign',
     tier: 'baseline',
     narrativePlan: null,
+    ...insightOpts,
   });
   const campText = camp.map((s) => `${s.title}\n${s.text}`).join('\n');
   assert(

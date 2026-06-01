@@ -1,5 +1,6 @@
 /**
- * Audio identity: fused five-clause listen is identical for one core across projection surfaces.
+ * Audio identity: SemanticCore.audio bands are stable across projection surfaces;
+ * removed `audio_staging` / `musical` sections must not appear.
  * Run: npm run vnext:build && node dist/vnext/vnext/scripts/test-audio-identity-consistency.js
  */
 import { encodeFeatures } from '../feature-encode';
@@ -7,15 +8,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectFeedCardFromSemanticCore, projectTextFromSemanticCore } from '../projection/text-projection';
-import {
-  AUDIO_LEXICON_CLAUSE_STRINGS,
-  fullPerceptualListenSummaryFromCore,
-  mapArc,
-  mapDensity,
-  mapTempo,
-  mapTensionBias,
-  mapTexture,
-} from '../projection/rule-layer/audio-lexicon';
+import { mapArc, mapDensity, mapTempo, mapTensionBias, mapTexture } from '../projection/rule-layer/audio-lexicon';
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection } from '../projection/projection-types';
@@ -50,10 +43,11 @@ function snap(): EphemerisSnapshot {
   };
 }
 
-function audioBlob(sections: ProjectedExplanationSection[]): string {
-  const a = sections.find((s) => s.id === 'audio_staging');
-  assert(!!a, 'audio_staging required');
-  return [a!.text, ...(a!.bullets ?? [])].join('\n').toLowerCase();
+function assertNoRemovedAudioSections(sections: ProjectedExplanationSection[], label: string): void {
+  assert(
+    !sections.some((s) => s.id === 'audio_staging' || s.id === 'musical'),
+    `${label}: must not emit audio_staging or musical`
+  );
 }
 
 function assertNoContradictoryListenLexicon(core: SemanticCore, blob: string, label: string): void {
@@ -100,42 +94,28 @@ function main(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
-  const expected = fullPerceptualListenSummaryFromCore(core);
+  const audioSig = JSON.stringify(core.audio);
   const seed = 'aident-seed';
 
-  const blobs: string[] = [];
   for (const { surface, tier } of [
     { surface: 'profile' as const, tier: 'extended' as const },
     { surface: 'daily' as const, tier: 'extended' as const },
     { surface: 'sandbox' as const, tier: 'extended' as const },
   ]) {
     const sec = projectTextFromSemanticCore(core, seed, { phaseD: true, surface, tier, narrativePlan: null });
-    const b = audioBlob(sec);
-    assert(b.includes(expected.toLowerCase()), `${surface}: must contain canonical fused listen`);
-    blobs.push(b);
+    assertNoRemovedAudioSections(sec, surface);
+    const blob = sec.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n');
+    assertNoContradictoryListenLexicon(core, blob, surface);
+    assert(JSON.stringify(core.audio) === audioSig, `${surface}: core.audio unchanged`);
   }
+
   const feed = projectFeedCardFromSemanticCore(core, seed);
+  assertNoRemovedAudioSections(feed, 'feed');
   const feedBlob = feed.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n');
   assertNoContradictoryListenLexicon(core, feedBlob, 'feed');
 
-  const extraLex = AUDIO_LEXICON_CLAUSE_STRINGS.filter((clause) => {
-    const low = clause.toLowerCase();
-    return !expected.toLowerCase().includes(low);
-  });
-  for (const clause of extraLex) {
-    const needle = clause.toLowerCase();
-    for (let i = 0; i < blobs.length; i++) {
-      const label = ['profile', 'daily', 'sandbox'][i]!;
-      const without = blobs[i]!.replace(expected.toLowerCase(), ' ');
-      assert(
-        !without.includes(needle),
-        `${label}: no extra listen-clause phrase outside fused block (${clause.slice(0, 40)}…)`
-      );
-    }
-  }
-
   // eslint-disable-next-line no-console
-  console.log(JSON.stringify({ ok: true, fused_len: expected.length }, null, 2));
+  console.log(JSON.stringify({ ok: true, audio: core.audio }, null, 2));
 }
 
 main();

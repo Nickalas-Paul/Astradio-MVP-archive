@@ -8,7 +8,7 @@ import { checkForBannedStrings } from './smoke-template-removal.mjs';
 const BASE = (process.env.ENGINE_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
 const HEDGE = 'In many cases, this pattern tends to show related tendencies:';
 const ENFORCE_TEMPLATE_REMOVAL = process.env.SMOKE_TEMPLATE_REMOVAL_ENFORCE === '1';
-const EXPECTED_SECTIONS = ['group_key_interactions_v1', 'audio_staging'];
+const EXPECTED_SECTIONS = ['group_key_interactions_v1'];
 const BANNED_SECTIONS = [
   'musical',
   'audio_thread',

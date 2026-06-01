@@ -11,6 +11,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import { projectionNormSentence } from '../projection/rule-layer/repetition-collapse-phase0';
 import {
   ALL_INTER_CLAIM_GLUE_LITERALS,
@@ -159,12 +160,14 @@ function testProjectionDeterminismAndSeedSpread(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
+  const insightOpts = insightProjectionOptionsFromCanonical(canonical);
   const run = (seed: string) =>
     projectTextFromSemanticCore(core, seed, {
       phaseD: true,
       surface: 'profile',
       tier: 'extended',
       narrativePlan: null,
+      ...insightOpts,
     });
   const e1 = run('golden-seed-7f3a');
   const e2 = run('golden-seed-7f3a');
@@ -251,6 +254,7 @@ function main(): void {
     surface: 'profile',
     tier: 'extended',
     narrativePlan: null,
+    ...insightProjectionOptionsFromCanonical(canonical),
   });
   testRepetitionAcrossSections(sections);
 

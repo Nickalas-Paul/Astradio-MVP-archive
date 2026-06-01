@@ -25,7 +25,6 @@ import {
   capToMaxSentences,
   synthesizeClaimSentences,
 } from './claim-synthesize';
-import { buildAudioStagingBlock } from './audio-lexicon';
 import { applyConnectionPreface } from './connection-preface';
 import { assembleHomeSkySections } from './home-sky-sections';
 import {
@@ -94,14 +93,6 @@ function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
     acc[key]!.push(item);
     return acc;
   }, {} as Record<string, T[]>);
-}
-
-function normalizeAudioExplanationBody(audioText: string): string {
-  return audioText
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .join(' ');
 }
 
 function tierOpeningClause(surface: ProjectionSurface, tier: ExpansionTier, seed: string): string | null {
@@ -282,9 +273,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'trait_bridge',
       'synthesis_a',
       'synthesis_b',
-      'musical',
       'contradiction_map',
-      'audio_staging',
       'audio_thread',
     ]);
     return o;
@@ -295,8 +284,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'aspects',
       'delta_emphasis',
       'synthesis_a',
-      'musical',
-      'audio_staging',
     ]);
   }
 
@@ -314,8 +301,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'relational_weather_v1',
       'aspects',
       'interaction_map',
-      'musical',
-      'audio_staging',
       'audio_thread',
     ]);
   }
@@ -331,8 +316,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'synthesis_a',
       'synthesis_b',
       'subcluster',
-      'musical',
-      'audio_staging',
       'audio_thread',
     ]);
   }
@@ -1252,64 +1235,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
     }
   }
 
-  const audio = buildAudioStagingBlock(core, tierEff, options.narrativePlan ?? null, surface);
-  const audioBodyNormalized = normalizeAudioExplanationBody(audio.text);
-  if (tierEff === 'baseline') {
-    const clauses = audioBodyNormalized.split(/;\s+/).map((c) => c.trim()).filter(Boolean);
-    const shortAudio =
-      clauses.length >= 5 ? clauses.slice(0, 5).join('; ') : audioBodyNormalized;
-    // One tagged sentence: library/clause fusion uses many periods; splitting would exceed audio_staging run caps in phase4.
-    const shortTagged: TaggedSectionBody = {
-      paragraphs: [{ sentences: [{ text: shortAudio, provenance: 'audio_staging' }] }],
-    };
-    const { text, tagged } = enrichSectionTextWithTagged(
-      shortAudio,
-      shortTagged,
-      [],
-      [],
-      'short',
-      `${seed}:aud`,
-      [],
-      reportPadUsed,
-      PAD_SENTENCES
-    );
-    out.push({
-      id: 'audio_staging',
-      title: audio.title,
-      text,
-      meta: { enrichDensity: 'short', claimIdsReferenced: [], phaseD: true, tagged },
-    });
-  } else {
-    const fullTagged = taggedSectionBodyFromText(audioBodyNormalized, 'audio_staging');
-    const bulletBlocks = audio.bullets?.map((b) => taggedSectionBodyFromText(b, 'audio_staging'));
-    const { text, tagged } = enrichSectionTextWithTagged(
-      audioBodyNormalized,
-      fullTagged,
-      [],
-      [],
-      densityForSectionId('audio_staging', 'short'),
-      `${seed}:audf`,
-      [],
-      reportPadUsed,
-      PAD_SENTENCES
-    );
-    if (bulletBlocks?.length) {
-      tagged.bulletBlocks = bulletBlocks;
-    }
-    out.push({
-      id: 'audio_staging',
-      title: audio.title,
-      text,
-      bullets: audio.bullets,
-      meta: {
-        enrichDensity: densityForSectionId('audio_staging', 'short'),
-        claimIdsReferenced: [],
-        phaseD: true,
-        tagged,
-      },
-    });
-  }
-
   const placementSections =
     surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
 
@@ -1355,7 +1280,6 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   framed = filterAndOrderPhase3Sections(framed, surface);
 
   for (const s of framed) {
-    if (s.id === 'audio_staging') continue;
     const prov = s.id === 'connection_structure' || s.id === 'ensemble_framing' ? 'preface' : 'template';
     s.text = repairPhase2ParagraphLoads(s.text, prov, s.id);
     if (s.meta?.tagged) {

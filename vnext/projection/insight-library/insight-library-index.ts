@@ -10,9 +10,6 @@
  *   import { buildAspectKey, getAspectInsight, getStructuralInsight, getRelationalInsight }
  *     from '../insight-library/insight-library-index';
  *
- * Import in audio-lexicon.ts:
- *   import { getAudioInsight } from '../insight-library/insight-library-index';
- *
  * NOTE: This file imports from all aspect files (six core planet files plus
  * Mercury and five asteroid files). TypeScript will not compile until all
  * referenced files are present in the same directory. Empty scaffolds for
@@ -24,7 +21,6 @@ import type {
   AspectInsight,
   StructuralClaimInsight,
   RelationalInsight,
-  AudioDescriptorInsight,
   PlanetInsight,
   SignInsight,
   HouseInsight,
@@ -48,8 +44,6 @@ import { VESTA_ASPECT_INSIGHTS }     from './insight-library-aspects-vesta';
 
 import { STRUCTURAL_INSIGHTS }  from './insight-library-structural';
 import { RELATIONAL_INSIGHTS }  from './insight-library-relational';
-import { AUDIO_INSIGHTS }       from './insight-library-audio';
-
 import { PLANET_INSIGHTS } from './insight-library-planets';
 import { SIGN_INSIGHTS } from './insight-library-signs';
 import { HOUSE_INSIGHTS } from './insight-library-houses';
@@ -286,16 +280,6 @@ export function getRelationalInsight(id: string): RelationalInsight | undefined 
   return RELATIONAL_INSIGHTS[id];
 }
 
-/**
- * Look up an audio descriptor by AudioProjectionEnvelope field value.
- * Pass core.audio.tempo_band.density_band.arc_bias,
- * .tension_bias, or .relational_texture directly. No transformation needed.
- * Returns undefined if the code is not covered.
- */
-export function getAudioInsight(code: string): AudioDescriptorInsight | undefined {
-  return AUDIO_INSIGHTS[code];
-}
-
 // ---------------------------------------------------------------------------
 // Re-export types
 // ---------------------------------------------------------------------------
@@ -304,7 +288,6 @@ export type {
   AspectInsight,
   StructuralClaimInsight,
   RelationalInsight,
-  AudioDescriptorInsight,
   PlanetInsight,
   SignInsight,
   HouseInsight,

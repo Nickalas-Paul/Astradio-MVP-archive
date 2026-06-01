@@ -446,7 +446,6 @@ export function injectAnchorPrefix(ctx: TemplateContext): string {
 export const PHASE2_ANCHORED_SECTION_IDS = new Set<string>([
   'signatures',
   'aspects',
-  'musical',
   'sky_summary',
   'personal_emphasis',
   'likely_expressions',
@@ -525,7 +524,6 @@ export function validatePhase2Sections(sections: ProjectedExplanationSection[], 
   for (const sec of sections) {
     const full = [sec.text, ...(sec.bullets ?? [])].join('\n');
     assertNoClaimAnchorSameSentence(full, `${sec.id}:${seed}`);
-    if (sec.id === 'audio_staging') continue;
     const paras = sec.text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
     const first = paras[0] ?? '';
     if (!SKIP_FIRST_PARA_GLUE.has(sec.id) && CLAIM_GLUE_RE.test(first)) {

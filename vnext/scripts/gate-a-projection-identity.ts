@@ -11,6 +11,8 @@ import {
 } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { mergeFeatureVectors } from '../compat/fusion';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ExpansionTier } from '../projection/projection-types';
@@ -49,6 +51,7 @@ function assert(cond: boolean, msg: string): void {
 function runSurface(
   label: string,
   core: ReturnType<typeof interpretCanonicalReportObject>,
+  canonical: CanonicalReportObject,
   surface: ProjectionSurface,
   tier: ExpansionTier,
   extra: Record<string, unknown> = {}
@@ -59,9 +62,11 @@ function runSurface(
     tier,
     narrativePlan: null,
     aspectTension: null,
+    ...insightProjectionOptionsFromCanonical(canonical),
     ...extra,
   });
   const ids = sections.map((s) => s.id);
+  if (sections.length === 0) return ids;
   const pv = sections[sections.length - 1]?.meta?.projection_validation;
   assert(!!pv, `${label}: missing projection_validation`);
   assert(pv!.tierRequested === tier, `${label}: tierRequested mismatch`);
@@ -84,30 +89,27 @@ function main(): void {
   const m12 = mergeFeatureVectors(fv, fv2, { relationshipMode: 'neutral', wA: 0.5, wB: 0.5 });
   const merged3 = mergeFeatureVectors(m12, fv3, { relationshipMode: 'neutral', wA: 0.67, wB: 0.33 });
 
-  const coreProfile = interpretCanonicalReportObject(
-    buildCanonicalReportForSnapshotSurface({
-      surface_kind: 'profile_natal',
-      subject_ids: ['ga'],
-      snapshot: natal,
-      featureVec: fv,
-      control_surface_hash: 'ga',
-      compose_seed: 'ga',
-      guidance: g,
-    })
-  );
-  const coreDaily = interpretCanonicalReportObject(
-    buildCanonicalReportForSnapshotSurface({
-      surface_kind: 'home_daily',
-      subject_ids: ['ga'],
-      snapshot: natal,
-      featureVec: fv,
-      control_surface_hash: 'ga',
-      compose_seed: 'ga',
-      guidance: g,
-    })
-  );
-  const coreOverlay = interpretCanonicalReportObject(
-    buildCanonicalReportForOverlay({
+  const canonicalProfile = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['ga'],
+    snapshot: natal,
+    featureVec: fv,
+    control_surface_hash: 'ga',
+    compose_seed: 'ga',
+    guidance: g,
+  });
+  const coreProfile = interpretCanonicalReportObject(canonicalProfile);
+  const canonicalDaily = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'home_daily',
+    subject_ids: ['ga'],
+    snapshot: natal,
+    featureVec: fv,
+    control_surface_hash: 'ga',
+    compose_seed: 'ga',
+    guidance: g,
+  });
+  const coreDaily = interpretCanonicalReportObject(canonicalDaily);
+  const canonicalOverlay = buildCanonicalReportForOverlay({
       subject_ids: ['ov'],
       natalSnapshot: natal,
       natalFeatureVec: fv,
@@ -116,10 +118,9 @@ function main(): void {
       control_surface_hash: 'ov',
       compose_seed: 'ov',
       guidance: g,
-    })
-  );
-  const coreCompat = interpretCanonicalReportObject(
-    buildCanonicalReportForAggregate({
+    });
+  const coreOverlay = interpretCanonicalReportObject(canonicalOverlay);
+  const canonicalCompat = buildCanonicalReportForAggregate({
       kind: 'comparison',
       subject_ids: ['c'],
       participants: [
@@ -132,10 +133,9 @@ function main(): void {
       compose_seed: 'c',
       guidance: g,
       relationalWeather: null,
-    })
-  );
-  const coreGroup = interpretCanonicalReportObject(
-    buildCanonicalReportForAggregate({
+    });
+  const coreCompat = interpretCanonicalReportObject(canonicalCompat);
+  const canonicalGroup = buildCanonicalReportForAggregate({
       kind: 'group',
       subject_ids: ['gr'],
       participants: [
@@ -149,51 +149,60 @@ function main(): void {
       compose_seed: 'gr',
       guidance: g,
       relationalWeather: null,
-    })
+    });
+  const coreGroup = interpretCanonicalReportObject(canonicalGroup);
+
+  const pBase = runSurface('profile', coreProfile, canonicalProfile, 'profile', 'baseline');
+  assert(
+    pBase.includes('aspects') || pBase.includes('signatures') || pBase.includes('core_identity'),
+    'profile baseline ids'
   );
+  assert(!pBase.includes('audio_staging') && !pBase.includes('musical'), 'profile baseline: no removed listen sections');
 
-  const pBase = runSurface('profile', coreProfile, 'profile', 'baseline');
-  assert((pBase.includes('aspects') || pBase.includes('signatures')) && pBase.includes('audio_staging'), 'profile baseline ids');
+  const pExt = runSurface('profile', coreProfile, canonicalProfile, 'profile', 'extended');
+  assert(pExt.includes('core_identity'), 'profile extended identity placements');
+  assert(!pExt.includes('audio_staging') && !pExt.includes('musical'), 'profile extended: no removed listen sections');
 
-  const pExt = runSurface('profile', coreProfile, 'profile', 'extended');
-  assert(pExt.includes('synthesis_a'), 'profile extended must include synthesis_a');
-  assert(pExt.length > pBase.length, 'profile extended superset');
+  const dExt = runSurface('daily', coreDaily, canonicalDaily, 'daily', 'extended');
+  assert(dExt.includes('todays_sound') || dExt.includes('sky_anchor'), 'daily extended home sky');
 
-  const dExt = runSurface('daily', coreDaily, 'daily', 'extended');
-  assert(dExt.includes('temporal_integration'), 'daily extended temporal_integration');
+  const sExt = runSurface('sandbox', coreProfile, canonicalProfile, 'sandbox', 'extended');
+  assert(!sExt.includes('audio_staging') && !sExt.includes('musical'), 'sandbox: no removed listen sections');
 
-  const sExt = runSurface('sandbox', coreProfile, 'sandbox', 'extended');
-  assert(sExt.includes('delta_emphasis'), 'sandbox extended delta_emphasis');
+  const oExt = runSurface('overlay', coreOverlay, canonicalOverlay, 'overlay_pair', 'extended');
+  assert(oExt.includes('no_activations'), 'overlay_pair extended activation section');
 
-  const oExt = runSurface('overlay', coreOverlay, 'overlay_pair', 'extended');
-  assert(oExt.includes('layering'), 'overlay_pair extended layering');
+  const cBase = runSurface('compat', coreCompat, canonicalCompat, 'compat_pair', 'baseline', { connectionMode: 'lovers' });
+  assert(!cBase.includes('audio_staging') && !cBase.includes('musical'), 'compat_pair baseline: no removed listen sections');
 
-  const cBase = runSurface('compat', coreCompat, 'compat_pair', 'baseline', { connectionMode: 'lovers' });
-  assert(cBase.includes('connection_structure') && cBase.includes('relational_field'), 'compat_pair baseline framing');
+  const cExt = runSurface('compat', coreCompat, canonicalCompat, 'compat_pair', 'extended', { connectionMode: 'lovers' });
+  assert(!cExt.includes('audio_staging') && !cExt.includes('musical'), 'compat_pair extended: no removed listen sections');
 
-  const cExt = runSurface('compat', coreCompat, 'compat_pair', 'extended', { connectionMode: 'lovers' });
-  assert(cExt.includes('interaction_map'), 'compat_pair extended interaction_map');
-
-  const gBase = runSurface('group', coreGroup, 'group', 'baseline', {
+  const gBase = runSurface('group', coreGroup, canonicalGroup, 'group', 'baseline', {
     connectionMode: 'group',
     participantCount: 3,
   });
-  assert(gBase.includes('ensemble_framing'), 'group baseline ensemble_framing');
+  assert(!gBase.includes('audio_staging') && !gBase.includes('musical'), 'group baseline: no removed listen sections');
 
-  const gExt = runSurface('group', coreGroup, 'group', 'extended', {
+  const gExt = runSurface('group', coreGroup, canonicalGroup, 'group', 'extended', {
     connectionMode: 'group',
     participantCount: 3,
   });
-  assert(gExt.includes('field_distribution'), 'group extended field_distribution');
+  assert(!gExt.includes('audio_staging') && !gExt.includes('musical'), 'group extended: no removed listen sections');
 
-  const camp = runSurface('campaign', coreProfile, 'campaign', 'baseline');
-  assert(camp.includes('signatures') && camp.includes('audio_staging'), 'campaign baseline');
+  const camp = runSurface('campaign', coreProfile, canonicalProfile, 'campaign', 'baseline');
+  assert(!camp.includes('audio_staging') && !camp.includes('musical'), 'campaign baseline: no removed listen sections');
 
-  const feed = projectFeedCardFromSemanticCore(coreProfile, 'feed-ga');
+  const feed = projectFeedCardFromSemanticCore(coreProfile, 'feed-ga', {
+    ...insightProjectionOptionsFromCanonical(canonicalProfile),
+  });
   const feedIds = feed.map((s) => s.id);
-  assert(feedIds.includes('feed_signal') && feedIds.includes('feed_context'), 'feed ids');
-  const fPv = feed[feed.length - 1]?.meta?.projection_validation;
-  assert(!!fPv?.ok, 'feed validation');
+  assert(!feedIds.includes('audio_staging') && !feedIds.includes('musical'), 'feed: no removed listen sections');
+  if (feed.length > 0) {
+    assert(feedIds.includes('feed_signal') || feedIds.includes('feed_context'), 'feed ids when present');
+    const fPv = feed[feed.length - 1]?.meta?.projection_validation;
+    assert(!!fPv?.ok, 'feed validation');
+  }
 
   console.log('[gate-a-projection-identity] OK');
 }

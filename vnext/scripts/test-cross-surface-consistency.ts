@@ -8,14 +8,7 @@ import { buildCanonicalReportForAggregate, buildCanonicalReportForSnapshotSurfac
 import { mergeFeatureVectors } from '../compat/fusion';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectFeedCardFromSemanticCore, projectTextFromSemanticCore } from '../projection/text-projection';
-import {
-  fullPerceptualListenSummaryFromCore,
-  mapArc,
-  mapDensity,
-  mapTempo,
-  mapTensionBias,
-  mapTexture,
-} from '../projection/rule-layer/audio-lexicon';
+import { mapArc, mapDensity, mapTempo, mapTensionBias, mapTexture } from '../projection/rule-layer/audio-lexicon';
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, ProjectionOptions, ProjectionSurface } from '../projection/projection-types';
@@ -70,10 +63,15 @@ function collectReferencedClaimIds(sections: ProjectedExplanationSection[]): Set
   return out;
 }
 
-function audioStagingBody(surface: string, sections: ProjectedExplanationSection[]): string {
-  const a = sections.find((s) => s.id === 'audio_staging');
-  assert(!!a, `${surface}: audio_staging missing`);
-  return [a!.text, ...(a!.bullets ?? [])].join('\n');
+function assertNoRemovedAudioSections(surface: string, sections: ProjectedExplanationSection[]): void {
+  assert(
+    !sections.some((s) => s.id === 'audio_staging' || s.id === 'musical'),
+    `${surface}: must not emit audio_staging or musical`
+  );
+}
+
+function projectionTextBlob(sections: ProjectedExplanationSection[]): string {
+  return sections.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n');
 }
 
 function assertDeterministicProjectionRun(
@@ -142,7 +140,6 @@ function main(): void {
     core.provenance.source_object_hash === canonical.object_identity_hash,
     'semantic core must pin canonical object_identity_hash'
   );
-  const listen = fullPerceptualListenSummaryFromCore(core);
   const topIds = core.claims.slice(0, TOP_N).map((c) => c.claim_id);
   assert(topIds.length === Math.min(TOP_N, core.claims.length), 'fixture must expose TOP_N claims');
 
@@ -167,14 +164,12 @@ function main(): void {
           });
     const pv = sections[sections.length - 1]?.meta?.projection_validation;
     assert(!!pv && pv.ok === true, `${surface}: validation ok`);
-    const body =
-      surface === 'feed'
-        ? sections.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n')
-        : audioStagingBody(surface, sections);
+    assertNoRemovedAudioSections(surface, sections);
+    const body = projectionTextBlob(sections);
     if (surface === 'feed') {
       assertNoContradictoryListenLexicon(core, body);
     } else {
-      assert(body.includes(listen), `${surface}: fused listen must embed canonical five-clause summary`);
+      assertNoContradictoryListenLexicon(core, body);
     }
 
     const refs = collectReferencedClaimIds(sections);
@@ -253,10 +248,7 @@ function main(): void {
       const topHitCount = aggHead.filter((id) => refs.has(id)).length;
       assert(topHitCount >= 1, `${surface}:dom=${String(dominantFlag)} must reference at least one TOP_N claim`);
       assert(refs.has(aggHead[0]!), `${surface}:dom=${String(dominantFlag)} must reference top claim ${aggHead[0]}`);
-      if (surface !== 'campaign') {
-        const audio = audioStagingBody(surface, sections);
-        assert(audio.length > 0, `${surface}:dom=${String(dominantFlag)} audio staging non-empty`);
-      }
+      assertNoRemovedAudioSections(`${surface}:dom=${String(dominantFlag)}`, sections);
       surfaceClaimHits.set(surface, new Set(aggHead.filter((id) => refs.has(id))));
     }
     const profileHits = surfaceClaimHits.get('profile')!;

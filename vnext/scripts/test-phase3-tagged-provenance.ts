@@ -7,6 +7,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, TaggedSectionBody, TaggedSentence } from '../projection/projection-types';
 import {
@@ -102,6 +103,7 @@ function main(): void {
     surface: 'profile' as const,
     tier: 'extended' as const,
     narrativePlan: null as null,
+    ...insightProjectionOptionsFromCanonical(canonical),
   };
 
   const run1 = projectTextFromSemanticCore(core, 'phase3-det', opts);

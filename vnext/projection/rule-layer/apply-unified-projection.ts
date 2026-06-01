@@ -88,11 +88,13 @@ export function applyUnifiedProjection(
     const tierRequested = options.tier ?? 'baseline';
     const vr = validateReportSections(sections, 'feed', 'baseline', core, tierRequested);
     const pv = buildFinalProjectionValidation(tierRequested, 'baseline', vr, undefined);
-    const last = sections[sections.length - 1];
-    sections[sections.length - 1] = {
-      ...last,
-      meta: { ...last.meta, projection_validation: pv },
-    };
+    if (sections.length > 0) {
+      const last = sections[sections.length - 1]!;
+      sections[sections.length - 1] = {
+        ...last,
+        meta: { ...last.meta, projection_validation: pv },
+      };
+    }
     return sections;
   }
 
@@ -121,10 +123,12 @@ export function applyUnifiedProjection(
     validationResult,
     options._priorAttemptViolations
   );
-  const last = sections[sections.length - 1];
-  sections[sections.length - 1] = {
-    ...last,
-    meta: { ...last.meta, projection_validation: projectionValidation },
-  };
+  if (sections.length > 0) {
+    const last = sections[sections.length - 1]!;
+    sections[sections.length - 1] = {
+      ...last,
+      meta: { ...last.meta, projection_validation: projectionValidation },
+    };
+  }
   return sections;
 }

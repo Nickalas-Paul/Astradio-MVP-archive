@@ -253,10 +253,7 @@ export function validateReportSections(
     hard.push(x);
   }
 
-  const r3Text = sections
-    .filter((s) => s.id !== 'audio_staging')
-    .map((s) => [s.text, ...(s.bullets ?? [])].join('\n'))
-    .join('\n');
+  const r3Text = sections.map((s) => [s.text, ...(s.bullets ?? [])].join('\n')).join('\n');
   for (const kind of ['tempo', 'density', 'tension', 'arc'] as const) {
     const c = countAudioListenFamilyMatches(kind, r3Text);
     if (c > 1) hard.push(`r3_audio_family_${kind}:${c}>1`);
@@ -280,27 +277,9 @@ export function validateReportSections(
       if (st > sentCap) hard.push(`${sec.id}:sentence_ceiling:${st}>${sentCap}`);
     }
 
-    if (sec.id === 'audio_staging') {
-      const stAudio = sectionSentenceTotal(sec);
-      if (stAudio > 4) {
-        soft.push(`BUDGET_WARN:audio_staging_sentence_total:${stAudio}>4`);
-      }
-      const blob = [sec.text, ...(sec.bullets ?? [])].join('\n');
-      const semi = (blob.match(/;\s+/g) ?? []).length;
-      if (semi < 4) {
-        hard.push(`audio_staging:fused_listen_semicolons:${semi}<4`);
-      }
-      const bs = sec.bullets ?? [];
-      for (let bi = 0; bi < bs.length; bi++) {
-        const bc = countSentences(bs[bi]!);
-        if (bc > 1) hard.push(`audio_staging:bullet_${bi}_sentences:${bc}>1`);
-      }
-    }
-
     const clauseCap = sectionClauseCap(sec.id);
     if (clauseCap != null) {
       for (const sent of iterSectionSentences(sec)) {
-        if (sec.id === 'audio_staging') continue;
         const cu = countClauseUnitsInSentence(sent);
         if (cu > clauseCap) {
           hard.push(`${sec.id}:clause_ceiling:${cu}>${clauseCap}`);

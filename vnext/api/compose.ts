@@ -426,7 +426,7 @@ export class ComposeAPI {
       );
       const sigText = sig?.text ?? dailyLike[0]?.text ?? '';
       const mus = dailyLike.find(
-        (x) => x.id === 'audio_staging' || x.id === 'musical' || x.id === 'music_translation'
+        (x) => x.id === 'music_translation'
       );
       const allLong = dailyLike.map((s) => s.text).filter(Boolean).join('\n\n');
       const text: any = {
@@ -1018,7 +1018,7 @@ export class ComposeAPI {
           s.id === 'signatures'
       )?.text || '';
     const significanceText = projected.find((s) => s.id === 'significance')?.text || '';
-    const musicalSection = projected.find((s) => s.id === 'audio_staging' || s.id === 'musical');
+    const musicalSection = projected.find((s) => s.id === 'music_translation');
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
     /** Do not join all sections: `short` is already the signatures/relational_field block; joining every section repeated it in `long` (Community + feed UI). */

@@ -8,7 +8,6 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
-import { fullPerceptualListenSummaryFromCore } from '../projection/rule-layer/audio-lexicon';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 
 function assert(cond: boolean, msg: string): void {
@@ -66,7 +65,7 @@ function main(): void {
   const h1 = c1.object_identity_hash;
 
   const core = interpretCanonicalReportObject(c1);
-  const listenBefore = fullPerceptualListenSummaryFromCore(core);
+  const audioBefore = JSON.stringify(core.audio);
   const claimsBefore = claimSignature(core);
 
   const seed = 'pint-proj';
@@ -80,7 +79,7 @@ function main(): void {
 
   const coreAfter = interpretCanonicalReportObject(c2);
   assert(claimsBefore === claimSignature(coreAfter), 'claim spine must match after canonical rebuild');
-  assert(listenBefore === fullPerceptualListenSummaryFromCore(coreAfter), 'audio identity must match after canonical rebuild');
+  assert(audioBefore === JSON.stringify(coreAfter.audio), 'audio envelope must match after canonical rebuild');
 
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ ok: true, object_identity_hash: h1 }, null, 2));

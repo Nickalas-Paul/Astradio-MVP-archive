@@ -34,7 +34,7 @@ const SUMMARY_IDS = ['connection_structure', 'ensemble_framing', 'relational_fie
 const SUPPORT_IDS = ['signatures', 'significance'] as const;
 const TENSION_IDS = ['interaction_map', 'field_distribution', 'contradiction_map'] as const;
 const ACTIVATION_IDS = ['relational_weather_v1'] as const;
-const AUDIO_IDS = ['musical', 'audio_staging', 'audio_thread', 'music_translation'] as const;
+const AUDIO_IDS = ['audio_thread', 'music_translation'] as const;
 
 /** Never routed to expanded body (scaffolding / synthesis). */
 const EXCLUDED_IDS = new Set<string>(['synthesis_a', 'synthesis_b']);

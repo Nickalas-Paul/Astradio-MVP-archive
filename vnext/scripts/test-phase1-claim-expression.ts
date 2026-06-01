@@ -18,6 +18,8 @@ import {
 } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore, projectFeedCardFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import { mergeFeatureVectors } from '../compat/fusion';
 import { projectionNormSentence } from '../projection/rule-layer/repetition-collapse-phase0';
 import { normalizeProjectionInput } from '../projection/rule-layer/normalize-input';
@@ -97,17 +99,20 @@ function allVisibleText(sections: ProjectedExplanationSection[]): string {
 function assertProjectionMatrix(
   label: string,
   core: ReturnType<typeof interpretCanonicalReportObject>,
+  canonical: CanonicalReportObject,
   surface: ProjectionSurface,
   tier: ExpansionTier,
   extra: Record<string, unknown> = {}
 ): void {
   const seed = `p1-${label}`;
+  const insightOpts = insightProjectionOptionsFromCanonical(canonical);
   const a = projectTextFromSemanticCore(core, seed, {
     phaseD: true,
     surface,
     tier,
     narrativePlan: null,
     aspectTension: null,
+    ...insightOpts,
     ...extra,
   });
   const b = projectTextFromSemanticCore(core, seed, {
@@ -116,9 +121,12 @@ function assertProjectionMatrix(
     tier,
     narrativePlan: null,
     aspectTension: null,
+    ...insightOpts,
     ...extra,
   });
   assert(JSON.stringify(a) === JSON.stringify(b), `${label}: determinism`);
+  assert(!a.some((s) => s.id === 'audio_staging' || s.id === 'musical'), `${label}: no removed listen sections`);
+  if (a.length === 0) return;
   const gf = countGenericFallbackNormsInSections(a);
   assert(gf === 0, `${label}: GENERIC_FALLBACK count must be 0, got ${gf}`);
   assert(!allVisibleText(a).includes('This picture carries an additional emphasis'), `${label}: no legacy generic`);
@@ -161,85 +169,82 @@ function main(): void {
   const m12 = mergeFeatureVectors(fv, fv2, { relationshipMode: 'neutral', wA: 0.5, wB: 0.5 });
   const merged3 = mergeFeatureVectors(m12, fv3, { relationshipMode: 'neutral', wA: 0.67, wB: 0.33 });
 
-  const coreProfile = interpretCanonicalReportObject(
-    buildCanonicalReportForSnapshotSurface({
-      surface_kind: 'profile_natal',
-      subject_ids: ['p1'],
-      snapshot: natal,
-      featureVec: fv,
-      control_surface_hash: 'p1',
-      compose_seed: 'p1',
-      guidance: g,
-    })
-  );
-  const coreDaily = interpretCanonicalReportObject(
-    buildCanonicalReportForSnapshotSurface({
-      surface_kind: 'home_daily',
-      subject_ids: ['p1d'],
-      snapshot: natal,
-      featureVec: fv,
-      control_surface_hash: 'p1d',
-      compose_seed: 'p1d',
-      guidance: g,
-    })
-  );
-  const coreOverlay = interpretCanonicalReportObject(
-    buildCanonicalReportForOverlay({
-      subject_ids: ['p1o'],
-      natalSnapshot: natal,
-      natalFeatureVec: fv,
-      transitSnapshot: transit,
-      transitFeatureVec: fvt,
-      control_surface_hash: 'p1o',
-      compose_seed: 'p1o',
-      guidance: g,
-    })
-  );
-  const coreCompat = interpretCanonicalReportObject(
-    buildCanonicalReportForAggregate({
-      kind: 'comparison',
-      subject_ids: ['p1c'],
-      participants: [
-        { snapshot: natal, featureVec: fv, role: 'primary' },
-        { snapshot: natal2, featureVec: fv2, role: 'member_i' },
-      ],
-      composite: merged as FeatureVec,
-      anchorIndex: 0,
-      control_surface_hash: 'p1c',
-      compose_seed: 'p1c',
-      guidance: g,
-      relationalWeather: null,
-    })
-  );
-  const coreGroup = interpretCanonicalReportObject(
-    buildCanonicalReportForAggregate({
-      kind: 'group',
-      subject_ids: ['p1g'],
-      participants: [
-        { snapshot: natal, featureVec: fv, role: 'primary' },
-        { snapshot: natal2, featureVec: fv2, role: 'member_i' },
-        { snapshot: natal3, featureVec: fv3, role: 'member_i' },
-      ],
-      composite: merged3 as FeatureVec,
-      anchorIndex: 0,
-      control_surface_hash: 'p1g',
-      compose_seed: 'p1g',
-      guidance: g,
-      relationalWeather: null,
-    })
-  );
+  const canonicalProfile = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'profile_natal',
+    subject_ids: ['p1'],
+    snapshot: natal,
+    featureVec: fv,
+    control_surface_hash: 'p1',
+    compose_seed: 'p1',
+    guidance: g,
+  });
+  const coreProfile = interpretCanonicalReportObject(canonicalProfile);
+  const canonicalDaily = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'home_daily',
+    subject_ids: ['p1d'],
+    snapshot: natal,
+    featureVec: fv,
+    control_surface_hash: 'p1d',
+    compose_seed: 'p1d',
+    guidance: g,
+  });
+  const coreDaily = interpretCanonicalReportObject(canonicalDaily);
+  const canonicalOverlay = buildCanonicalReportForOverlay({
+    subject_ids: ['p1o'],
+    natalSnapshot: natal,
+    natalFeatureVec: fv,
+    transitSnapshot: transit,
+    transitFeatureVec: fvt,
+    control_surface_hash: 'p1o',
+    compose_seed: 'p1o',
+    guidance: g,
+  });
+  const coreOverlay = interpretCanonicalReportObject(canonicalOverlay);
+  const canonicalCompat = buildCanonicalReportForAggregate({
+    kind: 'comparison',
+    subject_ids: ['p1c'],
+    participants: [
+      { snapshot: natal, featureVec: fv, role: 'primary' },
+      { snapshot: natal2, featureVec: fv2, role: 'member_i' },
+    ],
+    composite: merged as FeatureVec,
+    anchorIndex: 0,
+    control_surface_hash: 'p1c',
+    compose_seed: 'p1c',
+    guidance: g,
+    relationalWeather: null,
+  });
+  const coreCompat = interpretCanonicalReportObject(canonicalCompat);
+  const canonicalGroup = buildCanonicalReportForAggregate({
+    kind: 'group',
+    subject_ids: ['p1g'],
+    participants: [
+      { snapshot: natal, featureVec: fv, role: 'primary' },
+      { snapshot: natal2, featureVec: fv2, role: 'member_i' },
+      { snapshot: natal3, featureVec: fv3, role: 'member_i' },
+    ],
+    composite: merged3 as FeatureVec,
+    anchorIndex: 0,
+    control_surface_hash: 'p1g',
+    compose_seed: 'p1g',
+    guidance: g,
+    relationalWeather: null,
+  });
+  const coreGroup = interpretCanonicalReportObject(canonicalGroup);
 
-  assertProjectionMatrix('profile-A-baseline', coreProfile, 'profile', 'baseline');
-  assertProjectionMatrix('profile-A-extended', coreProfile, 'profile', 'extended');
-  assertProjectionMatrix('profile-A+C(t)-daily-extended', coreDaily, 'daily', 'extended');
-  assertProjectionMatrix('sandbox-single-extended', coreProfile, 'sandbox', 'extended');
-  assertProjectionMatrix('overlay-pair-extended', coreOverlay, 'overlay_pair', 'extended');
-  assertProjectionMatrix('compat-A+B-extended', coreCompat, 'compat_pair', 'extended', { connectionMode: 'lovers' });
-  assertProjectionMatrix('group-A+B+N-extended', coreGroup, 'group', 'extended', {
+  assertProjectionMatrix('profile-A-baseline', coreProfile, canonicalProfile, 'profile', 'baseline');
+  assertProjectionMatrix('profile-A-extended', coreProfile, canonicalProfile, 'profile', 'extended');
+  assertProjectionMatrix('profile-A+C(t)-daily-extended', coreDaily, canonicalDaily, 'daily', 'extended');
+  assertProjectionMatrix('sandbox-single-extended', coreProfile, canonicalProfile, 'sandbox', 'extended');
+  assertProjectionMatrix('overlay-pair-extended', coreOverlay, canonicalOverlay, 'overlay_pair', 'extended');
+  assertProjectionMatrix('compat-A+B-extended', coreCompat, canonicalCompat, 'compat_pair', 'extended', {
+    connectionMode: 'lovers',
+  });
+  assertProjectionMatrix('group-A+B+N-extended', coreGroup, canonicalGroup, 'group', 'extended', {
     connectionMode: 'group',
     participantCount: 3,
   });
-  assertProjectionMatrix('campaign-baseline', coreProfile, 'campaign', 'baseline');
+  assertProjectionMatrix('campaign-baseline', coreProfile, canonicalProfile, 'campaign', 'baseline');
 
   const feedA = projectFeedCardFromSemanticCore(coreProfile, 'p1-feed');
   const feedB = projectFeedCardFromSemanticCore(coreProfile, 'p1-feed');

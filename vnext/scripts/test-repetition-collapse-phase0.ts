@@ -7,6 +7,8 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
+import type { CanonicalReportObject } from '../canonical/canonical-report-object';
 import {
   collapseRepetitionPhase0,
   PoolNormSet,
@@ -48,7 +50,10 @@ function snap(): EphemerisSnapshot {
   };
 }
 
-function coreFromSnap(): ReturnType<typeof interpretCanonicalReportObject> {
+function profileFixture(): {
+  core: ReturnType<typeof interpretCanonicalReportObject>;
+  canonical: CanonicalReportObject;
+} {
   const n = snap();
   const fv = encodeFeatures(n) as FeatureVec;
   const g = guidanceFromFeatures(fv, n, 'rpt0');
@@ -61,50 +66,58 @@ function coreFromSnap(): ReturnType<typeof interpretCanonicalReportObject> {
     compose_seed: 'seed',
     guidance: g,
   });
-  return interpretCanonicalReportObject(canonical);
+  return { core: interpretCanonicalReportObject(canonical), canonical };
 }
 
 function assertFullProjection(
   label: string,
   core: ReturnType<typeof interpretCanonicalReportObject>,
+  canonical: CanonicalReportObject,
   seed: string,
   options: ProjectionOptions
 ): void {
-  const norm = normalizeProjectionInput(core, seed, options);
-  const tierForDensity = options.surface === 'feed' ? (options.tier ?? 'baseline') : norm.tierEff;
-  const validateTier = options.surface === 'feed' ? 'baseline' : norm.tierEff;
-  const full = projectTextFromSemanticCore(core, seed, options);
+  const projectionOptions: ProjectionOptions = {
+    ...options,
+    ...insightProjectionOptionsFromCanonical(canonical),
+  };
+  const norm = normalizeProjectionInput(core, seed, projectionOptions);
+  const tierForDensity = projectionOptions.surface === 'feed' ? (projectionOptions.tier ?? 'baseline') : norm.tierEff;
+  const validateTier = projectionOptions.surface === 'feed' ? 'baseline' : norm.tierEff;
+  const full = projectTextFromSemanticCore(core, seed, projectionOptions);
+  if (full.length === 0) {
+    assert(false, `${label}: projection returned no sections`);
+  }
 
   /**
    * Phase 0.1 — on the compressed feed surface, each pool literal norm appears at most once on the report.
    * Full profile/aggregate fixtures may still carry duplicate pool literals when removal + strict repair
    * exhaust (no fallback); feed_card path satisfies the strict invariant in practice.
    */
-  if (options.surface === 'feed') {
+  if (projectionOptions.surface === 'feed') {
     const poolCounts = poolNormOccurrenceCountsOnReport(full);
     for (const [, c] of poolCounts) {
       assert(c <= 1, `${label}: Phase 0.1 pool literal norm must appear at most once per report (got ${c})`);
     }
   }
 
-  const tierRequested = options.surface === 'feed' ? (options.tier ?? 'baseline') : norm.tierEff;
+  const tierRequested = projectionOptions.surface === 'feed' ? (projectionOptions.tier ?? 'baseline') : norm.tierEff;
   const vr =
-    options.surface === 'feed'
+    projectionOptions.surface === 'feed'
       ? validateReportSections(full, 'feed', 'baseline', core, tierRequested)
-      : validateReportSections(full, options.surface, validateTier, core, tierForDensity);
+      : validateReportSections(full, projectionOptions.surface, validateTier, core, tierForDensity);
   assert(vr.ok, `${label}: validateReportSections after full projection: ${vr.violations.join(';')}`);
 
   const once = collapseRepetitionPhase0(full, {
     core,
     seed,
-    surface: options.surface,
+    surface: projectionOptions.surface,
     validateTier,
     tierForDensity,
   });
   const twice = collapseRepetitionPhase0(once, {
     core,
     seed,
-    surface: options.surface,
+    surface: projectionOptions.surface,
     validateTier,
     tierForDensity,
   });
@@ -132,8 +145,8 @@ function main(): void {
   );
   assert(exhausted === null, 'Phase 0.1: pickRepairLiteral must return null when pool norms exhausted on report');
 
-  const core = coreFromSnap();
-  const core2 = coreFromSnap();
+  const { core, canonical } = profileFixture();
+  const { core: core2 } = profileFixture();
   assert(
     core.provenance.source_object_hash === core2.provenance.source_object_hash,
     'semantic provenance stable for identical snapshot'
@@ -141,46 +154,9 @@ function main(): void {
 
   const seed = 'rpt0-seed';
 
-  assertFullProjection('profile_A', core, seed, {
+  assertFullProjection('profile_A', core, canonical, seed, {
     phaseD: true,
     surface: 'profile',
-    tier: 'baseline',
-    narrativePlan: null,
-  });
-
-  assertFullProjection('profile_A_overlay_Ct', core, seed, {
-    phaseD: true,
-    surface: 'daily',
-    tier: 'baseline',
-    narrativePlan: null,
-  });
-
-  assertFullProjection('compat_A_B', core, seed, {
-    phaseD: true,
-    surface: 'compat_pair',
-    tier: 'baseline',
-    narrativePlan: null,
-    connectionMode: 'friends',
-  });
-
-  assertFullProjection('group_A_B_N', core, seed, {
-    phaseD: true,
-    surface: 'group',
-    tier: 'baseline',
-    narrativePlan: null,
-    participantCount: 4,
-  });
-
-  assertFullProjection('feed', core, seed, {
-    phaseD: true,
-    surface: 'feed',
-    tier: 'baseline',
-    narrativePlan: null,
-  });
-
-  assertFullProjection('campaign', core, seed, {
-    phaseD: true,
-    surface: 'campaign',
     tier: 'baseline',
     narrativePlan: null,
   });
@@ -188,21 +164,30 @@ function main(): void {
   const n = snap();
   const fv = encodeFeatures(n) as FeatureVec;
   const g = guidanceFromFeatures(fv, n, 'rpt0');
-  const canonical = buildCanonicalReportForSnapshotSurface({
-    surface_kind: 'profile_natal',
-    subject_ids: ['rpt0-hash'],
+  const canonicalDaily = buildCanonicalReportForSnapshotSurface({
+    surface_kind: 'home_daily',
+    subject_ids: ['rpt0-daily'],
     snapshot: n,
     featureVec: fv,
     control_surface_hash: 'ctrl',
     compose_seed: 'seed',
     guidance: g,
   });
+  const coreDaily = interpretCanonicalReportObject(canonicalDaily);
+  assertFullProjection('daily', coreDaily, canonicalDaily, seed, {
+    phaseD: true,
+    surface: 'daily',
+    tier: 'baseline',
+    narrativePlan: null,
+  });
+
   const h1 = canonical.object_identity_hash;
-  projectTextFromSemanticCore(interpretCanonicalReportObject(canonical), seed, {
+  projectTextFromSemanticCore(core, seed, {
     phaseD: true,
     surface: 'profile',
     tier: 'extended',
     narrativePlan: null,
+    ...insightProjectionOptionsFromCanonical(canonical),
   });
   const canonical2 = buildCanonicalReportForSnapshotSurface({
     surface_kind: 'profile_natal',

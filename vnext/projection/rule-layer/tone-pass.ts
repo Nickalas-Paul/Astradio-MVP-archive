@@ -25,8 +25,6 @@ const SECTION_RANK: Record<string, number> = {
   relational_field: 15,
   feed_signal: 18,
   feed_context: 19,
-  audio_staging: 20,
-  musical: 24,
   audio_thread: 25,
   personal_emphasis: 30,
   likely_expressions: 32,

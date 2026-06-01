@@ -143,8 +143,8 @@ function main(): void {
   assert(Array.isArray(projectionA), 'unified campaign projection returns section array');
   assert(!Array.isArray(sceneA), 'RPG challenge scene is not projection section array');
   assert(
-    projectionA.some((s) => s.id === 'audio_staging') && !('audio_staging' in sceneObj),
-    'test keeps campaign unified projection and RPG challenge paths explicit'
+    !projectionA.some((s) => s.id === 'audio_staging' || s.id === 'musical') && !('audio_staging' in sceneObj),
+    'campaign projection must not emit removed audio_staging/musical sections'
   );
 
   // eslint-disable-next-line no-console

@@ -8,6 +8,7 @@ import { buildCanonicalReportForAggregate, buildCanonicalReportForSnapshotSurfac
 import { mergeFeatureVectors } from '../compat/fusion';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, ProjectionOptions, TaggedSectionBody } from '../projection/projection-types';
 import { assertSectionTaggedInvariant, reconstructTaggedSectionBody, splitSentsForTagged, stripTaggedFromExplanationForHash } from '../projection/tagged-text';
@@ -305,7 +306,13 @@ function main(): void {
   });
   const hCanon = canonical.object_identity_hash;
   const core = interpretCanonicalReportObject(canonical);
-  const projOpts: ProjectionOptions = { phaseD: true, surface: 'profile', tier: 'baseline', narrativePlan: null };
+  const projOpts: ProjectionOptions = {
+    phaseD: true,
+    surface: 'profile',
+    tier: 'baseline',
+    narrativePlan: null,
+    ...insightProjectionOptionsFromCanonical(canonical),
+  };
   const projected = projectTextFromSemanticCore(core, 'p5-hash', projOpts);
   const emptyPass = applySurfaceExpressionRulesWithTables(projected, projOpts, { rules: [], templateAllowlist: [] });
   assert(JSON.stringify(projected) === JSON.stringify(emptyPass), 're-applying empty rule tables is a no-op on current projection');

@@ -14,7 +14,7 @@ import { projectTextFromSemanticCore } from '../projection/text-projection';
 import { getAspectInsight } from '../projection/insight-library/insight-library-index';
 
 function filterSectionsForIdentityDisplay<T extends { id: string }>(sections: readonly T[]): T[] {
-  return sections.filter((section) => section.id !== 'audio_staging');
+  return [...sections];
 }
 
 function snap(d = 0): EphemerisSnapshot {
@@ -250,11 +250,10 @@ function testCharacterCountRange() {
   }
 }
 
-function testAudioStagingHiddenFromUi() {
+function testAudioStagingRemovedFromProjection() {
   const sections = profileSections('identity-ui', snap(1));
-  const visible = filterSectionsForIdentityDisplay(sections);
-  assert.ok(!visible.some((s) => s.id === 'audio_staging'), 'audio_staging hidden from Identity UI');
-  assert.ok(sections.some((s) => s.id === 'audio_staging'), 'audio_staging still in raw sections');
+  assert.ok(!sections.some((s) => s.id === 'audio_staging' || s.id === 'musical'), 'removed sections absent');
+  assert.deepEqual(filterSectionsForIdentityDisplay(sections), sections);
 }
 
 function testOverlayUnchanged() {
@@ -308,7 +307,7 @@ function main() {
   testAspectSentenceCaps();
   testPlanetaryRelationshipsAspectHeaders();
   testCharacterCountRange();
-  testAudioStagingHiddenFromUi();
+  testAudioStagingRemovedFromProjection();
   testOverlayUnchanged();
   console.log('[test-profile-identity-curation] all tests passed');
 }

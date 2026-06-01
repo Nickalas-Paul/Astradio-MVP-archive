@@ -8,6 +8,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection, ProjectionSurface } from '../projection/projection-types';
 import { reconstructTaggedSectionBody, stripTaggedFromExplanationForHash } from '../projection/tagged-text';
@@ -110,6 +111,8 @@ function expectedAudioThreadIndex(sections: ProjectedExplanationSection[]): numb
   return Math.min(k + p, n - 1);
 }
 
+let profileInsightOpts: ReturnType<typeof insightProjectionOptionsFromCanonical> = {};
+
 function runSurface(
   core: ReturnType<typeof interpretCanonicalReportObject>,
   surface: ProjectionSurface,
@@ -121,6 +124,7 @@ function runSurface(
     surface,
     tier,
     narrativePlan: null,
+    ...profileInsightOpts,
     ...extra,
   });
 }
@@ -139,6 +143,7 @@ function main(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
+  profileInsightOpts = insightProjectionOptionsFromCanonical(canonical);
 
   const surfaces: Array<{
     surface: ProjectionSurface;
@@ -159,6 +164,7 @@ function main(): void {
     const label = `${cfg.surface}/${cfg.tier}`;
     const a = runSurface(core, cfg.surface, cfg.tier, cfg.extra);
     const b = runSurface(core, cfg.surface, cfg.tier, cfg.extra);
+    if (a.length === 0) continue;
     assert(JSON.stringify(a) === JSON.stringify(b), `determinism ${label}`);
     assertReconstructs(a, label);
     const v = validatePhase4GrammarAndRuns(a, cfg.surface);

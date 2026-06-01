@@ -7,6 +7,7 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCanonicalReportForSnapshotSurface } from '../canonical/build-from-compose-context';
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
+import { insightProjectionOptionsFromCanonical } from '../projection/insight-projection-from-canonical';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection } from '../projection/projection-types';
 import {
@@ -66,7 +67,12 @@ function main(): void {
     guidance: g,
   });
   const core = interpretCanonicalReportObject(canonical);
-  const sections = projectTextFromSemanticCore(core, 'p2seed', { surface: 'profile', tier: 'extended', phaseD: true });
+  const sections = projectTextFromSemanticCore(core, 'p2seed', {
+    surface: 'profile',
+    tier: 'extended',
+    phaseD: true,
+    ...insightProjectionOptionsFromCanonical(canonical),
+  });
 
   validatePhase2Sections(sections, 'p2seed');
 
@@ -74,15 +80,11 @@ function main(): void {
   const wrap = wrapperRepetitionMetric(text);
   assert(wrap <= 0.2, `wrapper metric too high: ${wrap}`);
 
-  const sansAudio = sections
-    .filter((s) => s.id !== 'audio_staging')
-    .map((s) => [s.text, ...(s.bullets ?? [])].join('\n'))
-    .join('\n');
-  const fam = audioDuplicationFamilies(sansAudio, true);
-  assert(fam.tempo <= 1, `tempo family repeats outside audio_staging: ${fam.tempo}`);
-  assert(fam.density <= 1, `density family repeats outside audio_staging: ${fam.density}`);
-  assert(fam.tension <= 1, `tension family repeats outside audio_staging: ${fam.tension}`);
-  assert(fam.arc <= 1, `arc family repeats outside audio_staging: ${fam.arc}`);
+  const fam = audioDuplicationFamilies(text, true);
+  assert(fam.tempo <= 1, `tempo family repeats: ${fam.tempo}`);
+  assert(fam.density <= 1, `density family repeats: ${fam.density}`);
+  assert(fam.tension <= 1, `tension family repeats: ${fam.tension}`);
+  assert(fam.arc <= 1, `arc family repeats: ${fam.arc}`);
 
   const { avgWords, longRatio } = sentenceLengthStats(text);
   assert(avgWords <= 28, `avg words too high: ${avgWords}`);
@@ -90,7 +92,6 @@ function main(): void {
 
   let maxL = 0;
   for (const s of sections) {
-    if (s.id === 'audio_staging') continue;
     for (const sent of s.text.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean)) {
       const t = totalLoadScore(countSentenceLoads(sent, 'template'));
       maxL = Math.max(maxL, t);
@@ -101,7 +102,7 @@ function main(): void {
   // eslint-disable-next-line no-console
   console.log(
     JSON.stringify(
-      { ok: true, wrapperRepetition: wrap, audioFamiliesSansStaging: fam, avgWords, longRatio, maxLoad: maxL },
+      { ok: true, wrapperRepetition: wrap, audioFamilies: fam, avgWords, longRatio, maxLoad: maxL },
       null,
       2
     )

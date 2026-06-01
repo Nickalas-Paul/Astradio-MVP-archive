@@ -9,7 +9,6 @@ import { buildCanonicalReportForAggregate } from '../canonical/build-from-compos
 import { interpretCanonicalReportObject } from '../semantic/semantic-authority';
 import { projectTextFromSemanticCore } from '../projection/text-projection';
 import { mergeFeatureVectors } from '../compat/fusion';
-import { fullPerceptualListenSummaryFromCore } from '../projection/rule-layer/audio-lexicon';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { ProjectedExplanationSection } from '../projection/projection-types';
 
@@ -47,10 +46,11 @@ function claimIds(core: ReturnType<typeof interpretCanonicalReportObject>): stri
   return core.claims.map((c) => c.claim_id).join(',');
 }
 
-function audioBlob(sections: ProjectedExplanationSection[]): string {
-  const a = sections.find((s) => s.id === 'audio_staging');
-  assert(!!a, 'audio_staging required');
-  return [a!.text, ...(a!.bullets ?? [])].join('\n');
+function assertNoRemovedAudioSections(sections: ProjectedExplanationSection[], label: string): void {
+  assert(
+    !sections.some((s) => s.id === 'audio_staging' || s.id === 'musical'),
+    `${label}: must not emit audio_staging or musical`
+  );
 }
 
 function collectAllClaimRefs(sections: ProjectedExplanationSection[]): Set<string> {
@@ -89,7 +89,6 @@ function main(): void {
   assert(c1.object_identity_hash === c2.object_identity_hash, 'aggregate canonical hash must be stable across rebuild');
 
   const core = interpretCanonicalReportObject(c1);
-  const listen = fullPerceptualListenSummaryFromCore(core);
   const seed = 'aggc-proj';
 
   const compat = projectTextFromSemanticCore(core, seed, {
@@ -112,7 +111,7 @@ function main(): void {
   ] as const) {
     const pv = sec[sec.length - 1]?.meta?.projection_validation;
     assert(!!pv && pv.ok === true, `${label}: validation ok`);
-    assert(audioBlob(sec).includes(listen), `${label}: fused listen must match aggregate core`);
+    assertNoRemovedAudioSections(sec, label);
   }
 
   const core2 = interpretCanonicalReportObject(c2);

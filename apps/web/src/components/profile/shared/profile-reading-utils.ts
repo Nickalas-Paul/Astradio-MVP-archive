@@ -19,10 +19,8 @@ export const SECTION_ORDER: string[] = [
   'field_distribution',
   'synthesis_a',
   'synthesis_b',
-  'musical',
   'contradiction_map',
   'todays_sound',
-  'audio_staging',
   'audio_thread',
 ];
 
@@ -48,9 +46,9 @@ export function sectionSortKey(id: string): number {
   return 200 + (id ? id.charCodeAt(0) : 0);
 }
 
-/** Identity tab: hide pipeline-only sections; raw data still used for audio generation. */
+/** Identity tab display order helper (legacy filter for removed `audio_staging` is a no-op). */
 export function filterIdentityDisplaySections<T extends { id: string }>(sections: readonly T[]): T[] {
-  return sections.filter((section) => section.id !== 'audio_staging');
+  return [...sections];
 }
 
 export function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {

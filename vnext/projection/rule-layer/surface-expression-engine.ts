@@ -43,7 +43,6 @@ function validateShippedSurfaceExpressionRules(rules: readonly SurfaceExpression
     }
     if (
       r.provenances.includes('padding') ||
-      r.provenances.includes('audio_staging') ||
       r.provenances.includes('audio_thread')
     ) {
       throw new Error(`[surface-expression] rule ${r.rule_id} targets immutable provenance`);
@@ -59,7 +58,7 @@ function isRowImmutable(row: TaggedSentence): boolean {
   const p = effectiveProvenance(row);
   if (p === 'padding') return true;
   if (p === 'claim_body') return true;
-  if (p === 'audio_staging' || p === 'audio_thread') return true;
+  if (p === 'audio_thread') return true;
   return false;
 }
 
