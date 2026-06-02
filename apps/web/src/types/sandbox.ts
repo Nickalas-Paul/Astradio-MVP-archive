@@ -59,6 +59,9 @@ export type SandboxSnapshotMeta = {
   canonical_input_hash_version?: number;
 };
 
+/** Path A = blank canvas (silent transit base); Path B = birth data first. chart_id slots are implicit Path B. */
+export type SandboxSlotEntryMode = 'blank_canvas' | 'birth_data';
+
 /** One slot in the wire body for POST /api/sandbox/resolve (BFF normalizes nested birth). */
 export type SandboxCompositionSlotWire = {
   chart_id?: string;
@@ -66,6 +69,8 @@ export type SandboxCompositionSlotWire = {
   chart_display_name?: string;
   /** Free-build only: rotates equal-house cusps on the wheel (not sent to snapshot/resolve). */
   free_build_asc_deg?: number;
+  /** null/absent = no workflow choice yet; blank_canvas | birth_data set in Commit 2 UI. */
+  entry_mode?: SandboxSlotEntryMode | null;
   ephemeris_birth?: SandboxBirth;
   overrides?: SandboxOverrides;
 };

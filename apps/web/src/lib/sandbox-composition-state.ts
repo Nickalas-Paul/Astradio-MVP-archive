@@ -143,6 +143,30 @@ export function populatedSlotsAreAggregateEligible(
   });
 }
 
+/** True if slot is Path A blank canvas (no chart_id / ephemeris_birth on wire). */
+export function isBlankCanvasSlot(slot: SandboxCompositionInputState['slots'][number]): boolean {
+  return slot.entry_mode === 'blank_canvas' && slotWirePopulationKind(slot) === 'empty';
+}
+
+export function blankCanvasSlotHasPlacedPlanets(slot: SandboxCompositionInputState['slots'][number]): boolean {
+  return Object.keys(normalizeSandboxOverrides(slot.overrides ?? { planets: {} }).planets).length > 0;
+}
+
+/** Blank-canvas generate: active slot only, no mixed populated slots (single-slot Path A). */
+export function isBlankCanvasGenerateEligible(input: SandboxCompositionInputState, activeIdx: number): boolean {
+  const slot = input.slots[activeIdx];
+  if (!slot || !isBlankCanvasSlot(slot)) return false;
+  if (!blankCanvasSlotHasPlacedPlanets(slot)) return false;
+  if (getPopulatedSlotIndicesFromCompositionInput(input).length > 0) return false;
+  return true;
+}
+
+export type SerializeSandboxResolveOptions = {
+  /** Ephemeris birth injected at generate time (not persisted on slot state). */
+  transientEphemerisBirthBySlotIndex?: Record<number, SandboxBirth>;
+};
+
+
 /** First slot with engine-resolvable ephemeris birth (for /api/sandbox/snapshot after load). */
 export function firstEphemerisBirthForSnapshot(input: SandboxCompositionInputState): {
   birth: SandboxBirth;
@@ -334,7 +358,8 @@ export type SandboxCompositionAction =
   | { type: 'clear_slot'; index: number }
   | { type: 'free_build_asc_changed'; lonDeg: number; slotIndex?: number }
   | { type: 'preview_clear' }
-  | { type: 'set_commit_relational_classification'; value: boolean };
+  | { type: 'set_commit_relational_classification'; value: boolean }
+  | { type: 'set_entry_mode'; entryMode: import('../types/sandbox').SandboxSlotEntryMode | null };
 
 function withSlotsEnsured(
   slots: SandboxCompositionInputState['slots'],
@@ -561,6 +586,17 @@ export function sandboxCompositionReducer(
       };
     }
 
+    case 'set_entry_mode': {
+      const slotIndex = getActiveSlotIndexFromCompositionInput(state.compositionInput);
+      const slots = [...state.compositionInput.slots];
+      const prev = slots[slotIndex] ?? { overrides: { planets: {} } };
+      slots[slotIndex] = { ...prev, entry_mode: action.entryMode };
+      return {
+        ...state,
+        compositionInput: { ...state.compositionInput, slots },
+      };
+    }
+
     case 'free_build_asc_changed': {
       const idx =
         action.slotIndex !== undefined
@@ -685,16 +721,22 @@ export function sandboxCompositionReducer(
  */
 export function serializeSandboxResolveRequestBody(
   state: SandboxCompositionModelState,
-  seed?: string
+  seed?: string,
+  options?: SerializeSandboxResolveOptions
 ): Record<string, unknown> {
   const { compositionInput } = state;
   const effectiveSeed = seed ?? compositionInput.seed;
   if (typeof effectiveSeed !== 'string' || !effectiveSeed.trim()) {
     throw new Error('serializeSandboxResolveRequestBody: seed must be set before resolve');
   }
-  const slots = compositionInput.slots.map((slot) => ({
+  const transientBirth = options?.transientEphemerisBirthBySlotIndex;
+  const slots = compositionInput.slots.map((slot, index) => ({
     ...(slot.chart_id ? { chart_id: slot.chart_id } : {}),
-    ...(slot.ephemeris_birth ? { ephemeris_birth: slot.ephemeris_birth } : {}),
+    ...(slot.ephemeris_birth
+      ? { ephemeris_birth: slot.ephemeris_birth }
+      : transientBirth && transientBirth[index]
+        ? { ephemeris_birth: transientBirth[index] }
+        : {}),
     overrides: normalizeSandboxOverrides(slot.overrides ?? { planets: {} }),
   }));
   return {
