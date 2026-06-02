@@ -10,7 +10,6 @@ export interface SandboxAudioPanelProps {
   displayReport: SandboxReport | null;
   exportId: string | null;
   sandboxAudioSrc: string | null;
-  planHash: string | null;
   exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
   audioRef: RefObject<HTMLAudioElement | null>;
   audioGenerateLoading: boolean;
@@ -22,7 +21,6 @@ export function SandboxAudioPanel({
   displayReport,
   exportId,
   sandboxAudioSrc,
-  planHash,
   exportUnavailableReason,
   audioRef,
   audioGenerateLoading,
@@ -125,7 +123,7 @@ export function SandboxAudioPanel({
       ) : audioGenerateLoading ? (
         <div className="space-y-2">
           <p className="text-sm text-subtext">Generating audio…</p>
-          <Button type="button" variant="audio" size="sm" loading disabled>
+          <Button type="button" variant="secondary" size="sm" loading disabled>
             Generating audio…
           </Button>
         </div>
@@ -134,7 +132,7 @@ export function SandboxAudioPanel({
           <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
             {audioGenerateError}
           </p>
-          <Button type="button" variant="audio" size="sm" onClick={() => void onGenerateAudio()}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void onGenerateAudio()}>
             Try again
           </Button>
           {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
@@ -149,14 +147,9 @@ export function SandboxAudioPanel({
           )}
         </div>
       ) : (
-        <Button type="button" variant="audio" size="sm" onClick={() => void onGenerateAudio()}>
-          Hear this composition
+        <Button type="button" variant="secondary" size="sm" onClick={() => void onGenerateAudio()}>
+          Hear this Soundtrack
         </Button>
-      )}
-      {!exportId && planHash && !audioGenerateLoading && !audioGenerateError && (
-        <p className="text-xs text-subtext">
-          Plan hash: <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
-        </p>
       )}
     </div>
   );

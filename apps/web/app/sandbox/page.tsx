@@ -11,6 +11,7 @@ import { SandboxSlotComposer } from '../../src/components/sandbox/SandboxSlotCom
 import { SandboxResolvePanel } from '../../src/components/sandbox/SandboxResolvePanel';
 import { SandboxAudioPanel } from '../../src/components/sandbox/SandboxAudioPanel';
 import { SandboxProvenancePanel } from '../../src/components/sandbox/SandboxProvenancePanel';
+import { useSandboxDebugUi } from '../../src/hooks/useSandboxDebugUi';
 import {
   activeSlotBirth,
   activeSlotOverrides,
@@ -35,6 +36,7 @@ import { useSandboxPersistence } from '../../src/hooks/useSandboxPersistence';
 import type { EphemerisSnapshot, SandboxSnapshotMeta } from '../../src/types/sandbox';
 
 export default function SandboxPage() {
+  const sandboxDebug = useSandboxDebugUi();
   const [compositionModel, dispatchComposition] = useReducer(
     sandboxCompositionReducer,
     createInitialSandboxCompositionModelState(),
@@ -92,8 +94,6 @@ export default function SandboxPage() {
   const planHash = lastResolve?.planSha256 ?? null;
   const exportId = lastResolve?.exportId ?? null;
   const exportUnavailableReason = lastResolve?.source === 'live_resolve' ? lastResolve.exportUnavailableReason : null;
-  const canonicalSlotOrder = lastResolve?.source === 'live_resolve' ? lastResolve.canonicalSlotOrder : null;
-  const canonicalInputHash = lastResolve?.source === 'live_resolve' ? lastResolve.canonicalInputHash : null;
   const lastCombinedHashUsed = lastResolve?.combinedHashUsed ?? preview.snapshotMeta?.combinedHash ?? null;
 
   const birth = activeSlotBirth(compositionModel);
@@ -298,7 +298,9 @@ export default function SandboxPage() {
           </div>
         )}
 
-        {(surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') && currentSnapshot && (
+        {sandboxDebug &&
+          (surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') &&
+          currentSnapshot && (
           <details className="card mt-4">
             <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Snapshot verification</summary>
             <div className="mt-3 text-xs font-mono text-subtext space-y-1">
@@ -367,22 +369,9 @@ export default function SandboxPage() {
                   generateDisabledReasons={generate.generateDisabledReasons}
                   generateLoading={generate.generateLoading}
                   generateError={generate.generateError}
-                  hasGenerated={generate.hasGenerated}
-                  compositionInput={compositionModel.compositionInput}
                   saveLoading={persistence.saveLoading}
                   saveError={persistence.saveError}
                   canSave={persistence.canSave}
-                  displayReport={displayReport}
-                  exportId={exportId}
-                  populatedSlotIndices={generate.populatedSlotIndices}
-                  isMultiChartAggregate={generate.isMultiChartAggregate}
-                  canonicalSlotOrder={canonicalSlotOrder}
-                  canonicalInputHash={canonicalInputHash}
-                  lastResolveSeedSlotIndex={generate.lastResolveSeedSlotIndex}
-                  lastResolveSeedCombinedHash={generate.lastResolveSeedCombinedHash}
-                  compositionFingerprintAtLastSeed={generate.compositionFingerprintAtLastSeed}
-                  resolveOutputStaleVsPreview={generate.resolveOutputStaleVsPreview}
-                  resolveDocumentStaleVsLastResolve={generate.resolveDocumentStaleVsLastResolve}
                   showRelationalClassification={generate.showRelationalClassification}
                   commitRelationalClassification={generate.commitRelationalClassification}
                   onToggleRelationalClassification={generate.onToggleRelationalClassification}
@@ -397,7 +386,6 @@ export default function SandboxPage() {
                     displayReport={displayReport}
                     exportId={exportId}
                     sandboxAudioSrc={generate.sandboxAudioSrc}
-                    planHash={planHash}
                     exportUnavailableReason={exportUnavailableReason}
                     audioRef={audioRef}
                     audioGenerateLoading={generate.audioGenerateLoading}
@@ -405,7 +393,7 @@ export default function SandboxPage() {
                     onGenerateAudio={generate.handleGenerateAudio}
                   />
                 )}
-                {generate.hasGenerated && (
+                {sandboxDebug && generate.hasGenerated && (
                   <SandboxProvenancePanel
                     lastResolve={lastResolve}
                     planHash={planHash}
