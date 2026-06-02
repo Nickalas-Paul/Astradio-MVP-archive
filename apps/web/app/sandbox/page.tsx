@@ -24,6 +24,7 @@ import {
   sandboxCompositionReducer,
   getActiveSlotIndexFromCompositionInput,
   slotWirePopulationKind,
+  compositionOnlyBlankCanvasPopulated,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 import { equalHouseCuspsFromAscendant } from '../../src/lib/equal-house-cusps';
@@ -221,7 +222,7 @@ export default function SandboxPage() {
   const activeSlotIdx = getActiveSlotIndexFromCompositionInput(compositionModel.compositionInput);
   const activeSlotWire = compositionModel.compositionInput.slots[activeSlotIdx];
   const activeSlotKind = slotWirePopulationKind(activeSlotWire ?? { overrides: { planets: {} } });
-  const isFreeBuildWheel = activeSlotKind === 'empty';
+  const isFreeBuildWheel = activeSlotKind === 'empty' || activeSlotKind === 'blank_canvas';
   const freeBuildAscDeg =
     typeof activeSlotWire?.free_build_asc_deg === 'number' && Number.isFinite(activeSlotWire.free_build_asc_deg)
       ? activeSlotWire.free_build_asc_deg
@@ -244,23 +245,23 @@ export default function SandboxPage() {
     surfaceState === 'idle';
 
   const activeEntryMode = activeSlotWire?.entry_mode ?? null;
-  const isBlankCanvasActive = activeEntryMode === 'blank_canvas' && activeSlotKind === 'empty';
+  const onlyBlankCanvasPopulated = compositionOnlyBlankCanvasPopulated(compositionModel.compositionInput);
 
-  const generateButtonLabel = isBlankCanvasActive
+  const generateButtonLabel = onlyBlankCanvasPopulated
     ? 'Build this composition'
     : 'Generate from current composition';
 
   const birthFormLoading = surfaceState === 'loading_base';
 
   const heroLead = useMemo(() => {
-    if (isBlankCanvasActive) {
+    if (onlyBlankCanvasPopulated) {
       return 'Place planets on the wheel, then build a reading from your composition.';
     }
     if (activeSlotKind === 'chart_id' || activeEntryMode === 'birth_data' || birth) {
       return 'Load a chart, make adjustments if you want, then generate a reading.';
     }
     return 'Build a chart on the wheel and degree panel, then generate a reading for what you see.';
-  }, [activeSlotKind, activeEntryMode, birth, isBlankCanvasActive]);
+  }, [activeSlotKind, activeEntryMode, birth, onlyBlankCanvasPopulated]);
 
   return (
     <AppShell>
@@ -388,7 +389,7 @@ export default function SandboxPage() {
                   onGenerate={generate.handleGenerate}
                   onSave={persistence.handleSave}
                   generateButtonLabel={generateButtonLabel}
-                  resolveUiMode={isBlankCanvasActive ? 'blank_canvas' : 'standard'}
+                  resolveUiMode={onlyBlankCanvasPopulated ? 'blank_canvas' : 'standard'}
                 />
                 <SandboxReportSections displayReport={displayReport} />
                 {displayReport && (

@@ -311,8 +311,8 @@ export function useSandboxPreviewSync({
       model.compositionInput.slots[idx]?.ephemeris_birth ??
       resolvePreviewBirthBySlotRef.current.get(idx) ??
       undefined;
-    const isFreeBuildSlot =
-      slotWirePopulationKind(model.compositionInput.slots[idx] ?? { overrides: { planets: {} } }) === 'empty';
+    const slotKind = slotWirePopulationKind(model.compositionInput.slots[idx] ?? { overrides: { planets: {} } });
+    const isFreeBuildSlot = slotKind === 'empty' || slotKind === 'blank_canvas';
 
     dispatchComposition({ type: 'reset_overrides_to_base' });
     if (isFreeBuildSlot) {

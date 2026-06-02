@@ -14,13 +14,13 @@ import {
   compositionHasIncompleteBirthSlot,
   populatedSlotsAreAggregateEligible,
   slotWirePopulationKind,
-  isBlankCanvasGenerateEligible,
+  compositionOnlyBlankCanvasPopulated,
   blankCanvasSlotHasPlacedPlanets,
   isBlankCanvasSlot,
   type SandboxCompositionModelState,
   type SandboxCompositionAction,
 } from '../lib/sandbox-composition-state';
-import { dailyTransitBirth, applyBlankCanvasEqualHouses } from '../lib/sandbox-transit-birth';
+import { dailyTransitBirthForBlankCanvas, applyBlankCanvasEqualHouses } from '../lib/sandbox-transit-birth';
 import {
   fingerprintCompositionInputExcludingSeed,
   fingerprintResolveBodyExcludingSeed,
@@ -124,20 +124,20 @@ export function useSandboxGenerate({
 
   const activeSlotIndex = getActiveSlotIndexFromCompositionInput(compositionModel.compositionInput);
   const activeSlot = compositionModel.compositionInput.slots[activeSlotIndex];
-  const blankCanvasEligible = isBlankCanvasGenerateEligible(compositionModel.compositionInput, activeSlotIndex);
+  const onlyBlankCanvasPopulated = compositionOnlyBlankCanvasPopulated(compositionModel.compositionInput);
 
   const aggregateEligible = populatedSlotsAreAggregateEligible(compositionModel.compositionInput, populatedSlotIndices);
   const hasInvalidSlotWire = compositionHasInvalidSlotWire(compositionModel.compositionInput);
   const isMultiChartAggregate = populatedSlotIndices.length >= 2 && aggregateEligible;
   const hasResolveSource = Boolean(
-    blankCanvasEligible ||
-      (populatedSlotIndices.length > 0 &&
-        !hasInvalidSlotWire &&
-        (populatedSlotIndices.length >= 2 ? aggregateEligible : true)),
+    populatedSlotIndices.length > 0 &&
+      !hasInvalidSlotWire &&
+      (populatedSlotIndices.length >= 2 ? aggregateEligible : true),
   );
   const previewReadyForSeed = Boolean(
-    blankCanvasEligible ||
-      (preview.overriddenSnapshot || preview.baseSnapshot) && preview.snapshotMeta?.combinedHash,
+    onlyBlankCanvasPopulated ||
+      isMultiChartAggregate ||
+      ((preview.overriddenSnapshot || preview.baseSnapshot) && preview.snapshotMeta?.combinedHash),
   );
   const canGenerate = Boolean(
     hasResolveSource && (isMultiChartAggregate || previewReadyForSeed) && surfaceState !== 'syncing_overrides',
@@ -168,7 +168,7 @@ export function useSandboxGenerate({
       generateDisabledReasons.push('Enter birth data for this slot before you can generate.');
     } else if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
       generateDisabledReasons.push(
-        'Two or more occupied slots must each be either a stored chart or ephemeris birth (not both, not empty).',
+        'Two or more occupied slots must each be a stored chart, birth data, or a blank chart with planets placed.',
       );
     } else if (activeSlot?.entry_mode == null && slotWirePopulationKind(activeSlot ?? { overrides: { planets: {} } }) === 'empty') {
       generateDisabledReasons.push(
@@ -182,7 +182,7 @@ export function useSandboxGenerate({
   }
   if (
     hasResolveSource &&
-    !blankCanvasEligible &&
+    !onlyBlankCanvasPopulated &&
     !isMultiChartAggregate &&
     !preview.baseSnapshot &&
     !preview.overriddenSnapshot
@@ -191,7 +191,7 @@ export function useSandboxGenerate({
   }
   if (
     hasResolveSource &&
-    !blankCanvasEligible &&
+    !onlyBlankCanvasPopulated &&
     !isMultiChartAggregate &&
     !preview.snapshotMeta?.combinedHash
   ) {
@@ -246,87 +246,69 @@ export function useSandboxGenerate({
     const modelPre = compositionRef.current;
     const input = modelPre.compositionInput;
     const activeIdx = getActiveSlotIndexFromCompositionInput(input);
-    const blankCanvasPath = isBlankCanvasGenerateEligible(input, activeIdx);
 
     setLastResolveSeedSlotIndex(null);
     setLastResolveSeedCombinedHash(null);
     setCompositionFingerprintAtLastSeed(null);
 
     const base = getApiBaseUrl();
+    const populated = getPopulatedSlotIndicesFromCompositionInput(input);
+    if (populated.length === 0) return;
+
+    if (populated.length >= 2 && !populatedSlotsAreAggregateEligible(input, populated)) {
+      setGenerateError({
+        report:
+          'Two or more occupied slots must each be a stored chart, birth data, or a blank chart with planets placed.',
+      });
+      return;
+    }
+
+    const transientBirthMap: Record<number, SandboxBirth> = {};
+    for (const idx of populated) {
+      const slot = input.slots[idx];
+      if (slot && slotWirePopulationKind(slot) === 'blank_canvas') {
+        const transitBirth = dailyTransitBirthForBlankCanvas();
+        transientBirthMap[idx] = transitBirth;
+        resolvePreviewBirthBySlotRef.current.set(idx, transitBirth);
+      }
+    }
+
+    const seedIdx = populated[0]!;
+    const seedSlot = input.slots[seedIdx];
+    const overridesNorm = normalizeSandboxOverrides(seedSlot?.overrides ?? { planets: {} });
+    const seedKind = slotWirePopulationKind(seedSlot ?? { overrides: { planets: {} } });
     let birthForSnap: SandboxBirth | null = null;
-    let overridesNorm: SandboxOverrides;
-    let blankCanvasSlotIndex: number | null = null;
 
-    if (blankCanvasPath) {
-      const slot = input.slots[activeIdx]!;
-      overridesNorm = normalizeSandboxOverrides(slot.overrides ?? { planets: {} });
-      birthForSnap = dailyTransitBirth();
-      resolvePreviewBirthBySlotRef.current.set(activeIdx, birthForSnap);
-      blankCanvasSlotIndex = activeIdx;
-    } else {
-      const populated = getPopulatedSlotIndicesFromCompositionInput(input);
-      if (populated.length === 0) return;
-
-      if (populated.length >= 2) {
-        if (!populatedSlotsAreAggregateEligible(input, populated)) {
-          setGenerateError({
-            report:
-              'Two or more occupied slots must each be either a stored chart ID or ephemeris birth (mutually exclusive per slot).',
-          });
+    try {
+      if (seedKind === 'chart_id') {
+        const cid = String(seedSlot?.chart_id ?? '').trim();
+        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+        const chartData = await chartRes.json().catch(() => ({}));
+        if (!chartRes.ok) {
+          setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
           return;
         }
-        const seedIdx = populated[0];
-        const seedSlot = input.slots[seedIdx];
-        overridesNorm = normalizeSandboxOverrides(seedSlot?.overrides ?? { planets: {} });
-        const seedKind = slotWirePopulationKind(seedSlot ?? { overrides: { planets: {} } });
-        try {
-          if (seedKind === 'chart_id') {
-            const cid = String(seedSlot?.chart_id ?? '').trim();
-            const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
-            const chartData = await chartRes.json().catch(() => ({}));
-            if (!chartRes.ok) {
-              setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
-              return;
-            }
-            birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-            resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
-          } else if (seedKind === 'ephemeris_birth') {
-            birthForSnap = seedSlot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(seedIdx) ?? null;
-            if (!birthForSnap) {
-              setGenerateError({ chart: 'First occupied slot needs complete birth data for resolve seed snapshot.' });
-              return;
-            }
-          } else {
-            setGenerateError({ chart: 'First occupied slot is invalid for aggregate seed.' });
-            return;
-          }
-        } catch (e) {
-          setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
+        birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
+        resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
+      } else if (seedKind === 'ephemeris_birth') {
+        birthForSnap = seedSlot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(seedIdx) ?? null;
+        if (!birthForSnap) {
+          setGenerateError({ chart: 'First occupied slot needs complete birth data for resolve seed snapshot.' });
+          return;
+        }
+      } else if (seedKind === 'blank_canvas') {
+        birthForSnap = transientBirthMap[seedIdx] ?? null;
+        if (!birthForSnap) {
+          setGenerateError({ chart: 'Blank chart slot is missing transit birth for resolve.' });
           return;
         }
       } else {
-        const onlyIdx = populated[0];
-        const slot = input.slots[onlyIdx];
-        birthForSnap = slot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(onlyIdx) ?? null;
-        const cid = typeof slot?.chart_id === 'string' ? slot.chart_id.trim() : '';
-        if (!birthForSnap && cid) {
-          try {
-            const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
-            const chartData = await chartRes.json().catch(() => ({}));
-            if (!chartRes.ok) {
-              setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
-              return;
-            }
-            birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-            resolvePreviewBirthBySlotRef.current.set(onlyIdx, birthForSnap);
-          } catch (e) {
-            setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
-            return;
-          }
-        }
-        if (!birthForSnap) return;
-        overridesNorm = normalizeSandboxOverrides(slot?.overrides ?? { planets: {} });
+        setGenerateError({ chart: 'First occupied slot is invalid for resolve seed.' });
+        return;
       }
+    } catch (e) {
+      setGenerateError({ chart: e instanceof Error ? e.message : 'Chart fetch failed' });
+      return;
     }
 
     setHasGenerated(true);
@@ -361,8 +343,8 @@ export function useSandboxGenerate({
         return;
       }
 
-      if (blankCanvasSlotIndex != null) {
-        const slot = compositionRef.current.compositionInput.slots[blankCanvasSlotIndex];
+      if (seedKind === 'blank_canvas') {
+        const slot = compositionRef.current.compositionInput.slots[seedIdx];
         const userAsc =
           typeof slot?.free_build_asc_deg === 'number' && Number.isFinite(slot.free_build_asc_deg)
             ? slot.free_build_asc_deg
@@ -374,8 +356,8 @@ export function useSandboxGenerate({
         compositionRef.current,
         combinedHashUsed,
         {
-          ...(blankCanvasSlotIndex != null && birthForSnap
-            ? { transientEphemerisBirthBySlotIndex: { [blankCanvasSlotIndex]: birthForSnap } }
+          ...(Object.keys(transientBirthMap).length > 0
+            ? { transientEphemerisBirthBySlotIndex: transientBirthMap }
             : {}),
           generateAudio: false,
         },
@@ -460,7 +442,7 @@ export function useSandboxGenerate({
       if (fpAtResolve) {
         setCompositionFingerprintAtLastSeed(fpAtResolve);
       }
-      const seedSlotIndex = blankCanvasSlotIndex ?? getPopulatedSlotIndicesFromCompositionInput(input)[0] ?? activeIdx;
+      const seedSlotIndex = seedIdx ?? activeIdx;
       setLastResolveSeedSlotIndex(seedSlotIndex);
       setLastResolveSeedCombinedHash(combinedHashUsed);
 

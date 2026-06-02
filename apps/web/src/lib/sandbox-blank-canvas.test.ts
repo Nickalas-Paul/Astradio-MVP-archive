@@ -5,10 +5,13 @@ import {
   isBlankCanvasGenerateEligible,
   isBlankCanvasSlot,
   blankCanvasSlotHasPlacedPlanets,
+  getPopulatedSlotIndicesFromCompositionInput,
+  populatedSlotsAreAggregateEligible,
+  slotWirePopulationKind,
   serializeSandboxResolveRequestBody,
   sandboxCompositionReducer,
 } from './sandbox-composition-state';
-import { dailyTransitBirth, applyBlankCanvasEqualHouses, DAILY_TRANSIT_COMPOSE_TIME } from './sandbox-transit-birth';
+import { dailyTransitBirth, dailyTransitBirthForBlankCanvas, applyBlankCanvasEqualHouses, DAILY_TRANSIT_COMPOSE_TIME } from './sandbox-transit-birth';
 import { projectSlotsFromCompositionInput } from './sandbox-slot-projection';
 import type { EphemerisSnapshot } from '../types/sandbox';
 
@@ -44,6 +47,7 @@ test('blank canvas generate eligibility', () => {
   let state = createInitialSandboxCompositionModelState();
   state = sandboxCompositionReducer(state, { type: 'set_entry_mode', entryMode: 'blank_canvas' });
   assert.equal(isBlankCanvasSlot(state.compositionInput.slots[0]!), true);
+  assert.equal(slotWirePopulationKind(state.compositionInput.slots[0]!), 'empty');
   assert.equal(isBlankCanvasGenerateEligible(state.compositionInput, 0), false);
 
   state = sandboxCompositionReducer(state, {
@@ -51,7 +55,33 @@ test('blank canvas generate eligibility', () => {
     overrides: { planets: { sun: { lonDeg: 120 } } },
   });
   assert.equal(blankCanvasSlotHasPlacedPlanets(state.compositionInput.slots[0]!), true);
+  assert.equal(slotWirePopulationKind(state.compositionInput.slots[0]!), 'blank_canvas');
   assert.equal(isBlankCanvasGenerateEligible(state.compositionInput, 0), true);
+});
+
+test('blank canvas slot counts as populated in multi-slot aggregate', () => {
+  let state = createInitialSandboxCompositionModelState();
+  state = {
+    ...state,
+    compositionInput: {
+      ...state.compositionInput,
+      slots: [
+        { chart_id: 'chart_a', overrides: { planets: {} } },
+        { chart_id: 'chart_b', overrides: { planets: {} } },
+        { chart_id: 'chart_c', overrides: { planets: {} } },
+        { entry_mode: 'blank_canvas', overrides: { planets: { sun: { lonDeg: 10 } } } },
+      ],
+      active_slot_index: 3,
+    },
+  };
+  const populated = getPopulatedSlotIndicesFromCompositionInput(state.compositionInput);
+  assert.deepEqual(populated, [0, 1, 2, 3]);
+  assert.equal(populatedSlotsAreAggregateEligible(state.compositionInput, populated), true);
+  assert.equal(slotWirePopulationKind(state.compositionInput.slots[3]!), 'blank_canvas');
+});
+
+test('dailyTransitBirthForBlankCanvas uses equal house system', () => {
+  assert.equal(dailyTransitBirthForBlankCanvas().houseSystem, 'equal');
 });
 
 test('serializeSandboxResolveRequestBody injects transient ephemeris birth', () => {

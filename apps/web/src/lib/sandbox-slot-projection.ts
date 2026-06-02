@@ -35,7 +35,8 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
 
   const manualIndices: number[] = [];
   for (let i = 0; i < slots.length; i++) {
-    if (slotWirePopulationKind(slots[i]) === 'empty') manualIndices.push(i);
+    const k = slotWirePopulationKind(slots[i]);
+    if (k === 'empty' || k === 'blank_canvas') manualIndices.push(i);
   }
   const manualCount = manualIndices.length;
 
@@ -71,6 +72,15 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
         index,
         kind: 'birth' as const,
         chipText: `${b.date} ${timeShort}`,
+      };
+    }
+    if (k === 'blank_canvas') {
+      const manualOrdinal = manualIndices.indexOf(index) + 1;
+      return {
+        index,
+        kind: 'empty' as const,
+        chipText: manualChipText(manualOrdinal, manualCount),
+        isManualStyle: true,
       };
     }
     const manualOrdinal = manualIndices.indexOf(index) + 1;

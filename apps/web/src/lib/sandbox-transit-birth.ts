@@ -34,6 +34,11 @@ export function dailyTransitBirth(location: CanonicalLocation = DEFAULT_TRANSIT_
   };
 }
 
+/** Transit birth for blank-canvas resolve — equal houses so engine snapshot matches wheel ASC layout. */
+export function dailyTransitBirthForBlankCanvas(location: CanonicalLocation = DEFAULT_TRANSIT_LOCATION): SandboxBirth {
+  return { ...dailyTransitBirth(location), houseSystem: 'equal' };
+}
+
 /** Replace Placidus cusps with equal houses from the user's blank-canvas ASC (Path A only). */
 export function applyBlankCanvasEqualHouses(
   snapshot: EphemerisSnapshot,

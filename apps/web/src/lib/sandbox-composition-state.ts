@@ -87,6 +87,7 @@ export type SlotWirePopulationKind =
   | 'chart_id'
   | 'ephemeris_birth'
   | 'birth_incomplete'
+  | 'blank_canvas'
   | 'empty'
   | 'invalid';
 
@@ -105,6 +106,9 @@ export function slotWirePopulationKind(slot: SandboxCompositionInputState['slots
   if (hasChart) return 'chart_id';
   if (hasDateTime) {
     return ephemerisBirthHasEngineCoordinates(b) ? 'ephemeris_birth' : 'birth_incomplete';
+  }
+  if (slot.entry_mode === 'blank_canvas' && blankCanvasSlotHasPlacedPlanets(slot)) {
+    return 'blank_canvas';
   }
   return 'empty';
 }
@@ -130,7 +134,7 @@ export function compositionHasIncompleteBirthSlot(input: SandboxCompositionInput
 }
 
 /**
- * Multi-slot aggregate accepts any mix of chart_id and ephemeris_birth (engine-normalized); invalid wire still blocks.
+ * Multi-slot aggregate accepts chart_id, ephemeris_birth, and blank_canvas (transit birth injected at generate).
  */
 export function populatedSlotsAreAggregateEligible(
   input: SandboxCompositionInputState,
@@ -139,26 +143,33 @@ export function populatedSlotsAreAggregateEligible(
   if (populatedIndices.length < 2) return true;
   return populatedIndices.every((i) => {
     const k = slotWirePopulationKind(input.slots[i]);
-    return k === 'chart_id' || k === 'ephemeris_birth';
+    return k === 'chart_id' || k === 'ephemeris_birth' || k === 'blank_canvas';
   });
 }
 
-/** True if slot is Path A blank canvas (no chart_id / ephemeris_birth on wire). */
+/** True if slot is Path A blank canvas (entry mode set; may or may not have planets placed yet). */
 export function isBlankCanvasSlot(slot: SandboxCompositionInputState['slots'][number]): boolean {
-  return slot.entry_mode === 'blank_canvas' && slotWirePopulationKind(slot) === 'empty';
+  return slot.entry_mode === 'blank_canvas';
 }
 
 export function blankCanvasSlotHasPlacedPlanets(slot: SandboxCompositionInputState['slots'][number]): boolean {
   return Object.keys(normalizeSandboxOverrides(slot.overrides ?? { planets: {} }).planets).length > 0;
 }
 
-/** Blank-canvas generate: active slot only, no mixed populated slots (single-slot Path A). */
+/** True when a slot is blank-canvas with at least one planet placed (resolve participant). */
 export function isBlankCanvasGenerateEligible(input: SandboxCompositionInputState, activeIdx: number): boolean {
   const slot = input.slots[activeIdx];
-  if (!slot || !isBlankCanvasSlot(slot)) return false;
-  if (!blankCanvasSlotHasPlacedPlanets(slot)) return false;
-  if (getPopulatedSlotIndicesFromCompositionInput(input).length > 0) return false;
-  return true;
+  if (!slot) return false;
+  return slotWirePopulationKind(slot) === 'blank_canvas';
+}
+
+/** All occupied slots are blank-canvas manual charts (Path A only, no imports/birth). */
+export function compositionOnlyBlankCanvasPopulated(input: SandboxCompositionInputState): boolean {
+  const populated = getPopulatedSlotIndicesFromCompositionInput(input);
+  return (
+    populated.length > 0 &&
+    populated.every((i) => slotWirePopulationKind(input.slots[i]) === 'blank_canvas')
+  );
 }
 
 export type SerializeSandboxResolveOptions = {
