@@ -77,12 +77,9 @@ export function SandboxResolvePanel({
       ) : (
         <>
           <p className="text-xs text-subtext mb-2">
-            <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
-            <span className="font-medium text-text">occupied</span> slot in{' '}
-            <span className="font-medium text-text">ascending slot index order</span> (empty rows are ignored). Each slot may be a stored{' '}
-            <span className="font-medium text-text">chart_id</span> or <span className="font-medium text-text">ephemeris_birth</span>, with per-slot
-            overrides applied for resolve. One slot → single compose; two occupied slots → pair aggregate; three or more → group aggregate. The wheel
-            preview still follows the active slot only.
+            <span className="font-medium text-text">Generate</span> runs the full pipeline for every chart in your composition. Edits you&apos;ve made
+            to planet positions are included. One slot → single compose; two occupied slots → pair aggregate; three or more → group aggregate. The
+            wheel preview still follows the active slot only.
           </p>
           {populatedSlotIndices.length > 0 ? (
             <p className="text-xs text-subtext mb-4 font-mono">

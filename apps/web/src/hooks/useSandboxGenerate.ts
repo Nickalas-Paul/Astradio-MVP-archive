@@ -176,7 +176,7 @@ export function useSandboxGenerate({
       );
     } else {
       generateDisabledReasons.push(
-        'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; after preview exists, overrides stay when you add birth data or import.',
+        'Add birth data or import a stored chart ID (engine GET /api/charts/:id). You can draft on the wheel first; planet placements stay when you add birth data or import.',
       );
     }
   }
@@ -198,7 +198,7 @@ export function useSandboxGenerate({
     generateDisabledReasons.push('Wait for the preview hash to finish updating after the last edit (required for resolve).');
   }
   if (surfaceState === 'syncing_overrides') {
-    generateDisabledReasons.push('Wait until override edits finish syncing to the preview.');
+    generateDisabledReasons.push('Wait until your planet edits finish syncing to the preview.');
   }
 
   const showRelationalClassification = useMemo(() => {

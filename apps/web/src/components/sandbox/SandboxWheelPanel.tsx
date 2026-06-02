@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { WheelBuilder } from '@/components/wheel/WheelBuilder';
 import { PlanetPalette } from './PlanetPalette';
-import type { EphemerisSnapshot, SandboxOverrides, PlanetKey } from '../../types/sandbox';
+import type { EphemerisSnapshot, SandboxOverrides, PlanetKey, SandboxSlotEntryMode } from '../../types/sandbox';
 
 export interface SandboxWheelPanelProps {
   currentSnapshot: EphemerisSnapshot | null;
@@ -16,6 +16,8 @@ export interface SandboxWheelPanelProps {
   previewSyncError: string | null;
   onOverrideChange: (planet: PlanetKey, lonDeg: number) => void;
   onResetAll: () => void;
+  /** Active slot workflow — drives Clear All vs Restore All label. */
+  entryMode?: SandboxSlotEntryMode | null;
 }
 
 export function SandboxWheelPanel({
@@ -29,7 +31,10 @@ export function SandboxWheelPanel({
   previewSyncError,
   onOverrideChange,
   onResetAll,
+  entryMode,
 }: SandboxWheelPanelProps) {
+  const isBlankCanvas = entryMode === 'blank_canvas';
+  const resetAllLabel = isBlankCanvas ? 'Clear All' : 'Restore All';
   const [constrainToHouse, setConstrainToHouse] = useState(true);
   const [showAspectLines, setShowAspectLines] = useState(true);
   const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
@@ -58,7 +63,7 @@ export function SandboxWheelPanel({
         </div>
         {Object.keys(overrides.planets).length > 0 && (
           <button onClick={onResetAll} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">
-            Reset All
+            {resetAllLabel}
           </button>
         )}
       </div>
@@ -80,6 +85,7 @@ export function SandboxWheelPanel({
           ascendantOverrideDeg={ascendantOverrideDeg}
           showAspectLines={showAspectLines}
           selectedPlanetForPlacement={paletteSelectedPlanet}
+          isBlankCanvas={isBlankCanvas}
         />
       </div>
       {previewSyncError ? (

@@ -25,6 +25,8 @@ export interface WheelBuilderProps {
   ascendantOverrideDeg?: number;
   selectedPlanetForPlacement?: PlanetKey | null;
   showAspectLines?: boolean;
+  /** Blank-canvas workflow — adjusts free-build helper copy. */
+  isBlankCanvas?: boolean;
 }
 
 const EQUAL_HOUSE_BLANK: ChartForWheel = {
@@ -42,6 +44,7 @@ export function WheelBuilder({
   ascendantOverrideDeg = 0,
   selectedPlanetForPlacement = null,
   showAspectLines = true,
+  isBlankCanvas = false,
 }: WheelBuilderProps) {
   const effectiveFreeBuild = freeBuild || snapshot == null;
   const freeBuildAsc =
@@ -225,7 +228,9 @@ export function WheelBuilder({
             ? 'Click the wheel to place it. Or drag a planet to move it.'
             : Object.keys(positions).length === 0
               ? 'Select a planet above, then click the wheel to place it.'
-              : 'Equal house from the Ascendant control. Add birth data for computed cusps.'}
+              : isBlankCanvas
+                ? 'Equal house from the Ascendant control. Set your Ascendant in the degree panel for house positions.'
+                : 'Equal house from the Ascendant control. Add birth data for computed cusps.'}
         </p>
       )}
     </div>

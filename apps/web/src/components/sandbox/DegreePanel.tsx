@@ -1,6 +1,6 @@
 'use client';
 
-import type { SandboxOverrides, PlanetKey } from '../../types/sandbox';
+import type { SandboxOverrides, PlanetKey, SandboxSlotEntryMode } from '../../types/sandbox';
 import { BODY_DISPLAY_ORDER, BODY_LABELS } from '../../../../../vnext/canonical-bodies';
 import { lonToSignDeg, roundZodiacDegree, SIGN_NAMES, signDegToLon } from '../../lib/zodiac-degrees';
 
@@ -30,6 +30,16 @@ export interface DegreePanelProps {
   ascendantLon?: number;
   ascendantEditable?: boolean;
   onAscendantChange?: (lonDeg: number) => void;
+  /** Active slot workflow — drives Clear vs Restore labels. */
+  entryMode?: SandboxSlotEntryMode | null;
+}
+
+function planetResetCopy(entryMode?: SandboxSlotEntryMode | null) {
+  const isBlankCanvas = entryMode === 'blank_canvas';
+  return {
+    button: isBlankCanvas ? 'Clear' : 'Restore',
+    title: isBlankCanvas ? 'Clear placement' : 'Restore to original position',
+  };
 }
 
 function DegreeInputs({
@@ -125,7 +135,9 @@ export function DegreePanel({
   ascendantLon,
   ascendantEditable = false,
   onAscendantChange,
+  entryMode,
 }: DegreePanelProps) {
+  const resetCopy = planetResetCopy(entryMode);
   const showAscRow = ascendantLon != null && Number.isFinite(ascendantLon);
   const ascHouseNum =
     showAscRow && cusps && cusps.length === 12 ? houseIndexForLongitude(ascendantLon!, cusps) + 1 : null;
@@ -169,7 +181,6 @@ export function DegreePanel({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium text-text w-20">{PLANET_LABELS[planet]}</span>
-                {hasOverride && <span className="text-xs text-yellow-400">(overridden)</span>}
               </div>
               <DegreeInputs
                 label={PLANET_LABELS[planet]}
@@ -185,9 +196,9 @@ export function DegreePanel({
                   else onOverrideChange(planet, null);
                 }}
                 className="px-2 py-1 text-xs text-subtext hover:text-text border border-border rounded"
-                title="Reset to base position"
+                title={resetCopy.title}
               >
-                Reset
+                {resetCopy.button}
               </button>
             )}
           </div>
@@ -210,7 +221,6 @@ export function DegreePanel({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-sm font-medium text-text w-20">North Node</span>
-                  {hasOverride && <span className="text-xs text-yellow-400">(overridden)</span>}
                 </div>
                 <DegreeInputs
                   label="North Node"
@@ -226,9 +236,9 @@ export function DegreePanel({
                     else onOverrideChange('northNode', null);
                   }}
                   className="px-2 py-1 text-xs text-subtext hover:text-text border border-border rounded"
-                  title="Reset to base position"
+                  title={resetCopy.title}
                 >
-                  Reset
+                  {resetCopy.button}
                 </button>
               )}
             </div>

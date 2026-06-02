@@ -354,6 +354,7 @@ export default function SandboxPage() {
                 previewSyncError={previewSync.previewSyncError}
                 onOverrideChange={previewSync.handleOverrideChange}
                 onResetAll={previewSync.handleResetAllOverrides}
+                entryMode={activeEntryMode}
               />
 
               {slotNeedsWorkflowChoice && (
@@ -465,6 +466,7 @@ export default function SandboxPage() {
                   onAscendantChange={handleAscendantChange}
                   onOverrideChange={previewSync.handleOverrideChange}
                   onResetPlanet={handleResetPlanet}
+                  entryMode={activeEntryMode}
                 />
               </div>
               <SandboxSavedCompositions
