@@ -28,6 +28,10 @@ export interface SandboxResolvePanelProps {
   onToggleRelationalClassification: (value: boolean) => void;
   onGenerate: () => void;
   onSave: () => void;
+  /** Primary action label when idle (loading always "Resolving…"). */
+  generateButtonLabel?: string;
+  /** Simplified resolve copy for blank-canvas (Path A) vs standard multi-slot / birth flows. */
+  resolveUiMode?: 'blank_canvas' | 'standard';
 }
 
 export function SandboxResolvePanel({
@@ -56,24 +60,39 @@ export function SandboxResolvePanel({
   onToggleRelationalClassification,
   onGenerate,
   onSave,
+  generateButtonLabel = 'Generate from current composition',
+  resolveUiMode = 'standard',
 }: SandboxResolvePanelProps) {
+  const isBlankCanvasUi = resolveUiMode === 'blank_canvas';
+
   return (
     <>
-      <h2 className="text-xl font-semibold text-text mb-1">Resolve composition</h2>
-      <p className="text-xs text-subtext mb-2">
-        <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
-        <span className="font-medium text-text">occupied</span> slot in <span className="font-medium text-text">ascending slot index order</span>{' '}
-        (empty rows are ignored). Each slot may be a stored <span className="font-medium text-text">chart_id</span> or{' '}
-        <span className="font-medium text-text">ephemeris_birth</span>, with per-slot overrides applied for resolve. One slot → single compose; two
-        occupied slots → pair aggregate; three or more → group aggregate. The wheel preview still follows the active slot only.
-      </p>
-      {populatedSlotIndices.length > 0 ? (
-        <p className="text-xs text-subtext mb-4 font-mono">
-          Membership: {populatedSlotIndices.length} occupied (indices {populatedSlotIndices.join(', ')})
-          {isMultiChartAggregate ? ' · seed snapshot uses first occupied slot only; all slots participate in resolve' : ''}
+      <h2 className="text-xl font-semibold text-text mb-1">
+        {isBlankCanvasUi ? 'Build composition' : 'Resolve composition'}
+      </h2>
+      {isBlankCanvasUi ? (
+        <p className="text-sm text-subtext mb-4">
+          Build a reading from the chart you&apos;ve composed on the wheel.
         </p>
       ) : (
-        <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>
+        <>
+          <p className="text-xs text-subtext mb-2">
+            <span className="font-medium text-text">Generate</span> runs unified resolve using every{' '}
+            <span className="font-medium text-text">occupied</span> slot in{' '}
+            <span className="font-medium text-text">ascending slot index order</span> (empty rows are ignored). Each slot may be a stored{' '}
+            <span className="font-medium text-text">chart_id</span> or <span className="font-medium text-text">ephemeris_birth</span>, with per-slot
+            overrides applied for resolve. One slot → single compose; two occupied slots → pair aggregate; three or more → group aggregate. The wheel
+            preview still follows the active slot only.
+          </p>
+          {populatedSlotIndices.length > 0 ? (
+            <p className="text-xs text-subtext mb-4 font-mono">
+              Membership: {populatedSlotIndices.length} occupied (indices {populatedSlotIndices.join(', ')})
+              {isMultiChartAggregate ? ' · seed snapshot uses first occupied slot only; all slots participate in resolve' : ''}
+            </p>
+          ) : (
+            <p className="text-xs text-subtext mb-4">No occupied slots yet—add birth or import per slot above.</p>
+          )}
+        </>
       )}
       {showRelationalClassification && (
         <label className="flex items-start gap-2 mb-3 text-xs text-subtext cursor-pointer select-none max-w-xl">
@@ -94,7 +113,7 @@ export function SandboxResolvePanel({
           disabled={!canGenerate || generateLoading}
           className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {generateLoading ? 'Resolving…' : 'Generate from current composition'}
+          {generateLoading ? 'Resolving…' : generateButtonLabel}
         </button>
         {canSave && (
           <button
@@ -158,8 +177,8 @@ export function SandboxResolvePanel({
         <div className="mt-6 space-y-1">
           <p className="text-xs text-subtext font-medium text-text">Last generated (report / audio)</p>
           <p className="text-xs text-subtext">
-            From the last successful resolve. If you edited the wheel afterward, use <span className="font-medium text-text">Generate from current composition</span>{' '}
-            above—do not rely on this block as the live composition.
+            From the last successful resolve. If you edited the wheel afterward, use{' '}
+            <span className="font-medium text-text">{generateButtonLabel}</span> above—do not rely on this block as the live composition.
           </p>
           {(resolveOutputStaleVsPreview || resolveDocumentStaleVsLastResolve) && (
             <p className="text-xs text-amber-500/90">

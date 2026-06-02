@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { Button } from '../../src/components/shared/Button';
 import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
@@ -244,18 +245,32 @@ export default function SandboxPage() {
     surfaceState === 'ready_report' ||
     surfaceState === 'idle';
 
+  const activeEntryMode = activeSlotWire?.entry_mode ?? null;
+  const slotNeedsWorkflowChoice =
+    !birth && activeSlotKind !== 'chart_id' && activeEntryMode == null;
+  const showBirthDataForm = !birth && activeSlotKind !== 'chart_id' && activeEntryMode === 'birth_data';
+  const isBlankCanvasActive = activeEntryMode === 'blank_canvas' && activeSlotKind === 'empty';
+
+  const generateButtonLabel = isBlankCanvasActive
+    ? 'Build this composition'
+    : 'Generate from current composition';
+
+  const heroLead = useMemo(() => {
+    if (isBlankCanvasActive) {
+      return 'Place planets on the wheel, then build a reading from your composition.';
+    }
+    if (activeSlotKind === 'chart_id' || activeEntryMode === 'birth_data' || birth) {
+      return 'Load a chart, make adjustments if you want, then generate a reading.';
+    }
+    return 'Build a chart on the wheel and degree panel, then generate a reading for what you see.';
+  }, [activeSlotKind, activeEntryMode, birth, isBlankCanvasActive]);
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
           <h1 className="text-h1 font-bold text-text">Sandbox</h1>
-          <p className="text-lg text-subtext max-w-2xl mx-auto">
-            Composition workspace: build the chart on the wheel and degree panel, add birth data when you need natal houses and ephemeris for resolve, then{' '}
-            <span className="text-text font-medium">Generate</span> to run the canonical pipeline for what you see.
-          </p>
-          <p className="text-xs text-subtext/80 max-w-xl mx-auto">
-            Manual placement is the override layer. Canonical slot order for the composition is shown after resolve—not a substitute for the live wheel.
-          </p>
+          <p className="text-lg text-subtext max-w-2xl mx-auto">{heroLead}</p>
         </motion.div>
 
         {surfaceState === 'loading_base' && (
@@ -341,12 +356,42 @@ export default function SandboxPage() {
                 onResetAll={previewSync.handleResetAllOverrides}
               />
 
-              {!birth && (
+              {slotNeedsWorkflowChoice && (
+                <div className="card max-w-2xl">
+                  <h2 className="text-xl font-semibold text-text mb-2">How do you want to start?</h2>
+                  <p className="text-sm text-subtext mb-6">
+                    Build a chart from scratch or start from a specific date, time, and location.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="flex-1"
+                      onClick={() =>
+                        dispatchComposition({ type: 'set_entry_mode', entryMode: 'blank_canvas' })
+                      }
+                    >
+                      Start with a blank chart
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={() =>
+                        dispatchComposition({ type: 'set_entry_mode', entryMode: 'birth_data' })
+                      }
+                    >
+                      Enter birth data
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {showBirthDataForm && (
                 <div className="card max-w-2xl">
                   <h2 className="text-xl font-semibold text-text mb-1">Birth data</h2>
                   <p className="text-sm text-subtext mb-4">
-                    Needed before resolve: natal geometry, ephemeris, and preview hash. Optional order—you can place planets first; manual placements stay
-                    when you submit this form.
+                    Enter a date, time, and location to load a chart. You can move planets afterward.
                   </p>
                   <BirthDataForm onSubmit={previewSync.handleBirthSubmit} />
                 </div>
@@ -379,6 +424,8 @@ export default function SandboxPage() {
                   onToggleRelationalClassification={generate.onToggleRelationalClassification}
                   onGenerate={generate.handleGenerate}
                   onSave={persistence.handleSave}
+                  generateButtonLabel={generateButtonLabel}
+                  resolveUiMode={isBlankCanvasActive ? 'blank_canvas' : 'standard'}
                 />
                 <SandboxReportSections displayReport={displayReport} />
                 {generate.hasGenerated && (

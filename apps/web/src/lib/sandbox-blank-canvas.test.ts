@@ -9,6 +9,7 @@ import {
   sandboxCompositionReducer,
 } from './sandbox-composition-state';
 import { dailyTransitBirth, applyBlankCanvasEqualHouses, DAILY_TRANSIT_COMPOSE_TIME } from './sandbox-transit-birth';
+import { projectSlotsFromCompositionInput } from './sandbox-slot-projection';
 import type { EphemerisSnapshot } from '../types/sandbox';
 
 test('dailyTransitBirth uses noon and default Texas location', () => {
@@ -69,4 +70,12 @@ test('clear_slot resets entry_mode', () => {
   state = sandboxCompositionReducer(state, { type: 'set_entry_mode', entryMode: 'blank_canvas' });
   state = sandboxCompositionReducer(state, { type: 'clear_slot', index: 0 });
   assert.equal(state.compositionInput.slots[0]!.entry_mode, undefined);
+});
+
+test('slot projection: birth_data before submit shows Manual', () => {
+  let state = createInitialSandboxCompositionModelState();
+  state = sandboxCompositionReducer(state, { type: 'set_entry_mode', entryMode: 'birth_data' });
+  const rows = projectSlotsFromCompositionInput(state.compositionInput);
+  assert.equal(rows[0]!.chipText, 'Manual');
+  assert.equal(rows[0]!.isManualStyle, true);
 });

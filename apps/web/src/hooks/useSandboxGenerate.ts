@@ -153,9 +153,18 @@ export function useSandboxGenerate({
       !blankCanvasSlotHasPlacedPlanets(activeSlot)
     ) {
       generateDisabledReasons.push('Place at least one planet on the wheel to build this composition.');
+    } else if (
+      activeSlot?.entry_mode === 'birth_data' &&
+      slotWirePopulationKind(activeSlot) === 'empty'
+    ) {
+      generateDisabledReasons.push('Enter birth data for this slot before you can generate.');
     } else if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
       generateDisabledReasons.push(
         'Two or more occupied slots must each be either a stored chart or ephemeris birth (not both, not empty).',
+      );
+    } else if (activeSlot?.entry_mode == null && slotWirePopulationKind(activeSlot ?? { overrides: { planets: {} } }) === 'empty') {
+      generateDisabledReasons.push(
+        'Choose how to start above—blank chart or birth data—or import a stored chart.',
       );
     } else {
       generateDisabledReasons.push(
