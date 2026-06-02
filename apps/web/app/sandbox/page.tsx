@@ -3,8 +3,6 @@
 import { useState, useCallback, useRef, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
-import { Button } from '../../src/components/shared/Button';
-import { BirthDataForm } from '../../src/components/sandbox/BirthDataForm';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
 import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSavedCompositions';
@@ -246,14 +244,13 @@ export default function SandboxPage() {
     surfaceState === 'idle';
 
   const activeEntryMode = activeSlotWire?.entry_mode ?? null;
-  const slotNeedsWorkflowChoice =
-    !birth && activeSlotKind !== 'chart_id' && activeEntryMode == null;
-  const showBirthDataForm = !birth && activeSlotKind !== 'chart_id' && activeEntryMode === 'birth_data';
   const isBlankCanvasActive = activeEntryMode === 'blank_canvas' && activeSlotKind === 'empty';
 
   const generateButtonLabel = isBlankCanvasActive
     ? 'Build this composition'
     : 'Generate from current composition';
+
+  const birthFormLoading = surfaceState === 'loading_base';
 
   const heroLead = useMemo(() => {
     if (isBlankCanvasActive) {
@@ -341,6 +338,12 @@ export default function SandboxPage() {
                 onRemoveSlot={previewSync.handleRemoveSlot}
                 onClearSlot={previewSync.handleClearSlot}
                 onImportChart={handleImportChartById}
+                activeSlotEntryMode={activeEntryMode}
+                activeSlotHasBirth={!!birth}
+                activeSlotHasChartId={!!activeSlotWire?.chart_id}
+                onSetEntryMode={(mode) => dispatchComposition({ type: 'set_entry_mode', entryMode: mode })}
+                onBirthSubmit={previewSync.handleBirthSubmit}
+                birthFormLoading={birthFormLoading}
               />
 
               <SandboxWheelPanel
@@ -356,47 +359,6 @@ export default function SandboxPage() {
                 onResetAll={previewSync.handleResetAllOverrides}
                 entryMode={activeEntryMode}
               />
-
-              {slotNeedsWorkflowChoice && (
-                <div className="card max-w-2xl">
-                  <h2 className="text-xl font-semibold text-text mb-2">How do you want to start?</h2>
-                  <p className="text-sm text-subtext mb-6">
-                    Build a chart from scratch or start from a specific date, time, and location.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      type="button"
-                      variant="primary"
-                      className="flex-1"
-                      onClick={() =>
-                        dispatchComposition({ type: 'set_entry_mode', entryMode: 'blank_canvas' })
-                      }
-                    >
-                      Start with a blank chart
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="flex-1"
-                      onClick={() =>
-                        dispatchComposition({ type: 'set_entry_mode', entryMode: 'birth_data' })
-                      }
-                    >
-                      Enter birth data
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {showBirthDataForm && (
-                <div className="card max-w-2xl">
-                  <h2 className="text-xl font-semibold text-text mb-1">Birth data</h2>
-                  <p className="text-sm text-subtext mb-4">
-                    Enter a date, time, and location to load a chart. You can move planets afterward.
-                  </p>
-                  <BirthDataForm onSubmit={previewSync.handleBirthSubmit} />
-                </div>
-              )}
 
               <div className="card">
                 <SandboxResolvePanel
