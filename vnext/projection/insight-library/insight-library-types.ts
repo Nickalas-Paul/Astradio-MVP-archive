@@ -125,6 +125,8 @@ export interface AspectInsight {
   readonly romantic: string;   // relational context: romantic variant (natal frame)
   readonly feed: string;       // feed card line (transit-activated, 1 to 3 sentences)
   readonly sonic: string;      // expanded sonic character description
+  /** Cross-chart sonic interaction description. When present, synastry surfaces prefer this over natal-framed sonic. */
+  readonly sonic_synastry?: string;
 
   // Synastry-frame variants (cross-chart interpretation, used by compat_pair and group surfaces)
   readonly core_synastry?: string;
