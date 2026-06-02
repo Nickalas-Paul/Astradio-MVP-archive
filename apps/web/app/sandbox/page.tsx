@@ -428,13 +428,17 @@ export default function SandboxPage() {
                   resolveUiMode={isBlankCanvasActive ? 'blank_canvas' : 'standard'}
                 />
                 <SandboxReportSections displayReport={displayReport} />
-                {generate.hasGenerated && (
+                {displayReport && (
                   <SandboxAudioPanel
+                    displayReport={displayReport}
                     exportId={exportId}
                     sandboxAudioSrc={generate.sandboxAudioSrc}
                     planHash={planHash}
                     exportUnavailableReason={exportUnavailableReason}
                     audioRef={audioRef}
+                    audioGenerateLoading={generate.audioGenerateLoading}
+                    audioGenerateError={generate.audioGenerateError}
+                    onGenerateAudio={generate.handleGenerateAudio}
                   />
                 )}
                 {generate.hasGenerated && (

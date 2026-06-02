@@ -164,6 +164,10 @@ export function isBlankCanvasGenerateEligible(input: SandboxCompositionInputStat
 export type SerializeSandboxResolveOptions = {
   /** Ephemeris birth injected at generate time (not persisted on slot state). */
   transientEphemerisBirthBySlotIndex?: Record<number, SandboxBirth>;
+  /** Explicit false for text-only resolve; true for opt-in audio step. */
+  generateAudio?: boolean;
+  expectedPlanSha256?: string;
+  expectedObjectIdentityHash?: string;
 };
 
 
@@ -359,7 +363,12 @@ export type SandboxCompositionAction =
   | { type: 'free_build_asc_changed'; lonDeg: number; slotIndex?: number }
   | { type: 'preview_clear' }
   | { type: 'set_commit_relational_classification'; value: boolean }
-  | { type: 'set_entry_mode'; entryMode: import('../types/sandbox').SandboxSlotEntryMode | null };
+  | { type: 'set_entry_mode'; entryMode: import('../types/sandbox').SandboxSlotEntryMode | null }
+  | {
+      type: 'resolve_audio_update';
+      exportId: string | null;
+      exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
+    };
 
 function withSlotsEnsured(
   slots: SandboxCompositionInputState['slots'],
@@ -656,6 +665,19 @@ export function sandboxCompositionReducer(
       };
     }
 
+    case 'resolve_audio_update': {
+      const lr = state.lastResolve;
+      if (!lr || lr.source !== 'live_resolve') return state;
+      return {
+        ...state,
+        lastResolve: {
+          ...lr,
+          exportId: action.exportId,
+          exportUnavailableReason: action.exportUnavailableReason,
+        },
+      };
+    }
+
     case 'resolve_cleared':
       return { ...state, lastResolve: null };
 
@@ -746,6 +768,15 @@ export function serializeSandboxResolveRequestBody(
     compose_controls: compositionInput.compose_controls,
     output_kind: compositionInput.output_kind,
     seed: effectiveSeed,
+    generateAudio: options?.generateAudio === true,
+    ...(options?.generateAudio === true &&
+    options.expectedPlanSha256 &&
+    options.expectedObjectIdentityHash
+      ? {
+          expectedPlanSha256: options.expectedPlanSha256,
+          expectedObjectIdentityHash: options.expectedObjectIdentityHash,
+        }
+      : {}),
     ...(compositionInput.commit_relational_classification === true
       ? { commit_relational_classification: true }
       : {}),

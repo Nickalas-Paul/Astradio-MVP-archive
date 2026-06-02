@@ -64,6 +64,11 @@ export type SandboxCompositionInputV1 = {
   commit_relational_classification?: boolean;
   /** Phase 6E — optional; slot whose chart is labeled YOUR when server can validate ownership. */
   viewer_chart_id?: string;
+  /** When true, run Lyria/export after text resolve. Default false for Sandbox (audio is opt-in). */
+  generateAudio?: boolean;
+  /** Second-step audio: must match prior text-only resolve hashes. */
+  expectedPlanSha256?: string;
+  expectedObjectIdentityHash?: string;
 };
 
 export type DerivedCompositionMode = 'single' | 'overlay' | 'pair_aggregate' | 'group_aggregate';

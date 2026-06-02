@@ -148,7 +148,7 @@ export function SandboxResolvePanel({
           </div>
           <div>
             <span className="font-semibold">Audio:</span>{' '}
-            {generateLoading ? 'Generating…' : generateError?.audio ? 'Failed' : exportId ? 'Ready' : 'Export unavailable'}
+            {generateLoading ? 'Generating…' : generateError?.audio ? 'Failed' : exportId ? 'Ready' : 'Not generated'}
           </div>
         </div>
       )}

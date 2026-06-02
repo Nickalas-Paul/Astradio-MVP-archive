@@ -65,6 +65,24 @@ test('serializeSandboxResolveRequestBody injects transient ephemeris birth', () 
   assert.equal((state.compositionInput.slots[0] as { ephemeris_birth?: unknown }).ephemeris_birth, undefined);
 });
 
+test('serializeSandboxResolveRequestBody defaults generateAudio to false', () => {
+  const state = createInitialSandboxCompositionModelState();
+  const body = serializeSandboxResolveRequestBody(state, 'abc123seed');
+  assert.equal(body.generateAudio, false);
+});
+
+test('serializeSandboxResolveRequestBody passes generateAudio and expected hashes when requested', () => {
+  const state = createInitialSandboxCompositionModelState();
+  const body = serializeSandboxResolveRequestBody(state, 'abc123seed', {
+    generateAudio: true,
+    expectedPlanSha256: 'plan-hash',
+    expectedObjectIdentityHash: 'object-hash',
+  });
+  assert.equal(body.generateAudio, true);
+  assert.equal(body.expectedPlanSha256, 'plan-hash');
+  assert.equal(body.expectedObjectIdentityHash, 'object-hash');
+});
+
 test('clear_slot resets entry_mode', () => {
   let state = createInitialSandboxCompositionModelState();
   state = sandboxCompositionReducer(state, { type: 'set_entry_mode', entryMode: 'blank_canvas' });

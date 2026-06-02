@@ -3,21 +3,31 @@
 import { useState, useCallback, useEffect, type RefObject } from 'react';
 import type React from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
+import { Button } from '../shared/Button';
+import type { SandboxReport } from '../../types/sandbox';
 
 export interface SandboxAudioPanelProps {
+  displayReport: SandboxReport | null;
   exportId: string | null;
   sandboxAudioSrc: string | null;
   planHash: string | null;
   exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
   audioRef: RefObject<HTMLAudioElement | null>;
+  audioGenerateLoading: boolean;
+  audioGenerateError: string | null;
+  onGenerateAudio: () => void;
 }
 
 export function SandboxAudioPanel({
+  displayReport,
   exportId,
   sandboxAudioSrc,
   planHash,
   exportUnavailableReason,
   audioRef,
+  audioGenerateLoading,
+  audioGenerateError,
+  onGenerateAudio,
 }: SandboxAudioPanelProps) {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -84,11 +94,16 @@ export function SandboxAudioPanel({
     }
   }, [exportId]);
 
+  if (!displayReport) return null;
+
   return (
     <div className="mt-6 space-y-2">
-      <h3 className="text-sm font-semibold text-text">Audio</h3>
+      {/* SUBSCRIPTION GATE: Audio generation can be gated by tier here.
+          Free tier: text reading only. Premium tier: text + audio.
+          For beta: audio CTA is available to all users. */}
       {exportId ? (
         <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-text">Audio</h3>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={handleAudioPlay} className="btn-audio">
               Play
@@ -107,17 +122,21 @@ export function SandboxAudioPanel({
           {playbackError && <p className="text-xs text-red-400">{playbackError}</p>}
           {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
         </div>
-      ) : (
+      ) : audioGenerateLoading ? (
         <div className="space-y-2">
-          <p className="text-xs text-subtext">
-            Audio export unavailable.
-            {exportUnavailableReason && <span className="ml-1">{exportUnavailableReason.summary}</span>}
-            {planHash && (
-              <span className="ml-1">
-                Plan hash: <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
-              </span>
-            )}
+          <p className="text-sm text-subtext">Generating audio…</p>
+          <Button type="button" variant="audio" size="sm" loading disabled>
+            Generating audio…
+          </Button>
+        </div>
+      ) : audioGenerateError ? (
+        <div className="space-y-2">
+          <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
+            {audioGenerateError}
           </p>
+          <Button type="button" variant="audio" size="sm" onClick={() => void onGenerateAudio()}>
+            Try again
+          </Button>
           {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
             <details className="text-xs text-subtext" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
               <summary className="cursor-pointer hover:text-text">Details</summary>
@@ -129,6 +148,15 @@ export function SandboxAudioPanel({
             </details>
           )}
         </div>
+      ) : (
+        <Button type="button" variant="audio" size="sm" onClick={() => void onGenerateAudio()}>
+          Hear this composition
+        </Button>
+      )}
+      {!exportId && planHash && !audioGenerateLoading && !audioGenerateError && (
+        <p className="text-xs text-subtext">
+          Plan hash: <code className="text-caption bg-bgElev px-1 py-0.5 rounded border border-border/60">{planHash}</code>
+        </p>
       )}
     </div>
   );

@@ -59,6 +59,10 @@ export interface UseSandboxGenerateReturn {
   isMultiChartAggregate: boolean;
   resolveOutputStaleVsPreview: boolean;
   resolveDocumentStaleVsLastResolve: boolean;
+  audioGenerateLoading: boolean;
+  audioGenerateError: string | null;
+  handleGenerateAudio: () => void;
+  clearAudioGenerateError: () => void;
 }
 
 export function useSandboxGenerate({
@@ -77,6 +81,8 @@ export function useSandboxGenerate({
   const [lastResolveSeedSlotIndex, setLastResolveSeedSlotIndex] = useState<number | null>(null);
   const [lastResolveSeedCombinedHash, setLastResolveSeedCombinedHash] = useState<string | null>(null);
   const [compositionFingerprintAtLastSeed, setCompositionFingerprintAtLastSeed] = useState<string | null>(null);
+  const [audioGenerateLoading, setAudioGenerateLoading] = useState(false);
+  const [audioGenerateError, setAudioGenerateError] = useState<string | null>(null);
 
   const preview = compositionModel.preview;
   const exportId = compositionModel.lastResolve?.exportId ?? null;
@@ -96,6 +102,8 @@ export function useSandboxGenerate({
   }, [exportId]);
 
   const clearGenerateError = useCallback(() => setGenerateError(null), []);
+
+  const clearAudioGenerateError = useCallback(() => setAudioGenerateError(null), []);
 
   const clearSeedFingerprintState = useCallback(() => {
     setLastResolveSeedSlotIndex(null);
@@ -324,6 +332,7 @@ export function useSandboxGenerate({
     setHasGenerated(true);
     setGenerateLoading(true);
     setGenerateError(null);
+    setAudioGenerateError(null);
     dispatchComposition({ type: 'resolve_cleared' });
     const el = audioRef.current;
     if (el) {
@@ -364,9 +373,12 @@ export function useSandboxGenerate({
       const resolveBody = serializeSandboxResolveRequestBody(
         compositionRef.current,
         combinedHashUsed,
-        blankCanvasSlotIndex != null && birthForSnap
-          ? { transientEphemerisBirthBySlotIndex: { [blankCanvasSlotIndex]: birthForSnap } }
-          : undefined,
+        {
+          ...(blankCanvasSlotIndex != null && birthForSnap
+            ? { transientEphemerisBirthBySlotIndex: { [blankCanvasSlotIndex]: birthForSnap } }
+            : {}),
+          generateAudio: false,
+        },
       );
 
       const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
@@ -440,9 +452,7 @@ export function useSandboxGenerate({
       };
 
       const exportIdNext = resolved.exportId;
-      const exportUnavailableReasonNext: { summary: string; step?: string; message?: string } | null = resolved.exportAvailable
-        ? null
-        : { summary: 'Export unavailable' };
+      const exportUnavailableReasonNext: { summary: string; step?: string; message?: string } | null = null;
       const lastComposeProviderNext: string | null = null;
       const planSha256 = resolved.planSha256;
 
@@ -474,11 +484,84 @@ export function useSandboxGenerate({
         exportUnavailableReason: exportUnavailableReasonNext,
       });
     } catch (e) {
-      setGenerateError({ audio: e instanceof Error ? e.message : 'Generate failed' });
+      setGenerateError({ report: e instanceof Error ? e.message : 'Generate failed' });
     } finally {
       setGenerateLoading(false);
     }
   }, [audioRef, cancelPendingSnapshotSync, canGenerate, compositionRef, dispatchComposition, resolvePreviewBirthBySlotRef]);
+
+  const handleGenerateAudio = useCallback(async () => {
+    const model = compositionRef.current;
+    const lr = model.lastResolve;
+    if (lr?.source !== 'live_resolve' || !lr.lastSubmittedResolveBody) {
+      setAudioGenerateError('Generate a text reading first.');
+      return;
+    }
+    if (!lr.planSha256 || !lr.canonicalObjectHash) {
+      setAudioGenerateError('Missing plan hash from the last text resolve.');
+      return;
+    }
+
+    setAudioGenerateLoading(true);
+    setAudioGenerateError(null);
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+
+    try {
+      const base = getApiBaseUrl();
+      const audioBody = {
+        ...lr.lastSubmittedResolveBody,
+        generateAudio: true,
+        expectedPlanSha256: lr.planSha256,
+        expectedObjectIdentityHash: lr.canonicalObjectHash,
+      };
+      const resolveRes = await fetch(`${base}/api/sandbox/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(audioBody),
+      });
+      const resolveData = (await resolveRes.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!resolveRes.ok || resolveData.ok === false) {
+        const msg =
+          (resolveData.error as string) ||
+          (resolveData.message as string) ||
+          (typeof resolveData.code === 'string' ? resolveData.code : null) ||
+          `Audio resolve: ${resolveRes.status}`;
+        setAudioGenerateError(String(msg));
+        dispatchComposition({
+          type: 'resolve_audio_update',
+          exportId: null,
+          exportUnavailableReason: { summary: 'Audio generation failed', message: String(msg) },
+        });
+        return;
+      }
+
+      const resolved = extractSandboxResolvePayload(resolveData);
+      const exportIdNext = resolved?.exportId ?? null;
+      if (!exportIdNext) {
+        setAudioGenerateError('Audio export unavailable.');
+        dispatchComposition({
+          type: 'resolve_audio_update',
+          exportId: null,
+          exportUnavailableReason: { summary: 'Export unavailable' },
+        });
+        return;
+      }
+
+      dispatchComposition({
+        type: 'resolve_audio_update',
+        exportId: exportIdNext,
+        exportUnavailableReason: null,
+      });
+    } catch (e) {
+      setAudioGenerateError(e instanceof Error ? e.message : 'Audio generation failed');
+    } finally {
+      setAudioGenerateLoading(false);
+    }
+  }, [audioRef, compositionRef, dispatchComposition]);
 
   const onToggleRelationalClassification = useCallback(
     (value: boolean) => {
@@ -508,5 +591,9 @@ export function useSandboxGenerate({
     isMultiChartAggregate,
     resolveOutputStaleVsPreview,
     resolveDocumentStaleVsLastResolve,
+    audioGenerateLoading,
+    audioGenerateError,
+    handleGenerateAudio,
+    clearAudioGenerateError,
   };
 }

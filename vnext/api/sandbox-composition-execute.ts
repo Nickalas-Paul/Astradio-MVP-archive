@@ -174,6 +174,15 @@ export async function executeSandboxComposition(
 
   const output_kind = normalized.output_kind;
   const synastryNotice = synastryNoticeForAsteroidLongitudeOverrides(normalized.slot_resolutions);
+  const wantAudio = input.generateAudio === true;
+  const audioComposeOpts =
+    wantAudio && input.expectedPlanSha256 && input.expectedObjectIdentityHash
+      ? {
+          generateAudio: true as const,
+          expectedPlanSha256: input.expectedPlanSha256,
+          expectedObjectIdentityHash: input.expectedObjectIdentityHash,
+        }
+      : { generateAudio: wantAudio };
 
   try {
     if (normalized.composition_mode === 'single') {
@@ -189,7 +198,7 @@ export async function executeSandboxComposition(
           controls: normalized.compose_controls as ComposeRequest['controls'],
           seed: normalized.seed && normalized.seed.length > 0 ? normalized.seed : seedFallback,
           output_kind,
-          generateAudio: true,
+          ...audioComposeOpts,
         };
       } else if (r.birth) {
         const overridden = await resolveSandboxSlotToOverriddenSnapshot(r);
@@ -200,7 +209,7 @@ export async function executeSandboxComposition(
           controls: normalized.compose_controls as ComposeRequest['controls'],
           seed: normalized.seed && normalized.seed.length > 0 ? normalized.seed : ch,
           output_kind,
-          generateAudio: true,
+          ...audioComposeOpts,
         };
       } else {
         return {
@@ -256,7 +265,7 @@ export async function executeSandboxComposition(
         controls: normalized.compose_controls as ComposeRequest['controls'],
         seed: normalized.seed,
         output_kind,
-        generateAudio: true,
+        ...audioComposeOpts,
       };
       const compose = await composeAPI.compose(composeReq);
       return {
@@ -342,6 +351,7 @@ export async function executeSandboxComposition(
         relationshipMode,
         ...(compatClassCode !== undefined ? { compatClassCode } : {}),
         output_kind,
+        generateAudio: wantAudio,
       });
 
       return {
@@ -400,6 +410,7 @@ export async function executeSandboxComposition(
           ? { labelResolutionOwnerId: ctx.labelResolutionOwnerId }
           : {}),
         output_kind,
+        generateAudio: wantAudio,
       });
 
       return {
