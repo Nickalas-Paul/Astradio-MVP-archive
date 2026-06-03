@@ -158,7 +158,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
           onTabChange={(id) => {
             setAuthTab(id as 'register' | 'login');
             setAuthError(null);
-            setLoginNeedsVerification(false);
+            setShowForgotPassword(false);
             setResendNotice(null);
           }}
         />

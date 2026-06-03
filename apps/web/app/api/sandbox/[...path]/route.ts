@@ -75,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
       const userId = getSessionUserId(req.cookies);
       if (userId) targetUrl.searchParams.set('userId', userId);
     }
-    const r = await fetch(targetUrl.toString(, { headers: engineProxyHeaders() }));
+    const r = await fetch(targetUrl.toString(), { headers: engineProxyHeaders() });
     const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
     if (!r.ok) {
       return jsonResponseForUpstreamError(r.status, data, r.statusText);
