@@ -85,7 +85,7 @@ export function assembleLibraryPlanetaryAspects(params: {
         return composeSynastryMepAspectParagraph(insight, romantic ? 'romantic' : 'friendship');
       }
 
-      if (params.surface === 'profile') {
+      if (params.surface === 'profile' || params.surface === 'sandbox') {
         return assembleProfileIdentityAspectBlock(aspect, insight);
       }
 

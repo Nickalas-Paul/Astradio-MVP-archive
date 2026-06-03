@@ -281,9 +281,12 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
 
   if (surface === 'sandbox') {
     return withOrder([
+      'core_identity',
+      'direction_foundation',
+      'personal_expression',
+      'growth_expansion',
+      'evolutionary_currents',
       'aspects',
-      'delta_emphasis',
-      'synthesis_a',
     ]);
   }
 
@@ -1236,7 +1239,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
   }
 
   const placementSections =
-    surface === 'profile' && snapshotMaybe ? assembleProfileIdentityPlacementSections(snapshotMaybe) : [];
+    (surface === 'profile' || surface === 'sandbox') && snapshotMaybe
+      ? assembleProfileIdentityPlacementSections(snapshotMaybe)
+      : [];
 
   /** Phase 6C — prepend seeker-anchored synastry activations when directed metadata + seeker context exist. */
   const compatActivationSections =
