@@ -52,24 +52,22 @@ type AvatarUploadLib = {
 };
 
 function getAvatarDeps(): {
-  multerLib: any;
   storageLib: AvatarStorageLib;
   avatarUploadLib: AvatarUploadLib;
 } {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const multerLib = require('multer');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const storageLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'storage')) as AvatarStorageLib;
+  const storageLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'avatar-storage')) as AvatarStorageLib;
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const avatarUploadLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'avatar-upload')) as AvatarUploadLib;
-  return { multerLib, storageLib, avatarUploadLib };
+  return { storageLib, avatarUploadLib };
 }
 
 let _avatarUpload: any = null;
 
 function getAvatarMulter() {
   if (!_avatarUpload) {
-    const { multerLib } = getAvatarDeps();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const multerLib = require('multer');
     _avatarUpload = multerLib({
       storage: multerLib.memoryStorage(),
       limits: {
