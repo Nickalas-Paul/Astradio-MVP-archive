@@ -544,10 +544,15 @@ export async function executeSandboxComposition(
           normalized.viewer_chart_id,
           ctx?.labelResolutionOwnerId
         );
+        const groupSynastryAspects = computeSynastryAspects({
+          snapshotsOrdered: overriddenSnaps,
+          mode: 'group_matrix',
+        });
         sandboxSynastryReport = assembleSandboxSynastryReport({
           mode: 'group',
           participants: groupParticipants,
           snapshotsOrdered: overriddenSnaps,
+          pairInteractionAspectsV2: groupSynastryAspects,
         });
       } catch (synErr) {
         console.error(
