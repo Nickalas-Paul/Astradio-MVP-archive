@@ -38,35 +38,55 @@ import { formatSandboxChartSearchLabel } from './chart-search-label';
 import { clientAvatarUrl } from './client-avatar-url';
 
 const express = require('express') as typeof import('express');
-const multerLib = require('multer');
 const argon2 = require('argon2') as typeof import('argon2');
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-const storageLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'storage')) as {
+
+type AvatarStorageLib = {
   uploadAvatar: (userId: string, imageBuffer: Buffer, format?: string) => Promise<string>;
   getAvatarObject: (userId: string) => Promise<{ buffer: Buffer; contentType: string }>;
 };
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-const avatarUploadLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'avatar-upload')) as {
+
+type AvatarUploadLib = {
   moderateImageBuffer: (buffer: Buffer) => Promise<{ ok: true } | { ok: false; message: string }>;
   processAvatarImage: (buffer: Buffer) => Promise<Buffer>;
   MODERATION_REJECTION_MESSAGE: string;
 };
-const { uploadAvatar, getAvatarObject } = storageLib;
-const { moderateImageBuffer, processAvatarImage, MODERATION_REJECTION_MESSAGE } = avatarUploadLib;
 
-const avatarUpload = multerLib({
-  storage: multerLib.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-  },
-  fileFilter: (_req: unknown, file: { mimetype?: string }, cb: (err: Error | null, accept?: boolean) => void) => {
-    if (file.mimetype?.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  },
-});
+function getAvatarDeps(): {
+  multerLib: any;
+  storageLib: AvatarStorageLib;
+  avatarUploadLib: AvatarUploadLib;
+} {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const multerLib = require('multer');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const storageLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'storage')) as AvatarStorageLib;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const avatarUploadLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'avatar-upload')) as AvatarUploadLib;
+  return { multerLib, storageLib, avatarUploadLib };
+}
+
+let _avatarUpload: any = null;
+
+function getAvatarMulter() {
+  if (!_avatarUpload) {
+    const { multerLib } = getAvatarDeps();
+    _avatarUpload = multerLib({
+      storage: multerLib.memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+      fileFilter: (_req: unknown, file: { mimetype?: string }, cb: (err: Error | null, accept?: boolean) => void) => {
+        if (file.mimetype?.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'));
+        }
+      },
+    });
+  }
+  return _avatarUpload;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'pg-store')) as {
   normalizeLoginEmail: (e: string) => string;
@@ -915,11 +935,12 @@ export function createCompatRouter(): import('express').Router {
   // GET /api/profile/avatar/:userId — stream avatar from S3 (same-origin when bucket is private).
   router.get('/profile/avatar/:userId', async (req: import('express').Request, res: import('express').Response) => {
     try {
+      const { storageLib } = getAvatarDeps();
       const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
       if (!userId?.trim()) return res.status(400).json({ error: 'userId required' });
       const u = await storage.getUser(userId.trim());
       if (!u?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
-      const { buffer, contentType } = await getAvatarObject(userId.trim());
+      const { buffer, contentType } = await storageLib.getAvatarObject(userId.trim());
       res.set('Cache-Control', 'public, max-age=3600');
       res.type(contentType);
       return res.send(buffer);
@@ -936,9 +957,13 @@ export function createCompatRouter(): import('express').Router {
   // POST /api/profile/avatar — upload profile photo (Rekognition + sharp + S3).
   router.post(
     '/profile/avatar',
-    avatarUpload.single('avatar'),
+    (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) =>
+      getAvatarMulter().single('avatar')(req, res, next),
     async (req: import('express').Request, res: import('express').Response) => {
       try {
+        const { storageLib, avatarUploadLib } = getAvatarDeps();
+        const { uploadAvatar } = storageLib;
+        const { moderateImageBuffer, processAvatarImage, MODERATION_REJECTION_MESSAGE } = avatarUploadLib;
         const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
         if (!proxyUserId) {
           return res.status(401).json({ error: 'proxy_identity_required' });
