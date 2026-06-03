@@ -398,7 +398,11 @@ export type PhaseDAssemblyParams = {
  * Assemble placement sections for Profile Identity
  * Creates 4-tier graduated depth structure
  */
-function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): ProjectedExplanationSection[] {
+function assembleProfileIdentityPlacementSections(
+  snapshot: EphemerisSnapshot,
+  options?: { condensed?: boolean }
+): ProjectedExplanationSection[] {
+  const condensed = options?.condensed === true;
   const placementKeys = buildPlacementKeys(snapshot);
   const sections: ProjectedExplanationSection[] = [];
 
@@ -410,6 +414,7 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
       planets: PLANET_TIERS.core_identity,
       placementKeys,
       depth: 'full',
+      condensed,
     })
   );
   sections.push(
@@ -420,6 +425,7 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
       planets: PLANET_TIERS.direction_foundation,
       placementKeys,
       depth: 'full',
+      condensed,
     })
   );
   sections.push(
@@ -430,6 +436,7 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
       planets: PLANET_TIERS.personal_expression,
       placementKeys,
       depth: 'full',
+      condensed,
     })
   );
   sections.push(
@@ -440,6 +447,7 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
       planets: PLANET_TIERS.growth_expansion,
       placementKeys,
       depth: 'medium',
+      condensed,
     })
   );
   sections.push(
@@ -450,6 +458,7 @@ function assembleProfileIdentityPlacementSections(snapshot: EphemerisSnapshot): 
       planets: PLANET_TIERS.evolutionary_currents,
       placementKeys,
       depth: 'concise',
+      condensed,
     })
   );
 
@@ -463,16 +472,18 @@ function assemblePlacementTier(config: {
   planets: readonly string[];
   placementKeys: PlacementKey[];
   depth: 'full' | 'medium' | 'concise';
+  condensed?: boolean;
 }): ProjectedExplanationSection {
   const paragraphs: string[] = [];
+  const condensed = config.condensed === true;
 
   for (const planetName of config.planets) {
     const placement = config.placementKeys.find((pk) => pk.planet === planetName);
     if (!placement) continue;
 
     const planetBlock = ANGLE_PLACEMENT_BODIES.has(placement.planet)
-      ? assembleAnglePlacement(placement)
-      : assemblePlanetPlacement(placement, config.depth);
+      ? assembleAnglePlacement(placement, condensed)
+      : assemblePlanetPlacement(placement, config.depth, condensed);
     if (planetBlock) paragraphs.push(planetBlock);
   }
 
@@ -520,7 +531,7 @@ function getAngleFieldLabels(planet: string): { core: string; behavioral: string
   return { core: '', behavioral: '', sonic: '' };
 }
 
-function assembleAnglePlacement(placement: PlacementKey): string | null {
+function assembleAnglePlacement(placement: PlacementKey, condensed = false): string | null {
   const signInsight = getAspectInsight(placement.signKey);
   if (!signInsight) return null;
 
@@ -539,10 +550,12 @@ function assembleAnglePlacement(placement: PlacementKey): string | null {
     parts.push(coreText);
   }
 
-  const behavioralText = capToMaxSentences(signInsight.behavioral || '', 2);
-  if (behavioralText) {
-    parts.push(`**${labels.behavioral}**`);
-    parts.push(behavioralText);
+  if (!condensed) {
+    const behavioralText = capToMaxSentences(signInsight.behavioral || '', 2);
+    if (behavioralText) {
+      parts.push(`**${labels.behavioral}**`);
+      parts.push(behavioralText);
+    }
   }
 
   const sonicText = signInsight.sonic ? capToMaxSentences(signInsight.sonic, 1) : '';
@@ -554,7 +567,11 @@ function assembleAnglePlacement(placement: PlacementKey): string | null {
   return parts.filter((p) => p && p.trim().length > 0).join('\n\n');
 }
 
-function assemblePlanetPlacement(placement: PlacementKey, _depth: 'full' | 'medium' | 'concise'): string | null {
+function assemblePlanetPlacement(
+  placement: PlacementKey,
+  _depth: 'full' | 'medium' | 'concise',
+  condensed = false
+): string | null {
   const signInsight = getAspectInsight(placement.signKey);
   const houseInsight = getAspectInsight(placement.houseKey);
 
@@ -574,7 +591,7 @@ function assemblePlanetPlacement(placement: PlacementKey, _depth: 'full' | 'medi
       parts.push('**Archetypal Expression**');
       parts.push(signCore);
     }
-    if (signBehavioral) {
+    if (!condensed && signBehavioral) {
       parts.push('**Observable Patterns**');
       parts.push(signBehavioral);
     }
@@ -592,13 +609,15 @@ function assemblePlanetPlacement(placement: PlacementKey, _depth: 'full' | 'medi
       parts.push('**Life Arena**');
       parts.push(houseCore);
     }
-    if (houseBehavioral) {
-      parts.push('**Manifestation Context**');
-      parts.push(houseBehavioral);
-    }
-    if (houseSonic) {
-      parts.push('**Aesthetic Resonance**');
-      parts.push(houseSonic);
+    if (!condensed) {
+      if (houseBehavioral) {
+        parts.push('**Manifestation Context**');
+        parts.push(houseBehavioral);
+      }
+      if (houseSonic) {
+        parts.push('**Aesthetic Resonance**');
+        parts.push(houseSonic);
+      }
     }
   }
 
@@ -1240,7 +1259,7 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
 
   const placementSections =
     (surface === 'profile' || surface === 'sandbox') && snapshotMaybe
-      ? assembleProfileIdentityPlacementSections(snapshotMaybe)
+      ? assembleProfileIdentityPlacementSections(snapshotMaybe, { condensed: surface === 'sandbox' })
       : [];
 
   /** Phase 6C — prepend seeker-anchored synastry activations when directed metadata + seeker context exist. */
