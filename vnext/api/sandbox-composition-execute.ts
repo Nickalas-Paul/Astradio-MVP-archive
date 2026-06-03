@@ -27,8 +27,8 @@ import type { FeatureVec } from '../contracts';
 import { aggregateFeatureVectors } from '../community/group-profile';
 import { hashVector64 } from '../relational/compatibility/score';
 import { vectorToControlPayload } from '../relational/composition/vector-to-controls';
-import { computeCompatibilitySystem } from '../compatibility/service';
 import { ADDITIONAL_BODIES } from '../canonical-bodies';
+import type { ExpansionTier } from '../projection/projection-types';
 import { computeSynastryAspects } from '../synastry/synastry-compute';
 import {
   assembleSandboxSynastryReport,
@@ -39,6 +39,11 @@ import {
 import { resolveParticipantLabels } from '../relational/composition/resolve-participant-labels';
 
 const SANDBOX_GROUP_SEED_VERSION = 'sandbox_group_v3';
+/** Sandbox pair/group aggregate projection tier (baseline compat_pair yields near-empty sections). */
+const SANDBOX_AGGREGATE_EXPANSION_TIER: ExpansionTier = 'extended';
+/** Friendship lens for all Sandbox pair/group synastry (not user-configurable). */
+const SANDBOX_PAIR_GROUP_RELATIONSHIP_MODE: RelationshipMode = 'friends';
+export const SANDBOX_RESOLVE_PIPELINE_VERSION = 'sandbox_synastry_v1' as const;
 
 /** Optional server-injected context for Phase 6E label resolution (YOUR requires ownership proof). */
 export type ExecuteSandboxCompositionContext = {
@@ -67,6 +72,8 @@ export type SandboxResolveSuccess = {
   synastryNotice?: SandboxSynastryNotice;
   /** Pair/group synastry activations with Sonic Interplay (parallel to explanation sections). */
   sandboxSynastryReport?: SandboxSynastryReportV1;
+  /** Deploy verification: present on pair/group resolves when synastry pipeline is active. */
+  resolve_pipeline_version?: typeof SANDBOX_RESOLVE_PIPELINE_VERSION;
 };
 
 export type SandboxResolveFailure = {
@@ -189,6 +196,14 @@ async function buildSandboxSynastryParticipants(
     out.push({ slotIndex: i, label: nextPersonLabel() });
   }
   return out;
+}
+
+function sandboxAggregateOpts(output_kind: 'full' | 'feed_card', generateAudio: boolean) {
+  return {
+    output_kind,
+    generateAudio,
+    expansionTier: SANDBOX_AGGREGATE_EXPANSION_TIER,
+  } as const;
 }
 
 function applySandboxSynastryReportToAggregate(
@@ -391,8 +406,7 @@ export async function executeSandboxComposition(
       const vecHigh = archHigh.features;
       const wA = 0.5;
       const wB = 0.5;
-      const relationshipMode: RelationshipMode =
-        (input.binding?.relationship_mode as RelationshipMode) || 'neutral';
+      const relationshipMode = SANDBOX_PAIR_GROUP_RELATIONSHIP_MODE;
       const merged = mergeFeatureVectors(vecLow, vecHigh, {
         relationshipMode,
         wA,
@@ -402,20 +416,6 @@ export async function executeSandboxComposition(
       const idB = slotIdentityForComparisonSeed(rB);
       const seed = comparisonSeed(idA, idB, relationshipMode, FUSION_METHOD_BLEND_V1, wA, wB);
       const payload = controlPayloadFromSeed(seed);
-
-      // compatClassCode: double gate — both slots chart_id AND explicit commit_relational_classification (R2 preview vs commit).
-      let compatClassCode: string | undefined;
-      if (
-        normalized.commit_relational_classification &&
-        rA.chart_id &&
-        rB.chart_id
-      ) {
-        const compatibility = await computeCompatibilitySystem({
-          chartIds: [rA.chart_id, rB.chart_id],
-          relationshipBindingId: null,
-        });
-        compatClassCode = compatibility.classification.outputs.class_code;
-      }
 
       let aggregate = await composeAPI.runAggregateComposition({
         kind: 'comparison',
@@ -428,29 +428,49 @@ export async function executeSandboxComposition(
         merged: merged as FeatureVec,
         payload,
         relationshipMode,
-        ...(compatClassCode !== undefined ? { compatClassCode } : {}),
-        output_kind,
-        generateAudio: wantAudio,
+        ...sandboxAggregateOpts(output_kind, wantAudio),
       });
 
       const pairSnapshots = [snapLow, snapHigh];
-      const pairSynastryAspects = computeSynastryAspects({
-        snapshotsOrdered: pairSnapshots,
+      let sandboxSynastryReport: SandboxSynastryReportV1 = {
+        schema_version: 'sandbox_synastry_v1',
         mode: 'pair',
-      });
-      const pairParticipants = await buildSandboxSynastryParticipants(
-        populated,
-        input,
-        normalized.viewer_chart_id,
-        ctx?.labelResolutionOwnerId
-      );
-      const sandboxSynastryReport = assembleSandboxSynastryReport({
-        mode: 'pair',
-        participants: pairParticipants,
-        snapshotsOrdered: pairSnapshots,
-        pairInteractionAspectsV2: pairSynastryAspects,
-      });
+        pairSections: [],
+      };
+      try {
+        const pairSynastryAspects = computeSynastryAspects({
+          snapshotsOrdered: pairSnapshots,
+          mode: 'pair',
+        });
+        const pairParticipants = await buildSandboxSynastryParticipants(
+          populated,
+          input,
+          normalized.viewer_chart_id,
+          ctx?.labelResolutionOwnerId
+        );
+        sandboxSynastryReport = assembleSandboxSynastryReport({
+          mode: 'pair',
+          participants: pairParticipants,
+          snapshotsOrdered: pairSnapshots,
+          pairInteractionAspectsV2: pairSynastryAspects,
+        });
+      } catch (synErr) {
+        console.error(
+          '[SANDBOX_PAIR_SYNASTRY_ASSEMBLY_ERROR]',
+          synErr instanceof Error ? synErr.message : String(synErr)
+        );
+      }
       aggregate = applySandboxSynastryReportToAggregate(aggregate, sandboxSynastryReport);
+
+      const sectionCount = aggregate.explanation?.sections?.length ?? 0;
+      console.log(
+        '[SANDBOX_PAIR_RESOLVE_DONE]',
+        JSON.stringify({
+          pipeline: SANDBOX_RESOLVE_PIPELINE_VERSION,
+          synastryPairSections: sandboxSynastryReport.pairSections.length,
+          explanationSections: sectionCount,
+        })
+      );
 
       return {
         ok: true,
@@ -460,6 +480,7 @@ export async function executeSandboxComposition(
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        resolve_pipeline_version: SANDBOX_RESOLVE_PIPELINE_VERSION,
         ...(sandboxSynastryReport.pairSections.length > 0 ? { sandboxSynastryReport } : {}),
         ...(synastryNotice ? { synastryNotice } : {}),
       };
@@ -508,22 +529,43 @@ export async function executeSandboxComposition(
         ...(ctx?.labelResolutionOwnerId
           ? { labelResolutionOwnerId: ctx.labelResolutionOwnerId }
           : {}),
-        output_kind,
-        generateAudio: wantAudio,
+        ...sandboxAggregateOpts(output_kind, wantAudio),
       });
 
-      const groupParticipants = await buildSandboxSynastryParticipants(
-        populated,
-        input,
-        normalized.viewer_chart_id,
-        ctx?.labelResolutionOwnerId
-      );
-      const sandboxSynastryReport = assembleSandboxSynastryReport({
+      let sandboxSynastryReport: SandboxSynastryReportV1 = {
+        schema_version: 'sandbox_synastry_v1',
         mode: 'group',
-        participants: groupParticipants,
-        snapshotsOrdered: overriddenSnaps,
-      });
+        pairSections: [],
+      };
+      try {
+        const groupParticipants = await buildSandboxSynastryParticipants(
+          populated,
+          input,
+          normalized.viewer_chart_id,
+          ctx?.labelResolutionOwnerId
+        );
+        sandboxSynastryReport = assembleSandboxSynastryReport({
+          mode: 'group',
+          participants: groupParticipants,
+          snapshotsOrdered: overriddenSnaps,
+        });
+      } catch (synErr) {
+        console.error(
+          '[SANDBOX_GROUP_SYNASTRY_ASSEMBLY_ERROR]',
+          synErr instanceof Error ? synErr.message : String(synErr)
+        );
+      }
       aggregate = applySandboxSynastryReportToAggregate(aggregate, sandboxSynastryReport);
+
+      const sectionCount = aggregate.explanation?.sections?.length ?? 0;
+      console.log(
+        '[SANDBOX_GROUP_RESOLVE_DONE]',
+        JSON.stringify({
+          pipeline: SANDBOX_RESOLVE_PIPELINE_VERSION,
+          synastryPairSections: sandboxSynastryReport.pairSections.length,
+          explanationSections: sectionCount,
+        })
+      );
 
       return {
         ok: true,
@@ -533,6 +575,7 @@ export async function executeSandboxComposition(
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        resolve_pipeline_version: SANDBOX_RESOLVE_PIPELINE_VERSION,
         ...(sandboxSynastryReport.pairSections.length > 0 ? { sandboxSynastryReport } : {}),
         ...(synastryNotice ? { synastryNotice } : {}),
       };
