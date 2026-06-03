@@ -1,7 +1,8 @@
 'use client';
 
-import type { SandboxReport } from '../../types/sandbox';
+import type { SandboxReport, SandboxSynastryReportV1 } from '../../types/sandbox';
 import { ExplainerSections } from '../../../app/sandbox/page-helpers';
+import { SandboxSynastryReport } from './SandboxSynastryReport';
 
 export interface SandboxReportSectionsProps {
   displayReport: SandboxReport | null;
@@ -28,6 +29,9 @@ export function SandboxReportSections({ displayReport }: SandboxReportSectionsPr
           </div>
         </section>
       )}
+      {displayReport.sandboxSynastryReport ? (
+        <SandboxSynastryReport report={displayReport.sandboxSynastryReport} />
+      ) : null}
       {displayReport.explanation && <ExplainerSections explanation={displayReport.explanation} />}
     </div>
   );

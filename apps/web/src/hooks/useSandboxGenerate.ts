@@ -421,6 +421,7 @@ export function useSandboxGenerate({
           spec: explanationForSections?.spec || 'UnifiedSpecV1.1',
           sections,
         },
+        ...(resolved.sandboxSynastryReport ? { sandboxSynastryReport: resolved.sandboxSynastryReport } : {}),
         seed: combinedHashUsed,
         meta: {
           combinedHash: combinedHashUsed,

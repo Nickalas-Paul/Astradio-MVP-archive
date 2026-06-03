@@ -7,6 +7,7 @@ import type {
   EphemerisSnapshot,
   SandboxReport,
   SandboxResolvedSession,
+  SandboxSynastryReportV1,
 } from '../../src/types/sandbox';
 import {
   getActiveSlotIndexFromCompositionInput,
@@ -135,6 +136,7 @@ export function extractSandboxResolvePayload(resolveData: Record<string, unknown
   planSha256: string;
   exportId: string | null;
   exportAvailable: boolean;
+  sandboxSynastryReport: SandboxSynastryReportV1 | null;
 } | null {
   const compose = resolveData.compose;
   const aggregate = resolveData.aggregate;
@@ -154,7 +156,14 @@ export function extractSandboxResolvePayload(resolveData: Record<string, unknown
   if (!explanation || typeof explanation !== 'object' || !planSha256 || typeof planSha256 !== 'string' || !planSha256.trim()) {
     return null;
   }
-  return { explanation, planSha256, exportId, exportAvailable };
+  const rawSynastry = resolveData.sandboxSynastryReport;
+  const sandboxSynastryReport =
+    rawSynastry &&
+    typeof rawSynastry === 'object' &&
+    (rawSynastry as SandboxSynastryReportV1).schema_version === 'sandbox_synastry_v1'
+      ? (rawSynastry as SandboxSynastryReportV1)
+      : null;
+  return { explanation, planSha256, exportId, exportAvailable, sandboxSynastryReport };
 }
 
 export function extractPlanSha256FromResolveResponse(resolveData: Record<string, unknown>): string | undefined {

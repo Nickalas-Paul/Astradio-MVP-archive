@@ -126,11 +126,42 @@ export type SandboxReportExplanation = {
   sections: Array<{ id: string; title: string; text: string; bullets?: string[] }>;
 };
 
+export type SandboxSynastryTierId = 'personal' | 'social' | 'generational';
+
+export type SandboxSynastryActivationV1 = {
+  directionalHeader: string;
+  synastryProse: string;
+  sonicInterplay: string;
+  tier: SandboxSynastryTierId;
+  aspectKey: string;
+  pairField: string;
+};
+
+export type SandboxSynastryTierBlockV1 = {
+  tierId: SandboxSynastryTierId;
+  title: string;
+  activations: SandboxSynastryActivationV1[];
+};
+
+export type SandboxSynastryPairSectionV1 = {
+  sourceSlotIndex: number;
+  targetSlotIndex: number;
+  pairHeader: string;
+  tierBlocks: SandboxSynastryTierBlockV1[];
+};
+
+export type SandboxSynastryReportV1 = {
+  schema_version: 'sandbox_synastry_v1';
+  mode: 'pair' | 'group';
+  pairSections: SandboxSynastryPairSectionV1[];
+};
+
 export type SandboxReport = {
   features: number[];
   personality: any;
   guidance: any;
   explanation: SandboxReportExplanation;
+  sandboxSynastryReport?: SandboxSynastryReportV1 | null;
   seed: string;
   meta: {
     combinedHash: string;
