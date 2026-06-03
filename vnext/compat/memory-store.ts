@@ -429,6 +429,18 @@ export async function updateUserProfile(
   users.set(userId, u);
 }
 
+export async function updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
+  const u = users.get(userId);
+  if (!u) return;
+  if (avatarUrl === null || avatarUrl === '') {
+    delete u.avatarUrl;
+  } else {
+    u.avatarUrl = avatarUrl;
+  }
+  u.updatedAt = now();
+  users.set(userId, u);
+}
+
 export async function updateUserDiscoverability(
   userId: string,
   opts: { discoverable?: boolean; show_in_feed?: boolean }

@@ -18,6 +18,7 @@ import type { RelationalFieldScoreContract } from '../compatibility/contracts';
 import type { RelationalIntent } from '../compatibility/relational-intent';
 import { canonicalIntentRank } from '../compatibility/intent-rank';
 import type { CompatibilityExplanationProfilePublic } from '../compatibility/discovery-explanation';
+import { clientAvatarUrl } from './client-avatar-url';
 import { findBestDirectedCrossAspect } from '../synastry/cross-chart-best-aspect';
 import { populateChartVector } from './vector-cache';
 import { MissingVectorsError } from '../relational/compatibility/multi-chart';
@@ -754,7 +755,7 @@ async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligib
       chartId: c.chartId,
       discoverableAs: c.discoverableAs ?? 'both',
       ...(c.bio ? { bio: c.bio } : {}),
-      ...(c.avatarUrl ? { avatarUrl: c.avatarUrl } : {}),
+      ...(c.avatarUrl ? { avatarUrl: clientAvatarUrl(c.userId, c.avatarUrl) } : {}),
       ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
       ...(c.chartHighlights?.length ? { chartHighlights: c.chartHighlights } : {}),
     }));
@@ -876,7 +877,7 @@ export async function getCompatMatches(
       lastUpdated: new Date().toISOString(),
       compatibilityFieldHash: computed.field.object_identity_hash,
       bio: cand.bio,
-      avatarUrl: cand.avatarUrl,
+      avatarUrl: cand.avatarUrl ? clientAvatarUrl(cand.userId, cand.avatarUrl) : undefined,
       lookingFor: cand.lookingFor,
       chartHighlights: cand.chartHighlights,
     };

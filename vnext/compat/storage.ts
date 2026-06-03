@@ -68,6 +68,8 @@ export type StorageAdapter = {
       show_in_feed?: boolean;
     }
   ) => Promise<void>;
+  /** Profile avatar URL (S3 location stored; null clears). */
+  updateAvatarUrl?: (userId: string, avatarUrl: string | null) => Promise<void>;
   /** Ephemeris snapshot row (Postgres) or cache probe (memory); used by discovery pre-filter. */
   getChartWithSnapshot?: (chartId: string) => Promise<{ snapshot_json?: EphemerisSnapshot | null } | null | undefined>;
   updateChartSnapshot?: (chartId: string, snapshot: EphemerisSnapshot) => Promise<void>;
@@ -240,4 +242,8 @@ export async function updateUserProfile(
       show_in_feed: opts.show_in_feed,
     });
   }
+}
+
+export async function updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
+  if (adapter.updateAvatarUrl) return adapter.updateAvatarUrl(userId, avatarUrl);
 }

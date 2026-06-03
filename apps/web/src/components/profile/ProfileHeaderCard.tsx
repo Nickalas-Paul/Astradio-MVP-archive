@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
@@ -38,6 +38,11 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(user.avatarUrl);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarRemoving, setAvatarRemoving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const birthData = formatBirthData(primaryChart);
   const initial = (user.displayName || '?').charAt(0).toUpperCase();
@@ -68,6 +73,10 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
   };
 
   useEffect(() => {
+    setAvatarUrl(user.avatarUrl);
+  }, [user.avatarUrl]);
+
+  useEffect(() => {
     if (!saveSuccess) return;
     const t = window.setTimeout(() => setSaveSuccess(false), 2000);
     return () => window.clearTimeout(t);
@@ -82,6 +91,81 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
       return [...prev, label];
     });
   };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      return;
+    }
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const r = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      const data = (await r.json().catch(() => ({}))) as { avatarUrl?: string; error?: string };
+      if (!r.ok) {
+        setAvatarError(typeof data.error === 'string' ? data.error : 'Could not upload photo.');
+        return;
+      }
+      if (typeof data.avatarUrl === 'string' && data.avatarUrl) {
+        setAvatarUrl(`${data.avatarUrl}?t=${Date.now()}`);
+      }
+      await onProfileRefresh();
+    } catch (e) {
+      setAvatarError(e instanceof Error ? e.message : 'Could not upload photo.');
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setAvatarRemoving(true);
+    setAvatarError(null);
+    try {
+      const r = await fetch('/api/profile/avatar', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      const data = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) {
+        setAvatarError(typeof data.error === 'string' ? data.error : 'Could not remove photo.');
+        return;
+      }
+      setAvatarUrl(undefined);
+      await onProfileRefresh();
+    } catch (e) {
+      setAvatarError(e instanceof Error ? e.message : 'Could not remove photo.');
+    } finally {
+      setAvatarRemoving(false);
+    }
+  };
+
+  const renderAvatarCircle = (sizeClass = 'w-20 h-20') => (
+    <div
+      className={`${sizeClass} rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden shrink-0 relative`}
+    >
+      {avatarUploading ? (
+        <span className="text-caption text-text-muted font-sans" aria-live="polite">
+          …
+        </span>
+      ) : avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span className="font-serif text-h3 font-semibold text-text-primary">{initial}</span>
+      )}
+    </div>
+  );
 
   const handleSave = async () => {
     const trimmedName = displayName.trim();
@@ -124,18 +208,7 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
       {!editing ? (
         <>
           <div className="flex flex-wrap items-start gap-4">
-            <div className="w-20 h-20 rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden shrink-0">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="font-serif text-h3 font-semibold text-text-primary">{initial}</span>
-              )}
-            </div>
+            {renderAvatarCircle()}
 
             <div className="flex-1 min-w-0 space-y-1">
               <h2 className="font-serif text-h2 font-semibold text-text-primary">{user.displayName}</h2>
@@ -198,22 +271,45 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
           <h2 className="font-serif text-h3 font-semibold text-text-primary">Edit profile</h2>
 
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-            <div className="w-20 h-20 rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden shrink-0 mx-auto sm:mx-0">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="font-serif text-h3 font-semibold text-text-primary">{initial}</span>
-              )}
-            </div>
+            {renderAvatarCircle()}
             <div className="flex-1 flex flex-col items-center sm:items-start gap-2 w-full">
-              <Button type="button" variant="ghost" size="sm" disabled className="opacity-60 cursor-not-allowed">
-                Upload photo (coming soon)
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleAvatarUpload(file);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={avatarUploading || avatarRemoving}
+                loading={avatarUploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload photo
               </Button>
+              {avatarUrl ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={avatarUploading || avatarRemoving}
+                  loading={avatarRemoving}
+                  onClick={() => void handleAvatarRemove()}
+                >
+                  Remove photo
+                </Button>
+              ) : null}
+              {avatarError ? (
+                <p className="text-body-sm text-red-500 font-sans text-center sm:text-left" role="alert">
+                  {avatarError}
+                </p>
+              ) : null}
             </div>
           </div>
 

@@ -35,9 +35,38 @@ import {
 import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../compatibility/service';
 import path from 'path';
 import { formatSandboxChartSearchLabel } from './chart-search-label';
+import { clientAvatarUrl } from './client-avatar-url';
 
 const express = require('express') as typeof import('express');
+const multerLib = require('multer');
 const argon2 = require('argon2') as typeof import('argon2');
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const storageLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'storage')) as {
+  uploadAvatar: (userId: string, imageBuffer: Buffer, format?: string) => Promise<string>;
+  getAvatarObject: (userId: string) => Promise<{ buffer: Buffer; contentType: string }>;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const avatarUploadLib = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'avatar-upload')) as {
+  moderateImageBuffer: (buffer: Buffer) => Promise<{ ok: true } | { ok: false; message: string }>;
+  processAvatarImage: (buffer: Buffer) => Promise<Buffer>;
+  MODERATION_REJECTION_MESSAGE: string;
+};
+const { uploadAvatar, getAvatarObject } = storageLib;
+const { moderateImageBuffer, processAvatarImage, MODERATION_REJECTION_MESSAGE } = avatarUploadLib;
+
+const avatarUpload = multerLib({
+  storage: multerLib.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req: unknown, file: { mimetype?: string }, cb: (err: Error | null, accept?: boolean) => void) => {
+    if (file.mimetype?.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'pg-store')) as {
   normalizeLoginEmail: (e: string) => string;
@@ -140,7 +169,8 @@ function profileUserPayload(u: import('./types').User & { handle?: string }): Re
   if (u.discoverable !== undefined) payload.discoverable = u.discoverable;
   if (u.show_in_feed !== undefined) payload.show_in_feed = u.show_in_feed;
   if (u.bio !== undefined && u.bio !== '') payload.bio = u.bio;
-  if (u.avatarUrl !== undefined && u.avatarUrl !== '') payload.avatarUrl = u.avatarUrl;
+  const avatar = clientAvatarUrl(u.id, u.avatarUrl);
+  if (avatar) payload.avatarUrl = avatar;
   if (u.discoverableAs !== undefined) payload.discoverableAs = u.discoverableAs;
   if (u.lookingFor !== undefined && u.lookingFor !== '') payload.lookingFor = u.lookingFor;
   if (u.chartHighlights !== undefined && u.chartHighlights.length > 0) {
@@ -879,6 +909,80 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: any) {
       console.error('[compat] PATCH /profile', e);
       return res.status(500).json({ error: e?.message || 'Failed to update profile' });
+    }
+  });
+
+  // GET /api/profile/avatar/:userId — stream avatar from S3 (same-origin when bucket is private).
+  router.get('/profile/avatar/:userId', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+      if (!userId?.trim()) return res.status(400).json({ error: 'userId required' });
+      const u = await storage.getUser(userId.trim());
+      if (!u?.avatarUrl) return res.status(404).json({ error: 'Avatar not found' });
+      const { buffer, contentType } = await getAvatarObject(userId.trim());
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.type(contentType);
+      return res.send(buffer);
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === 'AVATAR_NOT_FOUND') {
+        return res.status(404).json({ error: 'Avatar not found' });
+      }
+      console.error('[compat] GET /profile/avatar/:userId', e);
+      return res.status(500).json({ error: err?.message || 'Failed to load avatar' });
+    }
+  });
+
+  // POST /api/profile/avatar — upload profile photo (Rekognition + sharp + S3).
+  router.post(
+    '/profile/avatar',
+    avatarUpload.single('avatar'),
+    async (req: import('express').Request, res: import('express').Response) => {
+      try {
+        const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+        if (!proxyUserId) {
+          return res.status(401).json({ error: 'proxy_identity_required' });
+        }
+        const file = (req as import('express').Request & { file?: { buffer: Buffer } }).file;
+        if (!file?.buffer) {
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const userId = proxyUserId.trim();
+        const u = await storage.getUser(userId);
+        if (!u) return res.status(404).json({ error: 'User not found' });
+
+        const moderation = await moderateImageBuffer(file.buffer);
+        if (!moderation.ok) {
+          return res.status(400).json({ error: moderation.message || MODERATION_REJECTION_MESSAGE });
+        }
+
+        const processed = await processAvatarImage(file.buffer);
+        const s3Url = await uploadAvatar(userId, processed, 'jpg');
+        await storage.updateAvatarUrl(userId, s3Url);
+
+        return res.status(200).json({ avatarUrl: clientAvatarUrl(userId, s3Url) });
+      } catch (e: unknown) {
+        console.error('[compat] POST /profile/avatar', e);
+        return res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to upload avatar' });
+      }
+    }
+  );
+
+  // DELETE /api/profile/avatar — remove profile photo.
+  router.delete('/profile/avatar', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
+      }
+      const userId = proxyUserId.trim();
+      const u = await storage.getUser(userId);
+      if (!u) return res.status(404).json({ error: 'User not found' });
+      await storage.updateAvatarUrl(userId, null);
+      return res.status(200).json({ avatarUrl: null });
+    } catch (e: unknown) {
+      console.error('[compat] DELETE /profile/avatar', e);
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to remove avatar' });
     }
   });
 
