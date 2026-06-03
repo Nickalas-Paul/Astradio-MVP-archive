@@ -128,6 +128,8 @@ export function createSandboxRouter(): import('express').Router {
         compose: result.compose ?? undefined,
         aggregate: result.aggregate ?? undefined,
         ...(result.synastryNotice ? { synastryNotice: result.synastryNotice } : {}),
+        ...(result.sandboxSynastryReport ? { sandboxSynastryReport: result.sandboxSynastryReport } : {}),
+        ...(result.resolve_pipeline_version ? { resolve_pipeline_version: result.resolve_pipeline_version } : {}),
       });
     } catch (e: unknown) {
       const err = e as Error;
