@@ -12,6 +12,7 @@ import {
   type SandboxCompositionInputV1,
   type NormalizedCompositionSuccess,
   type SandboxSlotResolution,
+  type CompositionSlotInput,
   SANDBOX_COMPOSITION_ERROR_CODES,
 } from './sandbox-composition-normalize';
 import { generateSnapshotWithOverrides, hashBirth, hashOverrides } from './sandbox-snapshot';
@@ -28,6 +29,14 @@ import { hashVector64 } from '../relational/compatibility/score';
 import { vectorToControlPayload } from '../relational/composition/vector-to-controls';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import { ADDITIONAL_BODIES } from '../canonical-bodies';
+import { computeSynastryAspects } from '../synastry/synastry-compute';
+import {
+  assembleSandboxSynastryReport,
+  stripSandboxSynastryLegacySections,
+  type SandboxSynastryParticipantV1,
+  type SandboxSynastryReportV1,
+} from '../projection/rule-layer/sandbox-synastry-assembly';
+import { resolveParticipantLabels } from '../relational/composition/resolve-participant-labels';
 
 const SANDBOX_GROUP_SEED_VERSION = 'sandbox_group_v3';
 
@@ -56,6 +65,8 @@ export type SandboxResolveSuccess = {
   aggregate?: AggregateComposeResult;
   /** UX hint when user longitude-overrode an asteroid body (synastry/library still core-body scoped). */
   synastryNotice?: SandboxSynastryNotice;
+  /** Pair/group synastry activations with Sonic Interplay (parallel to explanation sections). */
+  sandboxSynastryReport?: SandboxSynastryReportV1;
 };
 
 export type SandboxResolveFailure = {
@@ -128,6 +139,74 @@ export async function resolveSandboxSlotToOverriddenSnapshot(r: SandboxSlotResol
 function populatedResolutionsInUiOrder(normalized: NormalizedCompositionSuccess): SandboxSlotResolution[] {
   const withContent = normalized.slot_resolutions.filter((r) => r.chart_id || r.birth);
   return [...withContent].sort((a, b) => a.ui_index - b.ui_index);
+}
+
+async function buildSandboxSynastryParticipants(
+  populated: SandboxSlotResolution[],
+  input: SandboxCompositionInputV1,
+  viewerChartId?: string,
+  labelResolutionOwnerId?: string
+): Promise<SandboxSynastryParticipantV1[]> {
+  const chartIdsOrdered = populated.map((r) => r.chart_id ?? null);
+  const hasChartIds = chartIdsOrdered.some((id) => id != null);
+
+  if (hasChartIds) {
+    const resolved = await resolveParticipantLabels(chartIdsOrdered, {
+      ...(viewerChartId ? { viewerChartId } : {}),
+      ...(labelResolutionOwnerId ? { labelResolutionOwnerId } : {}),
+    });
+    if (resolved.length === populated.length) {
+      return resolved.map((r) => ({ slotIndex: r.slotIndex, label: r.label }));
+    }
+  }
+
+  let personSeq = 0;
+  const nextPersonLabel = (): string => {
+    personSeq += 1;
+    return `Person ${personSeq}`;
+  };
+
+  const out: SandboxSynastryParticipantV1[] = [];
+  for (let i = 0; i < populated.length; i++) {
+    const r = populated[i]!;
+    const wireSlot = input.slots[r.ui_index] as CompositionSlotInput & { chart_display_name?: string };
+    const wireName =
+      typeof wireSlot?.chart_display_name === 'string' && wireSlot.chart_display_name.trim()
+        ? wireSlot.chart_display_name.trim()
+        : '';
+    if (wireName) {
+      out.push({ slotIndex: i, label: wireName });
+      continue;
+    }
+    if (r.chart_id) {
+      const chart = await getChartById(r.chart_id);
+      const chartLabel = typeof chart?.label === 'string' && chart.label.trim() ? chart.label.trim() : '';
+      if (chartLabel) {
+        out.push({ slotIndex: i, label: chartLabel });
+        continue;
+      }
+    }
+    out.push({ slotIndex: i, label: nextPersonLabel() });
+  }
+  return out;
+}
+
+function applySandboxSynastryReportToAggregate(
+  aggregate: AggregateComposeResult,
+  report: SandboxSynastryReportV1 | null
+): AggregateComposeResult {
+  if (!report || report.pairSections.length === 0) {
+    return aggregate;
+  }
+  const sections = aggregate.explanation?.sections;
+  if (!Array.isArray(sections)) return aggregate;
+  return {
+    ...aggregate,
+    explanation: {
+      ...aggregate.explanation,
+      sections: stripSandboxSynastryLegacySections(sections),
+    },
+  };
 }
 
 function isChartNotFoundErr(e: unknown): boolean {
@@ -338,7 +417,7 @@ export async function executeSandboxComposition(
         compatClassCode = compatibility.classification.outputs.class_code;
       }
 
-      const aggregate = await composeAPI.runAggregateComposition({
+      let aggregate = await composeAPI.runAggregateComposition({
         kind: 'comparison',
         chartIdLow: idA,
         chartIdHigh: idB,
@@ -354,6 +433,25 @@ export async function executeSandboxComposition(
         generateAudio: wantAudio,
       });
 
+      const pairSnapshots = [snapLow, snapHigh];
+      const pairSynastryAspects = computeSynastryAspects({
+        snapshotsOrdered: pairSnapshots,
+        mode: 'pair',
+      });
+      const pairParticipants = await buildSandboxSynastryParticipants(
+        populated,
+        input,
+        normalized.viewer_chart_id,
+        ctx?.labelResolutionOwnerId
+      );
+      const sandboxSynastryReport = assembleSandboxSynastryReport({
+        mode: 'pair',
+        participants: pairParticipants,
+        snapshotsOrdered: pairSnapshots,
+        pairInteractionAspectsV2: pairSynastryAspects,
+      });
+      aggregate = applySandboxSynastryReportToAggregate(aggregate, sandboxSynastryReport);
+
       return {
         ok: true,
         composition_mode: 'pair_aggregate',
@@ -362,6 +460,7 @@ export async function executeSandboxComposition(
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        ...(sandboxSynastryReport.pairSections.length > 0 ? { sandboxSynastryReport } : {}),
         ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
@@ -396,7 +495,7 @@ export async function executeSandboxComposition(
       const payload = vectorToControlPayload(composite, groupSeed);
 
       const chartIdsOrdered = populated.map((r) => r.chart_id) as (string | null)[];
-      const aggregate = await composeAPI.runAggregateComposition({
+      let aggregate = await composeAPI.runAggregateComposition({
         kind: 'group',
         anchorSnapshot: overriddenSnaps[0],
         snapshotsOrdered: overriddenSnaps,
@@ -413,6 +512,19 @@ export async function executeSandboxComposition(
         generateAudio: wantAudio,
       });
 
+      const groupParticipants = await buildSandboxSynastryParticipants(
+        populated,
+        input,
+        normalized.viewer_chart_id,
+        ctx?.labelResolutionOwnerId
+      );
+      const sandboxSynastryReport = assembleSandboxSynastryReport({
+        mode: 'group',
+        participants: groupParticipants,
+        snapshotsOrdered: overriddenSnaps,
+      });
+      aggregate = applySandboxSynastryReportToAggregate(aggregate, sandboxSynastryReport);
+
       return {
         ok: true,
         composition_mode: 'group_aggregate',
@@ -421,6 +533,7 @@ export async function executeSandboxComposition(
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        ...(sandboxSynastryReport.pairSections.length > 0 ? { sandboxSynastryReport } : {}),
         ...(synastryNotice ? { synastryNotice } : {}),
       };
     }
