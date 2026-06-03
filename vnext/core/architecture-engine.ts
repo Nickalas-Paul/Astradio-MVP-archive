@@ -7,6 +7,7 @@
  * No new transformation logic. Only orchestration of existing functions.
  */
 
+import path from 'path';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
@@ -60,7 +61,15 @@ export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSn
     extra['x-vercel-protection-bypass'] = bypass.trim();
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { engineInternalFetchHeaders } = require('../../lib/engine-internal-fetch-headers') as {
+  const { engineInternalFetchHeaders } = require(path.join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'lib',
+    'engine-internal-fetch-headers'
+  )) as {
     engineInternalFetchHeaders: (e?: Record<string, string>) => Record<string, string>;
   };
   const r = await fetch(`${base}/api/chart-snapshot?${q}`, {
