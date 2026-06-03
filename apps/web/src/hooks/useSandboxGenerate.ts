@@ -52,9 +52,6 @@ export interface UseSandboxGenerateReturn {
   clearGenerateError: () => void;
   clearSeedFingerprintState: () => void;
   prepareForLoad: () => void;
-  showRelationalClassification: boolean;
-  commitRelationalClassification: boolean;
-  onToggleRelationalClassification: (value: boolean) => void;
   populatedSlotIndices: number[];
   isMultiChartAggregate: boolean;
   resolveOutputStaleVsPreview: boolean;
@@ -200,18 +197,6 @@ export function useSandboxGenerate({
   if (surfaceState === 'syncing_overrides') {
     generateDisabledReasons.push('Wait until your planet edits finish syncing to the preview.');
   }
-
-  const showRelationalClassification = useMemo(() => {
-    if (populatedSlotIndices.length !== 2) return false;
-    const slots = compositionModel.compositionInput.slots;
-    const a = slots[populatedSlotIndices[0]!];
-    const b = slots[populatedSlotIndices[1]!];
-    const idA = typeof a?.chart_id === 'string' && a.chart_id.trim() ? a.chart_id : null;
-    const idB = typeof b?.chart_id === 'string' && b.chart_id.trim() ? b.chart_id : null;
-    if (!idA || !idB) return false;
-    if (a?.ephemeris_birth || b?.ephemeris_birth) return false;
-    return true;
-  }, [compositionModel.compositionInput, populatedSlotIndices]);
 
   const previewCombinedHash = preview.snapshotMeta?.combinedHash;
   const lastResolveCombinedHash = compositionModel.lastResolve?.combinedHashUsed ?? null;
@@ -546,13 +531,6 @@ export function useSandboxGenerate({
     }
   }, [audioRef, compositionRef, dispatchComposition]);
 
-  const onToggleRelationalClassification = useCallback(
-    (value: boolean) => {
-      dispatchComposition({ type: 'set_commit_relational_classification', value });
-    },
-    [dispatchComposition],
-  );
-
   return {
     canGenerate,
     generateDisabledReasons,
@@ -567,9 +545,6 @@ export function useSandboxGenerate({
     clearGenerateError,
     clearSeedFingerprintState,
     prepareForLoad,
-    showRelationalClassification,
-    commitRelationalClassification: compositionModel.compositionInput.commit_relational_classification === true,
-    onToggleRelationalClassification,
     populatedSlotIndices,
     isMultiChartAggregate,
     resolveOutputStaleVsPreview,

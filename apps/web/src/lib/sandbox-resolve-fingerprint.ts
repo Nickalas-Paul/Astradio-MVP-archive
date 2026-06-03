@@ -4,7 +4,7 @@
  */
 
 import type { SandboxCompositionInputState } from '../types/sandbox';
-import { normalizeSandboxOverrides } from './sandbox-composition-state';
+import { getPopulatedSlotIndicesFromCompositionInput, normalizeSandboxOverrides } from './sandbox-composition-state';
 
 function stableStringify(value: unknown): string {
   if (value === null || value === undefined) return JSON.stringify(value);
@@ -57,14 +57,20 @@ function slotWireForFingerprint(slot: SandboxCompositionInputState['slots'][numb
 
 /** Fingerprint from live composition model (no seed). */
 export function fingerprintCompositionInputExcludingSeed(input: SandboxCompositionInputState): string {
+  const populatedCount = getPopulatedSlotIndicesFromCompositionInput(input).length;
+  const binding =
+    populatedCount >= 2
+      ? { ...(input.binding ?? {}), relationship_mode: 'friends' as const }
+      : input.binding && typeof input.binding === 'object'
+        ? input.binding
+        : null;
   const payload = {
     schema_version: typeof input.schema_version === 'string' ? input.schema_version : '1',
     slots: input.slots.map(slotWireForFingerprint),
     active_slot_index: typeof input.active_slot_index === 'number' ? input.active_slot_index : 0,
     compose_controls: input.compose_controls ?? {},
     output_kind: input.output_kind === 'feed_card' ? 'feed_card' : 'full',
-    commit_relational_classification: input.commit_relational_classification === true,
-    binding: input.binding && typeof input.binding === 'object' ? input.binding : null,
+    binding,
     transit_context: input.transit_context && typeof input.transit_context === 'object' ? input.transit_context : null,
   };
   return stableStringify(payload);
@@ -83,14 +89,22 @@ export function fingerprintResolveBodyExcludingSeed(body: Record<string, unknown
     typeof rest.active_slot_index === 'number' && Number.isFinite(rest.active_slot_index)
       ? rest.active_slot_index
       : 0;
+  const populatedCount = normalizedSlots.filter((slot) => {
+    const s = slot as { chart_id?: string; ephemeris_birth?: unknown };
+    return (typeof s.chart_id === 'string' && s.chart_id.trim()) || (s.ephemeris_birth && typeof s.ephemeris_birth === 'object');
+  }).length;
+  const bindingRaw = rest.binding && typeof rest.binding === 'object' ? rest.binding : null;
+  const binding =
+    populatedCount >= 2
+      ? { ...(bindingRaw as Record<string, unknown> | null), relationship_mode: 'friends' as const }
+      : bindingRaw;
   const payload = {
     schema_version: typeof rest.schema_version === 'string' ? rest.schema_version : '1',
     slots: normalizedSlots,
     active_slot_index: activeIdx,
     compose_controls: rest.compose_controls && typeof rest.compose_controls === 'object' ? rest.compose_controls : {},
     output_kind: rest.output_kind === 'feed_card' ? 'feed_card' : 'full',
-    commit_relational_classification: rest.commit_relational_classification === true,
-    binding: rest.binding && typeof rest.binding === 'object' ? rest.binding : null,
+    binding,
     transit_context: rest.transit_context && typeof rest.transit_context === 'object' ? rest.transit_context : null,
   };
   return stableStringify(payload);

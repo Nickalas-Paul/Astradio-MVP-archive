@@ -373,7 +373,6 @@ export type SandboxCompositionAction =
   | { type: 'clear_slot'; index: number }
   | { type: 'free_build_asc_changed'; lonDeg: number; slotIndex?: number }
   | { type: 'preview_clear' }
-  | { type: 'set_commit_relational_classification'; value: boolean }
   | { type: 'set_entry_mode'; entryMode: import('../types/sandbox').SandboxSlotEntryMode | null }
   | {
       type: 'resolve_audio_update';
@@ -645,15 +644,6 @@ export function sandboxCompositionReducer(
         },
       };
 
-    case 'set_commit_relational_classification':
-      return {
-        ...state,
-        compositionInput: {
-          ...state.compositionInput,
-          commit_relational_classification: action.value,
-        },
-      };
-
     case 'resolve_success': {
       const live: SandboxLiveResolveSession = {
         source: 'live_resolve',
@@ -772,6 +762,11 @@ export function serializeSandboxResolveRequestBody(
         : {}),
     overrides: normalizeSandboxOverrides(slot.overrides ?? { planets: {} }),
   }));
+  const populatedCount = getPopulatedSlotIndicesFromCompositionInput(compositionInput).length;
+  const binding =
+    populatedCount >= 2
+      ? { ...(compositionInput.binding ?? {}), relationship_mode: 'friends' as const }
+      : compositionInput.binding;
   return {
     schema_version: compositionInput.schema_version,
     slots,
@@ -788,10 +783,7 @@ export function serializeSandboxResolveRequestBody(
           expectedObjectIdentityHash: options.expectedObjectIdentityHash,
         }
       : {}),
-    ...(compositionInput.commit_relational_classification === true
-      ? { commit_relational_classification: true }
-      : {}),
+    ...(binding ? { binding } : {}),
     ...(compositionInput.transit_context ? { transit_context: compositionInput.transit_context } : {}),
-    ...(compositionInput.binding ? { binding: compositionInput.binding } : {}),
   };
 }

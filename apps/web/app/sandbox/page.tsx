@@ -372,9 +372,6 @@ export default function SandboxPage() {
                   saveLoading={persistence.saveLoading}
                   saveError={persistence.saveError}
                   canSave={persistence.canSave}
-                  showRelationalClassification={generate.showRelationalClassification}
-                  commitRelationalClassification={generate.commitRelationalClassification}
-                  onToggleRelationalClassification={generate.onToggleRelationalClassification}
                   onGenerate={generate.handleGenerate}
                   onSave={persistence.handleSave}
                   generateButtonLabel={generateButtonLabel}

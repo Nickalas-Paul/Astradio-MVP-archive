@@ -8,9 +8,6 @@ export interface SandboxResolvePanelProps {
   saveLoading: boolean;
   saveError: string | null;
   canSave: boolean;
-  showRelationalClassification: boolean;
-  commitRelationalClassification: boolean;
-  onToggleRelationalClassification: (value: boolean) => void;
   onGenerate: () => void;
   onSave: () => void;
   /** Primary action label when idle (loading always "Resolving…"). */
@@ -27,9 +24,6 @@ export function SandboxResolvePanel({
   saveLoading,
   saveError,
   canSave,
-  showRelationalClassification,
-  commitRelationalClassification,
-  onToggleRelationalClassification,
   onGenerate,
   onSave,
   generateButtonLabel = 'Generate from current composition',
@@ -47,19 +41,6 @@ export function SandboxResolvePanel({
           Build a reading from the chart you&apos;ve composed on the wheel.
         </p>
       ) : null}
-      {showRelationalClassification && (
-        <label className="flex items-start gap-2 mb-3 text-xs text-subtext cursor-pointer select-none max-w-xl">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={commitRelationalClassification === true}
-            onChange={(e) => onToggleRelationalClassification(e.target.checked)}
-          />
-          <span>
-            Commit relational classification (Friend/Lover lens). Off for preview; turn on when generating a full reading so compatibility classification runs on two saved charts.
-          </span>
-        </label>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onGenerate}
