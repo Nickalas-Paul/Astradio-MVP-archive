@@ -34,7 +34,12 @@ function getPool(): PgPoolLike {
   }
   if (!pool) {
     const { Pool } = loadPg();
-    pool = new Pool({ connectionString: POSTGRES_URL }) as PgPoolLike;
+    pool = new Pool({
+      connectionString: POSTGRES_URL,
+      ...(process.env.NODE_ENV === 'production'
+        ? { ssl: { rejectUnauthorized: false } }
+        : {}),
+    }) as PgPoolLike;
   }
   return pool;
 }

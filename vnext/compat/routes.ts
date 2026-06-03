@@ -51,6 +51,7 @@ type AvatarStorageLib = {
 };
 
 type AvatarUploadLib = {
+  isValidImageBuffer: (buffer: Buffer) => boolean;
   moderateImageBuffer: (buffer: Buffer) => Promise<{ ok: true } | { ok: false; message: string }>;
   processAvatarImage: (buffer: Buffer) => Promise<Buffer>;
   MODERATION_REJECTION_MESSAGE: string;
@@ -138,6 +139,45 @@ const emailUtil = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'e
 
 const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 const REGISTRATION_SENT_MESSAGE = 'Verification email sent';
+
+const PROFILE_CHART_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const PROFILE_CHART_TIME_RE = /^\d{2}:\d{2}$/;
+
+function validateProfileChartDate(date: string): string | null {
+  const trimmed = date.trim();
+  if (!PROFILE_CHART_DATE_RE.test(trimmed)) {
+    return 'chart.date must be YYYY-MM-DD format';
+  }
+  const parts = trimmed.split('-').map((p) => Number(p));
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  const maxYear = new Date().getFullYear() + 1;
+  if (year < 1900 || year > maxYear || month < 1 || month > 12) {
+    return 'chart.date must be YYYY-MM-DD format';
+  }
+  const daysInMonth = new Date(year, month, 0).getDate();
+  if (day < 1 || day > daysInMonth) {
+    return 'chart.date must be YYYY-MM-DD format';
+  }
+  const parsed = new Date(`${trimmed}T12:00:00`);
+  if (isNaN(parsed.getTime())) {
+    return 'chart.date must be YYYY-MM-DD format';
+  }
+  return null;
+}
+
+function validateProfileChartTime(time: string): string | null {
+  const trimmed = time.trim();
+  if (!PROFILE_CHART_TIME_RE.test(trimmed)) {
+    return 'chart.time must be HH:MM format';
+  }
+  const [hours, minutes] = trimmed.split(':').map((p) => Number(p));
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return 'chart.time must be HH:MM format';
+  }
+  return null;
+}
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -905,6 +945,14 @@ export function createCompatRouter(): import('express').Router {
       if (!time || typeof time !== 'string' || !time.trim()) {
         return res.status(400).json({ error: 'chart.time required' });
       }
+      const dateErr = validateProfileChartDate(date);
+      if (dateErr) {
+        return res.status(400).json({ error: dateErr });
+      }
+      const timeErr = validateProfileChartTime(time);
+      if (timeErr) {
+        return res.status(400).json({ error: timeErr });
+      }
       if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) {
         return res.status(400).json({ error: 'chart.lat invalid' });
       }
@@ -1056,7 +1104,12 @@ export function createCompatRouter(): import('express').Router {
       try {
         const { storageLib, avatarUploadLib } = getAvatarDeps();
         const { uploadAvatar } = storageLib;
-        const { moderateImageBuffer, processAvatarImage, MODERATION_REJECTION_MESSAGE } = avatarUploadLib;
+        const {
+          isValidImageBuffer,
+          moderateImageBuffer,
+          processAvatarImage,
+          MODERATION_REJECTION_MESSAGE,
+        } = avatarUploadLib;
         const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
         if (!proxyUserId) {
           return res.status(401).json({ error: 'proxy_identity_required' });
@@ -1068,6 +1121,11 @@ export function createCompatRouter(): import('express').Router {
         const userId = proxyUserId.trim();
         const u = await storage.getUser(userId);
         if (!u) return res.status(404).json({ error: 'User not found' });
+
+        if (!isValidImageBuffer(file.buffer)) {
+          console.log('[avatar] Rejected: invalid file header');
+          return res.status(400).json({ error: MODERATION_REJECTION_MESSAGE });
+        }
 
         const moderation = await moderateImageBuffer(file.buffer);
         if (!moderation.ok) {

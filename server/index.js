@@ -9,6 +9,8 @@ const {
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const xss = require("xss-clean");
+const hpp = require("hpp");
 require("dotenv").config();
 
 // Render-compatible GCP credentials: GOOGLE_SERVICE_ACCOUNT_JSON → temp file + ADC
@@ -136,16 +138,18 @@ const FEATURE_FLAGS = {
 
 console.log('Feature Flags:', FEATURE_FLAGS);
 
-// Security middleware
+// Security middleware — single CSP source of truth (no second override middleware)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
       workerSrc: ["'self'", "blob:"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      mediaSrc: ["'self'", "blob:", "data:"],
     },
   },
 }));
@@ -169,19 +173,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-beta-user', 'x-forwarded-for', 'x-real-ip'],
 }));
 
-// Add permissive CSP for audio development (allows blob URLs)
-app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', 
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://unpkg.com; " +
-    "worker-src 'self' blob:; " +
-    "connect-src 'self' https:; " +
-    "media-src 'self' blob: data:; " +
-    "object-src 'none';"
-  );
-  next();
-});
-
 // Rate limiting - more permissive for development and testing
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
@@ -204,6 +195,9 @@ app.use(limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use(xss());
+app.use(hpp());
 
 // Vercel → Render proxy shared secret (skipped when PROXY_SHARED_SECRET unset)
 const { proxySecretGate } = require('../lib/proxy-secret-gate');
@@ -2432,7 +2426,12 @@ app.get('/api/debug/phase8/campaign-ids', async (req, res) => {
     ensureCampaignRuntimeParity();
     const pg = require('pg');
     const Pool = pg.Pool;
-    pool = new Pool({ connectionString: conn });
+    pool = new Pool({
+      connectionString: conn,
+      ...(process.env.NODE_ENV === 'production'
+        ? { ssl: { rejectUnauthorized: false } }
+        : {}),
+    });
 
     const result = await pool.query(`
       SELECT campaign_id, owner_user_id, mode, created_at
