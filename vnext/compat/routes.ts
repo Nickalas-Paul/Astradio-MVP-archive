@@ -161,7 +161,14 @@ async function sendPasswordResetEmailForUser(
   emailForUrl: string
 ): Promise<void> {
   const rawToken = await astradioPgStore.createPasswordResetToken(userId);
-  const resetUrl = `${frontendBaseUrl()}/reset-password?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(emailForUrl)}`;
+  const token = String(rawToken || '').trim();
+  if (!token) {
+    throw new Error('password_reset_token_missing');
+  }
+  const emailParam = encodeURIComponent(emailForUrl);
+  const tokenParam = encodeURIComponent(token);
+  // Use reset_token (not token) — some mail security gateways strip ?token= from links.
+  const resetUrl = `${frontendBaseUrl()}/reset-password?reset_token=${tokenParam}&email=${emailParam}`;
   const { subject, html } = emailUtil.buildPasswordResetEmail(resetUrl);
   const result = await emailUtil.sendEmail({ to: emailTo, subject, html });
   if (!result.success) {

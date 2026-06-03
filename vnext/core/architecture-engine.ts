@@ -54,12 +54,18 @@ export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSn
   if (tz) q.set('timezone', tz);
   const hs = houseSystem && String(houseSystem).trim();
   if (hs) q.set('houseSystem', hs);
-  const headers: Record<string, string> = {};
+  const extra: Record<string, string> = {};
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   if (bypass && typeof bypass === 'string' && bypass.trim()) {
-    headers['x-vercel-protection-bypass'] = bypass.trim();
+    extra['x-vercel-protection-bypass'] = bypass.trim();
   }
-  const r = await fetch(`${base}/api/chart-snapshot?${q}`, { headers });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { engineInternalFetchHeaders } = require('../../lib/engine-internal-fetch-headers') as {
+    engineInternalFetchHeaders: (e?: Record<string, string>) => Record<string, string>;
+  };
+  const r = await fetch(`${base}/api/chart-snapshot?${q}`, {
+    headers: engineInternalFetchHeaders(extra),
+  });
   const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
   if (!r.ok) {
     const msg =

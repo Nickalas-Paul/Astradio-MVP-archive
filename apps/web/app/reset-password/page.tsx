@@ -9,7 +9,10 @@ import { Card } from '@/components/shared/Card';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token')?.trim() || '';
+  const token =
+    searchParams.get('reset_token')?.trim() ||
+    searchParams.get('token')?.trim() ||
+    '';
   const email = searchParams.get('email')?.trim() || '';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
