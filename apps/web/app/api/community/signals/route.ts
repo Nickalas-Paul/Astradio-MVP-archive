@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const backend = getEngineBaseUrl();
     const url = new URL(`${backend}/api/community/signals`);
     url.searchParams.set('userId', userId);
-    const r = await fetch(url.toString(), { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    const r = await fetch(url.toString(), { headers: engineProxyHeaders({ Accept: 'application/json' }), cache: 'no-store' });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/community/signals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
       body: JSON.stringify({ ...(body as object), userId }),
     });
     const data = await r.json().catch(() => ({}));

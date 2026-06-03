@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/community/groups/profile`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body)
     });
     const data = await r.json().catch(() => ({}));

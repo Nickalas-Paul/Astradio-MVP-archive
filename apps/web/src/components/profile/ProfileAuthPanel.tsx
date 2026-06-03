@@ -50,7 +50,9 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
-  const [loginNeedsVerification, setLoginNeedsVerification] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotNotice, setForgotNotice] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
 
@@ -168,10 +170,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               autoComplete="email"
               placeholder="Email"
               value={loginEmail}
-              onChange={(e) => {
-                setLoginEmail(e.target.value);
-                setLoginNeedsVerification(false);
-              }}
+              onChange={(e) => setLoginEmail(e.target.value)}
             />
             <InputField
               type="password"
@@ -180,37 +179,93 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
             />
-            {loginNeedsVerification ? (
-              <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                <p className="text-sm text-text">
-                  Your email hasn&apos;t been verified yet. Check your inbox for a verification link.
+            {showForgotPassword ? (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-sm text-text-secondary">
+                  Enter your email and we will send a reset link if an account exists.
                 </p>
-                {resendNotice && <p className="text-sm text-accent">{resendNotice}</p>}
+                <InputField
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+                {forgotNotice && <p className="text-sm text-accent">{forgotNotice}</p>}
                 {authError && <p className="text-sm text-red-500">{authError}</p>}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={resendBusy}
-                  loading={resendBusy}
-                  onClick={() => void handleResend(loginEmail)}
-                >
-                  Resend verification email
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={authBusy || !forgotEmail.trim().includes('@')}
+                    loading={authBusy}
+                    onClick={async () => {
+                      setAuthBusy(true);
+                      setAuthError(null);
+                      setForgotNotice(null);
+                      try {
+                        const r = await fetch('/api/auth/forgot-password', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: forgotEmail.trim() }),
+                        });
+                        const data = (await r.json().catch(() => ({}))) as { message?: string };
+                        if (!r.ok) {
+                          setAuthError(typeof data.message === 'string' ? data.message : 'Request failed');
+                          return;
+                        }
+                        setForgotNotice(
+                          data.message || 'If that email is registered, a reset link has been sent.',
+                        );
+                      } finally {
+                        setAuthBusy(false);
+                      }
+                    }}
+                  >
+                    Send reset link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotNotice(null);
+                      setAuthError(null);
+                    }}
+                  >
+                    Back to sign in
+                  </Button>
+                </div>
               </div>
             ) : (
               authError && <p className="text-red-500 text-xs">{authError}</p>
+            )}
+            {!showForgotPassword && (
+              <button
+                type="button"
+                className="text-xs text-accent hover:underline"
+                onClick={() => {
+                  setShowForgotPassword(true);
+                  setForgotEmail(loginEmail.trim());
+                  setAuthError(null);
+                  setForgotNotice(null);
+                }}
+              >
+                Forgot password?
+              </button>
             )}
             <Button
               type="button"
               variant="primary"
               size="sm"
-              disabled={authBusy || !canLogin}
+              disabled={authBusy || !canLogin || showForgotPassword}
               loading={authBusy}
               onClick={async () => {
                 setAuthBusy(true);
                 setAuthError(null);
-                setLoginNeedsVerification(false);
+                setShowForgotPassword(false);
                 setResendNotice(null);
                 try {
                   const r = await fetch('/api/auth/login', {
@@ -223,12 +278,8 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                     }),
                   });
                   const data = await r.json().catch(() => ({}));
-                  if (r.status === 403 && data.error === 'email_not_verified') {
-                    setLoginNeedsVerification(true);
-                    return;
-                  }
                   if (!r.ok) {
-                    setAuthError(typeof data.error === 'string' ? data.error : 'Login failed');
+                    setAuthError('Invalid email or password');
                     return;
                   }
                   setLoginPassword('');

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ intentId: string }> }) {
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ int
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/community/connection-intents/${encodeURIComponent(intentId)}/decline`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ userId }),
     });
     const data = await r.json().catch(() => ({}));

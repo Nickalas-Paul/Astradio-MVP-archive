@@ -115,7 +115,7 @@ Runs the vnext live soak script against the deployed Render backend (`https://as
 | Variable | Value | Purpose |
 |----------|--------|---------|
 | `ENABLE_WAV_EXPORT` | `1` | Enable inline WAV in compose response (`audio_export_available`, `audio.size_bytes`, `audio.sha256`). Without it, preflight fails. |
-| `SOAK_TOKEN` | `astradio_soak_96db14c_prod` | When request has header `X-Soak-Token` matching this value, the compose rate limiter is skipped for that request only. Set same value locally to run 30-run soak. |
+| `SOAK_TOKEN` | `YOUR_SOAK_TOKEN_HERE` | When request has header `X-Soak-Token` matching this value, the compose rate limiter is skipped for that request only. Set same value locally to run 30-run soak. |
 
 **PowerShell (from repo root):**
 
@@ -149,7 +149,7 @@ try { Invoke-WebRequest -Uri "https://astradio-mvp-archive.onrender.com/api/comp
 Or with curl (inspect response headers on 429):
 
 ```bash
-curl -s -D - -X POST -H "Content-Type: application/json" -H "X-Soak-Token: astradio_soak_96db14c_prod" -d '{"mode":"sandbox","chartData":{"date":"2025-01-15","time":"12:00","lat":40.7128,"lon":-74.006},"controls":{}}' "https://astradio-mvp-archive.onrender.com/api/compose"
+curl -s -D - -X POST -H "Content-Type: application/json" -H "X-Soak-Token: YOUR_SOAK_TOKEN_HERE" -d '{"mode":"sandbox","chartData":{"date":"2025-01-15","time":"12:00","lat":40.7128,"lon":-74.006},"controls":{}}' "https://astradio-mvp-archive.onrender.com/api/compose"
 ```
 
 Look for `x-soak-env-present`, `x-soak-header-present`, `x-soak-token-match`, `x-soak-bypass-eligible` in the response headers (only present on 429 from the compose limiter).
@@ -171,14 +171,14 @@ Side-car tooling: runs a canonical set of compose requests (from `vnext/eval/gol
 $env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; npm run test:compose-golden-run
 
 # With soak bypass (recommended for 25 cases; SOAK_TOKEN must match Render env)
-$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="astradio_soak_96db14c_prod"; npm run test:compose-golden-run
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="YOUR_SOAK_TOKEN_HERE"; npm run test:compose-golden-run
 ```
 
 **How to set/update baseline:**
 
 ```powershell
 # Run golden set and copy latest results to vnext/eval/baseline/results.json
-$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="astradio_soak_96db14c_prod"; npm run test:compose-golden-baseline
+$env:ASTRADIO_BASE_URL="https://astradio-mvp-archive.onrender.com"; $env:SOAK_TOKEN="YOUR_SOAK_TOKEN_HERE"; npm run test:compose-golden-baseline
 ```
 
 Optional: `$env:GOLDEN_RUN_DELAY_MS="200"` (delay between requests, default 200).

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const runtime = 'nodejs';
 // Phase 8 debug-only; force dynamic so Vercel/Next never tries to statically generate this route at build time.
@@ -32,7 +33,7 @@ export async function GET() {
     console.log('[api/debug/phase8/create-test-user] proxy -> engine', {
       target,
     });
-    const r = await fetch(target);
+    const r = await fetch(target, { headers: engineProxyHeaders() });
     const body = await r.json().catch(() => ({}));
     // eslint-disable-next-line no-console
     console.log('[api/debug/phase8/create-test-user] engine response', {

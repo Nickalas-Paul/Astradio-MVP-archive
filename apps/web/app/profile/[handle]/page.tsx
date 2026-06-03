@@ -39,9 +39,10 @@ type PrimaryChart = {
 };
 
 function formatBirthData(chart: PrimaryChart | null): string | undefined {
-  if (!chart?.date) return undefined;
-  const time = chart.time?.slice(0, 5) || chart.time;
-  return time ? `${chart.date} · ${time}` : chart.date;
+  if (!chart) return undefined;
+  if (chart.label?.trim()) return chart.label.trim();
+  if (chart.date) return chart.date;
+  return undefined;
 }
 
 function readDiscoveryBullets(userId: string): {

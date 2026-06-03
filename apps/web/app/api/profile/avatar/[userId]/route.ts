@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,9 @@ export async function GET(
       return NextResponse.json({ error: 'userId required' }, { status: 400 });
     }
     const base = getEngineBaseUrl();
-    const r = await fetch(`${base}/api/profile/avatar/${encodeURIComponent(userId.trim())}`);
+    const r = await fetch(`${base}/api/profile/avatar/${encodeURIComponent(userId.trim())}`, {
+      headers: engineProxyHeaders(),
+    });
     if (!r.ok) {
       const data = await r.json().catch(() => ({}));
       return NextResponse.json(data, { status: r.status });

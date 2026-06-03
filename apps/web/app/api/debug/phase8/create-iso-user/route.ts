@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export async function GET() {
   try {
     const base = getEngineBaseUrl();
     const target = `${base}/api/debug/phase8/create-iso-user`;
-    const r = await fetch(target);
+    const r = await fetch(target, { headers: engineProxyHeaders() });
     const body = await r.json().catch(() => ({}));
     return NextResponse.json(body, { status: r.status });
   } catch (e) {

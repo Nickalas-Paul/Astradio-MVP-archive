@@ -3,13 +3,14 @@
  */
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/compat/health`);
+    const r = await fetch(`${backend}/api/compat/health`, { headers: engineProxyHeaders() });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       return NextResponse.json(data, { status: r.status });

@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -26,9 +27,7 @@ export async function POST(req: NextRequest) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile/avatar`, {
       method: 'POST',
-      headers: {
-        'x-proxy-session-user-id': userId,
-      },
+      headers: engineProxySessionHeaders(userId),
       body: outbound,
     });
     const data = await r.json().catch(() => ({}));
@@ -48,9 +47,7 @@ export async function DELETE(_req: NextRequest) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile/avatar`, {
       method: 'DELETE',
-      headers: {
-        'x-proxy-session-user-id': userId,
-      },
+      headers: engineProxySessionHeaders(userId),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });

@@ -102,8 +102,16 @@ export function getSessionUserId(cookies: CookieStore): string | null {
     const payload = verifySession(sessionCookie);
     if (payload) return payload.userId;
   }
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
   const legacy = cookies.get(LEGACY_COOKIE_NAME)?.value;
-  if (legacy && typeof legacy === 'string' && legacy.trim()) return legacy.trim();
+  if (legacy && typeof legacy === 'string' && legacy.trim()) {
+    console.warn(
+      '[session] astradio_dev_user_id legacy cookie is deprecated; sign in to receive astradio_session.',
+    );
+    return legacy.trim();
+  }
   return null;
 }
 

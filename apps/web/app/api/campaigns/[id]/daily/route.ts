@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 async function proxyToEngine(
@@ -19,7 +20,7 @@ async function proxyToEngine(
       if (v) url.searchParams.set(key, v);
     }
     if (method === 'GET') {
-      const r = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+      const r = await fetch(url.toString(), { headers: engineProxyHeaders({ Accept: 'application/json' }) });
       const data = await r.json().catch(() => ({}));
       return NextResponse.json(data, { status: r.status });
     }
@@ -27,7 +28,7 @@ async function proxyToEngine(
     /* date/time/engineVersion may be on query string or body; backend merges both */
     const r = await fetch(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
       body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({}));

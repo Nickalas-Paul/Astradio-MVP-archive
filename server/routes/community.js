@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const crypto = require('crypto');
 const { optionalRequire } = require('../../lib/opt/optional');
+const { proxySecretGate } = require('../../lib/proxy-secret-gate');
 const {
   COMMUNITY_RELATIONAL_EXPRESSION_VERSION,
   readRelationalExpressionVersionFromDailyArtifact,
@@ -91,6 +92,8 @@ async function resolveCommunityUserId(req, body) {
 }
 
 const router = express.Router({ mergeParams: true });
+
+router.use(proxySecretGate);
 
 /**
  * POST /api/community/relational-feed

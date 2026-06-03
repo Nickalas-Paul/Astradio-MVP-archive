@@ -205,6 +205,10 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Vercel → Render proxy shared secret (skipped when PROXY_SHARED_SECRET unset)
+const { proxySecretGate } = require('../lib/proxy-secret-gate');
+app.use('/api', proxySecretGate);
+
 // Beta gate middleware (header x-beta-user must be allowed)
 function requireBeta(req, res, next){
   if (!BETA_ENABLED) return res.status(403).json({ error: 'beta_disabled' });

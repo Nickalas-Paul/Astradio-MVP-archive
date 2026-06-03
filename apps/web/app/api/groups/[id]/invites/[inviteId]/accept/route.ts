@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export async function POST(
@@ -17,7 +18,7 @@ export async function POST(
     url.searchParams.set('userId', userId);
     const r = await fetch(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({}),
     });
     const data = await r.json().catch(() => ({}));

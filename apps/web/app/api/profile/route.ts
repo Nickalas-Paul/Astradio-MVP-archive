@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId, SESSION_COOKIE_NAME, LEGACY_COOKIE_NAME } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,9 @@ export async function GET(req: NextRequest) {
   }
   try {
     const base = getEngineBaseUrl();
-    const r = await fetch(`${base}/api/profile?userId=${encodeURIComponent(userId)}`);
+    const r = await fetch(`${base}/api/profile?userId=${encodeURIComponent(userId)}`, {
+      headers: engineProxySessionHeaders(userId),
+    });
     if (!r.ok) {
       if (r.status === 404) {
         const res = noSessionResponse();
@@ -101,10 +104,7 @@ export async function POST(req: NextRequest) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile/user-chart`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-proxy-session-user-id': userId,
-      },
+      headers: engineProxySessionHeaders(userId, { 'Content-Type': 'application/json' }),
       body: JSON.stringify({ chart: body.chart }),
     });
     const data = await r.json().catch(() => ({}));
@@ -129,10 +129,7 @@ export async function PATCH(req: NextRequest) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/profile`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-proxy-session-user-id': userId,
-      },
+      headers: engineProxySessionHeaders(userId, { 'Content-Type': 'application/json' }),
       body: JSON.stringify(patchBody),
     });
     const data = await r.json().catch(() => ({}));

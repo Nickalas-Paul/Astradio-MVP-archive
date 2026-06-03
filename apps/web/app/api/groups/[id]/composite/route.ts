@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 async function run(req: NextRequest, method: 'GET' | 'POST', id: string, userId: string) {
   const backend = getEngineBaseUrl();
   const url = new URL(`${backend}/api/groups/${id}/composite`);
   url.searchParams.set('userId', userId);
-  const r = await fetch(url.toString(), { method, headers: { Accept: 'application/json' } });
+  const r = await fetch(url.toString(), { method, headers: engineProxyHeaders({ Accept: 'application/json' }) });
   const data = await r.json().catch(() => ({}));
   return NextResponse.json(data, { status: r.status });
 }

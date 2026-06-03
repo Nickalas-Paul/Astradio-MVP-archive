@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 function isPublicCommunityGetPath(pathStr: string): boolean {
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
       const { searchParams } = new URL(req.url);
       const qs = searchParams.toString();
       const backend = getEngineBaseUrl();
-      const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`);
+      const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`, { headers: engineProxyHeaders() });
       const data = await r.json().catch(() => ({}));
       return NextResponse.json(data, { status: r.status });
     }
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
     url.searchParams.set('userId', sessionUserId);
     const qs = url.searchParams.toString();
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`);
+    const r = await fetch(`${backend}/api/community/${pathStr}${qs ? `?${qs}` : ''}`, { headers: engineProxyHeaders() });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
 
     const r = await fetch(`${backend}/api/community/${pathStr}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
     const data = await r.json().catch(() => ({}));

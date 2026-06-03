@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { normalizeSandboxCompositionBodyForEngine } from '@/lib/sandbox-bff-wire';
 
 /**
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/sandbox/resolve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(normalized),
     });
 

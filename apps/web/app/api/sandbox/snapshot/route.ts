@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import {
   SandboxSnapshotRequestSchema,
   wireBirthToEngineBirth,
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/sandbox/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ birth: engineBirth, overrides }),
     });
 

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 /** Proxy GET /api/ml-status to Render. Same-origin so no CORS. */
 export async function GET() {
   try {
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/ml-status`, {
-      headers: { Accept: 'application/json' },
+      headers: engineProxyHeaders({ Accept: 'application/json' }),
       signal: AbortSignal.timeout(5000),
     });
     const data = await r.json().catch(() => ({}));

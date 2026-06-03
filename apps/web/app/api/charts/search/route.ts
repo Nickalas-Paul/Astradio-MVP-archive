@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -20,10 +21,10 @@ export async function GET(req: NextRequest) {
     searchParams.forEach((v, k) => target.searchParams.set(k, v));
 
     const r = await fetch(target.toString(), {
-      headers: {
+      headers: engineProxyHeaders({
         'x-caller-user-id': userId,
         Accept: 'application/json',
-      },
+      }),
       cache: 'no-store',
     });
     const data = await r.json().catch(() => ({}));

@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl, shouldUseInProcessCompatApi } from '@/lib/engine-base';
+import { engineProxyHeaders } from '@/lib/engine-proxy-headers';
 import { handleCompatMatchesInProcess } from '@/server/compat-matches-handler';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
   try {
     const qs = searchParams.toString();
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/compat/matches${qs ? `?${qs}` : ''}`);
+    const r = await fetch(`${backend}/api/compat/matches${qs ? `?${qs}` : ''}`, { headers: engineProxyHeaders() });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       return NextResponse.json(data, { status: r.status });

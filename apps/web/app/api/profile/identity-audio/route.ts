@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -16,10 +17,7 @@ export async function POST(req: NextRequest) {
     const backend = getEngineBaseUrl();
     const r = await fetch(`${backend}/api/profile/identity-audio`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-proxy-session-user-id': sessionUserId,
-      },
+      headers: engineProxySessionHeaders(sessionUserId, { 'Content-Type': 'application/json' }),
       credentials: 'same-origin',
     });
     const data = await r.json().catch(() => ({}));

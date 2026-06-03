@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
     const backend = getEngineBaseUrl();
     const { id } = await params;
     const r = await fetch(`${backend}/api/comparisons/${id}`, {
-      headers: { Accept: 'application/json' }
+      headers: engineProxyHeaders({ Accept: 'application/json' })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });

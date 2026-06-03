@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 function isCompositionsRoute(pathStr: string): boolean {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     }
     const r = await fetch(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
       const userId = getSessionUserId(req.cookies);
       if (userId) targetUrl.searchParams.set('userId', userId);
     }
-    const r = await fetch(targetUrl.toString());
+    const r = await fetch(targetUrl.toString(, { headers: engineProxyHeaders() }));
     const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
     if (!r.ok) {
       return jsonResponseForUpstreamError(r.status, data, r.statusText);

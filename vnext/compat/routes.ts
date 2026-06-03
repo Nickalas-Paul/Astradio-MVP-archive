@@ -36,8 +36,13 @@ import { computeCompatibilitySystem, computeCompatibilityFieldOnly } from '../co
 import path from 'path';
 import { formatSandboxChartSearchLabel } from './chart-search-label';
 import { clientAvatarUrl } from './client-avatar-url';
+import { ownPrimaryChartPayload, publicPrimaryChartPayload, chartPayloadForPublicView } from './chart-privacy';
 
 const express = require('express') as typeof import('express');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const rateLimit = require('express-rate-limit') as (
+  options: Parameters<typeof import('express-rate-limit').rateLimit>[0]
+) => ReturnType<typeof import('express-rate-limit').rateLimit>;
 const argon2 = require('argon2') as typeof import('argon2');
 
 type AvatarStorageLib = {
@@ -103,6 +108,15 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
     emailVerified: boolean;
     tokenExpiresAt: string | null;
   } | null>;
+  createPasswordResetToken: (userId: string) => Promise<string>;
+  resetPasswordWithToken: (
+    emailNormalized: string,
+    rawToken: string,
+    passwordHash: string
+  ) => Promise<{ ok: boolean; error?: string; userId?: string }>;
+  getUserByNormalizedEmailForPasswordReset: (
+    emailNormalized: string
+  ) => Promise<{ id: string; email: string } | null>;
   searchChartsAccessibleToUser: (
     userId: string,
     q: string,
@@ -119,13 +133,40 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
 const emailUtil = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'email')) as {
   sendEmail: (p: { to: string; subject: string; html: string }) => Promise<{ success: boolean; error?: string }>;
   buildVerificationEmail: (verifyUrl: string) => { subject: string; html: string };
+  buildPasswordResetEmail: (resetUrl: string) => { subject: string; html: string };
 };
 
 const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+const REGISTRATION_SENT_MESSAGE = 'Verification email sent';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: {
+    error: 'too_many_attempts',
+    message: 'Too many login attempts. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function frontendBaseUrl(): string {
   const raw = process.env.FRONTEND_URL || 'https://astradio.io';
   return String(raw).trim().replace(/\/+$/, '') || 'https://astradio.io';
+}
+
+async function sendPasswordResetEmailForUser(
+  userId: string,
+  emailTo: string,
+  emailForUrl: string
+): Promise<void> {
+  const rawToken = await astradioPgStore.createPasswordResetToken(userId);
+  const resetUrl = `${frontendBaseUrl()}/reset-password?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(emailForUrl)}`;
+  const { subject, html } = emailUtil.buildPasswordResetEmail(resetUrl);
+  const result = await emailUtil.sendEmail({ to: emailTo, subject, html });
+  if (!result.success) {
+    console.error('[compat] password reset email failed', { userId, to: emailTo, error: result.error });
+  }
 }
 
 async function sendVerificationEmailForUser(userId: string, emailTo: string): Promise<void> {
@@ -361,6 +402,16 @@ function chartSearchCallerUserId(req: import('express').Request): string {
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
 
+  const PROXY_SECRET = process.env.PROXY_SHARED_SECRET;
+  router.use((req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    if (!PROXY_SECRET) return next();
+    const provided = req.headers['x-proxy-secret'];
+    if (provided !== PROXY_SECRET) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    next();
+  });
+
   // Seed default profile chart and match candidates once at startup (async; idempotent).
   setImmediate(() => {
     void (async () => {
@@ -534,7 +585,7 @@ export function createCompatRouter(): import('express').Router {
   });
 
   // POST /api/auth/register — email + password + profile/chart (engine-only verification; no session cookie here)
-  router.post('/auth/register', async (req: import('express').Request, res: import('express').Response) => {
+  router.post('/auth/register', authLimiter, async (req: import('express').Request, res: import('express').Response) => {
     try {
       if (!process.env.POSTGRES_URL) {
         return res.status(501).json({ error: 'auth_requires_postgres' });
@@ -581,7 +632,7 @@ export function createCompatRouter(): import('express').Router {
 
       const existing = await astradioPgStore.getUserAuthForLogin(emailNormalized);
       if (existing) {
-        return res.status(409).json({ error: 'email already registered' });
+        return res.status(200).json({ message: REGISTRATION_SENT_MESSAGE });
       }
 
       const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
@@ -602,7 +653,7 @@ export function createCompatRouter(): import('express').Router {
       } catch (e: unknown) {
         const err = e as { code?: string };
         if (err.code === '23505') {
-          return res.status(409).json({ error: 'email or handle already registered' });
+          return res.status(200).json({ message: REGISTRATION_SENT_MESSAGE });
         }
         throw e;
       }
@@ -627,25 +678,7 @@ export function createCompatRouter(): import('express').Router {
         throw e;
       }
 
-      return res.status(201).json({
-        user: {
-          id: user.id,
-          displayName: user.displayName,
-          handle: user.handle,
-          emailVerified: false,
-        },
-        primaryChart: primaryChart
-          ? {
-              id: primaryChart.id,
-              label: primaryChart.label,
-              date: primaryChart.date,
-              time: primaryChart.time,
-              lat: primaryChart.lat,
-              lon: primaryChart.lon,
-              timezone: primaryChart.timezone,
-            }
-          : null,
-      });
+      return res.status(200).json({ message: REGISTRATION_SENT_MESSAGE });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[compat] POST /auth/register', e);
@@ -653,13 +686,14 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  router.post('/auth/login', async (req: import('express').Request, res: import('express').Response) => {
+  router.post('/auth/login', authLimiter, async (req: import('express').Request, res: import('express').Response) => {
     try {
       if (!process.env.POSTGRES_URL) {
         return res.status(501).json({ error: 'auth_requires_postgres' });
       }
       const body = (req.body || {}) as { email?: string; password?: string };
-      const emailNormalized = astradioPgStore.normalizeLoginEmail(typeof body.email === 'string' ? body.email : '');
+      const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
       const password = typeof body.password === 'string' ? body.password : '';
       if (!emailNormalized || !password) {
         return res.status(401).json({ error: 'invalid_credentials' });
@@ -674,7 +708,17 @@ export function createCompatRouter(): import('express').Router {
       }
       const verified = await astradioPgStore.isEmailVerified(row.id);
       if (!verified) {
-        return res.status(403).json({ error: 'email_not_verified' });
+        try {
+          const emailTo =
+            (await astradioPgStore.getUserEmailVerificationByNormalizedEmail(emailNormalized))?.email?.trim() ||
+            emailRaw;
+          if (emailTo) {
+            await sendVerificationEmailForUser(row.id, emailTo);
+          }
+        } catch (verifyResendErr) {
+          console.error('[compat] POST /auth/login resend verification', verifyResendErr);
+        }
+        return res.status(401).json({ error: 'invalid_credentials' });
       }
       return res.status(200).json({
         user: { id: row.id, displayName: row.displayName, handle: row.handle, emailVerified: true },
@@ -702,6 +746,59 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: unknown) {
       console.error('[compat] GET /auth/verify-email', e);
       return res.status(500).json({ error: 'verification_failed' });
+    }
+  });
+
+  router.post('/auth/forgot-password', authLimiter, async (req: import('express').Request, res: import('express').Response) => {
+    const generic = { message: 'If that email is registered, a reset link has been sent.' };
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const body = (req.body || {}) as { email?: string };
+      const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
+      if (!emailNormalized) {
+        return res.status(200).json(generic);
+      }
+      const row = await astradioPgStore.getUserByNormalizedEmailForPasswordReset(emailNormalized);
+      if (row) {
+        const emailTo = row.email && String(row.email).trim() ? String(row.email).trim() : emailRaw;
+        try {
+          await sendPasswordResetEmailForUser(row.id, emailTo, emailRaw || emailTo);
+        } catch (emailErr) {
+          console.error('[compat] POST /auth/forgot-password email', emailErr);
+        }
+      }
+      return res.status(200).json(generic);
+    } catch (e: unknown) {
+      console.error('[compat] POST /auth/forgot-password', e);
+      return res.status(200).json(generic);
+    }
+  });
+
+  router.post('/auth/reset-password', authLimiter, async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const body = (req.body || {}) as { email?: string; token?: string; password?: string };
+      const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
+      const token = typeof body.token === 'string' ? body.token.trim() : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
+      if (!emailNormalized || !token || password.length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ error: 'invalid_token' });
+      }
+      const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+      const result = await astradioPgStore.resetPasswordWithToken(emailNormalized, token, passwordHash);
+      if (!result.ok) {
+        return res.status(400).json({ error: 'invalid_token' });
+      }
+      return res.status(200).json({ message: 'Password updated successfully' });
+    } catch (e: unknown) {
+      console.error('[compat] POST /auth/reset-password', e);
+      return res.status(500).json({ error: 'reset_failed' });
     }
   });
 
@@ -736,13 +833,14 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // GET /api/profile?userId= — current user + primary chart (for dev/preview; no auth)
+  // GET /api/profile — own profile + primary chart (session via x-proxy-session-user-id)
   router.get('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const userId = (req.query.userId as string) || undefined;
-      if (!userId) {
-        return res.status(400).json({ error: 'userId query required (dev: use cookie or query)' });
+      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
       }
+      const userId = proxyUserId;
       const storageAny = storage as any;
       const adapterName: string = storageAny?.getStorage?.().__compatName || 'unknown';
       // eslint-disable-next-line no-console
@@ -758,7 +856,7 @@ export function createCompatRouter(): import('express').Router {
       const userPayload = profileUserPayload(u);
       return res.status(200).json({
         user: userPayload,
-        primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
+        primaryChart: chart ? ownPrimaryChartPayload(chart) : null,
       });
     } catch (e: any) {
       console.error('[compat] GET /profile', e);
@@ -822,17 +920,7 @@ export function createCompatRouter(): import('express').Router {
       const refreshed = await storage.getUser(proxyUserId);
       return res.status(201).json({
         user: profileUserPayload(refreshed ?? u),
-        primaryChart: primaryChart
-          ? {
-              id: primaryChart.id,
-              label: primaryChart.label,
-              date: primaryChart.date,
-              time: primaryChart.time,
-              lat: primaryChart.lat,
-              lon: primaryChart.lon,
-              timezone: primaryChart.timezone,
-            }
-          : null,
+        primaryChart: primaryChart ? ownPrimaryChartPayload(primaryChart) : null,
       });
     } catch (e: unknown) {
       console.error('[compat] POST /profile/user-chart', e);
@@ -1107,7 +1195,7 @@ export function createCompatRouter(): import('express').Router {
       const chart = await getChartById(chartId);
       return res.status(200).json({
         user: profileUserPayload(u),
-        primaryChart: chart ? { id: chart.id, label: chart.label, date: chart.date, time: chart.time, lat: chart.lat, lon: chart.lon, timezone: chart.timezone } : null,
+        primaryChart: publicPrimaryChartPayload(chart),
       });
     } catch (e: any) {
       console.error('[compat] GET /profile/:handle', e);
@@ -1173,26 +1261,29 @@ export function createCompatRouter(): import('express').Router {
       const rows = await astradioPgStore.searchChartsAccessibleToUser(userId, q, limitParam);
       const results = rows.map((row) => {
         const { chart, source, ownerUser } = row;
-        const bt =
-          chart.time && typeof chart.time === 'string' && chart.time.length >= 5
-            ? chart.time.slice(0, 5)
-            : null;
         const handleOut =
           ownerUser?.handle != null && String(ownerUser.handle).trim()
             ? String(ownerUser.handle).trim().startsWith('@')
               ? String(ownerUser.handle).trim()
               : `@${String(ownerUser.handle).trim()}`
             : null;
-        return {
+        const out: Record<string, unknown> = {
           chart_id: chart.id,
           user_id: chart.ownerId || '',
           display_name: ownerUser?.displayName ?? null,
           handle: handleOut,
           birth_date: chart.date,
-          birth_time: bt,
           label: formatSandboxChartSearchLabel(chart, ownerUser),
           source,
         };
+        if (source === 'own') {
+          const bt =
+            chart.time && typeof chart.time === 'string' && chart.time.length >= 5
+              ? chart.time.slice(0, 5)
+              : null;
+          out.birth_time = bt;
+        }
+        return out;
       });
       return res.status(200).json({ results });
     } catch (e: unknown) {
@@ -1201,7 +1292,10 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  async function chartJsonWithOwnerMeta(chart: import('./types').Chart) {
+  async function chartJsonWithOwnerMeta(
+    chart: import('./types').Chart,
+    viewerUserId: string | null
+  ) {
     let ownerDisplayName: string | null = null;
     let ownerHandle: string | null = null;
     if (chart.ownerId) {
@@ -1214,8 +1308,12 @@ export function createCompatRouter(): import('express').Router {
         }
       }
     }
+    const isOwn = Boolean(viewerUserId && chart.ownerId && chart.ownerId === viewerUserId);
+    const base = isOwn
+      ? chart
+      : chartPayloadForPublicView(chart as unknown as Record<string, unknown>);
     return {
-      ...chart,
+      ...base,
       ownerDisplayName,
       ownerHandle,
     };
@@ -1225,15 +1323,16 @@ export function createCompatRouter(): import('express').Router {
   router.get('/charts/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
     if (!id) return res.status(404).json({ error: 'Chart not found' });
+    const viewerUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim() || null;
     const chart = await getChartById(id);
-    if (chart) return res.json(await chartJsonWithOwnerMeta(chart));
+    if (chart) return res.json(await chartJsonWithOwnerMeta(chart, viewerUserId));
 
     const userByHandle = await storage.getUserByHandle(id);
     if (!userByHandle) return res.status(404).json({ error: 'Chart not found' });
 
     const charts = await listChartsByOwner(userByHandle.id);
     const resolved = selectHandleResolvedChart(charts, id);
-    if (resolved) return res.json(await chartJsonWithOwnerMeta(resolved));
+    if (resolved) return res.json(await chartJsonWithOwnerMeta(resolved, viewerUserId));
     return res.status(404).json({ error: 'Chart not found', code: 'CHART_LOOKUP_AMBIGUOUS' });
   });
 

@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const qs = searchParams.toString();
     const backend = getEngineBaseUrl();
-    const r = await fetch(`${backend}/api/compat/extended${qs ? `?${qs}` : ''}`);
+    const r = await fetch(`${backend}/api/compat/extended${qs ? `?${qs}` : ''}`, { headers: engineProxyHeaders() });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       return NextResponse.json(data, { status: r.status });

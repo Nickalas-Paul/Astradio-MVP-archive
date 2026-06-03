@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const r = await fetch(`${backend}/api/comparisons`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(backendBody),
     });
     const data = await r.json().catch(() => ({}));
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     url.searchParams.set('userId', sessionUserId);
     const r = await fetch(url.toString(), {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: engineProxyHeaders({ Accept: 'application/json' }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });

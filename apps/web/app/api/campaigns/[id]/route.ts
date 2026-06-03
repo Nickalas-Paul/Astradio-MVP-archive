@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export async function GET(
@@ -13,7 +14,7 @@ export async function GET(
     const { id } = await params;
     const url = new URL(`${backend}/api/campaigns/${encodeURIComponent(id)}`);
     url.searchParams.set('userId', userId);
-    const r = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    const r = await fetch(url.toString(), { headers: engineProxyHeaders({ Accept: 'application/json' }) });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {

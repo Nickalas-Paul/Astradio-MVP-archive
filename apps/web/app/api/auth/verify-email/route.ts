@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
     const backend = getEngineBaseUrl();
     const url = new URL(`${backend}/api/auth/verify-email`);
     if (token) url.searchParams.set('token', token);
-    const r = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    const r = await fetch(url.toString(), { headers: engineProxyHeaders({ Accept: 'application/json' }) });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {

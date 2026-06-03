@@ -74,10 +74,11 @@ export async function POST(req: Request) {
     }
 
     const { getEngineBaseUrl } = await import('@/lib/engine-base');
+    const { engineProxyHeaders } = await import('@/lib/engine-proxy-headers');
     const base = getEngineBaseUrl();
     const r = await fetch(`${base}/api/compose`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
       body: bodyToSend,
     });
 

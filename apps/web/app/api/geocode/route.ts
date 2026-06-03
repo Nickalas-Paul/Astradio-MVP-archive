@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import * as tzPack from 'tzlookup';
 import {
   isUtcEquivalentChartTimezone,
@@ -59,10 +60,8 @@ export async function GET(req: Request) {
     const geocodeUrl = `${backendUrl}/geocode?q=${encodeURIComponent(query)}`;
     
     const response = await fetch(geocodeUrl, {
-      headers: {
-        'User-Agent': 'Astradio/1.0 (astradio.io; contact: support@astradio.io)',
-        'Accept': 'application/json'
-      },
+      headers: engineProxyHeaders({ 'User-Agent': 'Astradio/1.0 (astradio.io; contact: support@astradio.io)',
+        'Accept': 'application/json' }),
       // Add timeout for geocode requests
       signal: AbortSignal.timeout(5000)
     });
@@ -107,10 +106,8 @@ export async function POST(req: Request) {
     const geocodeUrl = `${backendUrl}/geocode?q=${encodeURIComponent(query)}`;
     
     const response = await fetch(geocodeUrl, {
-      headers: {
-        'User-Agent': 'Astradio/1.0 (astradio.io; contact: support@astradio.io)',
-        'Accept': 'application/json'
-      },
+      headers: engineProxyHeaders({ 'User-Agent': 'Astradio/1.0 (astradio.io; contact: support@astradio.io)',
+        'Accept': 'application/json' }),
       signal: AbortSignal.timeout(5000)
     });
 

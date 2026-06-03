@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const v = sp.get(key);
       if (v != null && v !== '') url.searchParams.set(key, v);
     }
-    const r = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    const r = await fetch(url.toString(), { headers: engineProxyHeaders({ Accept: 'application/json' }) });
     const data = await r.json().catch(() => ({}));
     return NextResponse.json(data, { status: r.status });
   } catch (e: unknown) {
