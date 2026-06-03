@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
-import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
+import { engineProxyHeaders } from '@/lib/engine-proxy-headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const r = await fetch(`${backend}/api/profile/chart${qs}`, {
       cache: 'no-store',
       next: { revalidate: 0 },
+      headers: engineProxyHeaders(),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {

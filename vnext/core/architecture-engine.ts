@@ -7,8 +7,8 @@
  * No new transformation logic. Only orchestration of existing functions.
  */
 
-import path from 'path';
 import type { EphemerisSnapshot, FeatureVec } from '../contracts';
+import { engineInternalFetchHeaders } from './engine-internal-fetch';
 import { encodeFeatures } from '../feature-encode';
 import { guidanceFromFeatures } from '../astro/guidance';
 import { buildAstroProfile, type AstroProfile } from '../astro/profile-from-snapshot';
@@ -60,18 +60,6 @@ export async function fetchChartSnapshot(input: ChartInput): Promise<EphemerisSn
   if (bypass && typeof bypass === 'string' && bypass.trim()) {
     extra['x-vercel-protection-bypass'] = bypass.trim();
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { engineInternalFetchHeaders } = require(path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    '..',
-    'lib',
-    'engine-internal-fetch-headers'
-  )) as {
-    engineInternalFetchHeaders: (e?: Record<string, string>) => Record<string, string>;
-  };
   const r = await fetch(`${base}/api/chart-snapshot?${q}`, {
     headers: engineInternalFetchHeaders(extra),
   });

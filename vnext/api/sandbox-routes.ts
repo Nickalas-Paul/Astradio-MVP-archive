@@ -4,8 +4,8 @@
  * POST /api/sandbox/resolve — unified composition → canonical pipeline
  */
 
-import path from 'path';
 import type { SandboxBirth, SandboxOverrides, EphemerisSnapshot } from '../contracts';
+import { engineInternalFetchHeaders } from '../core/engine-internal-fetch';
 import { generateSnapshotWithOverrides, hashBirth, hashOverrides, validateSandboxOverrides } from './sandbox-snapshot';
 import { executeSandboxComposition } from './sandbox-composition-execute';
 import { CANONICAL_INPUT_HASH_VERSION } from './sandbox-determinism';
@@ -27,18 +27,6 @@ async function fetchBaseSnapshot(birth: SandboxBirth): Promise<EphemerisSnapshot
   const houseSystem = typeof birth.houseSystem === 'string' ? birth.houseSystem.trim() : '';
   if (houseSystem) params.set('houseSystem', houseSystem);
   const url = `${base}/api/chart-snapshot?${params}`;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { engineInternalFetchHeaders } = require(path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    '..',
-    'lib',
-    'engine-internal-fetch-headers'
-  )) as {
-    engineInternalFetchHeaders: (e?: Record<string, string>) => Record<string, string>;
-  };
   const res = await fetch(url, { headers: engineInternalFetchHeaders() });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
