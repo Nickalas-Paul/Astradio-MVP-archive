@@ -88,7 +88,7 @@ export default function LibraryPanel() {
     return (
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-text">Your Library</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Your Library</h3>
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="skeleton h-16 rounded-2xl" />
@@ -96,7 +96,7 @@ export default function LibraryPanel() {
           </div>
         </div>
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-text">Playlists</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Playlists</h3>
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="skeleton h-20 rounded-2xl" />
@@ -111,22 +111,22 @@ export default function LibraryPanel() {
     <div className="grid lg:grid-cols-2 gap-6">
       {/* Library Section */}
       <section className="space-y-3">
-        <h3 className="text-lg font-semibold text-text">Your Library</h3>
+        <h3 className="text-lg font-semibold text-text-primary">Your Library</h3>
         
         {libraryError ? (
           <div className="text-center py-8">
-            <p className="text-subtext text-sm">Unable to load library</p>
-            <p className="text-xs text-subtext mt-1">{libraryError}</p>
+            <p className="text-text-secondary text-sm">Unable to load library</p>
+            <p className="text-xs text-text-secondary mt-1">{libraryError}</p>
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p className="text-subtext text-sm">Your library is empty</p>
-            <p className="text-xs text-subtext mt-1">Generate compositions to build your collection</p>
+            <p className="text-text-secondary text-sm">Your library is empty</p>
+            <p className="text-xs text-text-secondary mt-1">Generate compositions to build your collection</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -143,10 +143,10 @@ export default function LibraryPanel() {
                     {getItemIcon(item)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-text group-hover:text-emerald transition-colors truncate">
+                    <div className="font-medium text-text-primary group-hover:text-emerald transition-colors truncate">
                       {getItemTitle(item)}
                     </div>
-                    <div className="text-sm text-subtext truncate">
+                    <div className="text-sm text-text-secondary truncate">
                       {getItemSubtitle(item)}
                     </div>
                   </div>
@@ -157,7 +157,7 @@ export default function LibraryPanel() {
                     className={`p-2 rounded-lg transition-colors ${
                       isFavorited((item as any).id, item.t)
                         ? 'text-warning bg-warning/20 hover:bg-warning/30'
-                        : 'text-subtext hover:bg-border hover:text-text'
+                        : 'text-text-secondary hover:bg-border hover:text-text-primary'
                     }`}
                     aria-label={isFavorited((item as any).id, item.t) ? 'Remove from favorites' : 'Add to favorites'}
                   >
@@ -166,7 +166,7 @@ export default function LibraryPanel() {
                     </svg>
                   </button>
                   <button
-                    className="p-2 rounded-lg text-subtext hover:bg-border hover:text-text transition-colors"
+                    className="p-2 rounded-lg text-text-secondary hover:bg-border hover:text-text-primary transition-colors"
                     aria-label="More options"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +183,7 @@ export default function LibraryPanel() {
       {/* Playlists Section */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-text">Playlists</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Playlists</h3>
           <button
             className="px-3 py-2 rounded-xl bg-emerald text-bg font-medium hover:bg-emeraldMuted transition-colors"
             onClick={() => setIsCreatingPlaylist(!isCreatingPlaylist)}
@@ -206,7 +206,7 @@ export default function LibraryPanel() {
                 placeholder="Playlist name"
                 value={newPlaylistTitle}
                 onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-bg border border-border text-text focus:outline-none focus:ring-2 focus:ring-violet"
+                className="w-full px-3 py-2 rounded-lg bg-bg border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-violet"
                 onKeyPress={(e) => e.key === 'Enter' && handleCreatePlaylist()}
               />
               <div className="flex gap-2">
@@ -222,7 +222,7 @@ export default function LibraryPanel() {
                     setIsCreatingPlaylist(false);
                     setNewPlaylistTitle('');
                   }}
-                  className="px-4 py-2 rounded-lg bg-bgElev text-subtext hover:bg-border transition-colors"
+                  className="px-4 py-2 rounded-lg bg-bgElev text-text-secondary hover:bg-border transition-colors"
                 >
                   Cancel
                 </button>
@@ -233,18 +233,18 @@ export default function LibraryPanel() {
 
         {playlistsError ? (
           <div className="text-center py-8">
-            <p className="text-subtext text-sm">Unable to load playlists</p>
-            <p className="text-xs text-subtext mt-1">{playlistsError}</p>
+            <p className="text-text-secondary text-sm">Unable to load playlists</p>
+            <p className="text-xs text-text-secondary mt-1">{playlistsError}</p>
           </div>
         ) : lists.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
             </div>
-            <p className="text-subtext text-sm">No playlists yet</p>
-            <p className="text-xs text-subtext mt-1">Create a playlist to organize your favorites</p>
+            <p className="text-text-secondary text-sm">No playlists yet</p>
+            <p className="text-xs text-text-secondary mt-1">Create a playlist to organize your favorites</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -258,19 +258,19 @@ export default function LibraryPanel() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="font-medium text-text group-hover:text-emerald transition-colors">
+                    <div className="font-medium text-text-primary group-hover:text-emerald transition-colors">
                       {playlist.title}
                     </div>
-                    <div className="text-sm text-subtext mt-1">
+                    <div className="text-sm text-text-secondary mt-1">
                       {playlist.items.length} item{playlist.items.length !== 1 ? 's' : ''}
                     </div>
-                    <div className="text-xs text-subtext mt-1">
+                    <div className="text-xs text-text-secondary mt-1">
                       Updated {new Date(playlist.updatedAt).toLocaleDateString()}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      className="p-2 rounded-lg text-subtext hover:bg-border hover:text-text transition-colors"
+                      className="p-2 rounded-lg text-text-secondary hover:bg-border hover:text-text-primary transition-colors"
                       aria-label="Play playlist"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +278,7 @@ export default function LibraryPanel() {
                       </svg>
                     </button>
                     <button
-                      className="p-2 rounded-lg text-subtext hover:bg-border hover:text-text transition-colors"
+                      className="p-2 rounded-lg text-text-secondary hover:bg-border hover:text-text-primary transition-colors"
                       aria-label="Edit playlist"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

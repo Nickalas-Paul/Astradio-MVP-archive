@@ -38,7 +38,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
         return 'bg-warning/10 border-warning text-warning';
       case 'info':
       default:
-        return 'bg-subtext/10 border-subtext text-subtext';
+        return 'bg-subtext/10 border-subtext text-text-secondary';
     }
   };
 

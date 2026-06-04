@@ -173,11 +173,11 @@ export function IdentityPanel({
             />
           </div>
         ) : chartData?.snapshot ? (
-          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
             Chart data received; add planets and houses for wheel view.
           </div>
         ) : (
-          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
             {error || 'No chart data'}
           </div>
         )}
@@ -185,7 +185,7 @@ export function IdentityPanel({
         {!noRealChart && (
           <>
             {audioState === 'loading' && (
-              <p className="text-sm text-subtext">Loading your soundtrack…</p>
+              <p className="text-sm text-text-secondary">Loading your soundtrack…</p>
             )}
 
             {audioState === 'available' && identityAudioUrl && (
@@ -197,7 +197,7 @@ export function IdentityPanel({
 
             {(audioState === 'missing' || audioState === 'error') && (
               <div className="space-y-3">
-                <p className="text-sm text-subtext">{missingMessage}</p>
+                <p className="text-sm text-text-secondary">{missingMessage}</p>
                 <Button
                   type="button"
                   variant="audio"
@@ -213,7 +213,7 @@ export function IdentityPanel({
 
             {audioState === 'generating' && (
               <div className="space-y-2">
-                <p className="text-sm text-subtext">Building your soundtrack…</p>
+                <p className="text-sm text-text-secondary">Building your soundtrack…</p>
                 <Button type="button" variant="audio" size="sm" disabled loading>
                   Generating…
                 </Button>
@@ -225,7 +225,7 @@ export function IdentityPanel({
 
       <div className="min-w-0 w-full">
         {noRealChart && (
-          <p className="text-subtext text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
+          <p className="text-text-secondary text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
         )}
         {loading && !chartData && !noRealChart && (
           <div className="space-y-4">
@@ -234,7 +234,7 @@ export function IdentityPanel({
           </div>
         )}
         {error && !chartData && !noRealChart && (
-          <p className="text-subtext text-sm">{error}</p>
+          <p className="text-text-secondary text-sm">{error}</p>
         )}
         {hasExplainer && (
           <ExplainerSections

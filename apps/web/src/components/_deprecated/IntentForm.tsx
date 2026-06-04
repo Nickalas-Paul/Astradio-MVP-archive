@@ -77,7 +77,7 @@ export function IntentForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6 max-w-2xl">
       <div>
-        <label className="block text-sm font-medium text-text mb-2">Intent (required)</label>
+        <label className="block text-sm font-medium text-text-primary mb-2">Intent (required)</label>
         <div className="flex flex-wrap gap-2">
           {RELATIONAL_INTENT_OPTIONS.map((opt) => (
             <button
@@ -85,7 +85,7 @@ export function IntentForm({
               type="button"
               onClick={() => setIntent(opt.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                intent === opt.value ? 'bg-emerald text-bg' : 'bg-surface-2 text-subtext hover:bg-surface-3'
+                intent === opt.value ? 'bg-emerald text-bg' : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
               }`}
             >
               {opt.label}
@@ -95,7 +95,7 @@ export function IntentForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text mb-2">Scope (required)</label>
+        <label className="block text-sm font-medium text-text-primary mb-2">Scope (required)</label>
         <div className="flex flex-wrap gap-2">
           {SCOPE_OPTIONS.map((opt) => (
             <button
@@ -103,7 +103,7 @@ export function IntentForm({
               type="button"
               onClick={() => setScope(opt.value as ScopeType)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                scope === opt.value ? 'bg-emerald text-bg' : 'bg-surface-2 text-subtext hover:bg-surface-3'
+                scope === opt.value ? 'bg-emerald text-bg' : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
               }`}
             >
               {opt.label}
@@ -111,12 +111,12 @@ export function IntentForm({
           ))}
         </div>
         {scope === 'this_group' && !groupId && (
-          <p className="text-xs text-subtext mt-1">Select &quot;This group&quot; when launched from a group page.</p>
+          <p className="text-xs text-text-secondary mt-1">Select &quot;This group&quot; when launched from a group page.</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text mb-2">
+        <label className="block text-sm font-medium text-text-primary mb-2">
           Filter by shared context (group, tag, interest)
         </label>
         <input

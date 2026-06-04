@@ -57,11 +57,11 @@ function DegreeInputs({
 }) {
   const { signIdx, deg, min } = lonToSignDeg(lonDeg);
   const inputClass = disabled
-    ? 'px-2 py-1 bg-bg/50 border border-border/60 rounded text-subtext text-sm min-w-[7rem] cursor-not-allowed'
-    : 'px-2 py-1 bg-bg border border-border rounded text-text text-sm min-w-[7rem]';
+    ? 'px-2 py-1 bg-bg/50 border border-border/60 rounded text-text-secondary text-sm min-w-[7rem] cursor-not-allowed'
+    : 'px-2 py-1 bg-bg border border-border rounded text-text-primary text-sm min-w-[7rem]';
   const numClass = disabled
-    ? 'w-12 px-2 py-1 bg-bg/50 border border-border/60 rounded text-subtext text-sm cursor-not-allowed'
-    : 'w-12 px-2 py-1 bg-bg border border-border rounded text-text text-sm';
+    ? 'w-12 px-2 py-1 bg-bg/50 border border-border/60 rounded text-text-secondary text-sm cursor-not-allowed'
+    : 'w-12 px-2 py-1 bg-bg border border-border rounded text-text-primary text-sm';
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -99,7 +99,7 @@ function DegreeInputs({
         }}
         className={numClass}
       />
-      <span className="text-xs text-subtext">°</span>
+      <span className="text-xs text-text-secondary">°</span>
       <input
         type="number"
         min={0}
@@ -116,8 +116,8 @@ function DegreeInputs({
         }}
         className={numClass}
       />
-      <span className="text-xs text-subtext">′</span>
-      {houseNum != null && <span className="text-xs text-subtext/80">· House {houseNum}</span>}
+      <span className="text-xs text-text-secondary">′</span>
+      {houseNum != null && <span className="text-xs text-text-secondary/80">· House {houseNum}</span>}
     </div>
   );
 }
@@ -144,8 +144,8 @@ export function DegreePanel({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-text mb-3">Planet Degrees</h3>
-      <p className="text-xs text-subtext mb-2">Sign, degree in sign (0–29°), and minutes. Values stored as longitude 0–360°.</p>
+      <h3 className="text-sm font-semibold text-text-primary mb-3">Planet Degrees</h3>
+      <p className="text-xs text-text-secondary mb-2">Sign, degree in sign (0–29°), and minutes. Values stored as longitude 0–360°.</p>
 
       {showAscRow ? (
         <div
@@ -155,8 +155,8 @@ export function DegreePanel({
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium text-text w-20">Ascendant</span>
-              {!ascendantEditable && <span className="text-xs text-subtext">(from birth chart)</span>}
+              <span className="text-sm font-medium text-text-primary w-20">Ascendant</span>
+              {!ascendantEditable && <span className="text-xs text-text-secondary">(from birth chart)</span>}
             </div>
             <DegreeInputs
               label="Ascendant"
@@ -180,7 +180,7 @@ export function DegreePanel({
           <div key={planet} className="flex items-center gap-3 p-2 bg-bgElev rounded-lg">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-text w-20">{PLANET_LABELS[planet]}</span>
+                <span className="text-sm font-medium text-text-primary w-20">{PLANET_LABELS[planet]}</span>
               </div>
               <DegreeInputs
                 label={PLANET_LABELS[planet]}
@@ -195,7 +195,7 @@ export function DegreePanel({
                   if (onResetPlanet) onResetPlanet(planet);
                   else onOverrideChange(planet, null);
                 }}
-                className="px-2 py-1 text-xs text-subtext hover:text-text border border-border rounded"
+                className="px-2 py-1 text-xs text-text-secondary hover:text-text-primary border border-border rounded"
                 title={resetCopy.title}
               >
                 {resetCopy.button}
@@ -220,7 +220,7 @@ export function DegreePanel({
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-text w-20">North Node</span>
+                  <span className="text-sm font-medium text-text-primary w-20">North Node</span>
                 </div>
                 <DegreeInputs
                   label="North Node"
@@ -235,14 +235,14 @@ export function DegreePanel({
                     if (onResetPlanet) onResetPlanet('northNode');
                     else onOverrideChange('northNode', null);
                   }}
-                  className="px-2 py-1 text-xs text-subtext hover:text-text border border-border rounded"
+                  className="px-2 py-1 text-xs text-text-secondary hover:text-text-primary border border-border rounded"
                   title={resetCopy.title}
                 >
                   {resetCopy.button}
                 </button>
               )}
             </div>
-            <p className="text-xs text-subtext pl-0.5">
+            <p className="text-xs text-text-secondary pl-0.5">
               South Node (derived): {south.sign} {south.deg}°{south.min}′
             </p>
           </div>

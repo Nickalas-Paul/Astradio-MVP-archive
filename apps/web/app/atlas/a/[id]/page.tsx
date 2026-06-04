@@ -52,8 +52,8 @@ export default function AtlasArticlePage() {
       <AppShell>
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-128px)] p-4 lg:p-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-text mb-4">Astro Atlas</h1>
-            <p className="text-subtext text-lg mb-8">
+            <h1 className="text-4xl font-bold text-text-primary mb-4">Astro Atlas</h1>
+            <p className="text-text-secondary text-lg mb-8">
               The education hub is currently disabled. Enable it with <code className="bg-bgElev px-2 py-1 rounded">?atlas=1</code>
             </p>
           </div>
@@ -72,12 +72,12 @@ export default function AtlasArticlePage() {
             className="text-center py-12"
           >
             <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-text mb-2">Article not found</h2>
-            <p className="text-subtext mb-6">
+            <h2 className="text-xl font-semibold text-text-primary mb-2">Article not found</h2>
+            <p className="text-text-secondary mb-6">
               The article you're looking for doesn't exist or has been moved.
             </p>
             <Link
@@ -112,9 +112,9 @@ export default function AtlasArticlePage() {
       case 'house': return 'text-warning';
       case 'aspect': return 'text-danger';
       case 'transit': return 'text-success';
-      case 'concept': return 'text-subtext';
-      case 'glossary': return 'text-text';
-      default: return 'text-text';
+      case 'concept': return 'text-text-secondary';
+      case 'glossary': return 'text-text-primary';
+      default: return 'text-text-primary';
     }
   };
 
@@ -136,7 +136,7 @@ export default function AtlasArticlePage() {
                   {article.kind}
                 </span>
               </div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-text mb-2">
+              <h1 className="text-3xl lg:text-4xl font-bold text-text-primary mb-2">
                 {article.title}
               </h1>
               {article.subtitle && (
@@ -144,10 +144,10 @@ export default function AtlasArticlePage() {
                   {article.subtitle}
                 </p>
               )}
-              <p className="text-subtext leading-relaxed mb-4">
+              <p className="text-text-secondary leading-relaxed mb-4">
                 {article.summary}
               </p>
-              <div className="flex items-center gap-4 text-sm text-subtext">
+              <div className="flex items-center gap-4 text-sm text-text-secondary">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-accent rounded-full"></div>
                   <span>Read progress: {pct}%</span>
@@ -164,7 +164,7 @@ export default function AtlasArticlePage() {
               className={`px-4 py-2 rounded-xl border transition-colors ${
                 has(article.id)
                   ? 'bg-accent border-accent text-white'
-                  : 'bg-bgElev border-border text-text hover:bg-border'
+                  : 'bg-bgElev border-border text-text-primary hover:bg-border'
               }`}
             >
               {has(article.id) ? 'Bookmarked' : 'Bookmark'}
@@ -191,7 +191,7 @@ export default function AtlasArticlePage() {
             transition={{ duration: 0.3, delay: 0.2 }}
             className="prose prose-invert max-w-none"
           >
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-text">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
               {article.body
                 .replace(/square/g, '□ square')
                 .replace(/Venus/g, '♀ Venus')
@@ -216,12 +216,12 @@ export default function AtlasArticlePage() {
               transition={{ duration: 0.3, delay: 0.3 }}
               className="space-y-3"
             >
-              <h3 className="text-sm font-medium text-text">Tags</h3>
+              <h3 className="text-sm font-medium text-text-primary">Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {article.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-xs px-3 py-1 rounded-full bg-bgElev border border-border text-subtext hover:text-text transition-colors"
+                    className="text-xs px-3 py-1 rounded-full bg-bgElev border border-border text-text-secondary hover:text-text-primary transition-colors"
                   >
                     {tag}
                   </span>
@@ -285,7 +285,7 @@ export default function AtlasArticlePage() {
           >
             <Link
               href={`/atlas/k/${article.kind}`}
-              className="flex items-center gap-2 text-sm text-subtext hover:text-text transition-colors"
+              className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -294,7 +294,7 @@ export default function AtlasArticlePage() {
             </Link>
             <Link
               href="/atlas"
-              className="flex items-center gap-2 text-sm text-subtext hover:text-text transition-colors"
+              className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />

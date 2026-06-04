@@ -347,7 +347,7 @@ export default function CommunityRelationshipArtifactPage() {
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-        <Link href="/community" className="text-subtext hover:text-text text-sm">
+        <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
           ← Back to Community
         </Link>
 
@@ -365,15 +365,15 @@ export default function CommunityRelationshipArtifactPage() {
         {phase === 'ready' && relationship && (
           <>
             <header className="space-y-1">
-              <h1 className="text-h2 font-bold text-text">
+              <h1 className="text-h2 font-bold text-text-primary">
                 {peer?.displayName || 'Connection'}
-                {peer?.handle ? <span className="text-subtext font-normal text-lg"> @{peer.handle}</span> : null}
+                {peer?.handle ? <span className="text-text-secondary font-normal text-lg"> @{peer.handle}</span> : null}
               </h1>
-              <p className="text-sm text-subtext">Label: {String(relationship.label || '')}</p>
+              <p className="text-sm text-text-secondary">Label: {String(relationship.label || '')}</p>
               {comparison?.relationshipMode ? (
-                <p className="text-sm text-text">Mode: {String(comparison.relationshipMode)}</p>
+                <p className="text-sm text-text-primary">Mode: {String(comparison.relationshipMode)}</p>
               ) : null}
-              <p className="text-sm text-subtext">
+              <p className="text-sm text-text-secondary">
                 Artifact: {artifactStatusLine(comparison, exId, exportReachable)}
               </p>
               {exId && exportReachable === false ? (
@@ -387,15 +387,15 @@ export default function CommunityRelationshipArtifactPage() {
 
             {comparison && hasReadingSurface && (
               <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
-                <h2 className="text-lg font-medium text-text">Reading</h2>
+                <h2 className="text-lg font-medium text-text-primary">Reading</h2>
                 {readingSections.length > 0 ? (
                   <div className="space-y-4">
                     {readingSections.map((s, i) => (
                       <div key={i}>
-                        {s.title ? <h3 className="text-sm font-medium text-text mb-1">{s.title}</h3> : null}
-                        {s.text ? <p className="text-sm text-text whitespace-pre-wrap">{s.text}</p> : null}
+                        {s.title ? <h3 className="text-sm font-medium text-text-primary mb-1">{s.title}</h3> : null}
+                        {s.text ? <p className="text-sm text-text-primary whitespace-pre-wrap">{s.text}</p> : null}
                         {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
-                          <ul className="list-disc pl-5 text-sm text-text space-y-1">
+                          <ul className="list-disc pl-5 text-sm text-text-primary space-y-1">
                             {s.bullets.map((b, j) => (
                               <li key={j}>{b}</li>
                             ))}
@@ -406,12 +406,12 @@ export default function CommunityRelationshipArtifactPage() {
                   </div>
                 ) : (
                   <>
-                    {short ? <p className="text-sm text-text whitespace-pre-wrap">{short}</p> : null}
+                    {short ? <p className="text-sm text-text-primary whitespace-pre-wrap">{short}</p> : null}
                     {long ? (
-                      <p className="text-sm text-text whitespace-pre-wrap border-t border-border/60 pt-3 mt-2">{long}</p>
+                      <p className="text-sm text-text-primary whitespace-pre-wrap border-t border-border/60 pt-3 mt-2">{long}</p>
                     ) : null}
                     {bullets.length > 0 ? (
-                      <ul className="list-disc pl-5 text-sm text-text space-y-1">
+                      <ul className="list-disc pl-5 text-sm text-text-primary space-y-1">
                         {bullets.map((b, i) => (
                           <li key={i}>{b}</li>
                         ))}
@@ -483,13 +483,13 @@ export default function CommunityRelationshipArtifactPage() {
             )}
 
             {comparison?.planHash && String(comparison.planHash).length > 0 && !String(comparison.planHash).includes('__') ? (
-              <p className="text-xs text-subtext">Composition: {String(comparison.compositionId || comparison.planHash).slice(0, 16)}…</p>
+              <p className="text-xs text-text-secondary">Composition: {String(comparison.compositionId || comparison.planHash).slice(0, 16)}…</p>
             ) : null}
           </>
         )}
 
         {(phase === 'loading' || profileLoading) && user?.id && (
-          <p className="text-subtext">Loading…</p>
+          <p className="text-text-secondary">Loading…</p>
         )}
       </div>
     </AppShell>

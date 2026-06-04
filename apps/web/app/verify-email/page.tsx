@@ -96,13 +96,13 @@ function VerifyEmailContent() {
           <h1 className="reading-section-header">Email verification</h1>
 
           {phase === 'loading' && (
-            <p className="text-sm text-subtext">Verifying your email…</p>
+            <p className="text-sm text-text-secondary">Verifying your email…</p>
           )}
 
           {phase === 'success' && (
             <div className="space-y-4">
-              <p className="text-sm text-text">Email verified! You can now sign in.</p>
-              <p className="text-xs text-subtext">Redirecting to Profile in a few seconds…</p>
+              <p className="text-sm text-text-primary">Email verified! You can now sign in.</p>
+              <p className="text-xs text-text-secondary">Redirecting to Profile in a few seconds…</p>
               <Link
                 href="/profile"
                 className="btn-primary inline-flex items-center justify-center text-center text-sm min-h-[44px] px-4 py-2 rounded-lg"
@@ -114,11 +114,11 @@ function VerifyEmailContent() {
 
           {phase === 'failure' && (
             <div className="space-y-4 text-left">
-              <p className="text-sm text-text text-center">
+              <p className="text-sm text-text-primary text-center">
                 This verification link is invalid or has expired.
               </p>
               <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm font-medium text-text">Resend verification email</p>
+                <p className="text-sm font-medium text-text-primary">Resend verification email</p>
                 <InputField
                   type="email"
                   autoComplete="email"
@@ -139,7 +139,7 @@ function VerifyEmailContent() {
                   Resend verification email
                 </Button>
               </div>
-              <p className="text-center text-sm text-subtext pt-2">
+              <p className="text-center text-sm text-text-secondary pt-2">
                 <Link href="/profile" className="text-accent hover:underline">
                   Sign in
                 </Link>
@@ -157,7 +157,7 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <AppShell>
-          <div className="max-w-md mx-auto p-6 text-center text-subtext text-sm">Loading…</div>
+          <div className="max-w-md mx-auto p-6 text-center text-text-secondary text-sm">Loading…</div>
         </AppShell>
       }
     >

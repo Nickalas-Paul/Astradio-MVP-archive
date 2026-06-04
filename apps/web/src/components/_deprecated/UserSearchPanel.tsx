@@ -27,10 +27,10 @@ function ExplainerSections({ sections }: { sections: ProfileChartSection[] }) {
     <div className="space-y-4">
       {sorted.map((sec) => (
         <section key={sec.id} className="rounded-lg border border-border bg-bgElev p-3">
-          <h4 className="text-sm font-semibold text-text mb-2">{SECTION_TITLES[sec.id] ?? sec.title}</h4>
-          <div className="text-subtext text-xs leading-relaxed whitespace-pre-wrap">{sec.text}</div>
+          <h4 className="text-sm font-semibold text-text-primary mb-2">{SECTION_TITLES[sec.id] ?? sec.title}</h4>
+          <div className="text-text-secondary text-xs leading-relaxed whitespace-pre-wrap">{sec.text}</div>
           {sec.bullets?.length ? (
-            <ul className="mt-2 list-disc list-inside text-subtext text-xs space-y-0.5">
+            <ul className="mt-2 list-disc list-inside text-text-secondary text-xs space-y-0.5">
               {sec.bullets.map((b, i) => (
                 <li key={i}>{b}</li>
               ))}
@@ -173,16 +173,16 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
 
   return (
     <div className="card space-y-6">
-      <h2 className="text-xl font-semibold text-text">Find people</h2>
-      <p className="text-sm text-subtext">
+      <h2 className="text-xl font-semibold text-text-primary">Find people</h2>
+      <p className="text-sm text-text-secondary">
         Search by name or handle (min 2 characters). Directory results only. Request connection for a saved link (peer must accept). Select people below
         to build a relational chart group — you are added first; others get invites.
       </p>
 
-      {connMsg && <p className="text-sm text-subtext border border-border rounded-lg px-3 py-2 bg-bgElev">{connMsg}</p>}
+      {connMsg && <p className="text-sm text-text-secondary border border-border rounded-lg px-3 py-2 bg-bgElev">{connMsg}</p>}
 
       <div className="rounded-lg border border-border bg-bgElev p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-text">Relational chart group from selection</h3>
+        <h3 className="text-sm font-semibold text-text-primary">Relational chart group from selection</h3>
         <input
           type="text"
           value={groupName}
@@ -215,15 +215,15 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
       </div>
 
       {qTrimmed.length > 0 && qTrimmed.length < 2 && (
-        <p className="text-subtext text-sm">Enter at least 2 characters to search.</p>
+        <p className="text-text-secondary text-sm">Enter at least 2 characters to search.</p>
       )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      {loading && <div className="text-subtext text-sm">Loading…</div>}
+      {loading && <div className="text-text-secondary text-sm">Loading…</div>}
 
       {!loading && users.length === 0 && canSearch && (
-        <p className="text-subtext text-sm">No users found. Results are limited to the directory; try a different query.</p>
+        <p className="text-text-secondary text-sm">No users found. Results are limited to the directory; try a different query.</p>
       )}
 
       {!loading && users.length > 0 && (
@@ -235,7 +235,7 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
             >
               <div className="flex items-start gap-2">
                 {u.userId !== user?.id ? (
-                  <label className="flex items-center gap-2 text-xs text-subtext cursor-pointer mt-0.5">
+                  <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer mt-0.5">
                     <input
                       type="checkbox"
                       checked={!!groupPick[u.userId]}
@@ -250,20 +250,20 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
                   </label>
                 ) : null}
                 <div>
-                <span className="font-medium text-text">{u.displayName}</span>
+                <span className="font-medium text-text-primary">{u.displayName}</span>
                 {u.handle ? (
-                  <span className="text-subtext text-sm ml-2">{u.handle}</span>
+                  <span className="text-text-secondary text-sm ml-2">{u.handle}</span>
                 ) : (
-                  <span className="text-subtext text-sm ml-2">{u.userId}</span>
+                  <span className="text-text-secondary text-sm ml-2">{u.userId}</span>
                 )}
-                {u.label && <span className="text-subtext text-xs ml-2">· {u.label}</span>}
+                {u.label && <span className="text-text-secondary text-xs ml-2">· {u.label}</span>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedChartId(selectedChartId === u.chartId ? null : u.chartId)}
-                  className="px-3 py-1.5 rounded-lg text-sm bg-bgElev border border-border text-subtext hover:text-text"
+                  className="px-3 py-1.5 rounded-lg text-sm bg-bgElev border border-border text-text-secondary hover:text-text-primary"
                 >
                   {selectedChartId === u.chartId ? 'Hide profile' : 'View profile'}
                 </button>
@@ -284,9 +284,9 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
 
       {selectedChartId && (
         <div ref={profilePreviewRef} className="border-t border-border pt-6 mt-6 scroll-mt-8">
-          <h3 className="text-lg font-semibold text-text mb-4">Profile</h3>
-          {profileLoading && <div className="text-subtext text-sm">Loading chart…</div>}
-          {profileError && <p className="text-subtext text-sm">{profileError}</p>}
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Profile</h3>
+          {profileLoading && <div className="text-text-secondary text-sm">Loading chart…</div>}
+          {profileError && <p className="text-text-secondary text-sm">{profileError}</p>}
           {profileChartData && (
             <div className="grid gap-4 md:grid-cols-[minmax(0,280px)_1fr]">
               <div>
@@ -297,7 +297,7 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
                     className="max-w-full"
                   />
                 ) : (
-                  <div className="aspect-square bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+                  <div className="aspect-square bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
                     Chart data received; wheel needs planets/houses.
                   </div>
                 )}

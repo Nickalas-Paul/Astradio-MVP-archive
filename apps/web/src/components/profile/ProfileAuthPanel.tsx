@@ -101,10 +101,10 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="space-y-6 max-w-lg">
             <h2 className="reading-section-header">Check your email</h2>
-            <p className="text-sm text-text">
+            <p className="text-sm text-text-primary">
               Account created! Check your email for a verification link to get started.
             </p>
-            <p className="text-xs text-subtext">We sent a link to {pendingVerificationEmail}.</p>
+            <p className="text-xs text-text-secondary">We sent a link to {pendingVerificationEmail}.</p>
             {resendNotice && <p className="text-sm text-accent">{resendNotice}</p>}
             {authError && <p className="text-sm text-red-500">{authError}</p>}
             <div className="flex flex-wrap gap-3">
@@ -143,8 +143,8 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
     <div className="max-w-4xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="space-y-6">
-        <h2 className="text-xl font-semibold text-text">Sign in to Astradio</h2>
-        <p className="text-sm text-subtext">
+        <h2 className="text-xl font-semibold text-text-primary">Sign in to Astradio</h2>
+        <p className="text-sm text-text-secondary">
           Register with email and password, or log in to continue. Your natal chart is saved with your account.
         </p>
         <Tabs
@@ -321,7 +321,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
               onChange={(e) => setCreateHandle(e.target.value)}
             />
             <div className="space-y-3 border-t border-border pt-4">
-              <h3 className="text-sm font-medium text-text">Birth chart (required)</h3>
+              <h3 className="text-sm font-medium text-text-primary">Birth chart (required)</h3>
               <InputField
                 placeholder="Label (e.g. My Natal)"
                 value={createChartLabel}
@@ -416,7 +416,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
             >
               Create account
             </Button>
-            <p className="text-xs text-subtext">
+            <p className="text-xs text-text-secondary">
               Already verified?{' '}
               <button
                 type="button"

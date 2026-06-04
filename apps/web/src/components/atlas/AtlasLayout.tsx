@@ -19,8 +19,8 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-128px)] p-4 lg:p-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-text mb-4">Astro Atlas</h1>
-          <p className="text-subtext text-lg mb-8">
+          <h1 className="text-4xl font-bold text-text-primary mb-4">Astro Atlas</h1>
+          <p className="text-text-secondary text-lg mb-8">
             The education hub is currently disabled. Enable it with <code className="bg-bgElev px-2 py-1 rounded">?atlas=1</code>
           </p>
         </div>
@@ -46,7 +46,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
         <div className="space-y-4">
           {/* Navigation */}
           <nav className="space-y-2">
-            <div className="font-semibold text-subtext mb-3 text-sm uppercase tracking-wide">
+            <div className="font-semibold text-text-secondary mb-3 text-sm uppercase tracking-wide">
               Atlas Navigation
             </div>
             {navItems.map((item, index) => (
@@ -61,7 +61,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     pathname === item.href
                       ? 'bg-accent-muted text-accent-light'
-                      : 'text-subtext hover:text-text hover:bg-bgElev'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bgElev'
                   }`}
                 >
                   <span className="text-lg">{item.icon}</span>
@@ -74,7 +74,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
           {/* Bookmarks Section */}
           {bookmarks.length > 0 && (
             <div className="pt-4 border-t border-border">
-              <div className="font-semibold text-subtext mb-3 text-sm uppercase tracking-wide">
+              <div className="font-semibold text-text-secondary mb-3 text-sm uppercase tracking-wide">
                 Bookmarks ({bookmarks.length})
               </div>
               <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -89,7 +89,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
                     >
                       <Link
                         href={`/atlas/a/${bookmarkId}`}
-                        className="block px-3 py-1 rounded text-xs text-subtext hover:text-text hover:bg-bgElev transition-colors truncate"
+                        className="block px-3 py-1 rounded text-xs text-text-secondary hover:text-text-primary hover:bg-bgElev transition-colors truncate"
                       >
                         {bookmarkId.replace('.', ' ')}
                       </Link>
@@ -97,7 +97,7 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
                   );
                 })}
                 {bookmarks.length > 10 && (
-                  <div className="text-xs text-subtext px-3 py-1">
+                  <div className="text-xs text-text-secondary px-3 py-1">
                     +{bookmarks.length - 10} more...
                   </div>
                 )}
@@ -107,21 +107,21 @@ export default function AtlasLayout({ children }: AtlasLayoutProps) {
 
           {/* Quick Stats */}
           <div className="pt-4 border-t border-border">
-            <div className="font-semibold text-subtext mb-3 text-sm uppercase tracking-wide">
+            <div className="font-semibold text-text-secondary mb-3 text-sm uppercase tracking-wide">
               Quick Stats
             </div>
-            <div className="space-y-2 text-xs text-subtext">
+            <div className="space-y-2 text-xs text-text-secondary">
               <div className="flex justify-between">
                 <span>Articles:</span>
-                <span className="text-text">25+</span>
+                <span className="text-text-primary">25+</span>
               </div>
               <div className="flex justify-between">
                 <span>Bookmarks:</span>
-                <span className="text-text">{bookmarks.length}</span>
+                <span className="text-text-primary">{bookmarks.length}</span>
               </div>
               <div className="flex justify-between">
                 <span>Last Updated:</span>
-                <span className="text-text">Today</span>
+                <span className="text-text-primary">Today</span>
               </div>
             </div>
           </div>

@@ -17,14 +17,14 @@ export default function AtlasRouteGuard({ children }: AtlasRouteGuardProps) {
           className="max-w-md mx-auto text-center space-y-6"
         >
           <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-text">Education Hub Disabled</h1>
-            <p className="text-subtext">
+            <h1 className="text-2xl font-bold text-text-primary">Education Hub Disabled</h1>
+            <p className="text-text-secondary">
               The Astro Atlas education hub is currently disabled. Enable it with{' '}
               <code className="bg-bgElev px-2 py-1 rounded text-xs">?atlas=1</code>
             </p>

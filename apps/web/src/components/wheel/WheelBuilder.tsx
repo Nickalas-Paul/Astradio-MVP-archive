@@ -218,12 +218,12 @@ export function WheelBuilder({
       />
 
       {isUpdating && (
-        <div className="absolute top-2 right-2 px-2 py-1 bg-bgElev/90 border border-border rounded text-xs text-subtext">
+        <div className="absolute top-2 right-2 px-2 py-1 bg-bgElev/90 border border-border rounded text-xs text-text-secondary">
           Updating...
         </div>
       )}
       {effectiveFreeBuild && (
-        <p className="mt-2 text-xs text-subtext/80 text-center">
+        <p className="mt-2 text-xs text-text-secondary/80 text-center">
           {selectedPlanetForPlacement
             ? 'Click the wheel to place it. Or drag a planet to move it.'
             : Object.keys(positions).length === 0

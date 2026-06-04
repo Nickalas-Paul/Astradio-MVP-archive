@@ -117,7 +117,7 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
   if (variant === 'manage') {
     if (!primaryChart || primaryChart.id === DEFAULT_PROFILE_CHART_ID || !realChart) {
       return (
-        <p className="text-sm text-subtext">
+        <p className="text-sm text-text-secondary">
           Add a birth chart from Profile first, or complete onboarding.
         </p>
       );
@@ -126,11 +126,11 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
 
   return (
     <div className="max-w-full space-y-4 rounded-2xl border border-border bg-bgElev p-4">
-      <p className="text-sm font-medium text-text">
+      <p className="text-sm font-medium text-text-primary">
         {variant === 'profile_onboarding' ? 'Add your birth chart' : 'Birth chart'}
       </p>
       {variant === 'profile_onboarding' && (
-        <p className="text-xs text-subtext">Required for your natal wheel and Identity text.</p>
+        <p className="text-xs text-text-secondary">Required for your natal wheel and Identity text.</p>
       )}
       <InputField
         placeholder="Label (e.g. My Natal)"

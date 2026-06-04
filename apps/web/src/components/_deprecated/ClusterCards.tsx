@@ -65,13 +65,13 @@ export function ClusterCards({ clusters, seekerChartId, keywordFilter }: Cluster
             className="rounded-lg border border-border bg-surface-1 p-6"
           >
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-lg font-semibold text-text">{cluster.label}</h2>
-              <span className="px-2 py-0.5 rounded-full bg-surface-2 text-xs text-subtext">
+              <h2 className="text-lg font-semibold text-text-primary">{cluster.label}</h2>
+              <span className="px-2 py-0.5 rounded-full bg-surface-2 text-xs text-text-secondary">
                 {bandLabel(cluster.band)}
               </span>
             </div>
             {cluster.why?.bullets && cluster.why.bullets.length > 0 && (
-              <ul className="list-disc list-inside text-sm text-subtext mb-4 space-y-1">
+              <ul className="list-disc list-inside text-sm text-text-secondary mb-4 space-y-1">
                 {cluster.why.bullets.map((b, i) => (
                   <li key={i}>{b}</li>
                 ))}

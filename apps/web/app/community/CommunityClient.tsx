@@ -91,15 +91,15 @@ function GroupsList({ userId }: { userId: string | null }) {
   if (!userId) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <p className="text-sm text-subtext rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
-        <p className="text-sm text-subtext">Sign in to list and create relational chart groups.</p>
+        <p className="text-sm text-text-secondary rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
+        <p className="text-sm text-text-secondary">Sign in to list and create relational chart groups.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <p className="text-sm text-subtext rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
+      <p className="text-sm text-text-secondary rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -153,11 +153,11 @@ function GroupsList({ userId }: { userId: string | null }) {
         </form>
       )}
       {loading ? (
-        <p className="text-subtext text-sm">Loading groups…</p>
+        <p className="text-text-secondary text-sm">Loading groups…</p>
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-bgElev p-6 text-center">
-          <p className="text-subtext text-sm">No groups match.</p>
-          <p className="text-xs text-subtext mt-1">{GROUPS_INTRO}</p>
+          <p className="text-text-secondary text-sm">No groups match.</p>
+          <p className="text-xs text-text-secondary mt-1">{GROUPS_INTRO}</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -167,8 +167,8 @@ function GroupsList({ userId }: { userId: string | null }) {
                 href={`/community/group/${encodeURIComponent(g.slug || g.id)}`}
                 className="block rounded-lg border border-border bg-surface-1 p-4 hover:bg-surface-2"
               >
-                <h3 className="font-medium text-text">{g.name}</h3>
-                <p className="text-sm text-subtext mt-1 line-clamp-2">{g.description}</p>
+                <h3 className="font-medium text-text-primary">{g.name}</h3>
+                <p className="text-sm text-text-secondary mt-1 line-clamp-2">{g.description}</p>
               </Link>
             </li>
           ))}
@@ -219,11 +219,11 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-h1 font-bold text-text">Community</h1>
-          <p className="text-lg text-subtext max-w-2xl mx-auto">
+          <h1 className="text-h1 font-bold text-text-primary">Community</h1>
+          <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Feed, discovery, and connections — chart-based and deterministic.
           </p>
-          <p className="text-sm text-subtext">
+          <p className="text-sm text-text-secondary">
             Profile and saved tracks live under{' '}
             <Link href="/profile" className="text-accent-light hover:underline">
               Profile
@@ -269,8 +269,8 @@ function CommunityClientInner() {
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-text mb-2">Discovery</h2>
-                <p className="text-subtext text-sm mb-6">
+                <h2 className="text-xl font-semibold text-text-primary mb-2">Discovery</h2>
+                <p className="text-text-secondary text-sm mb-6">
                   Find meaningful connections based on astrological compatibility. Choose your intent and
                   we&apos;ll show you the best matches.
                 </p>
@@ -285,8 +285,8 @@ function CommunityClientInner() {
               />
 
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text mb-1">Intentional matching</h2>
-                <p className="text-sm text-subtext max-w-2xl mb-2">
+                <h2 className="text-lg font-semibold text-text-primary mb-1">Intentional matching</h2>
+                <p className="text-sm text-text-secondary max-w-2xl mb-2">
                   Choose an intent, then find matches. Results load only after you click Find matches and appear
                   directly below.
                 </p>
@@ -310,7 +310,7 @@ function CommunityClientInner() {
               <SignalsPanel currentUserId={user?.id ?? null} />
               <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
               <div>
-                <h2 className="text-lg font-semibold text-text mb-2">Relational groups</h2>
+                <h2 className="text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
                 <GroupsList userId={user?.id ?? null} />
               </div>
             </div>
@@ -323,7 +323,7 @@ function CommunityClientInner() {
 
 export default function CommunityClient() {
   return (
-    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-subtext">Loading Community…</div>}>
+    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-text-secondary">Loading Community…</div>}>
       <CommunityClientInner />
     </Suspense>
   );

@@ -43,15 +43,15 @@ export function SandboxWheelPanel({
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-text">Wheel</h2>
-          <p className="text-sm text-subtext mt-1">
+          <h2 className="text-xl font-semibold text-text-primary">Wheel</h2>
+          <p className="text-sm text-text-secondary mt-1">
             Drag planets or use degree inputs. Without birth data, the wheel uses a neutral layout; after birth, house cusps follow the natal chart.
           </p>
-          <p className="text-xs text-subtext mt-1">
+          <p className="text-xs text-text-secondary mt-1">
             Ephemeris preview for active slot {activeSlotIndex}—positions here are not the resolved report or audio output.
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm text-subtext">
+        <div className="flex items-center gap-4 text-sm text-text-secondary">
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={constrainToHouse} onChange={(e) => setConstrainToHouse(e.target.checked)} className="rounded" />
             Constrain to house
@@ -62,7 +62,7 @@ export function SandboxWheelPanel({
           </label>
         </div>
         {Object.keys(overrides.planets).length > 0 && (
-          <button onClick={onResetAll} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-subtext hover:text-text">
+          <button onClick={onResetAll} className="px-3 py-1.5 text-sm bg-bgElev hover:bg-bgElev/80 border border-border rounded-lg text-text-secondary hover:text-text-primary">
             {resetAllLabel}
           </button>
         )}

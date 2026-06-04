@@ -267,13 +267,13 @@ export default function SandboxPage() {
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
-          <h1 className="text-h1 font-bold text-text">Sandbox</h1>
-          <p className="text-lg text-subtext max-w-2xl mx-auto">{heroLead}</p>
+          <h1 className="text-h1 font-bold text-text-primary">Sandbox</h1>
+          <p className="text-lg text-text-secondary max-w-2xl mx-auto">{heroLead}</p>
         </motion.div>
 
         {surfaceState === 'loading_base' && (
           <div className="card max-w-2xl mx-auto text-center">
-            <p className="text-subtext">Loading chart...</p>
+            <p className="text-text-secondary">Loading chart...</p>
           </div>
         )}
 
@@ -302,8 +302,8 @@ export default function SandboxPage() {
           (surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') &&
           currentSnapshot && (
           <details className="card mt-4">
-            <summary className="cursor-pointer text-sm font-medium text-subtext hover:text-text">Snapshot verification</summary>
-            <div className="mt-3 text-xs font-mono text-subtext space-y-1">
+            <summary className="cursor-pointer text-sm font-medium text-text-secondary hover:text-text-primary">Snapshot verification</summary>
+            <div className="mt-3 text-xs font-mono text-text-secondary space-y-1">
               <p>
                 <strong>Bodies:</strong> {currentSnapshot.planets?.length ?? 0} ({currentSnapshot.planets?.map((p) => p.name).join(', ') ?? '—'})
               </p>

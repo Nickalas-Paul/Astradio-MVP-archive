@@ -174,7 +174,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
   if (loading && !group) {
     return (
       <AppShell>
-        <div className="max-w-3xl mx-auto p-6 text-subtext">Loading group…</div>
+        <div className="max-w-3xl mx-auto p-6 text-text-secondary">Loading group…</div>
       </AppShell>
     );
   }
@@ -199,7 +199,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-        <Link href="/community" className="text-subtext hover:text-text text-sm">
+        <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
           ← Back to Community
         </Link>
 
@@ -208,20 +208,20 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
         </div>
 
         <header>
-          <h1 className="text-h2 font-bold text-text">{group.name}</h1>
-          <p className="text-subtext mt-1">{group.description}</p>
-          <p className="text-sm text-subtext mt-2">{group.memberCount ?? members.length} members</p>
-          <p className="text-sm text-subtext mt-2">
+          <h1 className="text-h2 font-bold text-text-primary">{group.name}</h1>
+          <p className="text-text-secondary mt-1">{group.description}</p>
+          <p className="text-sm text-text-secondary mt-2">{group.memberCount ?? members.length} members</p>
+          <p className="text-sm text-text-secondary mt-2">
             Artifact: {storedLoading ? '…' : groupArtifactLabel(artifactStatus, hasExportRef)}
           </p>
         </header>
 
         <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-2">
-          <h2 className="text-lg font-medium text-text">Group reading</h2>
-          {storedLoading && <p className="text-sm text-subtext">Loading stored reading…</p>}
-          {!storedLoading && readingText ? <p className="text-sm text-text whitespace-pre-wrap">{readingText}</p> : null}
+          <h2 className="text-lg font-medium text-text-primary">Group reading</h2>
+          {storedLoading && <p className="text-sm text-text-secondary">Loading stored reading…</p>}
+          {!storedLoading && readingText ? <p className="text-sm text-text-primary whitespace-pre-wrap">{readingText}</p> : null}
           {!storedLoading && !readingText ? (
-            <p className="text-sm text-subtext">
+            <p className="text-sm text-text-secondary">
               {user?.id === group.ownerId
                 ? 'No stored reading yet. A reading will be prepared when the group composition is available.'
                 : 'No stored reading for this group yet. The group owner may need to open the group once to generate a stored reading.'}
@@ -231,18 +231,18 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
 
         {exId ? (
           <section className="space-y-2">
-            <h2 className="text-lg font-medium text-text">Sound</h2>
+            <h2 className="text-lg font-medium text-text-primary">Sound</h2>
             <ValidatedExportAudioPlayer exportId={exId} />
           </section>
         ) : null}
 
         {profile && (profile.explanation?.sections?.length ?? 0) > 0 && (
           <section className="rounded-lg border border-dashed border-border bg-surface-1/50 p-4">
-            <h2 className="text-base font-medium text-text mb-2">Aggregate profile (context)</h2>
+            <h2 className="text-base font-medium text-text-primary mb-2">Aggregate profile (context)</h2>
             {profile.explanation?.sections?.map((s, i) => (
               <div key={i} className="mb-2">
-                <h3 className="text-sm font-medium text-subtext">{s?.title}</h3>
-                <p className="text-sm text-text">{s?.text}</p>
+                <h3 className="text-sm font-medium text-text-secondary">{s?.title}</h3>
+                <p className="text-sm text-text-primary">{s?.text}</p>
               </div>
             ))}
           </section>
@@ -250,7 +250,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
 
         {members.length > 0 && (
           <section>
-            <h2 className="text-lg font-medium text-text mb-3">Members</h2>
+            <h2 className="text-lg font-medium text-text-primary mb-3">Members</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {members.map((m) => (
                 <MemberCard

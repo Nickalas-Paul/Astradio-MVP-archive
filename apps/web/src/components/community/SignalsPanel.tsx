@@ -193,7 +193,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
 
   if (!currentUserId) {
     return (
-      <div className="rounded-lg border border-border bg-surface-1 p-4 text-sm text-subtext">
+      <div className="rounded-lg border border-border bg-surface-1 p-4 text-sm text-text-secondary">
         Sign in to view Signals (structured, context-anchored actions — not chat).
       </div>
     );
@@ -202,8 +202,8 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
   return (
     <Card as="section" className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-text">Signals</h3>
-        <p className="text-xs text-subtext mt-1">
+        <h3 className="text-lg font-semibold text-text-primary">Signals</h3>
+        <p className="text-xs text-text-secondary mt-1">
           Purpose-driven prompts and acknowledgments. No DMs.{' '}
           <Link href="/community?tab=feed" className="text-accent-light hover:underline">
             Feed
@@ -220,15 +220,15 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           <button
             type="button"
             onClick={() => void load()}
-            className="text-sm px-3 py-1.5 rounded-lg bg-bgElev border border-border text-subtext hover:text-text"
+            className="text-sm px-3 py-1.5 rounded-lg bg-bgElev border border-border text-text-secondary hover:text-text-primary"
           >
             Refresh
           </button>
         </div>
-        {loading && <p className="text-sm text-subtext">Loading…</p>}
+        {loading && <p className="text-sm text-text-secondary">Loading…</p>}
         {error && <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
         {!loading && incoming.length === 0 && !error && (
-          <p className="text-sm text-subtext">
+          <p className="text-sm text-text-secondary">
             No incoming signals. When someone acknowledges a transit between you, it will appear here.
           </p>
         )}
@@ -298,7 +298,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           Sent
         </h4>
         {!loading && outgoing.length === 0 && (
-          <p className="text-sm text-subtext">No sent signals.</p>
+          <p className="text-sm text-text-secondary">No sent signals.</p>
         )}
         <ul className="space-y-2">
           {outgoing.map((s) => {
@@ -309,7 +309,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
                 className="rounded-lg border border-border/80 bg-surface-0 p-3 text-sm space-y-1"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-text font-medium font-sans">
+                  <p className="text-text-primary font-medium font-sans">
                     To {s.recipientDisplayName || s.recipientUserId}
                   </p>
                   <span

@@ -20,8 +20,8 @@ export default function AtlasKindPage() {
       <AppShell>
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-128px)] p-4 lg:p-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-text mb-4">Astro Atlas</h1>
-            <p className="text-subtext text-lg mb-8">
+            <h1 className="text-4xl font-bold text-text-primary mb-4">Astro Atlas</h1>
+            <p className="text-text-secondary text-lg mb-8">
               The education hub is currently disabled. Enable it with <code className="bg-bgElev px-2 py-1 rounded">?atlas=1</code>
             </p>
           </div>
@@ -68,10 +68,10 @@ export default function AtlasKindPage() {
             className="text-center space-y-4"
           >
             <div className="text-4xl mb-2">{getKindIcon(kind)}</div>
-            <h1 className="text-3xl lg:text-4xl font-bold text-text capitalize">
+            <h1 className="text-3xl lg:text-4xl font-bold text-text-primary capitalize">
               {kind}
             </h1>
-            <p className="text-lg text-subtext max-w-2xl mx-auto">
+            <p className="text-lg text-text-secondary max-w-2xl mx-auto">
               {getKindDescription(kind)}
             </p>
           </motion.div>
@@ -85,12 +85,12 @@ export default function AtlasKindPage() {
               className="text-center py-12"
             >
               <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-text mb-2">No articles yet</h3>
-              <p className="text-sm text-subtext">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">No articles yet</h3>
+              <p className="text-sm text-text-secondary">
                 We're working on adding more {kind} content. Check back soon!
               </p>
             </motion.div>
@@ -102,10 +102,10 @@ export default function AtlasKindPage() {
               className="space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-text">
+                <h2 className="text-lg font-semibold text-text-primary">
                   {items.length} Article{items.length !== 1 ? 's' : ''}
                 </h2>
-                <div className="text-sm text-subtext">
+                <div className="text-sm text-text-secondary">
                   {kind === 'planet' && 'Core energies and influences'}
                   {kind === 'sign' && 'Personality traits and expressions'}
                   {kind === 'house' && 'Life areas and experiences'}
@@ -139,7 +139,7 @@ export default function AtlasKindPage() {
                             {article.kind === 'concept' && '💡'}
                             {article.kind === 'glossary' && '📖'}
                           </div>
-                          <div className="text-subtext group-hover:text-text transition-colors">
+                          <div className="text-text-secondary group-hover:text-text-primary transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
@@ -147,7 +147,7 @@ export default function AtlasKindPage() {
                         </div>
 
                         <div>
-                          <h3 className="font-medium text-text group-hover:text-accent-light transition-colors mb-1">
+                          <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors mb-1">
                             {article.title}
                           </h3>
                           {article.subtitle && (
@@ -155,7 +155,7 @@ export default function AtlasKindPage() {
                               {article.subtitle}
                             </p>
                           )}
-                          <p className="text-sm text-subtext leading-relaxed">
+                          <p className="text-sm text-text-secondary leading-relaxed">
                             {article.summary}
                           </p>
                         </div>
@@ -165,13 +165,13 @@ export default function AtlasKindPage() {
                             {article.tags.slice(0, 3).map(tag => (
                               <span
                                 key={tag}
-                                className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-subtext"
+                                className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-text-secondary"
                               >
                                 {tag}
                               </span>
                             ))}
                             {article.tags.length > 3 && (
-                              <span className="text-xs text-subtext">
+                              <span className="text-xs text-text-secondary">
                                 +{article.tags.length - 3}
                               </span>
                             )}
@@ -192,7 +192,7 @@ export default function AtlasKindPage() {
             transition={{ duration: 0.3, delay: 0.2 }}
             className="pt-6 border-t border-border"
           >
-            <h3 className="text-lg font-semibold text-text mb-4">Explore Other Categories</h3>
+            <h3 className="text-lg font-semibold text-text-primary mb-4">Explore Other Categories</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {['planet', 'sign', 'house', 'aspect', 'transit', 'concept', 'glossary']
                 .filter(k => k !== kind)
@@ -205,7 +205,7 @@ export default function AtlasKindPage() {
                     <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">
                       {getKindIcon(otherKind)}
                     </div>
-                    <div className="text-sm font-medium text-text group-hover:text-accent-light transition-colors capitalize">
+                    <div className="text-sm font-medium text-text-primary group-hover:text-accent-light transition-colors capitalize">
                       {otherKind}
                     </div>
                   </Link>

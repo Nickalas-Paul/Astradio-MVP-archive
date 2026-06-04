@@ -84,8 +84,8 @@ export function SandboxSlotComposer({
     <div className="card">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold text-text">Astrology Composition</h2>
-          <p className="text-xs text-subtext mt-0.5">
+          <h2 className="text-xl font-semibold text-text-primary">Astrology Composition</h2>
+          <p className="text-xs text-text-secondary mt-0.5">
             {compositionInput.slots.length} slot{compositionInput.slots.length === 1 ? '' : 's'} · active{' '}
             <span className="font-mono">{activeIndex}</span>
           </p>
@@ -128,13 +128,13 @@ export function SandboxSlotComposer({
                 onClick={() => onSetActiveSlot(row.index)}
                 className="text-left min-w-0 flex-1 truncate"
               >
-                <span className={active ? 'font-medium text-text' : 'text-text'}>{row.chipText}</span>
+                <span className={active ? 'font-medium text-text-primary' : 'text-text-primary'}>{row.chipText}</span>
               </button>
               <button
                 type="button"
                 disabled={nSlots <= 1}
                 onClick={() => onRemoveSlot(row.index)}
-                className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-subtext text-caption"
+                className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev disabled:opacity-40 text-text-secondary text-caption"
                 title="Remove slot"
               >
                 Remove
@@ -142,7 +142,7 @@ export function SandboxSlotComposer({
               <button
                 type="button"
                 onClick={() => onClearSlot(row.index)}
-                className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-subtext text-caption"
+                className="shrink-0 px-1.5 py-0.5 rounded border border-border/80 bg-bgElev/80 hover:bg-bgElev text-text-secondary text-caption"
                 title="Clear slot"
               >
                 Clear
@@ -157,8 +157,8 @@ export function SandboxSlotComposer({
           {showBirthForm ? (
             <div className="space-y-4 max-w-xl">
               <div>
-                <h3 className="text-base font-semibold text-text">Birth data</h3>
-                <p className="text-sm text-subtext mt-1">
+                <h3 className="text-base font-semibold text-text-primary">Birth data</h3>
+                <p className="text-sm text-text-secondary mt-1">
                   Enter a date, time, and location to load a chart. You can move planets afterward.
                 </p>
               </div>
@@ -171,19 +171,19 @@ export function SandboxSlotComposer({
           ) : slotNeedsEntry && showImportSearch ? (
             <div className="space-y-3 max-w-xl">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-text">Import chart</h3>
+                <h3 className="text-base font-semibold text-text-primary">Import chart</h3>
                 <button
                   type="button"
                   onClick={() => {
                     setShowImportSearch(false);
                     setImportError(null);
                   }}
-                  className="text-xs text-subtext hover:text-text underline-offset-2 hover:underline"
+                  className="text-xs text-text-secondary hover:text-text-primary underline-offset-2 hover:underline"
                 >
                   Back
                 </button>
               </div>
-              <p className="text-sm text-subtext">
+              <p className="text-sm text-text-secondary">
                 Search by name or handle, then import into this slot. After a successful import, a new empty slot is
                 added automatically.
               </p>
@@ -218,24 +218,24 @@ export function SandboxSlotComposer({
                 onClick={() => setShowImportSearch(true)}
                 className="flex flex-col items-start text-left p-4 rounded-xl border border-border bg-bgElev hover:border-primary/40 hover:bg-primary/5 transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[88px]"
               >
-                <span className="text-sm font-semibold text-text">Import</span>
-                <span className="text-xs text-subtext mt-2 leading-relaxed">Search for a saved chart</span>
+                <span className="text-sm font-semibold text-text-primary">Import</span>
+                <span className="text-xs text-text-secondary mt-2 leading-relaxed">Search for a saved chart</span>
               </button>
               <button
                 type="button"
                 onClick={() => onSetEntryMode('birth_data')}
                 className="flex flex-col items-start text-left p-4 rounded-xl border border-border bg-bgElev hover:border-primary/40 hover:bg-primary/5 transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[88px]"
               >
-                <span className="text-sm font-semibold text-text">Birth Data</span>
-                <span className="text-xs text-subtext mt-2 leading-relaxed">Enter date, time &amp; location</span>
+                <span className="text-sm font-semibold text-text-primary">Birth Data</span>
+                <span className="text-xs text-text-secondary mt-2 leading-relaxed">Enter date, time &amp; location</span>
               </button>
               <button
                 type="button"
                 onClick={() => onSetEntryMode('blank_canvas')}
                 className="flex flex-col items-start text-left p-4 rounded-xl border border-border bg-bgElev hover:border-primary/40 hover:bg-primary/5 transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[88px]"
               >
-                <span className="text-sm font-semibold text-text">Blank Chart</span>
-                <span className="text-xs text-subtext mt-2 leading-relaxed">Start with an empty wheel</span>
+                <span className="text-sm font-semibold text-text-primary">Blank Chart</span>
+                <span className="text-xs text-text-secondary mt-2 leading-relaxed">Start with an empty wheel</span>
               </button>
             </div>
           ) : null}

@@ -201,10 +201,10 @@ export function ChartSearchCombobox({
         aria-expanded={open}
         aria-autocomplete="list"
         aria-controls="chart-search-results"
-        className="w-full px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text"
+        className="w-full px-2 py-1.5 text-xs rounded-lg border border-border bg-bgElev text-text-primary"
       />
       {loading ? (
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-subtext">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-caption text-text-secondary">
           …
         </span>
       ) : null}
@@ -224,7 +224,7 @@ export function ChartSearchCombobox({
               type="button"
               role="option"
               aria-selected={activeIndex === idx}
-              className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-xs text-text hover:bg-bgElev/80 ${
+              className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-xs text-text-primary hover:bg-bgElev/80 ${
                 activeIndex === idx ? 'bg-primary/15' : ''
               }`}
               onMouseDown={(ev) => ev.preventDefault()}
@@ -232,21 +232,21 @@ export function ChartSearchCombobox({
             >
               <span className="min-w-0 truncate">{result.label}</span>
               {result.source === 'own' ? (
-                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-subtext">
+                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-text-secondary">
                   Your chart
                 </span>
               ) : (
-                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-subtext">
+                <span className="shrink-0 rounded border border-border/80 px-1.5 py-0.5 text-caption text-text-secondary">
                   Connection
                 </span>
               )}
             </button>
           ))}
           {showEmptyHint ? (
-            <div className="px-3 py-2.5 text-xs text-subtext">No charts found. Try a different name or handle.</div>
+            <div className="px-3 py-2.5 text-xs text-text-secondary">No charts found. Try a different name or handle.</div>
           ) : null}
           {showRecentEmpty ? (
-            <div className="px-3 py-2.5 text-xs text-subtext">No saved charts yet. Sign in or connect with others to import charts.</div>
+            <div className="px-3 py-2.5 text-xs text-text-secondary">No saved charts yet. Sign in or connect with others to import charts.</div>
           ) : null}
         </div>
       ) : null}

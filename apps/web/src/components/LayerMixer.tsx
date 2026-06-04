@@ -16,12 +16,12 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
       <div className={`card ${className}`}>
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-text mb-2">No Layers Available</h3>
-          <p className="text-sm text-subtext">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">No Layers Available</h3>
+          <p className="text-sm text-text-secondary">
             Generate a composition to see and control individual audio layers
           </p>
         </div>
@@ -39,10 +39,10 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h3 className="text-lg font-semibold text-text mb-2">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">
             Layer Mixer
           </h3>
-          <p className="text-sm text-subtext">
+          <p className="text-sm text-text-secondary">
             Control individual audio layers in your composition
           </p>
         </div>
@@ -67,10 +67,10 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">{config.icon}</span>
                     <div>
-                      <h4 className="text-sm font-semibold text-text">
+                      <h4 className="text-sm font-semibold text-text-primary">
                         {config.label}
                       </h4>
-                      <p className="text-xs text-subtext">
+                      <p className="text-xs text-text-secondary">
                         {Math.round(layer.gain * 100)}% volume
                       </p>
                     </div>
@@ -83,7 +83,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                       className={`w-8 h-8 rounded-lg border transition-colors ${
                         layer.solo
                           ? 'bg-warning border-warning text-bg'
-                          : 'bg-transparent border-border text-subtext hover:text-text'
+                          : 'bg-transparent border-border text-text-secondary hover:text-text-primary'
                       }`}
                       aria-label={`${layer.solo ? 'Un-solo' : 'Solo'} ${config.label}`}
                     >
@@ -95,7 +95,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                       className={`w-8 h-8 rounded-lg border transition-colors ${
                         layer.muted
                           ? 'bg-danger border-danger text-bg'
-                          : 'bg-transparent border-border text-subtext hover:text-text'
+                          : 'bg-transparent border-border text-text-secondary hover:text-text-primary'
                       }`}
                       aria-label={`${layer.muted ? 'Unmute' : 'Mute'} ${config.label}`}
                     >
@@ -113,8 +113,8 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                 {/* Gain Slider */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-subtext">Volume</span>
-                    <span className="text-xs font-mono text-text">
+                    <span className="text-xs text-text-secondary">Volume</span>
+                    <span className="text-xs font-mono text-text-primary">
                       {Math.round(layer.gain * 100)}%
                     </span>
                   </div>
@@ -142,7 +142,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
         {/* Master Controls */}
         <div className="pt-4 border-t border-border">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-text">Master Controls</span>
+            <span className="text-sm font-medium text-text-primary">Master Controls</span>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => {
@@ -152,7 +152,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                     }
                   });
                 }}
-                className="text-xs px-3 py-1 bg-bgElev border border-border rounded-lg text-subtext hover:text-text transition-colors"
+                className="text-xs px-3 py-1 bg-bgElev border border-border rounded-lg text-text-secondary hover:text-text-primary transition-colors"
               >
                 Mute All
               </button>
@@ -162,7 +162,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
                     onLayerChange(layer.key, { muted: false, solo: false });
                   });
                 }}
-                className="text-xs px-3 py-1 bg-bgElev border border-border rounded-lg text-subtext hover:text-text transition-colors"
+                className="text-xs px-3 py-1 bg-bgElev border border-border rounded-lg text-text-secondary hover:text-text-primary transition-colors"
               >
                 Unmute All
               </button>

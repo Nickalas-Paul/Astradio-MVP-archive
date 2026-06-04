@@ -53,7 +53,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   if (profileError) {
     return (
       <Card>
-        <p className="text-subtext text-sm">{profileError}</p>
+        <p className="text-text-secondary text-sm">{profileError}</p>
       </Card>
     );
   }

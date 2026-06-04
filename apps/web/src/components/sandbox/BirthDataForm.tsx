@@ -70,22 +70,22 @@ export function BirthDataForm({ onSubmit, isLoading }: BirthDataFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Date</label>
+          <label className="block text-sm font-medium text-text-primary mb-1">Date</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text"
+            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text-primary"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Time</label>
+          <label className="block text-sm font-medium text-text-primary mb-1">Time</label>
           <input
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text"
+            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text-primary"
             required
           />
         </div>
@@ -101,21 +101,21 @@ export function BirthDataForm({ onSubmit, isLoading }: BirthDataFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Timezone</label>
+          <label className="block text-sm font-medium text-text-primary mb-1">Timezone</label>
           <input
             type="text"
             value={tz}
             onChange={(e) => setTz(e.target.value)}
             placeholder="UTC"
-            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text"
+            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text-primary"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text mb-1">House System</label>
+          <label className="block text-sm font-medium text-text-primary mb-1">House System</label>
           <select
             value={houseSystem}
             onChange={(e) => setHouseSystem(e.target.value)}
-            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text"
+            className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text-primary"
           >
             <option value="placidus">Placidus</option>
             <option value="equal">Equal</option>

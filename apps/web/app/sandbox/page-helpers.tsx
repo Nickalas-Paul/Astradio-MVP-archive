@@ -30,7 +30,7 @@ export function ExplainerSections({ explanation }: { explanation: unknown }) {
             </h2>
             <IdentityMarkdown content={s.text || s.content || ''} />
             {s.bullets?.length ? (
-              <ul className="mt-3 list-disc list-inside text-subtext text-sm space-y-1">
+              <ul className="mt-3 list-disc list-inside text-text-secondary text-sm space-y-1">
                 {s.bullets.map((b: string, j: number) => (
                   <li key={j}>{b}</li>
                 ))}

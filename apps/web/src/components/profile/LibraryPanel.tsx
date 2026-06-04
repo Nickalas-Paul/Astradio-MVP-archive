@@ -301,11 +301,11 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
 
   return (
 <div className="space-y-4">
-            <p className="text-sm text-subtext">
+            <p className="text-sm text-text-secondary">
               Saved profile and community artifacts (text first; audio when export is available). Older engine versions are shown as historical snapshots.
             </p>
             {libraryLoading ? (
-              <p className="text-sm text-subtext">Loading…</p>
+              <p className="text-sm text-text-secondary">Loading…</p>
             ) : (
               <>
                 <ul className="space-y-3">
@@ -315,7 +315,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       className="card-interactive rounded-lg border border-border p-4 text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
                     >
                       <span>
-                        <span className="text-subtext">{String(row.created_at)}</span>
+                        <span className="text-text-secondary">{String(row.created_at)}</span>
                         {' · '}
                         <span>{librarySourceLabel(row.source)}</span>
                         {' · '}
@@ -332,19 +332,19 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       </Button>
                     </li>
                   ))}
-                  {libraryRows.length === 0 && <li className="text-subtext">Nothing saved yet.</li>}
+                  {libraryRows.length === 0 && <li className="text-text-secondary">Nothing saved yet.</li>}
                 </ul>
                 {libraryOpenId && (
                   <div className="rounded border border-border bg-bgElev p-4 space-y-3 mt-4">
                     <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-medium text-text">
+                      <p className="text-sm font-medium text-text-primary">
                         {libraryDetailRow ? librarySourceLabel(libraryDetailRow.source) : 'Saved artifact'}
                       </p>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-subtext hover:text-text px-2 py-1"
+                        className="text-xs text-text-secondary hover:text-text-primary px-2 py-1"
                         onClick={() => {
                           setLibraryOpenId(null);
                           setLibraryDetailRow(null);
@@ -363,7 +363,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         Close
                       </Button>
                     </div>
-                    {libraryDetailLoading && <p className="text-sm text-subtext">Loading…</p>}
+                    {libraryDetailLoading && <p className="text-sm text-text-secondary">Loading…</p>}
                     {libraryHistoricalArtifact && (
                       <div className="text-sm text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2 space-y-2">
                         <p>Historical saved artifact.</p>
@@ -382,12 +382,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                     {libraryDetailRow != null &&
                       (libraryDetailRow.source === 'profile_identity' ||
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') ? (
-                        <p className="text-sm text-subtext">
+                        <p className="text-sm text-text-secondary">
                           Identity comes from your birth chart. Open the Identity tab to view it.
                         </p>
                       ) : null}
                     {libraryReconstructLoading && (
-                      <p className="text-sm text-subtext">Loading report…</p>
+                      <p className="text-sm text-text-secondary">Loading report…</p>
                     )}
                     {libraryCommunityReadingArtifact &&
                     (libraryDetailRow?.source === 'community_relational_weather' ||
@@ -420,7 +420,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                                 if (!body?.trim()) return null;
                                 return (
                                   <section key={slot} className="space-y-1">
-                                    <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
+                                    <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wide">
                                       {EXPANDED_SLOT_LABELS[slot]}
                                     </h4>
                                     <IdentityMarkdown content={body} />

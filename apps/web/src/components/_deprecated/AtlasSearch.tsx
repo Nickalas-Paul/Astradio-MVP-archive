@@ -76,17 +76,17 @@ export default function AtlasSearch() {
       case 'transit':
         return 'text-success';
       case 'concept':
-        return 'text-subtext';
+        return 'text-text-secondary';
       default:
-        return 'text-text';
+        return 'text-text-primary';
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-text">Astro Atlas</h3>
-        <p className="text-sm text-subtext">
+        <h3 className="text-lg font-semibold text-text-primary">Astro Atlas</h3>
+        <p className="text-sm text-text-secondary">
           Search for planets, signs, houses, aspects, and astrological concepts
         </p>
       </div>
@@ -97,7 +97,7 @@ export default function AtlasSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search signs, planets, houses, aspects…"
-          className="w-full px-4 py-3 rounded-xl bg-bgElev border border-border text-text focus:outline-none focus:ring-2 focus:ring-violet focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl bg-bgElev border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-violet focus:border-transparent"
         />
         {loading && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -115,8 +115,8 @@ export default function AtlasSearch() {
       {query.trim() && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-md font-medium text-text">Search Results</h4>
-            <span className="text-sm text-subtext">
+            <h4 className="text-md font-medium text-text-primary">Search Results</h4>
+            <span className="text-sm text-text-secondary">
               {results.length} result{results.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -124,12 +124,12 @@ export default function AtlasSearch() {
           {results.length === 0 && !loading ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <p className="text-subtext text-sm">No results found</p>
-              <p className="text-xs text-subtext mt-1">Try different keywords or check spelling</p>
+              <p className="text-text-secondary text-sm">No results found</p>
+              <p className="text-xs text-text-secondary mt-1">Try different keywords or check spelling</p>
             </div>
           ) : (
             <ul className="space-y-2">
@@ -150,19 +150,19 @@ export default function AtlasSearch() {
                     <div className="text-2xl">{getKindIcon(article.kind)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h5 className="font-medium text-text group-hover:text-emerald transition-colors">
+                        <h5 className="font-medium text-text-primary group-hover:text-emerald transition-colors">
                           {article.title}
                         </h5>
                         <span className={`text-xs px-2 py-1 rounded-full bg-bgElev border border-border ${getKindColor(article.kind)}`}>
                           {article.kind}
                         </span>
                       </div>
-                      <p className="text-sm text-subtext leading-relaxed">
+                      <p className="text-sm text-text-secondary leading-relaxed">
                         {article.summary}
                       </p>
                       {article.links && article.links.length > 0 && (
                         <div className="flex items-center gap-1 mt-2">
-                          <span className="text-xs text-subtext">Related:</span>
+                          <span className="text-xs text-text-secondary">Related:</span>
                           <div className="flex flex-wrap gap-1">
                             {article.links.slice(0, 3).map(linkId => (
                               <span
@@ -173,7 +173,7 @@ export default function AtlasSearch() {
                               </span>
                             ))}
                             {article.links.length > 3 && (
-                              <span className="text-xs text-subtext">
+                              <span className="text-xs text-text-secondary">
                                 +{article.links.length - 3} more
                               </span>
                             )}
@@ -181,7 +181,7 @@ export default function AtlasSearch() {
                         </div>
                       )}
                     </div>
-                    <div className="text-subtext group-hover:text-text transition-colors">
+                    <div className="text-text-secondary group-hover:text-text-primary transition-colors">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -197,7 +197,7 @@ export default function AtlasSearch() {
       {/* Quick Access Categories */}
       {!query.trim() && (
         <div className="space-y-3">
-          <h4 className="text-md font-medium text-text">Quick Access</h4>
+          <h4 className="text-md font-medium text-text-primary">Quick Access</h4>
           <div className="grid grid-cols-2 gap-3">
             {[
               { kind: 'planet', label: 'Planets', icon: '🪐', color: 'bg-emerald/10 border-emerald/20 text-emerald' },

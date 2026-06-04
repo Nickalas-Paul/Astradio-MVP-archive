@@ -40,8 +40,8 @@ export default function AtlasPage() {
       <AppShell>
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-128px)] p-4 lg:p-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-text mb-4">Astro Atlas</h1>
-            <p className="text-subtext text-lg mb-8">
+            <h1 className="text-4xl font-bold text-text-primary mb-4">Astro Atlas</h1>
+            <p className="text-text-secondary text-lg mb-8">
               The education hub is currently disabled. Enable it with <code className="bg-bgElev px-2 py-1 rounded">?atlas=1</code>
             </p>
           </div>
@@ -66,7 +66,7 @@ export default function AtlasPage() {
             <h1 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent-light to-violet leading-tight">
               Astro Atlas
             </h1>
-            <p className="text-lg text-subtext max-w-2xl mx-auto">
+            <p className="text-lg text-text-secondary max-w-2xl mx-auto">
               Your comprehensive guide to astrological knowledge. Explore planets, signs, houses, aspects, and transits.
             </p>
           </motion.div>
@@ -84,7 +84,7 @@ export default function AtlasPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search planets, signs, houses, aspects…"
-                className="w-full px-4 py-3 rounded-xl bg-bgElev border border-border text-text focus:outline-none focus:ring-2 focus:ring-violet focus:border-transparent"
+                className="w-full px-4 py-3 rounded-xl bg-bgElev border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-violet focus:border-transparent"
               />
               {loading && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -103,8 +103,8 @@ export default function AtlasPage() {
               className="space-y-3"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-text">Search Results</h2>
-                <span className="text-sm text-subtext">
+                <h2 className="text-lg font-semibold text-text-primary">Search Results</h2>
+                <span className="text-sm text-text-secondary">
                   {results.length} result{results.length !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -118,12 +118,12 @@ export default function AtlasPage() {
               {results.length === 0 && !loading ? (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
-                  <p className="text-subtext text-sm">No results found</p>
-                  <p className="text-xs text-subtext mt-1">Try different keywords or check spelling</p>
+                  <p className="text-text-secondary text-sm">No results found</p>
+                  <p className="text-xs text-text-secondary mt-1">Try different keywords or check spelling</p>
                 </div>
               ) : (
                 <ul className="space-y-3">
@@ -150,14 +150,14 @@ export default function AtlasPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium text-text group-hover:text-accent-light transition-colors">
+                              <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors">
                                 {article.title}
                               </h3>
-                              <span className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-subtext">
+                              <span className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-text-secondary">
                                 {article.kind}
                               </span>
                             </div>
-                            <p className="text-sm text-subtext leading-relaxed">
+                            <p className="text-sm text-text-secondary leading-relaxed">
                               {article.summary}
                             </p>
                             {article.subtitle && (
@@ -166,7 +166,7 @@ export default function AtlasPage() {
                               </p>
                             )}
                           </div>
-                          <div className="text-subtext group-hover:text-text transition-colors">
+                          <div className="text-text-secondary group-hover:text-text-primary transition-colors">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
@@ -188,7 +188,7 @@ export default function AtlasPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.2 }}
               >
-                <h2 className="text-xl font-semibold text-text mb-4">Featured Articles</h2>
+                <h2 className="text-xl font-semibold text-text-primary mb-4">Featured Articles</h2>
                 <div className="grid md:grid-cols-3 gap-4">
                   {featured.map((article, index) => (
                     <motion.div
@@ -207,10 +207,10 @@ export default function AtlasPage() {
                             {article.kind === 'aspect' && '⚡'}
                             {article.kind === 'house' && '🏠'}
                           </div>
-                          <h3 className="font-medium text-text group-hover:text-accent-light transition-colors mb-1">
+                          <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors mb-1">
                             {article.title}
                           </h3>
-                          <p className="text-sm text-subtext">
+                          <p className="text-sm text-text-secondary">
                             {article.summary}
                           </p>
                         </Link>
@@ -228,11 +228,11 @@ export default function AtlasPage() {
                 className="grid md:grid-cols-2 gap-6"
               >
                 <div>
-                  <h3 className="text-lg font-semibold text-text mb-4">Quick Learn</h3>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Quick Learn</h3>
                   <QuizWidget />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-text mb-4">Start Here</h3>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Start Here</h3>
                   <div className="space-y-4">
                     <Callout tone="tip">
                       <div className="space-y-2">

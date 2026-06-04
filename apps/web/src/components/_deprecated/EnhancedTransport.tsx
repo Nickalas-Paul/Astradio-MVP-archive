@@ -190,7 +190,7 @@ export function EnhancedTransport({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={stop}
-            className="p-2 rounded-full bg-panel text-subtext hover:bg-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet"
+            className="p-2 rounded-full bg-panel text-text-secondary hover:bg-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet"
             aria-label="Stop"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
@@ -199,7 +199,7 @@ export function EnhancedTransport({
           </motion.button>
         </div>
 
-        <div className="flex-1 text-center text-sm font-medium text-subtext">
+        <div className="flex-1 text-center text-sm font-medium text-text-secondary">
           {formatTime(seconds)} / {formatTime(duration)}
         </div>
 
@@ -230,7 +230,7 @@ export function EnhancedTransport({
 
       {/* Volume control */}
       <div className="flex items-center gap-2">
-        <svg className="w-4 h-4 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M6 8h4l5-5v18l-5-5H6a2 2 0 01-2-2V10a2 2 0 012-2z" />
         </svg>
         <input
@@ -252,7 +252,7 @@ export function EnhancedTransport({
                       [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full
                       [&::-moz-range-thumb]:bg-emerald [&::-moz-range-thumb]:border-0"
         />
-        <span className="w-8 text-xs text-subtext">
+        <span className="w-8 text-xs text-text-secondary">
           {Math.round(volume * 100)}%
         </span>
       </div>

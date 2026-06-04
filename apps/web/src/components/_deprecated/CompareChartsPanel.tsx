@@ -268,13 +268,13 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
 
   return (
     <div className="card space-y-6">
-      <h2 className="text-xl font-semibold text-text">Compare Charts</h2>
-      <p className="text-sm text-subtext">
+      <h2 className="text-xl font-semibold text-text-primary">Compare Charts</h2>
+      <p className="text-sm text-text-secondary">
         Create or select two natal charts and generate a compatibility summary and shared soundtrack.
       </p>
 
       <div className="rounded-lg border border-border bg-bgElev/60 p-3 space-y-2">
-        <p className="text-sm text-text">
+        <p className="text-sm text-text-primary">
           <strong>Group or composite comparison (3+ charts):</strong> To compare more than two charts and get an aggregate compatibility view or shared group soundtrack, create a Group in the <strong>Groups</strong> tab and add member charts there. Astradio uses composite chart math for groups.
         </p>
         {onSwitchToGroups && (
@@ -290,8 +290,8 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="mb-3 text-sm font-medium text-text">Chart A</h3>
-          <p className="text-xs text-subtext mb-2">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
+          <h3 className="mb-3 text-sm font-medium text-text-primary">Chart A</h3>
+          <p className="text-xs text-text-secondary mb-2">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationA}
@@ -328,16 +328,16 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             type="button"
             onClick={handleCreateChartA}
             disabled={loading}
-            className="mt-2 rounded-lg bg-bgElev px-3 py-1.5 text-sm text-subtext hover:bg-panel hover:text-text disabled:opacity-50"
+            className="mt-2 rounded-lg bg-bgElev px-3 py-1.5 text-sm text-text-secondary hover:bg-panel hover:text-text-primary disabled:opacity-50"
           >
             Save as Chart A
           </button>
-          {chartAId && <p className="mt-1 text-xs text-subtext">Id: {chartAId}</p>}
+          {chartAId && <p className="mt-1 text-xs text-text-secondary">Id: {chartAId}</p>}
         </div>
 
         <div className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="mb-3 text-sm font-medium text-text">Chart B</h3>
-          <label className="flex items-center gap-2 text-sm text-subtext">
+          <h3 className="mb-3 text-sm font-medium text-text-primary">Chart B</h3>
+          <label className="flex items-center gap-2 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={useInlineB}
@@ -345,7 +345,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             />
             Use inline (no save)
           </label>
-          <p className="text-xs text-subtext mb-2 mt-1">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
+          <p className="text-xs text-text-secondary mb-2 mt-1">Use location search and date/time. Your selected place is applied when you pick a search result.</p>
           <div className="mb-2">
             <LocationFinder
               value={locationB}
@@ -383,17 +383,17 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
               type="button"
               onClick={handleCreateChartB}
               disabled={loading}
-              className="mt-2 rounded-lg bg-bgElev px-3 py-1.5 text-sm text-subtext hover:bg-panel hover:text-text disabled:opacity-50"
+              className="mt-2 rounded-lg bg-bgElev px-3 py-1.5 text-sm text-text-secondary hover:bg-panel hover:text-text-primary disabled:opacity-50"
             >
               Save as Chart B
             </button>
           )}
-          {chartBId && !useInlineB && <p className="mt-1 text-xs text-subtext">Id: {chartBId}</p>}
+          {chartBId && !useInlineB && <p className="mt-1 text-xs text-text-secondary">Id: {chartBId}</p>}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-subtext">Relationship:</span>
+        <span className="text-sm text-text-secondary">Relationship:</span>
         <select
           value={relationshipMode}
           onChange={(e) => setRelationshipMode(e.target.value as RelationshipMode)}
@@ -423,7 +423,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
 
       {result && (
         <div className="space-y-3 rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="text-sm font-medium text-text">Compatibility</h3>
+          <h3 className="text-sm font-medium text-text-primary">Compatibility</h3>
           {readingIncomplete && (
             <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
               Compatibility reading did not return text from the server. Try again, or contact support if this persists.
@@ -439,14 +439,14 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
                     className={`flex-1 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-50 ${
                       activeSlotIndex === idx
                         ? 'bg-bg border border-border text-emerald'
-                        : 'text-subtext hover:bg-bg'
+                        : 'text-text-secondary hover:bg-bg'
                     }`}
                     onClick={() => setActiveSlotIndex(idx as 0 | 1)}
                     aria-pressed={activeSlotIndex === idx}
                     disabled={wheelLoading}
                   >
                     <div className="text-sm font-medium">{slot.label}</div>
-                    <div className="text-xs text-subtext">{slot.description}</div>
+                    <div className="text-xs text-text-secondary">{slot.description}</div>
                   </button>
                 ))}
               </div>
@@ -465,7 +465,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
                 />
               ) : (
                 !wheelError && (
-                  <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+                  <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
                     Wheel data not available for this chart yet.
                   </div>
                 )
@@ -476,10 +476,10 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             <div className="space-y-3 text-sm">
               {sections.map((s, i) => (
                 <div key={i}>
-                  {s.title ? <h4 className="font-medium text-text mb-1">{s.title}</h4> : null}
-                  {s.text ? <p className="text-subtext whitespace-pre-wrap">{s.text}</p> : null}
+                  {s.title ? <h4 className="font-medium text-text-primary mb-1">{s.title}</h4> : null}
+                  {s.text ? <p className="text-text-secondary whitespace-pre-wrap">{s.text}</p> : null}
                   {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
-                    <ul className="list-inside list-disc text-subtext space-y-1 mt-1">
+                    <ul className="list-inside list-disc text-text-secondary space-y-1 mt-1">
                       {s.bullets.map((b, bi) => (
                         <li key={bi}>{b}</li>
                       ))}
@@ -491,10 +491,10 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
           )}
           {showCompatFallback && (
             <div className="space-y-3">
-              {short ? <p className="text-text whitespace-pre-wrap">{short}</p> : null}
-              {long ? <p className="text-sm text-subtext whitespace-pre-wrap">{long}</p> : null}
+              {short ? <p className="text-text-primary whitespace-pre-wrap">{short}</p> : null}
+              {long ? <p className="text-sm text-text-secondary whitespace-pre-wrap">{long}</p> : null}
               {bullets.length > 0 ? (
-                <ul className="list-inside list-disc text-sm text-subtext">
+                <ul className="list-inside list-disc text-sm text-text-secondary">
                   {bullets.map((b, i) => (
                     <li key={i}>{b}</li>
                   ))}
@@ -503,7 +503,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
             </div>
           )}
           {result.compositionId && (
-            <p className="text-xs text-subtext">Composition: {result.compositionId.slice(0, 16)}…</p>
+            <p className="text-xs text-text-secondary">Composition: {result.compositionId.slice(0, 16)}…</p>
           )}
           {audioBase64 && (
             <div className="pt-2">

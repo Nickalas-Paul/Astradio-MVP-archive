@@ -27,7 +27,7 @@ export function ComparisonSwitcher({
   return (
     <div className={`card ${className}`}>
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-text">
+        <h2 className="text-lg font-semibold text-text-primary">
           Chart Comparison
         </h2>
         
@@ -39,10 +39,10 @@ export function ComparisonSwitcher({
                 <div className="w-3 h-3 bg-accent rounded-full"></div>
                 <span className="text-sm font-medium text-accent-light">Chart A</span>
               </div>
-              <h3 className="text-text font-semibold">
+              <h3 className="text-text-primary font-semibold">
                 {chartA?.label || 'No chart selected'}
               </h3>
-              <p className="text-xs text-subtext">
+              <p className="text-xs text-text-secondary">
                 {chartA?.createdAt ? new Date(chartA.createdAt).toLocaleDateString() : ''}
               </p>
             </div>
@@ -57,7 +57,7 @@ export function ComparisonSwitcher({
               aria-label="Swap charts"
             >
               <motion.svg
-                className="w-5 h-5 text-subtext"
+                className="w-5 h-5 text-text-secondary"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -76,10 +76,10 @@ export function ComparisonSwitcher({
                 <div className="w-3 h-3 bg-violet rounded-full"></div>
                 <span className="text-sm font-medium text-violet">Chart B</span>
               </div>
-              <h3 className="text-text font-semibold">
+              <h3 className="text-text-primary font-semibold">
                 {chartB?.label || 'No chart selected'}
               </h3>
-              <p className="text-xs text-subtext">
+              <p className="text-xs text-text-secondary">
                 {chartB?.createdAt ? new Date(chartB.createdAt).toLocaleDateString() : ''}
               </p>
             </div>
@@ -89,7 +89,7 @@ export function ComparisonSwitcher({
         {/* Chart Selection */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-text mb-2 block">
+            <label className="text-sm font-medium text-text-primary mb-2 block">
               Select Chart A
             </label>
             <select
@@ -105,7 +105,7 @@ export function ComparisonSwitcher({
           </div>
           
           <div>
-            <label className="text-sm font-medium text-text mb-2 block">
+            <label className="text-sm font-medium text-text-primary mb-2 block">
               Select Chart B
             </label>
             <select
@@ -129,10 +129,10 @@ export function ComparisonSwitcher({
             className="p-3 bg-bg rounded-lg border border-border"
           >
             <div className="flex items-center justify-between text-sm">
-              <span className="text-text">Comparison ready</span>
+              <span className="text-text-primary">Comparison ready</span>
               <span className="text-accent-light">✓</span>
             </div>
-            <p className="text-xs text-subtext mt-1">
+            <p className="text-xs text-text-secondary mt-1">
               Generate a composition that blends the energies of both charts
             </p>
           </motion.div>

@@ -101,18 +101,18 @@ export function SandboxAudioPanel({
           For beta: audio CTA is available to all users. */}
       {exportId ? (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-text">Audio</h3>
+          <h3 className="text-sm font-semibold text-text-primary">Audio</h3>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={handleAudioPlay} className="btn-audio">
               Play
             </button>
-            <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+            <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
               Stop
             </button>
-            <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+            <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
               Restart
             </button>
-            <button type="button" onClick={() => void handleDownloadWav()} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+            <button type="button" onClick={() => void handleDownloadWav()} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
               Download WAV
             </button>
           </div>
@@ -122,7 +122,7 @@ export function SandboxAudioPanel({
         </div>
       ) : audioGenerateLoading ? (
         <div className="space-y-2">
-          <p className="text-sm text-subtext">Generating audio…</p>
+          <p className="text-sm text-text-secondary">Generating audio…</p>
           <Button type="button" variant="secondary" size="sm" loading disabled>
             Generating audio…
           </Button>
@@ -136,8 +136,8 @@ export function SandboxAudioPanel({
             Try again
           </Button>
           {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
-            <details className="text-xs text-subtext" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
-              <summary className="cursor-pointer hover:text-text">Details</summary>
+            <details className="text-xs text-text-secondary" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
+              <summary className="cursor-pointer hover:text-text-primary">Details</summary>
               <pre className="mt-1 p-2 bg-bgElev rounded border border-border/60 overflow-auto">
                 {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message]
                   .filter(Boolean)

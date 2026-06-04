@@ -25,8 +25,8 @@ export default function QuizWidget() {
       <div className="p-6 rounded-2xl border border-border bg-bgElev">
         <div className="text-center space-y-4">
           <div className="text-2xl">🧠</div>
-          <h3 className="text-lg font-semibold text-text">Quick Knowledge Check</h3>
-          <p className="text-sm text-subtext">
+          <h3 className="text-lg font-semibold text-text-primary">Quick Knowledge Check</h3>
+          <p className="text-sm text-text-secondary">
             Test your astrological knowledge with a quick quiz!
           </p>
           <button
@@ -51,11 +51,11 @@ export default function QuizWidget() {
           <div className="text-4xl">
             {score >= 4 ? '🎉' : score >= 3 ? '👍' : '📚'}
           </div>
-          <h3 className="text-lg font-semibold text-text">Quiz Complete!</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Quiz Complete!</h3>
           <div className="text-2xl font-bold text-accent-light">
             {score}/5
           </div>
-          <p className="text-sm text-subtext">
+          <p className="text-sm text-text-secondary">
             {score >= 4 
               ? 'Excellent! You have a strong grasp of astrological concepts.'
               : score >= 3 
@@ -66,7 +66,7 @@ export default function QuizWidget() {
           <div className="flex gap-3 justify-center">
             <button
               onClick={resetQuiz}
-              className="px-4 py-2 rounded-lg bg-bgElev border border-border text-text hover:bg-border transition-colors"
+              className="px-4 py-2 rounded-lg bg-bgElev border border-border text-text-primary hover:bg-border transition-colors"
             >
               Try Again
             </button>
@@ -92,7 +92,7 @@ export default function QuizWidget() {
       className="p-6 rounded-2xl border border-border bg-bgElev space-y-4"
     >
       {/* Progress */}
-      <div className="flex items-center justify-between text-sm text-subtext">
+      <div className="flex items-center justify-between text-sm text-text-secondary">
         <span>Question {currentIndex + 1} of 5</span>
         <span>Score: {score}/5</span>
       </div>
@@ -107,7 +107,7 @@ export default function QuizWidget() {
 
       {/* Question */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-text">
+        <h3 className="text-lg font-medium text-text-primary">
           {currentQuiz?.prompt}
         </h3>
 

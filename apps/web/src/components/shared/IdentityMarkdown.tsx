@@ -59,7 +59,7 @@ const IDENTITY_MARKDOWN_COMPONENTS: Components = {
     <ul className="list-disc list-inside text-body text-text-secondary space-y-1 mb-4">{children}</ul>
   ),
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-  em: ({ children }) => <em className="text-subtext/80 italic">{children}</em>,
+  em: ({ children }) => <em className="text-text-secondary/80 italic">{children}</em>,
 };
 
 export function IdentityMarkdown({ content }: { content: string }) {

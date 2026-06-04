@@ -50,7 +50,7 @@ export function Header() {
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   pathname === item.href
                     ? 'bg-emerald/20 text-emerald'
-                    : 'text-subtext hover:text-text hover:bg-bgElev'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bgElev'
                 }`}
               >
                 {item.label}
@@ -73,7 +73,7 @@ export function Header() {
             {/* Sidebar Toggle */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg text-subtext hover:text-text hover:bg-bgElev transition-colors"
+              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bgElev transition-colors"
               aria-label="Toggle sidebar"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,7 +85,7 @@ export function Header() {
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="p-2 rounded-lg text-subtext hover:text-text hover:bg-bgElev transition-colors"
+                className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bgElev transition-colors"
                 aria-label="User menu"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,14 +97,14 @@ export function Header() {
                 <div className="absolute right-0 mt-2 w-48 bg-bgElev border border-border rounded-xl shadow-soft py-2">
                   <Link
                     href="/settings"
-                    className="block px-4 py-2 text-sm text-text hover:bg-bg transition-colors"
+                    className="block px-4 py-2 text-sm text-text-primary hover:bg-bg transition-colors"
                     onClick={() => setIsUserMenuOpen(false)}
                   >
                     Settings
                   </Link>
                   <Link
                     href="/about"
-                    className="block px-4 py-2 text-sm text-text hover:bg-bg transition-colors"
+                    className="block px-4 py-2 text-sm text-text-primary hover:bg-bg transition-colors"
                     onClick={() => setIsUserMenuOpen(false)}
                   >
                     About
@@ -125,7 +125,7 @@ export function Header() {
                 className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   pathname === item.href
                     ? 'bg-emerald/20 text-emerald'
-                    : 'text-subtext hover:text-text hover:bg-bgElev'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bgElev'
                 }`}
               >
                 {item.label}

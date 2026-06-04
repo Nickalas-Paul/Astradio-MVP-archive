@@ -33,18 +33,18 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-h1 font-bold text-text">
+          <h1 className="text-h1 font-bold text-text-primary">
             Settings
           </h1>
-          <p className="text-lg text-subtext max-w-2xl mx-auto">
+          <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Customize your Astradio experience with personalized preferences and audio settings.
           </p>
         </motion.div>
 
         <div id="birth-chart" className="card scroll-mt-8">
-          <h2 className="text-h4 font-semibold text-text mb-4">Birth chart</h2>
+          <h2 className="text-h4 font-semibold text-text-primary mb-4">Birth chart</h2>
           {!user ? (
-            <p className="text-sm text-subtext">Sign in to manage your birth chart.</p>
+            <p className="text-sm text-text-secondary">Sign in to manage your birth chart.</p>
           ) : (
             <BirthChartSection
               variant="manage"
@@ -65,13 +65,13 @@ export default function SettingsPage() {
           >
             {/* Theme Settings */}
             <div className="card">
-              <h2 className="text-h4 font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Appearance
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-text mb-2 block">
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
                     Theme
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -87,17 +87,15 @@ export default function SettingsPage() {
                       <div className="text-sm">Dark</div>
                     </button>
                     <button
-                      onClick={() => setTheme('light')}
-                      className={`p-3 rounded-xl border text-center transition-all ${
-                        theme === 'light'
-                          ? 'border-accent bg-accent/10 text-accent-light'
-                          : 'border-border bg-bg hover:bg-bgElev'
-                      }`}
+                      type="button"
                       disabled
+                      aria-disabled="true"
+                      title="Light theme is not available in beta"
+                      className="p-3 rounded-xl border text-center border-border/60 bg-bgElev/40 opacity-50 cursor-not-allowed pointer-events-none"
                     >
-                      <div className="text-lg mb-1">☀️</div>
-                      <div className="text-sm">Light</div>
-                      <div className="text-xs text-subtext mt-1">Coming soon</div>
+                      <div className="text-lg mb-1 grayscale">☀️</div>
+                      <div className="text-sm text-text-muted">Light</div>
+                      <div className="text-xs text-text-muted mt-1">(coming soon)</div>
                     </button>
                   </div>
                 </div>
@@ -106,13 +104,13 @@ export default function SettingsPage() {
 
             {/* Audio Settings */}
             <div className="card">
-              <h2 className="text-h4 font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Audio Quality
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-text mb-2 block">
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
                     Audio Quality
                   </label>
                   <select
@@ -124,13 +122,13 @@ export default function SettingsPage() {
                     <option value="standard">Standard (balanced)</option>
                     <option value="high">High (best quality)</option>
                   </select>
-                  <p className="text-xs text-subtext mt-1">
+                  <p className="text-xs text-text-secondary mt-1">
                     Higher quality takes longer to generate but produces better audio
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-text mb-2 block">
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
                     Auto-play
                   </label>
                   <div className="flex items-center space-x-3">
@@ -141,7 +139,7 @@ export default function SettingsPage() {
                       onChange={(e) => updateSettings({ autoPlay: e.target.checked })}
                       className="w-4 h-4 text-accent-light bg-bg border-border rounded focus:ring-accent focus:ring-2"
                     />
-                    <label htmlFor="autoplay" className="text-sm text-text">
+                    <label htmlFor="autoplay" className="text-sm text-text-primary">
                       Automatically play compositions when ready
                     </label>
                   </div>
@@ -159,13 +157,13 @@ export default function SettingsPage() {
           >
             {/* Language Settings */}
             <div className="card">
-              <h2 className="text-h4 font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Language & Region
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-text mb-2 block">
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
                     Language
                   </label>
                   <select
@@ -182,7 +180,7 @@ export default function SettingsPage() {
 
             {/* Account Settings */}
             <div className="card">
-              <h2 className="text-h4 font-semibold text-text mb-4">
+              <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Account
               </h2>
               
@@ -193,8 +191,8 @@ export default function SettingsPage() {
                       <span className="text-bg font-bold">A</span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-text">Guest User</p>
-                      <p className="text-xs text-subtext">No account required</p>
+                      <p className="text-sm font-medium text-text-primary">Guest User</p>
+                      <p className="text-xs text-text-secondary">No account required</p>
                     </div>
                   </div>
                 </div>
@@ -218,10 +216,10 @@ export default function SettingsPage() {
               
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-text mb-2">
+                  <h3 className="text-sm font-medium text-text-primary mb-2">
                     Reset All Settings
                   </h3>
-                  <p className="text-xs text-subtext mb-3">
+                  <p className="text-xs text-text-secondary mb-3">
                     This will reset all your preferences to their default values. 
                     This action cannot be undone.
                   </p>
@@ -248,28 +246,28 @@ export default function SettingsPage() {
           transition={{ delay: 0.6 }}
           className="card"
         >
-          <h2 className="text-h4 font-semibold text-text mb-4">
+          <h2 className="text-h4 font-semibold text-text-primary mb-4">
             About Astradio
           </h2>
           
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-sm font-medium text-text mb-2">Version</h3>
-              <p className="text-sm text-subtext">v0.2.0 (Beta)</p>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Version</h3>
+              <p className="text-sm text-text-secondary">v0.2.0 (Beta)</p>
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-text mb-2">Last Updated</h3>
-              <p className="text-sm text-subtext">January 2025</p>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Last Updated</h3>
+              <p className="text-sm text-text-secondary">January 2025</p>
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-text mb-2">Engine</h3>
-              <p className="text-sm text-subtext">Swiss Ephemeris + ML v2.5</p>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Engine</h3>
+              <p className="text-sm text-text-secondary">Swiss Ephemeris + ML v2.5</p>
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-text mb-2">Support</h3>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Support</h3>
               <button className="text-sm text-accent-light hover:text-accent-light">
                 Contact Support
               </button>

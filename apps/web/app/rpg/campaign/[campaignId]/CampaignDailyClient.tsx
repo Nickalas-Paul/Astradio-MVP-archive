@@ -367,8 +367,8 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
 function DetailsDisclosure({ children }: { children: React.ReactNode }) {
   return (
     <details className="rounded border border-white/10 bg-white/[0.03] p-4">
-      <summary className="cursor-pointer text-sm text-subtext">Details</summary>
-      <div className="mt-3 space-y-2 text-sm text-subtext">{children}</div>
+      <summary className="cursor-pointer text-sm text-text-secondary">Details</summary>
+      <div className="mt-3 space-y-2 text-sm text-text-secondary">{children}</div>
     </details>
   );
 }
@@ -383,7 +383,7 @@ function ErrorPanel({ state }: { state: SurfaceErrorState }) {
   return (
     <section className={`rounded border p-4 ${toneClass}`}>
       <h2 className="text-lg font-semibold">{state.title}</h2>
-      <p className="mt-2 text-sm text-subtext">{state.description}</p>
+      <p className="mt-2 text-sm text-text-secondary">{state.description}</p>
     </section>
   );
 }
@@ -417,8 +417,8 @@ function ControlPanel(props: {
     <section className="rounded border border-white/10 bg-white/[0.02] p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
-          <h2 className="text-sm font-medium text-text">Daily controls</h2>
-          <p className="text-xs text-subtext">
+          <h2 className="text-sm font-medium text-text-primary">Daily controls</h2>
+          <p className="text-xs text-text-secondary">
             Adjust the timing for this daily. Solo mode can optionally set a place override from search before generation.
           </p>
         </div>
@@ -442,8 +442,8 @@ function ControlPanel(props: {
         </label>
         {requiresLocation ? (
           <div className="space-y-1 lg:col-span-2">
-            <span className="text-sm text-text">Place (optional override)</span>
-            <p className="text-xs text-subtext">
+            <span className="text-sm text-text-primary">Place (optional override)</span>
+            <p className="text-xs text-text-secondary">
               Search and choose a result to save today&apos;s transit place. Otherwise your saved profile location is used when available.
             </p>
             <LocationFinder
@@ -464,8 +464,8 @@ function ContinuityPanel({ lines }: { lines: string[] }) {
   return (
     <section className="rounded border border-white/10 bg-white/[0.03] p-4">
       <h2 className="text-lg font-semibold">Campaign status</h2>
-      <p className="mt-1 text-xs uppercase tracking-wide text-subtext">System read · not the daily narrative</p>
-      <div className="mt-3 space-y-2 text-sm text-subtext">
+      <p className="mt-1 text-xs uppercase tracking-wide text-text-secondary">System read · not the daily narrative</p>
+      <div className="mt-3 space-y-2 text-sm text-text-secondary">
         {lines.slice(0, 3).map((line, index) => (
           <p key={`${index}:${line}`}>{line}</p>
         ))}
@@ -484,10 +484,10 @@ function ChallengeCard(props: {
   const { date, headline, supporting, setting, continuityLine } = props;
   return (
     <section className="rounded border border-white/10 bg-white/[0.04] p-5">
-      <p className="text-sm text-subtext">{date}</p>
+      <p className="text-sm text-text-secondary">{date}</p>
       <h2 className="mt-2 text-2xl font-semibold leading-tight">{headline}</h2>
-      <p className="mt-3 text-base text-subtext">{supporting}</p>
-      <p className="mt-3 text-sm text-subtext/90">{setting}</p>
+      <p className="mt-3 text-base text-text-secondary">{supporting}</p>
+      <p className="mt-3 text-sm text-text-secondary/90">{setting}</p>
       {continuityLine ? <p className="mt-4 text-sm text-accent-light/80">{continuityLine}</p> : null}
     </section>
   );
@@ -504,13 +504,13 @@ function ResponseCard(props: {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">{choice.label}</h3>
-          <p className="mt-2 text-sm text-subtext">{describeChoice(choice)}</p>
+          <p className="mt-2 text-sm text-text-secondary">{describeChoice(choice)}</p>
         </div>
-        <span className="rounded-full border border-white/10 px-2 py-1 text-xs text-subtext">
+        <span className="rounded-full border border-white/10 px-2 py-1 text-xs text-text-secondary">
           {titleCase(choice.posture)}
         </span>
       </div>
-      <p className="mt-3 text-sm text-subtext">{describeTradeoff(choice)}</p>
+      <p className="mt-3 text-sm text-text-secondary">{describeTradeoff(choice)}</p>
       <button
         type="button"
         className="mt-4 rounded bg-white px-3 py-2 text-sm font-medium text-black disabled:opacity-60"
@@ -535,11 +535,11 @@ function GroupRosterPanel(props: {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Group state</h2>
-          <p className="mt-1 text-sm text-subtext">
+          <p className="mt-1 text-sm text-text-secondary">
             Readiness: {collection.accepted_response_count} / {collection.members_total}
           </p>
         </div>
-        {!isResolved ? <span className="text-xs text-subtext">Responses stay hidden until full resolution.</span> : null}
+        {!isResolved ? <span className="text-xs text-text-secondary">Responses stay hidden until full resolution.</span> : null}
       </div>
       <div className="mt-4 space-y-2 text-sm">
         {roster.map((member) => {
@@ -555,7 +555,7 @@ function GroupRosterPanel(props: {
           return (
             <div key={member.chart_id} className="flex items-center justify-between rounded border border-white/10 px-3 py-2">
               <span>{member.user_id}</span>
-              <span className="text-subtext">{status}</span>
+              <span className="text-text-secondary">{status}</span>
             </div>
           );
         })}
@@ -920,7 +920,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
     const bootstrapError = mapErrorState(error);
     if (bootstrapError) {
       return (
-        <main className="min-h-screen bg-bg px-6 py-8 text-text flex items-center justify-center">
+        <main className="min-h-screen bg-bg px-6 py-8 text-text-primary flex items-center justify-center">
           <div className="w-full max-w-lg">
             <ErrorPanel state={bootstrapError} />
           </div>
@@ -936,9 +936,9 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
   const responseChoices = challenge?.choices.slice(0, 5) ?? [];
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-8 text-text">
+    <main className="min-h-screen bg-bg px-6 py-8 text-text-primary">
       <div className="mx-auto max-w-5xl space-y-6">
-        <p className="text-xs text-subtext rounded-lg border border-border bg-bgElev px-3 py-2">
+        <p className="text-xs text-text-secondary rounded-lg border border-border bg-bgElev px-3 py-2">
           Group coordination uses structured Signals in Community, not chat.{' '}
           <Link href="/community?tab=connections" className="text-accent-light hover:underline">
             Open Community → Connections
@@ -946,13 +946,13 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
           .
         </p>
         <section className="space-y-2">
-          <p className="text-sm text-subtext">{titleCase(campaign.mode)} Campaign</p>
+          <p className="text-sm text-text-secondary">{titleCase(campaign.mode)} Campaign</p>
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold">Campaign</h1>
-              <p className="text-sm text-subtext">Chapter {(activeState?.chapter ?? 1)}{groupStage === 'waiting' ? ' · Waiting on the group' : groupStage === 'resolved' ? ' · Resolution complete' : ''}</p>
+              <p className="text-sm text-text-secondary">Chapter {(activeState?.chapter ?? 1)}{groupStage === 'waiting' ? ' · Waiting on the group' : groupStage === 'resolved' ? ' · Resolution complete' : ''}</p>
             </div>
-            {daily ? <p className="text-sm text-subtext">{daily.fromCache ? 'Loaded from cached daily artifact.' : 'Fresh daily artifact generated.'}</p> : null}
+            {daily ? <p className="text-sm text-text-secondary">{daily.fromCache ? 'Loaded from cached daily artifact.' : 'Fresh daily artifact generated.'}</p> : null}
           </div>
         </section>
 
@@ -995,7 +995,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
               <section className="space-y-3">
                 <div>
                   <h2 className="text-lg font-semibold">Responses</h2>
-                  <p className="mt-1 text-sm text-subtext">
+                  <p className="mt-1 text-sm text-text-secondary">
                     Choose the move that best matches how you want to meet this challenge.
                     {campaign.mode !== 'solo' && readiness
                       ? ` Group readiness: ${readiness.accepted_response_count} / ${readiness.members_total}.`
@@ -1018,12 +1018,12 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
             {campaign.mode !== 'solo' && groupStage === 'waiting' && currentAcceptedResponse ? (
               <section className="rounded border border-white/10 bg-white/[0.03] p-4">
                 <h2 className="text-lg font-semibold">Waiting for group resolution</h2>
-                <p className="mt-2 text-sm text-subtext">
+                <p className="mt-2 text-sm text-text-secondary">
                   Your response is locked. Teammate choices stay hidden until everyone has submitted.
                 </p>
                 <div className="mt-4 rounded border border-white/10 px-3 py-3 text-sm">
                   <p className="font-medium">{currentAcceptedResponse.response_label}</p>
-                  <p className="mt-1 text-subtext">{titleCase(currentAcceptedResponse.response_posture)}</p>
+                  <p className="mt-1 text-text-secondary">{titleCase(currentAcceptedResponse.response_posture)}</p>
                 </div>
               </section>
             ) : null}
@@ -1039,18 +1039,18 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
             <DetailsDisclosure>
               <div className="space-y-3">
                 <div>
-                  <p className="font-medium text-text">Campaign state</p>
+                  <p className="font-medium text-text-primary">Campaign state</p>
                   <p>State version: {campaign.stateVersion}</p>
                   <p>State hash: {campaign.stateHash}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-text">Daily artifact</p>
+                  <p className="font-medium text-text-primary">Daily artifact</p>
                   <p>Challenge fingerprint: {daily.daily.daily.challenge_fingerprint}</p>
                   <p>State hash before: {daily.daily.daily.state_hash_before}</p>
                   <p>Transit context fingerprint: {daily.transitContextFingerprint}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-text">Challenge taxonomy</p>
+                  <p className="font-medium text-text-primary">Challenge taxonomy</p>
                   <p>Archetype category: {daily.daily.daily.challenge_archetype.archetype_category}</p>
                   <p>Primary domain: {daily.daily.daily.challenge_archetype.primary_domain_id}</p>
                   <p>Interaction type: {daily.daily.daily.challenge_archetype.interaction_type}</p>
@@ -1061,13 +1061,13 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
                   </p>
                 </div>
                 <div>
-                  <p className="font-medium text-text">Character details</p>
+                  <p className="font-medium text-text-primary">Character details</p>
                   <p>Class: {daily.daily.daily.character_sheet.class_slug}</p>
                   <p>Subclass: {daily.daily.daily.character_sheet.subclass_slug}</p>
                   <p>Rising: {daily.daily.daily.character_sheet.rising_modifier_slug}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-text">Choices</p>
+                  <p className="font-medium text-text-primary">Choices</p>
                   <div className="space-y-1">
                     {responseChoices.map((choice) => (
                       <p key={choice.id}>
@@ -1078,7 +1078,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
                 </div>
                 {resolution ? (
                   <div>
-                    <p className="font-medium text-text">Resolution details</p>
+                    <p className="font-medium text-text-primary">Resolution details</p>
                     <p>Resolved at: {resolution.resolved_at}</p>
                     <p>State hash after: {resolution.state_hash_after}</p>
                     <div className="mt-2 space-y-1">
@@ -1096,12 +1096,12 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
         ) : isLoadingDaily ? (
           <section className="rounded border border-white/10 bg-white/[0.03] p-5">
             <h2 className="text-lg font-semibold">Today&apos;s challenge</h2>
-            <p className="mt-2 text-sm text-subtext">Loading daily artifact for the selected date and time…</p>
+            <p className="mt-2 text-sm text-text-secondary">Loading daily artifact for the selected date and time…</p>
           </section>
         ) : (
           <section className="rounded border border-white/10 bg-white/[0.03] p-5">
             <h2 className="text-lg font-semibold">Today&apos;s challenge</h2>
-            <p className="mt-2 text-sm text-subtext">
+            <p className="mt-2 text-sm text-text-secondary">
               No daily is available yet for this date and time. Adjust controls and use Generate Daily, or confirm your place and saved profile location for solo mode.
             </p>
           </section>

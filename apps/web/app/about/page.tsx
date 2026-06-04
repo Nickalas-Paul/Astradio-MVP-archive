@@ -16,7 +16,7 @@ export default function AboutPage() {
           <h1 className="text-5xl font-bold bg-gradient-to-r from-text via-accent-light to-violet bg-clip-text text-transparent">
             About Astradio
           </h1>
-          <p className="text-xl text-subtext max-w-3xl mx-auto">
+          <p className="text-xl text-text-secondary max-w-3xl mx-auto">
             Where ancient wisdom meets modern technology. Astradio transforms your astrological chart 
             into personalized musical compositions using advanced machine learning and Swiss Ephemeris calculations.
           </p>
@@ -30,15 +30,15 @@ export default function AboutPage() {
           className="card"
         >
           <div className="space-y-6">
-            <h2 className="text-3xl font-semibold text-text">
+            <h2 className="text-3xl font-semibold text-text-primary">
               Our Mission
             </h2>
-            <p className="text-lg text-subtext leading-relaxed">
+            <p className="text-lg text-text-secondary leading-relaxed">
               Astradio bridges the gap between celestial mechanics and musical expression. 
               We believe that the positions of the planets at the moment of your birth contain 
               unique musical signatures that can be translated into beautiful, personalized compositions.
             </p>
-            <p className="text-lg text-subtext leading-relaxed">
+            <p className="text-lg text-text-secondary leading-relaxed">
               Our goal is to make astrology accessible, engaging, and musically inspiring for everyone, 
               regardless of their background in either field.
             </p>
@@ -52,7 +52,7 @@ export default function AboutPage() {
           transition={{ delay: 0.4 }}
           className="space-y-8"
         >
-          <h2 className="text-3xl font-semibold text-center text-text">
+          <h2 className="text-3xl font-semibold text-center text-text-primary">
             How It Works
           </h2>
           
@@ -61,8 +61,8 @@ export default function AboutPage() {
               <div className="w-20 h-20 bg-accent-muted border border-accent rounded-full flex items-center justify-center mx-auto">
                 <span className="text-3xl">🌟</span>
               </div>
-              <h3 className="text-xl font-semibold text-text">Astrological Analysis</h3>
-              <p className="text-subtext">
+              <h3 className="text-xl font-semibold text-text-primary">Astrological Analysis</h3>
+              <p className="text-text-secondary">
                 Using Swiss Ephemeris, we calculate precise planetary positions, aspects, 
                 and house placements from your birth data.
               </p>
@@ -72,8 +72,8 @@ export default function AboutPage() {
               <div className="w-20 h-20 bg-violet/20 border border-violet rounded-full flex items-center justify-center mx-auto">
                 <span className="text-3xl">🧠</span>
               </div>
-              <h3 className="text-xl font-semibold text-text">AI Composition</h3>
-              <p className="text-subtext">
+              <h3 className="text-xl font-semibold text-text-primary">AI Composition</h3>
+              <p className="text-text-secondary">
                 Our machine learning model translates astrological patterns into musical parameters, 
                 generating unique compositions for each chart.
               </p>
@@ -83,8 +83,8 @@ export default function AboutPage() {
               <div className="w-20 h-20 bg-warning/20 border border-warning rounded-full flex items-center justify-center mx-auto">
                 <span className="text-3xl">🎵</span>
               </div>
-              <h3 className="text-xl font-semibold text-text">Musical Generation</h3>
-              <p className="text-subtext">
+              <h3 className="text-xl font-semibold text-text-primary">Musical Generation</h3>
+              <p className="text-text-secondary">
                 Advanced audio synthesis creates layered compositions with melody, harmony, 
                 rhythm, and texture elements.
               </p>
@@ -99,14 +99,14 @@ export default function AboutPage() {
           transition={{ delay: 0.6 }}
           className="card"
         >
-          <h2 className="text-3xl font-semibold text-text mb-6">
+          <h2 className="text-3xl font-semibold text-text-primary mb-6">
             Technology Stack
           </h2>
           
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-accent-light">Backend</h3>
-              <ul className="space-y-2 text-subtext">
+              <ul className="space-y-2 text-text-secondary">
                 <li>• <strong>Swiss Ephemeris:</strong> Precise astronomical calculations</li>
                 <li>• <strong>TensorFlow.js:</strong> Machine learning model inference</li>
                 <li>• <strong>Node.js:</strong> Server-side processing</li>
@@ -117,7 +117,7 @@ export default function AboutPage() {
             
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-violet">Frontend</h3>
-              <ul className="space-y-2 text-subtext">
+              <ul className="space-y-2 text-text-secondary">
                 <li>• <strong>Next.js:</strong> React framework with App Router</li>
                 <li>• <strong>TypeScript:</strong> Type-safe development</li>
                 <li>• <strong>Tailwind CSS:</strong> Utility-first styling</li>
@@ -135,7 +135,7 @@ export default function AboutPage() {
           transition={{ delay: 0.8 }}
           className="card"
         >
-          <h2 className="text-3xl font-semibold text-text mb-6">
+          <h2 className="text-3xl font-semibold text-text-primary mb-6">
             The Team
           </h2>
           
@@ -144,16 +144,16 @@ export default function AboutPage() {
               <div className="w-16 h-16 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center">
                 <span className="text-bg font-bold text-xl">A</span>
               </div>
-              <h3 className="text-xl font-semibold text-text">Astradio Team</h3>
-              <p className="text-subtext">
+              <h3 className="text-xl font-semibold text-text-primary">Astradio Team</h3>
+              <p className="text-text-secondary">
                 A passionate group of developers, musicians, and astrologers working together 
                 to create the future of personalized musical experiences.
               </p>
             </div>
             
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-text">Special Thanks</h3>
-              <ul className="space-y-2 text-subtext">
+              <h3 className="text-lg font-semibold text-text-primary">Special Thanks</h3>
+              <ul className="space-y-2 text-text-secondary">
                 <li>• Swiss Ephemeris for astronomical accuracy</li>
                 <li>• The open-source community for inspiration</li>
                 <li>• Beta testers for valuable feedback</li>
@@ -170,10 +170,10 @@ export default function AboutPage() {
           transition={{ delay: 1.0 }}
           className="card text-center"
         >
-          <h2 className="text-3xl font-semibold text-text mb-4">
+          <h2 className="text-3xl font-semibold text-text-primary mb-4">
             Get In Touch
           </h2>
-          <p className="text-lg text-subtext mb-6">
+          <p className="text-lg text-text-secondary mb-6">
             Have questions, feedback, or want to collaborate? We'd love to hear from you.
           </p>
           
@@ -197,10 +197,10 @@ export default function AboutPage() {
           transition={{ delay: 1.2 }}
           className="text-center space-y-4 py-8 border-t border-border"
         >
-          <p className="text-subtext">
+          <p className="text-text-secondary">
             © 2025 Astradio. All rights reserved.
           </p>
-          <p className="text-xs text-subtext">
+          <p className="text-xs text-text-secondary">
             Made with 🌟 for the cosmic music community
           </p>
         </motion.div>

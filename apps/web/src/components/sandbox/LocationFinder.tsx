@@ -119,7 +119,7 @@ export function LocationFinder({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="block text-sm font-medium text-text mb-1">Location</label>
+      <label className="block text-sm font-medium text-text-primary mb-1">Location</label>
       <input
         type="text"
         value={query}
@@ -128,10 +128,10 @@ export function LocationFinder({
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
-        className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text placeholder:text-subtext/60"
+        className="w-full px-3 py-2 bg-bgElev border border-border rounded-lg text-text-primary placeholder:text-text-secondary/60"
       />
       {loading && (
-        <div className="absolute right-3 top-9 text-xs text-subtext">Searching…</div>
+        <div className="absolute right-3 top-9 text-xs text-text-secondary">Searching…</div>
       )}
       {open && suggestions.length > 0 && (
         <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-bgElev border border-border rounded-lg shadow-lg">
@@ -140,7 +140,7 @@ export function LocationFinder({
               <button
                 type="button"
                 onClick={() => handleSelect(item)}
-                className="w-full px-3 py-2 text-left text-sm text-text hover:bg-bg border-b border-border/50 last:border-b-0"
+                className="w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-bg border-b border-border/50 last:border-b-0"
               >
                 {item.label}
               </button>

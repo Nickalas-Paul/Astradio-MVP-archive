@@ -40,7 +40,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
   if (isLoading) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
         <div className="space-y-3">
@@ -55,11 +55,11 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
   if (error) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">Unable to load trending compositions</p>
+          <p className="text-text-secondary text-sm">Unable to load trending compositions</p>
         </div>
       </div>
     );
@@ -68,11 +68,11 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
   if (tracks.length === 0) {
     return (
       <div className={`card ${className}`}>
-        <h3 className="text-lg font-semibold text-text mb-4">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">No trending compositions yet</p>
+          <p className="text-text-secondary text-sm">No trending compositions yet</p>
         </div>
       </div>
     );
@@ -80,7 +80,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
 
   return (
     <div className={`card ${className}`}>
-      <h3 className="text-lg font-semibold text-text mb-4">
+      <h3 className="text-lg font-semibold text-text-primary mb-4">
         {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
       </h3>
       
@@ -113,17 +113,17 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold text-text truncate">
+              <h4 className="text-sm font-semibold text-text-primary truncate">
                 {item.title}
               </h4>
-              <p className="text-xs text-subtext">
+              <p className="text-xs text-text-secondary">
                 {item.artist || 'Anonymous'} • {item.genre}
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <span className="text-xs text-emerald">
                   {item.playCount.toLocaleString()} plays
                 </span>
-                <span className="text-xs text-subtext">•</span>
+                <span className="text-xs text-text-secondary">•</span>
                 <span className="text-xs text-violet">
                   {item.likeCount} likes
                 </span>
@@ -134,7 +134,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handlePlay(item.compositionId)}
-                className="p-2 text-subtext hover:text-emerald transition-colors"
+                className="p-2 text-text-secondary hover:text-emerald transition-colors"
                 aria-label="Play"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
               
               <button
                 onClick={() => handleLike(item.compositionId)}
-                className="p-2 text-subtext hover:text-danger transition-colors"
+                className="p-2 text-text-secondary hover:text-danger transition-colors"
                 aria-label="Like"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
               
               <button
                 onClick={() => handleShare(item.compositionId)}
-                className="p-2 text-subtext hover:text-violet transition-colors"
+                className="p-2 text-text-secondary hover:text-violet transition-colors"
                 aria-label="Share"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

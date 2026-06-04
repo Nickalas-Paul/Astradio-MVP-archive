@@ -18,7 +18,7 @@ function VizCanvas({ payload, className = '' }: VizCanvasProps) {
   if (!isFeatureEnabled('ENABLE_VIZ_ENGINE')) {
     return (
       <div className={`flex items-center justify-center bg-bgElev rounded-lg ${className}`}>
-        <div className="text-center text-subtext">
+        <div className="text-center text-text-secondary">
           <p className="text-sm">Visualization disabled</p>
           <p className="text-xs">Enable with ?viz=1</p>
         </div>
@@ -215,7 +215,7 @@ function VizCanvas({ payload, className = '' }: VizCanvasProps) {
   if (!payload) {
     return (
       <div className={`flex items-center justify-center bg-bgElev rounded-lg ${className}`}>
-        <div className="text-center text-subtext">
+        <div className="text-center text-text-secondary">
           <p className="text-sm">No visualization data</p>
         </div>
       </div>
@@ -229,7 +229,7 @@ function VizCanvas({ payload, className = '' }: VizCanvasProps) {
         className="w-full h-full rounded-lg"
         style={{ maxWidth: '400px', maxHeight: '400px' }}
       />
-      <div className="absolute bottom-2 right-2 text-xs text-subtext bg-bg/80 px-2 py-1 rounded">
+      <div className="absolute bottom-2 right-2 text-xs text-text-secondary bg-bg/80 px-2 py-1 rounded">
         {Math.floor(currentTime)}s / {Math.floor(payload.duration)}s
       </div>
     </div>

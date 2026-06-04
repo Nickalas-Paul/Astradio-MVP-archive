@@ -57,7 +57,7 @@ export function ValidatedExportAudioPlayer({ exportId }: { exportId: string | nu
 
   if (!exportId || !String(exportId).trim()) return null;
   if (status === 'checking' || status === 'idle') {
-    return <p className="text-sm text-subtext">Checking sound…</p>;
+    return <p className="text-sm text-text-secondary">Checking sound…</p>;
   }
   if (status === 'unavailable') {
     return <p className="text-sm text-amber-600 dark:text-amber-300">Sound unavailable</p>;

@@ -62,7 +62,7 @@ export function SignalHistorySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-medium text-text">Signal History</h2>
+      <h2 className="text-lg font-medium text-text-primary">Signal History</h2>
 
       <Card elevation="resting" padding="p-5" className="space-y-4">
         <p className="text-body-sm text-text-secondary font-sans">

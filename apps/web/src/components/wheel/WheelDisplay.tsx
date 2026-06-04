@@ -78,7 +78,7 @@ export function WheelDisplay({
         >
           <div className="text-center">
             <div className="loading-spinner mx-auto mb-4" />
-            <p className="text-subtext text-sm">Loading astrological chart...</p>
+            <p className="text-text-secondary text-sm">Loading astrological chart...</p>
           </div>
         </div>
       </div>
@@ -108,7 +108,7 @@ export function WheelDisplay({
             <div className="text-center">
               <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg
-                  className="w-8 h-8 text-subtext"
+                  className="w-8 h-8 text-text-secondary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -121,8 +121,8 @@ export function WheelDisplay({
                   />
                 </svg>
               </div>
-              <p className="text-subtext text-sm">Waiting for chart data…</p>
-              <p className="text-xs text-subtext mt-1">Generate a chart to see the wheel</p>
+              <p className="text-text-secondary text-sm">Waiting for chart data…</p>
+              <p className="text-xs text-text-secondary mt-1">Generate a chart to see the wheel</p>
             </div>
           </div>
         )}

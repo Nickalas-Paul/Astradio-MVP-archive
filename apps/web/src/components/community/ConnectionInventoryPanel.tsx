@@ -56,14 +56,14 @@ function PairWeatherPreview({
   }, [relationshipId, userId]);
 
   if (err) return <p className="text-xs text-amber-600 dark:text-amber-400">{err}</p>;
-  if (!feedItem?.weather) return <p className="text-xs text-subtext">Loading weather…</p>;
+  if (!feedItem?.weather) return <p className="text-xs text-text-secondary">Loading weather…</p>;
   const w = feedItem.weather;
   if (process.env.NODE_ENV !== 'development') {
     if (!w.themes?.length) return null;
-    return <p className="text-xs text-subtext">{w.themes.slice(0, 3).join(', ')}</p>;
+    return <p className="text-xs text-text-secondary">{w.themes.slice(0, 3).join(', ')}</p>;
   }
   return (
-    <p className="text-xs text-subtext font-mono">
+    <p className="text-xs text-text-secondary font-mono">
       Weather: {(w.stateHash || '').slice(0, 12)}…
       {w.themes && w.themes.length > 0 ? ` · ${w.themes.slice(0, 3).join(', ')}` : null}
     </p>
@@ -155,8 +155,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
   if (!currentUserId) {
     return (
       <div className="card space-y-2">
-        <h3 className="text-lg font-semibold text-text">Connections</h3>
-        <p className="text-sm text-subtext">Sign in to see your saved connections and requests.</p>
+        <h3 className="text-lg font-semibold text-text-primary">Connections</h3>
+        <p className="text-sm text-text-secondary">Sign in to see your saved connections and requests.</p>
       </div>
     );
   }
@@ -165,8 +165,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
     <div className="card space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-semibold text-text">Connections</h3>
-          <p className="text-sm text-subtext">
+          <h3 className="text-lg font-semibold text-text-primary">Connections</h3>
+          <p className="text-sm text-text-secondary">
             Accepted one-to-one links, relational chart groups, and campaigns. Discovery matches stay in Discovery until you request and accept a
             connection.
           </p>
@@ -174,20 +174,20 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
         <button
           type="button"
           onClick={() => refresh()}
-          className="px-3 py-1.5 rounded-lg text-sm bg-bgElev text-subtext border border-border hover:text-text"
+          className="px-3 py-1.5 rounded-lg text-sm bg-bgElev text-text-secondary border border-border hover:text-text-primary"
         >
           Refresh
         </button>
       </div>
 
-      {loading && <p className="text-sm text-subtext">Loading inventory…</p>}
+      {loading && <p className="text-sm text-text-secondary">Loading inventory…</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       {data && (
         <>
           {(data as CommunityInventoryV1).pendingIncomingIntents?.length > 0 && (
             <section className="space-y-2">
-              <h4 className="text-sm font-semibold text-text">Incoming requests</h4>
+              <h4 className="text-sm font-semibold text-text-primary">Incoming requests</h4>
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).pendingIncomingIntents.map((intent: Record<string, unknown>) => {
                   const fromDisplayName =
@@ -206,10 +206,10 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     key={String(intent.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5"
                   >
-                    <span className="text-sm text-text">
+                    <span className="text-sm text-text-primary">
                       {fromDisplayName ?? 'Unknown user'}
                       {kindLabel ? (
-                        <span className="ml-2 text-xs text-subtext">· {kindLabel}</span>
+                        <span className="ml-2 text-xs text-text-secondary">· {kindLabel}</span>
                       ) : null}
                     </span>
                     <div className="flex flex-wrap gap-2">
@@ -227,7 +227,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                         type="button"
                         disabled={declining === intent.id}
                         onClick={() => declineIntent(String(intent.id))}
-                        className="px-3 py-1.5 rounded-lg border border-border text-sm text-subtext hover:text-text disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:text-text-primary disabled:opacity-50"
                       >
                         {declining === intent.id ? '…' : 'Decline'}
                       </button>
@@ -241,14 +241,14 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
 
           {(data as CommunityInventoryV1).pendingRelationalGroupInvites?.length > 0 && (
             <section className="space-y-2">
-              <h4 className="text-sm font-semibold text-text">Group invites</h4>
+              <h4 className="text-sm font-semibold text-text-primary">Group invites</h4>
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).pendingRelationalGroupInvites.map((inv: Record<string, unknown>) => (
                   <li
                     key={String(inv.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
                   >
-                    <span className="text-sm text-subtext">
+                    <span className="text-sm text-text-secondary">
                       Group <span className="font-mono text-xs">{String(inv.groupId).slice(-10)}</span>
                     </span>
                     <Button
@@ -269,7 +269,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
 
           {(data as CommunityInventoryV1).pendingOutgoingIntents?.length > 0 && (
             <section className="space-y-2">
-              <h4 className="text-sm font-semibold text-text">Outgoing requests</h4>
+              <h4 className="text-sm font-semibold text-text-primary">Outgoing requests</h4>
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).pendingOutgoingIntents.map((intent: Record<string, unknown>) => {
                   const toDisplayName =
@@ -288,10 +288,10 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     key={String(intent.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
                   >
-                    <span className="text-sm text-text">
+                    <span className="text-sm text-text-primary">
                       {toDisplayName ?? 'Unknown user'}
                       {kindLabel ? (
-                        <span className="ml-2 text-xs text-subtext">· {kindLabel}</span>
+                        <span className="ml-2 text-xs text-text-secondary">· {kindLabel}</span>
                       ) : null}
                     </span>
                     <button
@@ -310,9 +310,9 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           )}
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold text-text">One-to-one</h4>
+            <h4 className="text-sm font-semibold text-text-primary">One-to-one</h4>
             {(data as CommunityInventoryV1).pairs?.length === 0 ? (
-              <p className="text-sm text-subtext">No saved pair connections yet.</p>
+              <p className="text-sm text-text-secondary">No saved pair connections yet.</p>
             ) : (
               <ul className="space-y-3">
                 {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => (
@@ -320,16 +320,16 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                     key={String(p.id)}
                     className="card-interactive p-4 rounded-lg border border-border bg-bgElev space-y-2"
                   >
-                    <div className="text-sm font-medium text-text">
+                    <div className="text-sm font-medium text-text-primary">
                       {(p.peerDisplayName as string) || 'Connection'}{' '}
                       {(p.peerHandle as string) ? (
-                        <span className="text-subtext font-normal">@{p.peerHandle as string}</span>
+                        <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-subtext">Label: {String(p.label || '')}</p>
-                    <p className="text-xs text-subtext">
+                    <p className="text-xs text-text-secondary">Label: {String(p.label || '')}</p>
+                    <p className="text-xs text-text-secondary">
                       Artifacts:{' '}
-                      <span className="text-text">{inventoryArtifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
+                      <span className="text-text-primary">{inventoryArtifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Link
@@ -347,9 +347,9 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           </section>
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold text-text">Relational groups (charts)</h4>
+            <h4 className="text-sm font-semibold text-text-primary">Relational groups (charts)</h4>
             {(data as CommunityInventoryV1).relationalGroups?.length === 0 ? (
-              <p className="text-sm text-subtext">None yet. Use Discovery to create a group from selected people.</p>
+              <p className="text-sm text-text-secondary">None yet. Use Discovery to create a group from selected people.</p>
             ) : (
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
@@ -357,15 +357,15 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                   return (
                     <li
                       key={String(g.id)}
-                      className="card-interactive p-4 rounded-lg border border-border bg-bgElev text-sm text-text space-y-2"
+                      className="card-interactive p-4 rounded-lg border border-border bg-bgElev text-sm text-text-primary space-y-2"
                     >
                       <div>
                         {String(g.name)}{' '}
-                        <span className="text-xs text-subtext font-mono">({String(g.id).slice(-8)})</span>
+                        <span className="text-xs text-text-secondary font-mono">({String(g.id).slice(-8)})</span>
                       </div>
-                      <p className="text-xs text-subtext">
+                      <p className="text-xs text-text-secondary">
                         Artifacts:{' '}
-                        <span className="text-text">{inventoryArtifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
+                        <span className="text-text-primary">{inventoryArtifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Link
@@ -383,16 +383,16 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           </section>
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold text-text">Campaigns</h4>
+            <h4 className="text-sm font-semibold text-text-primary">Campaigns</h4>
             {(data as CommunityInventoryV1).campaigns?.length === 0 ? (
-              <p className="text-sm text-subtext">No campaigns linked to you yet.</p>
+              <p className="text-sm text-text-secondary">No campaigns linked to you yet.</p>
             ) : (
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).campaigns.map((c: Record<string, unknown>) => (
                   <li key={String(c.campaignId)} className="p-3 rounded-lg border border-border bg-bgElev text-sm">
-                    <span className="text-text">{String(c.mode)}</span>{' '}
-                    <span className="text-xs text-subtext font-mono">{String(c.campaignId).slice(-12)}</span>
-                    {c.groupId ? <span className="text-xs text-subtext block mt-1">Group: {String(c.groupId)}</span> : null}
+                    <span className="text-text-primary">{String(c.mode)}</span>{' '}
+                    <span className="text-xs text-text-secondary font-mono">{String(c.campaignId).slice(-12)}</span>
+                    {c.groupId ? <span className="text-xs text-text-secondary block mt-1">Group: {String(c.groupId)}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -402,8 +402,8 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           {process.env.NODE_ENV === 'development' &&
             (data as CommunityInventoryV1).feedSkeleton?.length > 0 && (
             <section className="rounded-lg border border-dashed border-border p-3 space-y-1">
-              <h4 className="text-xs font-semibold text-subtext uppercase tracking-wide">Feed skeleton (no ranking)</h4>
-              <p className="text-xs text-subtext">
+              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Feed skeleton (no ranking)</h4>
+              <p className="text-xs text-text-secondary">
                 {(data as CommunityInventoryV1).feedSkeleton.length} item(s) — deterministic sort keys for future FYP.
               </p>
             </section>

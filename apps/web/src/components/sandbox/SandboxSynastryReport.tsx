@@ -30,7 +30,7 @@ export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
                     key={activation.aspectKey}
                     className="space-y-3 border-t border-border/60 pt-4 first:border-t-0 first:pt-0"
                   >
-                    <h4 className="text-base font-semibold text-text">{activation.directionalHeader}</h4>
+                    <h4 className="text-base font-semibold text-text-primary">{activation.directionalHeader}</h4>
                     <IdentityMarkdown content={activation.synastryProse} />
                     {activation.sonicInterplay ? (
                       <IdentityMarkdown

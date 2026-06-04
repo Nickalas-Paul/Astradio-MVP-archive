@@ -90,7 +90,7 @@ export function Transport({
       {/* Stop Button */}
       <button
         onClick={onStop}
-        className="w-8 h-8 text-subtext hover:text-text rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
+        className="w-8 h-8 text-text-secondary hover:text-text-primary rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
         aria-label="Stop"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -99,7 +99,7 @@ export function Transport({
       </button>
 
       {/* Time Display */}
-      <div className="text-xs text-subtext font-mono min-w-0">
+      <div className="text-xs text-text-secondary font-mono min-w-0">
         <span>{formatTime(currentTime)}</span>
         <span className="mx-1">/</span>
         <span>{formatTime(duration)}</span>
@@ -126,7 +126,7 @@ export function Transport({
       </div>
 
       {/* Keyboard Shortcuts Tooltip */}
-      <div className="text-xs text-subtext hidden lg:block">
+      <div className="text-xs text-text-secondary hidden lg:block">
         <span className="hidden sm:inline">Space</span>
         <span className="sm:hidden">▶</span>
         <span className="mx-1">•</span>

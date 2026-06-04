@@ -17,8 +17,8 @@ export function ProfilePanelFooter({ user, onPrivacyUpdate }: ProfilePanelFooter
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-text">Community visibility</h3>
-      <p className="text-xs text-subtext">Control how others can find you. Off = hidden from search or feed.</p>
+      <h3 className="text-sm font-semibold text-text-primary">Community visibility</h3>
+      <p className="text-xs text-text-secondary">Control how others can find you. Off = hidden from search or feed.</p>
       <div className="flex flex-wrap gap-6">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -42,7 +42,7 @@ export function ProfilePanelFooter({ user, onPrivacyUpdate }: ProfilePanelFooter
             }}
             className="rounded border-border"
           />
-          <span className="text-sm text-text">Show in community search</span>
+          <span className="text-sm text-text-primary">Show in community search</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -66,7 +66,7 @@ export function ProfilePanelFooter({ user, onPrivacyUpdate }: ProfilePanelFooter
             }}
             className="rounded border-border"
           />
-          <span className="text-sm text-text">Show in community feed</span>
+          <span className="text-sm text-text-primary">Show in community feed</span>
         </label>
       </div>
     </div>

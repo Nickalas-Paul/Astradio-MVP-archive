@@ -107,7 +107,7 @@ export function GenerateCard({
 
         {/* Genre Selection */}
         <div className="space-y-3">
-          <label className="text-sm font-medium text-text">
+          <label className="text-sm font-medium text-text-primary">
             Musical Genre
           </label>
           
@@ -124,7 +124,7 @@ export function GenerateCard({
                 disabled={isCurrentlyGenerating}
               >
                 <div className="text-sm font-medium">{genre.label}</div>
-                <div className="text-xs text-subtext mt-1">{genre.description}</div>
+                <div className="text-xs text-text-secondary mt-1">{genre.description}</div>
               </button>
             ))}
           </div>
@@ -139,8 +139,8 @@ export function GenerateCard({
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm text-text">{getStageMessage()}</span>
-              <span className="text-sm text-subtext">{pct}%</span>
+              <span className="text-sm text-text-primary">{getStageMessage()}</span>
+              <span className="text-sm text-text-secondary">{pct}%</span>
             </div>
             
             <div className="progress-bar">
@@ -202,10 +202,10 @@ export function GenerateCard({
             exit={{ opacity: 0, height: 0 }}
             className="p-4 bg-bg rounded-xl border border-border"
           >
-            <h4 className="text-sm font-semibold text-text mb-3">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">
               How genres influence your composition:
             </h4>
-            <ul className="space-y-2 text-xs text-subtext">
+            <ul className="space-y-2 text-xs text-text-secondary">
               <li>• <strong>Ambient:</strong> Slow tempo, atmospheric textures, minimal rhythm</li>
               <li>• <strong>Classical:</strong> Orchestral instruments, complex harmonies, dynamic range</li>
               <li>• <strong>Jazz:</strong> Improvisational elements, syncopated rhythms, rich harmonies</li>

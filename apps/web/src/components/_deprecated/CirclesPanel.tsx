@@ -35,7 +35,7 @@ export default function CirclesPanel() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-text">Circles</h3>
+        <h3 className="text-lg font-semibold text-text-primary">Circles</h3>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="skeleton h-20 rounded-2xl" />
@@ -48,10 +48,10 @@ export default function CirclesPanel() {
   if (error) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-text">Circles</h3>
+        <h3 className="text-lg font-semibold text-text-primary">Circles</h3>
         <div className="text-center py-8">
-          <p className="text-subtext text-sm">Unable to load circles</p>
-          <p className="text-xs text-subtext mt-1">{error}</p>
+          <p className="text-text-secondary text-sm">Unable to load circles</p>
+          <p className="text-xs text-text-secondary mt-1">{error}</p>
         </div>
       </div>
     );
@@ -60,7 +60,7 @@ export default function CirclesPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-text">Circles</h3>
+        <h3 className="text-lg font-semibold text-text-primary">Circles</h3>
         <button 
           className="px-3 py-2 rounded-xl bg-emerald text-bg font-medium hover:bg-emeraldMuted transition-colors"
           onClick={() => setIsCreating(!isCreating)}
@@ -83,7 +83,7 @@ export default function CirclesPanel() {
               placeholder="Circle name"
               value={newCircleName}
               onChange={(e) => setNewCircleName(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-bg border border-border text-text focus:outline-none focus:ring-2 focus:ring-violet"
+              className="w-full px-3 py-2 rounded-lg bg-bg border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-violet"
               onKeyPress={(e) => e.key === 'Enter' && handleCreateCircle()}
             />
             <div className="flex gap-2">
@@ -99,7 +99,7 @@ export default function CirclesPanel() {
                   setIsCreating(false);
                   setNewCircleName('');
                 }}
-                className="px-4 py-2 rounded-lg bg-bgElev text-subtext hover:bg-border transition-colors"
+                className="px-4 py-2 rounded-lg bg-bgElev text-text-secondary hover:bg-border transition-colors"
               >
                 Cancel
               </button>
@@ -112,12 +112,12 @@ export default function CirclesPanel() {
       {circles.length === 0 ? (
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
-          <p className="text-subtext text-sm">No circles yet</p>
-          <p className="text-xs text-subtext mt-1">Create a circle to start collaborating</p>
+          <p className="text-text-secondary text-sm">No circles yet</p>
+          <p className="text-xs text-text-secondary mt-1">Create a circle to start collaborating</p>
         </div>
       ) : (
         <ul className="grid gap-3">
@@ -131,10 +131,10 @@ export default function CirclesPanel() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="font-medium text-text group-hover:text-emerald transition-colors">
+                  <div className="font-medium text-text-primary group-hover:text-emerald transition-colors">
                     {circle.name}
                   </div>
-                  <div className="text-subtext text-sm mt-1">
+                  <div className="text-text-secondary text-sm mt-1">
                     {circle.memberIds.length} member{circle.memberIds.length !== 1 ? 's' : ''}
                   </div>
                   {circle.inviteCode && (
@@ -145,7 +145,7 @@ export default function CirclesPanel() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-2 rounded-lg text-subtext hover:bg-border hover:text-text transition-colors"
+                    className="p-2 rounded-lg text-text-secondary hover:bg-border hover:text-text-primary transition-colors"
                     aria-label="View circle details"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ export default function CirclesPanel() {
                     </svg>
                   </button>
                   <button
-                    className="p-2 rounded-lg text-subtext hover:bg-border hover:text-text transition-colors"
+                    className="p-2 rounded-lg text-text-secondary hover:bg-border hover:text-text-primary transition-colors"
                     aria-label="Share circle"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

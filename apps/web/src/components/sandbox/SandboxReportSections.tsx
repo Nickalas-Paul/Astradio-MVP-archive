@@ -15,16 +15,16 @@ export function SandboxReportSections({ displayReport }: SandboxReportSectionsPr
     <div className="mt-6 space-y-4">
       {displayReport.personality && (
         <section className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="text-lg font-semibold text-text mb-3">Personality</h3>
-          <div className="text-subtext text-sm">
+          <h3 className="text-lg font-semibold text-text-primary mb-3">Personality</h3>
+          <div className="text-text-secondary text-sm">
             {displayReport.personality.summary || JSON.stringify(displayReport.personality, null, 2)}
           </div>
         </section>
       )}
       {displayReport.guidance && (
         <section className="rounded-lg border border-border bg-bgElev p-4">
-          <h3 className="text-lg font-semibold text-text mb-3">Guidance</h3>
-          <div className="text-subtext text-sm">
+          <h3 className="text-lg font-semibold text-text-primary mb-3">Guidance</h3>
+          <div className="text-text-secondary text-sm">
             {displayReport.guidance.advice || JSON.stringify(displayReport.guidance, null, 2)}
           </div>
         </section>

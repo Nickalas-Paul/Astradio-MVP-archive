@@ -38,11 +38,10 @@ type PrimaryChart = {
   timezone?: string;
 };
 
+/** Public-safe subtitle: birth date only (no time, coordinates, or place label). */
 function formatBirthData(chart: PrimaryChart | null): string | undefined {
-  if (!chart) return undefined;
-  if (chart.label?.trim()) return chart.label.trim();
-  if (chart.date) return chart.date;
-  return undefined;
+  if (!chart?.date) return undefined;
+  return chart.date;
 }
 
 function readDiscoveryBullets(userId: string): {
@@ -302,7 +301,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
         ) : (
           <>
             {chartLoading ? (
-              <p className="text-sm text-subtext">Loading chart…</p>
+              <p className="text-sm text-text-secondary">Loading chart…</p>
             ) : (
               <>
                 <BriefIdentitySummary

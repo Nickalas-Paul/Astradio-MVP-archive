@@ -383,7 +383,7 @@ export function ActiveTransitPanel({
                   className="max-w-full"
                 />
               ) : (
-                <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-subtext text-sm p-4">
+                <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
                   Wheel unavailable for selected slot.
                 </div>
               )}

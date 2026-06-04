@@ -113,18 +113,18 @@ export function CompatibilityLensModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text">Compatibility Lens — {targetDisplayName}</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Compatibility Lens — {targetDisplayName}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-subtext hover:text-text p-1"
+            className="text-text-secondary hover:text-text-primary p-1"
             aria-label="Close"
           >
             ×
           </button>
         </div>
 
-        {loading && <p className="text-subtext text-sm">Loading comparison…</p>}
+        {loading && <p className="text-text-secondary text-sm">Loading comparison…</p>}
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
         {!loading && data && (
@@ -144,7 +144,7 @@ export function CompatibilityLensModal({
                     ) : null}
                     {s.text ? <IdentityMarkdown content={s.text} /> : null}
                     {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
-                      <ul className="list-disc list-inside text-subtext space-y-1 mt-1">
+                      <ul className="list-disc list-inside text-text-secondary space-y-1 mt-1">
                         {s.bullets.map((b, bi) => (
                           <li key={bi}>{b}</li>
                         ))}
@@ -169,7 +169,7 @@ export function CompatibilityLensModal({
                   </div>
                 ) : null}
                 {bullets.length > 0 ? (
-                  <ul className="list-disc list-inside text-subtext space-y-1">
+                  <ul className="list-disc list-inside text-text-secondary space-y-1">
                     {bullets.map((b, i) => (
                       <li key={i}>{b}</li>
                     ))}

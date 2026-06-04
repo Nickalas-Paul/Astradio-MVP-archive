@@ -101,10 +101,10 @@ export default function GlossaryTooltip({ term, children, className = '' }: Glos
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-text">{article.title}</div>
+                <div className="text-sm font-medium text-text-primary">{article.title}</div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="text-subtext hover:text-text transition-colors"
+                  className="text-text-secondary hover:text-text-primary transition-colors"
                   aria-label="Close tooltip"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,7 +112,7 @@ export default function GlossaryTooltip({ term, children, className = '' }: Glos
                   </svg>
                 </button>
               </div>
-              <div className="text-xs text-subtext leading-relaxed whitespace-pre-wrap">
+              <div className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
                 {article.summary}
               </div>
               <div className="pt-2 border-t border-border">

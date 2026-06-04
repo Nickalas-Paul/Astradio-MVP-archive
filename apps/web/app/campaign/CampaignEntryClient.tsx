@@ -119,18 +119,18 @@ export function CampaignEntryClient() {
 
   if (!authChecked || loadingList) {
     return (
-      <main className="min-h-screen bg-bg text-text flex items-center justify-center px-4">
-        <p className="text-sm text-subtext">Loading…</p>
+      <main className="min-h-screen bg-bg text-text-primary flex items-center justify-center px-4">
+        <p className="text-sm text-text-secondary">Loading…</p>
       </main>
     );
   }
 
   if (!signedIn) {
     return (
-      <main className="min-h-screen bg-bg text-text flex items-center justify-center px-4">
+      <main className="min-h-screen bg-bg text-text-primary flex items-center justify-center px-4">
         <div className="max-w-md w-full space-y-4 rounded-lg border border-border bg-bgElev p-6 text-center">
           <h1 className="text-xl font-semibold">Campaign</h1>
-          <p className="text-sm text-subtext">Sign in to start or resume a campaign.</p>
+          <p className="text-sm text-text-secondary">Sign in to start or resume a campaign.</p>
           <Link
             href="/login"
             className="inline-block rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent-light hover:bg-accent/20"
@@ -146,11 +146,11 @@ export function CampaignEntryClient() {
   const disableActions = busy !== null;
 
   return (
-    <main className="min-h-screen bg-bg text-text px-4 py-10">
+    <main className="min-h-screen bg-bg text-text-primary px-4 py-10">
       <div className="mx-auto max-w-lg space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Campaign</h1>
-          <p className="mt-1 text-sm text-subtext">Start solo, join via auto party, or resume where you left off.</p>
+          <p className="mt-1 text-sm text-text-secondary">Start solo, join via auto party, or resume where you left off.</p>
         </div>
 
         {error ? (
@@ -163,10 +163,10 @@ export function CampaignEntryClient() {
               type="button"
               disabled={disableActions}
               onClick={onResume}
-              className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-3 text-left text-sm font-medium text-text hover:bg-accent/25 disabled:opacity-50"
+              className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-3 text-left text-sm font-medium text-text-primary hover:bg-accent/25 disabled:opacity-50"
             >
               {busy === 'resume' ? 'Opening…' : 'Resume campaign'}
-              <span className="mt-1 block text-xs font-normal text-subtext">Opens your most recently updated campaign.</span>
+              <span className="mt-1 block text-xs font-normal text-text-secondary">Opens your most recently updated campaign.</span>
             </button>
           ) : null}
 
@@ -177,7 +177,7 @@ export function CampaignEntryClient() {
             className="w-full rounded-lg border border-border bg-bgElev px-4 py-3 text-left text-sm font-medium hover:bg-white/[0.06] disabled:opacity-50"
           >
             {busy === 'solo' ? 'Creating…' : 'Start solo campaign'}
-            <span className="mt-1 block text-xs font-normal text-subtext">Personal campaign using your primary chart.</span>
+            <span className="mt-1 block text-xs font-normal text-text-secondary">Personal campaign using your primary chart.</span>
           </button>
 
           <button
@@ -187,7 +187,7 @@ export function CampaignEntryClient() {
             className="w-full rounded-lg border border-border bg-bgElev px-4 py-3 text-left text-sm font-medium hover:bg-white/[0.06] disabled:opacity-50"
           >
             {busy === 'group' ? 'Creating…' : 'Start group campaign'}
-            <span className="mt-1 block text-xs font-normal text-subtext">
+            <span className="mt-1 block text-xs font-normal text-text-secondary">
               Auto-selects an eligible party from your groups (engine auto mode) until a group picker ships.
             </span>
           </button>
@@ -196,14 +196,14 @@ export function CampaignEntryClient() {
             type="button"
             disabled={disableActions}
             onClick={() => void createThenGo('auto')}
-            className="w-full rounded-lg border border-dashed border-white/15 bg-transparent px-4 py-2.5 text-left text-sm text-subtext hover:border-white/25 hover:text-text disabled:opacity-50"
+            className="w-full rounded-lg border border-dashed border-white/15 bg-transparent px-4 py-2.5 text-left text-sm text-text-secondary hover:border-white/25 hover:text-text-primary disabled:opacity-50"
           >
             {busy === 'auto' ? 'Creating…' : 'Auto party'}
             <span className="mt-1 block text-xs">Same as engine <code className="text-xs">mode: auto</code> — optional shortcut.</span>
           </button>
         </div>
 
-        <p className="text-xs text-subtext">
+        <p className="text-xs text-text-secondary">
           Group picker (choose a specific <code className="text-caption">groupId</code>) can replace the auto-only path later without changing access rules.
         </p>
       </div>

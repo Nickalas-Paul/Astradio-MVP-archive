@@ -9,13 +9,13 @@ export default function ProfilePage() {
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <section className="space-y-2">
-          <h1 className="text-h1 font-bold text-text">Profile</h1>
-          <p className="text-sm text-subtext max-w-2xl">
+          <h1 className="text-h1 font-bold text-text-primary">Profile</h1>
+          <p className="text-sm text-text-secondary max-w-2xl">
             Sign in or register so your charts and soundtrack persist across sessions.
           </p>
         </section>
 
-        <Suspense fallback={<p className="text-sm text-subtext">Loading profile…</p>}>
+        <Suspense fallback={<p className="text-sm text-text-secondary">Loading profile…</p>}>
           <ProfilePanel />
         </Suspense>
       </div>

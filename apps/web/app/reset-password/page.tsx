@@ -118,7 +118,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <main className="min-h-screen bg-bg px-4 py-12">
-      <Suspense fallback={<p className="text-center text-subtext">Loading…</p>}>
+      <Suspense fallback={<p className="text-center text-text-secondary">Loading…</p>}>
         <ResetPasswordForm />
       </Suspense>
     </main>

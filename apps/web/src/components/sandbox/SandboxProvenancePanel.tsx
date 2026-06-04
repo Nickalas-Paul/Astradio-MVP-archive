@@ -51,25 +51,25 @@ export function SandboxProvenancePanel({
   }, [onReplay]);
 
   return (
-    <details className="mt-6 border-t border-border/60 pt-4 text-xs text-subtext space-y-3 group">
-      <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 text-subtext hover:text-text [&::-webkit-details-marker]:hidden">
-        <span className="font-semibold text-text">Provenance &amp; debug replay</span>
-        <span className="text-caption uppercase tracking-wide text-subtext/90 group-open:hidden">Show secondary tools</span>
-        <span className="text-caption uppercase tracking-wide text-subtext/90 hidden group-open:inline">Hide</span>
+    <details className="mt-6 border-t border-border/60 pt-4 text-xs text-text-secondary space-y-3 group">
+      <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 text-text-secondary hover:text-text-primary [&::-webkit-details-marker]:hidden">
+        <span className="font-semibold text-text-primary">Provenance &amp; debug replay</span>
+        <span className="text-caption uppercase tracking-wide text-text-secondary/90 group-open:hidden">Show secondary tools</span>
+        <span className="text-caption uppercase tracking-wide text-text-secondary/90 hidden group-open:inline">Hide</span>
       </summary>
-      <p className="mt-2 text-xs text-subtext">
-        Secondary only: export the last bundle or replay the <span className="font-medium text-text">exact JSON</span> from the previous resolve. This is not a second
-        Generate and does <span className="font-medium text-text">not</span> use your current wheel—use{' '}
-        <span className="font-medium text-text">Generate from current composition</span> for that.
+      <p className="mt-2 text-xs text-text-secondary">
+        Secondary only: export the last bundle or replay the <span className="font-medium text-text-primary">exact JSON</span> from the previous resolve. This is not a second
+        Generate and does <span className="font-medium text-text-primary">not</span> use your current wheel—use{' '}
+        <span className="font-medium text-text-primary">Generate from current composition</span> for that.
       </p>
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-        <button onClick={onExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text">
+        <button onClick={onExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
           Export JSON
         </button>
         <button
           onClick={() => void handleReplayClick()}
           disabled={replayLoading || !replayNeedsSnapshot}
-          className="px-3 py-1.5 text-xs rounded-lg border border-dashed border-border/80 bg-bgElev/60 hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-subtext"
+          className="px-3 py-1.5 text-xs rounded-lg border border-dashed border-border/80 bg-bgElev/60 hover:bg-bgElev/80 disabled:opacity-50 disabled:cursor-not-allowed text-text-secondary"
         >
           {replayLoading ? 'Replaying…' : 'Replay last resolve payload'}
         </button>

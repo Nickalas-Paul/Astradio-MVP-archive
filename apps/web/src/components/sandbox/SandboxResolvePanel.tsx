@@ -33,11 +33,11 @@ export function SandboxResolvePanel({
 
   return (
     <>
-      <h2 className="text-xl font-semibold text-text mb-4">
+      <h2 className="text-xl font-semibold text-text-primary mb-4">
         {isBlankCanvasUi ? 'Build composition' : 'Resolve composition'}
       </h2>
       {isBlankCanvasUi ? (
-        <p className="text-sm text-subtext mb-4 -mt-2">
+        <p className="text-sm text-text-secondary mb-4 -mt-2">
           Build a reading from the chart you&apos;ve composed on the wheel.
         </p>
       ) : null}
@@ -53,7 +53,7 @@ export function SandboxResolvePanel({
           <button
             onClick={onSave}
             disabled={saveLoading}
-            className="px-4 py-2 bg-bgElev border border-border rounded-lg font-medium hover:bg-bgElev/80 disabled:opacity-50 text-text"
+            className="px-4 py-2 bg-bgElev border border-border rounded-lg font-medium hover:bg-bgElev/80 disabled:opacity-50 text-text-primary"
           >
             {saveLoading ? 'Saving…' : 'Save'}
           </button>
@@ -61,8 +61,8 @@ export function SandboxResolvePanel({
       </div>
       {saveError && <p className="mt-2 text-xs text-red-400">{saveError}</p>}
       {!canGenerate && (
-        <div className="mt-3 text-xs text-subtext">
-          <p className="mb-1 text-text font-medium">Resolve unavailable until:</p>
+        <div className="mt-3 text-xs text-text-secondary">
+          <p className="mb-1 text-text-primary font-medium">Resolve unavailable until:</p>
           <ul className="list-disc list-inside space-y-0.5">
             {generateDisabledReasons.map((reason, idx) => (
               <li key={idx}>{reason}</li>

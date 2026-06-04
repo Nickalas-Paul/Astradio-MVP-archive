@@ -72,15 +72,15 @@ export default function TransitExplorer() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-text">Transit Explorer</h3>
-        <p className="text-sm text-subtext">
+        <h3 className="text-lg font-semibold text-text-primary">Transit Explorer</h3>
+        <p className="text-sm text-text-secondary">
           Explore current and upcoming astrological transits and their meanings
         </p>
       </div>
 
       {/* Transit Selector */}
       <div className="space-y-3">
-        <label className="text-sm font-medium text-text">Select Transit:</label>
+        <label className="text-sm font-medium text-text-primary">Select Transit:</label>
         <div className="grid gap-2">
           {availableTransits.map(transit => (
             <button
@@ -89,14 +89,14 @@ export default function TransitExplorer() {
               className={`p-3 rounded-xl border transition-colors text-left ${
                 selectedTransit === transit.id
                   ? 'border-emerald bg-emerald/10 text-emerald'
-                  : 'border-border bg-bgElev text-text hover:border-emerald/50'
+                  : 'border-border bg-bgElev text-text-primary hover:border-emerald/50'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className="text-2xl">{getTransitIcon(transit.id)}</div>
                 <div className="flex-1">
                   <div className="font-medium">{transit.label}</div>
-                  <div className="text-sm text-subtext">{transit.description}</div>
+                  <div className="text-sm text-text-secondary">{transit.description}</div>
                 </div>
                 <div className="text-xl">{getAspectIcon(transit.id)}</div>
               </div>
@@ -110,7 +110,7 @@ export default function TransitExplorer() {
         <div className="p-6 rounded-2xl border border-border bg-bgElev">
           <div className="flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-emerald border-t-transparent rounded-full animate-spin" />
-            <span className="ml-3 text-subtext">Loading transit details...</span>
+            <span className="ml-3 text-text-secondary">Loading transit details...</span>
           </div>
         </div>
       ) : error ? (
@@ -128,8 +128,8 @@ export default function TransitExplorer() {
             <div className="flex items-center gap-3 mb-3">
               <div className="text-3xl">{getTransitIcon(selectedTransit)}</div>
               <div className="flex-1">
-                <h4 className="text-xl font-semibold text-text">{transitData.title}</h4>
-                <p className="text-sm text-subtext">{transitData.excerpt}</p>
+                <h4 className="text-xl font-semibold text-text-primary">{transitData.title}</h4>
+                <p className="text-sm text-text-secondary">{transitData.excerpt}</p>
               </div>
               <div className="text-2xl">{getAspectIcon(selectedTransit)}</div>
             </div>
@@ -153,7 +153,7 @@ export default function TransitExplorer() {
           {transitData.bodyMD && (
             <div className="p-4 rounded-2xl border border-border bg-bgElev">
               <div className="prose prose-invert max-w-none">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-text">
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
                   {transitData.bodyMD}
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function TransitExplorer() {
                 // TODO: Implement sharing functionality
                 console.log('Share transit:', selectedTransit);
               }}
-              className="flex-1 px-4 py-2 rounded-xl bg-bgElev border border-border text-text hover:bg-border transition-colors"
+              className="flex-1 px-4 py-2 rounded-xl bg-bgElev border border-border text-text-primary hover:bg-border transition-colors"
             >
               Share Transit
             </button>
@@ -187,18 +187,18 @@ export default function TransitExplorer() {
       ) : (
         <div className="p-6 rounded-2xl border border-border bg-bgElev text-center">
           <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-subtext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <p className="text-subtext text-sm">Select a transit to explore</p>
+          <p className="text-text-secondary text-sm">Select a transit to explore</p>
         </div>
       )}
 
       {/* Quick Tips */}
       <div className="p-4 rounded-2xl border border-border bg-bgElev">
-        <h5 className="text-sm font-medium text-text mb-2">💡 Quick Tips</h5>
-        <ul className="text-xs text-subtext space-y-1">
+        <h5 className="text-sm font-medium text-text-primary mb-2">💡 Quick Tips</h5>
+        <ul className="text-xs text-text-secondary space-y-1">
           <li>• Transits affect everyone differently based on your natal chart</li>
           <li>• Pay attention to which houses the transiting planets activate</li>
           <li>• Use transits as opportunities for growth and awareness</li>
