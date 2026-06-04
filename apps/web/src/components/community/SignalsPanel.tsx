@@ -206,7 +206,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         <p className="text-xs text-text-secondary mt-1">
           Purpose-driven prompts and acknowledgments. No DMs.{' '}
           <Link href="/community?tab=feed" className="text-accent-light hover:underline">
-            Feed
+            Transits
           </Link>{' '}
           links here when a response is needed.
         </p>

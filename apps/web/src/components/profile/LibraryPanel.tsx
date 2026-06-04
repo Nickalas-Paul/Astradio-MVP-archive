@@ -461,7 +461,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
                       libraryRelationalWeatherTextMissing && (
                         <p className="text-sm text-amber-600 dark:text-amber-300">
-                          Reading text was not stored for this bookmark. Re-save from the Community Feed, or
+                          Reading text was not stored for this bookmark. Re-save from Community Transits, or
                           ask an operator to run a library repair.
                         </p>
                       )}

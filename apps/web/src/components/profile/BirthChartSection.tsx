@@ -118,7 +118,7 @@ export function BirthChartSection({ variant, refresh, refreshChart, primaryChart
     if (!primaryChart || primaryChart.id === DEFAULT_PROFILE_CHART_ID || !realChart) {
       return (
         <p className="text-sm text-text-secondary">
-          Add a birth chart from Profile first, or complete onboarding.
+          Add a birth chart from My Sky first, or complete onboarding.
         </p>
       );
     }

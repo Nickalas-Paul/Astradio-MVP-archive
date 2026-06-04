@@ -104,14 +104,14 @@ export function CompatibilitySection({
       <Card elevation="resting" className={className}>
         <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
-          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the Profile tab. Then return here to find compatible connections.
+          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the My Sky tab. Then return here to find compatible connections.
         </p>
         {controlledMode != null && (
           <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>
         )}
         {onSwitchToProfile && (
           <Button type="button" variant="primary" size="md" className="mt-4" onClick={onSwitchToProfile}>
-            Go to Profile to create one
+            Go to My Sky to create one
           </Button>
         )}
       </Card>
@@ -124,7 +124,7 @@ export function CompatibilitySection({
       <Card elevation="resting" className={className}>
         <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
-          Add your natal chart to your profile to see compatibility-driven matches. Go to the Profile tab and add your birth date, time, and birth place.
+          Add your natal chart to your profile to see compatibility-driven matches. Go to the My Sky tab and add your birth date, time, and birth place.
         </p>
         {controlledMode != null && (
           <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>

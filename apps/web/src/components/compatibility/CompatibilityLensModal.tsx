@@ -44,7 +44,7 @@ export function CompatibilityLensModal({
 
   useEffect(() => {
     if (!seekerChartId) {
-      setError('Add your birth chart in Profile first. Compatibility uses your stored chart only.');
+      setError('Add your birth chart in My Sky first. Compatibility uses your stored chart only.');
       setLoading(false);
       return;
     }

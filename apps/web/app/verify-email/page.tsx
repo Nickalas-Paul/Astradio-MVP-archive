@@ -102,12 +102,12 @@ function VerifyEmailContent() {
           {phase === 'success' && (
             <div className="space-y-4">
               <p className="text-sm text-text-primary">Email verified! You can now sign in.</p>
-              <p className="text-xs text-text-secondary">Redirecting to Profile in a few seconds…</p>
+              <p className="text-xs text-text-secondary">Redirecting to My Sky in a few seconds…</p>
               <Link
                 href="/profile"
                 className="btn-primary inline-flex items-center justify-center text-center text-sm min-h-[44px] px-4 py-2 rounded-lg"
               >
-                Go to Profile
+                Go to My Sky
               </Link>
             </div>
           )}

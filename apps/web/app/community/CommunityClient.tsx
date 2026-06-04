@@ -204,7 +204,7 @@ function CommunityClientInner() {
   };
 
   const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
-    { id: 'feed', label: 'Feed', icon: '📱' },
+    { id: 'feed', label: 'Transits', icon: '📱' },
     { id: 'discovery', label: 'Discovery', icon: '🔭' },
     { id: 'connections', label: 'Connections', icon: '🔗' },
   ];
@@ -221,12 +221,12 @@ function CommunityClientInner() {
         >
           <h1 className="text-h1 font-bold text-text-primary">Community</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Feed, discovery, and connections — chart-based and deterministic.
+            Transits, discovery, and connections — chart-based and deterministic.
           </p>
           <p className="text-sm text-text-secondary">
             Profile and saved tracks live under{' '}
             <Link href="/profile" className="text-accent-light hover:underline">
-              Profile
+              My Sky
             </Link>
             .
           </p>
@@ -261,7 +261,7 @@ function CommunityClientInner() {
           className="w-full"
         >
           {activeTab === 'feed' && (
-            <section className="max-w-4xl mx-auto" aria-label="Live transit feed">
+            <section className="max-w-4xl mx-auto" aria-label="Astrological weather forecast">
               <RelationalCommunityFeed userId={user?.id ?? null} primaryChart={primaryChart} />
             </section>
           )}

@@ -101,7 +101,7 @@ interface RelationalCommunityFeedProps {
 
 function FeedLoadingSkeleton() {
   return (
-    <ul className="space-y-4" aria-busy="true" aria-label="Loading feed">
+    <ul className="space-y-4" aria-busy="true" aria-label="Loading transits">
       {[0, 1, 2].map((i) => (
         <Card key={i} elevation="resting" padding="p-5" className="animate-pulse space-y-3">
           <div className="h-5 bg-bgElev rounded w-2/5" />
@@ -181,7 +181,7 @@ export function RelationalCommunityFeed({
   if (!userId) {
     return (
       <Card elevation="resting" padding="p-5" className={`text-body-sm text-text-secondary ${className}`}>
-        Sign in to load the feed.
+        Sign in to load transits.
       </Card>
     );
   }
@@ -191,8 +191,8 @@ export function RelationalCommunityFeed({
       <div className={`space-y-4 ${className}`}>
         {!hideHeader && (
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">Feed</h2>
-            <p className="text-body-sm text-text-secondary">Live Transit Feed</p>
+            <h2 className="text-h2 font-semibold text-text-primary">Transits</h2>
+            <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
           </div>
         )}
         <FeedLoadingSkeleton />
@@ -344,7 +344,7 @@ export function RelationalCommunityFeed({
     const lon = Number(transitLock.lon);
     const timezone = String(transitLock.tz || 'UTC').trim();
     if (!transitDatetime || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-      setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Refresh the feed and try again.' }));
+      setSaveStatusByFeedId((prev) => ({ ...prev, [item.feed_item_id]: 'Refresh transits and try again.' }));
       return null;
     }
     const scopePath =
@@ -637,8 +637,8 @@ export function RelationalCommunityFeed({
       {!hideHeader && (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">Feed</h2>
-            <p className="text-body-sm text-text-secondary">Live Transit Feed</p>
+            <h2 className="text-h2 font-semibold text-text-primary">Transits</h2>
+            <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
             <p className="text-caption text-text-muted max-w-2xl">
               Connections ranked by how active they are for you right now.
             </p>
@@ -682,7 +682,7 @@ export function RelationalCommunityFeed({
               cd.enhanced_title.trim().length > 0
                 ? cd.activation_lines
                 : null;
-            const primary = row?.primary_line ?? 'This connection is active in your feed for this moment.';
+            const primary = row?.primary_line ?? 'This connection is active in your transits for this moment.';
             const micro = row?.micro_tag ?? '';
             const descriptor = row?.activation_descriptor ?? 'Active between you';
             const rankBar = Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0));

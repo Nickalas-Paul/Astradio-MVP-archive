@@ -790,7 +790,7 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
     if (!transit) {
       setData(null);
       setError(
-        'Complete your profile with a resolved birth place (search and select a location) so the feed can run.'
+        'Complete your profile with a resolved birth place (search and select a location) so transits can load.'
       );
       setIsLoading(false);
       return;
@@ -808,12 +808,12 @@ export function useRelationalCommunityFeed(userId: string | null, primaryChart: 
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        throw new Error((j as { error?: string }).error || `Feed request failed (${r.status})`);
+        throw new Error((j as { error?: string }).error || `Transits request failed (${r.status})`);
       }
       const json = (await r.json()) as RelationalCommunityFeedResponse;
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feed');
+      setError(err instanceof Error ? err.message : 'Failed to load transits');
       setData(null);
     } finally {
       setIsLoading(false);

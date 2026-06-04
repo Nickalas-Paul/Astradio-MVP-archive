@@ -84,8 +84,8 @@ export function outgoingSignalStatusLabel(
 export function formatSignalAnchorContext(anchorType: string, anchorId: string): string {
   const id = anchorId.trim();
   if (anchorType === 'feed_item') {
-    if (id.startsWith('pair:')) return `Feed · ${id.slice(5, 21)}${id.length > 21 ? '…' : ''}`;
-    return `Feed · ${id.slice(0, 20)}${id.length > 20 ? '…' : ''}`;
+    if (id.startsWith('pair:')) return `Transits · ${id.slice(5, 21)}${id.length > 21 ? '…' : ''}`;
+    return `Transits · ${id.slice(0, 20)}${id.length > 20 ? '…' : ''}`;
   }
   return `${anchorType} · ${id.slice(0, 24)}${id.length > 24 ? '…' : ''}`;
 }

@@ -402,7 +402,7 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
           {process.env.NODE_ENV === 'development' &&
             (data as CommunityInventoryV1).feedSkeleton?.length > 0 && (
             <section className="rounded-lg border border-dashed border-border p-3 space-y-1">
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Feed skeleton (no ranking)</h4>
+              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Transits skeleton (no ranking)</h4>
               <p className="text-xs text-text-secondary">
                 {(data as CommunityInventoryV1).feedSkeleton.length} item(s) — deterministic sort keys for future FYP.
               </p>

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import React from 'react';
 
 const NAV = [
-  { href: '/profile', label: 'Profile' },
+  { href: '/profile', label: 'My Sky' },
   { href: '/community', label: 'Community' },
   { href: '/sandbox', label: 'Sandbox' },
   { href: '/settings', label: 'Settings' },

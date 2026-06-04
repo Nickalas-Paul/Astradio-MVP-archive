@@ -329,7 +329,7 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
   ) {
     return {
       title: 'Location still needed',
-      description: 'Search and select a valid place below, or ensure your saved location is set in Profile, before running this solo daily.',
+      description: 'Search and select a valid place below, or ensure your saved location is set in My Sky, before running this solo daily.',
       tone: 'warning',
     };
   }
