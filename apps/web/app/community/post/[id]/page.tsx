@@ -8,7 +8,7 @@ export default function CommunityPostRetiredPage() {
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-4">
-        <p className="text-text-primary">Community posts are no longer available.</p>
+        <p className="text-text-primary">Legacy social posts are no longer available.</p>
         <p className="text-sm text-text-secondary">
           Use <Link href="/today" className="text-accent-light hover:underline">Today</Link> for relational
           transits, or{' '}
