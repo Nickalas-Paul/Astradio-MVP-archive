@@ -23,6 +23,7 @@ type ChartSlot =
   | { kind: 'chart_id'; chartId: string; label: string }
   | { kind: 'birth'; birth: SandboxBirth; label: string };
 
+type ChartAMode = 'mine' | 'search' | 'manual';
 type ChartBMode = 'search' | 'birth' | null;
 
 function slotToWire(slot: ChartSlot): Record<string, unknown> {
@@ -96,7 +97,11 @@ function ListenPageInner() {
 
   const [slotA, setSlotA] = useState<ChartSlot | null>(null);
   const [slotB, setSlotB] = useState<ChartSlot | null>(null);
-  const [chartAMode, setChartAMode] = useState<'mine' | 'manual'>('mine');
+  const [chartAMode, setChartAMode] = useState<ChartAMode>('mine');
+  const [chartASearchId, setChartASearchId] = useState('');
+  const [chartAPendingId, setChartAPendingId] = useState<string | null>(null);
+  const [chartASearchError, setChartASearchError] = useState<string | null>(null);
+  const [chartASearchLoading, setChartASearchLoading] = useState(false);
   const [chartBMode, setChartBMode] = useState<ChartBMode>(null);
   const [chartBSearchId, setChartBSearchId] = useState('');
   const [chartBPendingId, setChartBPendingId] = useState<string | null>(null);
@@ -142,7 +147,7 @@ function ListenPageInner() {
           const label = await fetchChartLabel(chartAParam);
           if (!cancelled) {
             setSlotA({ kind: 'chart_id', chartId: chartAParam, label });
-            setChartAMode('mine');
+            setChartAMode(chartAParam === viewerChartId ? 'mine' : 'search');
           }
         } else if (viewerChartId && user) {
           const label =
@@ -210,6 +215,27 @@ function ListenPageInner() {
     setSlotA({ kind: 'chart_id', chartId: viewerChartId, label });
     setChartAMode('mine');
   }, [viewerChartId, user, primaryChart?.label, fetchChartLabel]);
+
+  const handleImportChartA = useCallback(async () => {
+    const rawId = chartAPendingId?.trim() || (chartASearchId.trim().startsWith('chart_') ? chartASearchId.trim() : '');
+    if (!rawId) {
+      setChartASearchError('Search for a chart and pick a result');
+      return;
+    }
+    setChartASearchLoading(true);
+    setChartASearchError(null);
+    try {
+      const label = await fetchChartLabel(rawId);
+      setSlotA({ kind: 'chart_id', chartId: rawId, label });
+      setChartAMode('search');
+      setChartASearchId('');
+      setChartAPendingId(null);
+    } catch (e) {
+      setChartASearchError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setChartASearchLoading(false);
+    }
+  }, [chartAPendingId, chartASearchId, fetchChartLabel]);
 
   const handleChartBManual = useCallback(async (birth: SandboxBirth) => {
     const label = birth.location?.label?.trim() || 'Chart B';
@@ -442,7 +468,10 @@ function ListenPageInner() {
                       size="sm"
                       onClick={() => {
                         setSlotA(null);
-                        setChartAMode(viewerChartId ? 'mine' : 'manual');
+                        setChartASearchId('');
+                        setChartAPendingId(null);
+                        setChartASearchError(null);
+                        setChartAMode(viewerChartId ? 'mine' : 'search');
                       }}
                     >
                       Change
@@ -455,7 +484,10 @@ function ListenPageInner() {
                     <Card
                       elevation="raised"
                       className={`cursor-pointer transition-colors ${chartAMode === 'mine' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
-                      onClick={() => void handleUseMyChart()}
+                      onClick={() => {
+                        setChartAMode('mine');
+                        void handleUseMyChart();
+                      }}
                     >
                       <p className="text-sm font-semibold text-text-primary">Use my chart</p>
                       <p className="text-sm text-text-secondary mt-1">
@@ -465,9 +497,17 @@ function ListenPageInner() {
                     </Card>
                   ) : (
                     <p className="text-sm text-amber-600 dark:text-amber-300">
-                      No saved chart on your profile — enter birth data below.
+                      No saved chart on your profile — search a connection or enter birth data below.
                     </p>
                   )}
+                  <Card
+                    elevation="raised"
+                    className={`cursor-pointer transition-colors ${chartAMode === 'search' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                    onClick={() => setChartAMode('search')}
+                  >
+                    <p className="text-sm font-semibold text-text-primary">Search connections</p>
+                    <p className="text-sm text-text-secondary mt-1">Find a connected user&apos;s chart</p>
+                  </Card>
                   <Card
                     elevation="raised"
                     className={`cursor-pointer transition-colors ${chartAMode === 'manual' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
@@ -476,6 +516,34 @@ function ListenPageInner() {
                     <p className="text-sm font-semibold text-text-primary">Enter different birth data</p>
                     <p className="text-sm text-text-secondary mt-1">Date, time, and location for person A</p>
                   </Card>
+                  {chartAMode === 'search' && !slotA ? (
+                    <div className="space-y-3 max-w-xl">
+                      <ChartSearchCombobox
+                        value={chartASearchId}
+                        onChange={(v) => {
+                          setChartASearchId(v);
+                          setChartAPendingId(null);
+                          if (chartASearchError) setChartASearchError(null);
+                        }}
+                        onSelectChartId={(id) => setChartAPendingId(id)}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        loading={chartASearchLoading}
+                        disabled={chartASearchLoading}
+                        onClick={() => void handleImportChartA()}
+                      >
+                        Import chart
+                      </Button>
+                      {chartASearchError ? (
+                        <p className="text-sm text-red-400" role="alert">
+                          {chartASearchError}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {chartAMode === 'manual' && !slotA ? (
                     <div className="max-w-xl">
                       <BirthDataForm onSubmit={handleChartAManual} />
