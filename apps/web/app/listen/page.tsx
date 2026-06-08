@@ -453,9 +453,9 @@ function ListenPageInner() {
               {slotA ? (
                 <Card elevation="raised" className="space-y-2">
                   <p className="text-sm font-medium text-text-primary">{slotA.label}</p>
-                  <p className="text-xs text-text-secondary">
-                    {slotA.kind === 'chart_id' ? `Chart ID: ${slotA.chartId}` : 'Manual birth data'}
-                  </p>
+                  {slotA.kind === 'birth' ? (
+                    <p className="text-xs text-text-secondary">Birth data entered manually</p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {viewerChartId && chartAMode !== 'mine' ? (
                       <Button type="button" variant="secondary" size="sm" onClick={() => void handleUseMyChart()}>
@@ -496,7 +496,7 @@ function ListenPageInner() {
                       </p>
                     </Card>
                   ) : (
-                    <p className="text-sm text-amber-600 dark:text-amber-300">
+                    <p className="text-sm text-warning">
                       No saved chart on your profile — search a connection or enter birth data below.
                     </p>
                   )}
@@ -538,7 +538,7 @@ function ListenPageInner() {
                         Import chart
                       </Button>
                       {chartASearchError ? (
-                        <p className="text-sm text-red-400" role="alert">
+                        <p className="text-sm text-danger" role="alert">
                           {chartASearchError}
                         </p>
                       ) : null}
@@ -558,9 +558,9 @@ function ListenPageInner() {
               {slotB ? (
                 <Card elevation="raised" className="space-y-2">
                   <p className="text-sm font-medium text-text-primary">{slotB.label}</p>
-                  <p className="text-xs text-text-secondary">
-                    {slotB.kind === 'chart_id' ? `Chart ID: ${slotB.chartId}` : 'Manual birth data'}
-                  </p>
+                  {slotB.kind === 'birth' ? (
+                    <p className="text-xs text-text-secondary">Birth data entered manually</p>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"
@@ -613,7 +613,7 @@ function ListenPageInner() {
                         Import chart
                       </Button>
                       {chartBSearchError ? (
-                        <p className="text-sm text-red-400" role="alert">
+                        <p className="text-sm text-danger" role="alert">
                           {chartBSearchError}
                         </p>
                       ) : null}
@@ -648,7 +648,7 @@ function ListenPageInner() {
 
             {resolveError ? (
               <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 space-y-3 text-center">
-                <p className="text-sm text-red-400" role="alert">
+                <p className="text-sm text-danger" role="alert">
                   {resolveError}
                 </p>
                 <Button type="button" variant="secondary" size="sm" onClick={() => void runResolve()}>

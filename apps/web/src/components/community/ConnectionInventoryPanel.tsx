@@ -68,7 +68,7 @@ function PairWeatherPreview({
     return () => ac.abort();
   }, [relationshipId, userId]);
 
-  if (err) return <p className="text-xs text-amber-600 dark:text-amber-400">{err}</p>;
+  if (err) return <p className="text-xs text-warning">{err}</p>;
   if (!feedItem?.weather) return <p className="text-xs text-text-secondary">Loading weather…</p>;
   const w = feedItem.weather;
   if (process.env.NODE_ENV !== 'development') {
@@ -195,7 +195,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
       </div>
 
       {loading && <p className="text-sm text-text-secondary">Loading inventory…</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {data && (
         <>
@@ -262,8 +262,10 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                     key={String(inv.id)}
                     className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
                   >
-                    <span className="text-sm text-text-secondary">
-                      Group <span className="font-mono text-xs">{String(inv.groupId).slice(-10)}</span>
+                    <span className="text-sm text-text-primary">
+                      {typeof inv.groupName === 'string' && inv.groupName.trim()
+                        ? inv.groupName.trim()
+                        : 'Group invite'}
                     </span>
                     <Button
                       type="button"
@@ -396,10 +398,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                       key={String(g.id)}
                       className="card-interactive p-4 rounded-lg border border-border bg-bgElev text-sm text-text-primary space-y-2"
                     >
-                      <div>
-                        {String(g.name)}{' '}
-                        <span className="text-xs text-text-secondary font-mono">({String(g.id).slice(-8)})</span>
-                      </div>
+                      <div>{String(g.name)}</div>
                       <p className="text-xs text-text-secondary">
                         Artifacts:{' '}
                         <span className="text-text-primary">{inventoryArtifactStatusCopy(String(g.artifactStatus || 'not_generated'))}</span>
@@ -426,10 +425,12 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
             ) : (
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).campaigns.map((c: Record<string, unknown>) => (
-                  <li key={String(c.campaignId)} className="p-3 rounded-lg border border-border bg-bgElev text-sm">
-                    <span className="text-text-primary">{String(c.mode)}</span>{' '}
-                    <span className="text-xs text-text-secondary font-mono">{String(c.campaignId).slice(-12)}</span>
-                    {c.groupId ? <span className="text-xs text-text-secondary block mt-1">Group: {String(c.groupId)}</span> : null}
+                  <li key={String(c.campaignId)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text-primary">
+                    {typeof c.title === 'string' && c.title.trim()
+                      ? c.title.trim()
+                      : typeof c.mode === 'string' && c.mode.trim()
+                        ? `${c.mode.trim().charAt(0).toUpperCase()}${c.mode.trim().slice(1).toLowerCase()} campaign`
+                        : 'Campaign'}
                   </li>
                 ))}
               </ul>

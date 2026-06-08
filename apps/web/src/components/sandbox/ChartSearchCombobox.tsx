@@ -209,7 +209,7 @@ export function ChartSearchCombobox({
         </span>
       ) : null}
 
-      {error ? <p className="text-xs text-red-400 mt-1">{error}</p> : null}
+      {error ? <p className="text-xs text-danger mt-1">{error}</p> : null}
 
       {open && !isDirectChartIdInput(value) && (results.length > 0 || showEmptyHint || showRecentEmpty) ? (
         <div

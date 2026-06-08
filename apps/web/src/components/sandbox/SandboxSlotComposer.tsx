@@ -86,8 +86,8 @@ export function SandboxSlotComposer({
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-text-primary">Astrology Composition</h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            {compositionInput.slots.length} slot{compositionInput.slots.length === 1 ? '' : 's'} · active{' '}
-            <span className="font-mono">{activeIndex}</span>
+            {compositionInput.slots.length} slot{compositionInput.slots.length === 1 ? '' : 's'} · editing slot{' '}
+            {activeIndex + 1}
           </p>
         </div>
         <Button

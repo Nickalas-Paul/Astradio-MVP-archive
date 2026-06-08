@@ -45,10 +45,10 @@ function TodayContent() {
   const noRealChart = !realChart || primaryChart?.id === DEFAULT_PROFILE_CHART_ID;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10">
+    <div className="max-w-6xl mx-auto">
       <TodaySkySummary primaryChart={primaryChart} />
 
-      <div className="border-t border-border/30" />
+      <div className="border-t border-border/30 py-8" />
 
       <section aria-label="Your personal transit">
         <div className="space-y-1 mb-6">
@@ -78,7 +78,7 @@ function TodayContent() {
         )}
       </section>
 
-      <div className="border-t border-border/30" />
+      <div className="border-t border-border/30 py-8" />
 
       <section aria-label="Astrological weather forecast">
         <RelationalCommunityFeed

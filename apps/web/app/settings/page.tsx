@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
@@ -9,19 +9,15 @@ import { useSettingsStore, useUIStore } from '../../src/store';
 import { Button } from '@/components/shared/Button';
 
 export default function SettingsPage() {
-  const { user, primaryChart, refresh } = useProfile();
+  const { user, primaryChart, loading: profileLoading, refresh } = useProfile();
   const chartId = primaryChart?.id ?? null;
   const { refresh: refreshChart } = useProfileChart(chartId);
-  const { settings, updateSettings, resetSettings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const { theme, setTheme } = useUIStore();
-  const [isResetting, setIsResetting] = useState(false);
 
-  const handleReset = async () => {
-    setIsResetting(true);
-    // Simulate reset delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    resetSettings();
-    setIsResetting(false);
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    await refresh();
   };
 
   return (
@@ -185,55 +181,45 @@ export default function SettingsPage() {
               </h2>
               
               <div className="space-y-4">
-                <div className="p-4 bg-bgElev rounded-xl border border-border">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center">
-                      <span className="text-bg font-bold">A</span>
+                {profileLoading ? (
+                  <p className="text-sm text-text-secondary">Loading account…</p>
+                ) : user ? (
+                  <>
+                    <div className="p-4 bg-bgElev rounded-xl border border-border">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center shrink-0">
+                          <span className="text-bg font-bold">
+                            {(user.displayName || '?').charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">{user.displayName}</p>
+                          {user.handle ? (
+                            <p className="text-xs text-text-secondary truncate">@{user.handle}</p>
+                          ) : null}
+                          {user.emailVerified ? (
+                            <p className="text-xs text-text-muted mt-0.5">Email verified</p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">Guest User</p>
-                      <p className="text-xs text-text-secondary">No account required</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Button type="button" variant="secondary" size="sm" className="w-full">
-                    Export Data
-                  </Button>
-                  <Button type="button" variant="secondary" size="sm" className="w-full">
-                    Import Data
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Danger Zone */}
-            <div className="card border-danger/20">
-              <h2 className="text-lg font-semibold text-danger mb-4">
-                Danger Zone
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-text-primary mb-2">
-                    Reset All Settings
-                  </h3>
-                  <p className="text-xs text-text-secondary mb-3">
-                    This will reset all your preferences to their default values. 
-                    This action cannot be undone.
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => void handleLogout()}
+                    >
+                      Log out
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-text-secondary">
+                    <Link href="/profile" className="text-accent-light hover:underline">
+                      Sign in to manage your account
+                    </Link>
                   </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-danger border border-danger hover:bg-danger/10 w-full"
-                    onClick={handleReset}
-                    disabled={isResetting}
-                    loading={isResetting}
-                  >
-                    Reset Settings
-                  </Button>
-                </div>
+                )}
               </div>
             </div>
           </motion.div>

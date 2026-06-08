@@ -22,7 +22,7 @@ export function PlayerBar() {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-semibold text-text-primary truncate">
-                {currentTrack.id}
+                Now playing
               </h3>
               <p className="text-xs text-text-secondary">
                 {currentTrack.layers.length} layers

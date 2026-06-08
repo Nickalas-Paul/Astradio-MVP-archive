@@ -194,7 +194,7 @@ export function RelationalCommunityFeed({
       <div className={`space-y-4 ${className}`}>
         {!hideHeader && (
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">
+            <h2 className="text-h2 font-serif font-semibold text-text-primary">
               {primaryHeading ?? 'Transits'}
             </h2>
             {!primaryHeading && (
@@ -644,7 +644,7 @@ export function RelationalCommunityFeed({
       {!hideHeader && (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">
+            <h2 className="text-h2 font-serif font-semibold text-text-primary">
               {primaryHeading ?? 'Transits'}
             </h2>
             {!primaryHeading && (

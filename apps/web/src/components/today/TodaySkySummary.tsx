@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
-import { Card } from '@/components/shared/Card';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
@@ -198,15 +197,13 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         <h2 className="text-h2 font-serif font-semibold text-text-primary">Right Now in the Sky</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-6 md:gap-8 items-start">
-        <Card elevation="resting" padding="p-5 md:p-6">
-          <ExplanationPanel
-            embedded
-            composeHash={composeHash}
-            text={analysisText}
-            sections={explanationSections ?? undefined}
-            isLoading={isLoading}
-          />
-        </Card>
+        <ExplanationPanel
+          embedded
+          composeHash={composeHash}
+          text={analysisText}
+          sections={explanationSections ?? undefined}
+          isLoading={isLoading}
+        />
         <div className="min-w-0">
           <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
         </div>

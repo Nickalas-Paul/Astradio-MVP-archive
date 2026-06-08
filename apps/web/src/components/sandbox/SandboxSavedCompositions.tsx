@@ -37,15 +37,15 @@ export function SandboxSavedCompositions({
           {listLoading ? '…' : 'Refresh'}
         </button>
       </div>
-      {listError && <p className="mb-2 text-xs text-red-400">{listError}</p>}
+      {listError && <p className="mb-2 text-xs text-danger">{listError}</p>}
       {savedList.length === 0 ? (
         <p className="text-xs text-text-secondary">No saved compositions. Generate then Save.</p>
       ) : (
         <ul className="space-y-2 max-h-48 overflow-y-auto">
           {savedList.map((item) => (
             <li key={item.id} className="flex items-center justify-between gap-2 text-xs border border-border/60 rounded p-2 bg-bgElev/50">
-              <span className="truncate text-text-secondary" title={item.id}>
-                {item.plan_hash?.slice(0, 8) ?? item.id.slice(0, 8)} — {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
+              <span className="truncate text-text-secondary">
+                {item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved composition'}
               </span>
               <button
                 type="button"

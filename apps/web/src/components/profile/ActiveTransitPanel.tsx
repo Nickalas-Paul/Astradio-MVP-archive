@@ -498,8 +498,8 @@ export function ActiveTransitPanel({
           {activeLoading && (
             <p className="text-sm text-text-secondary">Loading today&apos;s transit…</p>
           )}
-          {librarySaveError ? <p className="text-sm text-red-500">{librarySaveError}</p> : null}
-          {activeError && <p className="text-sm text-red-500">{activeError}</p>}
+          {librarySaveError ? <p className="text-sm text-danger">{librarySaveError}</p> : null}
+          {activeError && <p className="text-sm text-danger">{activeError}</p>}
           {activeWheelSlots && (
             <div className="max-w-2xl mx-auto w-full space-y-3 min-w-0">
               <Tabs

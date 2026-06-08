@@ -482,9 +482,6 @@ export default function CommunityRelationshipArtifactPage() {
               </p>
             )}
 
-            {comparison?.planHash && String(comparison.planHash).length > 0 && !String(comparison.planHash).includes('__') ? (
-              <p className="text-xs text-text-secondary">Composition: {String(comparison.compositionId || comparison.planHash).slice(0, 16)}…</p>
-            ) : null}
           </>
         )}
 
