@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useProfile } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { ProfileAuthPanel } from '../profile/ProfileAuthPanel';
 import { ProfileHeaderCard } from '../profile/ProfileHeaderCard';
-import { ActiveTransitPanel } from '../profile/ActiveTransitPanel';
 import { IdentityPanel } from '../profile/IdentityPanel';
 import { LibraryPanel, type LibraryPanelHandle } from '../profile/LibraryPanel';
 import { ProfilePanelFooter } from '../profile/ProfilePanelFooter';
@@ -22,20 +21,24 @@ export interface ProfilePanelProps {
 }
 
 export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
+  const router = useRouter();
   const { user, primaryChart, loading: profileLoading, error: profileError, refresh } = useProfile();
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
   const searchParams = useSearchParams();
-  const [profileSection, setProfileSection] = useState<'active' | 'identity' | 'library'>('active');
-  const [librarySaveError, setLibrarySaveError] = useState<string | null>(null);
+  const [profileSection, setProfileSection] = useState<'identity' | 'library'>('identity');
   const libraryRef = useRef<LibraryPanelHandle>(null);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'active' || tab === 'identity' || tab === 'library') {
+    if (tab === 'active') {
+      router.replace('/today');
+      return;
+    }
+    if (tab === 'identity' || tab === 'library') {
       setProfileSection(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   if (profileLoading) {
     return (
@@ -110,24 +113,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           className="-mx-1 px-1"
           ariaLabel="Profile sections"
           tabs={[
-            { id: 'active', label: 'Current Transit' },
             { id: 'identity', label: 'Identity' },
             { id: 'library', label: 'Library' },
           ]}
           activeTab={profileSection}
-          onTabChange={(id) => setProfileSection(id as 'active' | 'identity' | 'library')}
+          onTabChange={(id) => setProfileSection(id as 'identity' | 'library')}
         />
-
-        {profileSection === 'active' && (
-          <ActiveTransitPanel
-            chartId={chartId}
-            noRealChart={noRealChart}
-            librarySaveError={librarySaveError}
-            onSaved={() => void libraryRef.current?.refresh()}
-            onSaveError={(msg) => setLibrarySaveError(msg)}
-            onClearSaveError={() => setLibrarySaveError(null)}
-          />
-        )}
 
         {profileSection === 'identity' && (
           <IdentityPanel

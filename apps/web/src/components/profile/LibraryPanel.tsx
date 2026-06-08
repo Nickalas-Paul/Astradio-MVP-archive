@@ -252,7 +252,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
       if (source === 'profile_active' || ps?.kind === 'profile_active') {
         if (!ps || !sandboxStateCompleteForTransit(ps)) {
           setLibraryReconstructError(
-            'This bookmark was saved before transit details were stored. Generate a new report from Current Transit and save again.',
+            'This bookmark was saved before transit details were stored. Generate a new report from Today and save again.',
           );
           return;
         }

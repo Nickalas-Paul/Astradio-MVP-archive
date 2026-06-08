@@ -289,7 +289,9 @@ export function ActiveTransitPanel({
   return (
     <div className="space-y-6">
       {!chartId || noRealChart ? (
-        <p className="text-sm text-amber-600">Add a birth chart (Identity or Settings) to use Current Transit.</p>
+        <p className="text-sm text-amber-600">
+          Add a birth chart in My Sky (Identity or Settings) to see your personal transit on Today.
+        </p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md w-full">
