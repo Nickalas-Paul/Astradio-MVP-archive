@@ -76,6 +76,8 @@ export interface DiscoveryCarouselProps {
   isConnectionPending: (match: CompatMatch) => boolean;
   connectionBusyChartId: string | null;
   canRequestConnection: boolean;
+  /** Viewer's chart ID for /listen deep links from match cards. */
+  viewerChartId: string | null;
 }
 
 function CosmicWeatherHeader() {
@@ -191,15 +193,19 @@ function MatchCard({
   intent,
   onViewProfile,
   onRequestConnection,
+  onHearConnection,
   connectionLabel,
   connectionDisabled,
+  hearConnectionDisabled,
 }: {
   match: CompatMatch;
   intent: RelationalIntent;
   onViewProfile: () => void;
   onRequestConnection: () => void;
+  onHearConnection: () => void;
   connectionLabel: string;
   connectionDisabled: boolean;
+  hearConnectionDisabled: boolean;
 }) {
   const ep = match.explanationProfile;
   const bullets = [
@@ -279,6 +285,16 @@ function MatchCard({
         >
           {connectionLabel}
         </Button>
+        <Button
+          type="button"
+          variant="audio"
+          size="md"
+          className="w-full sm:flex-1 min-h-[44px]"
+          onClick={onHearConnection}
+          disabled={hearConnectionDisabled}
+        >
+          Hear this connection
+        </Button>
       </div>
       <p className="sr-only">Browsing as {intentLabel} intent</p>
     </Card>
@@ -295,6 +311,7 @@ export function DiscoveryCarousel({
   isConnectionPending,
   connectionBusyChartId,
   canRequestConnection,
+  viewerChartId,
 }: DiscoveryCarouselProps) {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -424,8 +441,15 @@ export function DiscoveryCarousel({
             intent={intent}
             onViewProfile={() => onViewProfile(currentMatch)}
             onRequestConnection={() => onRequestConnection(currentMatch)}
+            onHearConnection={() => {
+              if (!viewerChartId) return;
+              router.push(
+                `/listen?chartA=${encodeURIComponent(viewerChartId)}&chartB=${encodeURIComponent(currentMatch.chartId)}`
+              );
+            }}
             connectionLabel={connectionLabel}
             connectionDisabled={connectionDisabled}
+            hearConnectionDisabled={!viewerChartId}
           />
         </div>
 

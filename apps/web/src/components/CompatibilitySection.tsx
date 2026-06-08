@@ -291,6 +291,7 @@ export function CompatibilitySection({
           isConnectionPending={(m) => pendingOutgoingForMatch(inventory, m.userId, m.chartId, rankMode)}
           connectionBusyChartId={requestBusy}
           canRequestConnection={Boolean(currentUserId && chartId)}
+          viewerChartId={chartId}
         />
       </Card>
     );
@@ -322,6 +323,7 @@ export function CompatibilitySection({
         isConnectionPending={(m) => pendingOutgoingForMatch(inventory, m.userId, m.chartId, rankMode)}
         connectionBusyChartId={requestBusy}
         canRequestConnection={Boolean(currentUserId && chartId)}
+        viewerChartId={chartId}
       />
     </Card>
   );

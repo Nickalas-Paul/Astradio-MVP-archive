@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
 import { Button } from '@/components/shared/Button';
@@ -15,9 +16,21 @@ function inventoryArtifactStatusCopy(status: string) {
 
 type Props = {
   currentUserId: string | null;
+  /** Viewer's primary chart ID for /listen deep links. */
+  viewerChartId?: string | null;
   /** Increment from parent after connection/group actions to pull latest inventory without remounting. */
   refreshSignal?: number;
 };
+
+function viewerChartIdFromPair(pair: Record<string, unknown>, peerChartId: string | null): string | null {
+  const low = typeof pair.chartIdLow === 'string' ? pair.chartIdLow.trim() : '';
+  const high = typeof pair.chartIdHigh === 'string' ? pair.chartIdHigh.trim() : '';
+  const peer = peerChartId?.trim() || '';
+  if (!low || !high) return null;
+  if (peer === low) return high;
+  if (peer === high) return low;
+  return null;
+}
 
 function PairWeatherPreview({
   relationshipId,
@@ -70,7 +83,8 @@ function PairWeatherPreview({
   );
 }
 
-export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props) {
+export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refreshSignal }: Props) {
+  const router = useRouter();
   const { data, loading, error, refresh } = useCommunityInventory();
   const [accepting, setAccepting] = useState<string | null>(null);
   const [declining, setDeclining] = useState<string | null>(null);
@@ -338,6 +352,29 @@ export function ConnectionInventoryPanel({ currentUserId, refreshSignal }: Props
                       >
                         Open connection
                       </Link>
+                      {(() => {
+                        const peerChartId =
+                          typeof p.peerChartId === 'string' && p.peerChartId.trim() ? p.peerChartId.trim() : null;
+                        const chartA =
+                          viewerChartId?.trim() ||
+                          viewerChartIdFromPair(p, peerChartId);
+                        if (!chartA || !peerChartId) return null;
+                        return (
+                          <Button
+                            type="button"
+                            variant="audio"
+                            size="sm"
+                            className="min-h-[44px]"
+                            onClick={() => {
+                              router.push(
+                                `/listen?chartA=${encodeURIComponent(chartA)}&chartB=${encodeURIComponent(peerChartId)}`
+                              );
+                            }}
+                          >
+                            Hear this connection
+                          </Button>
+                        );
+                      })()}
                     </div>
                     {currentUserId && <PairWeatherPreview relationshipId={String(p.id)} userId={currentUserId} />}
                   </li>

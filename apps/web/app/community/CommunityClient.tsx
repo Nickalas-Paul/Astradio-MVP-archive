@@ -14,6 +14,7 @@ import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
 import type { RelationalIntent } from '../../src/lib/relational-intent';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 import { Tabs } from '@/components/shared/Tabs';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
@@ -237,6 +238,29 @@ function CommunityClientInner() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <Card
+            elevation="raised"
+            className="max-w-2xl mx-auto border-accent/40 bg-surface-1 shadow-lg space-y-4 text-center"
+          >
+            <h2 className="font-serif text-h3 font-semibold text-text-primary">
+              Hear what a relationship sounds like
+            </h2>
+            <p className="text-body-sm text-text-secondary">
+              Combine two charts and hear the sonic signature of a connection.
+            </p>
+            <Link href="/listen">
+              <Button type="button" variant="audio" size="md" className="min-h-[44px]">
+                Choose two charts
+              </Button>
+            </Link>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
           <div className="-mx-2 px-2 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
@@ -304,7 +328,11 @@ function CommunityClientInner() {
           {activeTab === 'connections' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <SignalsPanel currentUserId={user?.id ?? null} />
-              <ConnectionInventoryPanel currentUserId={user?.id ?? null} refreshSignal={inventoryRefreshSignal} />
+              <ConnectionInventoryPanel
+                currentUserId={user?.id ?? null}
+                viewerChartId={seekerChartId}
+                refreshSignal={inventoryRefreshSignal}
+              />
               <div>
                 <h2 className="text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
                 <GroupsList userId={user?.id ?? null} />
