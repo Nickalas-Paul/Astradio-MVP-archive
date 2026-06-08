@@ -191,9 +191,9 @@ export function RelationalCommunityFeed({
 
   if (isLoading && !data) {
     return (
-      <div className={`space-y-4 ${className}`}>
+      <div className={className}>
         {!hideHeader && (
-          <div className="space-y-1">
+          <div className="space-y-1 mb-6">
             <h2 className="text-h2 font-serif font-semibold text-text-primary">
               {primaryHeading ?? 'Transits'}
             </h2>
@@ -640,9 +640,9 @@ export function RelationalCommunityFeed({
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={className}>
       {!hideHeader && (
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
           <div className="space-y-1">
             <h2 className="text-h2 font-serif font-semibold text-text-primary">
               {primaryHeading ?? 'Transits'}
@@ -650,7 +650,7 @@ export function RelationalCommunityFeed({
             {!primaryHeading && (
               <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
             )}
-            <p className="text-caption text-text-muted max-w-2xl">
+            <p className="text-body-sm text-text-secondary max-w-2xl">
               Connections ranked by how active they are for you right now.
             </p>
           </div>
@@ -803,13 +803,13 @@ export function RelationalCommunityFeed({
                                                 {activationLinePrefix(line)}
                                               </p>
                                             ) : null}
-                                            <div className="text-body text-text-primary leading-relaxed">
+                                            <div className="text-body text-text-secondary leading-relaxed max-w-3xl">
                                               <IdentityMarkdown content={activationLineExpandedBody(line)} />
                                             </div>
                                           </div>
                                         ))
                                       : (
-                                        <div className="text-body text-text-primary leading-relaxed">
+                                        <div className="text-body text-text-secondary leading-relaxed max-w-3xl">
                                           <IdentityMarkdown content={activationOnly} />
                                         </div>
                                       )}
@@ -933,7 +933,7 @@ export function RelationalCommunityFeed({
                               <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
                                 {getRoleLabel(line.role)}
                               </p>
-                              <div className="text-body-sm text-text-primary leading-relaxed min-w-0 break-words">
+                              <div className="text-body-sm text-text-secondary leading-relaxed min-w-0 break-words">
                                 <IdentityMarkdown content={line.text} />
                               </div>
                             </li>

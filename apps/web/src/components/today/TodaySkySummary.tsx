@@ -195,6 +195,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
     <section aria-label="Right now in the sky">
       <div className="space-y-1 mb-6">
         <h2 className="text-h2 font-serif font-semibold text-text-primary">Right Now in the Sky</h2>
+        <p className="text-body-sm text-text-secondary">What the planets are doing today, for everyone.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-6 md:gap-8 items-start">
         <ExplanationPanel

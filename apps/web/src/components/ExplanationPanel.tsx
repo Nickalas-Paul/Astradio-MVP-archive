@@ -85,7 +85,7 @@ function sectionOrderKey(sec: ExplanationSection): number {
 function sectionHeadingClass(sec: ExplanationSection, embedded: boolean): string {
   const id = sec.sectionId ?? '';
   if (embedded) {
-    return 'reading-field-label';
+    return 'reading-section-header mb-3 first:mt-0';
   }
   if (HOME_GRADIENT_SECTION_IDS.has(id)) {
     return 'text-body-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-accent-light to-[#0bbfbf] bg-clip-text text-transparent';
@@ -123,7 +123,7 @@ export function ExplanationPanel({
     return (
       <div className={`space-y-4 ${className}`}>
         {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
-        <div className="prose prose-invert max-w-none">
+        <div className="space-y-6 max-w-3xl">
           {sorted.map((sec, idx) => {
             const title = displayTitle(sec);
             let sectionText = sec.text ?? '';
@@ -135,8 +135,11 @@ export function ExplanationPanel({
             const hasLegacyBulletText = !hasBullets && sec.text && /[•·]/.test(sec.text);
             if (!sectionText && !hasBullets && !hasLegacyBulletText) return null;
             return (
-              <section key={sec.sectionId ?? sec.title ?? idx} className="mb-6 last:mb-0">
-                <h4 className={sectionHeadingClass(sec, embedded)}>{title}</h4>
+              <section
+                key={sec.sectionId ?? sec.title ?? idx}
+                className="rounded-lg border border-border bg-bgElev p-4"
+              >
+                <h3 className={sectionHeadingClass(sec, embedded)}>{title}</h3>
                 {sectionText && (
                   <div className="text-body text-text-secondary space-y-2">
                     {paragraphs(sectionText).map((p, i) => (
@@ -171,7 +174,7 @@ export function ExplanationPanel({
   return (
     <div className={`space-y-4 ${className}`}>
       {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
-      <div className="prose prose-invert max-w-none">
+      <div className="prose prose-invert max-w-3xl">
         <p className="text-body text-text-secondary">{fallback}</p>
       </div>
     </div>
