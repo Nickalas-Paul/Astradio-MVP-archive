@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { ExplainerSections } from './shared/ExplainerSections';
@@ -14,6 +14,13 @@ import {
   snapshotSafeForWheel,
 } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
+import {
+  cleanExpiredTransitCache,
+  clearTransitCacheForDate,
+  getTransitCache,
+  setTransitCache,
+  type TransitComposeCacheEntry,
+} from '../../core/transit-compose-cache';
 import { isPersistableChartTimezone } from '../../core/chart-timezone-guard';
 import type { CanonicalLocation } from '../../types/location';
 import { Button } from '@/components/shared/Button';
@@ -56,6 +63,7 @@ export function ActiveTransitPanel({
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
+  const fetchInFlightRef = useRef(false);
 
   const activeWheelSlots = useMemo(() => {
     const id = activeResult?.identity as
@@ -100,58 +108,178 @@ export function ActiveTransitPanel({
     setActiveSlotIndex(0);
   }, [activeResult]);
 
-  const loadActiveStateText = async () => {
+  const buildLocation = useCallback((): CanonicalLocation | null => {
     if (
-      !chartId ||
-      !activeDate ||
-      !activeTime ||
-      !isPersistableChartTimezone(activeTz) ||
-      !activeTransitResolvedAt ||
       activeLat === '' ||
-      activeLon === ''
+      activeLon === '' ||
+      !isPersistableChartTimezone(activeTz) ||
+      !activeTransitResolvedAt
     ) {
-      setActiveError('Set date, time, and a resolved location with a valid timezone for current transit.');
-      return;
+      return null;
     }
-    const base = getApiBaseUrl();
-    setActiveLoading(true);
+    const lat = Number(activeLat);
+    const lon = Number(activeLon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return {
+      source: activeLocSource,
+      label: activeLocLabel.trim() || 'Location',
+      lat,
+      lon,
+      timezone: activeTz.trim(),
+      resolvedAt: activeTransitResolvedAt,
+    };
+  }, [
+    activeLat,
+    activeLon,
+    activeTz,
+    activeTransitResolvedAt,
+    activeLocSource,
+    activeLocLabel,
+  ]);
+
+  const applyCachedEntry = useCallback((entry: TransitComposeCacheEntry) => {
+    setActiveDate(entry.calendarDate);
+    setActiveTime(entry.localTime);
+    setActiveLocLabel(entry.location.label);
+    setActiveLat(String(entry.location.lat));
+    setActiveLon(String(entry.location.lon));
+    setActiveTz(entry.location.timezone);
+    setActiveTransitResolvedAt(entry.location.resolvedAt);
+    setActiveLocSource(
+      entry.location.source === 'browser_geo' ? 'browser_geo' : 'geofinder'
+    );
+    setActiveResult(entry.activeState);
     setActiveError(null);
     setActiveAudioUrl(null);
-    try {
-      const loc: CanonicalLocation = {
-        source: activeLocSource,
-        label: activeLocLabel.trim() || 'Location',
-        lat: Number(activeLat),
-        lon: Number(activeLon),
-        timezone: activeTz.trim(),
-        resolvedAt: activeTransitResolvedAt,
-      };
-      const r = await fetch(`${base || ''}/api/profile/active-state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          chartId,
-          calendarDate: activeDate,
-          localTime: activeTime.length === 5 ? activeTime : activeTime.slice(0, 5),
-          location: loc,
-          generateAudio: false,
-        }),
-      });
-      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!r.ok) {
-        setActiveError(typeof j.error === 'string' ? j.error : `Active state failed (${r.status})`);
-        setActiveResult(null);
+  }, []);
+
+  const loadActiveStateText = useCallback(
+    async (options: { bypassCache?: boolean } = {}) => {
+      if (
+        !chartId ||
+        !activeDate ||
+        !activeTime ||
+        !isPersistableChartTimezone(activeTz) ||
+        !activeTransitResolvedAt ||
+        activeLat === '' ||
+        activeLon === ''
+      ) {
+        setActiveError('Set date, time, and a resolved location with a valid timezone for current transit.');
         return;
       }
-      setActiveResult(j);
-    } catch (e) {
-      setActiveError(e instanceof Error ? e.message : 'Active state failed');
-      setActiveResult(null);
-    } finally {
-      setActiveLoading(false);
+
+      const loc = buildLocation();
+      if (!loc) {
+        setActiveError('Set date, time, and a resolved location with a valid timezone for current transit.');
+        return;
+      }
+
+      const lat = loc.lat;
+      const lon = loc.lon;
+      const timeNorm = activeTime.length === 5 ? activeTime : activeTime.slice(0, 5);
+
+      if (!options.bypassCache) {
+        cleanExpiredTransitCache(activeDate);
+        const cached = getTransitCache(activeDate, chartId, lat, lon);
+        if (cached) {
+          applyCachedEntry(cached);
+          return;
+        }
+      }
+
+      if (fetchInFlightRef.current) return;
+      fetchInFlightRef.current = true;
+
+      const base = getApiBaseUrl();
+      setActiveLoading(true);
+      setActiveError(null);
+      setActiveAudioUrl(null);
+      try {
+        const r = await fetch(`${base || ''}/api/profile/active-state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            chartId,
+            calendarDate: activeDate,
+            localTime: timeNorm,
+            location: loc,
+            generateAudio: false,
+          }),
+        });
+        const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!r.ok) {
+          setActiveError(typeof j.error === 'string' ? j.error : `Active state failed (${r.status})`);
+          setActiveResult(null);
+          return;
+        }
+        setActiveResult(j);
+        setTransitCache(activeDate, chartId, lat, lon, {
+          calendarDate: activeDate,
+          localTime: timeNorm,
+          location: loc,
+          activeState: j,
+        });
+      } catch (e) {
+        setActiveError(e instanceof Error ? e.message : 'Active state failed');
+        setActiveResult(null);
+      } finally {
+        setActiveLoading(false);
+        fetchInFlightRef.current = false;
+      }
+    },
+    [
+      chartId,
+      activeDate,
+      activeTime,
+      activeTz,
+      activeTransitResolvedAt,
+      activeLat,
+      activeLon,
+      buildLocation,
+      applyCachedEntry,
+    ]
+  );
+
+  // Auto-generate once per day (cache) when chart + date + location are ready.
+  useEffect(() => {
+    if (!chartId || noRealChart || !activeDate || activeLat === '' || activeLon === '') {
+      return;
     }
-  };
+    if (!isPersistableChartTimezone(activeTz) || !activeTransitResolvedAt) {
+      return;
+    }
+
+    const lat = Number(activeLat);
+    const lon = Number(activeLon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      cleanExpiredTransitCache(activeDate);
+      const cached = getTransitCache(activeDate, chartId, lat, lon);
+      if (cached) {
+        if (!cancelled) applyCachedEntry(cached);
+        return;
+      }
+      if (!cancelled) await loadActiveStateText({ bypassCache: true });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    chartId,
+    noRealChart,
+    activeDate,
+    activeLat,
+    activeLon,
+    activeTz,
+    activeTransitResolvedAt,
+    applyCachedEntry,
+    loadActiveStateText,
+  ]);
 
   const generateActiveAudio = async () => {
     if (!chartId || !activeResult) return;
@@ -171,14 +299,11 @@ export function ActiveTransitPanel({
     setActiveAudioBusy(true);
     setActiveError(null);
     try {
-      const loc: CanonicalLocation = {
-        source: activeLocSource,
-        label: activeLocLabel.trim() || 'Location',
-        lat: Number(activeLat),
-        lon: Number(activeLon),
-        timezone: activeTz.trim(),
-        resolvedAt: activeTransitResolvedAt,
-      };
+      const loc = buildLocation();
+      if (!loc) {
+        setActiveError('Resolve location with a valid timezone before generating audio.');
+        return;
+      }
       const r = await fetch(`${base || ''}/api/profile/active-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,14 +359,8 @@ export function ActiveTransitPanel({
     const ph = h?.plan_sha256 ?? '';
     const oid = id?.object_identity_hash ?? exp?.meta?.canonical_object_hash ?? '';
     if (!ph) return;
-    const loc: CanonicalLocation = {
-      source: activeLocSource,
-      label: activeLocLabel.trim() || 'Location',
-      lat: Number(activeLat),
-      lon: Number(activeLon),
-      timezone: activeTz.trim(),
-      resolvedAt: activeTransitResolvedAt,
-    };
+    const loc = buildLocation();
+    if (!loc) return;
     const timeNorm = normalizeLocalTime(activeTime);
     const resolvedAt = loc.resolvedAt;
     const dupKey = `${SAVE_DUP_PREFIX}${chartId}|${ph}|${activeDate}|${timeNorm}|${resolvedAt}`;
@@ -286,6 +405,8 @@ export function ActiveTransitPanel({
     onSaved();
   };
 
+  const reportButtonLabel = activeResult ? 'Refresh transit report' : 'Generate transit report';
+
   return (
     <div className="space-y-6">
       {!chartId || noRealChart ? (
@@ -311,6 +432,12 @@ export function ActiveTransitPanel({
               value={activeLocLabel}
               onSelect={(r) => {
                 const resolvedAt = new Date().toISOString();
+                const dateForCache = activeDate || new Date().toISOString().slice(0, 10);
+                if (chartId) {
+                  clearTransitCacheForDate(dateForCache, chartId);
+                }
+                setActiveResult(null);
+                setActiveAudioUrl(null);
                 setActiveLocLabel(r.label);
                 setActiveLat(String(r.lat));
                 setActiveLon(String(r.lon));
@@ -319,6 +446,11 @@ export function ActiveTransitPanel({
                 setActiveLocSource('geofinder');
               }}
               onClear={() => {
+                if (chartId && activeDate) {
+                  clearTransitCacheForDate(activeDate, chartId);
+                }
+                setActiveResult(null);
+                setActiveAudioUrl(null);
                 setActiveLocLabel('');
                 setActiveLat('');
                 setActiveLon('');
@@ -337,9 +469,9 @@ export function ActiveTransitPanel({
               className="w-full sm:w-auto min-h-[44px]"
               disabled={activeLoading}
               loading={activeLoading}
-              onClick={() => void loadActiveStateText()}
+              onClick={() => void loadActiveStateText({ bypassCache: true })}
             >
-              Generate transit report
+              {reportButtonLabel}
             </Button>
             <Button
               type="button"
@@ -363,6 +495,9 @@ export function ActiveTransitPanel({
               Save to Library
             </Button>
           </div>
+          {activeLoading && (
+            <p className="text-sm text-text-secondary">Loading today&apos;s transit…</p>
+          )}
           {librarySaveError ? <p className="text-sm text-red-500">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-red-500">{activeError}</p>}
           {activeWheelSlots && (
