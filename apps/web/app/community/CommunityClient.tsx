@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
-import { RelationalCommunityFeed } from '../../src/components/community/RelationalCommunityFeed';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
 import { DiscoveryUserSearch } from '../../src/components/community/DiscoveryUserSearch';
@@ -19,7 +18,7 @@ import { Tabs } from '@/components/shared/Tabs';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
-type CommunityTabId = 'feed' | 'discovery' | 'connections';
+type CommunityTabId = 'discovery' | 'connections';
 
 function GroupsList({ userId }: { userId: string | null }) {
   const [groups, setGroups] = useState<Array<{ id: string; slug: string; name: string; description: string }>>([]);
@@ -181,7 +180,7 @@ function GroupsList({ userId }: { userId: string | null }) {
 function CommunityClientInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<CommunityTabId>('feed');
+  const [activeTab, setActiveTab] = useState<CommunityTabId>('discovery');
   const [discoveryIntent, setDiscoveryIntent] = useState<RelationalIntent>('friend');
   const [inventoryRefreshSignal, setInventoryRefreshSignal] = useState(0);
   const bumpCommunityInventory = () => setInventoryRefreshSignal((n) => n + 1);
@@ -191,10 +190,14 @@ function CommunityClientInner() {
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'feed' || t === 'discovery' || t === 'connections') {
+    if (t === 'feed') {
+      router.replace('/today');
+      return;
+    }
+    if (t === 'discovery' || t === 'connections') {
       setActiveTab(t);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const setTab = (t: CommunityTabId) => {
     setActiveTab(t);
@@ -204,7 +207,6 @@ function CommunityClientInner() {
   };
 
   const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
-    { id: 'feed', label: 'Transits', icon: '📱' },
     { id: 'discovery', label: 'Discovery', icon: '🔭' },
     { id: 'connections', label: 'Connections', icon: '🔗' },
   ];
@@ -219,9 +221,9 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-h1 font-bold text-text-primary">Community</h1>
+          <h1 className="text-h1 font-bold text-text-primary">Connections</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Transits, discovery, and connections — chart-based and deterministic.
+            Discovery and connections — chart-based and deterministic.
           </p>
           <p className="text-sm text-text-secondary">
             Profile and saved tracks live under{' '}
@@ -240,7 +242,7 @@ function CommunityClientInner() {
           <div className="-mx-2 px-2 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
             <Tabs
               variant="pill"
-              ariaLabel="Community sections"
+              ariaLabel="Connections sections"
               className="min-w-max md:min-w-0"
               tabs={tabs.map((tab) => ({
                 id: tab.id,
@@ -260,12 +262,6 @@ function CommunityClientInner() {
           transition={{ duration: 0.3 }}
           className="w-full"
         >
-          {activeTab === 'feed' && (
-            <section className="max-w-4xl mx-auto" aria-label="Astrological weather forecast">
-              <RelationalCommunityFeed userId={user?.id ?? null} primaryChart={primaryChart} />
-            </section>
-          )}
-
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div>
@@ -323,7 +319,7 @@ function CommunityClientInner() {
 
 export default function CommunityClient() {
   return (
-    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-text-secondary">Loading Community…</div>}>
+    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-text-secondary">Loading Connections…</div>}>
       <CommunityClientInner />
     </Suspense>
   );

@@ -66,7 +66,7 @@ export function ProfilePanelFooter({ user, onPrivacyUpdate }: ProfilePanelFooter
             }}
             className="rounded border-border"
           />
-          <span className="text-sm text-text-primary">Show in community transits</span>
+          <span className="text-sm text-text-primary">Show in Today transits</span>
         </label>
       </div>
     </div>

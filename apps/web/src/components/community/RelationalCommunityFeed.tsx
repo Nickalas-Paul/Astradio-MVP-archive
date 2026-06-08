@@ -97,6 +97,8 @@ interface RelationalCommunityFeedProps {
   className?: string;
   /** When true, page header (title + refresh) is rendered by the parent. */
   hideHeader?: boolean;
+  /** When set, replaces the default "Transits" h2 and omits the redundant subtitle line. */
+  primaryHeading?: string;
 }
 
 function FeedLoadingSkeleton() {
@@ -122,6 +124,7 @@ export function RelationalCommunityFeed({
   primaryChart,
   className = '',
   hideHeader = false,
+  primaryHeading,
 }: RelationalCommunityFeedProps) {
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
@@ -191,8 +194,12 @@ export function RelationalCommunityFeed({
       <div className={`space-y-4 ${className}`}>
         {!hideHeader && (
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">Transits</h2>
-            <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
+            <h2 className="text-h2 font-semibold text-text-primary">
+              {primaryHeading ?? 'Transits'}
+            </h2>
+            {!primaryHeading && (
+              <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
+            )}
           </div>
         )}
         <FeedLoadingSkeleton />
@@ -637,8 +644,12 @@ export function RelationalCommunityFeed({
       {!hideHeader && (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-h2 font-semibold text-text-primary">Transits</h2>
-            <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
+            <h2 className="text-h2 font-semibold text-text-primary">
+              {primaryHeading ?? 'Transits'}
+            </h2>
+            {!primaryHeading && (
+              <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
+            )}
             <p className="text-caption text-text-muted max-w-2xl">
               Connections ranked by how active they are for you right now.
             </p>

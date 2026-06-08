@@ -369,7 +369,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         <p>Historical saved artifact.</p>
                         <p>Generated with an earlier expression version.</p>
                         <a
-                          href="/community?tab=feed"
+                          href="/today"
                           className="inline-block px-3 py-1 rounded border border-amber-500/50 text-xs hover:bg-amber-500/10"
                         >
                           Generate current version
@@ -461,7 +461,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
                       libraryRelationalWeatherTextMissing && (
                         <p className="text-sm text-amber-600 dark:text-amber-300">
-                          Reading text was not stored for this bookmark. Re-save from Community Transits, or
+                          Reading text was not stored for this bookmark. Re-save from Today, or
                           ask an operator to run a library repair.
                         </p>
                       )}

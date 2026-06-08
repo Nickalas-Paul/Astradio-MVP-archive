@@ -6,7 +6,7 @@ import { getApiBaseUrl } from '../core/api-base';
 
 /**
  * Re-fetches audio for composition jobs that have exportId but lost their blob URL
- * (e.g. after refresh). Shared by Profile and Community so both surfaces hydrate
+ * (e.g. after refresh). Shared by Profile, Today, and Connections so those surfaces hydrate
  * from the same composition history.
  */
 export function useHydrateCompositionUrls(): void {

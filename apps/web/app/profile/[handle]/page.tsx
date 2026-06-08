@@ -250,7 +250,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
           href={fromDiscovery ? '/community?tab=discovery' : '/community'}
           className="text-body-sm text-accent-light hover:underline inline-block"
         >
-          ← {fromDiscovery ? 'Back to matches' : 'Community'}
+          ← {fromDiscovery ? 'Back to matches' : 'Connections'}
         </Link>
 
         <ProfileHeader

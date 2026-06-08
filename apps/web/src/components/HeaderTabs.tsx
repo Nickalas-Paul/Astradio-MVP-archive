@@ -6,7 +6,8 @@ import React from 'react';
 
 const NAV = [
   { href: '/profile', label: 'My Sky' },
-  { href: '/community', label: 'Community' },
+  { href: '/today', label: 'Today' },
+  { href: '/community', label: 'Connections' },
   { href: '/sandbox', label: 'Sandbox' },
   { href: '/settings', label: 'Settings' },
 ] as const;

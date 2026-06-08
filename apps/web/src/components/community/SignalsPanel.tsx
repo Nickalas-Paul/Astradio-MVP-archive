@@ -205,8 +205,8 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         <h3 className="text-lg font-semibold text-text-primary">Signals</h3>
         <p className="text-xs text-text-secondary mt-1">
           Purpose-driven prompts and acknowledgments. No DMs.{' '}
-          <Link href="/community?tab=feed" className="text-accent-light hover:underline">
-            Transits
+          <Link href="/today" className="text-accent-light hover:underline">
+            Today
           </Link>{' '}
           links here when a response is needed.
         </p>

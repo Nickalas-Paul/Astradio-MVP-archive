@@ -348,7 +348,7 @@ export default function CommunityRelationshipArtifactPage() {
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
-          ← Back to Community
+          ← Back to Connections
         </Link>
 
         {loadError && !relationship && phase === 'error' && (
@@ -356,7 +356,7 @@ export default function CommunityRelationshipArtifactPage() {
             <p className="text-red-500">{loadError}</p>
             {loadError.includes('Sign in') ? null : (
               <Link href="/community" className="text-accent hover:underline text-sm">
-                Return to Community
+                Return to Connections
               </Link>
             )}
           </div>
@@ -478,7 +478,7 @@ export default function CommunityRelationshipArtifactPage() {
             {comparison && !hasReadingSurface && !materializeError && (
               <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
                 Stored reading text is missing or incomplete for this connection. Use “materialize” from the server or open
-                a new compatibility reading from Community.
+                a new compatibility reading from Connections.
               </p>
             )}
 
