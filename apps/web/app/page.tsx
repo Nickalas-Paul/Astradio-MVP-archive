@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // use relative imports to avoid alias issues
 import { getApiBaseUrl } from '../src/core/api-base';
+import { useProfile } from '../src/core/social/hooks';
 import { playLyriaAudio, stopLyriaPlayback } from '../src/core/audio/lyria-playback';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/shared/Button';
@@ -39,6 +40,7 @@ type ChartData = any;
 
 export default function HomePage() {
   const router = useRouter();
+  const { user, loading: profileLoading } = useProfile();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [composeHash, setComposeHash] = useState<string>('');
@@ -59,8 +61,7 @@ export default function HomePage() {
   const [timeStr, setTimeStr] = useState<string>('');
   const [location, setLocation] = useState<CanonicalLocation | null>(null);
   const [geoPermission, setGeoPermission] = useState<GeoPermissionStatus>('unknown');
-  /** True when /api/profile returns a user — used to gate signed-in-only persistence. */
-  const [signedInUserPresent, setSignedInUserPresent] = useState(false);
+  const signedInUserPresent = user !== null;
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   /** Lyria-only: explicit message when artifact missing or playback fails. */
@@ -89,12 +90,10 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const base = getApiBaseUrl();
-    void fetch(`${base || ''}/api/profile`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setSignedInUserPresent(!!d?.user))
-      .catch(() => setSignedInUserPresent(false));
-  }, []);
+    if (!profileLoading && user) {
+      router.replace('/today');
+    }
+  }, [profileLoading, user, router]);
 
   // 1) defaults: today / now / browser geolocation (single source of truth for home)
   useEffect(() => {
@@ -317,6 +316,7 @@ export default function HomePage() {
 
   // Wheel-only refresh when time changes (cheap snapshot GET; does not trigger compose).
   useEffect(() => {
+    if (profileLoading || user) return;
     if (!location || location.lat == null || location.lon == null || !dateStr || !timeStr) {
       return;
     }
@@ -328,10 +328,11 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [dateStr, timeStr, location?.lat, location?.lon, loadWheelChart]);
+  }, [dateStr, timeStr, location?.lat, location?.lon, loadWheelChart, profileLoading, user]);
 
   // Text-only compose on load (no Lyria); localStorage daily cache per date + location.
   useEffect(() => {
+    if (profileLoading || user) return;
     if (!location || !dateStr || location.lat == null || location.lon == null) {
       return;
     }
@@ -404,7 +405,7 @@ export default function HomePage() {
       cancelled = true;
       composeInFlightRef.current = false;
     };
-  }, [dateStr, location?.lat, location?.lon, location?.timezone, applyCacheEntry, applyComposePayload]);
+  }, [dateStr, location?.lat, location?.lon, location?.timezone, applyCacheEntry, applyComposePayload, profileLoading, user]);
 
   // 2a) Persist canonical location for campaign daily / group anchor (signed-in only; skip anonymous 401 noise)
   const lastTransitSyncKey = useRef<string | null>(null);
@@ -633,6 +634,20 @@ export default function HomePage() {
   useEffect(() => {
     setIsPlaying(false);
   }, [audioUrl]);
+
+  if (profileLoading) {
+    return (
+      <AppShell showPlayer={false} contentClassName="">
+        <div className="min-h-[40vh] flex items-center justify-center text-text-secondary text-sm">
+          Loading…
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (user) {
+    return null;
+  }
 
   const disabled = isLoading || !chartData || !location;
 

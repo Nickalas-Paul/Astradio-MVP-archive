@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { AppShell } from '@/components/AppShell';
 import { RelationalCommunityFeed } from '@/components/community/RelationalCommunityFeed';
 import { ActiveTransitPanel } from '@/components/profile/ActiveTransitPanel';
+import { TodaySkySummary } from '@/components/today/TodaySkySummary';
 import { useProfile } from '@/core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '@/core/social/constants';
 import { useHydrateCompositionUrls } from '@/hooks/useHydrateCompositionUrls';
@@ -44,7 +45,11 @@ function TodayContent() {
   const noRealChart = !realChart || primaryChart?.id === DEFAULT_PROFILE_CHART_ID;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className="max-w-6xl mx-auto space-y-10">
+      <TodaySkySummary primaryChart={primaryChart} />
+
+      <div className="border-t border-border/30" />
+
       <section aria-label="Your personal transit">
         <div className="space-y-1 mb-6">
           <h2 className="text-h2 font-serif font-semibold text-text-primary">Your Transit</h2>
