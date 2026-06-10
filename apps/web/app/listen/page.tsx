@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { PlacementHighlightProvider } from '@/core/PlacementHighlightContext';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { BirthDataForm } from '@/components/sandbox/BirthDataForm';
@@ -660,6 +661,7 @@ function ListenPageInner() {
         )}
 
         {displayReport ? (
+          <PlacementHighlightProvider>
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-text-primary">Your connection reading</h2>
@@ -679,6 +681,7 @@ function ListenPageInner() {
               onGenerateAudio={() => void handleGenerateAudio()}
             />
           </div>
+          </PlacementHighlightProvider>
         ) : null}
       </div>
     </AppShell>

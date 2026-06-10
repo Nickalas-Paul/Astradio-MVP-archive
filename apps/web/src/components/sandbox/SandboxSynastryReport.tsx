@@ -1,6 +1,8 @@
 'use client';
 
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
+import { parsePlanetNamesFromAspectKey } from '@/core/planet-identity';
 import type { SandboxSynastryReportV1 } from '../../types/sandbox';
 
 export interface SandboxSynastryReportProps {
@@ -8,6 +10,8 @@ export interface SandboxSynastryReportProps {
 }
 
 export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
+  const { setHighlight, clearHighlight } = usePlacementHighlight();
+
   if (!report.pairSections.length) return null;
 
   return (
@@ -25,20 +29,33 @@ export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
             {pairSection.tierBlocks.map((tierBlock) => (
               <div key={tierBlock.tierId} className="space-y-4">
                 <h3 className="reading-section-header mb-2 first:mt-0">{tierBlock.title}</h3>
-                {tierBlock.activations.map((activation) => (
-                  <div
-                    key={activation.aspectKey}
-                    className="space-y-3 border-t border-border/60 pt-4 first:border-t-0 first:pt-0"
-                  >
-                    <h4 className="text-base font-semibold text-text-primary">{activation.directionalHeader}</h4>
-                    <IdentityMarkdown content={activation.synastryProse} />
-                    {activation.sonicInterplay ? (
-                      <IdentityMarkdown
-                        content={`**Sonic Interplay**\n\n${activation.sonicInterplay}`}
-                      />
-                    ) : null}
-                  </div>
-                ))}
+                {tierBlock.activations.map((activation) => {
+                  const planets = parsePlanetNamesFromAspectKey(activation.aspectKey);
+                  return (
+                    <div
+                      key={activation.aspectKey}
+                      className="space-y-3 border-t border-border/60 pt-4 first:border-t-0 first:pt-0"
+                      onMouseEnter={() => {
+                        if (planets.length) setHighlight(planets);
+                      }}
+                      onMouseLeave={() => clearHighlight()}
+                      onTouchStart={() => {
+                        if (planets.length) setHighlight(planets);
+                      }}
+                      onTouchEnd={() => clearHighlight()}
+                    >
+                      <h4 className="text-base font-semibold text-text-primary">
+                        {activation.directionalHeader}
+                      </h4>
+                      <IdentityMarkdown content={activation.synastryProse} />
+                      {activation.sonicInterplay ? (
+                        <IdentityMarkdown
+                          content={`**Sonic Interplay**\n\n${activation.sonicInterplay}`}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>

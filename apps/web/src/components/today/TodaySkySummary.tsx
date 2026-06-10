@@ -5,6 +5,7 @@ import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
+import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
 import type { CanonicalLocation } from '@/types/location';
 
@@ -13,6 +14,7 @@ type ExplanationSection = {
   title: string;
   text?: string;
   bullets?: string[];
+  planets?: string[];
 };
 
 function defaultSkyLocation(): CanonicalLocation {
@@ -41,12 +43,39 @@ function chartFallbackLocation(chart: ProfilePrimaryChart): CanonicalLocation {
 function mapSections(payload: Record<string, unknown>): ExplanationSection[] | null {
   const exp = payload.explanation as { sections?: Array<Record<string, unknown>> } | undefined;
   if (!exp?.sections?.length) return null;
-  return exp.sections.map((s) => ({
-    sectionId: String(s.sectionId ?? s.id ?? ''),
-    title: String(s.title ?? ''),
-    text: typeof s.text === 'string' ? s.text : undefined,
-    bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
-  }));
+  const sections = exp.sections.map((s) => {
+    const meta = s.meta as Record<string, unknown> | undefined;
+    const transitCuration = meta?.transitCuration as
+      | { natalBodies?: string[]; transitBodies?: string[] }
+      | undefined;
+    const metaPlanets = meta?.planets as string[] | undefined;
+
+    let planets: string[] | undefined;
+    if (transitCuration?.natalBodies || transitCuration?.transitBodies) {
+      planets = [...(transitCuration.natalBodies || []), ...(transitCuration.transitBodies || [])].map((p) =>
+        p.toLowerCase()
+      );
+    } else if (metaPlanets) {
+      planets = metaPlanets.map((p) => p.toLowerCase());
+    }
+
+    const sectionId = String(s.sectionId ?? s.id ?? '');
+    return {
+      sectionId,
+      title: String(s.title ?? ''),
+      text: typeof s.text === 'string' ? s.text : undefined,
+      bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
+      ...(planets?.length ? { planets } : {}),
+    };
+  });
+
+  for (const sec of sections) {
+    if (!sec.planets?.length && sec.sectionId && SKY_SECTION_PLANETS[sec.sectionId]) {
+      sec.planets = SKY_SECTION_PLANETS[sec.sectionId];
+    }
+  }
+
+  return sections;
 }
 
 function resolveNowDateTime(): { dateStr: string; timeStr: string } {

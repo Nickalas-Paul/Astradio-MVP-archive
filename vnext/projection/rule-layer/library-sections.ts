@@ -73,6 +73,7 @@ export function assembleLibraryPlanetaryAspects(params: {
   const romantic =
     params.connectionMode === 'lovers' || (params.connectionMode as string | undefined) === 'romantic';
 
+  const collectedAspectKeys: string[] = [];
   const paragraphs = rawAspects
     .slice(0, count)
     .map((aspect) => {
@@ -81,15 +82,17 @@ export function assembleLibraryPlanetaryAspects(params: {
       const insight = getAspectInsight(key);
       if (!insight) return null;
 
+      let paragraph: string | null = null;
       if (params.surface === 'compat_pair') {
-        return composeSynastryMepAspectParagraph(insight, romantic ? 'romantic' : 'friendship');
+        paragraph = composeSynastryMepAspectParagraph(insight, romantic ? 'romantic' : 'friendship');
+      } else if (params.surface === 'profile' || params.surface === 'sandbox') {
+        paragraph = assembleProfileIdentityAspectBlock(aspect, insight);
+      } else {
+        paragraph = [insight.core, insight.behavioral].filter(Boolean).join(' ');
       }
 
-      if (params.surface === 'profile' || params.surface === 'sandbox') {
-        return assembleProfileIdentityAspectBlock(aspect, insight);
-      }
-
-      return [insight.core, insight.behavioral].filter(Boolean).join(' ');
+      if (paragraph) collectedAspectKeys.push(key);
+      return paragraph;
     })
     .filter((text): text is string => Boolean(text));
 
@@ -103,6 +106,7 @@ export function assembleLibraryPlanetaryAspects(params: {
       text,
       meta: {
         tagged: taggedSectionBodyFromText(text, 'template'),
+        aspectKeys: collectedAspectKeys,
       },
     },
   ];

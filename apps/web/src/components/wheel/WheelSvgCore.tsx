@@ -1,7 +1,8 @@
 'use client';
 
-import type { Ref, PointerEvent } from 'react';
+import { useMemo, type Ref, PointerEvent } from 'react';
 import type { ChartForWheel } from '../../core/chart-adapter';
+import { PLANET_COLORS, normalizePlanetName } from '../../core/planet-identity';
 import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 import { ASPECT_LINE_COLOR, PLANET_GLYPH, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
 import { arcPath, pol, resolveAscendantLongitude } from './wheel-geometry';
@@ -29,7 +30,7 @@ export interface WheelSvgCoreProps {
   positions?: Record<string, number>;
   aspects?: WheelAspect[];
   showAspectLines?: boolean;
-  planetHighlight?: string | null;
+  planetHighlight?: string | string[] | Set<string> | null;
   className?: string;
   svgRef?: Ref<SVGSVGElement>;
   interactive?: boolean;
@@ -53,6 +54,17 @@ export function WheelSvgCore({
   onPointerMove,
   onPointerUp,
 }: WheelSvgCoreProps) {
+  const highlightSet = useMemo(() => {
+    if (!planetHighlight) return new Set<string>();
+    if (planetHighlight instanceof Set) {
+      return new Set([...planetHighlight].map((p) => normalizePlanetName(p)));
+    }
+    if (Array.isArray(planetHighlight)) {
+      return new Set(planetHighlight.map((p) => normalizePlanetName(p)));
+    }
+    return new Set([normalizePlanetName(planetHighlight)]);
+  }, [planetHighlight]);
+
   const positions = positionsOverride ?? chart.positions;
   const asc = resolveAscendantLongitude(chart, ascendantLongitude);
   const R_OUT = size / 2 - 4;
@@ -151,6 +163,8 @@ export function WheelSvgCore({
               return (
                 <line
                   key={`aspect-${idx}-${bodyA}-${bodyB}-${asp.type}`}
+                  data-planet-a={bodyA.toLowerCase()}
+                  data-planet-b={bodyB.toLowerCase()}
                   x1={p1.x}
                   y1={p1.y}
                   x2={p2.x}
@@ -167,21 +181,25 @@ export function WheelSvgCore({
           const deg = positions[name];
           if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;
           const p = pol(R_OUT - 10, deg, asc);
-          const isHighlighted = planetHighlight === name;
+          const canonicalName = normalizePlanetName(name);
+          const isHighlighted = highlightSet.has(canonicalName);
+          const fill = isHighlighted
+            ? (PLANET_COLORS[canonicalName] ?? WHEEL_COLORS.planetGlyphFillDragging)
+            : WHEEL_COLORS.planetGlyphFill;
           return (
             <text
               key={name}
+              data-planet={canonicalName}
               x={p.x}
               y={p.y + 4}
               textAnchor="middle"
-              fill={
-                isHighlighted
-                  ? WHEEL_COLORS.planetGlyphFillDragging
-                  : WHEEL_COLORS.planetGlyphFill
-              }
+              fill={fill}
               fontSize={isHighlighted ? 18 : 14}
               fontWeight={isHighlighted ? 'bold' : 'normal'}
-              style={interactive ? { cursor: 'grab', userSelect: 'none' } : undefined}
+              style={{
+                transition: 'fill 0.2s ease, font-size 0.2s ease',
+                ...(interactive ? { cursor: 'grab', userSelect: 'none' as const } : {}),
+              }}
             >
               {PLANET_GLYPH[name.toLowerCase()] ?? PLANET_GLYPH[name] ?? '•'}
             </text>
@@ -193,16 +211,24 @@ export function WheelSvgCore({
           if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
           const southLon = (nnLon + 180) % 360;
           const p = pol(R_OUT - 10, southLon, asc);
+          const southHighlighted = highlightSet.has(normalizePlanetName('southNode'));
           return (
             <text
               key="southNode-derived"
+              data-planet="southNode"
               x={p.x}
               y={p.y + 4}
               textAnchor="middle"
-              fill={WHEEL_COLORS.planetGlyphFill}
-              fontSize={11}
-              opacity={SOUTH_NODE_OPACITY}
+              fill={
+                southHighlighted
+                  ? (PLANET_COLORS.southNode ?? WHEEL_COLORS.planetGlyphFill)
+                  : WHEEL_COLORS.planetGlyphFill
+              }
+              fontSize={southHighlighted ? 16 : 11}
+              fontWeight={southHighlighted ? 'bold' : 'normal'}
+              opacity={southHighlighted ? 1 : SOUTH_NODE_OPACITY}
               pointerEvents="none"
+              style={{ transition: 'fill 0.2s ease, font-size 0.2s ease' }}
             >
               {PLANET_GLYPH.southNode}
             </text>

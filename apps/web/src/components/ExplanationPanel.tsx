@@ -1,10 +1,14 @@
 'use client';
 
+import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
+import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
+
 export type ExplanationSection = {
   sectionId?: string;
   title: string;
   text?: string;
   bullets?: string[];
+  planets?: string[];
 };
 
 /** Display title for section (new headings vs legacy Theme/Details/Bullets). */
@@ -101,6 +105,7 @@ export function ExplanationPanel({
   className = '',
   embedded = false,
 }: ExplanationPanelProps) {
+  const { setHighlight, clearHighlight } = usePlacementHighlight();
   const hasSections = Array.isArray(sections) && sections.length > 0;
   const panelTitleClass = embedded
     ? 'reading-section-header mb-4'
@@ -134,10 +139,21 @@ export function ExplanationPanel({
             const hasBullets = Array.isArray(sec.bullets) && sec.bullets.length > 0;
             const hasLegacyBulletText = !hasBullets && sec.text && /[•·]/.test(sec.text);
             if (!sectionText && !hasBullets && !hasLegacyBulletText) return null;
+
+            const sectionId = sec.sectionId ?? '';
+            const sectionPlanets =
+              sec.planets ??
+              (sectionId ? SKY_SECTION_PLANETS[sectionId] : undefined) ??
+              [];
+
             return (
               <section
                 key={sec.sectionId ?? sec.title ?? idx}
                 className="rounded-lg border border-border bg-bgElev p-4"
+                onMouseEnter={() => {
+                  if (sectionPlanets.length) setHighlight(sectionPlanets);
+                }}
+                onMouseLeave={() => clearHighlight()}
               >
                 <h3 className={sectionHeadingClass(sec, embedded)}>{title}</h3>
                 {sectionText && (

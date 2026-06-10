@@ -1,6 +1,9 @@
 'use client';
 
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
+import { IDENTITY_TIER_PLANETS, parsePlanetNamesFromAspectKey } from '@/core/planet-identity';
+import { mapExplanationToSections } from '@/components/profile/shared/profile-reading-utils';
 import type {
   SandboxBirth,
   SandboxOverrides,
@@ -15,23 +18,43 @@ import {
   type SandboxCompositionModelState,
 } from '../../src/lib/sandbox-composition-state';
 
+function sectionHighlightPlanets(sec: {
+  id: string;
+  planets?: string[];
+  aspectKeys?: string[];
+}): string[] {
+  if (sec.planets?.length) return sec.planets;
+  if (sec.id === 'aspects' && sec.aspectKeys?.length) {
+    return [...new Set(sec.aspectKeys.flatMap((k) => parsePlanetNamesFromAspectKey(k)))];
+  }
+  return IDENTITY_TIER_PLANETS[sec.id] ?? [];
+}
+
 export function ExplainerSections({ explanation }: { explanation: unknown }) {
-  const ex = explanation as { sections?: unknown } | null;
-  if (!ex?.sections) return null;
-  const sections = Array.isArray(ex.sections) ? ex.sections : [];
+  const { setHighlight, clearHighlight } = usePlacementHighlight();
+  const sections = mapExplanationToSections(explanation);
+  if (!sections.length) return null;
+
   return (
     <div className="space-y-6">
-      {sections.map((sec: unknown, i: number) => {
-        const s = sec as { title?: string; id?: string; text?: string; content?: string; bullets?: string[] };
+      {sections.map((sec) => {
+        const planets = sectionHighlightPlanets(sec);
         return (
-          <section key={i} className="rounded-lg border border-border bg-bgElev p-4">
+          <section
+            key={sec.id}
+            className="rounded-lg border border-border bg-bgElev p-4"
+            onMouseEnter={() => {
+              if (planets.length) setHighlight(planets);
+            }}
+            onMouseLeave={() => clearHighlight()}
+          >
             <h2 className="reading-section-header mb-3 first:mt-0">
-              {s.title || s.id || `Section ${i + 1}`}
+              {sec.title || sec.id}
             </h2>
-            <IdentityMarkdown content={s.text || s.content || ''} />
-            {s.bullets?.length ? (
+            <IdentityMarkdown content={sec.text} sectionPlanets={planets} />
+            {sec.bullets?.length ? (
               <ul className="mt-3 list-disc list-inside text-text-secondary text-sm space-y-1">
-                {s.bullets.map((b: string, j: number) => (
+                {sec.bullets.map((b: string, j: number) => (
                   <li key={j}>{b}</li>
                 ))}
               </ul>

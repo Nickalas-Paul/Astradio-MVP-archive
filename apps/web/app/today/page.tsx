@@ -10,6 +10,7 @@ import { TodaySkySummary } from '@/components/today/TodaySkySummary';
 import { useProfile } from '@/core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '@/core/social/constants';
 import { useHydrateCompositionUrls } from '@/hooks/useHydrateCompositionUrls';
+import { PlacementHighlightProvider } from '@/core/PlacementHighlightContext';
 import { Card } from '@/components/shared/Card';
 
 function TodayContent() {
@@ -45,49 +46,51 @@ function TodayContent() {
   const noRealChart = !realChart || primaryChart?.id === DEFAULT_PROFILE_CHART_ID;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <TodaySkySummary primaryChart={primaryChart} />
+    <PlacementHighlightProvider>
+      <div className="max-w-6xl mx-auto">
+        <TodaySkySummary primaryChart={primaryChart} />
 
-      <div className="border-t border-border/30 py-8" />
+        <div className="border-t border-border/30 py-8" />
 
-      <section aria-label="Your personal transit">
-        <div className="space-y-1 mb-6">
-          <h2 className="text-h2 font-serif font-semibold text-text-primary">Your Transit</h2>
-          <p className="text-body-sm text-text-secondary">
-            How today&apos;s sky is activating your natal chart.
-          </p>
-        </div>
-        {noRealChart ? (
-          <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
-            <p>Link your birth chart in My Sky to see your personal transit.</p>
-            <p>
-              <Link href="/profile" className="text-accent-light hover:underline">
-                Go to My Sky
-              </Link>
+        <section aria-label="Your personal transit">
+          <div className="space-y-1 mb-6">
+            <h2 className="text-h2 font-serif font-semibold text-text-primary">Your Transit</h2>
+            <p className="text-body-sm text-text-secondary">
+              How today&apos;s sky is activating your natal chart.
             </p>
-          </Card>
-        ) : (
-          <ActiveTransitPanel
-            chartId={chartId}
-            noRealChart={noRealChart}
-            librarySaveError={librarySaveError}
-            onSaved={() => void libraryRef.current?.refresh()}
-            onSaveError={(msg) => setLibrarySaveError(msg)}
-            onClearSaveError={() => setLibrarySaveError(null)}
+          </div>
+          {noRealChart ? (
+            <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
+              <p>Link your birth chart in My Sky to see your personal transit.</p>
+              <p>
+                <Link href="/profile" className="text-accent-light hover:underline">
+                  Go to My Sky
+                </Link>
+              </p>
+            </Card>
+          ) : (
+            <ActiveTransitPanel
+              chartId={chartId}
+              noRealChart={noRealChart}
+              librarySaveError={librarySaveError}
+              onSaved={() => void libraryRef.current?.refresh()}
+              onSaveError={(msg) => setLibrarySaveError(msg)}
+              onClearSaveError={() => setLibrarySaveError(null)}
+            />
+          )}
+        </section>
+
+        <div className="border-t border-border/30 py-8" />
+
+        <section aria-label="Astrological weather forecast">
+          <RelationalCommunityFeed
+            userId={user.id}
+            primaryChart={primaryChart}
+            primaryHeading="Astrological Weather Forecast"
           />
-        )}
-      </section>
-
-      <div className="border-t border-border/30 py-8" />
-
-      <section aria-label="Astrological weather forecast">
-        <RelationalCommunityFeed
-          userId={user.id}
-          primaryChart={primaryChart}
-          primaryHeading="Astrological Weather Forecast"
-        />
-      </section>
-    </div>
+        </section>
+      </div>
+    </PlacementHighlightProvider>
   );
 }
 

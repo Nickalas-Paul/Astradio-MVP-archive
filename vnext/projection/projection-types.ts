@@ -285,6 +285,10 @@ export type ProjectedExplanationSection = {
       transitBodies: string[];
       calendarDate: string;
     };
+    /** Identity tier sections: uppercase planet names covered by this section. */
+    planets?: string[];
+    /** Natal or synastry aspects section: canonical aspect keys referenced in prose. */
+    aspectKeys?: string[];
     /** Profile overlay: full-day selected activations for persistence. */
     transitCurationFull?: import('./rule-layer/transit-overlay-curation').TransitDiversificationContext;
   };

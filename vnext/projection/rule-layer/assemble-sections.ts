@@ -494,7 +494,10 @@ function assemblePlacementTier(config: {
     title: config.title,
     text,
     bullets: [],
-    meta: { tagged: taggedSectionBodyFromText(text, 'template') },
+    meta: {
+      tagged: taggedSectionBodyFromText(text, 'template'),
+      planets: config.planets.map((p: string) => p.toUpperCase()),
+    },
   };
 }
 

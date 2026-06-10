@@ -53,10 +53,36 @@ export function filterIdentityDisplaySections<T extends { id: string }>(sections
 
 export function mapExplanationToSections(explanation: unknown): ProfileChartSection[] {
   const exp = explanation as { sections?: Array<Record<string, unknown>> } | undefined;
-  return (exp?.sections || []).map((x) => ({
-    id: String(x.sectionId ?? x.id ?? 'signatures'),
-    title: String(x.title ?? ''),
-    text: String(x.text ?? ''),
-    bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
-  }));
+  return (exp?.sections || []).map((x) => {
+    const meta = x.meta as Record<string, unknown> | undefined;
+    const transitCuration = meta?.transitCuration as
+      | { natalBodies?: string[]; transitBodies?: string[]; aspectKeys?: string[] }
+      | undefined;
+    const metaPlanets = meta?.planets as string[] | undefined;
+
+    let planets: string[] | undefined;
+    if (transitCuration?.natalBodies || transitCuration?.transitBodies) {
+      planets = [...(transitCuration.natalBodies || []), ...(transitCuration.transitBodies || [])].map((p) =>
+        p.toLowerCase()
+      );
+    } else if (metaPlanets) {
+      planets = metaPlanets.map((p) => p.toLowerCase());
+    }
+
+    let aspectKeys: string[] | undefined;
+    if (transitCuration?.aspectKeys?.length) {
+      aspectKeys = transitCuration.aspectKeys;
+    } else if (Array.isArray(meta?.aspectKeys)) {
+      aspectKeys = meta.aspectKeys as string[];
+    }
+
+    return {
+      id: String(x.sectionId ?? x.id ?? 'signatures'),
+      title: String(x.title ?? ''),
+      text: String(x.text ?? ''),
+      bullets: Array.isArray(x.bullets) ? (x.bullets as string[]) : undefined,
+      ...(planets?.length ? { planets } : {}),
+      ...(aspectKeys?.length ? { aspectKeys } : {}),
+    };
+  });
 }

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useReducer, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { PlacementHighlightProvider } from '../../src/core/PlacementHighlightContext';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
 import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSavedCompositions';
@@ -331,6 +332,7 @@ export default function SandboxPage() {
         )}
 
         {showComposerSurface && (
+          <PlacementHighlightProvider>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <SandboxSlotComposer
@@ -426,6 +428,7 @@ export default function SandboxPage() {
               />
             </motion.div>
           </div>
+          </PlacementHighlightProvider>
         )}
       </div>
     </AppShell>

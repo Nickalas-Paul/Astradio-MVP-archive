@@ -303,6 +303,8 @@ export interface ProfileChartSection {
   title: string;
   text: string;
   bullets?: string[];
+  planets?: string[];
+  aspectKeys?: string[];
 }
 export interface ProfileChartIdentity {
   profile_contract_version: number;

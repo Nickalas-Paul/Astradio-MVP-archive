@@ -10,7 +10,8 @@ import {
   isChartUpdatedSinceLastIdentityAudio,
   setIdentityAudioChartSync,
 } from './shared/profile-audio-utils';
-import { filterIdentityDisplaySections } from './shared/profile-reading-utils';
+import { filterIdentityDisplaySections, mapExplanationToSections } from './shared/profile-reading-utils';
+import { PlacementHighlightProvider } from '../../core/PlacementHighlightContext';
 import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
@@ -170,7 +171,8 @@ export function IdentityPanel({
           : 'Generate a soundtrack from your natal chart.';
 
   return (
-    <div className="space-y-8">
+    <PlacementHighlightProvider>
+      <div className="space-y-8">
       <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full px-0 flex flex-col items-center">
         {noRealChart ? (
           <BirthChartSection
@@ -257,10 +259,13 @@ export function IdentityPanel({
         )}
         {hasExplainer && (
           <ExplainerSections
-            sections={filterIdentityDisplaySections(chartData!.explainer.sections)}
+            sections={filterIdentityDisplaySections(
+              mapExplanationToSections(chartData!.explainer)
+            )}
           />
         )}
       </div>
     </div>
+    </PlacementHighlightProvider>
   );
 }

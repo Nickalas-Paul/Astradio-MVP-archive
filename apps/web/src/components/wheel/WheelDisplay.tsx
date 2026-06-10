@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
 import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
@@ -14,6 +15,8 @@ export interface WheelDisplayProps {
   className?: string;
   /** Max pixel size for the wheel SVG (default 600). */
   maxSize?: number;
+  /** Explicit highlight overrides context (e.g. Sandbox drag). */
+  planetHighlight?: string | string[] | Set<string> | null;
 }
 
 export function WheelDisplay({
@@ -22,12 +25,18 @@ export function WheelDisplay({
   showAspectLines = false,
   className = '',
   maxSize = 600,
+  planetHighlight: planetHighlightProp,
 }: WheelDisplayProps) {
+  const { highlightedPlanets } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
   const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
+
+  const effectiveHighlight =
+    planetHighlightProp ??
+    (highlightedPlanets.size > 0 ? highlightedPlanets : undefined);
 
   useEffect(() => {
     const updateSize = () => {
@@ -102,6 +111,7 @@ export function WheelDisplay({
             ascendantLongitude={resolveAscendantLongitude(normalized)}
             aspects={aspects}
             showAspectLines={aspectLinesVisible}
+            planetHighlight={effectiveHighlight}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

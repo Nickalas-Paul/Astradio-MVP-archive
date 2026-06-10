@@ -12,6 +12,7 @@ import {
   PLANET_ORDER,
 } from './wheel-builder-math';
 import { equalHouseCuspsFromAscendant } from '../../lib/equal-house-cusps';
+import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { WheelSvgCore } from './WheelSvgCore';
 
 export interface WheelBuilderProps {
@@ -55,6 +56,9 @@ export function WheelBuilder({
   const [draggingPlanet, setDraggingPlanet] = useState<PlanetKey | null>(null);
   const [dragStartHouse, setDragStartHouse] = useState<number | null>(null);
   const [wheelSize, setWheelSize] = useState(400);
+  const { highlightedPlanets } = usePlacementHighlight();
+  const effectiveHighlight =
+    draggingPlanet ?? (highlightedPlanets.size > 0 ? highlightedPlanets : undefined);
 
   useEffect(() => {
     const updateSize = () => {
@@ -209,7 +213,7 @@ export function WheelBuilder({
         positions={positions}
         aspects={aspects}
         showAspectLines={showAspectLines}
-        planetHighlight={draggingPlanet}
+        planetHighlight={effectiveHighlight}
         svgRef={svgRef}
         interactive
         onPointerDown={handlePointerDown}
