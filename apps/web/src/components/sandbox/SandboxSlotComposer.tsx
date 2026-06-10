@@ -56,27 +56,31 @@ export function SandboxSlotComposer({
     setPendingImportChartId(null);
   }, [activeIndex, activeSlotEntryMode, activeSlotHasBirth, activeSlotHasChartId]);
 
-  const handleImport = useCallback(async () => {
-    const fromPending = pendingImportChartId?.trim() ?? '';
-    const fromInput = chartIdImportInput.trim();
-    const rawId = fromPending || (fromInput.startsWith('chart_') ? fromInput : '');
-    if (!rawId) {
-      setImportError('Search for a chart and pick a result, or paste a chart ID');
-      return;
-    }
-    setImportLoading(true);
-    setImportError(null);
-    try {
-      await onImportChart(rawId);
-      setChartIdImportInput('');
-      setPendingImportChartId(null);
-      setShowImportSearch(false);
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Import failed');
-    } finally {
-      setImportLoading(false);
-    }
-  }, [chartIdImportInput, pendingImportChartId, onImportChart]);
+  const handleImport = useCallback(
+    async (explicitChartId?: string) => {
+      const fromExplicit = explicitChartId?.trim() ?? '';
+      const fromPending = pendingImportChartId?.trim() ?? '';
+      const fromInput = chartIdImportInput.trim();
+      const rawId = fromExplicit || fromPending || (fromInput.startsWith('chart_') ? fromInput : '');
+      if (!rawId) {
+        setImportError('Search for a chart and pick a result, or paste a chart ID');
+        return;
+      }
+      setImportLoading(true);
+      setImportError(null);
+      try {
+        await onImportChart(rawId);
+        setChartIdImportInput('');
+        setPendingImportChartId(null);
+        setShowImportSearch(false);
+      } catch (err) {
+        setImportError(err instanceof Error ? err.message : 'Import failed');
+      } finally {
+        setImportLoading(false);
+      }
+    },
+    [chartIdImportInput, pendingImportChartId, onImportChart],
+  );
 
   const showBottomSection = slotNeedsEntry || showBirthForm;
 
@@ -195,7 +199,10 @@ export function SandboxSlotComposer({
                     setPendingImportChartId(null);
                     if (importError) setImportError(null);
                   }}
-                  onSelectChartId={(id) => setPendingImportChartId(id)}
+                  onSelectChartId={(id) => {
+                    setPendingImportChartId(id);
+                    void handleImport(id);
+                  }}
                   disabled={importLoading}
                 />
                 <Button

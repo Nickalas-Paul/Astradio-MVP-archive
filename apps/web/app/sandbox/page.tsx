@@ -115,7 +115,9 @@ export default function SandboxPage() {
       setSurfaceState('loading_base');
       try {
         const base = getApiBaseUrl();
-        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(trimmed)}`);
+        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(trimmed)}`, {
+          credentials: 'same-origin',
+        });
         const chartData = await chartRes.json().catch(() => ({}));
         if (!chartRes.ok) {
           setSurfaceState('ready_builder');
@@ -130,6 +132,17 @@ export default function SandboxPage() {
           chartData && typeof chartData === 'object' ? (chartData as Record<string, unknown>) : {},
         );
         const wire = chartApiRecordToSandboxBirthWire(chartData);
+        if (
+          !Number.isFinite(wire.location.lat) ||
+          !Number.isFinite(wire.location.lon) ||
+          !wire.date ||
+          !wire.time
+        ) {
+          setSurfaceState('ready_builder');
+          throw new Error(
+            'This chart’s birth data is not available for wheel preview. Use Birth Data for manual entry, or import your own saved chart.',
+          );
+        }
         resolvePreviewBirthBySlotRef.current.set(
           getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),
           wire,
@@ -139,6 +152,7 @@ export default function SandboxPage() {
         const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ birth: wire, overrides: overridesToUse }),
         });
         const snapData = await snapRes.json().catch(() => ({}));

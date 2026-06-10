@@ -135,7 +135,9 @@ export function useSandboxPreviewSync({
       if (isResolvableBirth && birth) {
         b = birth;
       } else {
-        const chartRes = await fetch(`${baseUrl}/api/charts/${encodeURIComponent(cid)}`);
+        const chartRes = await fetch(`${baseUrl}/api/charts/${encodeURIComponent(cid)}`, {
+          credentials: 'same-origin',
+        });
         const chartData = await chartRes.json().catch(() => ({}));
         if (!chartRes.ok) {
           if (seq !== activeSlotPreviewSeqRef.current) return;

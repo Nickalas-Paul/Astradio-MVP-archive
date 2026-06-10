@@ -4,6 +4,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
+import { getSessionUserId } from '@/lib/session';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
@@ -12,8 +15,13 @@ export async function GET(
   try {
     const backend = getEngineBaseUrl();
     const { id } = await params;
+    const userId = getSessionUserId(req.cookies);
+    const headers = userId
+      ? engineProxySessionHeaders(userId, { Accept: 'application/json' })
+      : engineProxyHeaders({ Accept: 'application/json' });
     const r = await fetch(`${backend}/api/charts/${id}`, {
-      headers: engineProxyHeaders({ Accept: 'application/json' })
+      headers,
+      cache: 'no-store',
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json(data, { status: r.status });
