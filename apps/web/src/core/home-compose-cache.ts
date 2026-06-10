@@ -8,6 +8,7 @@ export type HomeExplanationSection = {
   title: string;
   text?: string;
   bullets?: string[];
+  planets?: string[];
 };
 
 /** Fixed wall-clock time for daily sky compose (report + Lyria); wheel may use UI time separately. */

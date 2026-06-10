@@ -12,6 +12,8 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import ExplanationPanel from '../src/components/ExplanationPanel';
+import { PlacementHighlightProvider } from '@/core/PlacementHighlightContext';
+import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import { normalizeChartForWheel } from '../src/core/chart-adapter';
 import {
   getHomeCache,
@@ -47,7 +49,7 @@ export default function HomePage() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [analysisText, setAnalysisText] = useState<string>('');
   const [explanationSections, setExplanationSections] = useState<
-    Array<{ sectionId?: string; title: string; text?: string; bullets?: string[] }> | null
+    Array<{ sectionId?: string; title: string; text?: string; bullets?: string[]; planets?: string[] }> | null
   >(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [composePlan, setComposePlan] = useState<any>(null);
@@ -141,16 +143,31 @@ export default function HomePage() {
     }
   }, []);
 
+  const enrichSkySections = useCallback(
+    (sections: HomeExplanationSection[] | null): HomeExplanationSection[] | null => {
+      if (!sections) return null;
+      return sections.map((sec) => {
+        const sectionId = sec.sectionId ?? '';
+        if (!sec.planets?.length && sectionId && SKY_SECTION_PLANETS[sectionId]) {
+          return { ...sec, planets: SKY_SECTION_PLANETS[sectionId] };
+        }
+        return sec;
+      });
+    },
+    []
+  );
+
   const mapSections = useCallback((payload: Record<string, unknown>): HomeExplanationSection[] | null => {
     const exp = payload.explanation as { sections?: Array<Record<string, unknown>> } | undefined;
     if (!exp?.sections?.length) return null;
-    return exp.sections.map((s) => ({
+    const sections = exp.sections.map((s) => ({
       sectionId: String(s.sectionId ?? s.id ?? ''),
       title: String(s.title ?? ''),
       text: typeof s.text === 'string' ? s.text : undefined,
       bullets: Array.isArray(s.bullets) ? (s.bullets as string[]) : undefined,
     }));
-  }, []);
+    return enrichSkySections(sections);
+  }, [enrichSkySections]);
 
   const loadWheelChart = useCallback(
     async (composeTime: string, loc: CanonicalLocation, surfaceFallback: unknown) => {
@@ -182,7 +199,7 @@ export default function HomePage() {
     setComposeHash(entry.composeHash);
     setSpecVersion(entry.specVersion);
     setAnalysisText(entry.analysisText);
-    setExplanationSections(entry.sections);
+    setExplanationSections(enrichSkySections(entry.sections));
     setExportId(entry.exportId);
     setChartData(entry.chartData);
     setEngineError(null);
@@ -197,7 +214,7 @@ export default function HomePage() {
     }
     setAudioUrl(null);
     setIsPlaying(false);
-  }, []);
+  }, [enrichSkySections]);
 
   const applyComposePayload = useCallback(
     async (
@@ -706,24 +723,26 @@ export default function HomePage() {
       <div className="max-w-4xl mx-auto border-t border-border/30" />
 
       {/* Sky report + wheel */}
-      <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
-        <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
-          <Card elevation="resting" padding="p-6">
-            <h2 className="reading-section-header mb-4">Right now in the sky</h2>
-            <ExplanationPanel
-              embedded
-              composeHash={composeHash}
-              text={analysisText}
-              sections={explanationSections ?? undefined}
-              isLoading={isLoading}
-            />
-          </Card>
+      <PlacementHighlightProvider>
+        <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
+            <Card elevation="resting" padding="p-6">
+              <h2 className="reading-section-header mb-4">Right now in the sky</h2>
+              <ExplanationPanel
+                embedded
+                composeHash={composeHash}
+                text={analysisText}
+                sections={explanationSections ?? undefined}
+                isLoading={isLoading}
+              />
+            </Card>
 
-          <div className="min-w-0">
-            <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" />
+            <div className="min-w-0">
+              <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </PlacementHighlightProvider>
 
       {/* Secondary controls */}
       <section className="max-w-2xl mx-auto px-4 py-6">
