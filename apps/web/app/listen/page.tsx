@@ -18,7 +18,7 @@ import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
 import { getPlayableLyriaUrl } from '@/core/audio/lyria-playback';
 import { chartApiOwnerDisplayLabel } from '@/lib/sandbox-bff-wire';
-import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
+import { fetchListenSlotSnapshot, extractResolveSlotSnapshots } from '@/lib/listen-chart-snapshot';
 import { SANDBOX_COMPOSE_CONTROLS } from '@/lib/sandbox-composition-state';
 import type { SandboxBirth, SandboxReport } from '@/types/sandbox';
 
@@ -134,8 +134,9 @@ function ListenPageInner() {
   } | null>(null);
   const [chartASnapshot, setChartASnapshot] = useState<unknown>(null);
   const [chartBSnapshot, setChartBSnapshot] = useState<unknown>(null);
+  const [chartAUnavailable, setChartAUnavailable] = useState<string | null>(null);
+  const [chartBUnavailable, setChartBUnavailable] = useState<string | null>(null);
   const [wheelsLoading, setWheelsLoading] = useState(false);
-  const [wheelsError, setWheelsError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resolvedRef = useRef(false);
@@ -347,20 +348,32 @@ function ListenPageInner() {
       resolvedRef.current = true;
 
       setWheelsLoading(true);
-      setWheelsError(null);
       setChartASnapshot(null);
       setChartBSnapshot(null);
-      try {
-        const [snapA, snapB] = await Promise.all([
-          fetchListenSlotSnapshot(base, slotA),
-          fetchListenSlotSnapshot(base, slotB),
-        ]);
-        setChartASnapshot(snapA);
-        setChartBSnapshot(snapB);
-      } catch (e) {
-        setWheelsError(e instanceof Error ? e.message : 'Could not load chart wheels');
-      } finally {
+      setChartAUnavailable(null);
+      setChartBUnavailable(null);
+
+      const resolveSnaps = extractResolveSlotSnapshots(resolveData);
+      if (resolveSnaps && resolveSnaps.length >= 2) {
+        setChartASnapshot(resolveSnaps[0] ?? null);
+        setChartBSnapshot(resolveSnaps[1] ?? null);
         setWheelsLoading(false);
+      } else {
+        try {
+          const [resultA, resultB] = await Promise.all([
+            fetchListenSlotSnapshot(base, slotA),
+            fetchListenSlotSnapshot(base, slotB),
+          ]);
+          if (resultA.status === 'ok') setChartASnapshot(resultA.snapshot);
+          else setChartAUnavailable(resultA.message);
+          if (resultB.status === 'ok') setChartBSnapshot(resultB.snapshot);
+          else setChartBUnavailable(resultB.message);
+        } catch {
+          setChartAUnavailable('Chart data not available for preview');
+          setChartBUnavailable('Chart data not available for preview');
+        } finally {
+          setWheelsLoading(false);
+        }
       }
     } catch (e) {
       setResolveError(e instanceof Error ? e.message : 'Resolve failed');
@@ -438,7 +451,8 @@ function ListenPageInner() {
     setExportUnavailableReason(null);
     setChartASnapshot(null);
     setChartBSnapshot(null);
-    setWheelsError(null);
+    setChartAUnavailable(null);
+    setChartBUnavailable(null);
     setWheelsLoading(false);
     resolvedRef.current = false;
   }, []);
@@ -712,19 +726,26 @@ function ListenPageInner() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-caption text-text-secondary mb-2">{slotA.label}</p>
-                      <WheelDisplay chartData={chartASnapshot} isLoading={false} maxSize={200} className="w-full" />
+                      <WheelDisplay
+                        chartData={chartASnapshot}
+                        isLoading={false}
+                        maxSize={200}
+                        className="w-full"
+                        emptyMessage={chartAUnavailable ?? undefined}
+                      />
                     </div>
                     <div>
                       <p className="text-caption text-text-secondary mb-2">{slotB.label}</p>
-                      <WheelDisplay chartData={chartBSnapshot} isLoading={false} maxSize={200} className="w-full" />
+                      <WheelDisplay
+                        chartData={chartBSnapshot}
+                        isLoading={false}
+                        maxSize={200}
+                        className="w-full"
+                        emptyMessage={chartBUnavailable ?? undefined}
+                      />
                     </div>
                   </div>
                 )}
-                {wheelsError ? (
-                  <p className="text-sm text-text-secondary" role="status">
-                    {wheelsError}
-                  </p>
-                ) : null}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
@@ -760,6 +781,7 @@ function ListenPageInner() {
                           isLoading={false}
                           maxSize={300}
                           className="w-full"
+                          emptyMessage={chartAUnavailable ?? undefined}
                         />
                       </div>
                       <div>
@@ -769,15 +791,11 @@ function ListenPageInner() {
                           isLoading={false}
                           maxSize={300}
                           className="w-full"
+                          emptyMessage={chartBUnavailable ?? undefined}
                         />
                       </div>
                     </>
                   )}
-                  {wheelsError ? (
-                    <p className="text-sm text-text-secondary" role="status">
-                      {wheelsError}
-                    </p>
-                  ) : null}
                 </div>
               </div>
             </div>

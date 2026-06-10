@@ -2,6 +2,7 @@
 
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
+import { useScrollToHighlightedSection } from '@/core/useScrollToHighlightedSection';
 import { parsePlanetNamesFromAspectKey } from '@/core/planet-identity';
 import type { SandboxSynastryReportV1 } from '../../types/sandbox';
 
@@ -10,7 +11,8 @@ export interface SandboxSynastryReportProps {
 }
 
 export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
-  const { setHighlight, clearHighlight } = usePlacementHighlight();
+  const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
+  useScrollToHighlightedSection(highlightedPlanets);
 
   if (!report.pairSections.length) return null;
 
@@ -31,10 +33,17 @@ export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
                 <h3 className="reading-section-header mb-2 first:mt-0">{tierBlock.title}</h3>
                 {tierBlock.activations.map((activation) => {
                   const planets = parsePlanetNamesFromAspectKey(activation.aspectKey);
+                  const isHighlightedFromWheel = planets.some((p) => highlightedPlanets.has(p));
                   return (
                     <div
                       key={activation.aspectKey}
-                      className="space-y-3 border-t border-border/60 pt-4 first:border-t-0 first:pt-0"
+                      id={`section-${activation.aspectKey}`}
+                      data-section-planets={planets.join(',')}
+                      className={`space-y-3 border-t pt-4 first:border-t-0 first:pt-0 transition-all duration-200 ${
+                        isHighlightedFromWheel
+                          ? 'border-accent/50 bg-accent/5 -mx-2 px-2 rounded-lg'
+                          : 'border-border/60'
+                      }`}
                       onMouseEnter={() => {
                         if (planets.length) setHighlight(planets);
                       }}

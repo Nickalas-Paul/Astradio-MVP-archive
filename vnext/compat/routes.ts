@@ -4,7 +4,7 @@
  */
 
 import * as storage from './storage';
-import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart } from './chart-store';
+import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart, getChartSnapshotCached } from './chart-store';
 import { createComparison, parseExpansionTier } from './comparison-service';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
@@ -1399,6 +1399,21 @@ export function createCompatRouter(): import('express').Router {
     const resolved = selectHandleResolvedChart(charts, id);
     if (resolved) return res.json(await chartJsonWithOwnerMeta(resolved, viewerUserId));
     return res.status(404).json({ error: 'Chart not found', code: 'CHART_LOOKUP_AMBIGUOUS' });
+  });
+
+  // GET /api/charts/:id/snapshot — wheel-safe ephemeris (positions/houses only; server reads full chart)
+  router.get('/charts/:id/snapshot', async (req: import('express').Request, res: import('express').Response) => {
+    const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
+    if (!id) return res.status(404).json({ error: 'Chart not found' });
+    const chart = await getChartById(id);
+    if (!chart) return res.status(404).json({ error: 'Chart not found' });
+    try {
+      const snapshot = await getChartSnapshotCached(id);
+      return res.json({ snapshot });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Chart snapshot failed';
+      return res.status(500).json({ error: msg });
+    }
   });
 
   /**

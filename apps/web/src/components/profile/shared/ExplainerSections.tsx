@@ -3,6 +3,7 @@
 import type { ProfileChartSection } from '../../../core/social/hooks';
 import { stripReadingPresentationNoise } from '../../../lib/reading-presentation-filter';
 import { usePlacementHighlight } from '../../../core/PlacementHighlightContext';
+import { useScrollToHighlightedSection } from '../../../core/useScrollToHighlightedSection';
 import { IDENTITY_TIER_PLANETS, parsePlanetNamesFromAspectKey } from '../../../core/planet-identity';
 import { IdentityMarkdown } from '../../shared/IdentityMarkdown';
 import { SECTION_TITLES, sectionSortKey } from './profile-reading-utils';
@@ -22,7 +23,9 @@ export function ExplainerSections({
   sections: ProfileChartSection[];
   hideSectionIds?: readonly string[];
 }) {
-  const { setHighlight, clearHighlight } = usePlacementHighlight();
+  const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
+  useScrollToHighlightedSection(highlightedPlanets);
+
   const hidden = hideSectionIds ? new Set(hideSectionIds) : null;
   const visible = hidden ? sections.filter((s) => !hidden.has(s.id)) : sections;
   const sorted = [...visible].sort((a, b) => {
@@ -35,10 +38,17 @@ export function ExplainerSections({
     <div className="space-y-6">
       {sorted.map((sec) => {
         const planets = sectionHighlightPlanets(sec);
+        const isHighlightedFromWheel = planets.some((p) => highlightedPlanets.has(p));
         return (
           <section
             key={sec.id}
-            className="rounded-lg border border-border bg-bgElev p-4"
+            id={`section-${sec.id}`}
+            data-section-planets={planets.join(',')}
+            className={`rounded-lg border p-4 transition-all duration-200 ${
+              isHighlightedFromWheel
+                ? 'border-accent/50 bg-accent/5'
+                : 'border-border bg-bgElev'
+            }`}
             onMouseEnter={() => {
               if (planets.length) setHighlight(planets);
             }}

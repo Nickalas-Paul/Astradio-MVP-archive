@@ -74,6 +74,8 @@ export type SandboxResolveSuccess = {
   sandboxSynastryReport?: SandboxSynastryReportV1;
   /** Deploy verification: present on pair/group resolves when synastry pipeline is active. */
   resolve_pipeline_version?: typeof SANDBOX_RESOLVE_PIPELINE_VERSION;
+  /** Ephemeris snapshots per UI slot order (pair/group) for client wheel preview. */
+  slot_snapshots?: EphemerisSnapshot[];
 };
 
 export type SandboxResolveFailure = {
@@ -480,6 +482,7 @@ export async function executeSandboxComposition(
         canonical_input_hash_version: normalized.canonical_input_hash_version,
         output_kind,
         aggregate,
+        slot_snapshots: pairSnapshots,
         resolve_pipeline_version: SANDBOX_RESOLVE_PIPELINE_VERSION,
         ...(sandboxSynastryReport.pairSections.length > 0 ? { sandboxSynastryReport } : {}),
         ...(synastryNotice ? { synastryNotice } : {}),

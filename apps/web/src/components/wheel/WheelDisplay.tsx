@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
@@ -17,6 +17,8 @@ export interface WheelDisplayProps {
   maxSize?: number;
   /** Explicit highlight overrides context (e.g. Sandbox drag). */
   planetHighlight?: string | string[] | Set<string> | null;
+  /** Shown when chartData is absent (e.g. privacy-restricted preview). */
+  emptyMessage?: string;
 }
 
 export function WheelDisplay({
@@ -26,8 +28,9 @@ export function WheelDisplay({
   className = '',
   maxSize = 600,
   planetHighlight: planetHighlightProp,
+  emptyMessage,
 }: WheelDisplayProps) {
-  const { highlightedPlanets } = usePlacementHighlight();
+  const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
@@ -37,6 +40,19 @@ export function WheelDisplay({
   const effectiveHighlight =
     planetHighlightProp ??
     (highlightedPlanets.size > 0 ? highlightedPlanets : undefined);
+
+  const enableBidirectional = planetHighlightProp == null;
+
+  const handlePlanetHover = useCallback(
+    (planet: string | null) => {
+      if (planet) {
+        setHighlight([planet]);
+      } else {
+        clearHighlight();
+      }
+    },
+    [setHighlight, clearHighlight]
+  );
 
   useEffect(() => {
     const updateSize = () => {
@@ -112,10 +128,11 @@ export function WheelDisplay({
             aspects={aspects}
             showAspectLines={aspectLinesVisible}
             planetHighlight={effectiveHighlight}
+            onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
+            <div className="text-center px-4">
               <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg
                   className="w-8 h-8 text-text-secondary"
@@ -131,8 +148,12 @@ export function WheelDisplay({
                   />
                 </svg>
               </div>
-              <p className="text-text-secondary text-sm">Waiting for chart data…</p>
-              <p className="text-xs text-text-secondary mt-1">Generate a chart to see the wheel</p>
+              <p className="text-text-secondary text-sm">
+                {emptyMessage ?? 'Waiting for chart data…'}
+              </p>
+              {!emptyMessage ? (
+                <p className="text-xs text-text-secondary mt-1">Generate a chart to see the wheel</p>
+              ) : null}
             </div>
           </div>
         )}

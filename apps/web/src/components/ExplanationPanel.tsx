@@ -1,6 +1,7 @@
 'use client';
 
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
+import { useScrollToHighlightedSection } from '@/core/useScrollToHighlightedSection';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 
 export type ExplanationSection = {
@@ -105,7 +106,8 @@ export function ExplanationPanel({
   className = '',
   embedded = false,
 }: ExplanationPanelProps) {
-  const { setHighlight, clearHighlight } = usePlacementHighlight();
+  const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
+  useScrollToHighlightedSection(highlightedPlanets);
   const hasSections = Array.isArray(sections) && sections.length > 0;
   const panelTitleClass = embedded
     ? 'reading-section-header mb-4'
@@ -145,11 +147,18 @@ export function ExplanationPanel({
               sec.planets ??
               (sectionId ? SKY_SECTION_PLANETS[sectionId] : undefined) ??
               [];
+            const isHighlightedFromWheel = sectionPlanets.some((p) => highlightedPlanets.has(p));
 
             return (
               <section
                 key={sec.sectionId ?? sec.title ?? idx}
-                className="rounded-lg border border-border bg-bgElev p-4"
+                id={`section-${sectionId || sec.title || idx}`}
+                data-section-planets={sectionPlanets.join(',')}
+                className={`rounded-lg border p-4 transition-all duration-200 ${
+                  isHighlightedFromWheel
+                    ? 'border-accent/50 bg-accent/5'
+                    : 'border-border bg-bgElev'
+                }`}
                 onMouseEnter={() => {
                   if (sectionPlanets.length) setHighlight(sectionPlanets);
                 }}
