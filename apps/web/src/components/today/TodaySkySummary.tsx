@@ -5,6 +5,7 @@ import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
+import { getSkyCache, setSkyCache, cleanExpiredSkyCache } from '@/core/sky-compose-cache';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
 import type { CanonicalLocation } from '@/types/location';
@@ -154,6 +155,18 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         if (cancelled) return;
 
         const { dateStr, timeStr } = resolveNowDateTime();
+
+        cleanExpiredSkyCache(dateStr);
+        const cached = getSkyCache(dateStr, loc.lat, loc.lon);
+        if (cached) {
+          setComposeHash(cached.composeHash ?? '');
+          setExplanationSections(cached.explanationSections as ExplanationSection[] | null);
+          setAnalysisText(cached.analysisText ?? '');
+          setChartData(cached.chartData);
+          setIsLoading(false);
+          return;
+        }
+
         const base = getApiBaseUrl();
         const tzParam =
           loc.timezone && String(loc.timezone).trim()
@@ -203,6 +216,16 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setExplanationSections(sections);
         setAnalysisText(sections ? '' : analysis);
         setChartData(wheelSource);
+
+        setSkyCache(dateStr, loc.lat, loc.lon, {
+          explanationSections: sections,
+          analysisText: sections ? '' : analysis,
+          chartData: wheelSource,
+          composeHash: hash,
+          date: dateStr,
+          lat: loc.lat,
+          lon: loc.lon,
+        });
       } catch {
         if (!cancelled) setFailed(true);
       } finally {
