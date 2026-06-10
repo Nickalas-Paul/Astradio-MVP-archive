@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
@@ -17,8 +18,14 @@ import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
 import { getPlayableLyriaUrl } from '@/core/audio/lyria-playback';
 import { chartApiOwnerDisplayLabel } from '@/lib/sandbox-bff-wire';
+import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
 import { SANDBOX_COMPOSE_CONTROLS } from '@/lib/sandbox-composition-state';
 import type { SandboxBirth, SandboxReport } from '@/types/sandbox';
+
+const WheelDisplay = dynamic(
+  () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
+  { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
+);
 
 type ChartSlot =
   | { kind: 'chart_id'; chartId: string; label: string }
@@ -125,6 +132,10 @@ function ListenPageInner() {
     step?: string;
     message?: string;
   } | null>(null);
+  const [chartASnapshot, setChartASnapshot] = useState<unknown>(null);
+  const [chartBSnapshot, setChartBSnapshot] = useState<unknown>(null);
+  const [wheelsLoading, setWheelsLoading] = useState(false);
+  const [wheelsError, setWheelsError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resolvedRef = useRef(false);
@@ -334,6 +345,23 @@ function ListenPageInner() {
       setExportId(resolved.exportId);
       setDisplayReport(buildDisplayReport(resolved, seed, objectHash));
       resolvedRef.current = true;
+
+      setWheelsLoading(true);
+      setWheelsError(null);
+      setChartASnapshot(null);
+      setChartBSnapshot(null);
+      try {
+        const [snapA, snapB] = await Promise.all([
+          fetchListenSlotSnapshot(base, slotA),
+          fetchListenSlotSnapshot(base, slotB),
+        ]);
+        setChartASnapshot(snapA);
+        setChartBSnapshot(snapB);
+      } catch (e) {
+        setWheelsError(e instanceof Error ? e.message : 'Could not load chart wheels');
+      } finally {
+        setWheelsLoading(false);
+      }
     } catch (e) {
       setResolveError(e instanceof Error ? e.message : 'Resolve failed');
     } finally {
@@ -408,6 +436,10 @@ function ListenPageInner() {
     setSandboxAudioSrc(null);
     setAudioGenerateError(null);
     setExportUnavailableReason(null);
+    setChartASnapshot(null);
+    setChartBSnapshot(null);
+    setWheelsError(null);
+    setWheelsLoading(false);
     resolvedRef.current = false;
   }, []);
 
@@ -439,7 +471,7 @@ function ListenPageInner() {
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto p-6 space-y-8">
+      <div className={`mx-auto p-6 space-y-8 ${displayReport ? 'max-w-6xl' : 'max-w-3xl'}`}>
         <header className="text-center space-y-2">
           <h1 className="font-serif text-h1 font-bold text-text-primary">How Does Your Relationship Sound?</h1>
           <p className="text-lg text-text-secondary">
@@ -660,27 +692,95 @@ function ListenPageInner() {
           </div>
         )}
 
-        {displayReport ? (
+        {displayReport && slotA && slotB ? (
           <PlacementHighlightProvider>
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-text-primary">Your connection reading</h2>
-              <Button type="button" variant="outline" size="sm" onClick={handleStartOver}>
-                Choose different charts
-              </Button>
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">Your connection reading</h2>
+                <Button type="button" variant="outline" size="sm" onClick={handleStartOver}>
+                  Choose different charts
+                </Button>
+              </div>
+
+              <div className="md:hidden space-y-4">
+                {wheelsLoading ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+                    <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-caption text-text-secondary mb-2">{slotA.label}</p>
+                      <WheelDisplay chartData={chartASnapshot} isLoading={false} maxSize={200} className="w-full" />
+                    </div>
+                    <div>
+                      <p className="text-caption text-text-secondary mb-2">{slotB.label}</p>
+                      <WheelDisplay chartData={chartBSnapshot} isLoading={false} maxSize={200} className="w-full" />
+                    </div>
+                  </div>
+                )}
+                {wheelsError ? (
+                  <p className="text-sm text-text-secondary" role="status">
+                    {wheelsError}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
+                <div className="min-w-0 space-y-6">
+                  <SandboxReportSections displayReport={displayReport} />
+                  <SandboxAudioPanel
+                    displayReport={displayReport}
+                    exportId={exportId}
+                    sandboxAudioSrc={sandboxAudioSrc}
+                    exportUnavailableReason={exportUnavailableReason}
+                    audioRef={audioRef}
+                    audioGenerateLoading={audioGenerateLoading}
+                    audioGenerateError={audioGenerateError}
+                    onGenerateAudio={() => void handleGenerateAudio()}
+                  />
+                </div>
+
+                <div
+                  className="hidden md:block md:sticky md:top-20 space-y-4 shrink-0"
+                  style={{ maxWidth: '320px' }}
+                >
+                  {wheelsLoading ? (
+                    <>
+                      <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+                      <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-caption text-text-secondary mb-2">{slotA.label}</p>
+                        <WheelDisplay
+                          chartData={chartASnapshot}
+                          isLoading={false}
+                          maxSize={300}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-caption text-text-secondary mb-2">{slotB.label}</p>
+                        <WheelDisplay
+                          chartData={chartBSnapshot}
+                          isLoading={false}
+                          maxSize={300}
+                          className="w-full"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {wheelsError ? (
+                    <p className="text-sm text-text-secondary" role="status">
+                      {wheelsError}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
             </div>
-            <SandboxReportSections displayReport={displayReport} />
-            <SandboxAudioPanel
-              displayReport={displayReport}
-              exportId={exportId}
-              sandboxAudioSrc={sandboxAudioSrc}
-              exportUnavailableReason={exportUnavailableReason}
-              audioRef={audioRef}
-              audioGenerateLoading={audioGenerateLoading}
-              audioGenerateError={audioGenerateError}
-              onGenerateAudio={() => void handleGenerateAudio()}
-            />
-          </div>
           </PlacementHighlightProvider>
         ) : null}
       </div>

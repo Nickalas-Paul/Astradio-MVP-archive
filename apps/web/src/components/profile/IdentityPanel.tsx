@@ -170,10 +170,93 @@ export function IdentityPanel({
           ? 'Your chart was updated. Ready to hear the new you?'
           : 'Generate a soundtrack from your natal chart.';
 
+  const renderWheel = (maxSize: number) => {
+    if (loading) {
+      return (
+        <div
+          className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse mx-auto"
+          style={{ maxWidth: maxSize }}
+        />
+      );
+    }
+    if (chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot)) {
+      return (
+        <WheelDisplay
+          chartData={chartData.snapshot as any}
+          isLoading={false}
+          showAspectLines
+          maxSize={maxSize}
+          className="w-full mx-auto"
+        />
+      );
+    }
+    if (chartData?.snapshot) {
+      return (
+        <div
+          className="aspect-square bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4 mx-auto"
+          style={{ maxWidth: maxSize }}
+        >
+          Chart data received; add planets and houses for wheel view.
+        </div>
+      );
+    }
+    return (
+      <div
+        className="aspect-square bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4 mx-auto"
+        style={{ maxWidth: maxSize }}
+      >
+        {error || 'No chart data'}
+      </div>
+    );
+  };
+
+  const renderAudio = () => (
+    <>
+      {audioState === 'loading' && (
+        <p className="text-sm text-text-secondary">Loading your soundtrack…</p>
+      )}
+      {audioState === 'available' && identityAudioUrl && (
+        <div className="space-y-2">
+          <p className="text-sm text-text-secondary">Listen to this reading</p>
+          <audio controls src={identityAudioUrl} className="w-full" preload="metadata" />
+        </div>
+      )}
+      {(audioState === 'missing' || audioState === 'error') && (
+        <div className="space-y-3">
+          <p className="text-sm text-text-secondary">{missingMessage}</p>
+          <Button
+            type="button"
+            variant="audio"
+            size="sm"
+            disabled={audioGenerating}
+            loading={audioGenerating}
+            onClick={() => void handleGenerateIdentityAudio()}
+          >
+            Hear your chart
+          </Button>
+        </div>
+      )}
+      {audioState === 'generating' && (
+        <div className="space-y-2">
+          <p className="text-sm text-text-secondary">Building your soundtrack…</p>
+          <Button type="button" variant="audio" size="sm" disabled loading>
+            Generating…
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
+  const wheelAndAudio = (maxSize: number) => (
+    <div className="space-y-4">
+      {renderWheel(maxSize)}
+      {renderAudio()}
+    </div>
+  );
+
   return (
     <PlacementHighlightProvider>
       <div className="space-y-8">
-      <div className="max-w-2xl mx-auto space-y-4 min-w-0 w-full px-0 flex flex-col items-center">
         {noRealChart ? (
           <BirthChartSection
             variant="profile_onboarding"
@@ -181,91 +264,46 @@ export function IdentityPanel({
             refreshChart={refreshChart}
             primaryChart={primaryChart}
           />
-        ) : loading ? (
-          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border animate-pulse" />
-        ) : chartData?.snapshot && snapshotSafeForWheel(chartData.snapshot) ? (
-          <div className="w-full flex justify-center">
-            <WheelDisplay
-              chartData={chartData.snapshot as any}
-              isLoading={false}
-              showAspectLines
-              maxSize={480}
-              className="w-full max-w-2xl"
-            />
-          </div>
-        ) : chartData?.snapshot ? (
-          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
-            Chart data received; add planets and houses for wheel view.
-          </div>
         ) : (
-          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
-            {error || 'No chart data'}
-          </div>
-        )}
-
-        {!noRealChart && (
           <>
-            {audioState === 'loading' && (
-              <p className="text-sm text-text-secondary">Loading your soundtrack…</p>
-            )}
+            <div className="md:hidden max-w-[280px] mx-auto w-full">{wheelAndAudio(280)}</div>
 
-            {audioState === 'available' && identityAudioUrl && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-secondary">Listen to this reading</p>
-                <audio controls src={identityAudioUrl} className="w-full" preload="metadata" />
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
+              <div className="min-w-0 w-full">
+                {loading && !chartData && (
+                  <div className="space-y-4">
+                    <div className="h-20 bg-bgElev rounded animate-pulse" />
+                    <div className="h-20 bg-bgElev rounded animate-pulse" />
+                  </div>
+                )}
+                {error && !chartData && (
+                  <p className="text-text-secondary text-sm">{error}</p>
+                )}
+                {hasExplainer && (
+                  <ExplainerSections
+                    sections={filterIdentityDisplaySections(
+                      mapExplanationToSections(chartData!.explainer)
+                    )}
+                  />
+                )}
               </div>
-            )}
 
-            {(audioState === 'missing' || audioState === 'error') && (
-              <div className="space-y-3">
-                <p className="text-sm text-text-secondary">{missingMessage}</p>
-                <Button
-                  type="button"
-                  variant="audio"
-                  size="sm"
-                  disabled={audioGenerating}
-                  loading={audioGenerating}
-                  onClick={() => void handleGenerateIdentityAudio()}
-                >
-                  Hear your chart
-                </Button>
+              <div
+                className="hidden md:block md:sticky md:top-20 shrink-0"
+                style={{ maxWidth: '360px' }}
+              >
+                {wheelAndAudio(340)}
               </div>
-            )}
-
-            {audioState === 'generating' && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-secondary">Building your soundtrack…</p>
-                <Button type="button" variant="audio" size="sm" disabled loading>
-                  Generating…
-                </Button>
-              </div>
-            )}
+            </div>
           </>
         )}
-      </div>
 
-      <div className="min-w-0 w-full">
         {noRealChart && (
-          <p className="text-text-secondary text-sm">Link a chart to see your astrology breakdown and use Matches.</p>
-        )}
-        {loading && !chartData && !noRealChart && (
-          <div className="space-y-4">
-            <div className="h-20 bg-bgElev rounded animate-pulse" />
-            <div className="h-20 bg-bgElev rounded animate-pulse" />
-          </div>
-        )}
-        {error && !chartData && !noRealChart && (
-          <p className="text-text-secondary text-sm">{error}</p>
-        )}
-        {hasExplainer && (
-          <ExplainerSections
-            sections={filterIdentityDisplaySections(
-              mapExplanationToSections(chartData!.explainer)
-            )}
-          />
+          <p className="text-text-secondary text-sm">
+            Link a chart to see your astrology breakdown and use Matches.
+          </p>
         )}
       </div>
-    </div>
     </PlacementHighlightProvider>
   );
 }

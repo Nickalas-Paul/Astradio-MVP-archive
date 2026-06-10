@@ -407,6 +407,43 @@ export function ActiveTransitPanel({
 
   const reportButtonLabel = activeResult ? 'Refresh transit report' : 'Generate transit report';
 
+  const renderWheelColumn = (maxSize?: number) => {
+    if (!activeWheelSlots) return null;
+    return (
+      <div className="w-full space-y-3 min-w-0">
+        <Tabs
+          variant="segmented"
+          ariaLabel="Transit wheel slot"
+          tabs={activeWheelSlots.map((slot, idx) => ({
+            id: String(idx),
+            label: slot.label,
+            description: slot.description,
+          }))}
+          activeTab={String(activeSlotIndex)}
+          onTabChange={(id) => setActiveSlotIndex(Number(id) as 0 | 1)}
+        />
+        {snapshotSafeForWheel(activeWheelSlots[activeSlotIndex]?.snapshot) ? (
+          <WheelDisplay
+            chartData={activeWheelSlots[activeSlotIndex]!.snapshot as any}
+            isLoading={false}
+            className="max-w-full"
+            maxSize={maxSize}
+          />
+        ) : (
+          <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
+            Wheel unavailable for selected slot.
+          </div>
+        )}
+        {activeAudioUrl && (
+          <div className="space-y-2">
+            <p className="text-sm text-text-secondary">Listen to this reading</p>
+            <audio controls src={activeAudioUrl} className="w-full" preload="metadata" />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {!chartId || noRealChart ? (
@@ -500,41 +537,26 @@ export function ActiveTransitPanel({
           )}
           {librarySaveError ? <p className="text-sm text-danger">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
-          {activeWheelSlots && (
-            <div className="max-w-2xl mx-auto w-full space-y-3 min-w-0">
-              <Tabs
-                variant="segmented"
-                ariaLabel="Transit wheel slot"
-                tabs={activeWheelSlots.map((slot, idx) => ({
-                  id: String(idx),
-                  label: slot.label,
-                  description: slot.description,
-                }))}
-                activeTab={String(activeSlotIndex)}
-                onTabChange={(id) => setActiveSlotIndex(Number(id) as 0 | 1)}
-              />
-              {snapshotSafeForWheel(activeWheelSlots[activeSlotIndex]?.snapshot) ? (
-                <WheelDisplay
-                  chartData={activeWheelSlots[activeSlotIndex]!.snapshot as any}
-                  isLoading={false}
-                  className="max-w-full"
-                />
-              ) : (
-                <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
-                  Wheel unavailable for selected slot.
-                </div>
-              )}
+
+          {activeWheelSlots ? (
+            <div className="md:hidden max-w-sm mx-auto w-full">{renderWheelColumn(300)}</div>
+          ) : null}
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
+            <div className="min-w-0">
+              {activeResult?.explanation ? (
+                <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
+              ) : null}
             </div>
-          )}
-          {activeResult?.explanation && (
-            <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
-          )}
-          {activeAudioUrl && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm text-text-secondary">Listen to this reading</p>
-              <audio controls src={activeAudioUrl} className="w-full max-w-md" preload="metadata" />
-            </div>
-          )}
+            {activeWheelSlots ? (
+              <div
+                className="hidden md:block md:sticky md:top-20 shrink-0"
+                style={{ maxWidth: '360px' }}
+              >
+                {renderWheelColumn(340)}
+              </div>
+            ) : null}
+          </div>
         </>
       )}
     </div>

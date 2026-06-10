@@ -226,7 +226,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         <h2 className="text-h2 font-serif font-semibold text-text-primary">Right Now in the Sky</h2>
         <p className="text-body-sm text-text-secondary">What the planets are doing today, for everyone.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-6 md:gap-8 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-start">
         <ExplanationPanel
           embedded
           composeHash={composeHash}
@@ -234,7 +234,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           sections={explanationSections ?? undefined}
           isLoading={isLoading}
         />
-        <div className="min-w-0">
+        <div className="min-w-0 md:sticky md:top-20">
           <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
         </div>
       </div>
