@@ -50,7 +50,7 @@ const GroupIcon = () => (
 const ENTRY_CARDS: SandboxEntryCard[] = [
   {
     id: 'solo',
-    title: 'What does my chart sound like?',
+    title: 'What does this chart sound like?',
     description: 'Import your chart or enter birth data. One chart, one reading, one soundtrack.',
     slotCount: 1,
     icon: <SoloIcon />,
