@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useReducer, useMemo } from 'react';
+import { useState, useCallback, useRef, useReducer, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { PlacementHighlightProvider } from '../../src/core/PlacementHighlightContext';
@@ -9,6 +9,7 @@ import { SandboxReportSections } from '../../src/components/sandbox/SandboxRepor
 import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSavedCompositions';
 import { SandboxWheelPanel } from '../../src/components/sandbox/SandboxWheelPanel';
 import { SandboxSlotComposer } from '../../src/components/sandbox/SandboxSlotComposer';
+import { SandboxEntryCards, type SandboxEntryMode } from '../../src/components/sandbox/SandboxEntryCards';
 import { SandboxResolvePanel } from '../../src/components/sandbox/SandboxResolvePanel';
 import { SandboxAudioPanel } from '../../src/components/sandbox/SandboxAudioPanel';
 import { SandboxProvenancePanel } from '../../src/components/sandbox/SandboxProvenancePanel';
@@ -27,6 +28,7 @@ import {
   getActiveSlotIndexFromCompositionInput,
   slotWirePopulationKind,
   compositionOnlyBlankCanvasPopulated,
+  compositionHasExistingData,
 } from '../../src/lib/sandbox-composition-state';
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 import { equalHouseCuspsFromAscendant } from '../../src/lib/equal-house-cusps';
@@ -47,6 +49,8 @@ export default function SandboxPage() {
 
   const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('ready_builder');
   const [error, setError] = useState<string | null>(null);
+  const [entryLayer, setEntryLayer] = useState<'entry' | 'workbench'>('entry');
+  const entryAutoSkipRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resolvePreviewBirthBySlotRef = useRef<Map<number, SandboxBirth>>(new Map());
@@ -104,6 +108,49 @@ export default function SandboxPage() {
     () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
     [compositionModel.compositionInput],
   );
+
+  const hasExistingComposition = useMemo(
+    () => compositionHasExistingData(compositionModel),
+    [compositionModel]
+  );
+
+  useEffect(() => {
+    if (!entryAutoSkipRef.current && hasExistingComposition) {
+      setEntryLayer('workbench');
+      entryAutoSkipRef.current = true;
+    }
+  }, [hasExistingComposition]);
+
+  const handleEntrySelect = useCallback(
+    (mode: SandboxEntryMode, slotCount: number) => {
+      previewSync.cancelPendingSnapshotSync();
+      resolvePreviewBirthBySlotRef.current.clear();
+      generate.clearSeedFingerprintState();
+      setError(null);
+      setSurfaceState('ready_builder');
+
+      dispatchComposition({ type: 'reset_all' });
+
+      for (let i = 1; i < slotCount; i++) {
+        dispatchComposition({ type: 'add_slot' });
+      }
+      if (slotCount > 1) {
+        dispatchComposition({ type: 'set_active_slot', index: 0 });
+      }
+
+      if (mode === 'whatif') {
+        dispatchComposition({ type: 'set_entry_mode', entryMode: 'blank_canvas' });
+      }
+
+      setEntryLayer('workbench');
+      entryAutoSkipRef.current = true;
+    },
+    [generate, previewSync]
+  );
+
+  const handleEntryContinue = useCallback(() => {
+    setEntryLayer('workbench');
+  }, []);
 
   const handleImportChartById = useCallback(
     async (rawId: string) => {
@@ -268,23 +315,53 @@ export default function SandboxPage() {
 
   const birthFormLoading = surfaceState === 'loading_base';
 
-  const heroLead = useMemo(() => {
+  const workbenchSubtitle = useMemo(() => {
     if (onlyBlankCanvasPopulated) {
       return 'Place planets on the wheel, then build a reading from your composition.';
     }
-    if (activeSlotKind === 'chart_id' || activeEntryMode === 'birth_data' || birth) {
-      return 'Load a chart, make adjustments if you want, then generate a reading.';
-    }
-    return 'Build a chart on the wheel and degree panel, then generate a reading for what you see.';
-  }, [activeSlotKind, activeEntryMode, birth, onlyBlankCanvasPopulated]);
+    return 'Compose a chart, then generate a reading and soundtrack.';
+  }, [onlyBlankCanvasPopulated]);
 
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
-          <h1 className="text-h1 font-bold text-text-primary">Sandbox</h1>
-          <p className="text-lg text-text-secondary max-w-2xl mx-auto">{heroLead}</p>
-        </motion.div>
+        {entryLayer === 'entry' ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-8"
+          >
+            <div className="space-y-4">
+              <h1 className="text-h1 font-serif font-bold text-text-primary">Sandbox</h1>
+              <p className="text-body text-text-secondary max-w-lg mx-auto">
+                Build charts, explore connections, and hear what the configurations sound like.
+              </p>
+            </div>
+            <SandboxEntryCards
+              onSelect={handleEntrySelect}
+              onContinue={handleEntryContinue}
+              hasExistingComposition={hasExistingComposition}
+            />
+          </motion.div>
+        ) : (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
+            >
+              <button
+                type="button"
+                onClick={() => setEntryLayer('entry')}
+                className="text-body-sm text-text-muted hover:text-text-secondary transition-colors"
+              >
+                ← Back to options
+              </button>
+              <div className="text-center space-y-4">
+                <h1 className="text-h1 font-serif font-bold text-text-primary">Sandbox</h1>
+                <p className="text-lg text-text-secondary max-w-2xl mx-auto">{workbenchSubtitle}</p>
+              </div>
+            </motion.div>
 
         {surfaceState === 'loading_base' && (
           <div className="card max-w-2xl mx-auto text-center">
@@ -443,6 +520,8 @@ export default function SandboxPage() {
             </motion.div>
           </div>
           </PlacementHighlightProvider>
+        )}
+          </>
         )}
       </div>
     </AppShell>

@@ -164,6 +164,18 @@ export function isBlankCanvasGenerateEligible(input: SandboxCompositionInputStat
 }
 
 /** All occupied slots are blank-canvas manual charts (Path A only, no imports/birth). */
+/** True when any slot has data, preview snapshots exist, or a resolve session is present. */
+export function compositionHasExistingData(model: SandboxCompositionModelState): boolean {
+  if (model.compositionInput.slots.some((s) => slotWirePopulationKind(s) !== 'empty')) {
+    return true;
+  }
+  if (model.lastResolve != null) return true;
+  if (model.preview.overriddenSnapshot != null || model.preview.baseSnapshot != null) {
+    return true;
+  }
+  return false;
+}
+
 export function compositionOnlyBlankCanvasPopulated(input: SandboxCompositionInputState): boolean {
   const populated = getPopulatedSlotIndicesFromCompositionInput(input);
   return (
