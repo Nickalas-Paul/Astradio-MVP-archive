@@ -7,6 +7,7 @@ import { BirthChartSection } from '../../src/components/profile/BirthChartSectio
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 
 export default function SettingsPage() {
   const { user, primaryChart, loading: profileLoading, refresh } = useProfile();
@@ -37,7 +38,7 @@ export default function SettingsPage() {
           </p>
         </motion.div>
 
-        <div id="birth-chart" className="card scroll-mt-8">
+        <Card id="birth-chart" className="scroll-mt-8">
           <h2 className="text-h4 font-semibold text-text-primary mb-4">Birth chart</h2>
           {!user ? (
             <p className="text-sm text-text-secondary">Sign in to manage your birth chart.</p>
@@ -49,7 +50,7 @@ export default function SettingsPage() {
               primaryChart={primaryChart}
             />
           )}
-        </div>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column */}
@@ -60,7 +61,7 @@ export default function SettingsPage() {
             className="space-y-6"
           >
             {/* Theme Settings */}
-            <div className="card">
+            <Card>
               <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Appearance
               </h2>
@@ -96,10 +97,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Audio Settings */}
-            <div className="card">
+            <Card>
               <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Audio Quality
               </h2>
@@ -141,7 +142,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           </motion.div>
 
           {/* Right Column */}
@@ -152,7 +153,7 @@ export default function SettingsPage() {
             className="space-y-6"
           >
             {/* Language Settings */}
-            <div className="card">
+            <Card>
               <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Language & Region
               </h2>
@@ -172,10 +173,10 @@ export default function SettingsPage() {
                   </select>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Account Settings */}
-            <div className="card">
+            <Card>
               <h2 className="text-h4 font-semibold text-text-primary mb-4">
                 Account
               </h2>
@@ -221,7 +222,7 @@ export default function SettingsPage() {
                   </p>
                 )}
               </div>
-            </div>
+            </Card>
           </motion.div>
         </div>
 
@@ -230,8 +231,8 @@ export default function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="card"
         >
+          <Card>
           <h2 className="text-h4 font-semibold text-text-primary mb-4">
             About Astradio
           </h2>
@@ -259,6 +260,7 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          </Card>
         </motion.div>
       </div>
     </AppShell>

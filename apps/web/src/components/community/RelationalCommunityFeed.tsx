@@ -715,8 +715,9 @@ export function RelationalCommunityFeed({
                 <Card
                   key={`${item.feed_item_id}-${isExpanded ? 'expanded' : 'collapsed'}`}
                   elevation={isExpanded ? 'raised' : 'resting'}
-                  padding={isExpanded ? 'p-6' : 'p-5'}
-                  className={`space-y-4 ${isExpanded ? 'border-l-2 border-l-accent' : 'card-interactive'}`}
+                  size={isExpanded ? 'lg' : 'md'}
+                  interactive={!isExpanded}
+                  className={isExpanded ? 'border-l-2 border-l-accent space-y-4' : 'space-y-4'}
                   aria-expanded={isExpanded}
                 >
                   {isExpanded ? (

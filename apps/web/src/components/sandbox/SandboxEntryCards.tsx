@@ -92,7 +92,7 @@ export function SandboxEntryCards({ onSelect, onContinue, hasExistingComposition
           <Card
             key={card.id}
             elevation="resting"
-            padding="p-5"
+            size="md"
             className="min-h-[180px] flex flex-col transition-all duration-200 hover:border-accent/50 hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3 mb-3">

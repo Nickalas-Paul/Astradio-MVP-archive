@@ -164,7 +164,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
         />
 
         {authTab === 'login' ? (
-          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4 max-w-md">
+          <Card elevation="raised" className="space-y-4 max-w-md">
             <InputField
               type="email"
               autoComplete="email"
@@ -291,9 +291,9 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
             >
               Log in
             </Button>
-          </div>
+          </Card>
         ) : (
-          <div className="rounded-lg border border-border bg-bgElev p-4 space-y-4">
+          <Card elevation="raised" className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <InputField
                 type="email"
@@ -426,7 +426,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
                 Sign in
               </button>
             </p>
-          </div>
+          </Card>
         )}
         </Card>
       </motion.div>

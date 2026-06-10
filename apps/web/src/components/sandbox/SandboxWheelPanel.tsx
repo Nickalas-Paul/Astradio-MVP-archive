@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Card } from '@/components/shared/Card';
 import { WheelBuilder } from '@/components/wheel/WheelBuilder';
 import { PlanetPalette } from './PlanetPalette';
 import type { EphemerisSnapshot, SandboxOverrides, PlanetKey, SandboxSlotEntryMode } from '../../types/sandbox';
@@ -40,7 +41,7 @@ export function SandboxWheelPanel({
   const [paletteSelectedPlanet, setPaletteSelectedPlanet] = useState<PlanetKey | null>(null);
 
   return (
-    <div className="card">
+    <Card>
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-text-primary">Wheel</h2>
@@ -101,6 +102,6 @@ export function SandboxWheelPanel({
           Asteroid placements aren&apos;t included in relationship-aspect lines yet. Sun-Pluto positions drive those lines.
         </p>
       )}
-    </div>
+    </Card>
   );
 }

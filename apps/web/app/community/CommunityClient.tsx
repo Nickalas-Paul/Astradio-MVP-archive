@@ -91,7 +91,9 @@ function GroupsList({ userId }: { userId: string | null }) {
   if (!userId) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <p className="text-sm text-text-secondary rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
+        <Card elevation="raised" padding="px-4 py-3" className="text-sm text-text-secondary">
+          {GROUPS_INTRO}
+        </Card>
         <p className="text-sm text-text-secondary">Sign in to list and create relational chart groups.</p>
       </div>
     );
@@ -99,7 +101,9 @@ function GroupsList({ userId }: { userId: string | null }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <p className="text-sm text-text-secondary rounded-lg border border-border bg-bgElev px-4 py-3">{GROUPS_INTRO}</p>
+      <Card elevation="raised" padding="px-4 py-3" className="text-sm text-text-secondary">
+        {GROUPS_INTRO}
+      </Card>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -155,10 +159,10 @@ function GroupsList({ userId }: { userId: string | null }) {
       {loading ? (
         <p className="text-text-secondary text-sm">Loading groups…</p>
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-border bg-bgElev p-6 text-center">
+        <Card elevation="raised" size="lg" className="text-center">
           <p className="text-text-secondary text-sm">No groups match.</p>
           <p className="text-xs text-text-secondary mt-1">{GROUPS_INTRO}</p>
-        </div>
+        </Card>
       ) : (
         <ul className="space-y-3">
           {filtered.map((g) => (
@@ -240,10 +244,7 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
         >
-          <Card
-            elevation="raised"
-            className="max-w-2xl mx-auto border-accent/40 bg-surface-1 shadow-lg space-y-4 text-center"
-          >
+          <Card size="lg" className="max-w-2xl mx-auto border-accent/40 space-y-4 text-center">
             <h2 className="font-serif text-h3 font-semibold text-text-primary">
               Hear what a relationship sounds like
             </h2>

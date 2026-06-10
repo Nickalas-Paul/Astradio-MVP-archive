@@ -11,6 +11,7 @@ import {
   type CompatibilityTextLike,
   type ExplanationLike,
 } from '../../lib/compatibility-reading-surface';
+import { Card } from '../shared/Card';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -267,7 +268,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
   }, [result?.seekerChartId, result?.targetChartId]);
 
   return (
-    <div className="card space-y-6">
+    <Card className="space-y-6">
       <h2 className="text-xl font-semibold text-text-primary">Compare Charts</h2>
       <p className="text-sm text-text-secondary">
         Create or select two natal charts and generate a compatibility summary and shared soundtrack.
@@ -512,6 +513,6 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

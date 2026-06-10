@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { ComparisonSwitcherProps } from '../types';
+import { Card } from './shared/Card';
 
 export function ComparisonSwitcher({
   chartA,
@@ -25,7 +26,7 @@ export function ComparisonSwitcher({
   };
 
   return (
-    <div className={`card ${className}`}>
+    <Card className={className}>
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-text-primary">
           Chart Comparison
@@ -138,6 +139,6 @@ export function ComparisonSwitcher({
           </motion.div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

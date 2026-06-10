@@ -14,6 +14,8 @@ import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { Card } from '@/components/shared/Card';
 
+const MotionCard = motion(Card);
+
 export { filterIdentityDisplaySections } from '../profile/shared/profile-reading-utils';
 
 export interface ProfilePanelProps {
@@ -69,10 +71,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <motion.div
+      <MotionCard
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="card space-y-6"
+        className="space-y-6"
       >
         <ProfileHeaderCard user={user} primaryChart={primaryChart} onProfileRefresh={refresh} />
 
@@ -140,7 +142,7 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         <div className="border-t border-border pt-6 mt-6">
           <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
         </div>
-      </motion.div>
+      </MotionCard>
     </div>
   );
 }

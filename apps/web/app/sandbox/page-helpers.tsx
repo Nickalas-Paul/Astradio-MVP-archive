@@ -1,6 +1,7 @@
 'use client';
 
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { Card } from '@/components/shared/Card';
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
 import { IDENTITY_TIER_PLANETS, parsePlanetNamesFromAspectKey } from '@/core/planet-identity';
 import { mapExplanationToSections } from '@/components/profile/shared/profile-reading-utils';
@@ -31,7 +32,7 @@ function sectionHighlightPlanets(sec: {
 }
 
 export function ExplainerSections({ explanation }: { explanation: unknown }) {
-  const { setHighlight, clearHighlight } = usePlacementHighlight();
+  const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const sections = mapExplanationToSections(explanation);
   if (!sections.length) return null;
 
@@ -39,10 +40,14 @@ export function ExplainerSections({ explanation }: { explanation: unknown }) {
     <div className="space-y-6">
       {sections.map((sec) => {
         const planets = sectionHighlightPlanets(sec);
+        const isHighlightedFromWheel = planets.some((p) => highlightedPlanets.has(p));
         return (
-          <section
+          <Card
             key={sec.id}
-            className="rounded-lg border border-border bg-bgElev p-4"
+            as="section"
+            elevation="raised"
+            highlighted={isHighlightedFromWheel}
+            className="transition-all duration-200"
             onMouseEnter={() => {
               if (planets.length) setHighlight(planets);
             }}
@@ -59,7 +64,7 @@ export function ExplainerSections({ explanation }: { explanation: unknown }) {
                 ))}
               </ul>
             ) : null}
-          </section>
+          </Card>
         );
       })}
     </div>

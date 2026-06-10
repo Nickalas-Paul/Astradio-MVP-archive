@@ -6,6 +6,7 @@ import { useProfile, useUserSearch, useProfileChart, type ProfileChartSection, t
 import { getApiBaseUrl } from '../../core/api-base';
 import { hasRealChart } from '../../core/social/constants';
 import type { RelationalIntent } from '../../lib/relational-intent';
+import { Card } from '../shared/Card';
 
 const WheelCanvas = dynamic(
   () => import('../WheelCanvas').then((m) => m.default),
@@ -172,7 +173,7 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
   const canSearch = qTrimmed.length >= 2;
 
   return (
-    <div className="card space-y-6">
+    <Card className="space-y-6">
       <h2 className="text-xl font-semibold text-text-primary">Find people</h2>
       <p className="text-sm text-text-secondary">
         Search by name or handle (min 2 characters). Directory results only. Request connection for a saved link (peer must accept). Select people below
@@ -311,6 +312,6 @@ export function UserSearchPanel({ onInventoryRefresh, relationshipKind = 'friend
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

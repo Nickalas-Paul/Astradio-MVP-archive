@@ -530,7 +530,8 @@ function ListenPageInner() {
                   {viewerChartId ? (
                     <Card
                       elevation="raised"
-                      className={`cursor-pointer transition-colors ${chartAMode === 'mine' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                      interactive
+                      selected={chartAMode === 'mine'}
                       onClick={() => {
                         setChartAMode('mine');
                         void handleUseMyChart();
@@ -549,7 +550,8 @@ function ListenPageInner() {
                   )}
                   <Card
                     elevation="raised"
-                    className={`cursor-pointer transition-colors ${chartAMode === 'search' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                    interactive
+                    selected={chartAMode === 'search'}
                     onClick={() => setChartAMode('search')}
                   >
                     <p className="text-sm font-semibold text-text-primary">Search connections</p>
@@ -557,7 +559,8 @@ function ListenPageInner() {
                   </Card>
                   <Card
                     elevation="raised"
-                    className={`cursor-pointer transition-colors ${chartAMode === 'manual' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                    interactive
+                    selected={chartAMode === 'manual'}
                     onClick={() => setChartAMode('manual')}
                   >
                     <p className="text-sm font-semibold text-text-primary">Enter different birth data</p>
@@ -624,7 +627,8 @@ function ListenPageInner() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Card
                     elevation="raised"
-                    className={`cursor-pointer transition-colors ${chartBMode === 'search' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                    interactive
+                    selected={chartBMode === 'search'}
                     onClick={() => setChartBMode('search')}
                   >
                     <p className="text-sm font-semibold text-text-primary">Search connections</p>
@@ -632,7 +636,8 @@ function ListenPageInner() {
                   </Card>
                   <Card
                     elevation="raised"
-                    className={`cursor-pointer transition-colors ${chartBMode === 'birth' ? 'ring-2 ring-accent/40 border-accent/50' : ''}`}
+                    interactive
+                    selected={chartBMode === 'birth'}
                     onClick={() => setChartBMode('birth')}
                   >
                     <p className="text-sm font-semibold text-text-primary">Enter birth data</p>

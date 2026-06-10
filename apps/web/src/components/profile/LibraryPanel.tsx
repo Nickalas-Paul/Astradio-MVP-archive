@@ -13,6 +13,7 @@ import { normalizeLocalTime, sandboxStateCompleteForTransit } from './shared/pro
 import { getApiBaseUrl } from '../../core/api-base';
 import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
 import { IdentityMarkdown } from '../shared/IdentityMarkdown';
+import { Card } from '../shared/Card';
 import { Button } from '@/components/shared/Button';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
@@ -310,9 +311,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
               <>
                 <ul className="space-y-3">
                   {libraryRows.map((row) => (
-                    <li
+                    <Card
+                      as="li"
                       key={String(row.id)}
-                      className="card-interactive rounded-lg border border-border p-4 text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
+                      elevation="raised"
+                      interactive
+                      className="text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
                     >
                       <span>
                         <span className="text-text-secondary">{String(row.created_at)}</span>
@@ -330,12 +334,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       >
                         View
                       </Button>
-                    </li>
+                    </Card>
                   ))}
                   {libraryRows.length === 0 && <li className="text-text-secondary">Nothing saved yet.</li>}
                 </ul>
                 {libraryOpenId && (
-                  <div className="rounded border border-border bg-bgElev p-4 space-y-3 mt-4">
+                  <Card elevation="raised" className="!rounded space-y-3 mt-4">
                     <div className="flex justify-between items-start gap-2">
                       <p className="text-sm font-medium text-text-primary">
                         {libraryDetailRow ? librarySourceLabel(libraryDetailRow.source) : 'Saved artifact'}
@@ -479,7 +483,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                         <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
                       </div>
                     )}
-                  </div>
+                  </Card>
                 )}
               </>
             )}

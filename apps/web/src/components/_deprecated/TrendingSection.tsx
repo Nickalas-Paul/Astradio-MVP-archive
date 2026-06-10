@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useTrending } from '../core/social/hooks';
 import { isFeatureEnabled } from '../../config/flags';
 import { trackPlay, trackLike, trackShare } from '../core/telemetry';
+import { Card } from '../shared/Card';
 
 interface TrendingSectionProps {
   genre?: string;
@@ -39,7 +40,7 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
 
   if (isLoading) {
     return (
-      <div className={`card ${className}`}>
+      <Card className={className}>
         <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
@@ -48,38 +49,38 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
             <div key={i} className="skeleton h-16 rounded-lg" />
           ))}
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className={`card ${className}`}>
+      <Card className={className}>
         <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
         <div className="text-center py-8">
           <p className="text-text-secondary text-sm">Unable to load trending compositions</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (tracks.length === 0) {
     return (
-      <div className={`card ${className}`}>
+      <Card className={className}>
         <h3 className="text-lg font-semibold text-text-primary mb-4">
           {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
         </h3>
         <div className="text-center py-8">
           <p className="text-text-secondary text-sm">No trending compositions yet</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className={`card ${className}`}>
+    <Card className={className}>
       <h3 className="text-lg font-semibold text-text-primary mb-4">
         {genre ? `${genre.charAt(0).toUpperCase() + genre.slice(1)} Trending` : 'Trending Now'}
       </h3>
@@ -165,6 +166,6 @@ export function TrendingSection({ genre, limit = 5, className = '' }: TrendingSe
           </motion.div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

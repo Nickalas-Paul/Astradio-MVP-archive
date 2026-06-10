@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useReducer, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { Card } from '../../src/components/shared/Card';
 import { PlacementHighlightProvider } from '../../src/core/PlacementHighlightContext';
 import { DegreePanel } from '../../src/components/sandbox/DegreePanel';
 import { SandboxReportSections } from '../../src/components/sandbox/SandboxReportSections';
@@ -364,13 +365,13 @@ export default function SandboxPage() {
             </motion.div>
 
         {surfaceState === 'loading_base' && (
-          <div className="card max-w-2xl mx-auto text-center">
+          <Card className="max-w-2xl mx-auto text-center">
             <p className="text-text-secondary">Loading chart...</p>
-          </div>
+          </Card>
         )}
 
         {surfaceState === 'error' && error && (
-          <div className="card max-w-2xl mx-auto">
+          <Card className="max-w-2xl mx-auto">
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
               <p className="font-semibold mb-2">Error</p>
               <p className="text-sm">{error}</p>
@@ -387,13 +388,13 @@ export default function SandboxPage() {
                 Reset
               </button>
             </div>
-          </div>
+          </Card>
         )}
 
         {sandboxDebug &&
           (surfaceState === 'ready_builder' || surfaceState === 'syncing_overrides' || surfaceState === 'ready_report') &&
           currentSnapshot && (
-          <details className="card mt-4">
+          <details className="rounded-xl border border-border bg-surface-1 shadow-md p-4 mt-4">
             <summary className="cursor-pointer text-sm font-medium text-text-secondary hover:text-text-primary">Snapshot verification</summary>
             <div className="mt-3 text-xs font-mono text-text-secondary space-y-1">
               <p>
@@ -456,7 +457,7 @@ export default function SandboxPage() {
                 entryMode={activeEntryMode}
               />
 
-              <div className="card">
+              <Card>
                 <SandboxResolvePanel
                   canGenerate={generate.canGenerate}
                   generateDisabledReasons={generate.generateDisabledReasons}
@@ -493,11 +494,11 @@ export default function SandboxPage() {
                     onReplay={handleReplay}
                   />
                 )}
-              </div>
+              </Card>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <div className="card">
+              <Card>
                 <DegreePanel
                   overrides={overrides}
                   basePositions={basePositions}
@@ -509,7 +510,7 @@ export default function SandboxPage() {
                   onResetPlanet={handleResetPlanet}
                   entryMode={activeEntryMode}
                 />
-              </div>
+              </Card>
               <SandboxSavedCompositions
                 savedList={persistence.savedList}
                 listLoading={persistence.listLoading}

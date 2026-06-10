@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { ChartSearchCombobox } from './ChartSearchCombobox';
 import { BirthDataForm } from './BirthDataForm';
 import { Button } from '../shared/Button';
+import { Card } from '../shared/Card';
 import { SANDBOX_MAX_SLOTS } from '../../lib/sandbox-composition-state';
 import type { SandboxCompositionInputState, SandboxBirth, SandboxSlotEntryMode } from '../../types/sandbox';
 import type { SlotProjectionRow } from '../../lib/sandbox-slot-projection';
@@ -85,7 +86,7 @@ export function SandboxSlotComposer({
   const showBottomSection = slotNeedsEntry || showBirthForm;
 
   return (
-    <div className="card">
+    <Card>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-text-primary">Astrology Composition</h2>
@@ -248,6 +249,6 @@ export function SandboxSlotComposer({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }

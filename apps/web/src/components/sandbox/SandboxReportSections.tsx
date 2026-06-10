@@ -1,6 +1,7 @@
 'use client';
 
 import type { SandboxReport, SandboxSynastryReportV1 } from '../../types/sandbox';
+import { Card } from '@/components/shared/Card';
 import { ExplainerSections } from '../../../app/sandbox/page-helpers';
 import { SandboxSynastryReport } from './SandboxSynastryReport';
 
@@ -14,20 +15,20 @@ export function SandboxReportSections({ displayReport }: SandboxReportSectionsPr
   return (
     <div className="mt-6 space-y-4">
       {displayReport.personality && (
-        <section className="rounded-lg border border-border bg-bgElev p-4">
+        <Card as="section" elevation="raised">
           <h3 className="text-lg font-semibold text-text-primary mb-3">Personality</h3>
           <div className="text-text-secondary text-sm">
             {displayReport.personality.summary || JSON.stringify(displayReport.personality, null, 2)}
           </div>
-        </section>
+        </Card>
       )}
       {displayReport.guidance && (
-        <section className="rounded-lg border border-border bg-bgElev p-4">
+        <Card as="section" elevation="raised">
           <h3 className="text-lg font-semibold text-text-primary mb-3">Guidance</h3>
           <div className="text-text-secondary text-sm">
             {displayReport.guidance.advice || JSON.stringify(displayReport.guidance, null, 2)}
           </div>
-        </section>
+        </Card>
       )}
       {displayReport.sandboxSynastryReport ? (
         <SandboxSynastryReport report={displayReport.sandboxSynastryReport} />

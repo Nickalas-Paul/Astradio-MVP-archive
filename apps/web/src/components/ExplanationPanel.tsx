@@ -3,6 +3,7 @@
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
 import { useScrollToHighlightedSection } from '@/core/useScrollToHighlightedSection';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
+import { Card } from '@/components/shared/Card';
 
 export type ExplanationSection = {
   sectionId?: string;
@@ -150,15 +151,14 @@ export function ExplanationPanel({
             const isHighlightedFromWheel = sectionPlanets.some((p) => highlightedPlanets.has(p));
 
             return (
-              <section
+              <Card
                 key={sec.sectionId ?? sec.title ?? idx}
+                as="section"
+                elevation="raised"
+                highlighted={isHighlightedFromWheel}
+                className="transition-all duration-200"
                 id={`section-${sectionId || sec.title || idx}`}
                 data-section-planets={sectionPlanets.join(',')}
-                className={`rounded-lg border p-4 transition-all duration-200 ${
-                  isHighlightedFromWheel
-                    ? 'border-accent/50 bg-accent/5'
-                    : 'border-border bg-bgElev'
-                }`}
                 onMouseEnter={() => {
                   if (sectionPlanets.length) setHighlight(sectionPlanets);
                 }}
@@ -187,7 +187,7 @@ export function ExplanationPanel({
                     ))}
                   </ul>
                 )}
-              </section>
+              </Card>
             );
           })}
         </div>

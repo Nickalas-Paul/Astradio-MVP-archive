@@ -6,6 +6,7 @@ import { usePlacementHighlight } from '../../../core/PlacementHighlightContext';
 import { useScrollToHighlightedSection } from '../../../core/useScrollToHighlightedSection';
 import { IDENTITY_TIER_PLANETS, parsePlanetNamesFromAspectKey } from '../../../core/planet-identity';
 import { IdentityMarkdown } from '../../shared/IdentityMarkdown';
+import { Card } from '../../shared/Card';
 import { SECTION_TITLES, sectionSortKey } from './profile-reading-utils';
 
 function sectionHighlightPlanets(sec: ProfileChartSection): string[] {
@@ -40,15 +41,14 @@ export function ExplainerSections({
         const planets = sectionHighlightPlanets(sec);
         const isHighlightedFromWheel = planets.some((p) => highlightedPlanets.has(p));
         return (
-          <section
+          <Card
             key={sec.id}
+            as="section"
+            elevation="raised"
+            highlighted={isHighlightedFromWheel}
+            className="transition-all duration-200"
             id={`section-${sec.id}`}
             data-section-planets={planets.join(',')}
-            className={`rounded-lg border p-4 transition-all duration-200 ${
-              isHighlightedFromWheel
-                ? 'border-accent/50 bg-accent/5'
-                : 'border-border bg-bgElev'
-            }`}
             onMouseEnter={() => {
               if (planets.length) setHighlight(planets);
             }}
@@ -65,7 +65,7 @@ export function ExplainerSections({
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         );
       })}
     </div>

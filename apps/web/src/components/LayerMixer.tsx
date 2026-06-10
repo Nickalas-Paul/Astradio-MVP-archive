@@ -2,6 +2,9 @@
 
 import { motion } from 'framer-motion';
 import type { LayerMixerProps, LayerMeta } from '../types';
+import { Card } from './shared/Card';
+
+const MotionCard = motion(Card);
 
 const layerConfig = {
   melody: { label: 'Melody', icon: '🎵', color: 'accent' },
@@ -13,7 +16,7 @@ const layerConfig = {
 export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixerProps) {
   if (!layers || layers.length === 0) {
     return (
-      <div className={`card ${className}`}>
+      <Card className={className}>
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-bgElev border border-border rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,16 +28,16 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
             Generate a composition to see and control individual audio layers
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <motion.div
+    <MotionCard
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`card ${className}`}
+      className={className}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -192,6 +195,6 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
       `}</style>
-    </motion.div>
+    </MotionCard>
   );
 }

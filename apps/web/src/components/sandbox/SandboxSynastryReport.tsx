@@ -1,6 +1,7 @@
 'use client';
 
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { Card } from '@/components/shared/Card';
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
 import { useScrollToHighlightedSection } from '@/core/useScrollToHighlightedSection';
 import { parsePlanetNamesFromAspectKey } from '@/core/planet-identity';
@@ -19,9 +20,10 @@ export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
   return (
     <div className="space-y-6">
       {report.pairSections.map((pairSection) => (
-        <section
+        <Card
           key={`${pairSection.sourceSlotIndex}-${pairSection.targetSlotIndex}`}
-          className="rounded-lg border border-border bg-bgElev p-4"
+          as="section"
+          elevation="raised"
         >
           {report.mode === 'group' && pairSection.pairHeader ? (
             <h2 className="reading-section-header mb-4 first:mt-0">{pairSection.pairHeader}</h2>
@@ -68,7 +70,7 @@ export function SandboxSynastryReport({ report }: SandboxSynastryReportProps) {
               </div>
             ))}
           </div>
-        </section>
+        </Card>
       ))}
     </div>
   );

@@ -220,8 +220,9 @@ function MatchCard({
   return (
     <Card
       elevation="raised"
-      padding="p-6"
-      className="match-card card-interactive w-full max-w-lg mx-auto px-1 sm:px-0 space-y-6"
+      size="lg"
+      interactive
+      className="match-card w-full max-w-lg mx-auto px-1 sm:px-0 space-y-6"
     >
       <div className="flex flex-col items-center text-center">
         <div className="w-20 h-20 rounded-full bg-surface-0 border border-border flex items-center justify-center overflow-hidden mb-3">

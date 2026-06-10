@@ -2,6 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
+import { Card } from '../../src/components/shared/Card';
+
+const MotionCard = motion(Card);
 
 export default function AboutPage() {
   return (
@@ -23,11 +26,10 @@ export default function AboutPage() {
         </motion.div>
 
         {/* Mission Section */}
-        <motion.div
+        <MotionCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="card"
         >
           <div className="space-y-6">
             <h2 className="text-3xl font-semibold text-text-primary">
@@ -43,7 +45,7 @@ export default function AboutPage() {
               regardless of their background in either field.
             </p>
           </div>
-        </motion.div>
+        </MotionCard>
 
         {/* How It Works */}
         <motion.div
@@ -93,11 +95,10 @@ export default function AboutPage() {
         </motion.div>
 
         {/* Technology Stack */}
-        <motion.div
+        <MotionCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="card"
         >
           <h2 className="text-3xl font-semibold text-text-primary mb-6">
             Technology Stack
@@ -126,14 +127,13 @@ export default function AboutPage() {
               </ul>
             </div>
           </div>
-        </motion.div>
+        </MotionCard>
 
         {/* Team Section */}
-        <motion.div
+        <MotionCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="card"
         >
           <h2 className="text-3xl font-semibold text-text-primary mb-6">
             The Team
@@ -161,14 +161,14 @@ export default function AboutPage() {
               </ul>
             </div>
           </div>
-        </motion.div>
+        </MotionCard>
 
         {/* Contact Section */}
-        <motion.div
+        <MotionCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0 }}
-          className="card text-center"
+          className="text-center"
         >
           <h2 className="text-3xl font-semibold text-text-primary mb-4">
             Get In Touch
@@ -188,7 +188,7 @@ export default function AboutPage() {
               Report Bug
             </button>
           </div>
-        </motion.div>
+        </MotionCard>
 
         {/* Footer */}
         <motion.div

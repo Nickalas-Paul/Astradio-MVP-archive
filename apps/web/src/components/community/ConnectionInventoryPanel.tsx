@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
@@ -168,15 +169,15 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
 
   if (!currentUserId) {
     return (
-      <div className="card space-y-2">
+      <Card className="space-y-2">
         <h3 className="text-lg font-semibold text-text-primary">Connections</h3>
         <p className="text-sm text-text-secondary">Sign in to see your saved connections and requests.</p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="card space-y-6">
+    <Card className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold text-text-primary">Connections</h3>
@@ -258,9 +259,12 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
               <h4 className="text-sm font-semibold text-text-primary">Group invites</h4>
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).pendingRelationalGroupInvites.map((inv: Record<string, unknown>) => (
-                  <li
+                  <Card
+                    as="li"
                     key={String(inv.id)}
-                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
+                    elevation="raised"
+                    padding="p-3"
+                    className="flex flex-wrap items-center justify-between gap-2"
                   >
                     <span className="text-sm text-text-primary">
                       {typeof inv.groupName === 'string' && inv.groupName.trim()
@@ -277,7 +281,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                     >
                       Accept invite
                     </Button>
-                  </li>
+                  </Card>
                 ))}
               </ul>
             </section>
@@ -300,9 +304,12 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                       ? kindRaw.trim().charAt(0).toUpperCase() + kindRaw.trim().slice(1).toLowerCase()
                       : null;
                   return (
-                  <li
+                  <Card
+                    as="li"
                     key={String(intent.id)}
-                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-bgElev"
+                    elevation="raised"
+                    padding="p-3"
+                    className="flex flex-wrap items-center justify-between gap-2"
                   >
                     <span className="text-sm text-text-primary">
                       {toDisplayName ?? 'Unknown user'}
@@ -318,7 +325,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                     >
                       {cancelling === intent.id ? '…' : 'Cancel'}
                     </button>
-                  </li>
+                  </Card>
                   );
                 })}
               </ul>
@@ -332,9 +339,12 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
             ) : (
               <ul className="space-y-3">
                 {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => (
-                  <li
+                  <Card
+                    as="li"
                     key={String(p.id)}
-                    className="card-interactive p-4 rounded-lg border border-border bg-bgElev space-y-2"
+                    elevation="raised"
+                    interactive
+                    className="space-y-2"
                   >
                     <div className="text-sm font-medium text-text-primary">
                       {(p.peerDisplayName as string) || 'Connection'}{' '}
@@ -379,7 +389,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                       })()}
                     </div>
                     {currentUserId && <PairWeatherPreview relationshipId={String(p.id)} userId={currentUserId} />}
-                  </li>
+                  </Card>
                 ))}
               </ul>
             )}
@@ -394,9 +404,12 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
                   const gSlug = (g.slug as string | undefined) || (g.id as string);
                   return (
-                    <li
+                    <Card
+                      as="li"
                       key={String(g.id)}
-                      className="card-interactive p-4 rounded-lg border border-border bg-bgElev text-sm text-text-primary space-y-2"
+                      elevation="raised"
+                      interactive
+                      className="text-sm text-text-primary space-y-2"
                     >
                       <div>{String(g.name)}</div>
                       <p className="text-xs text-text-secondary">
@@ -411,7 +424,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                           Open group
                         </Link>
                       </div>
-                    </li>
+                    </Card>
                   );
                 })}
               </ul>
@@ -425,13 +438,19 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
             ) : (
               <ul className="space-y-2">
                 {(data as CommunityInventoryV1).campaigns.map((c: Record<string, unknown>) => (
-                  <li key={String(c.campaignId)} className="p-3 rounded-lg border border-border bg-bgElev text-sm text-text-primary">
+                  <Card
+                    as="li"
+                    key={String(c.campaignId)}
+                    elevation="raised"
+                    padding="p-3"
+                    className="text-sm text-text-primary"
+                  >
                     {typeof c.title === 'string' && c.title.trim()
                       ? c.title.trim()
                       : typeof c.mode === 'string' && c.mode.trim()
                         ? `${c.mode.trim().charAt(0).toUpperCase()}${c.mode.trim().slice(1).toLowerCase()} campaign`
                         : 'Campaign'}
-                  </li>
+                  </Card>
                 ))}
               </ul>
             )}
@@ -448,6 +467,6 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
             )}
         </>
       )}
-    </div>
+    </Card>
   );
 }

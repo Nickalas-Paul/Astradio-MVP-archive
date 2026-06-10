@@ -37,19 +37,6 @@
 
 /* Reusable components */
 @layer components {
-  .card {
-    @apply rounded-xl border border-border bg-surface-1 shadow-md p-4;
-  }
-
-  .card-interactive {
-    @apply transition-all duration-base ease-aurora;
-  }
-
-  .card-interactive:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  }
-
   .btn-primary {
     @apply inline-flex items-center justify-center text-center gap-2 rounded-pill px-5 py-2.5
            bg-accent text-white font-medium

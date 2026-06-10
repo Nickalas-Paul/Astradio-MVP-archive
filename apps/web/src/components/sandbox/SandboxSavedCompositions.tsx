@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/shared/Card';
+
 export interface SavedComposition {
   id: string;
   plan_hash: string;
@@ -25,7 +27,7 @@ export function SandboxSavedCompositions({
   onLoad,
 }: SandboxSavedCompositionsProps) {
   return (
-    <div className="card">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-text-primary">Saved</h3>
         <button
@@ -58,6 +60,6 @@ export function SandboxSavedCompositions({
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
