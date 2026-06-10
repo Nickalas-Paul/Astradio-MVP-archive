@@ -50,15 +50,15 @@ function TodayContent() {
       <div className="max-w-6xl mx-auto">
         <TodaySkySummary primaryChart={primaryChart} />
 
-        <div className="border-t border-border/30 py-8" />
+        <div className="py-8 text-center">
+          <div className="border-t border-border/20 mb-6" />
+          <p className="text-body-sm text-text-muted italic max-w-lg mx-auto">
+            That&apos;s the weather for everyone. Here&apos;s how it&apos;s landing on your chart.
+          </p>
+        </div>
 
         <section aria-label="Your personal transit">
-          <div className="space-y-1 mb-6">
-            <h2 className="text-h2 font-serif font-semibold text-text-primary">Your Transit</h2>
-            <p className="text-body-sm text-text-secondary">
-              How today&apos;s sky is activating your natal chart.
-            </p>
-          </div>
+          <h2 className="text-h2 font-serif font-semibold text-text-primary mb-6">Your Transit</h2>
           {noRealChart ? (
             <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
               <p>Link your birth chart in My Sky to see your personal transit.</p>
@@ -80,13 +80,19 @@ function TodayContent() {
           )}
         </section>
 
-        <div className="border-t border-border/30 py-8" />
+        <div className="py-8 text-center">
+          <div className="border-t border-border/20 mb-6" />
+          <p className="text-body-sm text-text-muted italic max-w-lg mx-auto">
+            Now zoom out. Here&apos;s how today&apos;s sky is activating your connections.
+          </p>
+        </div>
 
         <section aria-label="Astrological weather forecast">
           <RelationalCommunityFeed
             userId={user.id}
             primaryChart={primaryChart}
             primaryHeading="Astrological Weather Forecast"
+            primaryDescription="Ranked by today's activation strength."
           />
         </section>
       </div>
@@ -107,9 +113,9 @@ export default function TodayPage() {
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Your personal and relational astrological weather.
           </p>
-          <p className="text-sm text-text-secondary">
-            Profile and saved tracks live under{' '}
-            <Link href="/profile" className="text-accent-light hover:underline">
+          <p className="text-body-sm text-text-muted">
+            Saved tracks and your full identity live under{' '}
+            <Link href="/profile" className="text-accent hover:underline">
               My Sky
             </Link>
             .

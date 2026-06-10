@@ -99,6 +99,8 @@ interface RelationalCommunityFeedProps {
   hideHeader?: boolean;
   /** When set, replaces the default "Transits" h2 and omits the redundant subtitle line. */
   primaryHeading?: string;
+  /** Optional description below the heading (e.g. Today page weather forecast). */
+  primaryDescription?: string;
 }
 
 function FeedLoadingSkeleton() {
@@ -125,7 +127,10 @@ export function RelationalCommunityFeed({
   className = '',
   hideHeader = false,
   primaryHeading,
+  primaryDescription,
 }: RelationalCommunityFeedProps) {
+  const feedDescription =
+    primaryDescription ?? 'Connections ranked by how active they are for you right now.';
   const { data, isLoading, error, refresh } = useRelationalCommunityFeed(userId, primaryChart);
   const [artifactByFeedId, setArtifactByFeedId] = useState<Record<string, Record<string, unknown>>>({});
   const [openByFeedId, setOpenByFeedId] = useState<Record<string, boolean>>({});
@@ -650,9 +655,7 @@ export function RelationalCommunityFeed({
             {!primaryHeading && (
               <p className="text-body-sm text-text-secondary">Astrological Weather Forecast</p>
             )}
-            <p className="text-body-sm text-text-secondary max-w-2xl">
-              Connections ranked by how active they are for you right now.
-            </p>
+            <p className="text-body-sm text-text-secondary max-w-2xl">{feedDescription}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => refresh()} disabled={isLoading}>
             Refresh

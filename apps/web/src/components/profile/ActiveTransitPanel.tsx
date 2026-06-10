@@ -32,6 +32,20 @@ const WheelDisplay = dynamic(
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
 
+function formatTransitDate(dateStr: string): string {
+  if (!dateStr) return 'today';
+  const parts = dateStr.split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+  if (!y || !m || !d) return dateStr;
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export interface ActiveTransitPanelProps {
   chartId: string | null;
   noRealChart: boolean;
@@ -63,6 +77,8 @@ export function ActiveTransitPanel({
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [loadedFromCache, setLoadedFromCache] = useState(false);
   const fetchInFlightRef = useRef(false);
 
   const activeWheelSlots = useMemo(() => {
@@ -108,6 +124,12 @@ export function ActiveTransitPanel({
     setActiveSlotIndex(0);
   }, [activeResult]);
 
+  useEffect(() => {
+    if (!activeResult && !activeLoading && !controlsExpanded) {
+      setControlsExpanded(true);
+    }
+  }, [activeResult, activeLoading, controlsExpanded]);
+
   const buildLocation = useCallback((): CanonicalLocation | null => {
     if (
       activeLat === '' ||
@@ -151,6 +173,7 @@ export function ActiveTransitPanel({
     setActiveResult(entry.activeState);
     setActiveError(null);
     setActiveAudioUrl(null);
+    setLoadedFromCache(true);
   }, []);
 
   const loadActiveStateText = useCallback(
@@ -194,6 +217,7 @@ export function ActiveTransitPanel({
       setActiveLoading(true);
       setActiveError(null);
       setActiveAudioUrl(null);
+      setLoadedFromCache(false);
       try {
         const r = await fetch(`${base || ''}/api/profile/active-state`, {
           method: 'POST',
@@ -452,86 +476,125 @@ export function ActiveTransitPanel({
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md w-full">
-            <InputField
-              type="date"
-              value={activeDate}
-              onChange={(e) => setActiveDate(e.target.value)}
-            />
-            <InputField
-              type="time"
-              value={activeTime}
-              onChange={(e) => setActiveTime(e.target.value)}
-            />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <p className="text-body-sm text-text-secondary min-w-0">
+              Transit for {formatTransitDate(activeDate)}
+              {' · '}
+              {activeLocLabel.trim() || 'Current location'}
+              {loadedFromCache && activeResult ? (
+                <span className="text-text-muted"> (cached)</span>
+              ) : null}
+            </p>
+            <div className="flex items-center gap-3 shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={activeLoading}
+                loading={activeLoading}
+                onClick={() => void loadActiveStateText({ bypassCache: true })}
+              >
+                Refresh
+              </Button>
+              <button
+                type="button"
+                onClick={() => setControlsExpanded((v) => !v)}
+                className="text-caption text-text-muted hover:text-text-secondary transition-colors"
+              >
+                {controlsExpanded ? 'Hide options' : 'Customize'}
+              </button>
+            </div>
           </div>
-          <div className="max-w-xl">
-            <LocationFinder
-              value={activeLocLabel}
-              onSelect={(r) => {
-                const resolvedAt = new Date().toISOString();
-                const dateForCache = activeDate || new Date().toISOString().slice(0, 10);
-                if (chartId) {
-                  clearTransitCacheForDate(dateForCache, chartId);
-                }
-                setActiveResult(null);
-                setActiveAudioUrl(null);
-                setActiveLocLabel(r.label);
-                setActiveLat(String(r.lat));
-                setActiveLon(String(r.lon));
-                setActiveTz(r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : '');
-                setActiveTransitResolvedAt(resolvedAt);
-                setActiveLocSource('geofinder');
-              }}
-              onClear={() => {
-                if (chartId && activeDate) {
-                  clearTransitCacheForDate(activeDate, chartId);
-                }
-                setActiveResult(null);
-                setActiveAudioUrl(null);
-                setActiveLocLabel('');
-                setActiveLat('');
-                setActiveLon('');
-                setActiveTz('');
-                setActiveTransitResolvedAt('');
-                setActiveLocSource('geofinder');
-              }}
-              placeholder="Current location (search)"
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="w-full sm:w-auto min-h-[44px]"
-              disabled={activeLoading}
-              loading={activeLoading}
-              onClick={() => void loadActiveStateText({ bypassCache: true })}
-            >
-              {reportButtonLabel}
-            </Button>
-            <Button
-              type="button"
-              variant="audio"
-              size="sm"
-              className="w-full sm:w-auto min-h-[44px]"
-              disabled={activeAudioBusy || !activeResult}
-              loading={activeAudioBusy}
-              onClick={() => void generateActiveAudio()}
-            >
-              Generate transit audio
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full sm:w-auto min-h-[44px]"
-              disabled={!canSaveCurrentTransit()}
-              onClick={() => void saveActiveToLibrary()}
-            >
-              Save to Library
-            </Button>
-          </div>
+
+          {controlsExpanded && (
+            <div className="space-y-3 mb-6 pb-4 border-b border-border/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md w-full">
+                <InputField
+                  type="date"
+                  value={activeDate}
+                  onChange={(e) => setActiveDate(e.target.value)}
+                />
+                <InputField
+                  type="time"
+                  value={activeTime}
+                  onChange={(e) => setActiveTime(e.target.value)}
+                />
+              </div>
+              <div className="max-w-xl">
+                <LocationFinder
+                  value={activeLocLabel}
+                  onSelect={(r) => {
+                    const resolvedAt = new Date().toISOString();
+                    const dateForCache = activeDate || new Date().toISOString().slice(0, 10);
+                    if (chartId) {
+                      clearTransitCacheForDate(dateForCache, chartId);
+                    }
+                    setActiveResult(null);
+                    setActiveAudioUrl(null);
+                    setLoadedFromCache(false);
+                    setActiveLocLabel(r.label);
+                    setActiveLat(String(r.lat));
+                    setActiveLon(String(r.lon));
+                    setActiveTz(
+                      r.timezone && isPersistableChartTimezone(r.timezone) ? r.timezone : ''
+                    );
+                    setActiveTransitResolvedAt(resolvedAt);
+                    setActiveLocSource('geofinder');
+                  }}
+                  onClear={() => {
+                    if (chartId && activeDate) {
+                      clearTransitCacheForDate(activeDate, chartId);
+                    }
+                    setActiveResult(null);
+                    setActiveAudioUrl(null);
+                    setLoadedFromCache(false);
+                    setActiveLocLabel('');
+                    setActiveLat('');
+                    setActiveLon('');
+                    setActiveTz('');
+                    setActiveTransitResolvedAt('');
+                    setActiveLocSource('geofinder');
+                  }}
+                  placeholder="Current location (search)"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="w-full sm:w-auto min-h-[44px]"
+                  disabled={activeLoading}
+                  loading={activeLoading}
+                  onClick={() => void loadActiveStateText({ bypassCache: true })}
+                >
+                  {reportButtonLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant="audio"
+                  size="sm"
+                  className="w-full sm:w-auto min-h-[44px]"
+                  disabled={activeAudioBusy || !activeResult}
+                  loading={activeAudioBusy}
+                  onClick={() => void generateActiveAudio()}
+                >
+                  Generate transit audio
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto min-h-[44px]"
+                  disabled={!canSaveCurrentTransit()}
+                  onClick={() => void saveActiveToLibrary()}
+                >
+                  Save to Library
+                </Button>
+              </div>
+            </div>
+          )}
+
           {activeLoading && (
             <p className="text-sm text-text-secondary">Loading today&apos;s transit…</p>
           )}
