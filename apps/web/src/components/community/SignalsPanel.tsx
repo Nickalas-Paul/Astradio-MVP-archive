@@ -56,7 +56,13 @@ function resolveSenderDisplayName(s: IncomingSignalRow): string {
   return 'Unknown sender';
 }
 
-export function SignalsPanel({ currentUserId }: { currentUserId: string | null }) {
+export function SignalsPanel({
+  currentUserId,
+  onMetaChange,
+}: {
+  currentUserId: string | null;
+  onMetaChange?: (meta: { loading: boolean; empty: boolean }) => void;
+}) {
   const [incoming, setIncoming] = useState<IncomingSignalRow[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingSignalRow[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivityRow[]>([]);
@@ -121,6 +127,18 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!onMetaChange) return;
+    if (loading) {
+      onMetaChange({ loading: true, empty: true });
+      return;
+    }
+    onMetaChange({
+      loading: false,
+      empty: incoming.length === 0 && outgoing.length === 0 && recentActivity.length === 0,
+    });
+  }, [loading, incoming.length, outgoing.length, recentActivity.length, onMetaChange]);
 
   useEffect(() => {
     const timers = removeTimersRef.current;
@@ -228,9 +246,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
         {loading && <p className="text-sm text-text-secondary">Loading…</p>}
         {error && <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
         {!loading && incoming.length === 0 && !error && (
-          <p className="text-sm text-text-secondary">
-            No incoming signals. When someone acknowledges a transit between you, it will appear here.
-          </p>
+          <p className="text-caption text-text-muted">No incoming signals.</p>
         )}
         <ul className="space-y-3">
           {incoming.map((s) => {
@@ -298,7 +314,7 @@ export function SignalsPanel({ currentUserId }: { currentUserId: string | null }
           Sent
         </h4>
         {!loading && outgoing.length === 0 && (
-          <p className="text-sm text-text-secondary">No sent signals.</p>
+          <p className="text-caption text-text-muted">No sent signals.</p>
         )}
         <ul className="space-y-2">
           {outgoing.map((s) => {

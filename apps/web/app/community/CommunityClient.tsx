@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
-import { ConnectionInventoryPanel } from '../../src/components/community/ConnectionInventoryPanel';
+import { ConnectionInventoryPanel, ConnectionsUnifiedEmpty } from '../../src/components/community/ConnectionInventoryPanel';
 import { DiscoveryUserSearch } from '../../src/components/community/DiscoveryUserSearch';
 import { SignalsPanel } from '../../src/components/community/SignalsPanel';
 import { useProfile } from '../../src/core/social/hooks';
@@ -21,7 +21,13 @@ const GROUPS_INTRO = 'Private groups of your connections used to view relational
 
 type CommunityTabId = 'discovery' | 'connections';
 
-function GroupsList({ userId }: { userId: string | null }) {
+function GroupsList({
+  userId,
+  onMetaChange,
+}: {
+  userId: string | null;
+  onMetaChange?: (meta: { loading: boolean; empty: boolean }) => void;
+}) {
   const [groups, setGroups] = useState<Array<{ id: string; slug: string; name: string; description: string }>>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,20 +41,24 @@ function GroupsList({ userId }: { userId: string | null }) {
     if (!userId) {
       setGroups([]);
       setLoading(false);
+      onMetaChange?.({ loading: false, empty: true });
       return;
     }
     setLoading(true);
     fetch('/api/groups', { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => {
-        setGroups(d.groups || []);
+        const next = d.groups || [];
+        setGroups(next);
         setLoading(false);
+        onMetaChange?.({ loading: false, empty: next.length === 0 });
       })
       .catch(() => {
         setGroups([]);
         setLoading(false);
+        onMetaChange?.({ loading: false, empty: true });
       });
-  }, [userId]);
+  }, [userId, onMetaChange]);
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +199,9 @@ function CommunityClientInner() {
   const [discoveryIntent, setDiscoveryIntent] = useState<RelationalIntent>('friend');
   const [inventoryRefreshSignal, setInventoryRefreshSignal] = useState(0);
   const bumpCommunityInventory = () => setInventoryRefreshSignal((n) => n + 1);
+  const [signalsMeta, setSignalsMeta] = useState({ loading: true, empty: true });
+  const [inventoryMeta, setInventoryMeta] = useState({ loading: true, empty: true });
+  const [groupsMeta, setGroupsMeta] = useState({ loading: true, empty: true });
   const { user, primaryChart } = useProfile();
 
   useHydrateCompositionUrls();
@@ -217,6 +230,15 @@ function CommunityClientInner() {
   ];
 
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
+
+  const showConnectionsUnifiedEmpty =
+    Boolean(user?.id) &&
+    !signalsMeta.loading &&
+    signalsMeta.empty &&
+    !inventoryMeta.loading &&
+    inventoryMeta.empty &&
+    !groupsMeta.loading &&
+    groupsMeta.empty;
 
   return (
     <AppShell>
@@ -328,15 +350,21 @@ function CommunityClientInner() {
 
           {activeTab === 'connections' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <SignalsPanel currentUserId={user?.id ?? null} />
-              <ConnectionInventoryPanel
-                currentUserId={user?.id ?? null}
-                viewerChartId={seekerChartId}
-                refreshSignal={inventoryRefreshSignal}
-              />
-              <div>
-                <h2 className="text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
-                <GroupsList userId={user?.id ?? null} />
+              {showConnectionsUnifiedEmpty ? (
+                <ConnectionsUnifiedEmpty onSwitchToDiscovery={() => setTab('discovery')} />
+              ) : null}
+              <div className={showConnectionsUnifiedEmpty ? 'hidden' : 'space-y-6'} aria-hidden={showConnectionsUnifiedEmpty}>
+                <SignalsPanel currentUserId={user?.id ?? null} onMetaChange={setSignalsMeta} />
+                <ConnectionInventoryPanel
+                  currentUserId={user?.id ?? null}
+                  viewerChartId={seekerChartId}
+                  refreshSignal={inventoryRefreshSignal}
+                  onMetaChange={setInventoryMeta}
+                />
+                <div>
+                  <h2 className="text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
+                  <GroupsList userId={user?.id ?? null} onMetaChange={setGroupsMeta} />
+                </div>
               </div>
             </div>
           )}

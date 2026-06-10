@@ -21,7 +21,44 @@ type Props = {
   viewerChartId?: string | null;
   /** Increment from parent after connection/group actions to pull latest inventory without remounting. */
   refreshSignal?: number;
+  /** Report inventory load/empty state for unified zero-state coordination. */
+  onMetaChange?: (meta: { loading: boolean; empty: boolean }) => void;
 };
+
+export function isInventoryCoreEmpty(data: CommunityInventoryV1): boolean {
+  const pending =
+    (data.pendingIncomingIntents?.length ?? 0) > 0 ||
+    (data.pendingOutgoingIntents?.length ?? 0) > 0 ||
+    (data.pendingRelationalGroupInvites?.length ?? 0) > 0;
+  if (pending) return false;
+  return (
+    (data.pairs?.length ?? 0) === 0 &&
+    (data.relationalGroups?.length ?? 0) === 0 &&
+    (data.campaigns?.length ?? 0) === 0
+  );
+}
+
+export function ConnectionsUnifiedEmpty({ onSwitchToDiscovery }: { onSwitchToDiscovery: () => void }) {
+  return (
+    <Card size="lg" className="text-center space-y-4 max-w-lg mx-auto">
+      <p className="text-h3 font-serif text-text-primary">No connections yet</p>
+      <p className="text-body-sm text-text-secondary">
+        Connections form when you explore compatibility with someone. Start in Discovery, or hear what any two
+        charts sound like together.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+        <Button type="button" variant="outline" size="sm" onClick={onSwitchToDiscovery}>
+          Explore Discovery
+        </Button>
+        <Link href="/listen">
+          <Button type="button" variant="ghost" size="sm">
+            Hear a connection
+          </Button>
+        </Link>
+      </div>
+    </Card>
+  );
+}
 
 function viewerChartIdFromPair(pair: Record<string, unknown>, peerChartId: string | null): string | null {
   const low = typeof pair.chartIdLow === 'string' ? pair.chartIdLow.trim() : '';
@@ -84,7 +121,12 @@ function PairWeatherPreview({
   );
 }
 
-export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refreshSignal }: Props) {
+export function ConnectionInventoryPanel({
+  currentUserId,
+  viewerChartId,
+  refreshSignal,
+  onMetaChange,
+}: Props) {
   const router = useRouter();
   const { data, loading, error, refresh } = useCommunityInventory();
   const [accepting, setAccepting] = useState<string | null>(null);
@@ -97,6 +139,18 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
       void refresh();
     }
   }, [refreshSignal, refresh]);
+
+  useEffect(() => {
+    if (!onMetaChange) return;
+    if (loading) {
+      onMetaChange({ loading: true, empty: true });
+      return;
+    }
+    onMetaChange({
+      loading: false,
+      empty: data ? isInventoryCoreEmpty(data as CommunityInventoryV1) : true,
+    });
+  }, [loading, data, onMetaChange]);
 
   const acceptIntent = async (intentId: string) => {
     setAccepting(intentId);
@@ -379,7 +433,7 @@ export function ConnectionInventoryPanel({ currentUserId, viewerChartId, refresh
                             className="min-h-[44px]"
                             onClick={() => {
                               router.push(
-                                `/listen?chartA=${encodeURIComponent(chartA)}&chartB=${encodeURIComponent(peerChartId)}`
+                                `/listen?chartA=${encodeURIComponent(chartA)}&chartB=${encodeURIComponent(peerChartId)}&relationshipId=${encodeURIComponent(String(p.id))}`
                               );
                             }}
                           >

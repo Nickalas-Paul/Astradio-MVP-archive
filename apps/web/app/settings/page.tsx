@@ -262,6 +262,16 @@ export default function SettingsPage() {
           </div>
           </Card>
         </motion.div>
+
+        <p className="text-body-sm text-text-muted text-center pt-4">
+          <Link href="/today" className="text-accent hover:underline">
+            Back to Today
+          </Link>{' '}
+          ·{' '}
+          <Link href="/profile" className="text-accent hover:underline">
+            My Sky
+          </Link>
+        </p>
       </div>
     </AppShell>
   );

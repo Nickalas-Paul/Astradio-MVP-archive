@@ -99,6 +99,7 @@ function ListenPageInner() {
   const searchParams = useSearchParams();
   const chartAParam = searchParams.get('chartA')?.trim() || '';
   const chartBParam = searchParams.get('chartB')?.trim() || '';
+  const relationshipId = searchParams.get('relationshipId')?.trim() || '';
 
   const { user, primaryChart, loading: profileLoading } = useProfile();
   const viewerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
@@ -766,6 +767,38 @@ function ListenPageInner() {
                     audioGenerateError={audioGenerateError}
                     onGenerateAudio={() => void handleGenerateAudio()}
                   />
+
+                  <div className="mt-8 pt-6 border-t border-border/30 space-y-4">
+                    <p className="text-body-sm text-text-muted text-center italic font-serif">
+                      What do you want to do with this connection?
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      {relationshipId ? (
+                        <Link href={`/community/relationship/${encodeURIComponent(relationshipId)}`}>
+                          <Button type="button" variant="outline" size="sm">
+                            View full connection
+                          </Button>
+                        </Link>
+                      ) : null}
+                      <Button type="button" variant="outline" size="sm" onClick={handleStartOver}>
+                        Try another pair
+                      </Button>
+                      <Link href="/community">
+                        <Button type="button" variant="ghost" size="sm">
+                          Explore connections
+                        </Button>
+                      </Link>
+                    </div>
+                    {!relationshipId ? (
+                      <p className="text-caption text-text-muted text-center mt-2">
+                        Want to save this connection?{' '}
+                        <Link href="/community" className="text-accent hover:underline">
+                          Find them in Discovery
+                        </Link>{' '}
+                        to create a lasting connection.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div

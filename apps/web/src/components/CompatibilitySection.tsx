@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../core/api-base';
 import {
@@ -281,18 +282,18 @@ export function CompatibilitySection({
     return (
       <Card elevation="resting" className={className}>
         {header}
-        <DiscoveryCarousel
-          matches={[]}
-          intent={rankMode}
-          requestsRemaining={requestsRemaining}
-          pendingOutgoingCount={pendingOutgoingCount}
-          onViewProfile={handleViewProfile}
-          onRequestConnection={(m) => void handleRequestConnection(m)}
-          isConnectionPending={(m) => pendingOutgoingForMatch(inventory, m.userId, m.chartId, rankMode)}
-          connectionBusyChartId={requestBusy}
-          canRequestConnection={Boolean(currentUserId && chartId)}
-          viewerChartId={chartId}
-        />
+        <Card size="lg" className="text-center space-y-3">
+          <p className="text-body text-text-secondary">
+            No matches found today. Try a different intent or check back tomorrow.
+          </p>
+          <p className="text-body-sm text-text-muted">
+            You can also search for someone specific above, or{' '}
+            <Link href="/listen" className="text-accent hover:underline">
+              hear what any two charts sound like
+            </Link>{' '}
+            without matching first.
+          </p>
+        </Card>
       </Card>
     );
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import Link from 'next/link';
 import { ExplainerSections } from './shared/ExplainerSections';
 import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
 import {
@@ -336,7 +337,22 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       </Button>
                     </Card>
                   ))}
-                  {libraryRows.length === 0 && <li className="text-text-secondary">Nothing saved yet.</li>}
+                  {libraryRows.length === 0 && (
+                    <li>
+                      <Card size="lg" className="text-center space-y-4 max-w-md mx-auto">
+                        <p className="text-body text-text-secondary">Your library is empty.</p>
+                        <p className="text-body-sm text-text-muted">
+                          Generate your daily transit on Today, then use &quot;Save to Library&quot; to keep readings
+                          and soundtracks here.
+                        </p>
+                        <Link href="/today">
+                          <Button type="button" variant="outline" size="sm">
+                            Go to Today
+                          </Button>
+                        </Link>
+                      </Card>
+                    </li>
+                  )}
                 </ul>
                 {libraryOpenId && (
                   <Card elevation="raised" className="!rounded space-y-3 mt-4">
