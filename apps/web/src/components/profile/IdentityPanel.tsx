@@ -5,7 +5,11 @@ import dynamic from 'next/dynamic';
 import { useProfileChart, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { BirthChartSection } from './BirthChartSection';
 import { ExplainerSections } from './shared/ExplainerSections';
-import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
+import {
+  blobUrlFromComposePayload,
+  isChartUpdatedSinceLastIdentityAudio,
+  setIdentityAudioChartSync,
+} from './shared/profile-audio-utils';
 import { filterIdentityDisplaySections } from './shared/profile-reading-utils';
 import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
@@ -44,7 +48,6 @@ export function IdentityPanel({
     noRealChart ? 'no_chart' : 'loading',
   );
   const [audioGenerating, setAudioGenerating] = useState(false);
-  const [hadExportId, setHadExportId] = useState(false);
 
   useEffect(() => {
     if (!chartId) return;
@@ -71,7 +74,6 @@ export function IdentityPanel({
       return undefined;
     }
 
-    setHadExportId(true);
     setAudioState('loading');
 
     let cancelled = false;
@@ -130,7 +132,6 @@ export function IdentityPanel({
         if (prev) URL.revokeObjectURL(prev);
         return url;
       });
-      setHadExportId(true);
       setAudioState('available');
     } catch {
       setAudioState('error');
@@ -139,16 +140,34 @@ export function IdentityPanel({
     }
   }, [refreshChart]);
 
+  useEffect(() => {
+    const updatedAt = chartData?.chart?.updatedAt;
+    if (audioState === 'available' && chartId && updatedAt) {
+      setIdentityAudioChartSync(chartId, updatedAt);
+    }
+  }, [audioState, chartId, chartData?.chart?.updatedAt]);
+
   const loading = chartLoading;
   const error = chartError;
   const hasExplainer = chartData?.explainer?.sections?.length;
 
+  const chartUpdatedAt = chartData?.chart?.updatedAt;
+  const hasValidExportId =
+    typeof chartData?.identity_export_id === 'string' &&
+    /^[a-f0-9]{64}$/.test(chartData.identity_export_id);
+  const showChartUpdatedPrompt =
+    !hasValidExportId &&
+    !!chartId &&
+    isChartUpdatedSinceLastIdentityAudio(chartId, chartUpdatedAt);
+
   const missingMessage =
     audioState === 'error'
       ? 'Something went wrong. Try again.'
-      : hadExportId
-        ? 'Your chart was updated. Ready to hear the new you?'
-        : 'Generate a soundtrack from your natal chart.';
+      : hasValidExportId && audioState === 'missing'
+        ? "Couldn't load your soundtrack. Try again."
+        : showChartUpdatedPrompt
+          ? 'Your chart was updated. Ready to hear the new you?'
+          : 'Generate a soundtrack from your natal chart.';
 
   return (
     <div className="space-y-8">

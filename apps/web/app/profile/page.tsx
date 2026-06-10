@@ -3,16 +3,23 @@
 import { Suspense } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ProfilePanel } from '@/components/community/ProfilePanel';
+import { useProfile } from '@/core/social/hooks';
 
 export default function ProfilePage() {
+  const { user, loading: profileLoading } = useProfile();
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
         <section className="space-y-2">
           <h1 className="text-h1 font-bold text-text-primary">My Sky</h1>
-          <p className="text-sm text-text-secondary max-w-2xl">
-            Sign in or register so your charts and soundtrack persist across sessions.
-          </p>
+          {!profileLoading && (
+            <p className="text-sm text-text-secondary max-w-2xl">
+              {user
+                ? 'Your chart, your sound, your identity.'
+                : 'Sign in or register so your charts and soundtrack persist across sessions.'}
+            </p>
+          )}
         </section>
 
         <Suspense fallback={<p className="text-sm text-text-secondary">Loading profile…</p>}>
