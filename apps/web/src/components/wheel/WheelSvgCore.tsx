@@ -20,56 +20,17 @@ const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
 /** Accent on dark house fill — brighter than brand #00674f for legibility on #1a2435. */
 const ANGLE_LABEL_FILL = '#5ec9a8';
 const ANGLE_LABEL_STROKE = 'rgba(232, 236, 241, 0.45)';
-const ANGLE_LABEL_BG = 'rgba(15, 20, 28, 0.88)';
-const ANGLE_LABEL_FONT_SIZE = 9;
 const SOUTH_NODE_OPACITY = 0.45;
 
-function angleLabelAnchor(lonDeg: number, asc: number): 'start' | 'middle' | 'end' {
-  const wheelDeg = ((lonDeg - asc) % 360 + 360) % 360;
-  if (wheelDeg > 45 && wheelDeg < 135) return 'start';
-  if (wheelDeg > 225 && wheelDeg < 315) return 'end';
-  return 'middle';
+function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
+  const deg = positions[bodyKey] ?? positions[bodyKey.toLowerCase()];
+  return typeof deg === 'number' && Number.isFinite(deg) ? deg : undefined;
 }
 
-function renderAngleLabel(label: string, lonDeg: number, R_OUT: number, asc: number) {
-  const pt = pol(R_OUT + 16, lonDeg, asc);
-  const anchor = angleLabelAnchor(lonDeg, asc);
-  const padX = 5;
-  const padY = 3;
-  const textW = label.length * 5.5 + padX * 2;
-  const textH = ANGLE_LABEL_FONT_SIZE + padY * 2;
-  const rectX =
-    anchor === 'start' ? pt.x : anchor === 'end' ? pt.x - textW : pt.x - textW / 2;
-  const rectY = pt.y - textH / 2 + 1;
-  return (
-    <g key={`angle-${label}`} pointerEvents="none">
-      <rect
-        x={rectX}
-        y={rectY}
-        width={textW}
-        height={textH}
-        rx={3}
-        fill={ANGLE_LABEL_BG}
-        stroke={WHEEL_COLORS.houseStroke}
-        strokeWidth={0.5}
-      />
-      <text
-        x={anchor === 'start' ? pt.x + padX : anchor === 'end' ? pt.x - padX : pt.x}
-        y={pt.y + 3}
-        textAnchor={anchor}
-        fill={ANGLE_LABEL_FILL}
-        stroke={ANGLE_LABEL_STROKE}
-        strokeWidth={0.5}
-        paintOrder="stroke fill"
-        fontSize={ANGLE_LABEL_FONT_SIZE}
-        fontWeight={700}
-        letterSpacing="0.08em"
-        fontFamily="Georgia, 'Cormorant Garamond', serif"
-      >
-        {label}
-      </text>
-    </g>
-  );
+function glyphForBody(name: string): string | null {
+  const canonical = normalizePlanetName(name);
+  if (canonical === 'southNode') return null;
+  return PLANET_GLYPH[canonical] ?? null;
 }
 
 export interface WheelSvgCoreProps {
@@ -126,10 +87,7 @@ export function WheelSvgCore({
   const cx = size / 2;
   const cy = size / 2;
 
-  const planetNames = [
-    ...BODY_ORDER.filter((name) => Object.prototype.hasOwnProperty.call(positions, name)),
-    ...Object.keys(positions).filter((name) => !BODY_ORDER.includes(name)),
-  ];
+  const planetNames = BODY_ORDER.filter((name) => positionLongitude(positions, name) != null);
 
   return (
     <svg
@@ -162,6 +120,7 @@ export function WheelSvgCore({
                 const midLon = (a0 + span / 2) % 360;
                 const midPt = pol((R_OUT + R_IN) / 2, midLon, asc);
                 const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
+                const cuspPt = angleLabel != null ? pol(R_OUT - 8, a0, asc) : null;
                 return (
                   <>
                     <text
@@ -173,7 +132,23 @@ export function WheelSvgCore({
                     >
                       {i + 1}
                     </text>
-                    {angleLabel != null ? renderAngleLabel(angleLabel, a0, R_OUT, asc) : null}
+                    {angleLabel != null && cuspPt != null ? (
+                      <text
+                        x={cuspPt.x}
+                        y={cuspPt.y + 4}
+                        textAnchor="middle"
+                        fill={ANGLE_LABEL_FILL}
+                        stroke={ANGLE_LABEL_STROKE}
+                        strokeWidth={0.6}
+                        paintOrder="stroke fill"
+                        fontSize={10}
+                        fontWeight={600}
+                        letterSpacing="0.05em"
+                        fontFamily="Georgia, 'Cormorant Garamond', serif"
+                      >
+                        {angleLabel}
+                      </text>
+                    ) : null}
                   </>
                 );
               })()}
@@ -216,8 +191,10 @@ export function WheelSvgCore({
           : null}
 
         {planetNames.map((name) => {
-          const deg = positions[name];
-          if (typeof deg !== 'number' || !Number.isFinite(deg)) return null;
+          const deg = positionLongitude(positions, name);
+          if (deg == null) return null;
+          const glyph = glyphForBody(name);
+          if (!glyph) return null;
           const p = pol(R_OUT - 10, deg, asc);
           const canonicalName = normalizePlanetName(name);
           const isHighlighted = highlightSet.has(canonicalName);
@@ -244,13 +221,13 @@ export function WheelSvgCore({
               onMouseLeave={planetInteractive ? () => onPlanetHover?.(null) : undefined}
               onClick={planetInteractive ? () => onPlanetClick?.(canonicalName) : undefined}
             >
-              {PLANET_GLYPH[name.toLowerCase()] ?? PLANET_GLYPH[name] ?? '•'}
+              {glyph}
             </text>
           );
         })}
 
         {(() => {
-          const nnLon = positions.northNode ?? positions.northnode;
+          const nnLon = positionLongitude(positions, 'northNode');
           if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
           const southLon = (nnLon + 180) % 360;
           const p = pol(R_OUT - 10, southLon, asc);
