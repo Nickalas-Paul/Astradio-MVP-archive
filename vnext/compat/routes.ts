@@ -27,6 +27,7 @@ import {
   natalSnapshotFingerprintForChart,
   persistProfileIdentityAudioAfterPrimaryAttach,
 } from './identity-audio';
+import { seedFounderConnection } from './founder-connection';
 import type { ChartBInline, Comparison } from './types';
 import {
   hasProfilePersonalizationKeys,
@@ -434,6 +435,9 @@ async function attachPrimaryChartForNewUser(
         console.warn('[compat] identity audio attach hook:', err instanceof Error ? err.message : err);
       }
     );
+    void seedFounderConnection(userId, primaryChart.id).catch((err: unknown) => {
+      console.warn('[compat] founder connection attach hook:', err instanceof Error ? err.message : err);
+    });
   }
   return primaryChart;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../../core/api-base';
+import { FOUNDER_USER_ID } from '../../core/founder-config';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
@@ -400,10 +401,19 @@ export function ConnectionInventoryPanel({
                     interactive
                     className="space-y-2"
                   >
-                    <div className="text-sm font-medium text-text-primary">
-                      {(p.peerDisplayName as string) || 'Connection'}{' '}
-                      {(p.peerHandle as string) ? (
-                        <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                    <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5">
+                      <span>
+                        {(p.peerDisplayName as string) || 'Connection'}{' '}
+                        {(p.peerHandle as string) ? (
+                          <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                        ) : null}
+                      </span>
+                      {FOUNDER_USER_ID &&
+                      typeof p.peerUserId === 'string' &&
+                      p.peerUserId.trim() === FOUNDER_USER_ID ? (
+                        <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
+                          Founder
+                        </span>
                       ) : null}
                     </div>
                     <p className="text-xs text-text-secondary">Label: {String(p.label || '')}</p>
