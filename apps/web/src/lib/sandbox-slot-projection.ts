@@ -19,6 +19,11 @@ export type SlotProjectionRow = {
 function chartSlotDisplayName(slot: SandboxCompositionInputState['slots'][number]): string {
   const stored = typeof slot.chart_display_name === 'string' ? slot.chart_display_name.trim() : '';
   if (stored) return stored;
+  const chartId = typeof slot.chart_id === 'string' ? slot.chart_id.trim() : '';
+  if (chartId) {
+    if (chartId.length > 16) return `${chartId.slice(0, 12)}…`;
+    return chartId;
+  }
   return 'Imported chart';
 }
 
@@ -42,6 +47,8 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
 
   return slots.map((slot, index) => {
     const k = slotWirePopulationKind(slot);
+    const hasChartId = typeof slot.chart_id === 'string' && slot.chart_id.trim().length > 0;
+
     if (k === 'invalid') {
       return {
         index,
@@ -49,7 +56,7 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
         chipText: 'Invalid',
       };
     }
-    if (k === 'chart_id') {
+    if (hasChartId || k === 'chart_id') {
       return {
         index,
         kind: 'chart' as const,

@@ -53,24 +53,34 @@ export function wireBirthToEngineBirth(wire: z.infer<typeof SandboxBirthWireSche
  * Map GET /api/charts/:id (engine Chart) into Sandbox birth wire for snapshot preview only.
  * chart_id remains the canonical slot identity for resolve.
  */
-/** User-facing label for a chart import (never the raw chart_id). */
+function normalizeOwnerHandle(raw: string): string {
+  const h = raw.trim();
+  return h.startsWith('@') ? h : `@${h}`;
+}
+
+/** User-facing label for a chart import (owner name/handle; not the internal chart label). */
 export function chartApiOwnerDisplayLabel(chart: Record<string, unknown>): string {
   const displayName =
     (typeof chart.ownerDisplayName === 'string' && chart.ownerDisplayName.trim()) ||
     (typeof chart.owner_display_name === 'string' && chart.owner_display_name.trim()) ||
     (typeof chart.display_name === 'string' && chart.display_name.trim()) ||
     '';
-  if (displayName) return displayName;
 
   const handleRaw =
     (typeof chart.ownerHandle === 'string' && chart.ownerHandle.trim()) ||
     (typeof chart.owner_handle === 'string' && chart.owner_handle.trim()) ||
     (typeof chart.handle === 'string' && chart.handle.trim()) ||
     '';
-  if (handleRaw) {
-    const h = handleRaw.trim();
-    return h.startsWith('@') ? h : `@${h}`;
+  const handle = handleRaw ? normalizeOwnerHandle(handleRaw) : '';
+
+  if (displayName && handle) {
+    const handleBare = handle.replace(/^@/, '').toLowerCase();
+    const nameBare = displayName.replace(/^@/, '').toLowerCase();
+    if (handleBare === nameBare) return displayName;
+    return `${displayName} (${handle})`;
   }
+  if (displayName) return displayName;
+  if (handle) return handle;
 
   const chartLabel = typeof chart.label === 'string' ? chart.label.trim() : '';
   if (chartLabel && !chartLabel.startsWith('chart_')) return chartLabel;

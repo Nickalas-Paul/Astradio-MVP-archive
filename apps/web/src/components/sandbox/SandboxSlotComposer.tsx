@@ -217,6 +217,11 @@ export function SandboxSlotComposer({
                   {importLoading ? 'Importing…' : 'Import'}
                 </Button>
               </div>
+              {importLoading ? (
+                <p className="text-xs text-text-secondary" role="status">
+                  Importing chart…
+                </p>
+              ) : null}
               {importError ? <p className="text-xs text-red-400">{importError}</p> : null}
             </div>
           ) : slotNeedsEntry ? (

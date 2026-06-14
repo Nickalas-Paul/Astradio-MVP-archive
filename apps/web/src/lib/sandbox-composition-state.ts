@@ -333,7 +333,7 @@ export type SandboxCompositionAction =
       snapshot: EphemerisSnapshot;
       meta: SandboxSnapshotMeta;
       baseSnapshot?: EphemerisSnapshot;
-      /** After import, append an empty slot and activate it (default true). */
+      /** When true, append an empty slot and activate it after import (default false). */
       advanceToNewSlot?: boolean;
     }
   | {
@@ -495,11 +495,28 @@ export function sandboxCompositionReducer(
         ...(displayName ? { chart_display_name: displayName } : {}),
         overrides: preserved,
       };
-      let active_slot_index = idx;
-      const shouldAdvance = action.advanceToNewSlot !== false;
+      const active_slot_index = idx;
+      const shouldAdvance = action.advanceToNewSlot === true;
       if (shouldAdvance && slots.length < SANDBOX_MAX_SLOTS) {
         slots = [...slots, { overrides: { planets: {} } }];
-        active_slot_index = slots.length - 1;
+        return {
+          ...state,
+          lastResolve: null,
+          compositionInput: {
+            ...state.compositionInput,
+            slots,
+            active_slot_index: slots.length - 1,
+            seed: undefined,
+          },
+          preview: {
+            ...state.preview,
+            syncStatus: 'idle',
+            baseSnapshot: action.baseSnapshot ?? action.snapshot,
+            overriddenSnapshot: action.snapshot,
+            snapshotMeta: action.meta,
+            error: null,
+          },
+        };
       }
       const base = action.baseSnapshot ?? action.snapshot;
       return {

@@ -175,7 +175,6 @@ export default function SandboxPage() {
         throw new Error('Search for a chart and pick a result, or paste a chart ID');
       }
       generate.clearGenerateError();
-      setSurfaceState('loading_base');
       try {
         const base = getApiBaseUrl();
         const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(trimmed)}`, {
@@ -183,7 +182,6 @@ export default function SandboxPage() {
         });
         const chartData = await chartRes.json().catch(() => ({}));
         if (!chartRes.ok) {
-          setSurfaceState('ready_builder');
           throw new Error(
             (typeof chartData?.error === 'string' && chartData.error) ||
               (typeof chartData?.message === 'string' && chartData.message) ||
@@ -201,7 +199,6 @@ export default function SandboxPage() {
           !wire.date ||
           !wire.time
         ) {
-          setSurfaceState('ready_builder');
           throw new Error(
             'This chart’s birth data is not available for wheel preview. Use Birth Data for manual entry, or import your own saved chart.',
           );
@@ -220,7 +217,6 @@ export default function SandboxPage() {
         });
         const snapData = await snapRes.json().catch(() => ({}));
         if (!snapRes.ok) {
-          setSurfaceState('ready_builder');
           throw new Error((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
         }
         let baseSnapshot: EphemerisSnapshot | undefined;
@@ -232,7 +228,6 @@ export default function SandboxPage() {
           });
           const baseD = await baseRes.json().catch(() => ({}));
           if (!baseRes.ok) {
-            setSurfaceState('ready_builder');
             throw new Error((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
           }
           baseSnapshot = baseD.snapshot as EphemerisSnapshot;
@@ -244,11 +239,9 @@ export default function SandboxPage() {
           snapshot: snapData.snapshot as EphemerisSnapshot,
           meta: snapData.meta as SandboxSnapshotMeta,
           ...(baseSnapshot ? { baseSnapshot } : {}),
-          advanceToNewSlot: true,
+          advanceToNewSlot: false,
         });
-        setSurfaceState('ready_builder');
       } catch (e) {
-        setSurfaceState('ready_builder');
         throw e instanceof Error ? e : new Error('Import failed');
       }
     },

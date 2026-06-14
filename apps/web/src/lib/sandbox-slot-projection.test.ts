@@ -61,10 +61,17 @@ function emptySlot() {
   assert.strictEqual(rows[0]!.chipText, 'Manual');
 }
 
-// Chart without stored display name → fallback
+// Chart without stored display name → chart_id fallback
 {
   const rows = projectSlotsFromCompositionInput(input([{ chart_id: 'abc', overrides: { planets: {} } }]));
-  assert.strictEqual(rows[0]!.chipText, 'Imported chart');
+  assert.strictEqual(rows[0]!.chipText, 'abc');
+}
+
+// Long chart_id without display name → truncated
+{
+  const longId = 'chart_abcdefghijklmnop';
+  const rows = projectSlotsFromCompositionInput(input([{ chart_id: longId, overrides: { planets: {} } }]));
+  assert.strictEqual(rows[0]!.chipText, 'chart_abcdef…');
 }
 
 console.log('OK: sandbox-slot-projection tests passed');
