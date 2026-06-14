@@ -130,6 +130,7 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
       ownerUser: { id: string; displayName?: string; handle?: string } | null;
     }>
   >;
+  chartAccessibleToUser: (userId: string, chartId: string) => Promise<boolean>;
 };
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const emailUtil = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'email')) as {
@@ -1409,8 +1410,19 @@ export function createCompatRouter(): import('express').Router {
   router.get('/charts/:id/snapshot', async (req: import('express').Request, res: import('express').Response) => {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
     if (!id) return res.status(404).json({ error: 'Chart not found' });
+    const viewerUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+    if (!viewerUserId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const chart = await getChartById(id);
     if (!chart) return res.status(404).json({ error: 'Chart not found' });
+    const allowed = await astradioPgStore.chartAccessibleToUser(viewerUserId, id);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "This chart isn't available for import. Connect with this person first, or enter their birth data manually.",
+        code: 'CHART_ACCESS_DENIED',
+      });
+    }
     try {
       const snapshot = await getChartSnapshotCached(id);
       return res.json({ snapshot });

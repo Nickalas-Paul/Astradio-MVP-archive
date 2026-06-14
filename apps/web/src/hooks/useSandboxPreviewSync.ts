@@ -13,6 +13,12 @@ import {
   type SandboxCompositionAction,
 } from '../lib/sandbox-composition-state';
 import { chartApiRecordToSandboxBirthWire } from '../lib/sandbox-bff-wire';
+import {
+  chartApiRecordHasEngineBirthFields,
+  applySandboxOverridesToSnapshotLite,
+  previewMetaForChartIdImport,
+  CHART_IMPORT_UNAVAILABLE_MSG,
+} from '../lib/sandbox-chart-import';
 
 export type SandboxSurfaceState =
   | 'idle'
@@ -143,13 +149,54 @@ export function useSandboxPreviewSync({
           if (seq !== activeSlotPreviewSeqRef.current) return;
           dispatchComposition({
             type: 'preview_sync_error',
-            message: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}`,
+            message:
+              chartRes.status === 403
+                ? CHART_IMPORT_UNAVAILABLE_MSG
+                : (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}`,
           });
           return;
         }
-        const wire = chartApiRecordToSandboxBirthWire(chartData);
-        resolvePreviewBirthBySlotRef.current.set(idx, wire);
-        b = wire;
+        if (chartApiRecordHasEngineBirthFields(chartData as Record<string, unknown>)) {
+          const wire = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthBySlotRef.current.set(idx, wire);
+          b = wire;
+        } else {
+          const snapRes = await fetch(`${baseUrl}/api/charts/${encodeURIComponent(cid)}/snapshot`, {
+            credentials: 'same-origin',
+          });
+          const snapData = await snapRes.json().catch(() => ({}));
+          if (!snapRes.ok) {
+            if (seq !== activeSlotPreviewSeqRef.current) return;
+            dispatchComposition({
+              type: 'preview_sync_error',
+              message:
+                snapRes.status === 403
+                  ? CHART_IMPORT_UNAVAILABLE_MSG
+                  : (snapData?.error ?? snapData?.message) || `Chart snapshot: ${snapRes.status}`,
+            });
+            return;
+          }
+          const serverSnapshot = snapData.snapshot as EphemerisSnapshot | undefined;
+          if (!serverSnapshot || !Array.isArray(serverSnapshot.planets)) {
+            if (seq !== activeSlotPreviewSeqRef.current) return;
+            dispatchComposition({
+              type: 'preview_sync_error',
+              message: 'Chart snapshot response missing ephemeris data',
+            });
+            return;
+          }
+          const effectiveSnapshot = applySandboxOverridesToSnapshotLite(serverSnapshot, overridesToUse);
+          const meta = await previewMetaForChartIdImport(cid, overridesToUse);
+          const hasPreserved = Object.keys(overridesToUse.planets).length > 0;
+          if (seq !== activeSlotPreviewSeqRef.current) return;
+          dispatchComposition({
+            type: 'preview_restore',
+            snapshot: effectiveSnapshot,
+            meta,
+            ...(hasPreserved ? { baseSnapshot: serverSnapshot } : {}),
+          });
+          return;
+        }
       }
 
       const hasPreserved = Object.keys(overridesToUse.planets).length > 0;

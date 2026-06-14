@@ -34,6 +34,13 @@ import {
 import { projectSlotsFromCompositionInput } from '../../src/lib/sandbox-slot-projection';
 import { equalHouseCuspsFromAscendant } from '../../src/lib/equal-house-cusps';
 import { chartApiOwnerDisplayLabel, chartApiRecordToSandboxBirthWire } from '../../src/lib/sandbox-bff-wire';
+import {
+  chartApiRecordHasEngineBirthFields,
+  applySandboxOverridesToSnapshotLite,
+  previewMetaForChartIdImport,
+  chartImportHttpErrorMessage,
+  CHART_IMPORT_UNAVAILABLE_MSG,
+} from '../../src/lib/sandbox-chart-import';
 import { useSandboxPreviewSync, type SandboxSurfaceState } from '../../src/hooks/useSandboxPreviewSync';
 import { useSandboxGenerate } from '../../src/hooks/useSandboxGenerate';
 import { useSandboxPersistence } from '../../src/hooks/useSandboxPersistence';
@@ -182,63 +189,78 @@ export default function SandboxPage() {
         });
         const chartData = await chartRes.json().catch(() => ({}));
         if (!chartRes.ok) {
-          throw new Error(
-            (typeof chartData?.error === 'string' && chartData.error) ||
-              (typeof chartData?.message === 'string' && chartData.message) ||
-              `Chart request failed (${chartRes.status})`,
-          );
+          throw new Error(chartImportHttpErrorMessage(chartRes.status, chartData as Record<string, unknown>));
         }
         const chartIdCanonical = typeof chartData?.id === 'string' && chartData.id.trim() ? chartData.id.trim() : trimmed;
         const chartDisplayName = chartApiOwnerDisplayLabel(
           chartData && typeof chartData === 'object' ? (chartData as Record<string, unknown>) : {},
         );
-        const wire = chartApiRecordToSandboxBirthWire(chartData);
-        if (
-          !Number.isFinite(wire.location.lat) ||
-          !Number.isFinite(wire.location.lon) ||
-          !wire.date ||
-          !wire.time
-        ) {
-          throw new Error(
-            'This chart’s birth data is not available for wheel preview. Use Birth Data for manual entry, or import your own saved chart.',
-          );
-        }
-        resolvePreviewBirthBySlotRef.current.set(
-          getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),
-          wire,
-        );
         const overridesToUse = normalizeSandboxOverrides(activeSlotOverrides(compositionRef.current));
         const hasPreservedPlanetOverrides = Object.keys(overridesToUse.planets).length > 0;
-        const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const activeIdx = getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput);
+
+        if (chartApiRecordHasEngineBirthFields(chartData as Record<string, unknown>)) {
+          const wire = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthBySlotRef.current.set(activeIdx, wire);
+          const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ birth: wire, overrides: overridesToUse }),
+          });
+          const snapData = await snapRes.json().catch(() => ({}));
+          if (!snapRes.ok) {
+            throw new Error((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
+          }
+          let baseSnapshot: EphemerisSnapshot | undefined;
+          if (hasPreservedPlanetOverrides) {
+            const baseRes = await fetch(`${base}/api/sandbox/snapshot`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ birth: wire, overrides: { planets: {} } }),
+            });
+            const baseD = await baseRes.json().catch(() => ({}));
+            if (!baseRes.ok) {
+              throw new Error((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
+            }
+            baseSnapshot = baseD.snapshot as EphemerisSnapshot;
+          }
+          dispatchComposition({
+            type: 'import_chart_id_success',
+            chartId: chartIdCanonical,
+            chartDisplayName,
+            snapshot: snapData.snapshot as EphemerisSnapshot,
+            meta: snapData.meta as SandboxSnapshotMeta,
+            ...(baseSnapshot ? { baseSnapshot } : {}),
+            advanceToNewSlot: false,
+          });
+          return;
+        }
+
+        const snapRes = await fetch(`${base}/api/charts/${encodeURIComponent(chartIdCanonical)}/snapshot`, {
           credentials: 'same-origin',
-          body: JSON.stringify({ birth: wire, overrides: overridesToUse }),
         });
         const snapData = await snapRes.json().catch(() => ({}));
         if (!snapRes.ok) {
-          throw new Error((snapData?.error ?? snapData?.message) || 'Snapshot failed after import');
+          throw new Error(
+            snapRes.status === 403
+              ? CHART_IMPORT_UNAVAILABLE_MSG
+              : chartImportHttpErrorMessage(snapRes.status, snapData as Record<string, unknown>),
+          );
         }
-        let baseSnapshot: EphemerisSnapshot | undefined;
-        if (hasPreservedPlanetOverrides) {
-          const baseRes = await fetch(`${base}/api/sandbox/snapshot`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ birth: wire, overrides: { planets: {} } }),
-          });
-          const baseD = await baseRes.json().catch(() => ({}));
-          if (!baseRes.ok) {
-            throw new Error((baseD?.error ?? baseD?.message) || 'Natal snapshot failed for import');
-          }
-          baseSnapshot = baseD.snapshot as EphemerisSnapshot;
+        const serverSnapshot = snapData.snapshot as EphemerisSnapshot | undefined;
+        if (!serverSnapshot || !Array.isArray(serverSnapshot.planets)) {
+          throw new Error('Chart snapshot response missing ephemeris data');
         }
+        const effectiveSnapshot = applySandboxOverridesToSnapshotLite(serverSnapshot, overridesToUse);
+        const importMeta = await previewMetaForChartIdImport(chartIdCanonical, overridesToUse);
         dispatchComposition({
           type: 'import_chart_id_success',
           chartId: chartIdCanonical,
           chartDisplayName,
-          snapshot: snapData.snapshot as EphemerisSnapshot,
-          meta: snapData.meta as SandboxSnapshotMeta,
-          ...(baseSnapshot ? { baseSnapshot } : {}),
+          snapshot: effectiveSnapshot,
+          meta: importMeta,
+          ...(hasPreservedPlanetOverrides ? { baseSnapshot: serverSnapshot } : {}),
           advanceToNewSlot: false,
         });
       } catch (e) {

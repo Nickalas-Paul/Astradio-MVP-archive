@@ -26,6 +26,12 @@ import {
   fingerprintResolveBodyExcludingSeed,
 } from '../lib/sandbox-resolve-fingerprint';
 import { chartApiRecordToSandboxBirthWire } from '../lib/sandbox-bff-wire';
+import {
+  chartApiRecordHasEngineBirthFields,
+  applySandboxOverridesToSnapshotLite,
+  combinedChartIdOverridesSeed,
+  CHART_IMPORT_UNAVAILABLE_MSG,
+} from '../lib/sandbox-chart-import';
 import type { SandboxSurfaceState } from './useSandboxPreviewSync';
 
 export interface UseSandboxGenerateArgs {
@@ -267,14 +273,25 @@ export function useSandboxGenerate({
     try {
       if (seedKind === 'chart_id') {
         const cid = String(seedSlot?.chart_id ?? '').trim();
-        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`);
+        const chartRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}`, {
+          credentials: 'same-origin',
+        });
         const chartData = await chartRes.json().catch(() => ({}));
         if (!chartRes.ok) {
-          setGenerateError({ chart: (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}` });
+          setGenerateError({
+            chart:
+              chartRes.status === 403
+                ? CHART_IMPORT_UNAVAILABLE_MSG
+                : (chartData?.error ?? chartData?.message) || `Chart: ${chartRes.status}`,
+          });
           return;
         }
-        birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
-        resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
+        if (chartApiRecordHasEngineBirthFields(chartData as Record<string, unknown>)) {
+          birthForSnap = chartApiRecordToSandboxBirthWire(chartData);
+          resolvePreviewBirthBySlotRef.current.set(seedIdx, birthForSnap);
+        } else {
+          birthForSnap = null;
+        }
       } else if (seedKind === 'ephemeris_birth') {
         birthForSnap = seedSlot?.ephemeris_birth ?? resolvePreviewBirthBySlotRef.current.get(seedIdx) ?? null;
         if (!birthForSnap) {
@@ -309,19 +326,54 @@ export function useSandboxGenerate({
     cancelPendingSnapshotSync();
 
     try {
-      const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ birth: birthForSnap, overrides: overridesNorm }),
-      });
-      const snapData = await snapRes.json().catch(() => ({}));
-      if (!snapRes.ok) {
-        setGenerateError({ chart: (snapData?.error ?? snapData?.message) || `Snapshot: ${snapRes.status}` });
-        setGenerateLoading(false);
-        return;
+      let snapshotUsed: EphemerisSnapshot | null = null;
+      let combinedHashUsed: string | null = null;
+
+      if (seedKind === 'chart_id' && birthForSnap == null) {
+        const cid = String(seedSlot?.chart_id ?? '').trim();
+        const snapRes = await fetch(`${base}/api/charts/${encodeURIComponent(cid)}/snapshot`, {
+          credentials: 'same-origin',
+        });
+        const snapData = await snapRes.json().catch(() => ({}));
+        if (!snapRes.ok) {
+          setGenerateError({
+            chart:
+              snapRes.status === 403
+                ? CHART_IMPORT_UNAVAILABLE_MSG
+                : (snapData?.error ?? snapData?.message) || `Chart snapshot: ${snapRes.status}`,
+          });
+          setGenerateLoading(false);
+          return;
+        }
+        const serverSnapshot = snapData.snapshot as EphemerisSnapshot | undefined;
+        if (!serverSnapshot) {
+          setGenerateError({ chart: 'Chart snapshot response missing ephemeris data' });
+          setGenerateLoading(false);
+          return;
+        }
+        snapshotUsed = applySandboxOverridesToSnapshotLite(serverSnapshot, overridesNorm);
+        combinedHashUsed = await combinedChartIdOverridesSeed(cid, overridesNorm);
+      } else {
+        if (!birthForSnap) {
+          setGenerateError({ chart: 'First occupied slot needs complete birth data for resolve seed snapshot.' });
+          setGenerateLoading(false);
+          return;
+        }
+        const snapRes = await fetch(`${base}/api/sandbox/snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birth: birthForSnap, overrides: overridesNorm }),
+        });
+        const snapData = await snapRes.json().catch(() => ({}));
+        if (!snapRes.ok) {
+          setGenerateError({ chart: (snapData?.error ?? snapData?.message) || `Snapshot: ${snapRes.status}` });
+          setGenerateLoading(false);
+          return;
+        }
+        snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
+        combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
       }
-      let snapshotUsed = snapData.snapshot as EphemerisSnapshot | null;
-      const combinedHashUsed = (snapData.meta && snapData.meta.combinedHash) || null;
+
       if (!snapshotUsed || !combinedHashUsed) {
         setGenerateError({ chart: 'Snapshot response missing snapshot or combinedHash' });
         setGenerateLoading(false);
