@@ -39,6 +39,10 @@ import { useSandboxGenerate } from '../../src/hooks/useSandboxGenerate';
 import { useSandboxPersistence } from '../../src/hooks/useSandboxPersistence';
 import type { EphemerisSnapshot, SandboxSnapshotMeta } from '../../src/types/sandbox';
 
+function defaultDegreePanelOpenForJourney(mode: SandboxEntryMode): boolean {
+  return mode === 'whatif';
+}
+
 export default function SandboxPage() {
   const sandboxDebug = useSandboxDebugUi();
   const [compositionModel, dispatchComposition] = useReducer(
@@ -51,6 +55,9 @@ export default function SandboxPage() {
   const [surfaceState, setSurfaceState] = useState<SandboxSurfaceState>('ready_builder');
   const [error, setError] = useState<string | null>(null);
   const [entryLayer, setEntryLayer] = useState<'entry' | 'workbench'>('entry');
+  const [journeyType, setJourneyType] = useState<SandboxEntryMode | null>(null);
+  const [degreePanelOpen, setDegreePanelOpen] = useState(false);
+  const hasManuallyToggledDegreePanelRef = useRef(false);
   const entryAutoSkipRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -143,6 +150,9 @@ export default function SandboxPage() {
         dispatchComposition({ type: 'set_entry_mode', entryMode: 'blank_canvas' });
       }
 
+      hasManuallyToggledDegreePanelRef.current = false;
+      setJourneyType(mode);
+      setDegreePanelOpen(defaultDegreePanelOpenForJourney(mode));
       setEntryLayer('workbench');
       entryAutoSkipRef.current = true;
     },
@@ -151,6 +161,11 @@ export default function SandboxPage() {
 
   const handleEntryContinue = useCallback(() => {
     setEntryLayer('workbench');
+  }, []);
+
+  const handleDegreePanelToggle = useCallback(() => {
+    hasManuallyToggledDegreePanelRef.current = true;
+    setDegreePanelOpen((open) => !open);
   }, []);
 
   const handleImportChartById = useCallback(
@@ -323,6 +338,34 @@ export default function SandboxPage() {
     return 'Compose a chart, then generate a reading and soundtrack.';
   }, [onlyBlankCanvasPopulated]);
 
+  const hasSavedCompositions = persistence.savedList.length > 0;
+
+  const savedCompositionsSection = (
+    <SandboxSavedCompositions
+      savedList={persistence.savedList}
+      listLoading={persistence.listLoading}
+      listError={persistence.listError}
+      onRefresh={persistence.fetchSavedList}
+      onLoad={persistence.handleLoadComposition}
+    />
+  );
+
+  const degreePanelSection = (
+    <Card>
+      <DegreePanel
+        overrides={overrides}
+        basePositions={basePositions}
+        cusps={displayCusps}
+        ascendantLon={ascendantLonForPanel}
+        ascendantEditable={isFreeBuildWheel}
+        onAscendantChange={handleAscendantChange}
+        onOverrideChange={previewSync.handleOverrideChange}
+        onResetPlanet={handleResetPlanet}
+        entryMode={activeEntryMode}
+      />
+    </Card>
+  );
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto space-y-8">
@@ -350,14 +393,41 @@ export default function SandboxPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4"
+              data-journey-type={journeyType ?? undefined}
             >
-              <button
-                type="button"
-                onClick={() => setEntryLayer('entry')}
-                className="text-body-sm text-text-muted hover:text-text-secondary transition-colors"
-              >
-                ← Back to options
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEntryLayer('entry')}
+                  className="text-body-sm text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  ← Back to options
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDegreePanelToggle}
+                  aria-expanded={degreePanelOpen}
+                  className="inline-flex items-center gap-1.5 text-body-sm text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  Planet Degrees
+                  <svg
+                    width={14}
+                    height={14}
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    aria-hidden
+                    className={`transition-transform ${degreePanelOpen ? 'rotate-180' : ''}`}
+                  >
+                    <path
+                      d="M3.5 5.25L7 8.75L10.5 5.25"
+                      stroke="currentColor"
+                      strokeWidth="1.25"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
               <div className="text-center space-y-4">
                 <h1 className="text-h1 font-serif font-bold text-text-primary">Sandbox</h1>
                 <p className="text-lg text-text-secondary max-w-2xl mx-auto">{workbenchSubtitle}</p>
@@ -382,6 +452,9 @@ export default function SandboxPage() {
                   resolvePreviewBirthBySlotRef.current.clear();
                   generate.clearSeedFingerprintState();
                   dispatchComposition({ type: 'reset_all' });
+                  setJourneyType(null);
+                  hasManuallyToggledDegreePanelRef.current = false;
+                  setDegreePanelOpen(false);
                 }}
                 className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm"
               >
@@ -425,7 +498,11 @@ export default function SandboxPage() {
 
         {showComposerSurface && (
           <PlacementHighlightProvider>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+          <div
+            className={`grid grid-cols-1 gap-6 transition-[grid-template-columns] duration-200 ${
+              degreePanelOpen ? 'lg:grid-cols-[1fr_300px]' : ''
+            }`}
+          >
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <SandboxSlotComposer
                 compositionInput={compositionModel.compositionInput}
@@ -495,30 +572,16 @@ export default function SandboxPage() {
                   />
                 )}
               </Card>
+
+              {!degreePanelOpen && hasSavedCompositions ? savedCompositionsSection : null}
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <Card>
-                <DegreePanel
-                  overrides={overrides}
-                  basePositions={basePositions}
-                  cusps={displayCusps}
-                  ascendantLon={ascendantLonForPanel}
-                  ascendantEditable={isFreeBuildWheel}
-                  onAscendantChange={handleAscendantChange}
-                  onOverrideChange={previewSync.handleOverrideChange}
-                  onResetPlanet={handleResetPlanet}
-                  entryMode={activeEntryMode}
-                />
-              </Card>
-              <SandboxSavedCompositions
-                savedList={persistence.savedList}
-                listLoading={persistence.listLoading}
-                listError={persistence.listError}
-                onRefresh={persistence.fetchSavedList}
-                onLoad={persistence.handleLoadComposition}
-              />
-            </motion.div>
+            {degreePanelOpen ? (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                {degreePanelSection}
+                {savedCompositionsSection}
+              </motion.div>
+            ) : null}
           </div>
           </PlacementHighlightProvider>
         )}
