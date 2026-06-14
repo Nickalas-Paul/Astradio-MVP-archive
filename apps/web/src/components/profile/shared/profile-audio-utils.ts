@@ -18,6 +18,12 @@ export function setIdentityAudioChartSync(chartId: string, chartUpdatedAt: strin
   }
 }
 
+/** True when the user has not yet synced/heard identity audio for this chart locally. */
+export function isFirstIdentityListen(chartId: string): boolean {
+  if (!chartId) return false;
+  return getIdentityAudioChartSync(chartId) === null;
+}
+
 /** True when chart row changed after the last identity audio we synced locally. */
 export function isChartUpdatedSinceLastIdentityAudio(
   chartId: string,

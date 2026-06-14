@@ -12,6 +12,7 @@ import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '@/core/social/constants'
 import { useHydrateCompositionUrls } from '@/hooks/useHydrateCompositionUrls';
 import { PlacementHighlightProvider } from '@/core/PlacementHighlightContext';
 import { Card } from '@/components/shared/Card';
+import { FtueTodayWelcomeBanner } from '@/components/ftue/FtueTodayWelcomeBanner';
 
 function TodayContent() {
   const { user, primaryChart, loading: profileLoading } = useProfile();
@@ -48,6 +49,7 @@ function TodayContent() {
   return (
     <PlacementHighlightProvider>
       <div className="max-w-6xl mx-auto">
+        <FtueTodayWelcomeBanner />
         <TodaySkySummary primaryChart={primaryChart} />
 
         <div className="py-10 text-center">

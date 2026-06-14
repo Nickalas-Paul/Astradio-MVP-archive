@@ -16,6 +16,7 @@ import type { RelationalIntent } from '../../src/lib/relational-intent';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { Tabs } from '@/components/shared/Tabs';
+import { FtueConnectionsWelcomeBanner } from '@/components/ftue/FtueConnectionsWelcomeBanner';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
@@ -280,6 +281,8 @@ function CommunityClientInner() {
             </Link>
           </Card>
         </motion.div>
+
+        {user?.id ? <FtueConnectionsWelcomeBanner /> : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
