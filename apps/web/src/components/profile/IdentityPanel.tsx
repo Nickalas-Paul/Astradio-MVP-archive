@@ -269,8 +269,7 @@ export function IdentityPanel({
 
   const showGenerateButton =
     (audioState === 'missing' || audioState === 'error') &&
-    !showFirstListenComposing &&
-    !showFirstListenComposeDelayed;
+    !showFirstListenComposing;
 
   const renderWheel = (maxSize: number) => {
     if (loading) {
@@ -351,9 +350,11 @@ export function IdentityPanel({
         </div>
       )}
       {showFirstListenComposeDelayed && (
-        <p className="text-sm text-text-secondary">
-          Your soundtrack is taking a little longer than usual. It&apos;ll be ready when you come back.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-text-secondary">
+            Your soundtrack is taking a little longer than usual. You can generate it now.
+          </p>
+        </div>
       )}
       {showGenerateButton && (
         <div className="space-y-3">
