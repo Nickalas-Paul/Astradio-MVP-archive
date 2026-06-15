@@ -255,7 +255,7 @@ function CommunityClientInner() {
           </p>
           <p className="text-sm text-text-secondary">
             Profile and saved tracks live under{' '}
-            <Link href="/profile" className="text-accent-light hover:underline">
+            <Link href="/profile" className="text-accent hover:underline">
               My Sky
             </Link>
             .

@@ -56,19 +56,19 @@ function buildMarkdownComponents(): Components {
       const match = text.match(PLANET_NAME_PATTERN);
       if (match) {
         return (
-          <h3 className="text-h3 font-serif text-accent-light mt-6 mb-3 first:mt-0" {...props}>
+          <h3 className="text-h3 font-serif text-accent mt-6 mb-3 first:mt-0" {...props}>
             <PlanetReference planetName={match[1]}>{children}</PlanetReference>
           </h3>
         );
       }
       return (
-        <h3 className="text-h3 font-serif text-accent-light mt-6 mb-3 first:mt-0" {...props}>
+        <h3 className="text-h3 font-serif text-accent mt-6 mb-3 first:mt-0" {...props}>
           {children}
         </h3>
       );
     },
     h4: ({ children }) => (
-      <h4 className="text-body font-semibold text-accent-light/90 mb-2 mt-4 first:mt-0">{children}</h4>
+      <h4 className="text-body font-semibold text-accent/90 mb-2 mt-4 first:mt-0">{children}</h4>
     ),
     strong: ({ children, ...props }) => {
       const text = extractTextContent(children);

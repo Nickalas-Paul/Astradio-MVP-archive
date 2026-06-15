@@ -27,7 +27,7 @@ export interface ProfileCompatibilityPanelProps {
 function BulletRow({ label, text }: { label: string; text: string }) {
   return (
     <Card elevation="flat" padding="p-4" className="space-y-2">
-      <p className="text-caption font-medium uppercase tracking-wide text-accent-light">{label}</p>
+      <p className="text-caption font-medium uppercase tracking-wide text-accent">{label}</p>
       <div className="text-body text-text-secondary leading-relaxed">
         <IdentityMarkdown content={text} />
       </div>

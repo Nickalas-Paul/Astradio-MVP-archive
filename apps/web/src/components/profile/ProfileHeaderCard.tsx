@@ -257,7 +257,7 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
                 {user.chartHighlights.map((h) => (
                   <li
                     key={h}
-                    className="text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans"
+                    className="text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent font-sans"
                   >
                     {h}
                   </li>
@@ -380,7 +380,7 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
                         onClick={() => toggleHighlight(label)}
                         className={`text-caption font-sans px-3 py-2 min-h-[44px] rounded-full border transition-colors duration-fast ${
                           selected
-                            ? 'border-accent bg-accent/10 text-accent-light'
+                            ? 'border-accent bg-accent/10 text-accent'
                             : 'border-border bg-surface-0 text-text-secondary hover:border-accent/50 disabled:opacity-50'
                         }`}
                       >
@@ -426,7 +426,7 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
       )}
 
       {saveSuccess && !editing ? (
-        <p className="text-body-sm text-accent-light font-sans" role="status">
+        <p className="text-body-sm text-accent font-sans" role="status">
           Profile updated
         </p>
       ) : null}
@@ -434,7 +434,7 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
       <p className="border-t border-border pt-4">
         <Link
           href={previewHref}
-          className="text-body-sm text-accent-light hover:text-accent font-sans inline-flex items-center min-h-[44px]"
+          className="text-body-sm text-accent hover:text-accent font-sans inline-flex items-center min-h-[44px]"
         >
           Preview how others see your profile →
         </Link>

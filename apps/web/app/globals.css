@@ -117,7 +117,7 @@
 
   .reading-section-header {
     @apply relative text-2xl font-serif font-semibold mb-3 pb-2
-           bg-gradient-to-r from-accent-light to-[#0bbfbf] bg-clip-text text-transparent;
+           bg-gradient-to-r from-accent to-[#0bbfbf] bg-clip-text text-transparent;
   }
 
   .reading-section-header::before {
@@ -126,7 +126,7 @@
   }
 
   .reading-field-label {
-    @apply block font-sans font-semibold text-accent-light text-base mb-2;
+    @apply block font-sans font-semibold text-accent text-base mb-2;
   }
 }
 

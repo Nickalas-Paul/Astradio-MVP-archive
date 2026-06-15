@@ -488,7 +488,7 @@ function ChallengeCard(props: {
       <h2 className="mt-2 text-2xl font-semibold leading-tight">{headline}</h2>
       <p className="mt-3 text-base text-text-secondary">{supporting}</p>
       <p className="mt-3 text-sm text-text-secondary/90">{setting}</p>
-      {continuityLine ? <p className="mt-4 text-sm text-accent-light/80">{continuityLine}</p> : null}
+      {continuityLine ? <p className="mt-4 text-sm text-accent/80">{continuityLine}</p> : null}
     </section>
   );
 }
@@ -581,21 +581,21 @@ function OutcomePanel(props: {
       <h2 className="text-lg font-semibold">Outcome</h2>
       <div className="mt-3 space-y-4">
         <div>
-          <h3 className="text-sm font-medium uppercase tracking-wide text-accent-light/80">Immediate consequence</h3>
+          <h3 className="text-sm font-medium uppercase tracking-wide text-accent/80">Immediate consequence</h3>
           <p className="mt-2 text-sm">{mode === 'solo' ? 'This choice now shapes the next state of the campaign.' : 'The shared challenge has now been fully resolved.'}</p>
         </div>
         {mode !== 'solo' && (
           <div>
-            <h3 className="text-sm font-medium uppercase tracking-wide text-accent-light/80">Shared consequence</h3>
+            <h3 className="text-sm font-medium uppercase tracking-wide text-accent/80">Shared consequence</h3>
             <p className="mt-2 text-sm">{sharedLine}</p>
           </div>
         )}
         {mode !== 'solo' && (
           <div>
-            <h3 className="text-sm font-medium uppercase tracking-wide text-accent-light/80">Member contributions</h3>
+            <h3 className="text-sm font-medium uppercase tracking-wide text-accent/80">Member contributions</h3>
             <div className="mt-2 space-y-2 text-sm">
               {ordered.map((entry) => (
-                <div key={`${entry.member_id}:${entry.choice_id}`} className="rounded border border-accent-light/20 px-3 py-2">
+                <div key={`${entry.member_id}:${entry.choice_id}`} className="rounded border border-accent/20 px-3 py-2">
                   {entry.user_id}: {entry.response_label} ({titleCase(entry.response_posture)})
                 </div>
               ))}
@@ -604,13 +604,13 @@ function OutcomePanel(props: {
         )}
         {mode === 'solo' && ordered[0] ? (
           <div>
-            <h3 className="text-sm font-medium uppercase tracking-wide text-accent-light/80">Immediate consequence</h3>
+            <h3 className="text-sm font-medium uppercase tracking-wide text-accent/80">Immediate consequence</h3>
             <p className="mt-2 text-sm">{ordered[0].response_label} is now the committed path for this daily.</p>
           </div>
         ) : null}
         {continuityLine ? (
           <div>
-            <h3 className="text-sm font-medium uppercase tracking-wide text-accent-light/80">Continuity forward</h3>
+            <h3 className="text-sm font-medium uppercase tracking-wide text-accent/80">Continuity forward</h3>
             <p className="mt-2 text-sm">{continuityLine}</p>
           </div>
         ) : null}
@@ -940,7 +940,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
       <div className="mx-auto max-w-5xl space-y-6">
         <p className="text-xs text-text-secondary rounded-lg border border-border bg-bgElev px-3 py-2">
           Group coordination uses structured Signals in Connections, not chat.{' '}
-          <Link href="/community?tab=connections" className="text-accent-light hover:underline">
+          <Link href="/community?tab=connections" className="text-accent hover:underline">
             Open Connections
           </Link>
           .

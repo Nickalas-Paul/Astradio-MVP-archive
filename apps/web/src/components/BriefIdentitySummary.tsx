@@ -190,7 +190,7 @@ export function BriefIdentitySummary({
           {showFullChartLink ? (
             <Link
               href={profilePath}
-              className="inline-block text-body-sm text-accent-light hover:underline font-medium"
+              className="inline-block text-body-sm text-accent hover:underline font-medium"
             >
               View complete natal chart →
             </Link>

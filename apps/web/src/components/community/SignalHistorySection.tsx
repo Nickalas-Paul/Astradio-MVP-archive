@@ -92,7 +92,7 @@ export function SignalHistorySection({
           const typeLabel = formatSignalTemplateLabel(s.templateId);
           const statusLabel = signalHistoryStatusLabel(s.status, s.replyCount);
           const statusClass =
-            statusLabel === 'Acknowledged' ? 'text-accent-light' : 'text-text-muted';
+            statusLabel === 'Acknowledged' ? 'text-accent' : 'text-text-muted';
 
           return (
             <li key={s.id} className="py-2 text-caption text-text-muted font-sans">
@@ -107,7 +107,7 @@ export function SignalHistorySection({
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="text-sm text-accent-light hover:underline font-sans"
+          className="text-sm text-accent hover:underline font-sans"
         >
           Show more ({signals.length - TIMELINE_VISIBLE} more)
         </button>

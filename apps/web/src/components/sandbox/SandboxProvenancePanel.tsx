@@ -101,7 +101,7 @@ export function SandboxProvenancePanel({
         </div>
       </div>
       {replayStatus === 'mismatch' && <p className="text-xs font-semibold text-red-400">Determinism mismatch</p>}
-      {replayStatus === 'match' && <p className="text-xs text-accent-light">Replay matched plan hash.</p>}
+      {replayStatus === 'match' && <p className="text-xs text-accent">Replay matched plan hash.</p>}
       {replayStatus === 'error' && replayError && <p className="text-xs text-red-400">{replayError}</p>}
     </details>
   );

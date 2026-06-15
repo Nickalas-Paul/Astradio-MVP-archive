@@ -17,7 +17,7 @@ export function PlayerBar() {
         <div className="flex items-center justify-between">
           {/* Track Info */}
           <div className="flex items-center space-x-4 min-w-0 flex-1">
-            <div className="w-12 h-12 bg-gradient-to-br from-accent-light to-violet rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className="w-12 h-12 bg-gradient-to-br from-accent to-violet rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
               <span className="text-bg font-bold">♪</span>
             </div>
             <div className="min-w-0 flex-1">

@@ -145,4 +145,4 @@ export function formatSignalHistoryTimeSpan(oldestAt: string | null, newestAt: s
 }
 
 export const SIGNAL_TYPE_PILL_CLASS =
-  'text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans';
+  'text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent font-sans';

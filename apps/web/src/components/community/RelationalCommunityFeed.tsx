@@ -799,7 +799,7 @@ export function RelationalCommunityFeed({
                                             key={`${item.feed_item_id}-spot-${idx}`}
                                             className="space-y-2"
                                           >
-                                            <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
+                                            <p className="text-caption font-medium uppercase tracking-wide text-accent">
                                               {getRoleLabel(line.role)}
                                             </p>
                                             {activationLinePrefix(line) ? (
@@ -934,7 +934,7 @@ export function RelationalCommunityFeed({
                         <ul className="list-none space-y-3 pl-0">
                           {betaLines.map((line, idx) => (
                             <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
-                              <p className="text-caption font-medium uppercase tracking-wide text-accent-light">
+                              <p className="text-caption font-medium uppercase tracking-wide text-accent">
                                 {getRoleLabel(line.role)}
                               </p>
                               <div className="text-body-sm text-text-secondary leading-relaxed min-w-0 break-words">

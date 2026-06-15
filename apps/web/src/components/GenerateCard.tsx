@@ -118,7 +118,7 @@ export function GenerateCard({
                 onClick={() => onGenreChange(genre.id)}
                 className={`p-3 rounded-xl border text-left transition-all duration-200 ${
                   selectedGenre === genre.id
-                    ? 'border-accent bg-accent/10 text-accent-light'
+                    ? 'border-accent bg-accent/10 text-accent'
                     : 'border-border bg-bg hover:bg-bgElev hover:border-accent/50'
                 }`}
                 disabled={isCurrentlyGenerating}

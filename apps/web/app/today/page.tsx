@@ -39,7 +39,7 @@ function TodayContent() {
               Sign in to see your personal and relational astrological weather.
             </p>
             <p className="text-sm text-text-secondary">
-              <Link href="/profile" className="text-accent-light hover:underline">
+              <Link href="/profile" className="text-accent hover:underline">
                 Sign in on My Sky
               </Link>
             </p>
@@ -61,7 +61,7 @@ function TodayContent() {
                 <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
                   <p>Link your birth chart in My Sky to see your personal transit.</p>
                   <p>
-                    <Link href="/profile" className="text-accent-light hover:underline">
+                    <Link href="/profile" className="text-accent hover:underline">
                       Go to My Sky
                     </Link>
                   </p>

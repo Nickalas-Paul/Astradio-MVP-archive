@@ -16,7 +16,7 @@ export default function AboutPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-6"
         >
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-text via-accent-light to-violet bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-text via-accent to-violet bg-clip-text text-transparent">
             About Astradio
           </h1>
           <p className="text-xl text-text-secondary max-w-3xl mx-auto">
@@ -106,7 +106,7 @@ export default function AboutPage() {
           
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-accent-light">Backend</h3>
+              <h3 className="text-xl font-semibold text-accent">Backend</h3>
               <ul className="space-y-2 text-text-secondary">
                 <li>• <strong>Swiss Ephemeris:</strong> Precise astronomical calculations</li>
                 <li>• <strong>TensorFlow.js:</strong> Machine learning model inference</li>
@@ -141,7 +141,7 @@ export default function AboutPage() {
           
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-accent to-violet rounded-full flex items-center justify-center">
                 <span className="text-bg font-bold text-xl">A</span>
               </div>
               <h3 className="text-xl font-semibold text-text-primary">Astradio Team</h3>

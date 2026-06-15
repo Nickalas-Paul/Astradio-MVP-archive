@@ -76,7 +76,7 @@ export default function SettingsPage() {
                       onClick={() => setTheme('dark')}
                       className={`p-3 rounded-xl border text-center transition-all ${
                         theme === 'dark'
-                          ? 'border-accent bg-accent/10 text-accent-light'
+                          ? 'border-accent bg-accent/10 text-accent'
                           : 'border-border bg-bg hover:bg-bgElev'
                       }`}
                     >
@@ -134,7 +134,7 @@ export default function SettingsPage() {
                       id="autoplay"
                       checked={settings.autoPlay}
                       onChange={(e) => updateSettings({ autoPlay: e.target.checked })}
-                      className="w-4 h-4 text-accent-light bg-bg border-border rounded focus:ring-accent focus:ring-2"
+                      className="w-4 h-4 text-accent bg-bg border-border rounded focus:ring-accent focus:ring-2"
                     />
                     <label htmlFor="autoplay" className="text-sm text-text-primary">
                       Automatically play compositions when ready
@@ -188,7 +188,7 @@ export default function SettingsPage() {
                   <>
                     <div className="p-4 bg-bgElev rounded-xl border border-border">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-accent-light to-violet rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-accent to-violet rounded-full flex items-center justify-center shrink-0">
                           <span className="text-bg font-bold">
                             {(user.displayName || '?').charAt(0).toUpperCase()}
                           </span>
@@ -216,7 +216,7 @@ export default function SettingsPage() {
                   </>
                 ) : (
                   <p className="text-sm text-text-secondary">
-                    <Link href="/profile" className="text-accent-light hover:underline">
+                    <Link href="/profile" className="text-accent hover:underline">
                       Sign in to manage your account
                     </Link>
                   </p>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
             
             <div>
               <h3 className="text-sm font-medium text-text-primary mb-2">Support</h3>
-              <button className="text-sm text-accent-light hover:text-accent-light">
+              <button className="text-sm text-accent hover:text-accent">
                 Contact Support
               </button>
             </div>

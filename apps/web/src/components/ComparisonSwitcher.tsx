@@ -38,7 +38,7 @@ export function ComparisonSwitcher({
             <div className="p-4 bg-bgElev rounded-xl border border-accent/20">
               <div className="flex items-center space-x-3 mb-2">
                 <div className="w-3 h-3 bg-accent rounded-full"></div>
-                <span className="text-sm font-medium text-accent-light">Chart A</span>
+                <span className="text-sm font-medium text-accent">Chart A</span>
               </div>
               <h3 className="text-text-primary font-semibold">
                 {chartA?.label || 'No chart selected'}
@@ -131,7 +131,7 @@ export function ComparisonSwitcher({
           >
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-primary">Comparison ready</span>
-              <span className="text-accent-light">✓</span>
+              <span className="text-accent">✓</span>
             </div>
             <p className="text-xs text-text-secondary mt-1">
               Generate a composition that blends the energies of both charts

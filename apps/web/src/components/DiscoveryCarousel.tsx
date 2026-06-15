@@ -57,7 +57,7 @@ function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
   return (
     <div className="min-w-0 space-y-1">
       {label ? (
-        <p className="text-caption font-medium uppercase tracking-wide text-accent-light">{label}</p>
+        <p className="text-caption font-medium uppercase tracking-wide text-accent">{label}</p>
       ) : null}
       <div className="text-body text-text-primary leading-relaxed">
         <IdentityMarkdown content={line.text} />
@@ -164,12 +164,12 @@ function CarouselFooter({
             aria-label={`Match ${i + 1} of ${totalMatches}`}
             onClick={() => onSelectIndex(i)}
             className={`touch-target p-3 rounded-full transition-all duration-fast ${
-              i === currentIndex ? 'bg-accent-light' : 'bg-transparent hover:bg-surface-2/80'
+              i === currentIndex ? 'bg-accent' : 'bg-transparent hover:bg-surface-2/80'
             }`}
           >
             <span
               className={`block w-2.5 h-2.5 rounded-full ${
-                i === currentIndex ? 'bg-accent-light scale-110' : 'bg-surface-2'
+                i === currentIndex ? 'bg-accent scale-110' : 'bg-surface-2'
               }`}
               aria-hidden
             />
@@ -246,7 +246,7 @@ function MatchCard({
             {match.chartHighlights.map((h) => (
               <li
                 key={h}
-                className="text-caption px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans"
+                className="text-caption px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent font-sans"
               >
                 {h}
               </li>

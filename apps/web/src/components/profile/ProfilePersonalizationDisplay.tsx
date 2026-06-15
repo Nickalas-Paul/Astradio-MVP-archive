@@ -25,7 +25,7 @@ export function ProfilePersonalizationDisplay({
     <Card elevation="resting" padding="p-5" className="space-y-4">
       {trimmedBio ? (
         <div>
-          <p className="text-caption font-medium uppercase tracking-wide text-accent-light mb-2 font-sans">
+          <p className="text-caption font-medium uppercase tracking-wide text-accent mb-2 font-sans">
             About
           </p>
           <p className="text-body text-text-secondary leading-relaxed whitespace-pre-wrap font-sans">
@@ -36,7 +36,7 @@ export function ProfilePersonalizationDisplay({
 
       {trimmedLookingFor ? (
         <div className={trimmedBio ? 'border-t border-border pt-4' : undefined}>
-          <p className="text-caption font-medium uppercase tracking-wide text-accent-light mb-2 font-sans">
+          <p className="text-caption font-medium uppercase tracking-wide text-accent mb-2 font-sans">
             Looking for
           </p>
           <p className="text-body-sm text-text-secondary font-sans">{trimmedLookingFor}</p>
@@ -45,14 +45,14 @@ export function ProfilePersonalizationDisplay({
 
       {highlights.length > 0 ? (
         <div className={trimmedBio || trimmedLookingFor ? 'border-t border-border pt-4' : undefined}>
-          <p className="text-caption font-medium uppercase tracking-wide text-accent-light mb-2 font-sans">
+          <p className="text-caption font-medium uppercase tracking-wide text-accent mb-2 font-sans">
             Chart highlights
           </p>
           <ul className="flex flex-wrap gap-2">
             {highlights.map((h) => (
               <li
                 key={h}
-                className="text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent-light font-sans"
+                className="text-caption px-3 py-1.5 rounded-full border border-accent/40 bg-accent/10 text-accent font-sans"
               >
                 {h}
               </li>

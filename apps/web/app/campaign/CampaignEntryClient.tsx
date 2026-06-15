@@ -133,7 +133,7 @@ export function CampaignEntryClient() {
           <p className="text-sm text-text-secondary">Sign in to start or resume a campaign.</p>
           <Link
             href="/login"
-            className="inline-block rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent-light hover:bg-accent/20"
+            className="inline-block rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20"
           >
             Go to sign in
           </Link>

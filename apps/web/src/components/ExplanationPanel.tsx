@@ -94,7 +94,7 @@ function sectionHeadingClass(sec: ExplanationSection, embedded: boolean): string
     return 'reading-section-header mb-3 first:mt-0';
   }
   if (HOME_GRADIENT_SECTION_IDS.has(id)) {
-    return 'text-body-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-accent-light to-[#0bbfbf] bg-clip-text text-transparent';
+    return 'text-body-sm font-semibold tracking-wide mb-2 bg-gradient-to-r from-accent to-[#0bbfbf] bg-clip-text text-transparent';
   }
   return 'text-body-sm font-medium uppercase tracking-wide text-text-secondary mb-2';
 }

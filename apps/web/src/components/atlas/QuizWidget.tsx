@@ -52,7 +52,7 @@ export default function QuizWidget() {
             {score >= 4 ? '🎉' : score >= 3 ? '👍' : '📚'}
           </div>
           <h3 className="text-lg font-semibold text-text-primary">Quiz Complete!</h3>
-          <div className="text-2xl font-bold text-accent-light">
+          <div className="text-2xl font-bold text-accent">
             {score}/5
           </div>
           <p className="text-sm text-text-secondary">

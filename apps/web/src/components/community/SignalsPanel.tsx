@@ -223,7 +223,7 @@ export function SignalsPanel({
         <h3 className="text-lg font-semibold text-text-primary">Signals</h3>
         <p className="text-xs text-text-secondary mt-1">
           Purpose-driven prompts and acknowledgments. No DMs.{' '}
-          <Link href="/today" className="text-accent-light hover:underline">
+          <Link href="/today" className="text-accent hover:underline">
             Today
           </Link>{' '}
           links here when a response is needed.
@@ -232,7 +232,7 @@ export function SignalsPanel({
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-caption font-medium uppercase tracking-wide text-accent-light font-sans">
+          <h4 className="text-caption font-medium uppercase tracking-wide text-accent font-sans">
             Incoming
           </h4>
           <button
@@ -286,7 +286,7 @@ export function SignalsPanel({
                   </div>
 
                   {isAcknowledged ? (
-                    <p className="text-body-sm text-accent-light font-sans flex items-center gap-2">
+                    <p className="text-body-sm text-accent font-sans flex items-center gap-2">
                       <span aria-hidden>✓</span>
                       Acknowledged
                     </p>
@@ -331,7 +331,7 @@ export function SignalsPanel({
                   <span
                     className={`text-caption font-sans ${
                       statusLabel === 'Acknowledged'
-                        ? 'text-accent-light'
+                        ? 'text-accent'
                         : 'text-text-muted'
                     }`}
                   >

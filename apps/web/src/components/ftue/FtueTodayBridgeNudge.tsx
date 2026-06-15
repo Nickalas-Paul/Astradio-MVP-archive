@@ -17,7 +17,7 @@ export function FtueTodayBridgeNudge() {
         <button
           type="button"
           onClick={() => router.push('/today')}
-          className="text-sm text-accent-light hover:underline whitespace-nowrap"
+          className="text-sm text-accent hover:underline whitespace-nowrap"
         >
           Go to Today →
         </button>

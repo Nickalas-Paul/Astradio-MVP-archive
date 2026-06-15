@@ -63,7 +63,7 @@ export default function AtlasPage() {
             transition={{ duration: 0.3 }}
             className="text-center space-y-4"
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent-light to-violet leading-tight">
+            <h1 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent to-violet leading-tight">
               Astro Atlas
             </h1>
             <p className="text-lg text-text-secondary max-w-2xl mx-auto">
@@ -150,7 +150,7 @@ export default function AtlasPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors">
+                              <h3 className="font-medium text-text-primary group-hover:text-accent transition-colors">
                                 {article.title}
                               </h3>
                               <span className="text-xs px-2 py-1 rounded-full bg-bgElev border border-border text-text-secondary">
@@ -207,7 +207,7 @@ export default function AtlasPage() {
                             {article.kind === 'aspect' && '⚡'}
                             {article.kind === 'house' && '🏠'}
                           </div>
-                          <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors mb-1">
+                          <h3 className="font-medium text-text-primary group-hover:text-accent transition-colors mb-1">
                             {article.title}
                           </h3>
                           <p className="text-sm text-text-secondary">
@@ -238,10 +238,10 @@ export default function AtlasPage() {
                       <div className="space-y-2">
                         <div className="font-medium">Begin your astrological journey</div>
                         <ul className="text-sm space-y-1">
-                          <li>• <Link href="/atlas/k/planet" className="underline hover:text-accent-light">Planets</Link> carry motives and voices</li>
-                          <li>• <Link href="/atlas/k/sign" className="underline hover:text-accent-light">Signs</Link> color expression</li>
-                          <li>• <Link href="/atlas/k/house" className="underline hover:text-accent-light">Houses</Link> show life arenas</li>
-                          <li>• <Link href="/atlas/k/aspect" className="underline hover:text-accent-light">Aspects</Link> connect the story</li>
+                          <li>• <Link href="/atlas/k/planet" className="underline hover:text-accent">Planets</Link> carry motives and voices</li>
+                          <li>• <Link href="/atlas/k/sign" className="underline hover:text-accent">Signs</Link> color expression</li>
+                          <li>• <Link href="/atlas/k/house" className="underline hover:text-accent">Houses</Link> show life arenas</li>
+                          <li>• <Link href="/atlas/k/aspect" className="underline hover:text-accent">Aspects</Link> connect the story</li>
                         </ul>
                       </div>
                     </Callout>

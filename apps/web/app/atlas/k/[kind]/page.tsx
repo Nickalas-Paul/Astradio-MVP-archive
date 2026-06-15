@@ -147,7 +147,7 @@ export default function AtlasKindPage() {
                         </div>
 
                         <div>
-                          <h3 className="font-medium text-text-primary group-hover:text-accent-light transition-colors mb-1">
+                          <h3 className="font-medium text-text-primary group-hover:text-accent transition-colors mb-1">
                             {article.title}
                           </h3>
                           {article.subtitle && (
@@ -205,7 +205,7 @@ export default function AtlasKindPage() {
                     <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">
                       {getKindIcon(otherKind)}
                     </div>
-                    <div className="text-sm font-medium text-text-primary group-hover:text-accent-light transition-colors capitalize">
+                    <div className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors capitalize">
                       {otherKind}
                     </div>
                   </Link>

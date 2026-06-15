@@ -10,9 +10,9 @@ export default function CommunityPostRetiredPage() {
       <div className="max-w-3xl mx-auto p-6 space-y-4">
         <p className="text-text-primary">Legacy social posts are no longer available.</p>
         <p className="text-sm text-text-secondary">
-          Use <Link href="/today" className="text-accent-light hover:underline">Today</Link> for relational
+          Use <Link href="/today" className="text-accent hover:underline">Today</Link> for relational
           transits, or{' '}
-          <Link href="/community?tab=discovery" className="text-accent-light hover:underline">
+          <Link href="/community?tab=discovery" className="text-accent hover:underline">
             Connections → Discovery
           </Link>{' '}
           for compatibility search.

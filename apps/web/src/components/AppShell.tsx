@@ -30,7 +30,7 @@ export function AppShell({
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
       <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-bg/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3 min-w-0">
-          <Link href="/" className="text-accent-light font-semibold tracking-wide shrink-0">
+          <Link href="/" className="text-accent font-semibold tracking-wide shrink-0">
             Astradio
           </Link>
           <HeaderTabs />

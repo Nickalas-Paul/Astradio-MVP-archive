@@ -113,7 +113,7 @@ export function Transport({
           className="w-full h-2 bg-border rounded-full cursor-pointer hover:h-3 transition-all duration-200"
         >
           <div
-            className="h-full bg-gradient-to-r from-accent to-accent-light rounded-full transition-all duration-200"
+            className="h-full bg-gradient-to-r from-accent to-accent rounded-full transition-all duration-200"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>

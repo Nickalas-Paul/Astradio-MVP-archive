@@ -95,7 +95,7 @@ function NatalSoundtrackSection({
       ) : exportId && /^[a-f0-9]{64}$/.test(exportId) ? (
         <ValidatedExportAudioPlayer exportId={exportId} />
       ) : (
-        <p className="text-body-sm text-accent-light">Sound unavailable</p>
+        <p className="text-body-sm text-accent">Sound unavailable</p>
       )}
     </Card>
   );
@@ -234,7 +234,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
           <p className="text-red-500">User not found</p>
           <Link
             href="/community?tab=discovery"
-            className="text-accent-light hover:underline mt-2 inline-block text-sm"
+            className="text-accent hover:underline mt-2 inline-block text-sm"
           >
             ← Back to Discovery
           </Link>
@@ -248,7 +248,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <Link
           href={fromDiscovery ? '/community?tab=discovery' : '/community'}
-          className="text-body-sm text-accent-light hover:underline inline-block"
+          className="text-body-sm text-accent hover:underline inline-block"
         >
           ← {fromDiscovery ? 'Back to matches' : 'Connections'}
         </Link>

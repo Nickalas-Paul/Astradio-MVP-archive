@@ -107,7 +107,7 @@ export default function AtlasArticlePage() {
 
   const getKindColor = (kind: string) => {
     switch (kind) {
-      case 'planet': return 'text-accent-light';
+      case 'planet': return 'text-accent';
       case 'sign': return 'text-violet';
       case 'house': return 'text-warning';
       case 'aspect': return 'text-danger';
@@ -247,7 +247,7 @@ export default function AtlasArticlePage() {
                         <Link
                           key={linkId}
                           href={`/atlas/a/${linkId}`}
-                          className="text-sm underline hover:text-accent-light transition-colors"
+                          className="text-sm underline hover:text-accent transition-colors"
                         >
                           {relatedArticle.title}
                         </Link>
