@@ -126,7 +126,7 @@
   }
 
   .reading-field-label {
-    @apply block font-sans font-semibold text-accent text-base mb-2;
+    @apply font-sans font-medium text-text-secondary text-body-sm mb-2 block tracking-wide uppercase;
   }
 }
 
