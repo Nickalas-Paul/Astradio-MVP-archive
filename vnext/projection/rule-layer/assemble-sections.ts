@@ -173,10 +173,10 @@ function applyAggregateSurfaceIdentityOverrides(
     const baseIdentity =
       surface === 'compat_pair'
         ? pickVariant(`${seed}:compat:rel`, [
-            'Two-person timing and mutual regulation stay in view before wider generalization.',
-            'Contact stays an interface between two people, not a crowd average.',
-            'Dyad framing keeps both people visible as separate centers before blend reads.',
-            'The baseline picture weights what both charts show together, not a solo verdict.',
+            'This connection runs on chemistry you can feel before you can explain it—the friction is real, but so is the pull.',
+            'You two operate on different frequencies. That tension is also the interest.',
+            'This is a relationship that moves; neither of you stays still in it.',
+            'What you have here is specific to the two of you—not a crowd read, not a generic verdict.',
           ])
         : pickVariant(`${seed}:group:rel`, [
             'Emphasis spreads across the room before zooming to one pair.',

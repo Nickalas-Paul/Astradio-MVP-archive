@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { useProfile } from '@/core/social/hooks';
+import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
+import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { Button } from '@/components/shared/Button';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
@@ -15,6 +18,11 @@ import {
   type SignalHistoryRow,
   type SignalHistorySummary,
 } from '@/components/community/SignalHistorySection';
+
+const WheelDisplay = dynamic(
+  () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
+  { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
+);
 
 type ReadingSection = { id?: string; title?: string; text?: string; bullets?: string[] };
 
@@ -65,21 +73,23 @@ function peerFromInventory(
 ) {
   const p = inv?.pairs?.find((x) => String(x.id) === relationshipId);
   if (!p) return null;
+  const peerChartId =
+    typeof p.peerChartId === 'string' && p.peerChartId.trim() ? p.peerChartId.trim() : '';
   return {
     displayName: (p.peerDisplayName as string) || '',
     handle: (p.peerHandle as string) || '',
     userId: typeof p.peerUserId === 'string' && p.peerUserId.trim() ? p.peerUserId.trim() : '',
+    peerChartId,
+    chartIdLow: typeof p.chartIdLow === 'string' ? p.chartIdLow.trim() : '',
+    chartIdHigh: typeof p.chartIdHigh === 'string' ? p.chartIdHigh.trim() : '',
   };
 }
 
-function artifactStatusLine(
-  comparison: ComparisonJson | null,
-  exportId: string | null,
-  exportVerifiedReachable: boolean | null
-) {
-  if (!comparison) return 'Reading not generated';
-  if (exportId && exportVerifiedReachable === true) return 'Reading available · sound record on file';
-  return 'Reading available';
+function viewerChartIdFromPair(peerChartId: string, chartIdLow: string, chartIdHigh: string): string | null {
+  if (!chartIdLow || !chartIdHigh || !peerChartId) return null;
+  if (peerChartId === chartIdLow) return chartIdHigh;
+  if (peerChartId === chartIdHigh) return chartIdLow;
+  return null;
 }
 
 function renderCompatText(c: ComparisonJson) {
@@ -97,14 +107,36 @@ function renderCompatText(c: ComparisonJson) {
   return { short: '', long: '', bullets: [] as string[] };
 }
 
+function relationshipLabelBadge(label: string | undefined): string | null {
+  const s = String(label || '').trim();
+  if (!s) return null;
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+function ConnectionReadingMarkdown({ content, className = '' }: { content: string; className?: string }) {
+  if (!content.trim()) return null;
+  return (
+    <div className={`text-sm text-text-primary leading-relaxed ${className}`.trim()}>
+      <IdentityMarkdown content={content} />
+    </div>
+  );
+}
+
 export default function CommunityRelationshipArtifactPage() {
   const params = useParams();
   const relationshipId = typeof params?.relationshipId === 'string' ? params.relationshipId : '';
-  const { user, loading: profileLoading } = useProfile();
+  const { user, primaryChart, loading: profileLoading } = useProfile();
 
   const [relationship, setRelationship] = useState<RelationshipRow | null>(null);
   const [comparison, setComparison] = useState<ComparisonJson | null>(null);
-  const [peer, setPeer] = useState<{ displayName: string; handle: string; userId: string } | null>(null);
+  const [peer, setPeer] = useState<{
+    displayName: string;
+    handle: string;
+    userId: string;
+    peerChartId: string;
+    chartIdLow: string;
+    chartIdHigh: string;
+  } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [materializeError, setMaterializeError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -117,21 +149,23 @@ export default function CommunityRelationshipArtifactPage() {
     summary: SignalHistorySummary;
     signals: SignalHistoryRow[];
   } | null>(null);
+  const [viewerWheelSnapshot, setViewerWheelSnapshot] = useState<unknown>(null);
+  const [peerWheelSnapshot, setPeerWheelSnapshot] = useState<unknown>(null);
+  const [wheelsLoading, setWheelsLoading] = useState(false);
+  const [viewerWheelUnavailable, setViewerWheelUnavailable] = useState<string | null>(null);
+  const [peerWheelUnavailable, setPeerWheelUnavailable] = useState<string | null>(null);
 
   const materializeOnceRef = useRef(false);
 
-  const loadPairContext = useCallback(
-    async (relId: string) => {
-      const invR = await fetch('/api/community/inventory', { credentials: 'same-origin' });
-      if (invR.ok) {
-        const inv = (await invR.json()) as { pairs?: Array<Record<string, unknown>> };
-        setPeer(peerFromInventory(inv, relId));
-      } else {
-        setPeer(null);
-      }
-    },
-    []
-  );
+  const loadPairContext = useCallback(async (relId: string) => {
+    const invR = await fetch('/api/community/inventory', { credentials: 'same-origin' });
+    if (invR.ok) {
+      const inv = (await invR.json()) as { pairs?: Array<Record<string, unknown>> };
+      setPeer(peerFromInventory(inv, relId));
+    } else {
+      setPeer(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!relationshipId) {
@@ -212,6 +246,71 @@ export default function CommunityRelationshipArtifactPage() {
       cancelled = true;
     };
   }, [relationshipId, user?.id, profileLoading, loadPairContext]);
+
+  const chartPair = useMemo(() => {
+    const low = relationship?.chartIdLow?.trim() || peer?.chartIdLow || '';
+    const high = relationship?.chartIdHigh?.trim() || peer?.chartIdHigh || '';
+    const peerChartId = peer?.peerChartId || '';
+    const viewerFromInv = viewerChartIdFromPair(peerChartId, low, high);
+    const viewerFromProfile =
+      hasRealChart(primaryChart) && [low, high].includes(primaryChart.id) ? primaryChart.id : null;
+    const viewerChartId = viewerFromProfile || viewerFromInv;
+    if (!viewerChartId || !low || !high) return null;
+    const peerChartIdResolved = viewerChartId === low ? high : low;
+    return { viewerChartId, peerChartId: peerChartIdResolved };
+  }, [relationship, peer, primaryChart]);
+
+  const viewerWheelLabel = user?.displayName?.trim() || primaryChart?.label?.trim() || 'You';
+  const peerWheelLabel = peer?.displayName?.trim() || 'Connection';
+
+  useEffect(() => {
+    if (!chartPair || phase !== 'ready') {
+      setViewerWheelSnapshot(null);
+      setPeerWheelSnapshot(null);
+      setViewerWheelUnavailable(null);
+      setPeerWheelUnavailable(null);
+      setWheelsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setWheelsLoading(true);
+    setViewerWheelSnapshot(null);
+    setPeerWheelSnapshot(null);
+    setViewerWheelUnavailable(null);
+    setPeerWheelUnavailable(null);
+
+    const base = getApiBaseUrl() || '';
+
+    void (async () => {
+      const [viewerResult, peerResult] = await Promise.all([
+        fetchListenSlotSnapshot(base, {
+          kind: 'chart_id',
+          chartId: chartPair.viewerChartId,
+          label: viewerWheelLabel,
+        }),
+        fetchListenSlotSnapshot(base, {
+          kind: 'chart_id',
+          chartId: chartPair.peerChartId,
+          label: peerWheelLabel,
+        }),
+      ]);
+
+      if (cancelled) return;
+
+      if (viewerResult.status === 'ok') setViewerWheelSnapshot(viewerResult.snapshot);
+      else setViewerWheelUnavailable(viewerResult.message);
+
+      if (peerResult.status === 'ok') setPeerWheelSnapshot(peerResult.snapshot);
+      else setPeerWheelUnavailable(peerResult.message);
+
+      setWheelsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chartPair, phase, viewerWheelLabel, peerWheelLabel]);
 
   useEffect(() => {
     if (!user?.id || !peer?.userId) {
@@ -332,6 +431,7 @@ export default function CommunityRelationshipArtifactPage() {
   }, [relationshipId]);
 
   const { short, long, bullets } = comparison ? renderCompatText(comparison) : { short: '', long: '', bullets: [] as string[] };
+  const musicalBullets = bullets.filter((b) => String(b).trim().length > 0);
   const { readingSections, sonicText } = useMemo(
     () => splitConnectionReadingSections(comparison?.explanation),
     [comparison?.explanation]
@@ -343,10 +443,45 @@ export default function CommunityRelationshipArtifactPage() {
     phase === 'ready' && !!comparison && hasReadingSurface && !!relationship?.comparisonId;
   const audioReady = !!(exId && EXPORT_ID_RE.test(exId) && exportReachable === true);
   const audioPlayerExportId = audioReady ? exId : null;
+  const labelBadge = relationshipLabelBadge(relationship?.label);
+
+  const renderDualWheels = (maxSize: number, className = '') => (
+    <div className={className}>
+      {wheelsLoading ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+          <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-caption text-text-secondary mb-2">{viewerWheelLabel}</p>
+            <WheelDisplay
+              chartData={viewerWheelSnapshot}
+              isLoading={false}
+              maxSize={maxSize}
+              className="w-full"
+              emptyMessage={viewerWheelUnavailable ?? undefined}
+            />
+          </div>
+          <div>
+            <p className="text-caption text-text-secondary mb-2">{peerWheelLabel}</p>
+            <WheelDisplay
+              chartData={peerWheelSnapshot}
+              isLoading={false}
+              maxSize={maxSize}
+              className="w-full"
+              emptyMessage={peerWheelUnavailable ?? undefined}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
         <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
           ← Back to Connections
         </Link>
@@ -364,124 +499,140 @@ export default function CommunityRelationshipArtifactPage() {
 
         {phase === 'ready' && relationship && (
           <>
-            <header className="space-y-1">
-              <h1 className="text-h2 font-bold text-text-primary">
-                {peer?.displayName || 'Connection'}
-                {peer?.handle ? <span className="text-text-secondary font-normal text-lg"> @{peer.handle}</span> : null}
-              </h1>
-              <p className="text-sm text-text-secondary">Label: {String(relationship.label || '')}</p>
-              {comparison?.relationshipMode ? (
-                <p className="text-sm text-text-primary">Mode: {String(comparison.relationshipMode)}</p>
-              ) : null}
-              <p className="text-sm text-text-secondary">
-                Artifact: {artifactStatusLine(comparison, exId, exportReachable)}
-              </p>
-              {exId && exportReachable === false ? (
-                <p className="text-sm text-amber-600 dark:text-amber-300">
-                  Sound record not in storage (export pointer exists but the file was not found).
-                </p>
-              ) : null}
+            <header className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-h2 font-bold text-text-primary">
+                  {peer?.displayName || 'Connection'}
+                  {peer?.handle ? (
+                    <span className="text-text-secondary font-normal text-lg"> @{peer.handle}</span>
+                  ) : null}
+                </h1>
+                {labelBadge ? (
+                  <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
+                    {labelBadge}
+                  </span>
+                ) : null}
+              </div>
             </header>
 
             {materializeError && <p className="text-amber-600 dark:text-amber-300 text-sm">{materializeError}</p>}
 
-            {comparison && hasReadingSurface && (
-              <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
-                <h2 className="text-lg font-medium text-text-primary">Reading</h2>
-                {readingSections.length > 0 ? (
-                  <div className="space-y-4">
-                    {readingSections.map((s, i) => (
-                      <div key={i}>
-                        {s.title ? <h3 className="text-sm font-medium text-text-primary mb-1">{s.title}</h3> : null}
-                        {s.text ? <p className="text-sm text-text-primary whitespace-pre-wrap">{s.text}</p> : null}
-                        {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
-                          <ul className="list-disc pl-5 text-sm text-text-primary space-y-1">
-                            {s.bullets.map((b, j) => (
-                              <li key={j}>{b}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {short ? <p className="text-sm text-text-primary whitespace-pre-wrap">{short}</p> : null}
-                    {long ? (
-                      <p className="text-sm text-text-primary whitespace-pre-wrap border-t border-border/60 pt-3 mt-2">{long}</p>
-                    ) : null}
-                    {bullets.length > 0 ? (
-                      <ul className="list-disc pl-5 text-sm text-text-primary space-y-1">
-                        {bullets.map((b, i) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </>
-                )}
-              </section>
-            )}
-
-            {signalHistory && user?.id && peer?.userId ? (
-              <SignalHistorySection
-                peerDisplayName={peer.displayName || 'Connection'}
-                viewerUserId={user.id}
-                summary={signalHistory.summary}
-                signals={signalHistory.signals}
-              />
+            {chartPair ? (
+              <div className="lg:hidden">{renderDualWheels(200)}</div>
             ) : null}
 
-            {showConnectionAudio && (
-              <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
-                <h2 className="reading-section-header">Hear this connection</h2>
-                {sonicText ? (
-                  <div className="text-body-sm text-text-secondary leading-relaxed">
-                    <IdentityMarkdown content={sonicText} />
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
+              <div className="min-w-0 space-y-6">
+                {comparison && hasReadingSurface && (
+                  <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
+                    <h2 className="text-lg font-medium text-text-primary">Reading</h2>
+                    {readingSections.length > 0 ? (
+                      <div className="space-y-4">
+                        {readingSections.map((s, i) => (
+                          <div key={i}>
+                            {s.title ? (
+                              <h3 className="text-sm font-medium text-text-primary mb-2">{s.title}</h3>
+                            ) : null}
+                            {s.text ? <ConnectionReadingMarkdown content={s.text} /> : null}
+                            {Array.isArray(s.bullets) && s.bullets.length > 0 ? (
+                              <div className="space-y-3 mt-2">
+                                {s.bullets.map((b, j) => (
+                                  <ConnectionReadingMarkdown key={j} content={String(b)} />
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {short ? <ConnectionReadingMarkdown content={short} /> : null}
+                        {long ? (
+                          <ConnectionReadingMarkdown content={long} className="border-t border-border/60 pt-3" />
+                        ) : null}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {signalHistory && user?.id && peer?.userId ? (
+                  <SignalHistorySection
+                    peerDisplayName={peer.displayName || 'Connection'}
+                    viewerUserId={user.id}
+                    summary={signalHistory.summary}
+                    signals={signalHistory.signals}
+                  />
                 ) : null}
 
-                {audioPlayerExportId ? (
-                  <div className="space-y-3">
-                    <p className="text-body-sm text-text-secondary">Your connection soundtrack is ready.</p>
-                    <ValidatedExportAudioPlayer exportId={audioPlayerExportId} />
-                  </div>
-                ) : audioUiState === 'generating' ? (
-                  <Button type="button" variant="audio" size="sm" loading disabled>
-                    Generating audio…
-                  </Button>
-                ) : audioUiState === 'error' ? (
-                  <div className="space-y-2">
-                    <p className="text-body-sm text-amber-600 dark:text-amber-300" role="alert">
-                      {audioError || 'Connection audio unavailable. Try again.'}
-                    </p>
-                    <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
-                      Try again
-                    </Button>
-                  </div>
-                ) : exId && exportReachable === false ? (
-                  <div className="space-y-2">
-                    <p className="text-body-sm text-amber-600 dark:text-amber-300">
-                      Sound record not in storage. Generate a new soundtrack.
-                    </p>
-                    <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
-                      Hear this connection
-                    </Button>
-                  </div>
-                ) : (
-                  <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
-                    Hear this connection
-                  </Button>
+                {musicalBullets.length > 0 ? (
+                  <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
+                    <h2 className="reading-section-header">How This Connection Sounds</h2>
+                    <div className="space-y-4">
+                      {musicalBullets.map((bullet, i) => (
+                        <ConnectionReadingMarkdown key={i} content={String(bullet)} />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {showConnectionAudio && (
+                  <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
+                    <h2 className="reading-section-header">Hear this connection</h2>
+                    {sonicText ? (
+                      <div className="text-body-sm text-text-secondary leading-relaxed">
+                        <IdentityMarkdown content={sonicText} />
+                      </div>
+                    ) : null}
+
+                    {audioPlayerExportId ? (
+                      <div className="space-y-3">
+                        <p className="text-body-sm text-text-secondary">Your connection soundtrack is ready.</p>
+                        <ValidatedExportAudioPlayer exportId={audioPlayerExportId} />
+                      </div>
+                    ) : audioUiState === 'generating' ? (
+                      <Button type="button" variant="audio" size="sm" loading disabled>
+                        Generating audio…
+                      </Button>
+                    ) : audioUiState === 'error' ? (
+                      <div className="space-y-2">
+                        <p className="text-body-sm text-amber-600 dark:text-amber-300" role="alert">
+                          {audioError || 'Connection audio unavailable. Try again.'}
+                        </p>
+                        <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                          Try again
+                        </Button>
+                      </div>
+                    ) : exId && exportReachable === false ? (
+                      <div className="space-y-2">
+                        <p className="text-body-sm text-amber-600 dark:text-amber-300">
+                          Sound record not in storage. Generate a new soundtrack.
+                        </p>
+                        <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                          Hear this connection
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
+                        Hear this connection
+                      </Button>
+                    )}
+                  </section>
                 )}
-              </section>
-            )}
 
-            {comparison && !hasReadingSurface && !materializeError && (
-              <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
-                Stored reading text is missing or incomplete for this connection. Use “materialize” from the server or open
-                a new compatibility reading from Connections.
-              </p>
-            )}
+                {comparison && !hasReadingSurface && !materializeError && (
+                  <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+                    Stored reading text is missing or incomplete for this connection. Use “materialize” from the server or open
+                    a new compatibility reading from Connections.
+                  </p>
+                )}
+              </div>
 
+              {chartPair ? (
+                <div className="hidden lg:block lg:sticky lg:top-20 shrink-0 space-y-4">
+                  {renderDualWheels(300)}
+                </div>
+              ) : null}
+            </div>
           </>
         )}
 

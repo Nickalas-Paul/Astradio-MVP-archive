@@ -1029,19 +1029,16 @@ export class ComposeAPI {
       .filter(Boolean)
       .join('\n\n');
 
-    const dominantSummary =
-      firstSentenceForSummary(projected.find((s) => s.id === 'relational_field')?.text || signaturesText) ||
-      'Coordination stays light until one of you names what matters.';
-    const interactionSummary =
-      firstSentenceForSummary(projected.find((s) => s.id === 'interaction_map')?.text || '') ||
-      'The exchange between you stays low-coupling and practical.';
-    const directionSummary =
-      firstSentenceForSummary(projected.find((s) => s.id === 'contradiction_map')?.text || projected.find((s) => s.id === 'synthesis_b')?.text || '') ||
-      'Little is forcing a decision—next steps can stay open.';
-    const domainSummary =
-      firstSentenceForSummary(projected.find((s) => s.id === 'significance')?.text || projected.find((s) => s.id === 'synthesis_a')?.text || '') ||
-      'Practical communication and pacing matter most here.';
-    const compressedSummary = [dominantSummary, interactionSummary, directionSummary, domainSummary].join(' ');
+    const summaryCandidates = [
+      firstSentenceForSummary(projected.find((s) => s.id === 'relational_field')?.text || signaturesText),
+      firstSentenceForSummary(projected.find((s) => s.id === 'interaction_map')?.text || ''),
+      firstSentenceForSummary(
+        projected.find((s) => s.id === 'contradiction_map')?.text ||
+          projected.find((s) => s.id === 'synthesis_b')?.text ||
+          ''
+      ),
+    ].filter((s) => s.length > 0);
+    const compressedSummary = summaryCandidates.slice(0, 3).join(' ');
 
     const text = {
       short: compressedSummary,
