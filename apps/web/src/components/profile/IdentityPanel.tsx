@@ -437,14 +437,11 @@ export function IdentityPanel({
                   <p className="text-text-secondary text-sm">{error}</p>
                 )}
                 {hasExplainer && (
-                  <>
-                    <ExplainerSections
-                      sections={filterIdentityDisplaySections(
-                        mapExplanationToSections(chartData!.explainer)
-                      )}
-                    />
-                    <FtueTodayBridgeNudge />
-                  </>
+                  <ExplainerSections
+                    sections={filterIdentityDisplaySections(
+                      mapExplanationToSections(chartData!.explainer)
+                    )}
+                  />
                 )}
               </div>
 
@@ -455,6 +452,8 @@ export function IdentityPanel({
                 {wheelAndAudio(340)}
               </div>
             </div>
+
+            <FtueTodayBridgeNudge />
           </>
         )}
 

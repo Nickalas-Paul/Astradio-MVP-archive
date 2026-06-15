@@ -21,82 +21,80 @@ function TodayContent() {
 
   useHydrateCompositionUrls();
 
-  if (profileLoading) {
-    return (
-      <p className="text-sm text-text-secondary text-center">Loading Today…</p>
-    );
-  }
-
-  if (user === null) {
-    return (
-      <Card elevation="resting" padding="p-6" className="max-w-4xl mx-auto text-center space-y-3">
-        <p className="text-body-sm text-text-secondary">
-          Sign in to see your personal and relational astrological weather.
-        </p>
-        <p className="text-sm text-text-secondary">
-          <Link href="/profile" className="text-accent-light hover:underline">
-            Sign in on My Sky
-          </Link>
-        </p>
-      </Card>
-    );
-  }
-
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
   const noRealChart = !realChart || primaryChart?.id === DEFAULT_PROFILE_CHART_ID;
+  const isSignedIn = !profileLoading && user !== null;
 
   return (
     <PlacementHighlightProvider>
       <div className="max-w-6xl mx-auto">
-        <FtueTodayWelcomeBanner />
-        <TodaySkySummary primaryChart={primaryChart} />
+        {isSignedIn ? <FtueTodayWelcomeBanner key="ftue-today-welcome" /> : null}
 
-        <div className="py-10 text-center">
-          <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
-          <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
-            That&apos;s the weather for everyone. Here&apos;s how it&apos;s landing on your chart.
-          </p>
-        </div>
+        {profileLoading ? (
+          <p className="text-sm text-text-secondary text-center">Loading Today…</p>
+        ) : user === null ? (
+          <Card elevation="resting" padding="p-6" className="max-w-4xl mx-auto text-center space-y-3">
+            <p className="text-body-sm text-text-secondary">
+              Sign in to see your personal and relational astrological weather.
+            </p>
+            <p className="text-sm text-text-secondary">
+              <Link href="/profile" className="text-accent-light hover:underline">
+                Sign in on My Sky
+              </Link>
+            </p>
+          </Card>
+        ) : (
+          <>
+            <TodaySkySummary primaryChart={primaryChart} />
 
-        <section aria-label="Your personal transit">
-          <h2 className="text-h2 font-serif font-semibold text-text-primary mb-6">Your Transit</h2>
-          {noRealChart ? (
-            <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
-              <p>Link your birth chart in My Sky to see your personal transit.</p>
-              <p>
-                <Link href="/profile" className="text-accent-light hover:underline">
-                  Go to My Sky
-                </Link>
+            <div className="py-10 text-center">
+              <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
+              <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
+                That&apos;s the weather for everyone. Here&apos;s how it&apos;s landing on your chart.
               </p>
-            </Card>
-          ) : (
-            <ActiveTransitPanel
-              chartId={chartId}
-              noRealChart={noRealChart}
-              librarySaveError={librarySaveError}
-              onSaved={() => void libraryRef.current?.refresh()}
-              onSaveError={(msg) => setLibrarySaveError(msg)}
-              onClearSaveError={() => setLibrarySaveError(null)}
-            />
-          )}
-        </section>
+            </div>
 
-        <div className="py-10 text-center">
-          <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
-          <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
-            Now zoom out. Here&apos;s how today&apos;s sky is activating your connections.
-          </p>
-        </div>
+            <section aria-label="Your personal transit">
+              <h2 className="text-h2 font-serif font-semibold text-text-primary mb-6">Your Transit</h2>
+              {noRealChart ? (
+                <Card elevation="resting" padding="p-5" className="text-body-sm text-text-secondary space-y-2">
+                  <p>Link your birth chart in My Sky to see your personal transit.</p>
+                  <p>
+                    <Link href="/profile" className="text-accent-light hover:underline">
+                      Go to My Sky
+                    </Link>
+                  </p>
+                </Card>
+              ) : (
+                <ActiveTransitPanel
+                  chartId={chartId}
+                  noRealChart={noRealChart}
+                  librarySaveError={librarySaveError}
+                  onSaved={() => void libraryRef.current?.refresh()}
+                  onSaveError={(msg) => setLibrarySaveError(msg)}
+                  onClearSaveError={() => setLibrarySaveError(null)}
+                />
+              )}
+            </section>
 
-        <section aria-label="Astrological weather forecast">
-          <RelationalCommunityFeed
-            userId={user.id}
-            primaryChart={primaryChart}
-            primaryHeading="Astrological Weather Forecast"
-            primaryDescription="Ranked by today's activation strength."
-          />
-        </section>
+            <div className="py-10 text-center">
+              <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
+              <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
+                Now zoom out. Here&apos;s how today&apos;s sky is activating your connections.
+              </p>
+            </div>
+
+            <section aria-label="Astrological weather forecast">
+              <RelationalCommunityFeed
+                userId={user.id}
+                primaryChart={primaryChart}
+                primaryHeading="Astrological Weather Forecast"
+                primaryDescription="Ranked by today's activation strength."
+              />
+            </section>
+          </>
+        )}
       </div>
     </PlacementHighlightProvider>
   );

@@ -203,7 +203,7 @@ function CommunityClientInner() {
   const [signalsMeta, setSignalsMeta] = useState({ loading: true, empty: true });
   const [inventoryMeta, setInventoryMeta] = useState({ loading: true, empty: true });
   const [groupsMeta, setGroupsMeta] = useState({ loading: true, empty: true });
-  const { user, primaryChart } = useProfile();
+  const { user, primaryChart, loading: profileLoading } = useProfile();
 
   useHydrateCompositionUrls();
 
@@ -282,7 +282,7 @@ function CommunityClientInner() {
           </Card>
         </motion.div>
 
-        {user?.id ? <FtueConnectionsWelcomeBanner /> : null}
+        {!profileLoading && user ? <FtueConnectionsWelcomeBanner /> : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
