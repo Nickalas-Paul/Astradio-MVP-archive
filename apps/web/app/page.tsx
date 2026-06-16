@@ -670,34 +670,34 @@ export default function HomePage() {
 
   return (
     <AppShell showPlayer={false} contentClassName="">
-      {/* Hero + primary CTA */}
-      <section className="text-center pt-6 pb-4 md:pt-8 md:pb-4 space-y-3 max-w-3xl mx-auto px-4">
+      {/* Hero + soundtrack */}
+      <section className="text-center pt-6 pb-2 md:pt-8 md:pb-3 space-y-2 max-w-3xl mx-auto px-4">
         <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
-        <p className="text-body-sm md:text-body text-text-secondary max-w-xl mx-auto">
+        <p className="text-body-sm text-text-secondary max-w-xl mx-auto">
           The planets are always in motion. Every alignment carries a sound.
         </p>
 
-        <div className="pt-2 flex flex-col items-center gap-3">
+        <div className="pt-1">
           {isPlaying ? (
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               disabled={disabled}
               onClick={() => stopSoundtrack()}
-              className="text-base px-8 py-2.5 w-auto"
+              className="text-sm px-6 py-2"
             >
               Stop
             </Button>
           ) : (
             <Button
               type="button"
-              variant="audio"
+              variant="outline"
               disabled={disabled || audioLoading}
               loading={audioLoading}
               onClick={() => void handleTodaySoundtrack()}
-              className="text-base px-8 py-2.5 w-auto"
+              className="text-sm px-6 py-2"
             >
               Today&apos;s Soundtrack
             </Button>
@@ -714,26 +714,12 @@ export default function HomePage() {
         )}
       </section>
 
-      <div className="text-center pb-4 md:pb-6 space-y-2 max-w-xl mx-auto px-4">
-        <p className="text-body text-text-secondary">Want to hear what your chart sounds like?</p>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => router.push('/profile')}
-          className="text-base px-8 py-2.5 w-auto min-h-[44px]"
-        >
-          Create your chart
-        </Button>
-      </div>
-
-      <div className="max-w-4xl mx-auto border-t border-border/30" />
-
       {/* Sky preview + wheel */}
       <PlacementHighlightProvider>
-        <section className="max-w-6xl mx-auto px-4 py-4 md:py-6">
+        <section className="max-w-6xl mx-auto px-4 py-2 md:py-3">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
-            <Card elevation="resting" padding="p-6">
-              <h2 className="reading-section-header mb-4">Right now in the sky</h2>
+            <Card elevation="resting" padding="p-4">
+              <h2 className="reading-section-header mb-2">Right now in the sky</h2>
               <ExplanationPanel
                 embedded
                 composeHash={composeHash}
@@ -741,7 +727,7 @@ export default function HomePage() {
                 sections={explanationSections?.slice(0, 1) ?? undefined}
                 isLoading={isLoading}
               />
-              <p className="text-body-sm text-accent mt-4">
+              <p className="text-body-sm text-accent mt-3">
                 <a href="/today" className="hover:underline">
                   See the full sky report →
                 </a>
@@ -752,13 +738,25 @@ export default function HomePage() {
               <WheelDisplay
                 chartData={chartData}
                 isLoading={isLoading}
-                maxSize={400}
+                maxSize={300}
                 className="w-full"
               />
             </div>
           </div>
         </section>
       </PlacementHighlightProvider>
+
+      <section className="max-w-xl mx-auto px-4 pt-4 pb-6 text-center space-y-2">
+        <p className="text-body-sm text-text-secondary">Want to hear what your chart sounds like?</p>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => router.push('/profile')}
+          className="text-sm px-8 py-2.5"
+        >
+          Create your chart
+        </Button>
+      </section>
 
       {showDebugPanel && (
         <>
