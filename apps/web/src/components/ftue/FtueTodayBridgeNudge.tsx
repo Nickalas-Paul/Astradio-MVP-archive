@@ -23,7 +23,7 @@ export function FtueTodayBridgeNudge() {
         </button>
       }
     >
-      <p>Your chart never changes. But the sky does — every day.</p>
+      <p>Your chart never changes. But the sky does, every day.</p>
       <p>See how today is activating your chart.</p>
     </FtueBanner>
   );

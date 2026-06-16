@@ -9,7 +9,7 @@ export function FtueConnectionsWelcomeBanner() {
     <FtueBanner storageKey={FTUE_CONNECTIONS_WELCOME_KEY} maxImpressions={1} className="max-w-4xl mx-auto">
       <p>
         Discovery finds people whose charts resonate with yours. Connections tracks the relationships
-        you&apos;ve built. You already have one — take a look.
+        you&apos;ve built. You already have one. Take a look.
       </p>
     </FtueBanner>
   );

@@ -13,11 +13,9 @@ export default function ProfilePage() {
       <div className="max-w-7xl mx-auto space-y-8">
         <section className="space-y-2">
           <h1 className="text-h1 font-bold text-text-primary">My Sky</h1>
-          {!profileLoading && (
+          {!profileLoading && !user && (
             <p className="text-sm text-text-secondary max-w-2xl">
-              {user
-                ? 'Your chart, your sound, your identity.'
-                : 'Sign in or register so your charts and soundtrack persist across sessions.'}
+              Sign in or register so your charts and soundtrack persist across sessions.
             </p>
           )}
         </section>

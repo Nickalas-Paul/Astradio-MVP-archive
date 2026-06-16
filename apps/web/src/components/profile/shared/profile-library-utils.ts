@@ -35,10 +35,83 @@ export function explanationFromCompatibilityText(raw: unknown): { sections: Arra
 
 export function librarySourceLabel(source: unknown): string {
   const s = String(source || '').trim();
-  if (s === 'community_relationship') return 'Relationship artifact';
-  if (s === 'community_group') return 'Group relationship artifact';
+  if (s === 'community_relationship') return 'Connection reading';
+  if (s === 'community_group') return 'Group reading';
   if (s === 'community_relational_weather') return 'Connection reading';
-  if (s === 'profile_active') return 'Current transit';
+  if (s === 'profile_active') return 'Transit reading';
   if (s === 'profile_identity') return 'Identity';
-  return s || '—';
+  if (s === 'sandbox') return 'Sandbox reading';
+  return s ? s.replace(/_/g, ' ') : 'Saved reading';
+}
+
+export function formatLibraryCreatedAt(createdAt: unknown): string {
+  if (createdAt == null || createdAt === '') return '';
+  const d = new Date(String(createdAt));
+  if (Number.isNaN(d.getTime())) return String(createdAt);
+  return d.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function chartNamesFromRow(row: Record<string, unknown>): string[] {
+  const names: string[] = [];
+  const ps = parseSandboxState(row.sandbox_state);
+  const report =
+    row.report && typeof row.report === 'object' && !Array.isArray(row.report)
+      ? (row.report as Record<string, unknown>)
+      : null;
+
+  const groupName = typeof report?.groupName === 'string' ? report.groupName.trim() : '';
+  if (groupName) names.push(groupName);
+
+  const compositionInput = ps?.composition_input;
+  if (compositionInput && typeof compositionInput === 'object' && !Array.isArray(compositionInput)) {
+    const slots = (compositionInput as { slots?: unknown }).slots;
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        if (!slot || typeof slot !== 'object' || Array.isArray(slot)) continue;
+        const displayName = (slot as { chart_display_name?: unknown }).chart_display_name;
+        if (typeof displayName === 'string' && displayName.trim()) {
+          names.push(displayName.trim());
+        }
+      }
+    }
+  }
+
+  return names;
+}
+
+function formatChartNameList(names: string[]): string {
+  if (names.length === 0) return '';
+  if (names.length === 1) return names[0]!;
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+export function libraryChartDetailSuffix(row: Record<string, unknown>): string {
+  const compositionType = String(row.composition_type ?? '').trim();
+  if (compositionType === 'A') return '';
+
+  const names = chartNamesFromRow(row);
+  if (names.length > 0) {
+    return ` · ${formatChartNameList(names)}`;
+  }
+
+  if (compositionType === 'A+B') return ' · 2 charts';
+  if (compositionType === 'A+B+N') {
+    const source = String(row.source ?? '').trim();
+    if (source === 'community_group') return ' · Group reading';
+    return ' · 3 charts';
+  }
+
+  return '';
+}
+
+export function libraryRowSummary(row: Record<string, unknown>): string {
+  const date = formatLibraryCreatedAt(row.created_at);
+  const label = librarySourceLabel(row.source);
+  const suffix = libraryChartDetailSuffix(row);
+  return [date, label].filter(Boolean).join(' · ') + suffix;
 }

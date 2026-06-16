@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
+import { ProfilePanelFooter } from '../../src/components/profile/ProfilePanelFooter';
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
 import { useWheelDisplayMode } from '../../src/hooks/useWheelDisplayMode';
@@ -251,6 +252,11 @@ export default function SettingsPage() {
                     >
                       Log out
                     </Button>
+                    {(user.discoverable !== undefined || user.show_in_feed !== undefined) && (
+                      <div className="border-t border-border pt-4">
+                        <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p className="text-sm text-text-secondary">

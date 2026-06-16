@@ -8,7 +8,7 @@ export type FtueBannerProps = {
   children: ReactNode;
   /** Page visits before auto-dismiss (default 1). */
   maxImpressions?: number;
-  /** Optional CTA (link/button) — does not dismiss the banner. */
+  /** Optional CTA (link/button); does not dismiss the banner. */
   cta?: ReactNode;
   dismissLabel?: string;
   className?: string;

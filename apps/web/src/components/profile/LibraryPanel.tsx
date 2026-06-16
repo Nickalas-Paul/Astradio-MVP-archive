@@ -6,6 +6,7 @@ import { ExplainerSections } from './shared/ExplainerSections';
 import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
 import {
   explanationFromCompatibilityText,
+  libraryRowSummary,
   librarySourceLabel,
   parseSandboxState,
 } from './shared/profile-library-utils';
@@ -319,13 +320,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       interactive
                       className="text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
                     >
-                      <span>
-                        <span className="text-text-secondary">{String(row.created_at)}</span>
-                        {' · '}
-                        <span>{librarySourceLabel(row.source)}</span>
-                        {' · '}
-                        <span>{String(row.composition_type ?? '—')}</span>
-                      </span>
+                      <span className="text-text-secondary">{libraryRowSummary(row)}</span>
                       <Button
                         type="button"
                         variant="ghost"

@@ -9,7 +9,6 @@ import { ProfileAuthPanel } from '../profile/ProfileAuthPanel';
 import { ProfileHeaderCard } from '../profile/ProfileHeaderCard';
 import { IdentityPanel } from '../profile/IdentityPanel';
 import { LibraryPanel, type LibraryPanelHandle } from '../profile/LibraryPanel';
-import { ProfilePanelFooter } from '../profile/ProfilePanelFooter';
 import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { Card } from '@/components/shared/Card';
@@ -76,7 +75,15 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        <ProfileHeaderCard user={user} primaryChart={primaryChart} onProfileRefresh={refresh} />
+        <ProfileHeaderCard
+          user={user}
+          primaryChart={primaryChart}
+          onProfileRefresh={refresh}
+          onLogout={async () => {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            await refresh();
+          }}
+        />
 
         {noRealChart && (
           <p className="text-sm text-amber-600 dark:text-amber-400 -mt-2">
@@ -84,8 +91,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           </p>
         )}
 
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-end gap-2">
-          {onSwitchToConnections && realChart && (
+        {onSwitchToConnections && realChart && (
+          <div className="flex justify-end">
             <Button
               type="button"
               variant="primary"
@@ -95,20 +102,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             >
               Find connections
             </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full sm:w-auto min-h-[44px]"
-            onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-              await refresh();
-            }}
-          >
-            Log out
-          </Button>
-        </div>
+          </div>
+        )}
 
         <Tabs
           variant="underline"
@@ -137,10 +132,6 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             chartId={chartId}
             shouldLoad={profileSection === 'library'}
           />
-        </div>
-
-        <div className="border-t border-border pt-6 mt-6">
-          <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
         </div>
       </MotionCard>
     </div>

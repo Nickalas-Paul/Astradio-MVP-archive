@@ -18,6 +18,7 @@ export interface ProfileHeaderCardProps {
   user: ProfileUser;
   primaryChart: ProfilePrimaryChart | null;
   onProfileRefresh: () => void | Promise<void>;
+  onLogout?: () => void | Promise<void>;
 }
 
 function formatBirthData(chart: ProfilePrimaryChart | null): string | undefined {
@@ -26,7 +27,7 @@ function formatBirthData(chart: ProfilePrimaryChart | null): string | undefined 
   return time ? `${chart.date} · ${time}` : chart.date;
 }
 
-export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: ProfileHeaderCardProps) {
+export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh, onLogout }: ProfileHeaderCardProps) {
   const chartId = primaryChart?.id ?? null;
   const { data: chartData, loading: chartLoading } = useProfileChart(chartId);
 
@@ -217,15 +218,26 @@ export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh }: Prof
               ) : null}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full sm:w-auto min-h-[44px]"
-              onClick={openEdit}
-            >
-              Edit profile
-            </Button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto min-h-[44px]"
+                onClick={openEdit}
+              >
+                Edit profile
+              </Button>
+              {onLogout ? (
+                <button
+                  type="button"
+                  onClick={() => void onLogout()}
+                  className="text-body-sm text-text-muted hover:text-text-secondary transition-colors min-h-[44px] px-2"
+                >
+                  Log out
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {user.bio ? (
