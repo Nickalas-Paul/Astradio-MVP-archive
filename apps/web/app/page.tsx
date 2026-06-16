@@ -668,16 +668,10 @@ export default function HomePage() {
 
   const disabled = isLoading || !chartData || !location;
 
-  const locationLabel = location
-    ? location.label
-    : geoPermission === 'denied'
-      ? 'Using approximate location'
-      : 'Locating…';
-
   return (
     <AppShell showPlayer={false} contentClassName="">
       {/* Hero + primary CTA */}
-      <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
+      <section className="text-center py-8 md:py-10 space-y-4 max-w-3xl mx-auto px-4">
         <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
@@ -685,7 +679,7 @@ export default function HomePage() {
           The planets are always in motion. Every alignment carries a sound.
         </p>
 
-        <div className="pt-4 flex flex-col items-center gap-3">
+        <div className="pt-2 flex flex-col items-center gap-3">
           {isPlaying ? (
             <Button
               type="button"
@@ -720,9 +714,21 @@ export default function HomePage() {
         )}
       </section>
 
+      <div className="text-center pb-8 md:pb-10 space-y-3 max-w-xl mx-auto px-4">
+        <p className="text-body text-text-secondary">Want to hear what your chart sounds like?</p>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => router.push('/profile')}
+          className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
+        >
+          Create your chart
+        </Button>
+      </div>
+
       <div className="max-w-4xl mx-auto border-t border-border/30" />
 
-      {/* Sky report + wheel */}
+      {/* Sky preview + wheel */}
       <PlacementHighlightProvider>
         <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
@@ -732,70 +738,31 @@ export default function HomePage() {
                 embedded
                 composeHash={composeHash}
                 text={analysisText}
-                sections={explanationSections ?? undefined}
+                sections={explanationSections?.slice(0, 1) ?? undefined}
                 isLoading={isLoading}
               />
+              <p className="text-body-sm text-accent mt-4">
+                <a href="/today" className="hover:underline">
+                  See the full sky report →
+                </a>
+              </p>
             </Card>
 
             <div className="min-w-0">
-              <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" />
+              <WheelDisplay
+                chartData={chartData}
+                isLoading={isLoading}
+                maxSize={400}
+                className="w-full"
+              />
             </div>
           </div>
         </section>
       </PlacementHighlightProvider>
 
-      {/* Secondary controls */}
-      <section className="max-w-2xl mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4 justify-center w-full max-w-md mx-auto">
-          <div className="space-y-1 w-full sm:w-auto">
-            <label htmlFor="home-date" className="text-caption text-text-muted block">
-              Date
-            </label>
-            <input
-              id="home-date"
-              type="date"
-              value={dateStr}
-              onChange={(e) => setDateStr(e.target.value)}
-              disabled={isLoading}
-              className="input text-sm py-2 px-3 w-full sm:w-40 min-h-[44px]"
-            />
-          </div>
-          <div className="space-y-1 w-full sm:w-auto">
-            <label htmlFor="home-time" className="text-caption text-text-muted block">
-              Time
-            </label>
-            <input
-              id="home-time"
-              type="time"
-              value={timeStr}
-              onChange={(e) => setTimeStr(e.target.value)}
-              disabled={isLoading}
-              className="input text-sm py-2 px-3 w-full sm:w-32 min-h-[44px]"
-            />
-          </div>
-          <div className="space-y-1 w-full sm:min-w-[10rem]">
-            <span className="text-caption text-text-muted block">Location</span>
-            <span className="text-sm text-text-secondary block py-2 break-words">{locationLabel}</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-4xl mx-auto border-t border-border/30" />
-
-      {/* Sign-up funnel */}
-      <section className="max-w-xl mx-auto px-4 py-12 text-center space-y-4">
-        <p className="text-lg text-text-secondary">Want to hear what your chart sounds like?</p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.push('/profile')}
-          className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
-        >
-          Create your chart
-        </Button>
-      </section>
-
       {showDebugPanel && (
+        <>
+          <div className="max-w-4xl mx-auto border-t border-border/30" />
         <div className="max-w-2xl mx-auto px-4 pb-8 text-xs text-text-muted text-center space-y-1 font-mono">
           <p>Audio: Lyria-only (no legacy engine)</p>
           {specVersion && <p>Spec: {specVersion}</p>}
@@ -806,6 +773,7 @@ export default function HomePage() {
             {signedInUserPresent ? ' · transit sync: on' : ' · transit sync: off'}
           </p>
         </div>
+        </>
       )}
     </AppShell>
   );
