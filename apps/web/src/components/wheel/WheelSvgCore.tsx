@@ -3,9 +3,25 @@
 import { useMemo, type Ref, PointerEvent } from 'react';
 import type { ChartForWheel } from '../../core/chart-adapter';
 import { PLANET_COLORS, normalizePlanetName } from '../../core/planet-identity';
+import { formatCuspDegreeLabel } from '../../lib/zodiac-degrees';
 import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
-import { ASPECT_LINE_COLOR, PLANET_GLYPH, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
-import { arcPath, pol, resolveAscendantLongitude } from './wheel-geometry';
+import {
+  ASPECT_LINE_COLOR,
+  PLANET_GLYPH,
+  SIGN_GLYPH,
+  WHEEL_COLORS,
+  type WheelAspect,
+  type WheelDisplayMode,
+} from './wheel-constants';
+import {
+  angularSeparationDeg,
+  arcPath,
+  aspectLineStyle,
+  pol,
+  radialLabelRotationDeg,
+  resolveAscendantLongitude,
+  zodiacSegmentPath,
+} from './wheel-geometry';
 
 const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
@@ -17,7 +33,6 @@ const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
   9: 'MC',
 };
 
-/** Accent on dark house fill — brighter than brand #00674f for legibility on #1a2435. */
 const ANGLE_LABEL_FILL = '#5ec9a8';
 const ANGLE_LABEL_STROKE = 'rgba(232, 236, 241, 0.45)';
 const SOUTH_NODE_OPACITY = 0.45;
@@ -33,15 +48,26 @@ function glyphForBody(name: string): string | null {
   return PLANET_GLYPH[canonical] ?? null;
 }
 
+function hiddenCuspLabelIndices(cusps: number[]): Set<number> {
+  const hidden = new Set<number>();
+  for (let i = 0; i < 12; i++) {
+    const a0 = cusps[i];
+    const prev = cusps[(i + 11) % 12];
+    if (a0 == null || prev == null) continue;
+    if (angularSeparationDeg(a0, prev) < 5) hidden.add(i);
+  }
+  return hidden;
+}
+
 export interface WheelSvgCoreProps {
   chart: ChartForWheel;
   size: number;
-  /** H1 ecliptic longitude; defaults to chart.asc or cusps[0]. */
   ascendantLongitude?: number;
   positions?: Record<string, number>;
   aspects?: WheelAspect[];
   showAspectLines?: boolean;
   planetHighlight?: string | string[] | Set<string> | null;
+  displayMode?: WheelDisplayMode;
   className?: string;
   svgRef?: Ref<SVGSVGElement>;
   interactive?: boolean;
@@ -60,6 +86,7 @@ export function WheelSvgCore({
   aspects,
   showAspectLines = false,
   planetHighlight = null,
+  displayMode = 'technical',
   className = '',
   svgRef,
   interactive = false,
@@ -69,6 +96,8 @@ export function WheelSvgCore({
   onPlanetHover,
   onPlanetClick,
 }: WheelSvgCoreProps) {
+  const isTechnical = displayMode === 'technical';
+
   const highlightSet = useMemo(() => {
     if (!planetHighlight) return new Set<string>();
     if (planetHighlight instanceof Set) {
@@ -82,12 +111,27 @@ export function WheelSvgCore({
 
   const positions = positionsOverride ?? chart.positions;
   const asc = resolveAscendantLongitude(chart, ascendantLongitude);
-  const R_OUT = size / 2 - 4;
+
+  const R_ZODIAC = size / 2 - 4;
+  const R_OUT = isTechnical ? R_ZODIAC - size * 0.08 : size / 2 - 4;
   const R_IN = R_OUT * 0.6;
   const cx = size / 2;
   const cy = size / 2;
 
+  const zodiacBand = R_ZODIAC - R_OUT;
+  const zodiacGlyphSize = Math.max(8, zodiacBand * 0.55);
+  const cuspLabelFontSize = size * 0.022;
+  const showCuspLabels = isTechnical && cuspLabelFontSize >= 7;
+  const cuspLabelHidden = useMemo(
+    () => (showCuspLabels ? hiddenCuspLabelIndices(chart.cusps) : new Set<number>()),
+    [chart.cusps, showCuspLabels]
+  );
+
   const planetNames = BODY_ORDER.filter((name) => positionLongitude(positions, name) != null);
+  const planetRadius = R_OUT - 10;
+
+  const shortTickLen = Math.max(3, size * 0.012);
+  const longTickLen = Math.max(6, size * 0.025);
 
   return (
     <svg
@@ -102,11 +146,62 @@ export function WheelSvgCore({
       onPointerCancel={onPointerUp}
     >
       <g transform={`translate(${cx}, ${cy})`}>
-        <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
+        {isTechnical ? (
+          <>
+            {Array.from({ length: 12 }, (_, signIndex) => (
+              <path
+                key={`zodiac-${signIndex}`}
+                d={zodiacSegmentPath(R_ZODIAC, R_OUT, signIndex, asc)}
+                fill={signIndex % 2 === 0 ? WHEEL_COLORS.zodiacFillA : WHEEL_COLORS.zodiacFillB}
+                stroke={WHEEL_COLORS.tickStroke}
+                strokeWidth={0.5}
+              />
+            ))}
+            {Array.from({ length: 12 }, (_, signIndex) => {
+              const midLon = signIndex * 30 + 15;
+              const pt = pol((R_ZODIAC + R_OUT) / 2, midLon, asc);
+              return (
+                <text
+                  key={`zodiac-glyph-${signIndex}`}
+                  x={pt.x}
+                  y={pt.y + zodiacGlyphSize * 0.35}
+                  textAnchor="middle"
+                  fill={WHEEL_COLORS.zodiacGlyphFill}
+                  fontSize={zodiacGlyphSize}
+                  pointerEvents="none"
+                >
+                  {SIGN_GLYPH[signIndex]}
+                </text>
+              );
+            })}
+            <circle r={R_ZODIAC} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
+            {Array.from({ length: 72 }, (_, i) => {
+              const deg = i * 5;
+              const isSignBoundary = deg % 30 === 0;
+              const len = isSignBoundary ? longTickLen : shortTickLen;
+              const p0 = pol(R_OUT, deg, asc);
+              const p1 = pol(R_OUT - len, deg, asc);
+              return (
+                <line
+                  key={`tick-${deg}`}
+                  x1={p0.x}
+                  y1={p0.y}
+                  x2={p1.x}
+                  y2={p1.y}
+                  stroke={WHEEL_COLORS.tickStroke}
+                  strokeWidth={isSignBoundary ? 1 : 0.5}
+                />
+              );
+            })}
+          </>
+        ) : (
+          <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
+        )}
 
         {chart.cusps.slice(0, 12).map((a0, i) => {
           const a1 = chart.cusps[(i + 1) % 12]!;
           const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
+          const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
           return (
             <g key={i}>
               <path
@@ -119,7 +214,6 @@ export function WheelSvgCore({
               {(() => {
                 const midLon = (a0 + span / 2) % 360;
                 const midPt = pol((R_OUT + R_IN) / 2, midLon, asc);
-                const angleLabel = ANGLE_LABEL_BY_HOUSE_INDEX[i];
                 const cuspPt = angleLabel != null ? pol(R_OUT - 8, a0, asc) : null;
                 return (
                   <>
@@ -156,6 +250,33 @@ export function WheelSvgCore({
           );
         })}
 
+        {showCuspLabels
+          ? chart.cusps.slice(0, 12).map((a0, i) => {
+              if (cuspLabelHidden.has(i)) return null;
+              const isAngle = ANGLE_LABEL_BY_HOUSE_INDEX[i] != null;
+              const labelRadius = isAngle
+                ? R_OUT + zodiacBand * 0.82
+                : R_OUT + zodiacBand * 0.45;
+              const pt = pol(labelRadius, a0, asc);
+              const rotation = radialLabelRotationDeg(pt.x, pt.y);
+              return (
+                <text
+                  key={`cusp-label-${i}`}
+                  x={pt.x}
+                  y={pt.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={WHEEL_COLORS.cuspLabelFill}
+                  fontSize={cuspLabelFontSize}
+                  transform={`rotate(${rotation}, ${pt.x}, ${pt.y})`}
+                  pointerEvents="none"
+                >
+                  {formatCuspDegreeLabel(a0)}
+                </text>
+              );
+            })
+          : null}
+
         {showAspectLines && aspects?.length
           ? aspects.map((asp, idx) => {
               const bodyA = asp.bodyA ?? asp.a ?? '';
@@ -170,9 +291,10 @@ export function WheelSvgCore({
               ) {
                 return null;
               }
-              const p1 = pol(R_OUT - 10, lonA, asc);
-              const p2 = pol(R_OUT - 10, lonB, asc);
+              const p1 = pol(planetRadius, lonA, asc);
+              const p2 = pol(planetRadius, lonB, asc);
               const color = ASPECT_LINE_COLOR[asp.type] ?? '#6a7a8a';
+              const lineStyle = isTechnical ? aspectLineStyle(asp.orb) : { strokeWidth: 1, strokeOpacity: 0.7 };
               return (
                 <line
                   key={`aspect-${idx}-${bodyA}-${bodyB}-${asp.type}`}
@@ -183,8 +305,8 @@ export function WheelSvgCore({
                   x2={p2.x}
                   y2={p2.y}
                   stroke={color}
-                  strokeWidth={1}
-                  strokeOpacity={0.7}
+                  strokeWidth={lineStyle.strokeWidth}
+                  strokeOpacity={lineStyle.strokeOpacity}
                 />
               );
             })
@@ -195,7 +317,7 @@ export function WheelSvgCore({
           if (deg == null) return null;
           const glyph = glyphForBody(name);
           if (!glyph) return null;
-          const p = pol(R_OUT - 10, deg, asc);
+          const p = pol(planetRadius, deg, asc);
           const canonicalName = normalizePlanetName(name);
           const isHighlighted = highlightSet.has(canonicalName);
           const fill = isHighlighted
@@ -230,7 +352,7 @@ export function WheelSvgCore({
           const nnLon = positionLongitude(positions, 'northNode');
           if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
           const southLon = (nnLon + 180) % 360;
-          const p = pol(R_OUT - 10, southLon, asc);
+          const p = pol(planetRadius, southLon, asc);
           const southHighlighted = highlightSet.has(normalizePlanetName('southNode'));
           return (
             <text

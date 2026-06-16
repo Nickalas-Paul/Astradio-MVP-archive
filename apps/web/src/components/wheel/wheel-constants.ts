@@ -19,6 +19,22 @@ export const PLANET_GLYPH: Record<string, string> = {
   vesta: '\u26B6',
 };
 
+/** Zodiac sign index 0 (Aries) through 11 (Pisces). */
+export const SIGN_GLYPH: Record<number, string> = {
+  0: '\u2648',
+  1: '\u2649',
+  2: '\u264A',
+  3: '\u264B',
+  4: '\u264C',
+  5: '\u264D',
+  6: '\u264E',
+  7: '\u264F',
+  8: '\u2650',
+  9: '\u2651',
+  10: '\u2652',
+  11: '\u2653',
+};
+
 /** Visibility sanity: palette must read clearly on dark navy (bg ~#0C1320). */
 export const WHEEL_COLORS = {
   outerRingStroke: '#4a5a7a',
@@ -28,7 +44,14 @@ export const WHEEL_COLORS = {
   planetGlyphFill: '#e8ecf1',
   planetGlyphFillDragging: '#ffd700',
   markerFill: '#e8ecf1',
+  zodiacFillA: '#151B24',
+  zodiacFillB: '#1A222E',
+  zodiacGlyphFill: '#94A3B8',
+  tickStroke: '#4a5a7a',
+  cuspLabelFill: '#94A3B8',
 } as const;
+
+export type WheelDisplayMode = 'technical' | 'simple';
 
 /** Deterministic aspect line colors by type (conventional mapping). */
 export const ASPECT_LINE_COLOR: Record<string, string> = {

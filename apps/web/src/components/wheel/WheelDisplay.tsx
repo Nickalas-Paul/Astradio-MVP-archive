@@ -6,6 +6,7 @@ import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
 import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
+import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { WheelSvgCore } from './WheelSvgCore';
 
 export interface WheelDisplayProps {
@@ -30,6 +31,7 @@ export function WheelDisplay({
   planetHighlight: planetHighlightProp,
   emptyMessage,
 }: WheelDisplayProps) {
+  const { mode: displayMode } = useWheelDisplayMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
@@ -128,6 +130,7 @@ export function WheelDisplay({
             aspects={aspects}
             showAspectLines={aspectLinesVisible}
             planetHighlight={effectiveHighlight}
+            displayMode={displayMode}
             onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
           />
         ) : (

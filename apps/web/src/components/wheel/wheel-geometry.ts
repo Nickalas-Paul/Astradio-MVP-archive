@@ -66,6 +66,44 @@ export function roundDegree(lonDeg: number): number {
   return Math.round(lonDeg * 10) / 10;
 }
 
+/** Zodiac sign ring segment (30° ecliptic slice). signIndex 0 = Aries. */
+export function zodiacSegmentPath(
+  rOuter: number,
+  rInner: number,
+  signIndex: number,
+  ascendantDeg: number = 0
+): string {
+  const a0 = signIndex * 30;
+  const a1 = a0 + 30;
+  return arcPath(rOuter, rInner, a0, a1, ascendantDeg);
+}
+
+/** Smallest angular distance between two ecliptic longitudes (degrees). */
+export function angularSeparationDeg(lonA: number, lonB: number): number {
+  const d = Math.abs(normalizeDeg(lonA) - normalizeDeg(lonB));
+  return d > 180 ? 360 - d : d;
+}
+
+/** Readable SVG text rotation aligned to radial angle from wheel center. */
+export function radialLabelRotationDeg(x: number, y: number): number {
+  let angle = (Math.atan2(y, x) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  if (angle < -90) angle += 180;
+  return angle;
+}
+
+/** Orb-tight aspect line weight (technical mode). */
+export function aspectLineStyle(orb: number | undefined): { strokeWidth: number; strokeOpacity: number } {
+  if (orb == null || !Number.isFinite(orb)) {
+    return { strokeWidth: 1, strokeOpacity: 0.7 };
+  }
+  const o = Math.max(0, orb);
+  return {
+    strokeWidth: Math.max(0.5, 2 - (o / 8) * 1.5),
+    strokeOpacity: Math.max(0.3, 0.9 - (o / 8) * 0.6),
+  };
+}
+
 /** Pointer angle (SVG coords) → absolute ecliptic longitude, accounting for ASC anchor. */
 export function angleToLonDeg(angleRad: number, ascendantDeg: number = 0): number {
   let wheelLon = (-angleRad * 180) / Math.PI + 180;

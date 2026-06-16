@@ -13,6 +13,7 @@ import {
 } from './wheel-builder-math';
 import { equalHouseCuspsFromAscendant } from '../../lib/equal-house-cusps';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
+import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { WheelSvgCore } from './WheelSvgCore';
 
 export interface WheelBuilderProps {
@@ -47,6 +48,7 @@ export function WheelBuilder({
   showAspectLines = true,
   isBlankCanvas = false,
 }: WheelBuilderProps) {
+  const { mode: displayMode } = useWheelDisplayMode();
   const effectiveFreeBuild = freeBuild || snapshot == null;
   const freeBuildAsc =
     typeof ascendantOverrideDeg === 'number' && Number.isFinite(ascendantOverrideDeg)
@@ -214,6 +216,7 @@ export function WheelBuilder({
         aspects={aspects}
         showAspectLines={showAspectLines}
         planetHighlight={effectiveHighlight}
+        displayMode={displayMode}
         svgRef={svgRef}
         interactive
         onPointerDown={handlePointerDown}

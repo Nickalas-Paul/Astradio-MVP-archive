@@ -6,6 +6,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
+import { useWheelDisplayMode } from '../../src/hooks/useWheelDisplayMode';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 
@@ -15,6 +16,7 @@ export default function SettingsPage() {
   const { refresh: refreshChart } = useProfileChart(chartId);
   const { settings, updateSettings } = useSettingsStore();
   const { theme, setTheme } = useUIStore();
+  const { mode: wheelDisplayMode, setMode: setWheelDisplayMode } = useWheelDisplayMode();
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
@@ -93,6 +95,42 @@ export default function SettingsPage() {
                       <div className="text-lg mb-1 grayscale">☀️</div>
                       <div className="text-sm text-text-muted">Light</div>
                       <div className="text-xs text-text-muted mt-1">(coming soon)</div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
+                    Chart display
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setWheelDisplayMode('technical')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        wheelDisplayMode === 'technical'
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border bg-bg hover:bg-bgElev'
+                      }`}
+                    >
+                      <div className="text-sm font-medium mb-1">Technical</div>
+                      <div className="text-xs text-text-secondary">
+                        Full detail with zodiac ring, degree marks, and cusp labels
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWheelDisplayMode('simple')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        wheelDisplayMode === 'simple'
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border bg-bg hover:bg-bgElev'
+                      }`}
+                    >
+                      <div className="text-sm font-medium mb-1">Simple</div>
+                      <div className="text-xs text-text-secondary">
+                        Clean wheel with houses and planets only
+                      </div>
                     </button>
                   </div>
                 </div>
