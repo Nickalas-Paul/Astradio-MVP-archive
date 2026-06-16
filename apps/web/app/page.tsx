@@ -668,36 +668,42 @@ export default function HomePage() {
 
   const disabled = isLoading || !chartData || !location;
 
+  const locationLabel = location
+    ? location.label
+    : geoPermission === 'denied'
+      ? 'Using approximate location'
+      : 'Locating…';
+
   return (
     <AppShell showPlayer={false} contentClassName="">
-      {/* Hero + soundtrack */}
-      <section className="text-center pt-6 pb-2 md:pt-8 md:pb-3 space-y-2 max-w-3xl mx-auto px-4">
+      {/* Hero + primary CTA */}
+      <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
         <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
-        <p className="text-body-sm text-text-secondary max-w-xl mx-auto">
+        <p className="text-body-sm md:text-body text-text-secondary max-w-xl mx-auto">
           The planets are always in motion. Every alignment carries a sound.
         </p>
 
-        <div className="pt-1">
+        <div className="pt-4 flex flex-col items-center gap-3">
           {isPlaying ? (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               disabled={disabled}
               onClick={() => stopSoundtrack()}
-              className="text-sm px-6 py-2"
+              className="text-lg px-10 py-4 w-full md:w-auto"
             >
               Stop
             </Button>
           ) : (
             <Button
               type="button"
-              variant="outline"
+              variant="audio"
               disabled={disabled || audioLoading}
               loading={audioLoading}
               onClick={() => void handleTodaySoundtrack()}
-              className="text-sm px-6 py-2"
+              className="text-lg px-10 py-4 w-full md:w-auto"
             >
               Today&apos;s Soundtrack
             </Button>
@@ -714,53 +720,82 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Sky preview + wheel */}
+      <div className="max-w-4xl mx-auto border-t border-border/30" />
+
+      {/* Sky report + wheel */}
       <PlacementHighlightProvider>
-        <section className="max-w-6xl mx-auto px-4 py-2 md:py-3">
+        <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
-            <Card elevation="resting" padding="p-4">
-              <h2 className="reading-section-header mb-2">Right now in the sky</h2>
+            <Card elevation="resting" padding="p-6">
+              <h2 className="reading-section-header mb-4">Right now in the sky</h2>
               <ExplanationPanel
                 embedded
                 composeHash={composeHash}
                 text={analysisText}
-                sections={explanationSections?.slice(0, 1) ?? undefined}
+                sections={explanationSections ?? undefined}
                 isLoading={isLoading}
               />
-              <p className="text-body-sm text-accent mt-3">
-                <a href="/today" className="hover:underline">
-                  See the full sky report →
-                </a>
-              </p>
             </Card>
 
             <div className="min-w-0">
-              <WheelDisplay
-                chartData={chartData}
-                isLoading={isLoading}
-                maxSize={300}
-                className="w-full"
-              />
+              <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" />
             </div>
           </div>
         </section>
       </PlacementHighlightProvider>
 
-      <section className="max-w-xl mx-auto px-4 pt-4 pb-6 text-center space-y-2">
-        <p className="text-body-sm text-text-secondary">Want to hear what your chart sounds like?</p>
+      {/* Secondary controls */}
+      <section className="max-w-2xl mx-auto px-4 py-6">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4 justify-center w-full max-w-md mx-auto">
+          <div className="space-y-1 w-full sm:w-auto">
+            <label htmlFor="home-date" className="text-caption text-text-muted block">
+              Date
+            </label>
+            <input
+              id="home-date"
+              type="date"
+              value={dateStr}
+              onChange={(e) => setDateStr(e.target.value)}
+              disabled={isLoading}
+              className="input text-sm py-2 px-3 w-full sm:w-40 min-h-[44px]"
+            />
+          </div>
+          <div className="space-y-1 w-full sm:w-auto">
+            <label htmlFor="home-time" className="text-caption text-text-muted block">
+              Time
+            </label>
+            <input
+              id="home-time"
+              type="time"
+              value={timeStr}
+              onChange={(e) => setTimeStr(e.target.value)}
+              disabled={isLoading}
+              className="input text-sm py-2 px-3 w-full sm:w-32 min-h-[44px]"
+            />
+          </div>
+          <div className="space-y-1 w-full sm:min-w-[10rem]">
+            <span className="text-caption text-text-muted block">Location</span>
+            <span className="text-sm text-text-secondary block py-2 break-words">{locationLabel}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-4xl mx-auto border-t border-border/30" />
+
+      {/* Sign-up funnel */}
+      <section className="max-w-xl mx-auto px-4 py-12 text-center space-y-4">
+        <p className="text-lg text-text-secondary">Want to hear what your chart sounds like?</p>
         <Button
           type="button"
-          variant="primary"
+          variant="outline"
           onClick={() => router.push('/profile')}
-          className="text-sm px-8 py-2.5"
+          className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
         >
           Create your chart
         </Button>
       </section>
 
       {showDebugPanel && (
-        <>
-          <div className="max-w-4xl mx-auto border-t border-border/30" />
         <div className="max-w-2xl mx-auto px-4 pb-8 text-xs text-text-muted text-center space-y-1 font-mono">
           <p>Audio: Lyria-only (no legacy engine)</p>
           {specVersion && <p>Spec: {specVersion}</p>}
@@ -771,7 +806,6 @@ export default function HomePage() {
             {signedInUserPresent ? ' · transit sync: on' : ' · transit sync: off'}
           </p>
         </div>
-        </>
       )}
     </AppShell>
   );
