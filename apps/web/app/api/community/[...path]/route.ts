@@ -79,3 +79,51 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     );
   }
 }
+
+async function proxyWithSession(
+  req: NextRequest,
+  pathStr: string,
+  method: 'PUT' | 'DELETE'
+): Promise<NextResponse> {
+  const sessionUserId = getSessionUserId(req.cookies);
+  if (!sessionUserId) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  }
+  const backend = getEngineBaseUrl();
+  const body = method === 'DELETE' ? {} : await req.json().catch(() => ({}));
+  const payload =
+    body && typeof body === 'object' && !Array.isArray(body) ? { ...body } : {};
+  delete (payload as Record<string, unknown>).userId;
+  (payload as Record<string, unknown>).userId = sessionUserId;
+  const r = await fetch(`${backend}/api/community/${pathStr}`, {
+    method,
+    headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json().catch(() => ({}));
+  return NextResponse.json(data, { status: r.status });
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  try {
+    const { path } = await params;
+    return proxyWithSession(req, path.join('/'), 'PUT');
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Community API unavailable' },
+      { status: 502 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  try {
+    const { path } = await params;
+    return proxyWithSession(req, path.join('/'), 'DELETE');
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Community API unavailable' },
+      { status: 502 }
+    );
+  }
+}

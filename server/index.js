@@ -2128,6 +2128,10 @@ if (personalityMod && typeof personalityMod.createPersonalityRouter === "functio
 const communityRoutes = require("./routes/community");
 app.use("/api", communityRoutes.communityRouter);
 
+// Community posts (UGC feed)
+const { createCommunityPostsRouter } = require("./routes/community-posts");
+app.use("/api", createCommunityPostsRouter());
+
 // Phase 5 — Relational groups (private, owner-scoped)
 const relationalMod = optionalRequire(path.join(vnextRoot, "relational", "routes"));
 if (relationalMod && typeof relationalMod.createRelationalRouter === "function") {

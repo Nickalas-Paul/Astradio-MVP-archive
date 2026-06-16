@@ -59,6 +59,7 @@
     "test:identity-export-contract": "npx jest --config tests/jest.identity-export.config.cjs",
     "test:sandbox-surface": "jest --config tests/jest.sandbox.config.cjs --no-coverage",
     "test:chart-search-label": "jest --config tests/jest.chart-search.config.cjs --no-coverage",
+    "test:community-posts": "jest --config tests/jest.community-posts.config.cjs --no-coverage",
     "test:e2e": "playwright test tests/e2e.smoke.spec.ts",
     "test:campaign-daily": "npm run vnext:build && node --test tests/campaign-daily-anchor.test.js tests/campaign-daily-canonical-location.test.js tests/campaign-daily-day-fingerprint.test.js tests/campaign-daily-theme-source.test.js tests/campaign-group-resolve.test.js tests/campaign-state-machine.test.js tests/campaign-narrative-surface.test.js",
     "db:migrate-campaign-daily-fp": "node scripts/migrate-campaign-daily-transit-fingerprint.js",
