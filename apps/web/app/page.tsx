@@ -732,9 +732,14 @@ export default function HomePage() {
                 embedded
                 composeHash={composeHash}
                 text={analysisText}
-                sections={explanationSections ?? undefined}
+                sections={explanationSections?.slice(0, 1) ?? undefined}
                 isLoading={isLoading}
               />
+              <p className="text-body-sm text-accent mt-4">
+                <a href="/today" className="hover:underline">
+                  See the full sky report →
+                </a>
+              </p>
             </Card>
 
             <div className="min-w-0">
@@ -787,7 +792,7 @@ export default function HomePage() {
         <p className="text-lg text-text-secondary">Want to hear what your chart sounds like?</p>
         <Button
           type="button"
-          variant="outline"
+          variant="primary"
           onClick={() => router.push('/profile')}
           className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
         >
