@@ -61,6 +61,7 @@ export function IdentityPanel({
   const [audioGenerating, setAudioGenerating] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [composePollExhausted, setComposePollExhausted] = useState(false);
+  const [exportFetchFailed, setExportFetchFailed] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   /** Captured once per chart — survives sync-key write during the same session. */
@@ -77,6 +78,7 @@ export function IdentityPanel({
     autoplayAttemptedRef.current = false;
     setAutoplayBlocked(false);
     setComposePollExhausted(false);
+    setExportFetchFailed(false);
   }, [chartId]);
 
   useEffect(() => {
@@ -100,10 +102,12 @@ export function IdentityPanel({
     });
 
     if (!validEid) {
+      setExportFetchFailed(false);
       setAudioState('missing');
       return undefined;
     }
 
+    setExportFetchFailed(false);
     setAudioState('loading');
 
     let cancelled = false;
@@ -120,10 +124,12 @@ export function IdentityPanel({
           setIdentityAudioUrl(url);
           setAudioState('available');
         } else {
+          setExportFetchFailed(true);
           setAudioState('missing');
         }
       } catch {
         if (!cancelled) {
+          setExportFetchFailed(true);
           setAudioState('missing');
         }
       }
@@ -235,6 +241,7 @@ export function IdentityPanel({
     const updatedAt = chartData?.chart?.updatedAt;
     if (audioState === 'available' && chartId && updatedAt) {
       setIdentityAudioChartSync(chartId, updatedAt);
+      setExportFetchFailed(false);
     }
   }, [audioState, chartId, chartData?.chart?.updatedAt]);
 
@@ -252,24 +259,26 @@ export function IdentityPanel({
   const missingMessage =
     audioState === 'error'
       ? 'Something went wrong. Try again.'
-      : hasValidExportId && audioState === 'missing'
-        ? "Couldn't load your soundtrack. Try again."
+      : exportFetchFailed
+        ? 'Your soundtrack needs to be regenerated.'
         : showChartUpdatedPrompt
           ? 'Your chart was updated. Ready to hear the new you?'
-          : 'Generate a soundtrack from your natal chart.';
+          : 'Hear what your chart sounds like.';
 
   const showFirstListenComposing =
     isFirstListen &&
     audioState === 'missing' &&
     !composePollExhausted &&
-    !showChartUpdatedPrompt;
+    !showChartUpdatedPrompt &&
+    !exportFetchFailed;
 
   const showFirstListenComposeDelayed =
     isFirstListen && audioState === 'missing' && composePollExhausted && !showChartUpdatedPrompt;
 
   const showGenerateButton =
     (audioState === 'missing' || audioState === 'error') &&
-    !showFirstListenComposing;
+    !showFirstListenComposing &&
+    (exportFetchFailed || !showFirstListenComposeDelayed || showChartUpdatedPrompt);
 
   const renderWheel = (maxSize: number) => {
     if (loading) {
