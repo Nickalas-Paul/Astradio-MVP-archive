@@ -2132,6 +2132,13 @@ app.use("/api", communityRoutes.communityRouter);
 const { createCommunityPostsRouter } = require("./routes/community-posts");
 app.use("/api", createCommunityPostsRouter());
 
+try {
+  const { startCommunityNotificationService } = require("./lib/community-notification-service");
+  startCommunityNotificationService();
+} catch (e) {
+  console.warn("[community-notification] failed to start:", e?.message || e);
+}
+
 // Phase 5 — Relational groups (private, owner-scoped)
 const relationalMod = optionalRequire(path.join(vnextRoot, "relational", "routes"));
 if (relationalMod && typeof relationalMod.createRelationalRouter === "function") {
