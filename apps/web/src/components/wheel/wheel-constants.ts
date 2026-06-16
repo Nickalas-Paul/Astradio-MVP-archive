@@ -40,7 +40,7 @@ export const WHEEL_COLORS = {
   outerRingStroke: '#4a5a7a',
   houseFill: '#1a2435',
   houseStroke: '#3d4f6e',
-  houseNumberFill: '#b8c5d6',
+  houseNumberFill: '#64748B',
   planetGlyphFill: '#e8ecf1',
   planetGlyphFillDragging: '#ffd700',
   markerFill: '#e8ecf1',
@@ -49,7 +49,20 @@ export const WHEEL_COLORS = {
   zodiacGlyphFill: '#94A3B8',
   tickStroke: '#4a5a7a',
   cuspLabelFill: '#94A3B8',
+  angleLabelFill: '#0e9696',
+  glyphHaloStroke: '#0C1320',
 } as const;
+
+/** Bare symbol glyphs — avoids emoji presentation boxes on Windows. */
+export const WHEEL_GLYPH_FONT =
+  "'Segoe UI Symbol', 'Noto Sans Symbols', 'Arial Unicode MS', sans-serif";
+
+export const WHEEL_GLYPH_HALO = {
+  paintOrder: 'stroke fill' as const,
+  stroke: WHEEL_COLORS.glyphHaloStroke,
+  strokeWidth: 2.5,
+  strokeLinejoin: 'round' as const,
+};
 
 export type WheelDisplayMode = 'technical' | 'simple';
 

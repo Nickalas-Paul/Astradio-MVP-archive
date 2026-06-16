@@ -10,6 +10,8 @@ import {
   PLANET_GLYPH,
   SIGN_GLYPH,
   WHEEL_COLORS,
+  WHEEL_GLYPH_FONT,
+  WHEEL_GLYPH_HALO,
   type WheelAspect,
   type WheelDisplayMode,
 } from './wheel-constants';
@@ -33,8 +35,6 @@ const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
   9: 'MC',
 };
 
-const ANGLE_LABEL_FILL = '#5ec9a8';
-const ANGLE_LABEL_STROKE = 'rgba(232, 236, 241, 0.45)';
 const SOUTH_NODE_OPACITY = 0.45;
 
 function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
@@ -57,6 +57,15 @@ function hiddenCuspLabelIndices(cusps: number[]): Set<number> {
     if (angularSeparationDeg(a0, prev) < 5) hidden.add(i);
   }
   return hidden;
+}
+
+function isEqualHouseCusps(cusps: number[]): boolean {
+  if (cusps.length < 12) return false;
+  const asc = cusps[0]!;
+  return cusps.every((c, i) => {
+    const expected = (asc + i * 30) % 360;
+    return Math.abs(c - expected) < 0.01;
+  });
 }
 
 export interface WheelSvgCoreProps {
@@ -121,7 +130,12 @@ export function WheelSvgCore({
   const zodiacBand = R_ZODIAC - R_OUT;
   const zodiacGlyphSize = Math.max(8, zodiacBand * 0.55);
   const cuspLabelFontSize = size * 0.022;
-  const showCuspLabels = isTechnical && cuspLabelFontSize >= 7;
+
+  const showSignGlyphs = isTechnical && size >= 200;
+  const showDegreeTicks = isTechnical && size >= 300;
+  const equalHouses = useMemo(() => isEqualHouseCusps(chart.cusps), [chart.cusps]);
+  const showCuspLabels = isTechnical && size >= 400 && !equalHouses;
+
   const cuspLabelHidden = useMemo(
     () => (showCuspLabels ? hiddenCuspLabelIndices(chart.cusps) : new Set<number>()),
     [chart.cusps, showCuspLabels]
@@ -129,6 +143,7 @@ export function WheelSvgCore({
 
   const planetNames = BODY_ORDER.filter((name) => positionLongitude(positions, name) != null);
   const planetRadius = R_OUT - 10;
+  const houseSectorStroke = isTechnical ? 0.5 : 1;
 
   const shortTickLen = Math.max(3, size * 0.012);
   const longTickLen = Math.max(6, size * 0.025);
@@ -153,46 +168,63 @@ export function WheelSvgCore({
                 key={`zodiac-${signIndex}`}
                 d={zodiacSegmentPath(R_ZODIAC, R_OUT, signIndex, asc)}
                 fill={signIndex % 2 === 0 ? WHEEL_COLORS.zodiacFillA : WHEEL_COLORS.zodiacFillB}
-                stroke={WHEEL_COLORS.tickStroke}
-                strokeWidth={0.5}
+                stroke="none"
               />
             ))}
-            {Array.from({ length: 12 }, (_, signIndex) => {
-              const midLon = signIndex * 30 + 15;
-              const pt = pol((R_ZODIAC + R_OUT) / 2, midLon, asc);
-              return (
-                <text
-                  key={`zodiac-glyph-${signIndex}`}
-                  x={pt.x}
-                  y={pt.y + zodiacGlyphSize * 0.35}
-                  textAnchor="middle"
-                  fill={WHEEL_COLORS.zodiacGlyphFill}
-                  fontSize={zodiacGlyphSize}
-                  pointerEvents="none"
-                >
-                  {SIGN_GLYPH[signIndex]}
-                </text>
-              );
-            })}
-            <circle r={R_ZODIAC} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
-            {Array.from({ length: 72 }, (_, i) => {
-              const deg = i * 5;
-              const isSignBoundary = deg % 30 === 0;
-              const len = isSignBoundary ? longTickLen : shortTickLen;
-              const p0 = pol(R_OUT, deg, asc);
-              const p1 = pol(R_OUT - len, deg, asc);
-              return (
-                <line
-                  key={`tick-${deg}`}
-                  x1={p0.x}
-                  y1={p0.y}
-                  x2={p1.x}
-                  y2={p1.y}
-                  stroke={WHEEL_COLORS.tickStroke}
-                  strokeWidth={isSignBoundary ? 1 : 0.5}
-                />
-              );
-            })}
+            <circle
+              r={R_OUT}
+              fill="none"
+              stroke={WHEEL_COLORS.outerRingStroke}
+              strokeWidth={1}
+            />
+            <circle
+              r={R_ZODIAC}
+              fill="none"
+              stroke={WHEEL_COLORS.outerRingStroke}
+              strokeWidth={1.5}
+            />
+            {showSignGlyphs
+              ? Array.from({ length: 12 }, (_, signIndex) => {
+                  const midLon = signIndex * 30 + 15;
+                  const pt = pol((R_ZODIAC + R_OUT) / 2, midLon, asc);
+                  return (
+                    <text
+                      key={`zodiac-glyph-${signIndex}`}
+                      x={pt.x}
+                      y={pt.y + zodiacGlyphSize * 0.35}
+                      textAnchor="middle"
+                      fill={WHEEL_COLORS.zodiacGlyphFill}
+                      fontSize={zodiacGlyphSize}
+                      fontFamily={WHEEL_GLYPH_FONT}
+                      pointerEvents="none"
+                      {...WHEEL_GLYPH_HALO}
+                      style={{ fontVariantEmoji: 'text' }}
+                    >
+                      {SIGN_GLYPH[signIndex]}
+                    </text>
+                  );
+                })
+              : null}
+            {showDegreeTicks
+              ? Array.from({ length: 72 }, (_, i) => {
+                  const deg = i * 5;
+                  const isSignBoundary = deg % 30 === 0;
+                  const len = isSignBoundary ? longTickLen : shortTickLen;
+                  const p0 = pol(R_OUT, deg, asc);
+                  const p1 = pol(R_OUT - len, deg, asc);
+                  return (
+                    <line
+                      key={`tick-${deg}`}
+                      x1={p0.x}
+                      y1={p0.y}
+                      x2={p1.x}
+                      y2={p1.y}
+                      stroke={WHEEL_COLORS.tickStroke}
+                      strokeWidth={isSignBoundary ? 1 : 0.5}
+                    />
+                  );
+                })
+              : null}
           </>
         ) : (
           <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
@@ -208,7 +240,7 @@ export function WheelSvgCore({
                 d={arcPath(R_OUT, R_IN, a0, a1, asc)}
                 fill={WHEEL_COLORS.houseFill}
                 stroke={WHEEL_COLORS.houseStroke}
-                strokeWidth={1}
+                strokeWidth={houseSectorStroke}
                 opacity={1}
               />
               {(() => {
@@ -223,6 +255,7 @@ export function WheelSvgCore({
                       textAnchor="middle"
                       fill={WHEEL_COLORS.houseNumberFill}
                       fontSize={10}
+                      fontFamily={WHEEL_GLYPH_FONT}
                     >
                       {i + 1}
                     </text>
@@ -231,10 +264,7 @@ export function WheelSvgCore({
                         x={cuspPt.x}
                         y={cuspPt.y + 4}
                         textAnchor="middle"
-                        fill={ANGLE_LABEL_FILL}
-                        stroke={ANGLE_LABEL_STROKE}
-                        strokeWidth={0.6}
-                        paintOrder="stroke fill"
+                        fill={WHEEL_COLORS.angleLabelFill}
                         fontSize={10}
                         fontWeight={600}
                         letterSpacing="0.05em"
@@ -268,8 +298,11 @@ export function WheelSvgCore({
                   dominantBaseline="middle"
                   fill={WHEEL_COLORS.cuspLabelFill}
                   fontSize={cuspLabelFontSize}
+                  fontFamily={WHEEL_GLYPH_FONT}
                   transform={`rotate(${rotation}, ${pt.x}, ${pt.y})`}
                   pointerEvents="none"
+                  {...WHEEL_GLYPH_HALO}
+                  style={{ fontVariantEmoji: 'text' }}
                 >
                   {formatCuspDegreeLabel(a0)}
                 </text>
@@ -320,9 +353,7 @@ export function WheelSvgCore({
           const p = pol(planetRadius, deg, asc);
           const canonicalName = normalizePlanetName(name);
           const isHighlighted = highlightSet.has(canonicalName);
-          const fill = isHighlighted
-            ? (PLANET_COLORS[canonicalName] ?? WHEEL_COLORS.planetGlyphFillDragging)
-            : WHEEL_COLORS.planetGlyphFill;
+          const fill = PLANET_COLORS[canonicalName] ?? WHEEL_COLORS.planetGlyphFill;
           const planetInteractive = !interactive && (onPlanetHover != null || onPlanetClick != null);
           return (
             <text
@@ -334,7 +365,10 @@ export function WheelSvgCore({
               fill={fill}
               fontSize={isHighlighted ? 18 : 14}
               fontWeight={isHighlighted ? 'bold' : 'normal'}
+              fontFamily={WHEEL_GLYPH_FONT}
+              {...WHEEL_GLYPH_HALO}
               style={{
+                fontVariantEmoji: 'text',
                 transition: 'fill 0.2s ease, font-size 0.2s ease',
                 cursor: planetInteractive ? 'pointer' : interactive ? 'grab' : undefined,
                 userSelect: interactive ? ('none' as const) : undefined,
@@ -354,6 +388,7 @@ export function WheelSvgCore({
           const southLon = (nnLon + 180) % 360;
           const p = pol(planetRadius, southLon, asc);
           const southHighlighted = highlightSet.has(normalizePlanetName('southNode'));
+          const southFill = PLANET_COLORS.southNode ?? WHEEL_COLORS.planetGlyphFill;
           return (
             <text
               key="southNode-derived"
@@ -361,16 +396,14 @@ export function WheelSvgCore({
               x={p.x}
               y={p.y + 4}
               textAnchor="middle"
-              fill={
-                southHighlighted
-                  ? (PLANET_COLORS.southNode ?? WHEEL_COLORS.planetGlyphFill)
-                  : WHEEL_COLORS.planetGlyphFill
-              }
+              fill={southFill}
               fontSize={southHighlighted ? 16 : 11}
               fontWeight={southHighlighted ? 'bold' : 'normal'}
               opacity={southHighlighted ? 1 : SOUTH_NODE_OPACITY}
+              fontFamily={WHEEL_GLYPH_FONT}
               pointerEvents="none"
-              style={{ transition: 'fill 0.2s ease, font-size 0.2s ease' }}
+              {...WHEEL_GLYPH_HALO}
+              style={{ fontVariantEmoji: 'text', transition: 'fill 0.2s ease, font-size 0.2s ease' }}
             >
               {PLANET_GLYPH.southNode}
             </text>
