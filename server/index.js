@@ -20,12 +20,14 @@ try {
   console.warn('[BOOT] GCP credentials loader skipped:', e.message);
 }
 
-// Export store (GCS when GCS_BUCKET set; else disk). Set before loading compose so vnext can use it.
+// Export store (GCS → S3 → disk). Set before loading compose so vnext can use it.
 const { createExportStore } = require('../lib/export-store');
 const exportStore = createExportStore();
 process.__astradio_export_store = exportStore;
 if (process.env.GCS_BUCKET) {
   console.log('[EXPORTS] Using GCS bucket:', process.env.GCS_BUCKET, 'prefix:', process.env.GCS_PREFIX || 'exports/');
+} else if (process.env.S3_BUCKET) {
+  console.log('[EXPORTS] Using S3 bucket:', process.env.S3_BUCKET, 'prefix:', process.env.EXPORT_S3_PREFIX || 'exports/');
 } else {
   console.log('[EXPORTS] Using local disk (ephemeral on Render)');
 }
