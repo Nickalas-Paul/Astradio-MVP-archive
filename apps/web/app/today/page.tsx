@@ -48,9 +48,12 @@ function TodayContent() {
           <>
             <TodaySkySummary primaryChart={primaryChart} />
 
-            <div className="py-10 text-center">
-              <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
-              <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
+            <div className="py-8 text-center space-y-2">
+              <div className="w-12 h-px bg-accent mx-auto" />
+              <p className="text-body-sm text-accent font-medium tracking-wide uppercase">
+                Your chart
+              </p>
+              <p className="text-body-sm text-text-secondary max-w-md mx-auto">
                 That&apos;s the weather for everyone. Here&apos;s how it&apos;s landing on your chart.
               </p>
             </div>
@@ -78,9 +81,12 @@ function TodayContent() {
               )}
             </section>
 
-            <div className="py-10 text-center">
-              <div className="w-16 h-px bg-accent/30 mx-auto mb-5" />
-              <p className="text-body text-text-secondary font-serif italic max-w-md mx-auto">
+            <div className="py-8 text-center space-y-2">
+              <div className="w-12 h-px bg-accent mx-auto" />
+              <p className="text-body-sm text-accent font-medium tracking-wide uppercase">
+                Your connections
+              </p>
+              <p className="text-body-sm text-text-secondary max-w-md mx-auto">
                 Now zoom out. Here&apos;s how today&apos;s sky is activating your connections.
               </p>
             </div>

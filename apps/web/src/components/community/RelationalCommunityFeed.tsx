@@ -63,6 +63,18 @@ function pairRelationshipHeading(partnerLabel: string): string {
   return `Your relationship with ${t}`;
 }
 
+function activationHeatColor(activation: number): string {
+  if (activation >= 0.65) return 'border-l-amber-400';
+  if (activation >= 0.35) return 'border-l-accent';
+  return 'border-l-slate-600';
+}
+
+function activationHeatLabel(activation: number): string {
+  if (activation >= 0.65) return 'High';
+  if (activation >= 0.35) return 'Active';
+  return 'Mild';
+}
+
 const FEED_SIGNAL_OPTIONS = [
   { id: 'resonates', label: 'Resonates', hint: 'I recognize this energy between us' },
   { id: 'feeling_this', label: 'Feeling this', hint: 'This transit is active for me right now' },
@@ -717,7 +729,9 @@ export function RelationalCommunityFeed({
                   elevation={isExpanded ? 'raised' : 'resting'}
                   size={isExpanded ? 'lg' : 'md'}
                   interactive={!isExpanded}
-                  className={isExpanded ? 'border-l-2 border-l-accent space-y-4' : 'space-y-4'}
+                  className={`border-l-2 ${activationHeatColor(rankBar)} space-y-4 ${
+                    rankBar >= 0.65 ? 'bg-amber-400/[0.03]' : ''
+                  }`}
                   aria-expanded={isExpanded}
                 >
                   {isExpanded ? (
@@ -923,6 +937,17 @@ export function RelationalCommunityFeed({
                           ) : null}
                           <h3 className="font-serif text-h4 font-semibold text-text-primary leading-snug break-words">
                             {isGroup ? partnerName : pairRelationshipHeading(partnerName)}
+                            <span
+                              className={`text-caption font-medium ml-2 ${
+                                rankBar >= 0.65
+                                  ? 'text-amber-400'
+                                  : rankBar >= 0.35
+                                    ? 'text-accent'
+                                    : 'text-text-muted'
+                              }`}
+                            >
+                              {activationHeatLabel(rankBar)}
+                            </span>
                           </h3>
                           <p className="text-caption text-text-muted">
                             Today&apos;s transits shaping your connection
@@ -966,7 +991,13 @@ export function RelationalCommunityFeed({
                         aria-hidden="true"
                       >
                         <div
-                          className="h-full bg-accent/40 rounded-full transition-[width]"
+                          className={`h-full rounded-full transition-all ${
+                            rankBar >= 0.65
+                              ? 'bg-amber-400/60'
+                              : rankBar >= 0.35
+                                ? 'bg-accent/50'
+                                : 'bg-slate-600/40'
+                          }`}
                           style={{ width: `${rankBar * 100}%` }}
                         />
                       </div>
