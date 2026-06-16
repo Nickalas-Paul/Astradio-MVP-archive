@@ -671,7 +671,7 @@ export default function HomePage() {
   return (
     <AppShell showPlayer={false} contentClassName="">
       {/* Hero + primary CTA */}
-      <section className="text-center py-8 md:py-10 space-y-4 max-w-3xl mx-auto px-4">
+      <section className="text-center pt-6 pb-4 md:pt-8 md:pb-4 space-y-3 max-w-3xl mx-auto px-4">
         <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
@@ -686,7 +686,7 @@ export default function HomePage() {
               variant="secondary"
               disabled={disabled}
               onClick={() => stopSoundtrack()}
-              className="text-lg px-10 py-4 w-full md:w-auto"
+              className="text-base px-8 py-2.5 w-auto"
             >
               Stop
             </Button>
@@ -697,7 +697,7 @@ export default function HomePage() {
               disabled={disabled || audioLoading}
               loading={audioLoading}
               onClick={() => void handleTodaySoundtrack()}
-              className="text-lg px-10 py-4 w-full md:w-auto"
+              className="text-base px-8 py-2.5 w-auto"
             >
               Today&apos;s Soundtrack
             </Button>
@@ -714,13 +714,13 @@ export default function HomePage() {
         )}
       </section>
 
-      <div className="text-center pb-8 md:pb-10 space-y-3 max-w-xl mx-auto px-4">
+      <div className="text-center pb-4 md:pb-6 space-y-2 max-w-xl mx-auto px-4">
         <p className="text-body text-text-secondary">Want to hear what your chart sounds like?</p>
         <Button
           type="button"
           variant="primary"
           onClick={() => router.push('/profile')}
-          className="text-base px-8 py-3 w-full sm:w-auto min-h-[44px]"
+          className="text-base px-8 py-2.5 w-auto min-h-[44px]"
         >
           Create your chart
         </Button>
@@ -730,7 +730,7 @@ export default function HomePage() {
 
       {/* Sky preview + wheel */}
       <PlacementHighlightProvider>
-        <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+        <section className="max-w-6xl mx-auto px-4 py-4 md:py-6">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
             <Card elevation="resting" padding="p-6">
               <h2 className="reading-section-header mb-4">Right now in the sky</h2>
