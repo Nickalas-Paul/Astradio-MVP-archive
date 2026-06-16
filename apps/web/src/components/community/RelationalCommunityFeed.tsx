@@ -63,15 +63,15 @@ function pairRelationshipHeading(partnerLabel: string): string {
   return `Your relationship with ${t}`;
 }
 
-function activationHeatColor(activation: number): string {
-  if (activation >= 0.65) return 'border-l-amber-400';
-  if (activation >= 0.35) return 'border-l-accent';
+function activationHeatColor(activation: number, high: number, mild: number): string {
+  if (activation >= high) return 'border-l-amber-400';
+  if (activation > mild) return 'border-l-accent';
   return 'border-l-slate-600';
 }
 
-function activationHeatLabel(activation: number): string {
-  if (activation >= 0.65) return 'High';
-  if (activation >= 0.35) return 'Active';
+function activationHeatLabel(activation: number, high: number, mild: number): string {
+  if (activation >= high) return 'High';
+  if (activation > mild) return 'Active';
   return 'Mild';
 }
 
@@ -197,6 +197,33 @@ export function RelationalCommunityFeed({
     if (finalizedFeedCollapsed.kind !== 'feed_collapsed_batch') return new Map();
     return new Map(finalizedFeedCollapsed.items.map((row) => [row.feed_item_id, row] as const));
   }, [finalizedFeedCollapsed]);
+
+  const { highThreshold, mildThreshold } = useMemo(() => {
+    const activationScores = items
+      .map((item) => Math.max(0, Math.min(1, item.ranking?.activation_effective ?? 0)))
+      .sort((a, b) => b - a);
+
+    let highThreshold =
+      activationScores.length >= 4
+        ? (activationScores[Math.floor(activationScores.length * 0.25)] ?? 0.65)
+        : 0.65;
+
+    let mildThreshold =
+      activationScores.length >= 4
+        ? (activationScores[Math.floor(activationScores.length * 0.75)] ?? 0.35)
+        : 0.35;
+
+    const hasSpread =
+      activationScores.length >= 2 &&
+      activationScores[0]! - activationScores[activationScores.length - 1]! > 0.01;
+
+    if (!hasSpread) {
+      highThreshold = 2;
+      mildThreshold = -1;
+    }
+
+    return { highThreshold, mildThreshold };
+  }, [items]);
 
   if (!userId) {
     return (
@@ -729,8 +756,8 @@ export function RelationalCommunityFeed({
                   elevation={isExpanded ? 'raised' : 'resting'}
                   size={isExpanded ? 'lg' : 'md'}
                   interactive={!isExpanded}
-                  className={`border-l-2 ${activationHeatColor(rankBar)} space-y-4 ${
-                    rankBar >= 0.65 ? 'bg-amber-400/[0.03]' : ''
+                  className={`border-l-2 ${activationHeatColor(rankBar, highThreshold, mildThreshold)} space-y-4 ${
+                    rankBar >= highThreshold ? 'bg-amber-400/[0.03]' : ''
                   }`}
                   aria-expanded={isExpanded}
                 >
@@ -939,14 +966,14 @@ export function RelationalCommunityFeed({
                             {isGroup ? partnerName : pairRelationshipHeading(partnerName)}
                             <span
                               className={`text-caption font-medium ml-2 ${
-                                rankBar >= 0.65
+                                rankBar >= highThreshold
                                   ? 'text-amber-400'
-                                  : rankBar >= 0.35
+                                  : rankBar > mildThreshold
                                     ? 'text-accent'
                                     : 'text-text-muted'
                               }`}
                             >
-                              {activationHeatLabel(rankBar)}
+                              {activationHeatLabel(rankBar, highThreshold, mildThreshold)}
                             </span>
                           </h3>
                           <p className="text-caption text-text-muted">
@@ -992,9 +1019,9 @@ export function RelationalCommunityFeed({
                       >
                         <div
                           className={`h-full rounded-full transition-all ${
-                            rankBar >= 0.65
+                            rankBar >= highThreshold
                               ? 'bg-amber-400/60'
-                              : rankBar >= 0.35
+                              : rankBar > mildThreshold
                                 ? 'bg-accent/50'
                                 : 'bg-slate-600/40'
                           }`}
