@@ -5,7 +5,9 @@ import { Card } from '@/components/shared/Card';
 import type { CommunityPost } from '@/core/social/community-posts-hooks';
 import { likeCommunityPost, unlikeCommunityPost } from '@/core/social/community-posts-hooks';
 import { formatCommunityTimestamp } from '@/lib/community-timestamp';
-import { formatCommunityAuthorLabel } from '@/lib/community-author-display';
+import { communityAuthorInitial } from '@/lib/community-author-display';
+import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { ChatBubbleIcon, HeartIcon, ShareIcon } from '@/components/community/posts/community-post-icons';
 
 interface CommunityPostCardProps {
   post: CommunityPost;
@@ -13,60 +15,51 @@ interface CommunityPostCardProps {
   compact?: boolean;
 }
 
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      aria-hidden
-      className={filled ? 'text-accent' : 'text-current'}
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
-  );
-}
-
-function ChatBubbleIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      aria-hidden
-      className="text-current"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function AuthorLink({ post }: { post: CommunityPost }) {
+function AuthorHeader({ post }: { post: CommunityPost }) {
   const displayName = post.author?.displayName?.trim() || '';
   const handle = post.author?.handle?.trim().replace(/^@/, '') || '';
-  const label = formatCommunityAuthorLabel(post.author);
+  const initial = communityAuthorInitial(post.author);
+  const avatarUrl = post.author?.avatarUrl;
 
   return (
-    <Link href={`/community/profile/${post.userId}`} className="hover:text-accent transition-colors">
-      {displayName ? (
-        <>
-          <span className="font-semibold text-text-primary">{displayName}</span>
-          {handle ? <span className="text-text-secondary"> @{handle}</span> : null}
-        </>
-      ) : (
-        label
-      )}
-    </Link>
+    <div className="flex items-center gap-3 min-w-0">
+      <Link href={`/community/profile/${post.userId}`} className="shrink-0">
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            className="w-10 h-10 rounded-full object-cover border border-border"
+          />
+        ) : (
+          <span
+            className="w-10 h-10 rounded-full border border-border bg-surface-2 flex items-center justify-center font-serif text-sm text-text-primary"
+            aria-hidden
+          >
+            {initial}
+          </span>
+        )}
+      </Link>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+          <Link href={`/community/profile/${post.userId}`} className="hover:text-accent transition-colors min-w-0">
+            {displayName ? (
+              <span className="font-semibold text-text-primary">{displayName}</span>
+            ) : handle ? (
+              <span className="font-semibold text-text-primary">@{handle}</span>
+            ) : (
+              <span className="font-semibold text-text-primary">Anonymous</span>
+            )}
+            {displayName && handle ? (
+              <span className="text-text-secondary font-normal"> @{handle}</span>
+            ) : null}
+          </Link>
+          <time dateTime={post.createdAt} className="text-xs text-text-secondary shrink-0">
+            {formatCommunityTimestamp(post.createdAt)}
+          </time>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -116,20 +109,39 @@ export function CommunityPostCard({ post, onLikeChange, compact = false }: Commu
   };
 
   return (
-    <Card elevation="resting" size={compact ? 'sm' : 'md'} className="space-y-3">
-      <div className="space-y-1">
+    <Card elevation="resting" size={compact ? 'sm' : 'md'} className="space-y-4">
+      <AuthorHeader post={post} />
+
+      <div className="space-y-3">
         {post.title ? (
-          <Link href={`/community/post/${post.id}`} className="text-h3 font-serif text-text-primary hover:text-accent">
+          <Link href={`/community/post/${post.id}`} className="text-h3 font-serif text-text-primary hover:text-accent block">
             {post.title}
           </Link>
         ) : null}
-        <p className="text-body-sm text-text-primary whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        {post.body ? (
+          <p className="text-body-sm text-text-primary whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        ) : null}
+
+        {post.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.imageUrl}
+            alt=""
+            className="w-full rounded-lg max-h-[400px] object-cover border border-border"
+          />
+        ) : null}
+
+        {post.audioExportId ? (
+          <div className="rounded-lg border border-border bg-surface-0/50 p-3">
+            {post.audioLabel ? (
+              <p className="text-xs text-text-secondary mb-2 truncate">{post.audioLabel}</p>
+            ) : null}
+            <ValidatedExportAudioPlayer exportId={post.audioExportId} />
+          </div>
+        ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-        <AuthorLink post={post} />
-        <time dateTime={post.createdAt}>{formatCommunityTimestamp(post.createdAt)}</time>
-      </div>
-      <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary">
+
+      <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary pt-1 border-t border-border/60">
         <button
           type="button"
           onClick={() => void toggleLike()}
@@ -147,6 +159,13 @@ export function CommunityPostCard({ post, onLikeChange, compact = false }: Commu
           <ChatBubbleIcon />
           <span>{post.commentCount ?? 0}</span>
         </Link>
+        <span
+          className="inline-flex items-center gap-1.5 text-text-secondary/60 cursor-default"
+          aria-label="Share (coming soon)"
+          title="Share coming soon"
+        >
+          <ShareIcon />
+        </span>
       </div>
     </Card>
   );

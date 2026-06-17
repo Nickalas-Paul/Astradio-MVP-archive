@@ -277,12 +277,29 @@ export function useCommunitySettings() {
   return { settings, loading, saving, error, save, refresh };
 }
 
-export async function createCommunityPost(input: { title?: string; body: string }) {
+export async function createCommunityPost(input: {
+  title?: string;
+  body: string;
+  audioExportId?: string;
+  audioLabel?: string;
+  pendingImage?: boolean;
+}) {
   const r = await fetch(api('/api/community/posts'), {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+  });
+  return parseJson<CommunityPost>(r);
+}
+
+export async function uploadCommunityPostImage(postId: string, file: File) {
+  const form = new FormData();
+  form.append('image', file);
+  const r = await fetch(api(`/api/community/posts/${encodeURIComponent(postId)}/image`), {
+    method: 'POST',
+    credentials: 'same-origin',
+    body: form,
   });
   return parseJson<CommunityPost>(r);
 }

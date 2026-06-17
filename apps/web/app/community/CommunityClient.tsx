@@ -19,6 +19,11 @@ import { Tabs } from '@/components/shared/Tabs';
 import { FtueConnectionsWelcomeBanner } from '@/components/ftue/FtueConnectionsWelcomeBanner';
 import { CommunityFeed } from '@/components/community/posts/CommunityFeed';
 import { CommunityNotificationsPanel } from '@/components/community/posts/CommunityNotificationsPanel';
+import {
+  ConnectionsTabIcon,
+  DiscoveryTabIcon,
+  FeedTabIcon,
+} from '@/components/community/posts/community-post-icons';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
@@ -225,10 +230,10 @@ function CommunityClientInner() {
     router.replace(`/community?${next.toString()}`, { scroll: false });
   };
 
-  const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
-    { id: 'discovery', label: 'Discovery', icon: '🔭' },
-    { id: 'connections', label: 'Connections', icon: '🔗' },
-    { id: 'feed', label: 'Feed', icon: '📝' },
+  const tabs: { id: CommunityTabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'discovery', label: 'Discovery', icon: <DiscoveryTabIcon /> },
+    { id: 'connections', label: 'Connections', icon: <ConnectionsTabIcon /> },
+    { id: 'feed', label: 'Feed', icon: <FeedTabIcon /> },
   ];
 
   const showDiscoveryConnectionsChrome = activeTab === 'discovery' || activeTab === 'connections';
@@ -381,11 +386,6 @@ function CommunityClientInner() {
 
           {activeTab === 'feed' && (
             <div className="max-w-3xl mx-auto space-y-6">
-              <div className="flex flex-wrap gap-4 text-sm">
-                <Link href="/community/settings" className="text-accent hover:underline">
-                  Community settings
-                </Link>
-              </div>
               <CommunityNotificationsPanel />
               <CommunityFeed />
             </div>

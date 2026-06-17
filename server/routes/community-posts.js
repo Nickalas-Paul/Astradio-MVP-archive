@@ -4,12 +4,21 @@
 
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 const { proxySecretGate } = require('../../lib/proxy-secret-gate');
 const { isCommunityPostsBetaUser } = require('../../lib/community-posts-beta');
 const {
   moderateNewCommunityPost,
   moderateCommunityText,
 } = require('../../lib/community-content-moderation');
+const { isValidImageBuffer, moderateImageBuffer } = require('../../lib/avatar-upload');
+const { uploadCommunityPostImage } = require('../../lib/community-post-image-storage');
+
+const POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const postImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: POST_IMAGE_MAX_BYTES },
+});
 
 let pgStore = null;
 try {
@@ -98,8 +107,8 @@ function createCommunityPostsRouter() {
       if (titleErr) return res.status(400).json(titleErr);
       const bodyErr = validateLength(body.body, BODY_MAX, 'body');
       if (bodyErr) return res.status(400).json(bodyErr);
-      if (!String(body.body || '').trim() && !String(body.title || '').trim()) {
-        return res.status(400).json({ error: 'title_or_body_required' });
+      if (!String(body.body || '').trim() && !String(body.title || '').trim() && !body.audioExportId && !body.pendingImage) {
+        return res.status(400).json({ error: 'content_required' });
       }
       const moderation = await moderateNewCommunityPost({
         title: body.title,
@@ -117,6 +126,8 @@ function createCommunityPostsRouter() {
         userId,
         title: body.title || '',
         body: body.body || '',
+        audioExportId: body.audioExportId ? String(body.audioExportId).trim() : null,
+        audioLabel: body.audioLabel ? String(body.audioLabel).trim() : null,
         moderationStatus: moderation.moderationStatus,
       });
       let feedService = null;
@@ -134,6 +145,49 @@ function createCommunityPostsRouter() {
       return res.status(500).json({ error: e?.message || 'create_post_failed' });
     }
   });
+
+  router.post(
+    '/community/posts/:id/image',
+    communityPostsLimiter,
+    (req, res, next) => postImageUpload.single('image')(req, res, next),
+    async (req, res) => {
+      try {
+        if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
+        const postId = String(req.params.id || '').trim();
+        const userId = await resolveUserId(req, req.body || {});
+        const post = await pgStore.getCommunityPost(postId);
+        if (!post) return res.status(404).json({ error: 'post_not_found' });
+        if (post.userId !== userId) return res.status(403).json({ error: 'forbidden' });
+
+        const file = req.file;
+        if (!file?.buffer) return res.status(400).json({ error: 'image_required' });
+        if (file.size > POST_IMAGE_MAX_BYTES) {
+          return res.status(400).json({ error: 'image_too_large', maxBytes: POST_IMAGE_MAX_BYTES });
+        }
+        if (!isValidImageBuffer(file.buffer)) {
+          return res.status(400).json({ error: 'invalid_image' });
+        }
+
+        const moderation = await moderateImageBuffer(file.buffer);
+        if (!moderation.ok) {
+          return res.status(400).json({
+            error: 'content_moderation_failed',
+            message: moderation.message || 'This image could not be uploaded.',
+          });
+        }
+
+        const imageUrl = await uploadCommunityPostImage(postId, file.buffer, file.mimetype);
+        const updated = await pgStore.updateCommunityPostMedia(postId, userId, { imageUrl });
+        if (!updated || updated.error === 'forbidden') {
+          return res.status(403).json({ error: 'forbidden' });
+        }
+        return res.status(200).json(await enrichPost(updated, userId));
+      } catch (e) {
+        console.error('[community-posts] POST /community/posts/:id/image', e);
+        return res.status(500).json({ error: e?.message || 'upload_image_failed' });
+      }
+    }
+  );
 
   router.get('/community/posts/:id', async (req, res) => {
     try {
