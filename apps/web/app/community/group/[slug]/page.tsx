@@ -200,7 +200,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
-          ← Back to Connections
+          ← Back to Community
         </Link>
 
         <div className="rounded-lg border border-amber-200/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-200">
