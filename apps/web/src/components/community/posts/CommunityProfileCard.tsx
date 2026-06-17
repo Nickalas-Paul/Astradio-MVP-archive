@@ -26,9 +26,6 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
           <h1 className="text-h2 font-serif text-text-primary truncate">{name}</h1>
           {profile.handle ? <p className="text-sm text-text-secondary">@{profile.handle}</p> : null}
           {profile.bio ? <p className="text-body-sm text-text-primary whitespace-pre-wrap">{profile.bio}</p> : null}
-          {profile.keywords?.length ? (
-            <p className="text-xs text-text-secondary">{profile.keywords.map((k) => `#${k}`).join(' ')}</p>
-          ) : null}
           <p className="text-xs text-text-secondary">{profile.postCount} posts</p>
         </div>
       </div>

@@ -252,11 +252,9 @@ export default function SettingsPage() {
                     >
                       Log out
                     </Button>
-                    {(user.discoverable !== undefined || user.show_in_feed !== undefined) && (
-                      <div className="border-t border-border pt-4">
-                        <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
-                      </div>
-                    )}
+                    <div className="border-t border-border pt-4">
+                      <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
+                    </div>
                   </>
                 ) : (
                   <p className="text-sm text-text-secondary">

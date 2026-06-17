@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
 import { CommunityAudioArtifactPicker } from '@/components/community/posts/CommunityAudioArtifactPicker';
 import { Button } from '@/components/shared/Button';
@@ -19,7 +18,6 @@ import {
   AudioAttachIcon,
   FeedEmptyIcon,
   ImageAttachIcon,
-  SettingsGearIcon,
 } from '@/components/community/posts/community-post-icons';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -183,17 +181,7 @@ export function CommunityFeed() {
   return (
     <div className="space-y-6">
       <Card elevation="resting" className="space-y-3 relative">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-h3 font-serif text-text-primary">Share with the community</h2>
-          <Link
-            href="/community/settings"
-            className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-accent transition-colors shrink-0 min-h-[44px] px-1"
-            aria-label="Community settings"
-          >
-            <SettingsGearIcon />
-            <span className="hidden sm:inline">Settings</span>
-          </Link>
-        </div>
+        <h2 className="text-h3 font-serif text-text-primary">Share with the community</h2>
         {moderationError ? (
           <p className="text-sm text-red-400" role="alert">
             {moderationError}

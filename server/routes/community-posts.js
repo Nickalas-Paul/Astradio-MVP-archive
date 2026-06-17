@@ -426,9 +426,10 @@ function createCommunityPostsRouter() {
     try {
       if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
       const userId = String(req.params.userId || '').trim();
-      const profile = await pgStore.getCommunityPublicProfile(userId);
+      const viewerUserId = queryUserId(req);
+      const profile = await pgStore.getCommunityPublicProfile(userId, { viewerUserId });
       if (!profile) return res.status(404).json({ error: 'user_not_found' });
-      if (profile.publicVisibility === false) {
+      if (profile.publicVisibility === false && userId !== viewerUserId) {
         return res.status(404).json({ error: 'profile_not_public' });
       }
       return res.status(200).json(profile);
@@ -438,24 +439,41 @@ function createCommunityPostsRouter() {
     }
   });
 
+  router.get('/community/settings', async (req, res) => {
+    try {
+      if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
+      const userId = await resolveUserId(req, req.body || {});
+      const settings = await pgStore.getCommunityUserSettings(userId);
+      return res.status(200).json({
+        userId: settings.userId,
+        publicVisibility: settings.publicVisibility,
+        updatedAt: settings.updatedAt,
+      });
+    } catch (e) {
+      console.error('[community-posts] GET /community/settings', e);
+      return res.status(500).json({ error: e?.message || 'settings_failed' });
+    }
+  });
+
   router.put('/community/settings', communityPostsLimiter, async (req, res) => {
     try {
       if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
       const body = req.body || {};
       const userId = await resolveUserId(req, body);
-      const bioErr = validateLength(body.bio, BIO_MAX, 'bio');
-      if (bioErr) return res.status(400).json(bioErr);
-      const keywords = Array.isArray(body.keywords)
-        ? body.keywords
-        : body.keywords != null
-          ? [body.keywords]
-          : [];
+      if (body.publicVisibility === undefined) {
+        return res.status(400).json({ error: 'publicVisibility_required' });
+      }
+      if (typeof body.publicVisibility !== 'boolean') {
+        return res.status(400).json({ error: 'publicVisibility must be a boolean' });
+      }
       const settings = await pgStore.upsertCommunityUserSettings(userId, {
-        bio: body.bio,
         publicVisibility: body.publicVisibility,
-        keywords,
       });
-      return res.status(200).json(settings);
+      return res.status(200).json({
+        userId: settings.userId,
+        publicVisibility: settings.publicVisibility,
+        updatedAt: settings.updatedAt,
+      });
     } catch (e) {
       console.error('[community-posts] PUT /community/settings', e);
       return res.status(500).json({ error: e?.message || 'settings_failed' });
