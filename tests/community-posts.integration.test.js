@@ -107,22 +107,52 @@ const hasPostgres = !!process.env.POSTGRES_URL;
     createdLikeId = data.id;
   });
 
-  test('PUT /community/settings updates profile settings', async () => {
-    const { status, data } = await api('PUT', '/community/settings', {
-      bio: 'Test bio',
-      publicVisibility: true,
-      keywords: ['astrology'],
-    });
+  test('GET /community/settings returns visibility for authenticated user', async () => {
+    const { status, data } = await api('GET', '/community/settings');
     expect(status).toBe(200);
-    expect(data.bio).toBe('Test bio');
-    expect(data.keywords).toEqual(['astrology']);
+    expect(data.userId).toBe(testUserId);
+    expect(typeof data.publicVisibility).toBe('boolean');
   });
 
-  test('GET /community/profile/:userId returns public profile', async () => {
+  test('PUT /community/settings updates public visibility', async () => {
+    const { status, data } = await api('PUT', '/community/settings', {
+      publicVisibility: true,
+    });
+    expect(status).toBe(200);
+    expect(data.publicVisibility).toBe(true);
+  });
+
+  test('GET /community/profile/:userId returns bio from user profile', async () => {
+    await pgStore.updateUserProfile(testUserId, { bio: 'Integration profile bio' });
     const { status, data } = await api('GET', `/community/profile/${testUserId}`);
     expect(status).toBe(200);
     expect(data.userId).toBe(testUserId);
-    expect(data.bio).toBe('Test bio');
+    expect(data.bio).toBe('Integration profile bio');
+    expect(data.keywords).toBeUndefined();
+  });
+
+  test('public visibility off hides posts from feed for other viewers', async () => {
+    const { status: createStatus, data: post } = await api('POST', '/community/posts', {
+      title: 'Visibility test post',
+      body: 'Should hide when visibility off',
+    });
+    expect(createStatus).toBe(201);
+    const hiddenPostId = post.id;
+
+    await api('PUT', '/community/settings', { publicVisibility: false });
+
+    const otherViewerId = `${testUserId}_other`;
+    const feedRes = await fetch(
+      `${baseUrl}/community/feed?limit=50&userId=${encodeURIComponent(otherViewerId)}`
+    );
+    const feedData = await feedRes.json();
+    expect(feedData.posts.some((p) => p.id === hiddenPostId)).toBe(false);
+
+    const ownerPostRes = await api('GET', `/community/posts/${hiddenPostId}`);
+    expect(ownerPostRes.status).toBe(200);
+
+    await api('PUT', '/community/settings', { publicVisibility: true });
+    await pgStore.deleteCommunityPost(hiddenPostId, testUserId);
   });
 
   test('DELETE /community/likes/:id removes like', async () => {

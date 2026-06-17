@@ -42,18 +42,9 @@ export interface CommunityPublicProfile {
   displayName?: string;
   avatarUrl?: string | null;
   bio: string;
-  keywords: string[];
   publicVisibility: boolean;
   postCount: number;
   recentPosts: CommunityPost[];
-}
-
-export interface CommunityUserSettings {
-  userId: string;
-  bio: string;
-  publicVisibility: boolean;
-  keywords: string[];
-  updatedAt: string | null;
 }
 
 const api = (path: string) => `${getApiBaseUrl() || ''}${path}`;
@@ -202,83 +193,6 @@ export function useCommunityPublicProfile(userId: string | null) {
   }, [userId]);
 
   return { profile, loading, error };
-}
-
-export function useCommunitySettings() {
-  const [settings, setSettings] = useState<CommunityUserSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { user } = await parseJson<{ user: { id: string } | null }>(
-        await fetch(api('/api/profile'), { credentials: 'same-origin' })
-      );
-      if (!user?.id) {
-        setSettings(null);
-        return;
-      }
-      const r = await fetch(api(`/api/community/profile/${encodeURIComponent(user.id)}`), {
-        credentials: 'same-origin',
-      });
-      if (r.status === 404) {
-        setSettings({
-          userId: user.id,
-          bio: '',
-          publicVisibility: true,
-          keywords: [],
-          updatedAt: null,
-        });
-        return;
-      }
-      const profile = await parseJson<CommunityPublicProfile>(r);
-      setSettings({
-        userId: profile.userId,
-        bio: profile.bio,
-        publicVisibility: profile.publicVisibility,
-        keywords: profile.keywords,
-        updatedAt: null,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const save = useCallback(async (input: Partial<CommunityUserSettings>) => {
-    setSaving(true);
-    setError(null);
-    try {
-      const r = await fetch(api('/api/community/settings'), {
-        method: 'PUT',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bio: input.bio,
-          publicVisibility: input.publicVisibility,
-          keywords: input.keywords,
-        }),
-      });
-      const data = await parseJson<CommunityUserSettings>(r);
-      setSettings(data);
-      return data;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to save settings';
-      setError(msg);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
-  }, []);
-
-  return { settings, loading, saving, error, save, refresh };
 }
 
 export async function createCommunityPost(input: {
