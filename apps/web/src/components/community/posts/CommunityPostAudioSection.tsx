@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { exportAudioHeadAvailable } from '@/lib/community/export-audio-blob';
 import { clearCommunityPostAudio } from '@/core/social/community-posts-hooks';
 
@@ -59,7 +60,21 @@ export function CommunityPostAudioSection({
       {checking ? (
         <p className="text-xs text-text-muted">Checking audio…</p>
       ) : available ? (
-        <ValidatedExportAudioPlayer exportId={exportId} />
+        <div className="space-y-2">
+          <ValidatedExportAudioPlayer exportId={exportId} />
+          <SaveToLibraryButton
+            exportId={exportId}
+            source="community_post_audio"
+            compositionType="A"
+            objectIdentityHash={`post_${postId}_${exportId.slice(0, 16)}`}
+            sandboxState={{
+              kind: 'community_post_audio',
+              postId,
+              originalLabel: audioLabel || null,
+            }}
+            label={audioLabel || 'Community audio'}
+          />
+        </div>
       ) : (
         <div className="space-y-1">
           <p className="text-xs text-text-muted">This audio is no longer available</p>

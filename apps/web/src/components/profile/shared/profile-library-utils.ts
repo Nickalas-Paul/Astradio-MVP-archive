@@ -40,6 +40,7 @@ export function librarySourceLabel(source: unknown): string {
   if (s === 'community_relational_weather') return 'Connection reading';
   if (s === 'profile_active') return 'Transit reading';
   if (s === 'profile_identity') return 'Identity';
+  if (s === 'community_post_audio') return 'Community audio';
   if (s === 'sandbox') return 'Sandbox reading';
   return s ? s.replace(/_/g, ' ') : 'Saved reading';
 }

@@ -95,6 +95,33 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
       const source = row.source;
       const ps = parseSandboxState(row.sandbox_state);
       if (source === 'profile_identity' || ps?.kind === 'profile_identity') {
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          try {
+            const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
+              method: 'HEAD',
+              credentials: 'same-origin',
+            });
+            if (headRes.status !== 204 && headRes.status !== 200) {
+              setLibraryAudioMissingFromStore(true);
+            } else {
+              const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+              if (url) setLibraryDetailAudioUrl(url);
+            }
+          } catch {
+            setLibraryAudioMissingFromStore(true);
+          }
+        }
+        setLibraryDetailLoading(false);
+        return;
+      }
+      if (source === 'community_post_audio' || ps?.kind === 'community_post_audio') {
+        const eid = row.export_id;
+        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
+          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
+          if (url) setLibraryDetailAudioUrl(url);
+          else setLibraryAudioMissingFromStore(true);
+        }
         setLibraryDetailLoading(false);
         return;
       }
@@ -396,9 +423,20 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                     )}
                     {libraryDetailRow != null &&
                       (libraryDetailRow.source === 'profile_identity' ||
-                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') ? (
+                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') &&
+                      !libraryDetailAudioUrl &&
+                      libraryAudioMissingFromStore !== false ? (
                         <p className="text-sm text-text-secondary">
-                          Identity comes from your birth chart. Open the Identity tab to view it.
+                          Identity comes from your birth chart. Open the Identity tab to generate or play your soundtrack.
+                        </p>
+                      ) : null}
+                    {libraryDetailRow != null &&
+                      (libraryDetailRow.source === 'community_post_audio' ||
+                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_post_audio') ? (
+                        <p className="text-sm text-text-secondary">
+                          {typeof parseSandboxState(libraryDetailRow.sandbox_state)?.originalLabel === 'string'
+                            ? String(parseSandboxState(libraryDetailRow.sandbox_state)?.originalLabel)
+                            : 'Saved from a community post'}
                         </p>
                       ) : null}
                     {libraryReconstructLoading && (

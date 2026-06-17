@@ -17,6 +17,7 @@ import { PlacementHighlightProvider } from '../../core/PlacementHighlightContext
 import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
+import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { FtueTodayBridgeNudge } from '../ftue/FtueTodayBridgeNudge';
 
 const WheelDisplay = dynamic(
@@ -338,9 +339,31 @@ export function IdentityPanel({
         <div className="space-y-2">
           <p className="text-sm text-text-secondary">Listen to this reading</p>
           {renderHiddenAudio()}
+          {hasValidExportId && chartId && chartData?.identity_export_id ? (
+            <SaveToLibraryButton
+              exportId={String(chartData.identity_export_id)}
+              source="profile_identity"
+              compositionType="A"
+              sandboxState={{ kind: 'profile_identity', chartId }}
+              label="Your natal soundtrack"
+            />
+          ) : null}
         </div>
       )}
-      {audioState === 'available' && identityAudioUrl && autoplayBlocked && renderHiddenAudio()}
+      {audioState === 'available' && identityAudioUrl && autoplayBlocked && (
+        <div className="space-y-2">
+          {renderHiddenAudio()}
+          {hasValidExportId && chartId && chartData?.identity_export_id ? (
+            <SaveToLibraryButton
+              exportId={String(chartData.identity_export_id)}
+              source="profile_identity"
+              compositionType="A"
+              sandboxState={{ kind: 'profile_identity', chartId }}
+              label="Your natal soundtrack"
+            />
+          ) : null}
+        </div>
+      )}
       {showFirstListenComposing && (
         <div className="space-y-2" aria-live="polite">
           <p className="text-sm text-text-secondary animate-pulse">Composing your soundtrack…</p>

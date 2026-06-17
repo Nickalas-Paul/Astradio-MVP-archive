@@ -7,6 +7,7 @@ import { MemberCard } from '@/components/compatibility/MemberCard';
 import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
 
@@ -48,6 +49,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
     readingSnapshot: unknown;
     exportJobId: string | null;
     artifactStatus: string;
+    compositeArtifactId: string | null;
   } | null>(null);
   const [storedLoading, setStoredLoading] = useState(true);
   const ownerCompositeOnceRef = useRef(false);
@@ -130,11 +132,16 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
           readingSnapshot?: unknown;
           exportJobId?: string | null;
           artifactStatus?: string;
+          compositeArtifactId?: string | null;
         };
         setStored({
           readingSnapshot: j.readingSnapshot ?? null,
           exportJobId: typeof j.exportJobId === 'string' && j.exportJobId.trim() ? j.exportJobId.trim() : null,
           artifactStatus: String(j.artifactStatus || 'not_generated'),
+          compositeArtifactId:
+            typeof j.compositeArtifactId === 'string' && j.compositeArtifactId.trim()
+              ? j.compositeArtifactId.trim()
+              : null,
         });
       } else {
         setStored(null);
@@ -162,12 +169,17 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
       const j = (await r.json().catch(() => ({}))) as { artifact?: { readingSnapshot?: unknown; exportJobId?: string } };
       const art = j.artifact;
       if (!art) return;
-      setStored({
+      setStored((prev) => ({
         readingSnapshot: art.readingSnapshot ?? null,
         exportJobId: art.exportJobId && String(art.exportJobId).trim() ? String(art.exportJobId).trim() : null,
         artifactStatus:
-          art.exportJobId && String(art.exportJobId).trim() ? 'audio_available' : art.readingSnapshot ? 'text_available' : 'not_generated',
-      });
+          art.exportJobId && String(art.exportJobId).trim()
+            ? 'audio_available'
+            : art.readingSnapshot
+              ? 'text_available'
+              : 'not_generated',
+        compositeArtifactId: prev?.compositeArtifactId ?? null,
+      }));
     })();
   }, [group, user?.id, stored, storedLoading]);
 
@@ -233,6 +245,23 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
           <section className="space-y-2">
             <h2 className="text-lg font-medium text-text-primary">Sound</h2>
             <ValidatedExportAudioPlayer exportId={exId} />
+            {group ? (
+              <SaveToLibraryButton
+                exportId={exId}
+                source="community_group"
+                compositionType="A+B+N"
+                objectIdentityHash={stored?.compositeArtifactId || group.id}
+                sandboxState={{
+                  kind: 'community_group',
+                  groupId: group.id,
+                  groupSlug: group.slug,
+                  memberChartIds: members
+                    .map((m) => m.chartId)
+                    .filter((id): id is string => typeof id === 'string' && id.length > 0),
+                }}
+                label="Group reading"
+              />
+            ) : null}
           </section>
         ) : null}
 

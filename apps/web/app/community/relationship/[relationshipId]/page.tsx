@@ -10,6 +10,7 @@ import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
 import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { Button } from '@/components/shared/Button';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
@@ -588,6 +589,22 @@ export default function CommunityRelationshipArtifactPage() {
                       <div className="space-y-3">
                         <p className="text-body-sm text-text-secondary">Your connection soundtrack is ready.</p>
                         <ValidatedExportAudioPlayer exportId={audioPlayerExportId} />
+                        {relationship && relationship.comparisonId ? (
+                          <SaveToLibraryButton
+                            exportId={audioPlayerExportId}
+                            source="community_relationship"
+                            compositionType="A+B"
+                            objectIdentityHash={relationship.comparisonId}
+                            sandboxState={{
+                              kind: 'community_relationship',
+                              relationshipId: relationship.id,
+                              comparisonId: relationship.comparisonId,
+                              chartIdLow: relationship.chartIdLow,
+                              chartIdHigh: relationship.chartIdHigh,
+                            }}
+                            label="Connection reading"
+                          />
+                        ) : null}
                       </div>
                     ) : audioUiState === 'generating' ? (
                       <Button type="button" variant="audio" size="sm" loading disabled>
