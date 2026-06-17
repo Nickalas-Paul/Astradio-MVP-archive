@@ -44,6 +44,13 @@ export type StorageAdapter = {
   ) => Promise<Chart | undefined>;
   /** Persist Profile identity audio export id on chart row (optional; pg + memory adapters). */
   setChartIdentityExportId?: (chartId: string, exportId: string | null) => Promise<void>;
+  /** Upsert profile identity row in astradio_sandbox_compositions (Postgres only). */
+  ensureProfileIdentityLibraryEntry?: (input: {
+    ownerUserId: string;
+    chartId: string;
+    exportId: string;
+    natalFingerprint: string;
+  }) => Promise<{ id: string; inserted: boolean; updated?: boolean }>;
   getChart: (id: string) => Promise<Chart | undefined>;
   listChartsByOwner: (ownerId: string) => Promise<Chart[]>;
   createComparison: (input: Omit<Comparison, 'id' | 'createdAt'>) => Promise<Comparison>;
@@ -119,6 +126,18 @@ export async function setChartIdentityExportId(chartId: string, exportId: string
   if (adapter.setChartIdentityExportId) {
     await adapter.setChartIdentityExportId(chartId, exportId);
   }
+}
+
+export async function ensureProfileIdentityLibraryEntry(input: {
+  ownerUserId: string;
+  chartId: string;
+  exportId: string;
+  natalFingerprint: string;
+}): Promise<{ id: string; inserted: boolean; updated?: boolean } | null> {
+  if (adapter.ensureProfileIdentityLibraryEntry) {
+    return adapter.ensureProfileIdentityLibraryEntry(input);
+  }
+  return null;
 }
 
 export async function getChart(id: string): Promise<Chart | undefined> {

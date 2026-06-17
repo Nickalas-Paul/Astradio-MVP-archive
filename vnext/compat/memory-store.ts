@@ -220,6 +220,15 @@ export async function setChartIdentityExportId(chartId: string, exportId: string
   charts.set(chartId, { ...c, identityExportId: exportId, updatedAt: now() });
 }
 
+export async function ensureProfileIdentityLibraryEntry(_input: {
+  ownerUserId: string;
+  chartId: string;
+  exportId: string;
+  natalFingerprint: string;
+}): Promise<{ id: string; inserted: boolean; updated?: boolean }> {
+  return { id: 'memory_profile_identity', inserted: true };
+}
+
 export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt'>): Promise<Comparison> {
   const id = `cmp_${nanoid()}`;
   const comparison: Comparison = {

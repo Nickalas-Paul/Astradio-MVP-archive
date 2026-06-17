@@ -109,6 +109,24 @@ async function runProfileIdentityAudioCompose(
     const exportId = (result as { export_id?: string | null }).export_id;
     if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
       await storage.setChartIdentityExportId(chart.id, exportId);
+      try {
+        const ownerUserId = chart.ownerId?.trim();
+        if (ownerUserId) {
+          await storage.ensureProfileIdentityLibraryEntry({
+            ownerUserId,
+            chartId: chart.id,
+            exportId,
+            natalFingerprint: newFp,
+          });
+        }
+      } catch (libErr) {
+        if (opts.logErrors) {
+          console.warn(
+            '[compat] identity audio: library insert failed',
+            libErr instanceof Error ? libErr.message : libErr
+          );
+        }
+      }
       return exportId;
     }
     return null;
