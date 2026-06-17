@@ -2,24 +2,53 @@
 
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
+import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
+import { CommunityCommentThread } from '@/components/community/posts/CommunityCommentThread';
+import { useCommunityPost } from '@/core/social/community-posts-hooks';
+import { use } from 'react';
 
-/** Legacy social posts were removed; Connections is discovery + inventory only. */
-export default function CommunityPostRetiredPage() {
+export default function CommunityPostPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { post, loading, error, refresh, setPost } = useCommunityPost(id);
+
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto p-6 space-y-4">
-        <p className="text-text-primary">Legacy social posts are no longer available.</p>
-        <p className="text-sm text-text-secondary">
-          Use <Link href="/today" className="text-accent hover:underline">Today</Link> for relational
-          transits, or{' '}
-          <Link href="/community?tab=discovery" className="text-accent hover:underline">
-            Connections → Discovery
-          </Link>{' '}
-          for compatibility search.
-        </p>
-        <Link href="/community" className="text-accent hover:underline text-sm inline-block">
-          ← Back to Connections
+      <div className="max-w-3xl mx-auto p-6 space-y-6">
+        <Link href="/community/feed" className="text-sm text-accent hover:underline inline-block">
+          ← Back to feed
         </Link>
+        {loading ? <p className="text-sm text-text-secondary">Loading post…</p> : null}
+        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {post ? (
+          <>
+            <CommunityPostCard
+              post={post}
+              onLikeChange={(postId, patch) => {
+                setPost((prev) => (prev ? { ...prev, ...patch } : prev));
+              }}
+            />
+            <CommunityCommentThread
+              postId={post.id}
+              comments={post.comments || []}
+              onCommentAdded={(comment) => {
+                setPost((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        comments: [...(prev.comments || []), comment],
+                        commentCount: (prev.commentCount || 0) + 1,
+                      }
+                    : prev
+                );
+              }}
+            />
+          </>
+        ) : null}
+        {!loading && !post && !error ? (
+          <button type="button" className="text-sm text-accent" onClick={() => void refresh()}>
+            Retry
+          </button>
+        ) : null}
       </div>
     </AppShell>
   );
