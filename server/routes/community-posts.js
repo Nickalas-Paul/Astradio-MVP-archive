@@ -5,6 +5,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { proxySecretGate } = require('../../lib/proxy-secret-gate');
+const { isCommunityPostsBetaUser } = require('../../lib/community-posts-beta');
 
 let pgStore = null;
 try {
@@ -48,6 +49,15 @@ async function resolveUserId(req, body) {
   return queryUserId(req) || bodyUserId(body || {}) || (await getDevUserId());
 }
 
+async function assertBetaAccess(req, res, body) {
+  const userId = await resolveUserId(req, body);
+  if (!isCommunityPostsBetaUser(userId)) {
+    res.status(403).json({ error: 'community_posts_beta_only' });
+    return null;
+  }
+  return userId;
+}
+
 function validateLength(value, max, field) {
   const s = value != null ? String(value) : '';
   if (s.length > max) return { error: `${field}_too_long`, max };
@@ -78,7 +88,8 @@ function createCommunityPostsRouter() {
     try {
       if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
       const body = req.body || {};
-      const userId = await resolveUserId(req, body);
+      const userId = await assertBetaAccess(req, res, body);
+      if (!userId) return;
       const titleErr = validateLength(body.title, TITLE_MAX, 'title');
       if (titleErr) return res.status(400).json(titleErr);
       const bodyErr = validateLength(body.body, BODY_MAX, 'body');
@@ -324,6 +335,81 @@ function createCommunityPostsRouter() {
     } catch (e) {
       console.error('[community-posts] PUT /community/settings', e);
       return res.status(500).json({ error: e?.message || 'settings_failed' });
+    }
+  });
+
+  router.get('/community/notifications', async (req, res) => {
+    try {
+      const userId = queryUserId(req) || (await getDevUserId());
+      let notificationService = null;
+      try {
+        notificationService = require('../../lib/community-notification-service');
+      } catch (_) {
+        notificationService = null;
+      }
+      if (!notificationService?.listNotificationsForUser) {
+        return res.status(501).json({ error: 'notifications_unavailable' });
+      }
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+      const notifications = await notificationService.listNotificationsForUser(userId, limit);
+      return res.status(200).json({ notifications });
+    } catch (e) {
+      console.error('[community-posts] GET /community/notifications', e);
+      return res.status(500).json({ error: e?.message || 'notifications_failed' });
+    }
+  });
+
+  router.get('/community/events/stream', async (req, res) => {
+    try {
+      const userId = queryUserId(req) || (await getDevUserId());
+      let notificationService = null;
+      let pubsub = null;
+      try {
+        notificationService = require('../../lib/community-notification-service');
+        pubsub = require('../../lib/redis-pubsub');
+      } catch (_) {
+        return res.status(501).json({ error: 'stream_unavailable' });
+      }
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders?.();
+
+      const send = (event, data) => {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      send('connected', { userId });
+
+      const unsubLive = notificationService.subscribeLiveNotifications(userId, (record) => {
+        send('notification', record);
+      });
+
+      const unsubs = [];
+      const onFeedEvent = (payload) => send('feed', payload);
+      unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.POSTS, onFeedEvent));
+      unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.COMMENTS, onFeedEvent));
+      unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.LIKES, onFeedEvent));
+
+      const heartbeat = setInterval(() => {
+        res.write(': ping\n\n');
+      }, 25000);
+
+      req.on('close', () => {
+        clearInterval(heartbeat);
+        unsubLive();
+        for (const u of unsubs) {
+          try {
+            if (typeof u === 'function') u();
+          } catch (_) {
+            // ignore
+          }
+        }
+      });
+    } catch (e) {
+      console.error('[community-posts] GET /community/events/stream', e);
+      if (!res.headersSent) return res.status(500).json({ error: e?.message || 'stream_failed' });
     }
   });
 
