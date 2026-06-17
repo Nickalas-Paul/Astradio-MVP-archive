@@ -12,7 +12,7 @@ const {
   moderateCommunityText,
 } = require('../../lib/community-content-moderation');
 const { isValidImageBuffer, moderateImageBuffer } = require('../../lib/avatar-upload');
-const { uploadCommunityPostImage } = require('../../lib/community-post-image-storage');
+const { uploadCommunityPostImage, getCommunityPostImageObject } = require('../../lib/community-post-image-storage');
 
 const POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const postImageUpload = multer({
@@ -143,6 +143,35 @@ function createCommunityPostsRouter() {
     } catch (e) {
       console.error('[community-posts] POST /community/posts', e);
       return res.status(500).json({ error: e?.message || 'create_post_failed' });
+    }
+  });
+
+  router.get('/community/posts/:id/image', async (req, res) => {
+    try {
+      if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
+      const postId = String(req.params.id || '').trim();
+      const post = await pgStore.getCommunityPost(postId);
+      if (!post) return res.status(404).json({ error: 'post_not_found' });
+      const viewerUserId = queryUserId(req);
+      const settings = await pgStore.getCommunityUserSettings(post.userId);
+      if (!settings.publicVisibility && post.userId !== viewerUserId) {
+        return res.status(404).json({ error: 'post_not_found' });
+      }
+      if (post.moderationStatus === 'failed' && post.userId !== viewerUserId) {
+        return res.status(404).json({ error: 'post_not_found' });
+      }
+      const storageUrl = await pgStore.getCommunityPostImageStorageUrl(postId);
+      if (!storageUrl) return res.status(404).json({ error: 'post_image_not_found' });
+      const { buffer, contentType } = await getCommunityPostImageObject(storageUrl);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.status(200).send(buffer);
+    } catch (e) {
+      if (e?.code === 'POST_IMAGE_NOT_FOUND') {
+        return res.status(404).json({ error: 'post_image_not_found' });
+      }
+      console.error('[community-posts] GET /community/posts/:id/image', e);
+      return res.status(500).json({ error: e?.message || 'get_post_image_failed' });
     }
   });
 
