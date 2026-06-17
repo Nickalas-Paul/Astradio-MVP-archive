@@ -1,5 +1,5 @@
 /**
- * Community posts API — UGC feed (posts, comments, likes, threads, settings).
+ * Community posts API: UGC feed (posts, comments, likes, threads, settings).
  */
 
 const express = require('express');

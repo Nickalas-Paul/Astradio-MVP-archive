@@ -52,7 +52,7 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
 
   return (
     <section className="space-y-4" aria-label="Comments">
-      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Comments</h3>
+      <h3 className="text-xs font-medium text-text-muted uppercase tracking-wide">Comments</h3>
       <ul className="space-y-3">
         {comments.map((c) => (
           <li key={c.id}>
@@ -66,7 +66,7 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
           </li>
         ))}
         {comments.length === 0 ? (
-          <li className="text-sm text-text-secondary">No comments yet.</li>
+          <li className="text-sm text-text-muted text-center py-4">No comments yet. Start the conversation.</li>
         ) : null}
       </ul>
       <div className="space-y-2">
@@ -81,7 +81,7 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
             setBody(e.target.value);
             if (moderationError) setModerationError(null);
           }}
-          placeholder="Write a comment… Use @handle to mention someone."
+          placeholder="Write a comment..."
           rows={3}
           className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary"
         />

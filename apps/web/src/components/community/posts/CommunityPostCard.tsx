@@ -135,6 +135,30 @@ export function CommunityPostCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (shareCopiedTimerRef.current) clearTimeout(shareCopiedTimerRef.current);
+    };
+  }, []);
+
+  const sharePost = async () => {
+    const permalink = `${window.location.origin}/community/post/${post.id}`;
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: 'Astradio Community', url: permalink });
+        return;
+      }
+      await navigator.clipboard.writeText(permalink);
+      setShareCopied(true);
+      if (shareCopiedTimerRef.current) clearTimeout(shareCopiedTimerRef.current);
+      shareCopiedTimerRef.current = setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // User cancelled share sheet or clipboard denied
+    }
+  };
 
   const toggleLike = async () => {
     const prevLiked = !!post.likedByViewer;
@@ -231,12 +255,14 @@ export function CommunityPostCard({
         ) : null}
 
         {post.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.imageUrl}
-            alt=""
-            className="w-full rounded-lg max-h-[400px] object-cover border border-border"
-          />
+          <div className="w-full rounded-lg overflow-hidden bg-black/20 border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.imageUrl}
+              alt=""
+              className="w-full max-h-[500px] object-contain"
+            />
+          </div>
         ) : null}
 
         {post.audioExportId ? (
@@ -267,13 +293,15 @@ export function CommunityPostCard({
           <ChatBubbleIcon />
           <span>{post.commentCount ?? 0}</span>
         </Link>
-        <span
-          className="inline-flex items-center gap-1.5 text-text-secondary/60 cursor-default"
-          aria-label="Share (coming soon)"
-          title="Share coming soon"
+        <button
+          type="button"
+          onClick={() => void sharePost()}
+          className="inline-flex items-center gap-1.5 hover:text-accent transition-colors cursor-pointer"
+          aria-label="Share post"
         >
           <ShareIcon />
-        </span>
+          {shareCopied ? <span className="text-xs text-accent">Link copied</span> : null}
+        </button>
       </div>
     </Card>
   );
