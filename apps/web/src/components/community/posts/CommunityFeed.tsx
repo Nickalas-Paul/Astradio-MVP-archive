@@ -10,9 +10,11 @@ import {
   useCommunityFeed,
   createCommunityPost,
   uploadCommunityPostImage,
+  deleteCommunityPost,
 } from '@/core/social/community-posts-hooks';
 import { getApiBaseUrl } from '@/core/api-base';
 import { isFeatureEnabled } from '@/core/config/flags';
+import { useProfile } from '@/core/social/hooks';
 import {
   AudioAttachIcon,
   FeedEmptyIcon,
@@ -25,10 +27,12 @@ const ACCEPTED_IMAGE_TYPES = 'image/png,image/jpeg,image/gif,image/webp';
 
 export function CommunityFeed() {
   const enabled = isFeatureEnabled('ENABLE_COMMUNITY_POSTS');
-  const { posts, loading, loadingMore, error, hasMore, loadMore, refresh, patchPost, prependPost } =
+  const { user } = useProfile();
+  const { posts, loading, loadingMore, error, hasMore, loadMore, refresh, patchPost, prependPost, removePost } =
     useCommunityFeed();
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [moderationError, setModerationError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -112,12 +116,16 @@ export function CommunityFeed() {
     setPosting(true);
     setModerationError(null);
     setImageError(null);
+    setSubmitError(null);
+    const hadImage = !!imageFile;
+    const hadText = !!draft.trim();
+    const hadAudio = !!audioExportId;
     try {
       const post = await createCommunityPost({
         body: draft.trim(),
         audioExportId: audioExportId || undefined,
         audioLabel: audioLabel || undefined,
-        pendingImage: !!imageFile,
+        pendingImage: hadImage,
       });
       let finalPost = post;
       if (imageFile) {
@@ -125,12 +133,23 @@ export function CommunityFeed() {
           finalPost = await uploadCommunityPostImage(post.id, imageFile);
         } catch (e) {
           const err = e as Error & { code?: string };
+          if (!hadText && !hadAudio) {
+            await deleteCommunityPost(post.id).catch(() => {});
+            if (err.code === 'content_moderation_failed') {
+              setModerationError(
+                "Your post image couldn't be published because it contains content that violates our community guidelines."
+              );
+            } else {
+              setImageError(err instanceof Error ? err.message : 'Failed to upload image');
+            }
+            return;
+          }
           if (err.code === 'content_moderation_failed') {
             setModerationError(
-              "Your post image couldn't be published because it contains content that violates our community guidelines."
+              "Your post was published without the image. The image violates our community guidelines."
             );
           } else {
-            setImageError(err instanceof Error ? err.message : 'Failed to upload image');
+            setImageError(err instanceof Error ? err.message : 'Post published, but the image failed to upload.');
           }
         }
       }
@@ -145,6 +164,8 @@ export function CommunityFeed() {
         setModerationError(
           "Your post couldn't be published because it contains content that violates our community guidelines."
         );
+      } else {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to publish post');
       }
     } finally {
       setPosting(false);
@@ -176,6 +197,11 @@ export function CommunityFeed() {
         {moderationError ? (
           <p className="text-sm text-red-400" role="alert">
             {moderationError}
+          </p>
+        ) : null}
+        {submitError ? (
+          <p className="text-sm text-red-400" role="alert">
+            {submitError}
           </p>
         ) : null}
         <textarea
@@ -286,7 +312,13 @@ export function CommunityFeed() {
       <ul className="space-y-4">
         {posts.map((post) => (
           <li key={post.id}>
-            <CommunityPostCard post={post} onLikeChange={onLikeChange} />
+            <CommunityPostCard
+              post={post}
+              currentUserId={user?.id ?? null}
+              onLikeChange={onLikeChange}
+              onDelete={removePost}
+              onRestore={prependPost}
+            />
           </li>
         ))}
       </ul>

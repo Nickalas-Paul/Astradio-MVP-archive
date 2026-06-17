@@ -149,7 +149,18 @@ function createCommunityPostsRouter() {
   router.post(
     '/community/posts/:id/image',
     communityPostsLimiter,
-    (req, res, next) => postImageUpload.single('image')(req, res, next),
+    (req, res, next) => {
+      postImageUpload.single('image')(req, res, (err) => {
+        if (err) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'image_too_large', maxBytes: POST_IMAGE_MAX_BYTES });
+          }
+          console.error('[community-posts] multer error', err);
+          return res.status(400).json({ error: err.message || 'upload_failed' });
+        }
+        next();
+      });
+    },
     async (req, res) => {
       try {
         if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });

@@ -131,7 +131,11 @@ export function useCommunityFeed(pageSize = 20) {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)));
   }, []);
 
-  return { posts, loading, loadingMore, error, hasMore, refresh, loadMore, prependPost, patchPost };
+  const removePost = useCallback((postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
+
+  return { posts, loading, loadingMore, error, hasMore, refresh, loadMore, prependPost, patchPost, removePost };
 }
 
 export function useCommunityPost(postId: string | null) {
@@ -302,6 +306,14 @@ export async function uploadCommunityPostImage(postId: string, file: File) {
     body: form,
   });
   return parseJson<CommunityPost>(r);
+}
+
+export async function deleteCommunityPost(postId: string) {
+  const r = await fetch(api(`/api/community/posts/${encodeURIComponent(postId)}`), {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  return parseJson<{ deleted?: boolean; ok?: boolean; id?: string }>(r);
 }
 
 export async function likeCommunityPost(postId: string) {

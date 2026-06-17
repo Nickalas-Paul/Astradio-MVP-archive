@@ -1,15 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
 import { CommunityCommentThread } from '@/components/community/posts/CommunityCommentThread';
 import { useCommunityPost } from '@/core/social/community-posts-hooks';
+import { useProfile } from '@/core/social/hooks';
 
 export default function CommunityPostPage() {
+  const router = useRouter();
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : '';
+  const { user } = useProfile();
   const { post, loading, error, refresh, setPost } = useCommunityPost(id || null);
 
   return (
@@ -24,9 +27,11 @@ export default function CommunityPostPage() {
           <>
             <CommunityPostCard
               post={post}
+              currentUserId={user?.id ?? null}
               onLikeChange={(postId, patch) => {
                 setPost((prev) => (prev ? { ...prev, ...patch } : prev));
               }}
+              onDelete={() => router.push('/community?tab=feed')}
             />
             <CommunityCommentThread
               postId={post.id}

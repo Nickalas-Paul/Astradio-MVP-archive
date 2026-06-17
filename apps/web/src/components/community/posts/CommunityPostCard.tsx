@@ -1,28 +1,60 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/shared/Card';
+import { Button } from '@/components/shared/Button';
 import type { CommunityPost } from '@/core/social/community-posts-hooks';
-import { likeCommunityPost, unlikeCommunityPost } from '@/core/social/community-posts-hooks';
+import { deleteCommunityPost, likeCommunityPost, unlikeCommunityPost } from '@/core/social/community-posts-hooks';
 import { formatCommunityTimestamp } from '@/lib/community-timestamp';
 import { communityAuthorInitial } from '@/lib/community-author-display';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
-import { ChatBubbleIcon, HeartIcon, ShareIcon } from '@/components/community/posts/community-post-icons';
+import {
+  ChatBubbleIcon,
+  HeartIcon,
+  OverflowMenuIcon,
+  ShareIcon,
+} from '@/components/community/posts/community-post-icons';
 
 interface CommunityPostCardProps {
   post: CommunityPost;
+  currentUserId?: string | null;
   onLikeChange?: (postId: string, patch: Partial<CommunityPost>) => void;
+  onDelete?: (postId: string) => void;
+  onRestore?: (post: CommunityPost) => void;
   compact?: boolean;
 }
 
-function AuthorHeader({ post }: { post: CommunityPost }) {
+function AuthorHeader({
+  post,
+  currentUserId,
+  onDeleteRequest,
+}: {
+  post: CommunityPost;
+  currentUserId?: string | null;
+  onDeleteRequest: () => void;
+}) {
   const displayName = post.author?.displayName?.trim() || '';
   const handle = post.author?.handle?.trim().replace(/^@/, '') || '';
   const initial = communityAuthorInitial(post.author);
   const avatarUrl = post.author?.avatarUrl;
+  const isOwner = Boolean(currentUserId && post.userId === currentUserId);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [menuOpen]);
 
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <div className="flex items-start gap-3 min-w-0">
       <Link href={`/community/profile/${post.userId}`} className="shrink-0">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -41,29 +73,69 @@ function AuthorHeader({ post }: { post: CommunityPost }) {
         )}
       </Link>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-          <Link href={`/community/profile/${post.userId}`} className="hover:text-accent transition-colors min-w-0">
-            {displayName ? (
-              <span className="font-semibold text-text-primary">{displayName}</span>
-            ) : handle ? (
-              <span className="font-semibold text-text-primary">@{handle}</span>
-            ) : (
-              <span className="font-semibold text-text-primary">Anonymous</span>
-            )}
-            {displayName && handle ? (
-              <span className="text-text-secondary font-normal"> @{handle}</span>
-            ) : null}
-          </Link>
-          <time dateTime={post.createdAt} className="text-xs text-text-secondary shrink-0">
-            {formatCommunityTimestamp(post.createdAt)}
-          </time>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm min-w-0">
+            <Link href={`/community/profile/${post.userId}`} className="hover:text-accent transition-colors min-w-0">
+              {displayName ? (
+                <span className="font-semibold text-text-primary">{displayName}</span>
+              ) : handle ? (
+                <span className="font-semibold text-text-primary">@{handle}</span>
+              ) : (
+                <span className="font-semibold text-text-primary">Anonymous</span>
+              )}
+              {displayName && handle ? (
+                <span className="text-text-secondary font-normal"> @{handle}</span>
+              ) : null}
+            </Link>
+            <time dateTime={post.createdAt} className="text-xs text-text-secondary shrink-0">
+              {formatCommunityTimestamp(post.createdAt)}
+            </time>
+          </div>
+          {isOwner ? (
+            <div className="relative shrink-0" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-muted hover:text-text-primary transition-colors"
+                aria-label="Post options"
+                aria-expanded={menuOpen}
+              >
+                <OverflowMenuIcon />
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-lg border border-border bg-surface-1 shadow-lg py-1">
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-surface-2"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDeleteRequest();
+                    }}
+                  >
+                    Delete post
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-export function CommunityPostCard({ post, onLikeChange, compact = false }: CommunityPostCardProps) {
+export function CommunityPostCard({
+  post,
+  currentUserId,
+  onLikeChange,
+  onDelete,
+  onRestore,
+  compact = false,
+}: CommunityPostCardProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const toggleLike = async () => {
     const prevLiked = !!post.likedByViewer;
     const prevLikeId = post.viewerLikeId ?? null;
@@ -108,9 +180,45 @@ export function CommunityPostCard({ post, onLikeChange, compact = false }: Commu
     }
   };
 
+  const confirmDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    onDelete?.(post.id);
+    try {
+      await deleteCommunityPost(post.id);
+      setConfirmOpen(false);
+    } catch (e) {
+      onRestore?.(post);
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete post');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Card elevation="resting" size={compact ? 'sm' : 'md'} className="space-y-4">
-      <AuthorHeader post={post} />
+      <AuthorHeader post={post} currentUserId={currentUserId} onDeleteRequest={() => setConfirmOpen(true)} />
+
+      {confirmOpen ? (
+        <div className="rounded-lg border border-border bg-surface-0 p-4 space-y-3">
+          <p className="text-sm text-text-primary">Delete this post? This cannot be undone.</p>
+          {deleteError ? <p className="text-xs text-red-400">{deleteError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="ghost" disabled={deleting} onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={deleting}
+              className="bg-red-500 hover:bg-red-600 text-white border-red-500"
+              onClick={() => void confirmDelete()}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         {post.title ? (
