@@ -46,6 +46,7 @@ export interface CompatMatchResult {
   userId: string;
   chartId: string;
   displayName: string;
+  handle?: string;
   score: number;
   facets: Array<{ id: string; name: string; weight: number; score: number; explanation: string }>;
   rationale: string;
@@ -757,6 +758,7 @@ async function directoryRowsForMatches(chartId: string): Promise<DirectoryEligib
       ...(c.bio ? { bio: c.bio } : {}),
       ...(c.avatarUrl ? { avatarUrl: clientAvatarUrl(c.userId, c.avatarUrl) } : {}),
       ...(c.lookingFor ? { lookingFor: c.lookingFor } : {}),
+      ...(c.handle && c.handle !== c.userId ? { handle: c.handle } : {}),
       ...(c.chartHighlights?.length ? { chartHighlights: c.chartHighlights } : {}),
     }));
   }
@@ -870,6 +872,11 @@ export async function getCompatMatches(
       userId: cand.userId,
       chartId: cand.chartId,
       displayName: cand.displayName || 'User',
+      ...(typeof cand.handle === 'string' &&
+      cand.handle.trim() &&
+      cand.handle.trim() !== cand.userId
+        ? { handle: cand.handle.trim().replace(/^@/, '') }
+        : {}),
       score,
       facets: facetsFromScoring(computed.scoring),
       rationale: `${Math.round(score * 100)}% match`,

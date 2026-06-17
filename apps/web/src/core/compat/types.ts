@@ -57,6 +57,7 @@ export type CompatMatch = {
   userId: string;
   chartId: ChartID;
   displayName: string;
+  handle?: string;
   score: number;
   facets: CompatFacet[];
   rationale: string;

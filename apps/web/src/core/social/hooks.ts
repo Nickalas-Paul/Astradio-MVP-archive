@@ -527,6 +527,7 @@ function normalizeCompatMatchFromApi(raw: unknown, mode: RelationalIntent): Comp
     userId: String(m.userId ?? ''),
     chartId: String(m.chartId ?? ''),
     displayName: String(m.displayName ?? m.userId ?? 'User'),
+    ...(typeof m.handle === 'string' && m.handle.trim() ? { handle: m.handle.trim().replace(/^@/, '') } : {}),
     score: typeof m.score === 'number' && Number.isFinite(m.score) ? m.score : Number(m.score) || 0,
     facets,
     rationale: String(m.rationale ?? ''),

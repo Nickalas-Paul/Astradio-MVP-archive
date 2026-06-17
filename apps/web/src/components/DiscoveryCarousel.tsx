@@ -55,11 +55,11 @@ function discoveryBulletFromEp(
 function SynastryBulletBlock({ line }: { line: SynastryBulletLine }) {
   const label = line.anchor?.trim();
   return (
-    <div className="min-w-0 space-y-1">
+    <div className="min-w-0 space-y-1 border-l-2 border-accent/20 pl-3">
       {label ? (
         <p className="text-caption font-medium uppercase tracking-wide text-accent">{label}</p>
       ) : null}
-      <div className="text-body text-text-primary leading-relaxed">
+      <div className="text-body text-text-secondary leading-relaxed">
         <IdentityMarkdown content={line.text} />
       </div>
     </div>
@@ -80,7 +80,7 @@ export interface DiscoveryCarouselProps {
   viewerChartId: string | null;
 }
 
-function CosmicWeatherHeader() {
+function CompatibilityResultsHeader() {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', {
     month: 'long',
@@ -89,13 +89,8 @@ function CosmicWeatherHeader() {
   });
 
   return (
-    <header className="text-center mb-8">
-      <h2 className="text-h3 font-serif font-semibold text-text-primary mb-2">
-        Cosmic weather for {dateStr}
-      </h2>
-      <p className="text-body-sm text-text-secondary">
-        Astrological patterns highlighting today&apos;s connections
-      </p>
+    <header className="text-center mb-6">
+      <p className="text-body-sm text-text-muted">Results for {dateStr}</p>
     </header>
   );
 }
@@ -238,6 +233,9 @@ function MatchCard({
           )}
         </div>
         <h3 className="font-serif text-h3 font-semibold text-text-primary">{match.displayName}</h3>
+        {match.handle ? (
+          <p className="text-body-sm text-text-muted font-sans">@{match.handle}</p>
+        ) : null}
         {match.bio ? (
           <p className="text-body-sm text-text-secondary mt-2 line-clamp-2 max-w-md font-sans">{match.bio}</p>
         ) : null}
@@ -257,7 +255,7 @@ function MatchCard({
 
       <div className="border-t border-border" aria-hidden="true" />
 
-      <ul className="space-y-4">
+      <ul className="space-y-5">
         {bullets.map((line, idx) => (
           <li key={idx}>
             <SynastryBulletBlock line={line} />
@@ -270,31 +268,31 @@ function MatchCard({
           type="button"
           variant="outline"
           size="md"
-          className="w-full sm:flex-1 min-h-[44px]"
+          className="min-h-[44px]"
           onClick={onViewProfile}
         >
           View profile
         </Button>
         <Button
           type="button"
+          variant="audio"
+          size="md"
+          className="min-h-[44px]"
+          onClick={onHearConnection}
+          disabled={hearConnectionDisabled}
+        >
+          Hear this connection
+        </Button>
+        <Button
+          type="button"
           variant="primary"
           size="md"
-          className="w-full sm:flex-1 min-h-[44px]"
+          className="sm:flex-1 min-h-[44px]"
           onClick={onRequestConnection}
           disabled={connectionDisabled}
           loading={connectionLabel === 'Sending…'}
         >
           {connectionLabel}
-        </Button>
-        <Button
-          type="button"
-          variant="audio"
-          size="md"
-          className="w-full sm:flex-1 min-h-[44px]"
-          onClick={onHearConnection}
-          disabled={hearConnectionDisabled}
-        >
-          Hear this connection
         </Button>
       </div>
       <p className="sr-only">Browsing as {intentLabel} intent</p>
@@ -368,7 +366,7 @@ export function DiscoveryCarousel({
   if (requestsRemaining === 0 && pendingOutgoingCount >= MAX_OUTGOING_CONNECTION_REQUESTS) {
     return (
       <div className="text-center py-10 px-4">
-        <CosmicWeatherHeader />
+        <CompatibilityResultsHeader />
         <h3 className="text-h4 font-semibold text-text-primary mb-2">All connection requests pending</h3>
         <p className="text-body-sm text-text-secondary mb-2">
           You have {pendingOutgoingCount} requests awaiting response.
@@ -426,7 +424,7 @@ export function DiscoveryCarousel({
       aria-label="Discovery matches carousel"
       aria-live="polite"
     >
-      <CosmicWeatherHeader />
+      <CompatibilityResultsHeader />
 
       <div
         className="relative flex items-stretch md:items-center justify-center gap-2 md:gap-3 min-h-0 md:min-h-[28rem]"
