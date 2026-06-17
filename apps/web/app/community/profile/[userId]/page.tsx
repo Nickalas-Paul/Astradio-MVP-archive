@@ -1,12 +1,13 @@
 'use client';
 
-import { use } from 'react';
+import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { CommunityProfileCard } from '@/components/community/posts/CommunityProfileCard';
 import { useCommunityPublicProfile } from '@/core/social/community-posts-hooks';
 
-export default function CommunityProfilePage({ params }: { params: Promise<{ userId: string }> }) {
-  const { userId } = use(params);
+export default function CommunityProfilePage() {
+  const params = useParams();
+  const userId = typeof params?.userId === 'string' ? params.userId : null;
   const { profile, loading, error } = useCommunityPublicProfile(userId);
 
   return (

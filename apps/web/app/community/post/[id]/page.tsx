@@ -1,15 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
 import { CommunityCommentThread } from '@/components/community/posts/CommunityCommentThread';
 import { useCommunityPost } from '@/core/social/community-posts-hooks';
-import { use } from 'react';
 
-export default function CommunityPostPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const { post, loading, error, refresh, setPost } = useCommunityPost(id);
+export default function CommunityPostPage() {
+  const params = useParams();
+  const id = typeof params?.id === 'string' ? params.id : '';
+  const { post, loading, error, refresh, setPost } = useCommunityPost(id || null);
 
   return (
     <AppShell>

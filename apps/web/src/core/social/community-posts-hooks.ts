@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiBaseUrl } from '@/core/api-base';
 
+export interface CommunityAuthor {
+  displayName?: string | null;
+  handle?: string | null;
+  avatarUrl?: string | null;
+}
+
 export interface CommunityPost {
   id: string;
   userId: string;
@@ -10,6 +16,10 @@ export interface CommunityPost {
   body: string;
   createdAt: string;
   updatedAt: string;
+  author?: CommunityAuthor;
+  imageUrl?: string | null;
+  audioExportId?: string | null;
+  audioLabel?: string | null;
   likeCount?: number;
   commentCount?: number;
   likedByViewer?: boolean;
@@ -23,6 +33,7 @@ export interface CommunityComment {
   body: string;
   createdAt: string;
   updatedAt: string;
+  author?: CommunityAuthor;
 }
 
 export interface CommunityPublicProfile {

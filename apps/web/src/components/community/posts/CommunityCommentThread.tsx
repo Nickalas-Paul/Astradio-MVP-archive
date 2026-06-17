@@ -5,6 +5,8 @@ import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import type { CommunityComment } from '@/core/social/community-posts-hooks';
 import { createCommunityComment } from '@/core/social/community-posts-hooks';
+import { formatCommunityTimestamp } from '@/lib/community-timestamp';
+import { formatCommunityAuthorLabel } from '@/lib/community-author-display';
 
 interface CommunityCommentThreadProps {
   postId: string;
@@ -55,9 +57,10 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
         {comments.map((c) => (
           <li key={c.id}>
             <Card elevation="flat" size="sm" className="space-y-1">
+              <p className="text-xs text-text-secondary">{formatCommunityAuthorLabel(c.author)}</p>
               <p className="text-body-sm text-text-primary whitespace-pre-wrap">{c.body}</p>
               <p className="text-xs text-text-secondary">
-                <time dateTime={c.createdAt}>{new Date(c.createdAt).toLocaleString()}</time>
+                <time dateTime={c.createdAt}>{formatCommunityTimestamp(c.createdAt)}</time>
               </p>
             </Card>
           </li>
