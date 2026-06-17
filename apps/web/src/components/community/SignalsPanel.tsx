@@ -28,11 +28,13 @@ type IncomingSignalRow = {
   senderUserId?: string | null;
   senderDisplayName?: string | null;
   senderHandle?: string | null;
+  peerDisplayName?: string | null;
 };
 
 type OutgoingSignalRow = IncomingSignalRow & {
   recipientUserId: string;
   recipientDisplayName: string;
+  peerDisplayName?: string | null;
 };
 
 type RecentActivityRow = {
@@ -212,7 +214,7 @@ export function SignalsPanel({
   if (!currentUserId) {
     return (
       <div className="rounded-lg border border-border bg-surface-1 p-4 text-sm text-text-secondary">
-        Sign in to view Signals (structured, context-anchored actions — not chat).
+        Sign in to view Signals (structured, context-anchored actions, not chat).
       </div>
     );
   }
@@ -274,14 +276,19 @@ export function SignalsPanel({
                     <p className="text-body-sm text-text-secondary font-sans">
                       <span className="font-medium text-text-primary">{label}</span>
                       {description ? (
-                        <span className="text-text-secondary"> — {description}</span>
+                        <span className="text-text-secondary">: {description}</span>
                       ) : null}
                     </p>
                     <p className="text-caption text-text-muted font-sans">
                       {formatSignalReceivedRelativeTime(String(s.createdAt))}
                     </p>
                     <p className="text-caption text-text-muted font-sans">
-                      {formatIncomingSignalTransitContext(senderName, s.anchorType, s.anchorId)}
+                      {formatIncomingSignalTransitContext(
+                        senderName,
+                        s.anchorType,
+                        s.anchorId,
+                        s.peerDisplayName ?? senderName
+                      )}
                     </p>
                   </div>
 
@@ -346,7 +353,11 @@ export function SignalsPanel({
                   <span className="mx-1.5" aria-hidden>
                     ·
                   </span>
-                  {formatSignalAnchorContext(s.anchorType, s.anchorId)}
+                  {formatSignalAnchorContext(
+                    s.anchorType,
+                    s.anchorId,
+                    s.peerDisplayName ?? s.recipientDisplayName
+                  )}
                 </p>
               </li>
             );

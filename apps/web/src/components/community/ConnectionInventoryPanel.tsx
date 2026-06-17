@@ -408,6 +408,11 @@ export function ConnectionInventoryPanel({
                           <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
                         ) : null}
                       </span>
+                      {p.label ? (
+                        <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">
+                          {String(p.label)}
+                        </span>
+                      ) : null}
                       {FOUNDER_USER_ID &&
                       typeof p.peerUserId === 'string' &&
                       p.peerUserId.trim() === FOUNDER_USER_ID ? (
@@ -416,11 +421,35 @@ export function ConnectionInventoryPanel({
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-xs text-text-secondary">Label: {String(p.label || '')}</p>
-                    <p className="text-xs text-text-secondary">
-                      Artifacts:{' '}
-                      <span className="text-text-primary">{inventoryArtifactStatusCopy(String(p.artifactStatus || 'not_generated'))}</span>
-                    </p>
+                    {(() => {
+                      const status = String(p.artifactStatus || 'not_generated');
+                      const readingAvailable =
+                        status === 'text_available' ||
+                        status === 'audio_available' ||
+                        status === 'available';
+                      if (!readingAvailable) return null;
+                      return (
+                        <p className="flex items-center gap-1.5">
+                          {status === 'audio_available' ? (
+                            <svg
+                              className="w-3.5 h-3.5 text-accent shrink-0"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 19V6l12-2v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-2c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"
+                              />
+                            </svg>
+                          ) : null}
+                          <span className="text-xs text-accent">Reading available</span>
+                        </p>
+                      );
+                    })()}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Link
                         href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
@@ -452,7 +481,7 @@ export function ConnectionInventoryPanel({
                         );
                       })()}
                     </div>
-                    {currentUserId && <PairWeatherPreview relationshipId={String(p.id)} userId={currentUserId} />}
+                    {/* PairWeatherPreview removed for beta - theme tags need humanized display */}
                   </Card>
                 ))}
               </ul>

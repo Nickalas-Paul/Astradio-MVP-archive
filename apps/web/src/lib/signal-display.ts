@@ -81,29 +81,38 @@ export function outgoingSignalStatusLabel(
   return 'Awaiting response';
 }
 
-export function formatSignalAnchorContext(anchorType: string, anchorId: string): string {
-  const id = anchorId.trim();
-  if (anchorType === 'feed_item') {
-    if (id.startsWith('pair:')) return `Transits · ${id.slice(5, 21)}${id.length > 21 ? '…' : ''}`;
-    return `Transits · ${id.slice(0, 20)}${id.length > 20 ? '…' : ''}`;
+function formatConnectionContext(peerDisplayName?: string | null): string {
+  const name =
+    typeof peerDisplayName === 'string' && peerDisplayName.trim()
+      ? peerDisplayName.trim()
+      : null;
+  return name ? `About your connection with ${name}` : 'About a connection';
+}
+
+export function formatSignalAnchorContext(
+  anchorType: string,
+  anchorId: string,
+  peerDisplayName?: string | null
+): string {
+  const id = String(anchorId || '').trim();
+  if (anchorType === 'feed_item' && id.startsWith('pair:')) {
+    return formatConnectionContext(peerDisplayName);
   }
-  return `${anchorType} · ${id.slice(0, 24)}${id.length > 24 ? '…' : ''}`;
+  return formatConnectionContext(peerDisplayName);
 }
 
 /** Recipient-facing transit anchor line (pair feed signals). */
 export function formatIncomingSignalTransitContext(
-  senderDisplayName: string | null | undefined,
+  _senderDisplayName: string | null | undefined,
   anchorType: string,
-  anchorId: string
+  anchorId: string,
+  peerDisplayName?: string | null
 ): string {
-  const name =
-    typeof senderDisplayName === 'string' && senderDisplayName.trim()
-      ? senderDisplayName.trim()
-      : 'them';
-  if (anchorType === 'feed_item') {
-    return `About your connection with ${name}`;
+  const id = String(anchorId || '').trim();
+  if (anchorType === 'feed_item' && id.startsWith('pair:')) {
+    return formatConnectionContext(peerDisplayName);
   }
-  return `About your connection with ${name}`;
+  return formatConnectionContext(peerDisplayName);
 }
 
 /** UTC day start — matches server dedupe window for feed signal status. */

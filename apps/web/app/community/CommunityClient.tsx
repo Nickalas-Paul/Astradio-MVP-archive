@@ -237,6 +237,7 @@ function CommunityClientInner() {
   ];
 
   const showDiscoveryConnectionsChrome = activeTab === 'discovery' || activeTab === 'connections';
+  const showListenCta = activeTab === 'connections';
 
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
 
@@ -261,16 +262,9 @@ function CommunityClientInner() {
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Discover, connect, and share with the Astradio community.
           </p>
-          <p className="text-sm text-text-secondary">
-            Profile and saved tracks live under{' '}
-            <Link href="/profile" className="text-accent hover:underline">
-              My Sky
-            </Link>
-            .
-          </p>
         </motion.div>
 
-        {showDiscoveryConnectionsChrome ? (
+        {showListenCta ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
