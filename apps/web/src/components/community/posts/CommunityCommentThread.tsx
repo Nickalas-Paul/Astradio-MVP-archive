@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import type { CommunityComment } from '@/core/social/community-posts-hooks';
@@ -16,18 +16,33 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moderationError, setModerationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!moderationError) return;
+    const timer = window.setTimeout(() => setModerationError(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [moderationError]);
 
   const submit = async () => {
     const trimmed = body.trim();
     if (!trimmed) return;
     setSubmitting(true);
     setError(null);
+    setModerationError(null);
     try {
       const comment = await createCommunityComment(postId, trimmed);
       setBody('');
       onCommentAdded?.(comment);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to post comment');
+      const err = e as Error & { code?: string };
+      if (err.code === 'content_moderation_failed') {
+        setModerationError(
+          "Your comment couldn't be published because it contains content that violates our community guidelines."
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to post comment');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -52,9 +67,17 @@ export function CommunityCommentThread({ postId, comments, onCommentAdded }: Com
         ) : null}
       </ul>
       <div className="space-y-2">
+        {moderationError ? (
+          <p className="text-sm text-red-400" role="alert">
+            {moderationError}
+          </p>
+        ) : null}
         <textarea
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            setBody(e.target.value);
+            if (moderationError) setModerationError(null);
+          }}
           placeholder="Write a comment… Use @handle to mention someone."
           rows={3}
           className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary"

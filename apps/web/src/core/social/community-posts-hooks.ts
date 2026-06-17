@@ -50,8 +50,14 @@ const api = (path: string) => `${getApiBaseUrl() || ''}${path}`;
 async function parseJson<T>(r: Response): Promise<T> {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const msg = typeof (data as { error?: string }).error === 'string' ? (data as { error: string }).error : r.statusText;
-    throw new Error(msg || `Request failed (${r.status})`);
+    const code = typeof (data as { error?: string }).error === 'string' ? (data as { error: string }).error : undefined;
+    const msg =
+      typeof (data as { message?: string }).message === 'string'
+        ? (data as { message: string }).message
+        : code || r.statusText || `Request failed (${r.status})`;
+    const err = new Error(msg) as Error & { code?: string };
+    if (code) err.code = code;
+    throw err;
   }
   return data as T;
 }

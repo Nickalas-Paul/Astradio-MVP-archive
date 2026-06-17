@@ -6,6 +6,10 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { proxySecretGate } = require('../../lib/proxy-secret-gate');
 const { isCommunityPostsBetaUser } = require('../../lib/community-posts-beta');
+const {
+  moderateNewCommunityPost,
+  moderateCommunityText,
+} = require('../../lib/community-content-moderation');
 
 let pgStore = null;
 try {
@@ -97,10 +101,23 @@ function createCommunityPostsRouter() {
       if (!String(body.body || '').trim() && !String(body.title || '').trim()) {
         return res.status(400).json({ error: 'title_or_body_required' });
       }
+      const moderation = await moderateNewCommunityPost({
+        title: body.title,
+        body: body.body,
+        imageUrl: body.imageUrl,
+      });
+      if (!moderation.ok) {
+        return res.status(400).json({
+          error: 'content_moderation_failed',
+          message: moderation.message,
+          moderationStatus: moderation.moderationStatus,
+        });
+      }
       const post = await pgStore.createCommunityPost({
         userId,
         title: body.title || '',
         body: body.body || '',
+        moderationStatus: moderation.moderationStatus,
       });
       let feedService = null;
       try {
@@ -127,6 +144,12 @@ function createCommunityPostsRouter() {
       const viewerUserId = queryUserId(req);
       const settings = await pgStore.getCommunityUserSettings(post.userId);
       if (!settings.publicVisibility && post.userId !== viewerUserId) {
+        return res.status(404).json({ error: 'post_not_found' });
+      }
+      if (
+        post.moderationStatus === 'failed' &&
+        post.userId !== viewerUserId
+      ) {
         return res.status(404).json({ error: 'post_not_found' });
       }
       const comments = await pgStore.listCommunityCommentsByPost(postId);
@@ -223,6 +246,13 @@ function createCommunityPostsRouter() {
       if (!String(body.body || '').trim()) return res.status(400).json({ error: 'body_required' });
       const post = await pgStore.getCommunityPost(postId);
       if (!post) return res.status(404).json({ error: 'post_not_found' });
+      const textModeration = moderateCommunityText(body.body);
+      if (!textModeration.ok) {
+        return res.status(400).json({
+          error: 'content_moderation_failed',
+          message: textModeration.message,
+        });
+      }
       const comment = await pgStore.createCommunityComment({
         postId,
         userId,

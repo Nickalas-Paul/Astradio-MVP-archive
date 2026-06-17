@@ -24,11 +24,7 @@ function isNavActive(pathname: string, href: string): boolean {
     return pathname === '/profile' || pathname.startsWith('/profile/');
   }
   if (href === '/community') {
-    return (
-      pathname === '/community' ||
-      pathname.startsWith('/community/') ||
-      pathname.startsWith('/community?')
-    );
+    return pathname === '/community' || pathname.startsWith('/community/');
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

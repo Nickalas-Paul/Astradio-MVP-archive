@@ -12,6 +12,14 @@ describe('community notification mentions', () => {
   });
 });
 
+describe('community content moderation', () => {
+  test('moderateCommunityText rejects profanity', () => {
+    const mod = require('../lib/community-content-moderation');
+    expect(mod.moderateCommunityText('hello world').ok).toBe(true);
+    expect(mod.moderateCommunityText('shit happens').ok).toBe(false);
+  });
+});
+
 describe('community posts beta gate', () => {
   test('isCommunityPostsBetaUser allows all when allowlist empty', () => {
     const prev = process.env.COMMUNITY_POSTS_BETA_USER_IDS;

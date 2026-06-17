@@ -15,6 +15,7 @@ export function CommunityFeed() {
     useCommunityFeed();
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+  const [moderationError, setModerationError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const onLikeChange = useCallback(
@@ -47,14 +48,28 @@ export function CommunityFeed() {
     };
   }, [enabled, refresh]);
 
+  useEffect(() => {
+    if (!moderationError) return;
+    const timer = window.setTimeout(() => setModerationError(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [moderationError]);
+
   const submitPost = async () => {
     const body = draft.trim();
     if (!body) return;
     setPosting(true);
+    setModerationError(null);
     try {
       const post = await createCommunityPost({ body });
       prependPost(post);
       setDraft('');
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      if (err.code === 'content_moderation_failed') {
+        setModerationError(
+          "Your post couldn't be published because it contains content that violates our community guidelines."
+        );
+      }
     } finally {
       setPosting(false);
     }
@@ -72,9 +87,17 @@ export function CommunityFeed() {
     <div className="space-y-6">
       <Card elevation="resting" className="space-y-3">
         <h2 className="text-h3 font-serif text-text-primary">Share with the community</h2>
+        {moderationError ? (
+          <p className="text-sm text-red-400" role="alert">
+            {moderationError}
+          </p>
+        ) : null}
         <textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (moderationError) setModerationError(null);
+          }}
           rows={3}
           placeholder="What's on your mind?"
           className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary"
