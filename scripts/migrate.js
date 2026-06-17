@@ -14,7 +14,13 @@ if (!POSTGRES_URL) {
 }
 
 const { Pool } = require('pg');
-const pool = new Pool({ connectionString: POSTGRES_URL });
+const needsSsl =
+  process.env.PGSSLMODE === 'require' ||
+  /render\.com|amazonaws\.com|rds\.amazonaws/i.test(POSTGRES_URL || '');
+const pool = new Pool({
+  connectionString: POSTGRES_URL,
+  ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+});
 const migrationsDir = path.join(__dirname, '..', 'migrations');
 
 async function run() {

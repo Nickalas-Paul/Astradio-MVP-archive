@@ -6,7 +6,7 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { useCommunityFeed, createCommunityPost } from '@/core/social/community-posts-hooks';
 import { getApiBaseUrl } from '@/core/api-base';
-import { isFeatureEnabled } from '@/config/flags';
+import { isFeatureEnabled } from '@/core/config/flags';
 import { useState } from 'react';
 
 export function CommunityFeed() {

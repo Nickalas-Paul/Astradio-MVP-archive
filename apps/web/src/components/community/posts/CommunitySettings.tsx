@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { useCommunitySettings } from '@/core/social/community-posts-hooks';
-import { isFeatureEnabled } from '@/config/flags';
+import { isFeatureEnabled } from '@/core/config/flags';
 
 export function CommunitySettings() {
   const enabled = isFeatureEnabled('ENABLE_COMMUNITY_POSTS');

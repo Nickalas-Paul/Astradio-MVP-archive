@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/shared/Card';
 import { useCommunityNotifications } from '@/core/social/community-notifications-hooks';
-import { isFeatureEnabled } from '@/config/flags';
+import { isFeatureEnabled } from '@/core/config/flags';
 
 export function CommunityNotificationsPanel() {
   if (!isFeatureEnabled('ENABLE_COMMUNITY_POSTS')) return null;

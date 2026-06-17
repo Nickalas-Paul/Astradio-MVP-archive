@@ -4,7 +4,7 @@ import { AppShell } from '@/components/AppShell';
 import { CommunityFeed } from '@/components/community/posts/CommunityFeed';
 import { CommunityNotificationsPanel } from '@/components/community/posts/CommunityNotificationsPanel';
 import Link from 'next/link';
-import { isFeatureEnabled } from '@/config/flags';
+import { isFeatureEnabled } from '@/core/config/flags';
 
 export default function CommunityFeedPage() {
   const enabled = isFeatureEnabled('ENABLE_COMMUNITY_POSTS');

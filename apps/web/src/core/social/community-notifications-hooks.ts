@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getApiBaseUrl } from '@/core/api-base';
-import { isFeatureEnabled } from '@/config/flags';
+import { isFeatureEnabled } from '@/core/config/flags';
 
 export interface CommunityNotification {
   id: string;
