@@ -54,7 +54,9 @@ function rowMatches(
     const ps = row.sandbox_state;
     if (ps && typeof ps === 'object' && !Array.isArray(ps)) {
       const cid = (ps as { chartId?: unknown }).chartId;
-      if (typeof cid === 'string' && cid === String(sandboxState.chartId)) return true;
+      if (typeof cid === 'string' && cid === String(sandboxState.chartId)) {
+        return Boolean(rowExport && rowExport === exportId);
+      }
     }
   }
   return false;
