@@ -46,7 +46,7 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
       ) : (
         <p className="text-sm text-text-secondary">No posts yet.</p>
       )}
-      <Link href="/community/feed" className="text-sm text-accent hover:underline inline-block">
+      <Link href="/community?tab=feed" className="text-sm text-accent hover:underline inline-block">
         ← Back to feed
       </Link>
     </Card>

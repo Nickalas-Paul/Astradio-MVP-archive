@@ -14,7 +14,7 @@ export default function CommunityPostPage({ params }: { params: Promise<{ id: st
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-        <Link href="/community/feed" className="text-sm text-accent hover:underline inline-block">
+        <Link href="/community?tab=feed" className="text-sm text-accent hover:underline inline-block">
           ← Back to feed
         </Link>
         {loading ? <p className="text-sm text-text-secondary">Loading post…</p> : null}

@@ -17,10 +17,12 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { Tabs } from '@/components/shared/Tabs';
 import { FtueConnectionsWelcomeBanner } from '@/components/ftue/FtueConnectionsWelcomeBanner';
+import { CommunityFeed } from '@/components/community/posts/CommunityFeed';
+import { CommunityNotificationsPanel } from '@/components/community/posts/CommunityNotificationsPanel';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
-type CommunityTabId = 'discovery' | 'connections';
+type CommunityTabId = 'discovery' | 'connections' | 'feed';
 
 function GroupsList({
   userId,
@@ -209,14 +211,12 @@ function CommunityClientInner() {
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'feed') {
-      router.replace('/today');
-      return;
-    }
-    if (t === 'discovery' || t === 'connections') {
+    if (t === 'discovery' || t === 'connections' || t === 'feed') {
       setActiveTab(t);
+    } else if (!t) {
+      setActiveTab('discovery');
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const setTab = (t: CommunityTabId) => {
     setActiveTab(t);
@@ -228,7 +228,10 @@ function CommunityClientInner() {
   const tabs: { id: CommunityTabId; label: string; icon: string }[] = [
     { id: 'discovery', label: 'Discovery', icon: '🔭' },
     { id: 'connections', label: 'Connections', icon: '🔗' },
+    { id: 'feed', label: 'Feed', icon: '📝' },
   ];
+
+  const showDiscoveryConnectionsChrome = activeTab === 'discovery' || activeTab === 'connections';
 
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart!.id : null;
 
@@ -249,9 +252,9 @@ function CommunityClientInner() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-h1 font-bold text-text-primary">Connections</h1>
+          <h1 className="text-h1 font-bold text-text-primary">Community</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Discovery and connections — chart-based and deterministic.
+            Discover, connect, and share with the Astradio community.
           </p>
           <p className="text-sm text-text-secondary">
             Profile and saved tracks live under{' '}
@@ -262,27 +265,31 @@ function CommunityClientInner() {
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-        >
-          <Card size="lg" className="max-w-2xl mx-auto border-accent/40 space-y-4 text-center">
-            <h2 className="font-serif text-h3 font-semibold text-text-primary">
-              Hear what a relationship sounds like
-            </h2>
-            <p className="text-body-sm text-text-secondary">
-              Combine two charts and hear the sonic signature of a connection.
-            </p>
-            <Link href="/listen">
-              <Button type="button" variant="audio" size="md" className="min-h-[44px]">
-                Choose two charts
-              </Button>
-            </Link>
-          </Card>
-        </motion.div>
+        {showDiscoveryConnectionsChrome ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <Card size="lg" className="max-w-2xl mx-auto border-accent/40 space-y-4 text-center">
+              <h2 className="font-serif text-h3 font-semibold text-text-primary">
+                Hear what a relationship sounds like
+              </h2>
+              <p className="text-body-sm text-text-secondary">
+                Combine two charts and hear the sonic signature of a connection.
+              </p>
+              <Link href="/listen">
+                <Button type="button" variant="audio" size="md" className="min-h-[44px]">
+                  Choose two charts
+                </Button>
+              </Link>
+            </Card>
+          </motion.div>
+        ) : null}
 
-        {!profileLoading && user ? <FtueConnectionsWelcomeBanner /> : null}
+        {showDiscoveryConnectionsChrome && !profileLoading && user ? (
+          <FtueConnectionsWelcomeBanner />
+        ) : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -292,7 +299,7 @@ function CommunityClientInner() {
           <div className="-mx-2 px-2 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
             <Tabs
               variant="pill"
-              ariaLabel="Connections sections"
+              ariaLabel="Community sections"
               className="min-w-max md:min-w-0"
               tabs={tabs.map((tab) => ({
                 id: tab.id,
@@ -371,6 +378,18 @@ function CommunityClientInner() {
               </div>
             </div>
           )}
+
+          {activeTab === 'feed' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <Link href="/community/settings" className="text-accent hover:underline">
+                  Community settings
+                </Link>
+              </div>
+              <CommunityNotificationsPanel />
+              <CommunityFeed />
+            </div>
+          )}
         </motion.div>
       </div>
     </AppShell>
@@ -379,7 +398,7 @@ function CommunityClientInner() {
 
 export default function CommunityClient() {
   return (
-    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-text-secondary">Loading Connections…</div>}>
+    <Suspense fallback={<div className="min-h-[40vh] flex items-center justify-center text-text-secondary">Loading Community…</div>}>
       <CommunityClientInner />
     </Suspense>
   );

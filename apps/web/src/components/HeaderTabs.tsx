@@ -7,8 +7,7 @@ import React from 'react';
 const NAV = [
   { href: '/profile', label: 'My Sky' },
   { href: '/today', label: 'Today' },
-  { href: '/community/feed', label: 'Feed' },
-  { href: '/community', label: 'Connections' },
+  { href: '/community', label: 'Community' },
   { href: '/sandbox', label: 'Sandbox' },
 ] as const;
 
@@ -24,13 +23,12 @@ function isNavActive(pathname: string, href: string): boolean {
   if (href === '/profile') {
     return pathname === '/profile' || pathname.startsWith('/profile/');
   }
-  const feedPaths = ['/community/feed', '/community/post/', '/community/profile/', '/community/settings'];
-  if (href === '/community/feed') {
-    return feedPaths.some((p) => pathname === p || pathname.startsWith(p));
-  }
   if (href === '/community') {
-    if (feedPaths.some((p) => pathname === p || pathname.startsWith(p))) return false;
-    return pathname === '/community' || pathname.startsWith('/community/');
+    return (
+      pathname === '/community' ||
+      pathname.startsWith('/community/') ||
+      pathname.startsWith('/community?')
+    );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

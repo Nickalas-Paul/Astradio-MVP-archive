@@ -182,7 +182,7 @@ export default function AboutPage() {
               Contact Support
             </button>
             <button className="btn-secondary">
-              Join Connections
+              Join Community
             </button>
             <button className="btn-secondary">
               Report Bug

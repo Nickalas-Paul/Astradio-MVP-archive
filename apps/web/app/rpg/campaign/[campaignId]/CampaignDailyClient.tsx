@@ -939,9 +939,9 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
     <main className="min-h-screen bg-bg px-6 py-8 text-text-primary">
       <div className="mx-auto max-w-5xl space-y-6">
         <p className="text-xs text-text-secondary rounded-lg border border-border bg-bgElev px-3 py-2">
-          Group coordination uses structured Signals in Connections, not chat.{' '}
+          Group coordination uses structured Signals in Community, not chat.{' '}
           <Link href="/community?tab=connections" className="text-accent hover:underline">
-            Open Connections
+            Open Community
           </Link>
           .
         </p>

@@ -184,7 +184,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
         <div className="max-w-3xl mx-auto p-6">
           <p className="text-red-500">{error || 'Group not found'}</p>
           <Link href="/community" className="text-accent hover:underline mt-2 inline-block">
-            ← Back to Connections
+            ← Back to Community
           </Link>
         </div>
       </AppShell>
