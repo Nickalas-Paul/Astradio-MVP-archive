@@ -230,6 +230,16 @@ export async function deleteCommunityPost(postId: string) {
   return parseJson<{ deleted?: boolean; ok?: boolean; id?: string }>(r);
 }
 
+export async function clearCommunityPostAudio(postId: string) {
+  const r = await fetch(api(`/api/community/posts/${encodeURIComponent(postId)}`), {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clearAudio: true }),
+  });
+  return parseJson<CommunityPost>(r);
+}
+
 export async function likeCommunityPost(postId: string) {
   const r = await fetch(api('/api/community/likes'), {
     method: 'POST',

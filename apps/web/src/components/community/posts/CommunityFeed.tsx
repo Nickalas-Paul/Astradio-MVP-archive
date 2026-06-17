@@ -306,6 +306,7 @@ export function CommunityFeed() {
               onLikeChange={onLikeChange}
               onDelete={removePost}
               onRestore={prependPost}
+              onPostChange={(postId, patch) => patchPost(postId, patch)}
             />
           </li>
         ))}

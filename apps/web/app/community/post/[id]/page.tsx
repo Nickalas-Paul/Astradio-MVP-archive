@@ -31,6 +31,9 @@ export default function CommunityPostPage() {
               onLikeChange={(postId, patch) => {
                 setPost((prev) => (prev ? { ...prev, ...patch } : prev));
               }}
+              onPostChange={(postId, patch) => {
+                setPost((prev) => (prev ? { ...prev, ...patch } : prev));
+              }}
               onDelete={() => router.push('/community?tab=feed')}
             />
             <CommunityCommentThread

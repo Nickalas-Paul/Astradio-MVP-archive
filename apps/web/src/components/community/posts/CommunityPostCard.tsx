@@ -8,7 +8,7 @@ import type { CommunityPost } from '@/core/social/community-posts-hooks';
 import { deleteCommunityPost, likeCommunityPost, unlikeCommunityPost } from '@/core/social/community-posts-hooks';
 import { formatCommunityTimestamp } from '@/lib/community-timestamp';
 import { communityAuthorInitial } from '@/lib/community-author-display';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { CommunityPostAudioSection } from '@/components/community/posts/CommunityPostAudioSection';
 import {
   ChatBubbleIcon,
   HeartIcon,
@@ -22,6 +22,7 @@ interface CommunityPostCardProps {
   onLikeChange?: (postId: string, patch: Partial<CommunityPost>) => void;
   onDelete?: (postId: string) => void;
   onRestore?: (post: CommunityPost) => void;
+  onPostChange?: (postId: string, patch: Partial<CommunityPost>) => void;
   compact?: boolean;
 }
 
@@ -130,6 +131,7 @@ export function CommunityPostCard({
   onLikeChange,
   onDelete,
   onRestore,
+  onPostChange,
   compact = false,
 }: CommunityPostCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -266,12 +268,16 @@ export function CommunityPostCard({
         ) : null}
 
         {post.audioExportId ? (
-          <div className="rounded-lg border border-border bg-surface-0/50 p-3">
-            {post.audioLabel ? (
-              <p className="text-xs text-text-secondary mb-2 truncate">{post.audioLabel}</p>
-            ) : null}
-            <ValidatedExportAudioPlayer exportId={post.audioExportId} />
-          </div>
+          <CommunityPostAudioSection
+            postId={post.id}
+            exportId={post.audioExportId}
+            audioLabel={post.audioLabel}
+            currentUserId={currentUserId}
+            postUserId={post.userId}
+            onAudioCleared={() => {
+              onPostChange?.(post.id, { audioExportId: null, audioLabel: null });
+            }}
+          />
         ) : null}
       </div>
 

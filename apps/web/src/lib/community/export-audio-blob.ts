@@ -1,9 +1,27 @@
 import { getApiBaseUrl } from '../../core/api-base';
 
+const EXPORT_ID_RE = /^[a-f0-9]{64}$/;
+
+/** HEAD check — matches Library panel export availability pattern. */
+export async function exportAudioHeadAvailable(exportId: string): Promise<boolean> {
+  const id = String(exportId || '').trim();
+  if (!EXPORT_ID_RE.test(id)) return false;
+  const base = getApiBaseUrl() || '';
+  try {
+    const res = await fetch(`${base}/api/exports/${encodeURIComponent(id)}`, {
+      method: 'HEAD',
+      credentials: 'same-origin',
+    });
+    return res.status === 200 || res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
 /** Single fetch, no retries — for Community artifact pages only. */
 export async function createExportAudioObjectUrl(exportId: string): Promise<{ objectUrl: string } | { error: true }> {
   const id = String(exportId || '').trim();
-  if (!/^[a-f0-9]{64}$/.test(id)) return { error: true as const };
+  if (!EXPORT_ID_RE.test(id)) return { error: true as const };
   const base = getApiBaseUrl() || '';
   const res = await fetch(`${base}/api/exports/${encodeURIComponent(id)}`, { credentials: 'same-origin' });
   if (!res.ok) return { error: true as const };

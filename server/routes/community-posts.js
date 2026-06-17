@@ -263,6 +263,15 @@ function createCommunityPostsRouter() {
       const postId = String(req.params.id || '').trim();
       const body = req.body || {};
       const userId = await resolveUserId(req, body);
+      if (body.clearAudio === true) {
+        const cleared = await pgStore.updateCommunityPostMedia(postId, userId, {
+          audioExportId: null,
+          audioLabel: null,
+        });
+        if (!cleared) return res.status(404).json({ error: 'post_not_found' });
+        if (cleared.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+        return res.status(200).json(await enrichPost(cleared, userId));
+      }
       const titleErr = validateLength(body.title, TITLE_MAX, 'title');
       if (titleErr) return res.status(400).json(titleErr);
       const bodyErr = validateLength(body.body, BODY_MAX, 'body');
