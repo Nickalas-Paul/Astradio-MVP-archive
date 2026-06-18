@@ -224,7 +224,7 @@ export function SignalsPanel({
       <div>
         <h3 className="text-lg font-semibold text-text-primary">Signals</h3>
         <p className="text-xs text-text-secondary mt-1">
-          Purpose-driven prompts and acknowledgments. No DMs.{' '}
+          Purpose-driven prompts tied to your relational weather.{' '}
           <Link href="/today" className="text-accent hover:underline">
             Today
           </Link>{' '}

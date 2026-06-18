@@ -8,7 +8,7 @@ import { AppShell } from '../../src/components/AppShell';
 import { CompatibilitySection } from '../../src/components/CompatibilitySection';
 import { ConnectionInventoryPanel, ConnectionsUnifiedEmpty } from '../../src/components/community/ConnectionInventoryPanel';
 import { DiscoveryUserSearch } from '../../src/components/community/DiscoveryUserSearch';
-import { SignalsPanel } from '../../src/components/community/SignalsPanel';
+import { MessagesTab } from '@/components/community/messages/MessagesTab';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
@@ -23,11 +23,12 @@ import {
   ConnectionsTabIcon,
   DiscoveryTabIcon,
   FeedTabIcon,
+  MessagesTabIcon,
 } from '@/components/community/posts/community-post-icons';
 
 const GROUPS_INTRO = 'Private groups of your connections used to view relational activation.';
 
-type CommunityTabId = 'discovery' | 'connections' | 'feed';
+type CommunityTabId = 'discovery' | 'connections' | 'messages' | 'feed';
 
 function GroupsList({
   userId,
@@ -207,7 +208,9 @@ function CommunityClientInner() {
   const [discoveryIntent, setDiscoveryIntent] = useState<RelationalIntent>('friend');
   const [inventoryRefreshSignal, setInventoryRefreshSignal] = useState(0);
   const bumpCommunityInventory = () => setInventoryRefreshSignal((n) => n + 1);
-  const [signalsMeta, setSignalsMeta] = useState({ loading: true, empty: true });
+  const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [dmRefreshSignal, setDmRefreshSignal] = useState(0);
   const [inventoryMeta, setInventoryMeta] = useState({ loading: true, empty: true });
   const [groupsMeta, setGroupsMeta] = useState({ loading: true, empty: true });
   const { user, primaryChart, loading: profileLoading } = useProfile();
@@ -216,7 +219,7 @@ function CommunityClientInner() {
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'discovery' || t === 'connections' || t === 'feed') {
+    if (t === 'discovery' || t === 'connections' || t === 'messages' || t === 'feed') {
       setActiveTab(t);
     } else if (!t) {
       setActiveTab('discovery');
@@ -225,6 +228,9 @@ function CommunityClientInner() {
 
   const setTab = (t: CommunityTabId) => {
     setActiveTab(t);
+    if (t !== 'messages') {
+      setSelectedConversationId(null);
+    }
     const next = new URLSearchParams(searchParams.toString());
     next.set('tab', t);
     router.replace(`/community?${next.toString()}`, { scroll: false });
@@ -233,6 +239,21 @@ function CommunityClientInner() {
   const tabs: { id: CommunityTabId; label: string; icon: React.ReactNode }[] = [
     { id: 'discovery', label: 'Discovery', icon: <DiscoveryTabIcon /> },
     { id: 'connections', label: 'Connections', icon: <ConnectionsTabIcon /> },
+    {
+      id: 'messages',
+      label: 'Messages',
+      icon: (
+        <span className="relative inline-flex">
+          <MessagesTabIcon />
+          {dmUnreadTotal > 0 ? (
+            <span
+              className="absolute -top-0.5 -right-1 min-w-[0.5rem] h-2 px-0.5 rounded-full bg-accent"
+              aria-label={`${dmUnreadTotal} unread`}
+            />
+          ) : null}
+        </span>
+      ),
+    },
     { id: 'feed', label: 'Feed', icon: <FeedTabIcon /> },
   ];
 
@@ -243,8 +264,6 @@ function CommunityClientInner() {
 
   const showConnectionsUnifiedEmpty =
     Boolean(user?.id) &&
-    !signalsMeta.loading &&
-    signalsMeta.empty &&
     !inventoryMeta.loading &&
     inventoryMeta.empty &&
     !groupsMeta.loading &&
@@ -363,7 +382,6 @@ function CommunityClientInner() {
                 <ConnectionsUnifiedEmpty onSwitchToDiscovery={() => setTab('discovery')} />
               ) : null}
               <div className={showConnectionsUnifiedEmpty ? 'hidden' : 'space-y-6'} aria-hidden={showConnectionsUnifiedEmpty}>
-                <SignalsPanel currentUserId={user?.id ?? null} onMetaChange={setSignalsMeta} />
                 <ConnectionInventoryPanel
                   currentUserId={user?.id ?? null}
                   viewerChartId={seekerChartId}
@@ -376,6 +394,16 @@ function CommunityClientInner() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'messages' && (
+            <MessagesTab
+              currentUserId={user?.id ?? null}
+              selectedConversationId={selectedConversationId}
+              onOpenConversation={(id) => setSelectedConversationId(id)}
+              onMetaChange={({ unreadTotal }) => setDmUnreadTotal(unreadTotal)}
+              refreshSignal={dmRefreshSignal}
+            />
           )}
 
           {activeTab === 'feed' && (
