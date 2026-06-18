@@ -130,6 +130,11 @@ function createCommunityPostsRouter() {
         audioLabel: body.audioLabel ? String(body.audioLabel).trim() : null,
         moderationStatus: moderation.moderationStatus,
       });
+      const { extractHashtags } = require('../../lib/community-hashtag-utils');
+      const tags = extractHashtags(String(body.body || ''));
+      if (tags.length) {
+        await pgStore.insertPostHashtags(post.id, tags);
+      }
       let feedService = null;
       try {
         feedService = require('../../lib/community-feed-service');
