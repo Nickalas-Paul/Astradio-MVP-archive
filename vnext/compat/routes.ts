@@ -445,7 +445,15 @@ async function attachPrimaryChartForNewUser(
 
 const MIN_PASSWORD_LENGTH = 8;
 
+function resolveProxySessionUserId(req: import('express').Request): string {
+  const u = req.user as { id?: string } | undefined;
+  if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
+  return (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+}
+
 function chartSearchCallerUserId(req: import('express').Request): string {
+  const u = req.user as { id?: string } | undefined;
+  if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
   const fromHeader = (req.headers['x-caller-user-id'] || '').toString().trim();
   const fromQuery = req.query.userId != null ? String(req.query.userId).trim() : '';
   return fromHeader || fromQuery || '';
@@ -454,15 +462,10 @@ function chartSearchCallerUserId(req: import('express').Request): string {
 export function createCompatRouter(): import('express').Router {
   const router = express.Router({ mergeParams: true });
 
-  const PROXY_SECRET = process.env.PROXY_SHARED_SECRET;
-  router.use((req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
-    if (!PROXY_SECRET) return next();
-    const provided = req.headers['x-proxy-secret'];
-    if (provided !== PROXY_SECRET) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-    next();
-  });
+  const { proxySecretGate } = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'proxy-secret-gate')) as {
+    proxySecretGate: import('express').RequestHandler;
+  };
+  router.use(proxySecretGate);
 
   // Seed default profile chart and match candidates once at startup (async; idempotent).
   setImmediate(() => {
@@ -781,6 +784,58 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
+  // POST /api/auth/token — mobile: email/password → JWT access token (no Vercel session cookie)
+  router.post('/auth/token', authLimiter, async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      if (!process.env.JWT_SECRET || !String(process.env.JWT_SECRET).trim()) {
+        return res.status(503).json({ error: 'jwt_not_configured' });
+      }
+      const { generateAccessToken } = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'authentication')) as {
+        generateAccessToken: (userId: string, deviceId?: string | null) => string;
+      };
+      const body = (req.body || {}) as { email?: string; password?: string };
+      const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
+      const emailNormalized = astradioPgStore.normalizeLoginEmail(emailRaw);
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (!emailNormalized || !password) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const row = await astradioPgStore.getUserAuthForLogin(emailNormalized);
+      if (!row || !row.passwordHash) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const ok = await argon2.verify(row.passwordHash, password);
+      if (!ok) {
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const verified = await astradioPgStore.isEmailVerified(row.id);
+      if (!verified) {
+        try {
+          const emailTo =
+            (await astradioPgStore.getUserEmailVerificationByNormalizedEmail(emailNormalized))?.email?.trim() ||
+            emailRaw;
+          if (emailTo) {
+            await sendVerificationEmailForUser(row.id, emailTo);
+          }
+        } catch (verifyResendErr) {
+          console.error('[compat] POST /auth/token resend verification', verifyResendErr);
+        }
+        return res.status(401).json({ error: 'invalid_credentials' });
+      }
+      const token = generateAccessToken(row.id);
+      return res.status(200).json({
+        token,
+        user: { id: row.id, displayName: row.displayName, handle: row.handle },
+      });
+    } catch (e: unknown) {
+      console.error('[compat] POST /auth/token', e);
+      return res.status(500).json({ error: 'Token issuance failed' });
+    }
+  });
+
   router.get('/auth/verify-email', async (req: import('express').Request, res: import('express').Response) => {
     try {
       if (!process.env.POSTGRES_URL) {
@@ -888,7 +943,7 @@ export function createCompatRouter(): import('express').Router {
   // GET /api/profile — own profile + primary chart (session via x-proxy-session-user-id)
   router.get('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
@@ -927,7 +982,7 @@ export function createCompatRouter(): import('express').Router {
   // POST /api/profile/user-chart — Next-only: requires x-proxy-session-user-id (session user from Vercel proxy).
   router.post('/profile/user-chart', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
@@ -991,7 +1046,7 @@ export function createCompatRouter(): import('express').Router {
   // POST /api/profile/identity-audio — user-initiated natal identity soundtrack (Identity tab CTA).
   router.post('/profile/identity-audio', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
@@ -1020,7 +1075,7 @@ export function createCompatRouter(): import('express').Router {
   // PATCH /api/profile — discoverability (8G) + personalization (9A-1). userId from x-proxy-session-user-id only.
   router.patch('/profile', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
@@ -1115,7 +1170,7 @@ export function createCompatRouter(): import('express').Router {
           processAvatarImage,
           MODERATION_REJECTION_MESSAGE,
         } = avatarUploadLib;
-        const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+        const proxyUserId = resolveProxySessionUserId(req);
         if (!proxyUserId) {
           return res.status(401).json({ error: 'proxy_identity_required' });
         }
@@ -1152,7 +1207,7 @@ export function createCompatRouter(): import('express').Router {
   // DELETE /api/profile/avatar — remove profile photo.
   router.delete('/profile/avatar', async (req: import('express').Request, res: import('express').Response) => {
     try {
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
@@ -1200,7 +1255,7 @@ export function createCompatRouter(): import('express').Router {
           });
         }
       }
-      const proxyUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+      const proxyUserId = resolveProxySessionUserId(req);
       const userIdForProjection =
         proxyUserId || (typeof body.userId === 'string' ? body.userId.trim() : null);
       const result = await buildProfileActiveStateProjection({
@@ -1397,7 +1452,7 @@ export function createCompatRouter(): import('express').Router {
   router.get('/charts/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
     if (!id) return res.status(404).json({ error: 'Chart not found' });
-    const viewerUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim() || null;
+    const viewerUserId = resolveProxySessionUserId(req) || null;
     const chart = await getChartById(id);
     if (chart) return res.json(await chartJsonWithOwnerMeta(chart, viewerUserId));
 
@@ -1414,7 +1469,7 @@ export function createCompatRouter(): import('express').Router {
   router.get('/charts/:id/snapshot', async (req: import('express').Request, res: import('express').Response) => {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '').trim();
     if (!id) return res.status(404).json({ error: 'Chart not found' });
-    const viewerUserId = (req.headers['x-proxy-session-user-id'] || '').toString().trim();
+    const viewerUserId = resolveProxySessionUserId(req);
     if (!viewerUserId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }

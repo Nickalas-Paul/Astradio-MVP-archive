@@ -24,6 +24,8 @@ function createStage4Router() {
   const router = express.Router({ mergeParams: true });
 
   function requireOwner(req, res) {
+    const u = req.user;
+    if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
     const ownerUserId = (req.query.userId || req.body?.userId || '').toString().trim();
     if (!ownerUserId) {
       res.status(401).json({ error: 'unauthorized' });

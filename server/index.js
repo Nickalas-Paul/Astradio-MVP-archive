@@ -201,7 +201,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(xss());
 app.use(hpp());
 
-// Vercel → Render proxy shared secret (skipped when PROXY_SHARED_SECRET unset)
+// Mobile Bearer JWT → req.user.id (runs before proxy gate so JWT can satisfy the gate)
+const { bearerAuth } = require('../lib/bearer-auth');
+app.use('/api', bearerAuth);
+
+// Vercel → Render proxy shared secret (skipped when PROXY_SHARED_SECRET unset or req.user set)
 const { proxySecretGate } = require('../lib/proxy-secret-gate');
 app.use('/api', proxySecretGate);
 

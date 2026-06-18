@@ -88,6 +88,8 @@ function bodyUserId(body) {
 }
 
 async function resolveCommunityUserId(req, body) {
+  const u = req.user;
+  if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
   return queryUserId(req) || bodyUserId(body || {}) || (await getDevUserId());
 }
 
