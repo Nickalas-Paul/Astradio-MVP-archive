@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
 import { CommunityAudioArtifactPicker } from '@/components/community/posts/CommunityAudioArtifactPicker';
+import { TrendingTags } from '@/components/community/posts/TrendingTags';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import {
@@ -25,9 +27,18 @@ const ACCEPTED_IMAGE_TYPES = 'image/png,image/jpeg,image/gif,image/webp';
 
 export function CommunityFeed() {
   const enabled = isFeatureEnabled('ENABLE_COMMUNITY_POSTS');
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useProfile();
+
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
+  const [activeTag, setActiveTag] = useState<string | null>(() => searchParams.get('tag'));
+  const [debouncedQ, setDebouncedQ] = useState(() => searchParams.get('q') ?? '');
+  const urlSyncReady = useRef(false);
+  const skipUrlRead = useRef(false);
+
   const { posts, loading, loadingMore, error, hasMore, loadMore, refresh, patchPost, prependPost, removePost } =
-    useCommunityFeed();
+    useCommunityFeed({ tag: activeTag, q: debouncedQ });
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -45,6 +56,54 @@ export function CommunityFeed() {
     (postId: string, patch: Parameters<typeof patchPost>[1]) => patchPost(postId, patch),
     [patchPost]
   );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQ(searchQuery), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (skipUrlRead.current) {
+      skipUrlRead.current = false;
+      return;
+    }
+    const urlQ = searchParams.get('q') ?? '';
+    const urlTag = searchParams.get('tag');
+    setSearchQuery(urlQ);
+    setDebouncedQ(urlQ);
+    setActiveTag(urlTag);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!urlSyncReady.current) {
+      urlSyncReady.current = true;
+      return;
+    }
+    const next = new URLSearchParams(searchParams.toString());
+    next.set('tab', 'feed');
+    if (activeTag) next.set('tag', activeTag);
+    else next.delete('tag');
+    const q = debouncedQ.trim();
+    if (q.length >= 2) next.set('q', q);
+    else next.delete('q');
+    const nextStr = next.toString();
+    if (nextStr !== searchParams.toString()) {
+      skipUrlRead.current = true;
+      router.replace(`/community?${nextStr}`, { scroll: false });
+    }
+  }, [activeTag, debouncedQ, router, searchParams]);
+
+  const onTagClick = useCallback((tag: string) => {
+    setActiveTag(tag);
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setActiveTag(null);
+    setSearchQuery('');
+    setDebouncedQ('');
+  }, []);
+
+  const hasActiveFilter = Boolean(activeTag || debouncedQ.trim().length >= 2);
 
   useEffect(() => {
     if (!imageFile) {
@@ -180,6 +239,61 @@ export function CommunityFeed() {
 
   return (
     <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search posts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface-1 px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted pr-10"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+
+        {(activeTag || searchQuery) ? (
+          <div className="flex flex-wrap gap-2">
+            {activeTag ? (
+              <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs font-medium px-3 py-1 rounded-full">
+                #{activeTag}
+                <button
+                  type="button"
+                  onClick={() => setActiveTag(null)}
+                  className="hover:text-text-primary"
+                  aria-label="Remove tag filter"
+                >
+                  ×
+                </button>
+              </span>
+            ) : null}
+            {searchQuery ? (
+              <span className="inline-flex items-center gap-1 bg-surface-1 text-text-secondary text-xs font-medium px-3 py-1 rounded-full border border-border">
+                Search: {searchQuery}
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-text-primary"
+                  aria-label="Clear search filter"
+                >
+                  ×
+                </button>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!hasActiveFilter ? <TrendingTags onTagClick={onTagClick} /> : null}
+      </div>
+
       <Card elevation="resting" className="space-y-3 relative">
         <h2 className="text-h3 font-serif text-text-primary">Share with the community</h2>
         {moderationError ? (
@@ -307,12 +421,24 @@ export function CommunityFeed() {
               onDelete={removePost}
               onRestore={prependPost}
               onPostChange={(postId, patch) => patchPost(postId, patch)}
+              onTagClick={onTagClick}
             />
           </li>
         ))}
       </ul>
 
-      {posts.length === 0 && !loading ? (
+      {posts.length === 0 && !loading && hasActiveFilter ? (
+        <div className="flex flex-col items-center justify-center text-center min-h-[200px] px-4 space-y-4">
+          <p className="text-sm text-text-secondary max-w-md leading-relaxed">
+            No posts found for this search. Try a different keyword or browse the full feed.
+          </p>
+          <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        </div>
+      ) : null}
+
+      {posts.length === 0 && !loading && !hasActiveFilter ? (
         <div className="flex flex-col items-center justify-center text-center min-h-[280px] px-4 space-y-4">
           <FeedEmptyIcon />
           <p className="text-sm text-text-secondary max-w-md leading-relaxed">

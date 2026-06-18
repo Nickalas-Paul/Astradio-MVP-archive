@@ -24,6 +24,7 @@ export interface CommunityPost {
   commentCount?: number;
   likedByViewer?: boolean;
   viewerLikeId?: string | null;
+  hashtags?: string[];
 }
 
 export interface CommunityComment {
@@ -64,7 +65,7 @@ async function parseJson<T>(r: Response): Promise<T> {
   return data as T;
 }
 
-export function useCommunityFeed(pageSize = 20) {
+export function useCommunityFeed({ pageSize = 20, tag, q }: { pageSize?: number; tag?: string | null; q?: string } = {}) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -72,8 +73,17 @@ export function useCommunityFeed(pageSize = 20) {
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
 
+  const tagFilter = tag ? String(tag).trim().toLowerCase() : '';
+  const qFilter = q?.trim() ?? '';
+  const qParam = qFilter.length >= 2 ? qFilter : '';
+
   const loadPage = useCallback(async (nextOffset: number, append: boolean) => {
-    const r = await fetch(api(`/api/community/feed?limit=${pageSize}&offset=${nextOffset}`), {
+    const params = new URLSearchParams();
+    params.set('limit', String(pageSize));
+    params.set('offset', String(nextOffset));
+    if (tagFilter) params.set('tag', tagFilter);
+    if (qParam) params.set('q', qParam);
+    const r = await fetch(api(`/api/community/feed?${params.toString()}`), {
       credentials: 'same-origin',
     });
     const data = await parseJson<{
@@ -83,7 +93,7 @@ export function useCommunityFeed(pageSize = 20) {
     setPosts((prev) => (append ? [...prev, ...data.posts] : data.posts));
     setHasMore(!!data.pagination?.hasMore);
     setOffset(nextOffset + data.posts.length);
-  }, [pageSize]);
+  }, [pageSize, tagFilter, qParam]);
 
   const refresh = useCallback(async () => {
     try {

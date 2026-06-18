@@ -9,6 +9,7 @@ import { deleteCommunityPost, likeCommunityPost, unlikeCommunityPost } from '@/c
 import { formatCommunityTimestamp } from '@/lib/community-timestamp';
 import { communityAuthorInitial } from '@/lib/community-author-display';
 import { CommunityPostAudioSection } from '@/components/community/posts/CommunityPostAudioSection';
+import { HashtagText } from '@/components/community/posts/HashtagText';
 import {
   ChatBubbleIcon,
   HeartIcon,
@@ -23,6 +24,7 @@ interface CommunityPostCardProps {
   onDelete?: (postId: string) => void;
   onRestore?: (post: CommunityPost) => void;
   onPostChange?: (postId: string, patch: Partial<CommunityPost>) => void;
+  onTagClick?: (tag: string) => void;
   compact?: boolean;
 }
 
@@ -132,6 +134,7 @@ export function CommunityPostCard({
   onDelete,
   onRestore,
   onPostChange,
+  onTagClick,
   compact = false,
 }: CommunityPostCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -253,7 +256,24 @@ export function CommunityPostCard({
           </Link>
         ) : null}
         {post.body ? (
-          <p className="text-body-sm text-text-primary whitespace-pre-wrap leading-relaxed">{post.body}</p>
+          <p className="text-body-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+            {onTagClick ? <HashtagText text={post.body} onTagClick={onTagClick} /> : post.body}
+          </p>
+        ) : null}
+
+        {post.hashtags && post.hashtags.length > 0 && onTagClick ? (
+          <div className="flex flex-wrap gap-1.5">
+            {post.hashtags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => onTagClick(tag)}
+                className="text-xs text-accent hover:underline"
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
         ) : null}
 
         {post.imageUrl ? (
