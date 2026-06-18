@@ -14,7 +14,7 @@ import {
   useDmMessageStream,
   type DmMessage,
 } from '@/core/social/dm-thread-hooks';
-import { peerDisplayLabel } from '@/core/social/dm-hooks';
+import { peerDisplayLabel, type DmPeer } from '@/core/social/dm-hooks';
 
 type MessageThreadProps = {
   conversationId: string;
@@ -23,11 +23,7 @@ type MessageThreadProps = {
   onRefreshList?: () => void;
 };
 
-function PeerAvatarSmall({
-  peer,
-}: {
-  peer: { displayName?: string | null; handle?: string | null; avatarUrl?: string | null } | null;
-}) {
+function PeerAvatarSmall({ peer }: { peer: DmPeer | null }) {
   const name = peerDisplayLabel(peer);
   if (peer?.avatarUrl) {
     return <img src={peer.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover bg-surface-2" />;
