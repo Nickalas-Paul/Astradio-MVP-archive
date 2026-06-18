@@ -214,7 +214,7 @@ export function SignalsPanel({
   if (!currentUserId) {
     return (
       <div className="rounded-lg border border-border bg-surface-1 p-4 text-sm text-text-secondary">
-        Sign in to view Signals (structured, context-anchored actions, not chat).
+        Sign in to view Signals (structured, context-anchored prompts tied to your relational weather).
       </div>
     );
   }

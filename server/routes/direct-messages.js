@@ -6,6 +6,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { proxySecretGate } = require('../../lib/proxy-secret-gate');
 const { moderateCommunityText } = require('../../lib/community-content-moderation');
+const { assertDirectMessagesEnabled } = require('../../lib/direct-messages-enabled');
 
 const MESSAGE_BODY_MAX = 1000;
 const PREVIEW_MAX = 100;
@@ -215,6 +216,7 @@ async function insertMessageAndUpdateConversation({
 function createDirectMessagesRouter() {
   const router = express.Router({ mergeParams: true });
   router.use(proxySecretGate);
+  router.use(assertDirectMessagesEnabled);
 
   router.get('/dm/conversations', async (req, res) => {
     try {

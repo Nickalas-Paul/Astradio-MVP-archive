@@ -10,6 +10,7 @@ export interface FeatureFlags {
   ENABLE_COMPAT: boolean;
   ENABLE_SOCIAL: boolean;
   ENABLE_COMMUNITY_POSTS: boolean;
+  ENABLE_DIRECT_MESSAGES: boolean;
   ENABLE_ATLAS: boolean;
   ENABLE_ANALYTICS: boolean;
   ENABLE_SHARING: boolean;
@@ -24,6 +25,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   ENABLE_COMPAT: true,
   ENABLE_SOCIAL: true,
   ENABLE_COMMUNITY_POSTS: process.env.NEXT_PUBLIC_ENABLE_COMMUNITY_POSTS === 'true',
+  ENABLE_DIRECT_MESSAGES: process.env.NEXT_PUBLIC_ENABLE_DIRECT_MESSAGES === 'true',
   ENABLE_ATLAS: true,
   ENABLE_ANALYTICS: true,
   ENABLE_SHARING: false,
@@ -45,6 +47,7 @@ const getRuntimeFlags = (): Partial<FeatureFlags> => {
     if (urlParams.has('compat')) flags.ENABLE_COMPAT = queryFlagEnabled(urlParams, 'compat');
     if (urlParams.has('social')) flags.ENABLE_SOCIAL = queryFlagEnabled(urlParams, 'social');
     if (urlParams.has('communityPosts')) flags.ENABLE_COMMUNITY_POSTS = queryFlagEnabled(urlParams, 'communityPosts');
+    if (urlParams.has('directMessages')) flags.ENABLE_DIRECT_MESSAGES = queryFlagEnabled(urlParams, 'directMessages');
     if (urlParams.has('atlas')) flags.ENABLE_ATLAS = queryFlagEnabled(urlParams, 'atlas');
     if (urlParams.has('analytics')) flags.ENABLE_ANALYTICS = queryFlagEnabled(urlParams, 'analytics');
     if (urlParams.has('sharing')) flags.ENABLE_SHARING = queryFlagEnabled(urlParams, 'sharing');

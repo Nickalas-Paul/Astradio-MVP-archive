@@ -7,6 +7,10 @@ import { getEngineBaseUrl } from '@/lib/engine-base';
 import { engineProxyHeaders } from '@/lib/engine-proxy-headers';
 import { getSessionUserId } from '@/lib/session';
 
+function isDirectMessagesEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_DIRECT_MESSAGES === 'true';
+}
+
 async function proxyGet(req: NextRequest, pathStr: string) {
   const sessionUserId = getSessionUserId(req.cookies);
   if (!sessionUserId) {
@@ -47,6 +51,9 @@ async function proxyPost(req: NextRequest, pathStr: string) {
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
+    if (!isDirectMessagesEnabled()) {
+      return NextResponse.json({ error: 'direct_messages_disabled' }, { status: 501 });
+    }
     const { path } = await params;
     return proxyGet(req, path.join('/'));
   } catch (e: unknown) {
@@ -60,6 +67,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
+    if (!isDirectMessagesEnabled()) {
+      return NextResponse.json({ error: 'direct_messages_disabled' }, { status: 501 });
+    }
     const { path } = await params;
     return proxyPost(req, path.join('/'));
   } catch (e: unknown) {

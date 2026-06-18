@@ -18,6 +18,7 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { Tabs } from '@/components/shared/Tabs';
 import { FtueConnectionsWelcomeBanner } from '@/components/ftue/FtueConnectionsWelcomeBanner';
+import { isFeatureEnabled } from '@/core/config/flags';
 import { CommunityFeed } from '@/components/community/posts/CommunityFeed';
 import { CommunityNotificationsPanel } from '@/components/community/posts/CommunityNotificationsPanel';
 import {
@@ -220,13 +221,18 @@ function CommunityClientInner() {
 
   useEffect(() => {
     const t = searchParams.get('tab');
+    const dmOn = isFeatureEnabled('ENABLE_DIRECT_MESSAGES');
     if (t === 'discovery' || t === 'connections' || t === 'messages' || t === 'feed') {
-      setActiveTab(t);
+      if (t === 'messages' && !dmOn) {
+        setActiveTab('discovery');
+      } else {
+        setActiveTab(t);
+      }
     } else if (!t) {
       setActiveTab('discovery');
     }
     const conv = searchParams.get('conversation');
-    if (conv && conv.trim()) {
+    if (conv && conv.trim() && dmOn) {
       setActiveTab('messages');
       setSelectedConversationId(conv.trim());
     }
@@ -242,24 +248,30 @@ function CommunityClientInner() {
     router.replace(`/community?${next.toString()}`, { scroll: false });
   };
 
+  const dmEnabled = isFeatureEnabled('ENABLE_DIRECT_MESSAGES');
+
   const tabs: { id: CommunityTabId; label: string; icon: React.ReactNode }[] = [
     { id: 'discovery', label: 'Discovery', icon: <DiscoveryTabIcon /> },
     { id: 'connections', label: 'Connections', icon: <ConnectionsTabIcon /> },
-    {
-      id: 'messages',
-      label: 'Messages',
-      icon: (
-        <span className="relative inline-flex">
-          <MessagesTabIcon />
-          {dmUnreadTotal > 0 ? (
-            <span
-              className="absolute -top-0.5 -right-1 min-w-[0.5rem] h-2 px-0.5 rounded-full bg-accent"
-              aria-label={`${dmUnreadTotal} unread`}
-            />
-          ) : null}
-        </span>
-      ),
-    },
+    ...(dmEnabled
+      ? [
+          {
+            id: 'messages' as const,
+            label: 'Messages',
+            icon: (
+              <span className="relative inline-flex">
+                <MessagesTabIcon />
+                {dmUnreadTotal > 0 ? (
+                  <span
+                    className="absolute -top-0.5 -right-1 min-w-[0.5rem] h-2 px-0.5 rounded-full bg-accent"
+                    aria-label={`${dmUnreadTotal} unread`}
+                  />
+                ) : null}
+              </span>
+            ),
+          },
+        ]
+      : []),
     { id: 'feed', label: 'Feed', icon: <FeedTabIcon /> },
   ];
 
@@ -402,7 +414,7 @@ function CommunityClientInner() {
             </div>
           )}
 
-          {activeTab === 'messages' && (
+          {dmEnabled && activeTab === 'messages' && (
             <div className="max-w-4xl mx-auto">
               {selectedConversationId ? (
                 <MessageThread

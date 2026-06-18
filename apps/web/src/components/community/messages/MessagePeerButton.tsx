@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/Button';
 import { MessagesTabIcon } from '@/components/community/posts/community-post-icons';
 import { openOrCreateDmConversation } from '@/core/social/dm-hooks';
+import { isFeatureEnabled } from '@/core/config/flags';
 
 type MessagePeerButtonProps = {
   peerUserId: string | null | undefined;
@@ -23,6 +24,8 @@ export function MessagePeerButton({
 }: MessagePeerButtonProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+
+  if (!isFeatureEnabled('ENABLE_DIRECT_MESSAGES')) return null;
 
   const peerId = typeof peerUserId === 'string' ? peerUserId.trim() : '';
   if (!peerId) return null;
