@@ -128,7 +128,7 @@ function parseKey(key: string): { t: string; n: string; aspect: string; same: bo
 
 function allMaps() {
   return {
-    opposition: { ...URANUS_OPPOSITION_OPENER...NEPTUNE_OPPOSITION_OPENER...PLUTO_OPPOSITION_OPENER },
+    opposition: { ...URANUS_OPPOSITION_OPENER, ...NEPTUNE_OPPOSITION_OPENER, ...PLUTO_OPPOSITION_OPENER },
     trine: { ...OUTER_TRINE_OPENER },
     sextile: { ...OUTER_SEXTILE_OPENER },
   };

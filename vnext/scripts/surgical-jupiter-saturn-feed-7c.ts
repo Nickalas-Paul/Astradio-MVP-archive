@@ -126,8 +126,8 @@ export function parseKey(key: string): { t: string; n: string; aspect: string; s
 
 function allMaps() {
   return {
-    opposition: { ...JUPITER_OPPOSITION_OPENER...SATURN_OPPOSITION_OPENER },
-    sextile: { ...JUPITER_SEXTILE_OPENER...SATURN_SEXTILE_OPENER },
+    opposition: { ...JUPITER_OPPOSITION_OPENER, ...SATURN_OPPOSITION_OPENER },
+    sextile: { ...JUPITER_SEXTILE_OPENER, ...SATURN_SEXTILE_OPENER },
     trine: { ...JUPITER_TRINE_OPENER },
   };
 }

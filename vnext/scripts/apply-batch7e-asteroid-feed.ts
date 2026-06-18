@@ -121,7 +121,7 @@ function applyToFile(target: string, bodies: Record<string, Spec>): number {
 }
 
 for (const [name, target] of Object.entries(TARGETS)) {
-  const bodies = Object.assign({}...ASTEROID_GROUPS[name].map(groupToBodies));
+  const bodies = Object.assign({}, ...ASTEROID_GROUPS[name].map(groupToBodies));
   const count = applyToFile(target, bodies);
   console.log(`Batch 7E ${name}: ${count}/${Object.keys(bodies).length}`);
 }

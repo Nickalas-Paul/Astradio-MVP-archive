@@ -309,8 +309,8 @@ function applyToFile(target: string, bodies: Record<string, Spec>): number {
   return replaced;
 }
 
-const jupiterBodies = Object.assign({}...JUPITER_GROUPS.map(groupToBodies));
-const saturnBodies = Object.assign({}...SATURN_GROUPS.map(groupToBodies));
+const jupiterBodies = Object.assign({}, ...JUPITER_GROUPS.map(groupToBodies));
+const saturnBodies = Object.assign({}, ...SATURN_GROUPS.map(groupToBodies));
 
 const jCount = applyToFile(JUPITER_TARGET, jupiterBodies);
 const sCount = applyToFile(SATURN_TARGET, saturnBodies);

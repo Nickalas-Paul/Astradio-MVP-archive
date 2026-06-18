@@ -238,7 +238,7 @@ for (const [key, block] of satEntries) {
 let patchOk = 0;
 let patchFail = 0;
 
-for (const p of [...SECTION_B...SECTION_C]) {
+for (const p of [...SECTION_B, ...SECTION_C]) {
   const fp = p.file === 'mercury' ? MERCURY : PERSONAL;
   if (applyFieldPatch(fp, p)) {
     patchOk++;

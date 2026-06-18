@@ -379,7 +379,7 @@ function applyPatch(filePath: string, patch: Patch): boolean {
   return true;
 }
 
-const all = [...PATCHES...PERSONAL_PATCHES];
+const all = [...PATCHES, ...PERSONAL_PATCHES];
 let ok = 0;
 let fail = 0;
 for (const p of all) {

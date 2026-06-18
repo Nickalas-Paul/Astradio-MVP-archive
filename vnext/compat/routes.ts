@@ -446,13 +446,13 @@ async function attachPrimaryChartForNewUser(
 const MIN_PASSWORD_LENGTH = 8;
 
 function resolveProxySessionUserId(req: import('express').Request): string {
-  const u = req.user as { id?: string } | undefined;
+  const u = (req as import('express').Request & { user?: { id?: string } }).user;
   if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
   return (req.headers['x-proxy-session-user-id'] || '').toString().trim();
 }
 
 function chartSearchCallerUserId(req: import('express').Request): string {
-  const u = req.user as { id?: string } | undefined;
+  const u = (req as import('express').Request & { user?: { id?: string } }).user;
   if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
   const fromHeader = (req.headers['x-caller-user-id'] || '').toString().trim();
   const fromQuery = req.query.userId != null ? String(req.query.userId).trim() : '';
