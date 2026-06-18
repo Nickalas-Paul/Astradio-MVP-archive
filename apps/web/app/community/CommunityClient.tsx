@@ -9,6 +9,7 @@ import { CompatibilitySection } from '../../src/components/CompatibilitySection'
 import { ConnectionInventoryPanel, ConnectionsUnifiedEmpty } from '../../src/components/community/ConnectionInventoryPanel';
 import { DiscoveryUserSearch } from '../../src/components/community/DiscoveryUserSearch';
 import { MessagesTab } from '@/components/community/messages/MessagesTab';
+import { MessageThread } from '@/components/community/messages/MessageThread';
 import { useProfile } from '../../src/core/social/hooks';
 import { hasRealChart } from '../../src/core/social/constants';
 import { useHydrateCompositionUrls } from '../../src/hooks/useHydrateCompositionUrls';
@@ -224,6 +225,11 @@ function CommunityClientInner() {
     } else if (!t) {
       setActiveTab('discovery');
     }
+    const conv = searchParams.get('conversation');
+    if (conv && conv.trim()) {
+      setActiveTab('messages');
+      setSelectedConversationId(conv.trim());
+    }
   }, [searchParams]);
 
   const setTab = (t: CommunityTabId) => {
@@ -397,13 +403,24 @@ function CommunityClientInner() {
           )}
 
           {activeTab === 'messages' && (
-            <MessagesTab
-              currentUserId={user?.id ?? null}
-              selectedConversationId={selectedConversationId}
-              onOpenConversation={(id) => setSelectedConversationId(id)}
-              onMetaChange={({ unreadTotal }) => setDmUnreadTotal(unreadTotal)}
-              refreshSignal={dmRefreshSignal}
-            />
+            <div className="max-w-4xl mx-auto">
+              {selectedConversationId ? (
+                <MessageThread
+                  conversationId={selectedConversationId}
+                  currentUserId={user?.id ?? null}
+                  onBack={() => setSelectedConversationId(null)}
+                  onRefreshList={() => setDmRefreshSignal((n) => n + 1)}
+                />
+              ) : (
+                <MessagesTab
+                  currentUserId={user?.id ?? null}
+                  selectedConversationId={selectedConversationId}
+                  onOpenConversation={(id) => setSelectedConversationId(id)}
+                  onMetaChange={({ unreadTotal }) => setDmUnreadTotal(unreadTotal)}
+                  refreshSignal={dmRefreshSignal}
+                />
+              )}
+            </div>
           )}
 
           {activeTab === 'feed' && (

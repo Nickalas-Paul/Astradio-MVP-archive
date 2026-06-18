@@ -100,3 +100,18 @@ export function peerDisplayLabel(peer: DmPeer | null | undefined): string {
   if (peer.handle?.trim()) return `@${peer.handle.trim()}`;
   return 'Someone';
 }
+
+/** Create or resolve a conversation with a peer; returns conversation id. */
+export async function openOrCreateDmConversation(recipientUserId: string): Promise<string | null> {
+  const peerId = String(recipientUserId || '').trim();
+  if (!peerId) return null;
+  const r = await fetch(`${getApiBaseUrl() || ''}/api/dm/conversations`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipientUserId: peerId, body: '' }),
+  });
+  const j = (await r.json().catch(() => ({}))) as { conversationId?: string; error?: string };
+  if (!r.ok) return null;
+  return typeof j.conversationId === 'string' ? j.conversationId : null;
+}
