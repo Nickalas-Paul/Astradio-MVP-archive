@@ -199,7 +199,7 @@ export function CampaignEntryClient() {
             className="w-full rounded-lg border border-dashed border-white/15 bg-transparent px-4 py-2.5 text-left text-sm text-text-secondary hover:border-white/25 hover:text-text-primary disabled:opacity-50"
           >
             {busy === 'auto' ? 'Creating…' : 'Auto party'}
-            <span className="mt-1 block text-xs">Same as engine <code className="text-xs">mode: auto</code> — optional shortcut.</span>
+            <span className="mt-1 block text-xs">Same as engine <code className="text-xs">mode: auto</code>, an optional shortcut.</span>
           </button>
         </div>
 

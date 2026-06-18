@@ -546,7 +546,7 @@ function ListenPageInner() {
                     </Card>
                   ) : (
                     <p className="text-sm text-warning">
-                      No saved chart on your profile — search a connection or enter birth data below.
+                      No saved chart on your profile. Search a connection or enter birth data below.
                     </p>
                   )}
                   <Card

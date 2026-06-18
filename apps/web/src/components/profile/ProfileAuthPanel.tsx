@@ -89,7 +89,7 @@ export function ProfileAuthPanel({ onAuthSuccess }: ProfileAuthPanelProps) {
         setAuthError(result.error || 'Could not send verification email.');
         return;
       }
-      setResendNotice('Verification email sent — check your inbox.');
+      setResendNotice('Verification email sent. Check your inbox.');
     } finally {
       setResendBusy(false);
     }

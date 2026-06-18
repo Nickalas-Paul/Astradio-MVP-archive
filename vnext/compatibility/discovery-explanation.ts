@@ -285,13 +285,13 @@ function absenceLine(scoring: RelationalFieldScoreContract): SignalLine {
   }
   if (scoring.components.pairwise_volatility_mean < 0.33) {
     return {
-      text: 'Low friction field — limited growth pressure',
+      text: 'Low friction field with limited growth pressure',
       anchor: 'index:tension_index',
       signalKey: 'tension:low-friction',
     };
   }
   return {
-    text: 'Low friction field — limited growth pressure',
+    text: 'Low friction field with limited growth pressure',
     anchor: 'index:tension_index',
     signalKey: 'tension:fallback-low-friction',
   };

@@ -30,15 +30,15 @@ function getAudioExportId(artifact: Record<string, unknown> | undefined): string
 
 function activationLinePrefix(line: { text: string; prefix?: string }): string {
   if (typeof line.prefix === 'string' && line.prefix.trim()) return line.prefix.trim();
-  const dash = line.text.indexOf('—');
-  if (dash > 0) return line.text.slice(0, dash).trim();
+  const dot = line.text.indexOf('. ');
+  if (dot > 0) return line.text.slice(0, dot).trim();
   return '';
 }
 
 function activationLineExpandedBody(line: { text: string; expanded_text?: string }): string {
   if (typeof line.expanded_text === 'string' && line.expanded_text.trim()) return line.expanded_text.trim();
-  const dash = line.text.indexOf('—');
-  if (dash > 0) return line.text.slice(dash + 1).trim();
+  const dot = line.text.indexOf('. ');
+  if (dot > 0) return line.text.slice(dot + 2).trim();
   return line.text;
 }
 

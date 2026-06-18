@@ -105,7 +105,7 @@ export function CompatibilitySection({
       <Card elevation="resting" className={className}>
         <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
-          Create a profile with your natal chart first. Astradio profiles are chart-based — add your birth date, time, and birth place in the My Sky tab. Then return here to find compatible connections.
+          Create a profile with your natal chart first. Astradio profiles are chart-based: add your birth date, time, and birth place in the My Sky tab. Then return here to find compatible connections.
         </p>
         {controlledMode != null && (
           <p className="text-caption text-text-muted mt-2">Looking for: {modeLabel}</p>

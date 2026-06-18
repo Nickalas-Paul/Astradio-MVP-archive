@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Astradio — Astrological Wheel Composer',
+  title: 'Astradio: Astrological Wheel Composer',
   description: 'Generate personalized 60-second musical compositions based on your astrological chart',
   keywords: ['astrology', 'music', 'composition', 'wheel', 'chart'],
   authors: [{ name: 'Astradio Team' }],

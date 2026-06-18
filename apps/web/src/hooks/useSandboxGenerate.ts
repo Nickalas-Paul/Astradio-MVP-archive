@@ -149,12 +149,12 @@ export function useSandboxGenerate({
   const generateDisabledReasons: string[] = [];
   if (hasInvalidSlotWire) {
     generateDisabledReasons.push(
-      'A slot has both chart ID and birth data—clear one or split them so each slot is either a stored chart or ephemeris birth.',
+      'A slot has both chart ID and birth data. Clear one or split them so each slot is either a stored chart or ephemeris birth.',
     );
   }
   if (compositionHasIncompleteBirthSlot(compositionModel.compositionInput)) {
     generateDisabledReasons.push(
-      'A slot has date/time but no coordinates—select a full location (lat/lon) for each birth slot before resolve.',
+      'A slot has date/time but no coordinates. Select a full location (lat/lon) for each birth slot before resolve.',
     );
   }
   if (!hasResolveSource && !hasInvalidSlotWire) {
@@ -175,7 +175,7 @@ export function useSandboxGenerate({
       );
     } else if (activeSlot?.entry_mode == null && slotWirePopulationKind(activeSlot ?? { overrides: { planets: {} } }) === 'empty') {
       generateDisabledReasons.push(
-        'Choose how to start above—blank chart or birth data—or import a stored chart.',
+        'Choose how to start above: blank chart or birth data, or import a stored chart.',
       );
     } else {
       generateDisabledReasons.push(

@@ -55,7 +55,7 @@ export function PlanetPalette({ overrides, selectedPlanet, onSelectPlanet }: Pla
                 ? 'bg-bgElev border-border text-text-primary'
                 : 'bg-bgElev/60 border-border text-text-secondary hover:border-border/80 hover:text-text-primary'
             }`}
-            title={isPlaced ? `${PLANET_LABELS[planet]} placed — click to place elsewhere` : `Click wheel to place ${PLANET_LABELS[planet]}`}
+            title={isPlaced ? `${PLANET_LABELS[planet]} placed. Click to place elsewhere` : `Click wheel to place ${PLANET_LABELS[planet]}`}
           >
             <span className="mr-1" aria-hidden>{PLANET_GLYPH[planet] ?? '•'}</span>
             {PLANET_LABELS[planet]}

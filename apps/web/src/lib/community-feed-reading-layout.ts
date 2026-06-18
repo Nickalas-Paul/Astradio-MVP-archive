@@ -146,18 +146,18 @@ export function whatToDoSentenceFromWeather(weather: unknown): string {
   const top = scores[0]!;
   const TABLE: Record<string, string> = {
     emotional:
-      'Name feelings plainly without rehearsing the whole story—short beats matter more than perfect wording today.',
+      'Name feelings plainly without rehearsing the whole story; short beats matter more than perfect wording today.',
     friction:
       'Slow one notch before replying; pressure eases when intent is explicit and the ask is concrete.',
     harmony:
-      'Use the ease between you to pin down one practical next step—comfort can skip the details you still need.',
+      'Use the ease between you to pin down one practical next step; comfort can skip the details you still need.',
     intensity:
       'Keep contact steady and specific; intensity spikes when topics stay vague or overly broad.',
     communication:
-      'Say the request in one sentence, then listen—clarity matters more than volume or pace.',
+      'Say the request in one sentence, then listen; clarity matters more than volume or pace.',
     volatility:
       'Pause before matching a sharp turn in tone; reset with one factual check-in before interpreting intent.',
-    growth: 'Choose one small adjustment instead of a sweeping overhaul—progress accumulates in inches.',
+    growth: 'Choose one small adjustment instead of a sweeping overhaul; progress accumulates in inches.',
   };
   return (
     TABLE[top.k] || 'Keep asks concrete and leave room for how the other person responds.'

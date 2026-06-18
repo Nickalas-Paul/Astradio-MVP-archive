@@ -181,7 +181,7 @@ function buildMinimalExplanationFromFeatures(featuresAgg: Float32Array | number[
     {
       id: 'friction_growth',
       title: 'Friction + growth edges',
-      text: tension >= 0.6 ? 'Higher collective tension — dynamic, growth-oriented.' : tension >= 0.4 ? 'Moderate tension — balanced flow.' : 'Lower tension — ease and alignment.',
+      text: tension >= 0.6 ? 'Higher collective tension: dynamic, growth-oriented.' : tension >= 0.4 ? 'Moderate tension, balanced flow.' : 'Lower tension, ease and alignment.',
       bullets: cluster >= 0.5 ? ['Denser aspect clustering'] : ['Lighter aspect spread']
     }
   ];

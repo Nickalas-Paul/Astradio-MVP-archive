@@ -111,7 +111,7 @@ function realWorldReflectionFor(
     return `${basePrompt} Identify one boundary that would protect your energy and practice stating it in simple, direct language.`;
   }
   if (patternTag === 'make_offering') {
-    return `${basePrompt} Choose one concrete action—however small—that represents care or commitment, and complete it fully.`;
+    return `${basePrompt} Choose one concrete action, however small, that represents care or commitment, and complete it fully.`;
   }
   if (patternTag === 'push_forward') {
     return `${basePrompt} Commit to one bounded action step and then honestly assess afterward whether it moved things in a helpful direction.`;

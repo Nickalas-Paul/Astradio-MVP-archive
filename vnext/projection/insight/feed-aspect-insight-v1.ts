@@ -161,7 +161,7 @@ export function composeFeedActivationLine(
     return `${prefix} in this connection today.`;
   }
 
-  return `${prefix}—${selectedSentences}`;
+  return `${prefix}. ${selectedSentences}`;
 }
 
 /** Group / single-hit cards — generic feed field copy. */

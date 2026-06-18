@@ -81,7 +81,7 @@ function VerifyEmailContent() {
         setResendError(typeof data.error === 'string' ? data.error : 'Could not send verification email.');
         return;
       }
-      setResendMessage('Verification email sent — check your inbox.');
+      setResendMessage('Verification email sent. Check your inbox.');
     } catch {
       setResendError('Could not send verification email.');
     } finally {

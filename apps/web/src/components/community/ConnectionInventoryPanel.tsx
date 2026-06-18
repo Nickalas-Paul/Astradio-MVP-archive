@@ -569,7 +569,7 @@ export function ConnectionInventoryPanel({
             <section className="rounded-lg border border-dashed border-border p-3 space-y-1">
               <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Transits skeleton (no ranking)</h4>
               <p className="text-xs text-text-secondary">
-                {(data as CommunityInventoryV1).feedSkeleton.length} item(s) — deterministic sort keys for future FYP.
+                {(data as CommunityInventoryV1).feedSkeleton.length} item(s), deterministic sort keys for future FYP.
               </p>
             </section>
             )}

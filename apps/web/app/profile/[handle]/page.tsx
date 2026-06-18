@@ -120,7 +120,7 @@ function ConnectionActions({
         size="md"
         className="flex-1 sm:flex-none"
         disabled
-        title="Connection requests — Phase 6C-2"
+        title="Connection requests (Phase 6C-2)"
       >
         Request connection
       </Button>

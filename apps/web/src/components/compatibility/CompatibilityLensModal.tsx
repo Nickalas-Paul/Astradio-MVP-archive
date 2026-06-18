@@ -113,7 +113,7 @@ export function CompatibilityLensModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">Compatibility Lens — {targetDisplayName}</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Compatibility Lens: {targetDisplayName}</h2>
           <button
             type="button"
             onClick={onClose}

@@ -84,7 +84,7 @@ export function buildFeedActivationLinesFromHits(
     const prefix = buildDirectionalPrefix(hit);
     const expanded =
       composeFeedExpandedSynastryBody(hit) ||
-      composeFeedActivationLine(hit, viewerChartId, partnerChartId).split('—').slice(1).join('—').trim() ||
+      composeFeedActivationLine(hit, viewerChartId, partnerChartId).replace(/^[^.]+\.\s+/, '').trim() ||
       composeFeedActivationLine(hit, viewerChartId, partnerChartId);
     return {
       text: composeFeedActivationLine(hit, viewerChartId, partnerChartId),

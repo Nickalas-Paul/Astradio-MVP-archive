@@ -49,7 +49,7 @@ export function SandboxWheelPanel({
             Drag planets or use degree inputs. Without birth data, the wheel uses a neutral layout; after birth, house cusps follow the natal chart.
           </p>
           <p className="text-xs text-text-secondary mt-1">
-            Ephemeris preview for active slot {activeSlotIndex}—positions here are not the resolved report or audio output.
+            Ephemeris preview for active slot {activeSlotIndex}. Positions here are not the resolved report or audio output.
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-text-secondary">
