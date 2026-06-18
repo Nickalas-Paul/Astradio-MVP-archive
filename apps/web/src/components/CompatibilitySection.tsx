@@ -165,8 +165,9 @@ export function CompatibilitySection({
       }
     }
     const intentQs = rankMode === 'lover' ? 'partner' : 'friend';
+    const profileSlug = (match.handle && match.handle.trim()) || match.userId;
     router.push(
-      `/profile/${encodeURIComponent(match.userId)}?from=discovery&intent=${intentQs}&chartId=${encodeURIComponent(match.chartId)}`
+      `/profile/${encodeURIComponent(profileSlug)}?from=discovery&intent=${intentQs}&chartId=${encodeURIComponent(match.chartId)}`
     );
   };
 

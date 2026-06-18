@@ -13,6 +13,7 @@ import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExpo
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { Button } from '@/components/shared/Button';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
+import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflowMenu';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
 import {
@@ -502,19 +503,28 @@ export default function CommunityRelationshipArtifactPage() {
         {phase === 'ready' && relationship && (
           <>
             <header className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-h2 font-bold text-text-primary">
-                  {peer?.displayName || 'Connection'}
-                  {peer?.handle ? (
-                    <span className="text-text-secondary font-normal text-lg"> @{peer.handle}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <h1 className="text-h2 font-bold text-text-primary">
+                    {peer?.displayName || 'Connection'}
+                    {peer?.handle ? (
+                      <span className="text-text-secondary font-normal text-lg"> @{peer.handle}</span>
+                    ) : null}
+                  </h1>
+                  {labelBadge ? (
+                    <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
+                      {labelBadge}
+                    </span>
                   ) : null}
-                </h1>
-                {labelBadge ? (
-                  <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
-                    {labelBadge}
-                  </span>
+                  {peer?.userId ? <MessagePeerButton peerUserId={peer.userId} /> : null}
+                </div>
+                {peer?.userId && relationship?.id ? (
+                  <ConnectionOverflowMenu
+                    relationshipId={relationship.id}
+                    peerDisplayName={peer.displayName || 'Connection'}
+                    peerUserId={peer.userId}
+                  />
                 ) : null}
-                {peer?.userId ? <MessagePeerButton peerUserId={peer.userId} /> : null}
               </div>
             </header>
 

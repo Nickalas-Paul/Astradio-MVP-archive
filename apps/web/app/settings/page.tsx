@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
 import { ProfilePanelFooter } from '../../src/components/profile/ProfilePanelFooter';
+import { BlockedUsersSection } from '../../src/components/settings/BlockedUsersSection';
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
 import { useWheelDisplayMode } from '../../src/hooks/useWheelDisplayMode';
@@ -54,6 +55,8 @@ export default function SettingsPage() {
             />
           )}
         </Card>
+
+        {user ? <BlockedUsersSection /> : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column */}

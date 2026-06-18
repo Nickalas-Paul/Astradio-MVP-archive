@@ -780,9 +780,26 @@ export async function getCompatMatches(
   const requestingUserId = chart.ownerId ?? (await storage.getUserIdForPrimaryChart(chartId)) ?? '';
   const visibilityType = mode === 'lover' ? 'partners' : 'friends';
 
+  let blockedUserIds = new Set<string>();
+  if (requestingUserId) {
+    try {
+      const nodePath = require('path') as typeof import('path');
+      const pgStore = require(nodePath.join(__dirname, '..', '..', '..', '..', 'lib', 'pg-store')) as {
+        getBlockedUserIdsForDiscovery?: (id: string) => Promise<string[]>;
+      };
+      if (typeof pgStore.getBlockedUserIdsForDiscovery === 'function') {
+        const ids = await pgStore.getBlockedUserIdsForDiscovery(requestingUserId);
+        blockedUserIds = new Set(ids);
+      }
+    } catch {
+      /* blocks table may be unavailable */
+    }
+  }
+
   const allCandidates = await directoryRowsForMatches(chartId);
   const candidates = allCandidates.filter((candidate) => {
     if (requestingUserId && candidate.userId === requestingUserId) return false;
+    if (blockedUserIds.has(candidate.userId)) return false;
     const discoverableAs = candidate.discoverableAs || 'none';
     if (discoverableAs === 'none') return false;
     if (discoverableAs === 'both') return true;

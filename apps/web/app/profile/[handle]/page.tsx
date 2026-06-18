@@ -184,10 +184,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
     setTargetUser(null);
     setTargetChart(null);
     try {
-      let res = await fetch(`/api/profile/user/${encodeURIComponent(param)}`);
-      if (!res.ok) {
-        res = await fetch(`/api/profile/${encodeURIComponent(param)}`);
-      }
+      const res = await fetch(`/api/profile/${encodeURIComponent(param)}`);
       if (!res.ok) {
         setProfileLoading(false);
         return;

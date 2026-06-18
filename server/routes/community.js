@@ -156,6 +156,9 @@ router.post('/community/connect-intent', communityPostLimiter, async (req, res) 
       return res.status(400).json({ error: 'fromUserId, toUserId, fromChartId, and toChartId required' });
     }
     if (fromUserId === toUserId) return res.status(400).json({ error: 'cannot connect to self' });
+    if (await pgStore.isUserBlocked(fromUserId, toUserId)) {
+      return res.status(403).json({ error: 'blocked' });
+    }
     const cFrom = await pgStore.getChart(fromChartId);
     const cTo = await pgStore.getChart(toChartId);
     if (!cFrom || !cTo) return res.status(404).json({ error: 'chart_not_found' });
@@ -173,6 +176,9 @@ router.post('/community/connect-intent', communityPostLimiter, async (req, res) 
   } catch (e) {
     if (e && e.code === 'mirror_pending') {
       return res.status(409).json({ error: 'mirror_pending' });
+    }
+    if (e && e.code === 'blocked') {
+      return res.status(403).json({ error: 'blocked' });
     }
     console.error('[community] POST /community/connect-intent', e);
     return res.status(500).json({ error: e?.message || 'Failed to create connection intent' });
@@ -295,6 +301,9 @@ router.post('/community/signals', communityPostLimiter, async (req, res) => {
       }
       if (result.error === 'self_signal') {
         return res.status(400).json({ error: 'cannot_signal_self' });
+      }
+      if (result.error === 'blocked') {
+        return res.status(403).json({ error: 'blocked' });
       }
       if (result.error === 'signals_table_missing') {
         return res.status(501).json({ error: 'signals_unavailable' });
@@ -869,6 +878,76 @@ router.post('/community/artifacts/repair', communityPostLimiter, async (req, res
   } catch (e) {
     console.error('[community] POST /community/artifacts/repair', e);
     return res.status(500).json({ error: e?.message || 'community_artifact_repair_failed' });
+  }
+});
+
+router.delete('/community/relationships/:relationshipId', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const relationshipId = String(req.params.relationshipId || '').trim();
+    const body = req.body || {};
+    const userId = bodyUserId(body) || queryUserId(req) || (await getDevUserId());
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    const result = await pgStore.removeConnectionByRelationshipId(userId, relationshipId);
+    if (!result.ok) {
+      if (result.error === 'forbidden') return res.status(403).json({ error: 'forbidden' });
+      if (result.error === 'not_found') return res.status(404).json({ error: 'not_found' });
+      return res.status(400).json({ error: result.error || 'remove_failed' });
+    }
+    return res.status(200).json({ removed: true });
+  } catch (e) {
+    console.error('[community] DELETE /community/relationships/:id', e);
+    return res.status(500).json({ error: e?.message || 'remove_failed' });
+  }
+});
+
+router.post('/community/block', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const body = req.body || {};
+    const blockerUserId = bodyUserId(body) || queryUserId(req) || (await getDevUserId());
+    const blockedUserId = String(body.blockedUserId || '').trim();
+    if (!blockerUserId) return res.status(401).json({ error: 'unauthorized' });
+    if (!blockedUserId) return res.status(400).json({ error: 'blockedUserId required' });
+    const result = await pgStore.createUserBlock(blockerUserId, blockedUserId);
+    if (!result.ok) {
+      if (result.error === 'cannot_block_self') return res.status(400).json({ error: 'cannot_block_self' });
+      return res.status(400).json({ error: result.error || 'block_failed' });
+    }
+    return res.status(200).json({ blocked: true });
+  } catch (e) {
+    console.error('[community] POST /community/block', e);
+    return res.status(500).json({ error: e?.message || 'block_failed' });
+  }
+});
+
+router.delete('/community/block/:blockedUserId', communityPostLimiter, async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const blockedUserId = String(req.params.blockedUserId || '').trim();
+    const body = req.body || {};
+    const blockerUserId = bodyUserId(body) || queryUserId(req) || (await getDevUserId());
+    if (!blockerUserId) return res.status(401).json({ error: 'unauthorized' });
+    if (!blockedUserId) return res.status(400).json({ error: 'blockedUserId required' });
+    const result = await pgStore.removeUserBlock(blockerUserId, blockedUserId);
+    if (!result.ok) return res.status(400).json({ error: result.error || 'unblock_failed' });
+    return res.status(200).json({ unblocked: result.unblocked });
+  } catch (e) {
+    console.error('[community] DELETE /community/block/:blockedUserId', e);
+    return res.status(500).json({ error: e?.message || 'unblock_failed' });
+  }
+});
+
+router.get('/community/blocks', async (req, res) => {
+  try {
+    if (!pgStore) return res.status(501).json({ error: 'storage unavailable' });
+    const userId = queryUserId(req) || (await getDevUserId());
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    const users = await pgStore.listBlockedUsers(userId);
+    return res.status(200).json({ users });
+  } catch (e) {
+    console.error('[community] GET /community/blocks', e);
+    return res.status(500).json({ error: e?.message || 'blocks_failed' });
   }
 });
 

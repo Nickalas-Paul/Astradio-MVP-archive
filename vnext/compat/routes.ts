@@ -1254,12 +1254,16 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
-  // GET /api/profile/:handle — lookup by handle (handle unique, optional)
+  // GET /api/profile/:handle — lookup by handle; falls back to user id when handle misses
   router.get('/profile/:handle', async (req: import('express').Request, res: import('express').Response) => {
     try {
       const handle = Array.isArray(req.params.handle) ? req.params.handle[0] : req.params.handle;
       if (!handle || !handle.trim()) return res.status(400).json({ error: 'handle required' });
-      const u = await storage.getUserByHandle(handle.trim());
+      const slug = handle.trim();
+      let u = await storage.getUserByHandle(slug);
+      if (!u) {
+        u = await storage.getUser(slug);
+      }
       if (!u) return res.status(404).json({ error: 'User not found' });
       const chartId = await storage.getUserPrimaryChart(u.id) || storage.DEFAULT_PROFILE_CHART_ID;
       const chart = await getChartById(chartId);

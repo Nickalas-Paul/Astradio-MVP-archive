@@ -258,6 +258,9 @@ function createDirectMessagesRouter() {
       if (!senderId) return res.status(401).json({ error: 'unauthorized' });
       if (!recipientId) return res.status(400).json({ error: 'recipientUserId_required' });
       if (senderId === recipientId) return res.status(400).json({ error: 'cannot_message_self' });
+      if (await pgStore.isUserBlocked(senderId, recipientId)) {
+        return res.status(403).json({ error: 'blocked' });
+      }
 
       const bodyText = validateMessageBody(body.body);
       if (bodyText && typeof bodyText === 'object' && bodyText.error) {

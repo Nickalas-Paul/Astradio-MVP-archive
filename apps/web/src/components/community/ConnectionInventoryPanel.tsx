@@ -9,6 +9,7 @@ import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/soc
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
+import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflowMenu';
 
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
@@ -402,24 +403,34 @@ export function ConnectionInventoryPanel({
                     interactive
                     className="space-y-2"
                   >
-                    <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5">
-                      <span>
-                        {(p.peerDisplayName as string) || 'Connection'}{' '}
-                        {(p.peerHandle as string) ? (
-                          <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5 min-w-0">
+                        <span>
+                          {(p.peerDisplayName as string) || 'Connection'}{' '}
+                          {(p.peerHandle as string) ? (
+                            <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                          ) : null}
+                        </span>
+                        {p.label ? (
+                          <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">
+                            {String(p.label)}
+                          </span>
                         ) : null}
-                      </span>
-                      {p.label ? (
-                        <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">
-                          {String(p.label)}
-                        </span>
-                      ) : null}
-                      {FOUNDER_USER_ID &&
-                      typeof p.peerUserId === 'string' &&
-                      p.peerUserId.trim() === FOUNDER_USER_ID ? (
-                        <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
-                          Founder
-                        </span>
+                        {FOUNDER_USER_ID &&
+                        typeof p.peerUserId === 'string' &&
+                        p.peerUserId.trim() === FOUNDER_USER_ID ? (
+                          <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
+                            Founder
+                          </span>
+                        ) : null}
+                      </div>
+                      {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
+                        <ConnectionOverflowMenu
+                          relationshipId={String(p.id)}
+                          peerDisplayName={String(p.peerDisplayName || 'Connection')}
+                          peerUserId={String(p.peerUserId)}
+                          onActionComplete={() => refresh()}
+                        />
                       ) : null}
                     </div>
                     {(() => {
