@@ -315,6 +315,12 @@ function createCommunityPostsRouter() {
       const viewerUserId = queryUserId(req);
       const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
       const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+      const tag = req.query.tag != null ? String(req.query.tag).trim().toLowerCase() : '';
+      const q = req.query.q != null ? String(req.query.q).trim() : '';
+      const feedOpts = { limit, offset };
+      if (tag) feedOpts.tag = tag;
+      if (q.length >= 2) feedOpts.q = q;
+
       let feedService = null;
       try {
         feedService = require('../../lib/community-feed-service');
@@ -324,12 +330,12 @@ function createCommunityPostsRouter() {
       let posts;
       let total;
       if (feedService?.getFeedPage) {
-        const page = await feedService.getFeedPage({ limit, offset });
+        const page = await feedService.getFeedPage(feedOpts);
         posts = page.posts;
         total = page.total;
       } else {
-        posts = await pgStore.listCommunityPostsFeed({ limit, offset });
-        total = await pgStore.countCommunityPostsFeed();
+        posts = await pgStore.listCommunityPostsFeed(feedOpts);
+        total = await pgStore.countCommunityPostsFeed(feedOpts);
       }
       const enriched = await Promise.all(posts.map((p) => enrichPost(p, viewerUserId)));
       return res.status(200).json({
@@ -339,6 +345,18 @@ function createCommunityPostsRouter() {
     } catch (e) {
       console.error('[community-posts] GET /community/feed', e);
       return res.status(500).json({ error: e?.message || 'feed_failed' });
+    }
+  });
+
+  router.get('/community/tags/trending', async (req, res) => {
+    try {
+      if (!pgStore) return res.status(501).json({ error: 'storage_unavailable' });
+      const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 10));
+      const tags = await pgStore.getTrendingTags(limit);
+      return res.status(200).json({ tags });
+    } catch (e) {
+      console.error('[community-posts] GET /community/tags/trending', e);
+      return res.status(500).json({ error: e?.message || 'trending_tags_failed' });
     }
   });
 
