@@ -12,6 +12,7 @@ import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
 import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { Button } from '@/components/shared/Button';
+import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { hasCompatibilityReadingSurface } from '@/lib/compatibility-reading-surface';
 import {
@@ -513,6 +514,7 @@ export default function CommunityRelationshipArtifactPage() {
                     {labelBadge}
                   </span>
                 ) : null}
+                {peer?.userId ? <MessagePeerButton peerUserId={peer.userId} /> : null}
               </div>
             </header>
 

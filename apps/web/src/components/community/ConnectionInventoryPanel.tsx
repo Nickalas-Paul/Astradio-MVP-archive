@@ -8,6 +8,7 @@ import { FOUNDER_USER_ID } from '../../core/founder-config';
 import { useCommunityInventory, type CommunityInventoryV1 } from '../../core/social/hooks';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
+import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
 
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
@@ -450,13 +451,16 @@ export function ConnectionInventoryPanel({
                         </p>
                       );
                     })()}
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-1 items-center">
                       <Link
                         href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
                         className="btn-outline text-xs px-3 py-2 min-h-[44px] inline-flex items-center justify-center w-full sm:w-auto"
                       >
                         Open connection
                       </Link>
+                      {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
+                        <MessagePeerButton peerUserId={String(p.peerUserId)} iconOnly />
+                      ) : null}
                       {(() => {
                         const peerChartId =
                           typeof p.peerChartId === 'string' && p.peerChartId.trim() ? p.peerChartId.trim() : null;
