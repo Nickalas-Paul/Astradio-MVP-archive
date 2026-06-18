@@ -1,5 +1,5 @@
 /**
- * Batch 7C — explicit body names in jupiter.ts (45) + saturn.ts (40) feed fields.
+ * Batch 7C , explicit body names in jupiter.ts (45) + saturn.ts (40) feed fields.
  * Run: npx tsx vnext/scripts/apply-batch7c-jupiter-saturn-feed.ts
  */
 import * as fs from 'fs';
@@ -309,8 +309,8 @@ function applyToFile(target: string, bodies: Record<string, Spec>): number {
   return replaced;
 }
 
-const jupiterBodies = Object.assign({}, ...JUPITER_GROUPS.map(groupToBodies));
-const saturnBodies = Object.assign({}, ...SATURN_GROUPS.map(groupToBodies));
+const jupiterBodies = Object.assign({}...JUPITER_GROUPS.map(groupToBodies));
+const saturnBodies = Object.assign({}...SATURN_GROUPS.map(groupToBodies));
 
 const jCount = applyToFile(JUPITER_TARGET, jupiterBodies);
 const sCount = applyToFile(SATURN_TARGET, saturnBodies);

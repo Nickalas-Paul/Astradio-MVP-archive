@@ -1,5 +1,5 @@
 /**
- * Batch 7A — explicit body names in all personal.ts feed fields.
+ * Batch 7A , explicit body names in all personal.ts feed fields.
  * Run: npx tsx vnext/scripts/apply-batch7a-personal-feed.ts
  */
 import * as fs from 'fs';

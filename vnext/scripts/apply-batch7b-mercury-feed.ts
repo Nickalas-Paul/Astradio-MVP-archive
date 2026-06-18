@@ -1,5 +1,5 @@
 /**
- * Batch 7B — explicit body names in all mercury.ts feed fields.
+ * Batch 7B , explicit body names in all mercury.ts feed fields.
  * Run: npx tsx vnext/scripts/apply-batch7b-mercury-feed.ts
  */
 import * as fs from 'fs';

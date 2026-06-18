@@ -1,5 +1,5 @@
 /**
- * Batch 7C — surgical jupiter.ts + saturn.ts feeds from 899e0a2 prose.
+ * Batch 7C , surgical jupiter.ts + saturn.ts feeds from 899e0a2 prose.
  * Run: npx tsx vnext/scripts/surgical-jupiter-saturn-feed-7c.ts
  * Preview 3 jupiter samples: npx tsx vnext/scripts/surgical-jupiter-saturn-feed-7c.ts --samples
  */
@@ -36,7 +36,7 @@ const BODY_LABEL: Record<string, string> = {
   pluto: 'Pluto',
 };
 
-/** Jupiter file — varied opposition openers (not personal/mercury templates). */
+/** Jupiter file , varied opposition openers (not personal/mercury templates). */
 const JUPITER_OPPOSITION_OPENER: Record<string, string> = {
   JUPITER_SUN_OPPOSITION:
     'Jupiter and Sun span the identity–horizon axis at full polarity between these charts today',
@@ -45,11 +45,11 @@ const JUPITER_OPPOSITION_OPENER: Record<string, string> = {
   JUPITER_VENUS_OPPOSITION:
     'Jupiter and Venus sit at opposing ends of the abundance–beauty axis between these charts today',
   JUPITER_MARS_OPPOSITION:
-    'Jupiter opposes Mars across these charts today—vision and impulse on opposite ends of the field.',
+    'Jupiter opposes Mars across these charts today, vision and impulse on opposite ends of the field.',
   JUPITER_JUPITER_OPPOSITION:
     'Jupiter and Jupiter occupy opposite ends of the meaning–scale axis between these charts today',
   SATURN_JUPITER_OPPOSITION:
-    'Saturn and Jupiter face opposite demands between these charts today—structure versus growth',
+    'Saturn and Jupiter face opposite demands between these charts today, structure versus growth',
   URANUS_JUPITER_OPPOSITION:
     'Uranus and Jupiter pull innovation and optimism in opposite directions between these charts today',
   NEPTUNE_JUPITER_OPPOSITION:
@@ -80,7 +80,7 @@ const JUPITER_TRINE_OPENER: Record<string, string> = {
     'Jupiter and Moon reinforce each other between faith and feeling between these charts today',
 };
 
-/** Saturn file — varied opposition openers. */
+/** Saturn file , varied opposition openers. */
 const SATURN_OPPOSITION_OPENER: Record<string, string> = {
   SATURN_SUN_OPPOSITION:
     'Saturn and Sun span the identity–structure axis at full polarity between these charts today',
@@ -89,7 +89,7 @@ const SATURN_OPPOSITION_OPENER: Record<string, string> = {
   SATURN_VENUS_OPPOSITION:
     'Saturn and Venus sit at opposing ends of the commitment–pleasure axis between these charts today',
   SATURN_MARS_OPPOSITION:
-    'Saturn opposes Mars across these charts today—restraint and impulse on opposite ends of the field.',
+    'Saturn opposes Mars across these charts today, restraint and impulse on opposite ends of the field.',
   SATURN_SATURN_OPPOSITION:
     'Saturn and Saturn occupy opposite ends of the obligation–freedom axis between these charts today',
   URANUS_SATURN_OPPOSITION:
@@ -126,8 +126,8 @@ export function parseKey(key: string): { t: string; n: string; aspect: string; s
 
 function allMaps() {
   return {
-    opposition: { ...JUPITER_OPPOSITION_OPENER, ...SATURN_OPPOSITION_OPENER },
-    sextile: { ...JUPITER_SEXTILE_OPENER, ...SATURN_SEXTILE_OPENER },
+    opposition: { ...JUPITER_OPPOSITION_OPENER...SATURN_OPPOSITION_OPENER },
+    sextile: { ...JUPITER_SEXTILE_OPENER...SATURN_SEXTILE_OPENER },
     trine: { ...JUPITER_TRINE_OPENER },
   };
 }
@@ -275,8 +275,8 @@ function polishFeed(feed: string): string {
     'at maximum distance, and the gap between $1 is on full display.'
   );
   r = r.replace(
-    /\bthan on an ordinary day\. The structural gap between ([^.]+?) in this connection—/g,
-    'than on an ordinary day. This makes visible the structural gap between $1 in this connection—'
+    /\bthan on an ordinary day\. The structural gap between ([^.]+?) in this connection, /g,
+    'than on an ordinary day. This makes visible the structural gap between $1 in this connection, '
   );
   r = r.replace(/\bfield One person's\b/g, "field. One person's");
   r = r.replace(
@@ -322,7 +322,7 @@ export function surgicalFeed(key: string, original: string): string {
     if (sentences[0] && !hasVagueShell(sentences[0])) {
       const tail = stripVagueShell(sentences[0]);
       if (tail.length > 20 && !isTemplateOpener(tail)) {
-        const joiner = tail.endsWith(',') || tail.endsWith('—') ? ' ' : ', ';
+        const joiner = tail.endsWith(',') || tail.endsWith(', ') ? ' ' : ', ';
         out[0] = `${forcedOpener}${joiner}${tail.charAt(0).toLowerCase()}${tail.slice(1)}`;
       }
     }
@@ -340,7 +340,7 @@ export function surgicalFeed(key: string, original: string): string {
       if (hasVagueShell(s) || isTemplateOpener(s)) {
         const stripped = stripVagueShell(s);
         if (stripped.length > 10) {
-          const joiner = stripped.endsWith(',') || stripped.endsWith('—') ? ' ' : ', ';
+          const joiner = stripped.endsWith(',') || stripped.endsWith(', ') ? ' ' : ', ';
           out.push(`${forcedOpener}${joiner}${stripped.charAt(0).toLowerCase()}${stripped.slice(1)}`);
         } else {
           out.push(`${forcedOpener}.`);
@@ -403,7 +403,7 @@ function processFile(
   }
 
   const lines: string[] = [
-    `# ${label} — surgical feed edits`,
+    `# ${label} , surgical feed edits`,
     '',
     `Source: \`${OLD_COMMIT}\`. Jupiter/Saturn voice; varied opposition openers.`,
     '',

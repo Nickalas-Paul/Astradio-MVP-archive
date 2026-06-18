@@ -1,5 +1,5 @@
 /**
- * Batch 7D — surgical uranus.ts + neptune.ts + pluto.ts feeds from 899e0a2 prose.
+ * Batch 7D , surgical uranus.ts + neptune.ts + pluto.ts feeds from 899e0a2 prose.
  * Run: npx tsx vnext/scripts/surgical-outer-planets-feed-7d.ts
  * Preview samples: npx tsx vnext/scripts/surgical-outer-planets-feed-7d.ts --samples
  */
@@ -37,7 +37,7 @@ const URANUS_OPPOSITION_OPENER: Record<string, string> = {
   URANUS_VENUS_OPPOSITION:
     'Uranus and Venus sit at opposing ends of the freedom–harmony axis between these charts today',
   URANUS_MARS_OPPOSITION:
-    'Uranus opposes Mars across these charts today—disruption and drive on opposite ends of the field.',
+    'Uranus opposes Mars across these charts today, disruption and drive on opposite ends of the field.',
   URANUS_URANUS_OPPOSITION:
     'Uranus and Uranus occupy opposite ends of the pattern–break axis between these charts today',
   URANUS_NEPTUNE_OPPOSITION:
@@ -54,7 +54,7 @@ const NEPTUNE_OPPOSITION_OPENER: Record<string, string> = {
   NEPTUNE_VENUS_OPPOSITION:
     'Neptune and Venus sit at opposing ends of the beauty–boundary axis between these charts today',
   NEPTUNE_MARS_OPPOSITION:
-    'Neptune opposes Mars across these charts today—dream and force on opposite ends of the field.',
+    'Neptune opposes Mars across these charts today, dream and force on opposite ends of the field.',
   NEPTUNE_NEPTUNE_OPPOSITION:
     'Neptune and Neptune occupy opposite ends of the veil–clarity axis between these charts today',
   NEPTUNE_URANUS_OPPOSITION:
@@ -71,7 +71,7 @@ const PLUTO_OPPOSITION_OPENER: Record<string, string> = {
   PLUTO_VENUS_OPPOSITION:
     'Pluto and Venus sit at opposing ends of the love–intensity axis between these charts today',
   PLUTO_MARS_OPPOSITION:
-    'Pluto opposes Mars across these charts today—depth and drive on opposite ends of the field.',
+    'Pluto opposes Mars across these charts today, depth and drive on opposite ends of the field.',
   PLUTO_PLUTO_OPPOSITION:
     'Pluto and Pluto occupy opposite ends of the control–surrender axis between these charts today',
   PLUTO_URANUS_OPPOSITION:
@@ -128,7 +128,7 @@ function parseKey(key: string): { t: string; n: string; aspect: string; same: bo
 
 function allMaps() {
   return {
-    opposition: { ...URANUS_OPPOSITION_OPENER, ...NEPTUNE_OPPOSITION_OPENER, ...PLUTO_OPPOSITION_OPENER },
+    opposition: { ...URANUS_OPPOSITION_OPENER...NEPTUNE_OPPOSITION_OPENER...PLUTO_OPPOSITION_OPENER },
     trine: { ...OUTER_TRINE_OPENER },
     sextile: { ...OUTER_SEXTILE_OPENER },
   };
@@ -278,8 +278,8 @@ function polishFeed(feed: string): string {
     'at maximum distance, and the gap between $1 is on full display.'
   );
   r = r.replace(
-    /\bthan on an ordinary day\. The structural gap between ([^.]+?) in this connection—/g,
-    'than on an ordinary day. This makes visible the structural gap between $1 in this connection—'
+    /\bthan on an ordinary day\. The structural gap between ([^.]+?) in this connection, /g,
+    'than on an ordinary day. This makes visible the structural gap between $1 in this connection, '
   );
   r = r.replace(
     /\bwhen the transit field doesn't support it\b/gi,
@@ -344,7 +344,7 @@ export function surgicalFeed(key: string, original: string): string {
       if (hasVagueShell(s) || isTemplateOpener(s)) {
         const stripped = stripVagueShell(s);
         if (stripped.length > 10) {
-          const joiner = stripped.endsWith(',') || stripped.endsWith('—') ? ' ' : ', ';
+          const joiner = stripped.endsWith(',') || stripped.endsWith(', ') ? ' ' : ', ';
           out.push(`${forcedOpener}${joiner}${stripped.charAt(0).toLowerCase()}${stripped.slice(1)}`);
         } else {
           out.push(`${forcedOpener}.`);
@@ -401,7 +401,7 @@ function processFile(relPath: string, reviewName: string, label: string): number
   }
 
   const lines: string[] = [
-    `# ${label} — surgical feed edits`,
+    `# ${label} , surgical feed edits`,
     '',
     `Source: \`${OLD_COMMIT}\`. Outer-planet voice; varied opposition openers.`,
     '',

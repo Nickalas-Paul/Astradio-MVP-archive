@@ -1,5 +1,5 @@
 /**
- * Batch 7E — surgical asteroid feeds (ceres, chiron, juno, pallas, vesta) from 899e0a2 prose.
+ * Batch 7E , surgical asteroid feeds (ceres, chiron, juno, pallas, vesta) from 899e0a2 prose.
  * Run: npx tsx vnext/scripts/surgical-asteroid-feed-7e.ts
  * Preview samples: npx tsx vnext/scripts/surgical-asteroid-feed-7e.ts --samples
  */
@@ -39,7 +39,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   CERES_VENUS_OPPOSITION:
     'Ceres and Venus sit at opposing ends of the care–beauty axis between these charts today',
   CERES_MARS_OPPOSITION:
-    'Ceres opposes Mars across these charts today—nurture and drive on opposite ends of the field.',
+    'Ceres opposes Mars across these charts today, nurture and drive on opposite ends of the field.',
   CHIRON_SUN_OPPOSITION:
     'Chiron and Sun span the identity–wound axis at full polarity between these charts today',
   CHIRON_MOON_OPPOSITION:
@@ -47,7 +47,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   CHIRON_VENUS_OPPOSITION:
     'Chiron and Venus sit at opposing ends of the wound–grace axis between these charts today',
   CHIRON_MARS_OPPOSITION:
-    'Chiron opposes Mars across these charts today—healing and force on opposite ends of the field.',
+    'Chiron opposes Mars across these charts today, healing and force on opposite ends of the field.',
   JUNO_SUN_OPPOSITION:
     'Juno and Sun span the identity–partnership axis at full polarity between these charts today',
   JUNO_MOON_OPPOSITION:
@@ -55,7 +55,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   JUNO_VENUS_OPPOSITION:
     'Juno and Venus sit at opposing ends of the commitment–pleasure axis between these charts today',
   JUNO_MARS_OPPOSITION:
-    'Juno opposes Mars across these charts today—contract and impulse on opposite ends of the field.',
+    'Juno opposes Mars across these charts today, contract and impulse on opposite ends of the field.',
   PALLAS_SUN_OPPOSITION:
     'Pallas and Sun span the identity–strategy axis at full polarity between these charts today',
   PALLAS_MOON_OPPOSITION:
@@ -63,7 +63,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   PALLAS_VENUS_OPPOSITION:
     'Pallas and Venus sit at opposing ends of the wisdom–harmony axis between these charts today',
   PALLAS_MARS_OPPOSITION:
-    'Pallas opposes Mars across these charts today—strategy and action on opposite ends of the field.',
+    'Pallas opposes Mars across these charts today, strategy and action on opposite ends of the field.',
   VESTA_SUN_OPPOSITION:
     'Vesta and Sun span the identity–devotion axis at full polarity between these charts today',
   VESTA_MOON_OPPOSITION:
@@ -71,7 +71,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   VESTA_VENUS_OPPOSITION:
     'Vesta and Venus sit at opposing ends of the sacred–pleasure axis between these charts today',
   VESTA_MARS_OPPOSITION:
-    'Vesta opposes Mars across these charts today—focus and drive on opposite ends of the field.',
+    'Vesta opposes Mars across these charts today, focus and drive on opposite ends of the field.',
 };
 
 const TRINE_OPENER: Record<string, string> = {
@@ -273,7 +273,7 @@ export function surgicalFeed(key: string, original: string): string {
       if (hasVagueShell(s) || isTemplateOpener(s)) {
         const stripped = stripVagueShell(s);
         if (stripped.length > 10) {
-          const joiner = stripped.endsWith(',') || stripped.endsWith('—') ? ' ' : ', ';
+          const joiner = stripped.endsWith(',') || stripped.endsWith(', ') ? ' ' : ', ';
           out.push(`${forcedOpener}${joiner}${stripped.charAt(0).toLowerCase()}${stripped.slice(1)}`);
         } else {
           out.push(`${forcedOpener}.`);
@@ -330,7 +330,7 @@ function processFile(relPath: string, reviewName: string, label: string): number
   }
 
   const lines: string[] = [
-    `# ${label} — surgical feed edits`,
+    `# ${label} , surgical feed edits`,
     '',
     `Source: \`${OLD_COMMIT}\`. Asteroid-specific voice; varied opposition openers.`,
     '',

@@ -1,5 +1,5 @@
 /**
- * Batch 7B — surgical mercury.ts feeds from 899e0a2 prose.
+ * Batch 7B , surgical mercury.ts feeds from 899e0a2 prose.
  * Run: npx tsx vnext/scripts/surgical-mercury-feed-7b.ts
  */
 import * as fs from 'fs';
@@ -25,7 +25,7 @@ const BODY_LABEL: Record<string, string> = {
   pluto: 'Pluto',
 };
 
-/** Varied opposition openers — not copied from personal.ts patterns. */
+/** Varied opposition openers , not copied from personal.ts patterns. */
 const OPPOSITION_OPENER: Record<string, string> = {
   SUN_MERCURY_OPPOSITION:
     'Sun and Mercury span the identity–mind axis at full polarity between these charts today',
@@ -34,7 +34,7 @@ const OPPOSITION_OPENER: Record<string, string> = {
   MERCURY_VENUS_OPPOSITION:
     'Mercury and Venus sit at opposite ends of the clarity–grace axis between these charts today',
   MERCURY_MARS_OPPOSITION:
-    'Mercury opposes Mars across these charts today—thought and action on opposite ends of the field.',
+    'Mercury opposes Mars across these charts today, thought and action on opposite ends of the field.',
   MERCURY_MERCURY_OPPOSITION:
     'Mercury and Mercury sit on opposite ends of the mental axis between these charts today',
   SATURN_MERCURY_OPPOSITION:
@@ -251,8 +251,8 @@ function polishFeed(feed: string): string {
     'at maximum distance. The gap between depth and articulation is visible between these charts.'
   );
   r = r.replace(
-    /\bthan on an ordinary day\. The structural gap between articulation and action in this connection—/g,
-    'than on an ordinary day. This makes visible the structural gap between articulation and action in this connection—'
+    /\bthan on an ordinary day\. The structural gap between articulation and action in this connection, /g,
+    'than on an ordinary day. This makes visible the structural gap between articulation and action in this connection, '
   );
   r = r.replace(/\bfield One person's\b/g, "field. One person's");
   r = r.replace(
@@ -287,7 +287,7 @@ function surgicalFeed(key: string, original: string): string {
     if (sentences[0] && !hasVagueShell(sentences[0])) {
       const tail = stripVagueShell(sentences[0]);
       if (tail.length > 20 && !isTemplateOpener(tail)) {
-        const joiner = tail.endsWith(',') || tail.endsWith('—') ? ' ' : ', ';
+        const joiner = tail.endsWith(',') || tail.endsWith(', ') ? ' ' : ', ';
         out[0] = `${forcedOpener}${joiner}${tail.charAt(0).toLowerCase()}${tail.slice(1)}`;
       }
     }
@@ -305,7 +305,7 @@ function surgicalFeed(key: string, original: string): string {
       if (hasVagueShell(s) || isTemplateOpener(s)) {
         const stripped = stripVagueShell(s);
         if (stripped.length > 10) {
-          const joiner = stripped.endsWith(',') || stripped.endsWith('—') ? ' ' : ', ';
+          const joiner = stripped.endsWith(',') || stripped.endsWith(', ') ? ' ' : ', ';
           out.push(`${forcedOpener}${joiner}${stripped.charAt(0).toLowerCase()}${stripped.slice(1)}`);
         } else if (/same pitch|same degree/i.test(sentences.join(' '))) {
           out.push(`${forcedOpener}.`);
@@ -359,7 +359,7 @@ function main() {
   }
 
   const lines: string[] = [
-    '# mercury.ts — surgical feed edits (50 entries)',
+    '# mercury.ts , surgical feed edits (50 entries)',
     '',
     `Source: \`${OLD_COMMIT}\`. Opposition/sextile openers varied for mercury voice.`,
     '',

@@ -31,7 +31,7 @@ function parseKey(key: string): { t: string; n: string; aspect: string; same: bo
   return { t, n, aspect: m[3]!.toLowerCase(), same: t === n };
 }
 
-/** Named opener — varied but audit-safe (\\bbody\\b word match). */
+/** Named opener , varied but audit-safe (\\bbody\\b word match). */
 function namedOpener(spec: ReturnType<typeof parseKey>): string {
   const T = capBody(spec.t);
   const N = capBody(spec.n);
@@ -138,12 +138,12 @@ function surgicalFeed(key: string, original: string): string {
       const stripped = stripVagueShell(s);
       const opener = namedOpener(spec);
       if (stripped && stripped.length > 10) {
-        const joiner = stripped.endsWith(',') || stripped.endsWith('—') ? ' ' : ', ';
+        const joiner = stripped.endsWith(',') || stripped.endsWith(', ') ? ' ' : ', ';
         const tail = stripped.charAt(0).toLowerCase() + stripped.slice(1);
         out.push(`${opener}${joiner}${tail}`);
       } else if (/same pitch/i.test(s)) {
         out.push(
-          `${opener}—intent and feeling share one pitch in this connection.`
+          `${opener}, intent and feeling share one pitch in this connection.`
         );
       } else {
         out.push(`${opener}.`);
@@ -204,7 +204,7 @@ function main() {
   }
 
   const lines: string[] = [
-    '# personal.ts — surgical feed edits (50 entries)',
+    '# personal.ts , surgical feed edits (50 entries)',
     '',
     `Source rollback: \`${OLD_COMMIT}\` feeds. Vague shells stripped; interpretive prose preserved.`,
     '',

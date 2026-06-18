@@ -1,5 +1,5 @@
 /**
- * Batch 5: Tier 4 outer×outer — insert 30 aspect entries into uranus/neptune/pluto files.
+ * Batch 5: Tier 4 outer×outer , insert 30 aspect entries into uranus/neptune/pluto files.
  * Run: npx tsx vnext/scripts/apply-batch5-tier4-outer.ts
  */
 import * as fs from 'fs';

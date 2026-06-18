@@ -1,5 +1,5 @@
 /**
- * Batch 7D — explicit body names in uranus.ts (35) + neptune.ts (35) + pluto.ts (35).
+ * Batch 7D , explicit body names in uranus.ts (35) + neptune.ts (35) + pluto.ts (35).
  * Run: npx tsx vnext/scripts/apply-batch7d-outer-feed.ts
  */
 import * as fs from 'fs';
@@ -363,9 +363,9 @@ function applyToFile(target: string, bodies: Record<string, Spec>): number {
   return replaced;
 }
 
-const uranusBodies = Object.assign({}, ...URANUS_GROUPS.map(groupToBodies));
-const neptuneBodies = Object.assign({}, ...NEPTUNE_GROUPS.map(groupToBodies));
-const plutoBodies = Object.assign({}, ...PLUTO_GROUPS.map(groupToBodies));
+const uranusBodies = Object.assign({}...URANUS_GROUPS.map(groupToBodies));
+const neptuneBodies = Object.assign({}...NEPTUNE_GROUPS.map(groupToBodies));
+const plutoBodies = Object.assign({}...PLUTO_GROUPS.map(groupToBodies));
 
 const uCount = applyToFile(URANUS_TARGET, uranusBodies);
 const nCount = applyToFile(NEPTUNE_TARGET, neptuneBodies);

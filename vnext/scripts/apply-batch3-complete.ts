@@ -103,31 +103,31 @@ const SECTION_B: FieldPatch[] = [
   {
     key: 'SUN_VENUS_CONJUNCTION',
     file: 'personal',
-    core_transit: `Transiting Venus meets your natal Sun at the same degree, fusing your conscious identity with beauty, love, and relational value during this 2-3 day window. Who you are and what you find beautiful arrive at the same frequency—your sense of self and your aesthetic values aren't having separate conversations. This is your identity being warmed by what Venus governs, and Venus being directed by solar will. What you value becomes visible as part of who you are rather than something you pursue apart from your identity.`,
+    core_transit: `Transiting Venus meets your natal Sun at the same degree, fusing your conscious identity with beauty, love, and relational value during this 2-3 day window. Who you are and what you find beautiful arrive at the same frequency. Your sense of self and your aesthetic values aren't having separate conversations. This is your identity being warmed by what Venus governs, and Venus being directed by solar will. What you value becomes visible as part of who you are rather than something you pursue apart from your identity.`,
     behavioral_transit: `You naturally create warmth and beauty in your environment during this window without performing it. What you find aesthetically right and what serves your identity are the same thing right now. Relational choices feel wholehearted because your sense of self and your capacity for love are aligned. The shadow: because identity and attraction are fused, rejection of your aesthetic choices can register as rejection of who you are rather than difference in taste. Use this for creative work that expresses your genuine aesthetic, relationships where you can show up as your whole self, decisions about beauty that don't require separating what you like from who you are.`,
   },
   {
     key: 'SUN_VENUS_TRINE',
     file: 'personal',
     core_transit: `Transiting Venus forms a trine to your natal Sun, 120 degrees of natural flow in the same elemental family during this 2-3 day window. Your identity and your sense of beauty are drawing from the same source. Who you are and what you value recognize each other as kin. Your conscious direction and your capacity for warmth move in the same current without friction.`,
-    behavioral_transit: `Self-expression feels aesthetically right during this window without needing to manufacture it. What you create and who you are feel like the same thing. Relationships benefit from having your identity and your warmth available simultaneously without one compromising the other. The ease is real but it's also the limit—the trine won't push you toward unfamiliar aesthetic territory or force relational growth. Use this for creative work that refines your existing style, relationships that already feel aligned with who you are, beauty-making that expresses what you already know about yourself.`,
+    behavioral_transit: `Self-expression feels aesthetically right during this window without needing to manufacture it. What you create and who you are feel like the same thing. Relationships benefit from having your identity and your warmth available simultaneously without one compromising the other. The ease is real but it's also the limit. The trine won't push you toward unfamiliar aesthetic territory or force relational growth. Use this for creative work that refines your existing style, relationships that already feel aligned with who you are, beauty-making that expresses what you already know about yourself.`,
   },
   {
     key: 'SUN_VENUS_SEXTILE',
     file: 'personal',
-    core_transit: `Transiting Venus forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between your sense of purpose and relational grace. Your sense of beauty and your sense of self are operating in compatible modes. What you value aesthetically and who you actually are can support each other without strain. Venus's grace and the Sun's authenticity have breathing room from each other—beauty and genuine presence can work together productively.`,
-    behavioral_transit: `Being yourself and being graceful feel compatible during this window rather than opposed. Venus's aesthetic sense and the Sun's authentic expression aren't competing—when you show up as yourself, it can include beauty; when you create relational grace, it doesn't require performing someone you're not. Use this for moments that need both genuine presence and aesthetic attunement operating together.`,
+    core_transit: `Transiting Venus forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between your sense of purpose and relational grace. Your sense of beauty and your sense of self are operating in compatible modes. What you value aesthetically and who you actually are can support each other without strain. Venus's grace and the Sun's authenticity have breathing room from each other, beauty and genuine presence can work together productively.`,
+    behavioral_transit: `Being yourself and being graceful feel compatible during this window rather than opposed. Venus's aesthetic sense and the Sun's authentic expression aren't competing. When you show up as yourself, it can include beauty; when you create relational grace, it doesn't require performing someone you're not. Use this for moments that need both genuine presence and aesthetic attunement operating together.`,
   },
   {
     key: 'SUN_VENUS_SQUARE',
     file: 'personal',
-    core_transit: `Transiting Venus forms a square to your natal Sun, 90 degrees of sustained friction between aesthetic value and identity during this 2-3 day period. What you find beautiful and who you actually are cut across each other. Venus's sense of grace and the Sun's authentic expression are both operating at full strength but in geometrically incompatible directions. The square isn't pathological—both planets are legitimate—but they're asking for incompatible things in the same moment.`,
+    core_transit: `Transiting Venus forms a square to your natal Sun, 90 degrees of sustained friction between aesthetic value and identity during this 2-3 day period. What you find beautiful and who you actually are cut across each other. Venus's sense of grace and the Sun's authentic expression are both operating at full strength but in geometrically incompatible directions. The square isn't pathological, both planets are legitimate, but they're asking for incompatible things in the same moment.`,
     behavioral_transit: `You'll feel the pull between "be aesthetically pleasing" and "be genuinely yourself" more intensely during this window. Venus says create relational beauty even if it requires restraint; the Sun says express who you actually are even if it's not graceful. Use this friction to examine whether you're performing beauty at the cost of authentic presence, or whether solar rawness is demolishing Venus's capacity for grace entirely. The productive move is conscious choice about which planet the moment requires.`,
   },
   {
     key: 'SUN_VENUS_OPPOSITION',
     file: 'personal',
-    core_transit: `Transiting Venus opposes your natal Sun across 180 degrees, maximum distance between aesthetic value and conscious identity during this 2-3 day period. What you find beautiful and who you actually are sit at opposite poles. Venus's sense of grace and the Sun's authentic expression are pulling in different directions—when you're being genuine, it's not beautiful; when you're creating beauty, you're not being yourself. The opposition holds both as equally legitimate.`,
+    core_transit: `Transiting Venus opposes your natal Sun across 180 degrees, maximum distance between aesthetic value and conscious identity during this 2-3 day period. What you find beautiful and who you actually are sit at opposite poles. Venus's sense of grace and the Sun's authentic expression are pulling in different directions. When you're being genuine, it's not beautiful; when you're creating beauty, you're not being yourself. The opposition holds both as equally legitimate.`,
     behavioral_transit: `You see clearly the gap between being aesthetically pleasing and being genuinely yourself. The opposition doesn't resolve by choosing Venus's beauty over solar authenticity or the Sun's genuineness over Venusian grace. It resolves by recognizing that both are real and learning to operate across the distance. Use this window to get honest about whether you're performing relational beauty while your actual self goes unexpressed, or whether solar authenticity is demolishing every attempt at grace.`,
   },
   {
@@ -145,20 +145,20 @@ const SECTION_B: FieldPatch[] = [
   {
     key: 'SUN_MARS_SQUARE',
     file: 'personal',
-    core_transit: `Transiting Mars forms a square to your natal Sun, 90 degrees of sustained friction between drive and identity during this 2-3 day period. What you're actively pursuing and who you actually are cut across each other. Mars's force and the Sun's conscious aims are both operating at full strength but in geometrically incompatible directions. The square isn't asking you to abandon ambition—it's asking whether your pursuit serves your actual self.`,
+    core_transit: `Transiting Mars forms a square to your natal Sun, 90 degrees of sustained friction between drive and identity during this 2-3 day period. What you're actively pursuing and who you actually are cut across each other. Mars's force and the Sun's conscious aims are both operating at full strength but in geometrically incompatible directions. The square isn't asking you to abandon ambition. It's asking whether your pursuit serves your actual self.`,
     behavioral_transit: `You'll feel the tension between "act decisively" and "stay true to who I am" more sharply during this window. Mars says pursue this goal with full force; the Sun says that goal doesn't match my actual identity. Use this friction to examine whether you're pursuing ambitions that don't serve your genuine self, or whether solar identity is preventing legitimate growth Mars is trying to achieve. The conflict resolves through conscious choice about which planet to honor in this specific situation.`,
   },
   {
     key: 'SUN_MARS_TRINE',
     file: 'personal',
-    core_transit: `Transiting Mars forms a trine to your natal Sun, 120 degrees in the same elemental family during this 2-3 day window. Your drive and your identity are drawing from the same source. What you're pursuing and who you are recognize each other as kin. Mars's physical force and the Sun's conscious expression are operating in natural harmony—when you act, it's in service of your actual self; when your Sun expresses identity, Mars can back it with real force.`,
-    behavioral_transit: `Pursuing goals feels aligned with your genuine identity during this window. What you're fighting for and who you actually are aren't in competition—Mars's drive serves the Sun's authentic expression naturally. Use this for pursuits that need both committed force and genuine direction, goals where action and identity are drawing from the same elemental source. The trine makes this coordination available but won't create passion where genuine desire is absent.`,
+    core_transit: `Transiting Mars forms a trine to your natal Sun, 120 degrees in the same elemental family during this 2-3 day window. Your drive and your identity are drawing from the same source. What you're pursuing and who you are recognize each other as kin. Mars's physical force and the Sun's conscious expression are operating in natural harmony. When you act, it's in service of your actual self; when your Sun expresses identity, Mars can back it with real force.`,
+    behavioral_transit: `Pursuing goals feels aligned with your genuine identity during this window. What you're fighting for and who you actually are aren't in competition. Mars's drive serves the Sun's authentic expression naturally. Use this for pursuits that need both committed force and genuine direction, goals where action and identity are drawing from the same elemental source. The trine makes this coordination available but won't create passion where genuine desire is absent.`,
   },
   {
     key: 'SUN_MARS_SEXTILE',
     file: 'personal',
-    core_transit: `Transiting Mars forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between drive and deliberate self-expression. Your drive and your sense of self are operating in compatible modes. What you want to pursue and who you actually are can support each other without strain. Mars's force and the Sun's identity have breathing room from each other—action and authentic presence can work together productively.`,
-    behavioral_transit: `Pursuing what you want feels aligned with who you are during this window rather than forcing you to perform someone else's version of success. Mars's drive and the Sun's identity are compatible—when you act, it's in service of your actual self rather than an image. Use this for goals that need both committed force and authentic direction, pursuits where action and identity support each other rather than competing.`,
+    core_transit: `Transiting Mars forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between drive and deliberate self-expression. Your drive and your sense of self are operating in compatible modes. What you want to pursue and who you actually are can support each other without strain. Mars's force and the Sun's identity have breathing room from each other, action and authentic presence can work together productively.`,
+    behavioral_transit: `Pursuing what you want feels aligned with who you are during this window rather than forcing you to perform someone else's version of success. Mars's drive and the Sun's identity are compatible. When you act, it's in service of your actual self rather than an image. Use this for goals that need both committed force and authentic direction, pursuits where action and identity support each other rather than competing.`,
   },
 ];
 
@@ -182,12 +182,12 @@ const SECTION_C: FieldPatch[] = [
   {
     key: 'JUPITER_MERCURY_OPPOSITION',
     file: 'mercury',
-    feed: `Jupiter and Mercury are at opposite poles between these charts today. One person's expansion impulse and the other person's articulate precision are at maximum distance from each other right now. The current sky is making visible the gap between thinking big and thinking clearly in this connection. What one person experiences as exciting scope, the other experiences as imprecise overreach. What one person experiences as necessary detail, the other experiences as limiting vision. The distance isn't failure—it's the opposition showing you that ambition and accuracy don't always arrive together. Use this window to name which form of thinking the moment actually requires.`,
+    feed: `Jupiter and Mercury are at opposite poles between these charts today. One person's expansion impulse and the other person's articulate precision are at maximum distance from each other right now. The current sky is making visible the gap between thinking big and thinking clearly in this connection. What one person experiences as exciting scope, the other experiences as imprecise overreach. What one person experiences as necessary detail, the other experiences as limiting vision. The distance isn't failure. It's the opposition showing you that ambition and accuracy don't always arrive together. Use this window to name which form of thinking the moment actually requires.`,
   },
   {
     key: 'SATURN_MERCURY_CONJUNCTION',
     file: 'mercury',
-    feed: `Saturn and Mercury are meeting at the same degree between these charts today. One person's structural requirement and the other person's thinking are fused right now. The current sky is opening a window where discipline and articulation aren't separate—when one person's Saturn builds foundation, the other person's Mercury is already thinking about proof and sustainable form. When Mercury articulates, Saturn gives that thinking weight and consequence. Use this for conversations that need both rigor and clarity operating together, commitments where words and structure must align.`,
+    feed: `Saturn and Mercury are meeting at the same degree between these charts today. One person's structural requirement and the other person's thinking are fused right now. The current sky is opening a window where discipline and articulation aren't separate. When one person's Saturn builds foundation, the other person's Mercury is already thinking about proof and sustainable form. When Mercury articulates, Saturn gives that thinking weight and consequence. Use this for conversations that need both rigor and clarity operating together, commitments where words and structure must align.`,
   },
   {
     key: 'SATURN_MERCURY_SEXTILE',
@@ -197,7 +197,7 @@ const SECTION_C: FieldPatch[] = [
   {
     key: 'SATURN_MERCURY_SQUARE',
     file: 'mercury',
-    feed: `Saturn and Mercury are at friction point between these charts today. One person's structural requirement and the other person's thinking are cutting across each other with more geometric force than usual right now. The current sky is making visible the tension between proof and fluency in this connection. When one person's Saturn demands rigor, the other person's Mercury experiences it as blockage. When Mercury moves quickly, Saturn experiences it as insufficient foundation. The friction is structural—both discipline and clarity are legitimate. There's something useful in naming that difference rather than forcing one planet to surrender.`,
+    feed: `Saturn and Mercury are at friction point between these charts today. One person's structural requirement and the other person's thinking are cutting across each other with more geometric force than usual right now. The current sky is making visible the tension between proof and fluency in this connection. When one person's Saturn demands rigor, the other person's Mercury experiences it as blockage. When Mercury moves quickly, Saturn experiences it as insufficient foundation. The friction is structural, both discipline and clarity are legitimate. There's something useful in naming that difference rather than forcing one planet to surrender.`,
   },
   {
     key: 'SATURN_MERCURY_TRINE',
@@ -207,7 +207,7 @@ const SECTION_C: FieldPatch[] = [
   {
     key: 'SATURN_MERCURY_OPPOSITION',
     file: 'mercury',
-    feed: `Saturn and Mercury are at opposite poles between these charts today. One person's structural requirement and the other person's thinking are at maximum distance from each other right now. The current sky is making visible the gap between proof and mental freedom in this connection. When one person's Saturn establishes limits, the other person's Mercury experiences it as constraining. When Mercury thinks openly, Saturn experiences it as insufficiently grounded. The distance isn't pathological—it's the opposition showing you that structure and fluency don't always arrive together. Use this window to choose consciously which planet the moment requires.`,
+    feed: `Saturn and Mercury are at opposite poles between these charts today. One person's structural requirement and the other person's thinking are at maximum distance from each other right now. The current sky is making visible the gap between proof and mental freedom in this connection. When one person's Saturn establishes limits, the other person's Mercury experiences it as constraining. When Mercury thinks openly, Saturn experiences it as insufficiently grounded. The distance isn't pathological. It's the opposition showing you that structure and fluency don't always arrive together. Use this window to choose consciously which planet the moment requires.`,
   },
   {
     key: 'MOON_MERCURY_SEXTILE',
@@ -238,7 +238,7 @@ for (const [key, block] of satEntries) {
 let patchOk = 0;
 let patchFail = 0;
 
-for (const p of [...SECTION_B, ...SECTION_C]) {
+for (const p of [...SECTION_B...SECTION_C]) {
   const fp = p.file === 'mercury' ? MERCURY : PERSONAL;
   if (applyFieldPatch(fp, p)) {
     patchOk++;
