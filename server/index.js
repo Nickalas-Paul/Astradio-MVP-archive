@@ -2132,6 +2132,10 @@ app.use("/api", communityRoutes.communityRouter);
 const { createCommunityPostsRouter } = require("./routes/community-posts");
 app.use("/api", createCommunityPostsRouter());
 
+// Direct messages
+const { createDirectMessagesRouter } = require("./routes/direct-messages");
+app.use("/api", createDirectMessagesRouter());
+
 try {
   const { startCommunityNotificationService } = require("./lib/community-notification-service");
   startCommunityNotificationService();

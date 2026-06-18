@@ -543,6 +543,15 @@ function createCommunityPostsRouter() {
       unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.COMMENTS, onFeedEvent));
       unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.LIKES, onFeedEvent));
 
+      const onMessageEvent = (payload) => {
+        if (payload && payload.recipientUserId === userId) {
+          send('message', payload);
+        }
+      };
+      if (pubsub.CHANNELS.MESSAGES) {
+        unsubs.push(pubsub.subscribeLocal(pubsub.CHANNELS.MESSAGES, onMessageEvent));
+      }
+
       const heartbeat = setInterval(() => {
         res.write(': ping\n\n');
       }, 25000);
