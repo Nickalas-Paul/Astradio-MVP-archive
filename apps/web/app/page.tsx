@@ -570,6 +570,11 @@ export default function HomePage() {
       }
     }
 
+    if (!user) {
+      router.push('/profile?intent=soundtrack');
+      return;
+    }
+
     if (audioInFlightRef.current) return;
     audioInFlightRef.current = true;
     setAudioLoading(true);
@@ -636,6 +641,8 @@ export default function HomePage() {
     audioUrl,
     location,
     dateStr,
+    user,
+    router,
     playSoundtrack,
     stopSoundtrack,
     applyComposePayload,
