@@ -2136,11 +2136,22 @@ app.use("/api", createCommunityPostsRouter());
 const { createDirectMessagesRouter } = require("./routes/direct-messages");
 app.use("/api", createDirectMessagesRouter());
 
-try {
-  const { startCommunityNotificationService } = require("./lib/community-notification-service");
-  startCommunityNotificationService();
-} catch (e) {
-  console.warn("[community-notification] failed to start:", e?.message || e);
+const communityNotificationPath = path.join(__dirname, '..', 'lib', 'community-notification-service');
+const communityNotificationMod = optionalRequire(communityNotificationPath);
+if (communityNotificationMod && typeof communityNotificationMod.startCommunityNotificationService === 'function') {
+  try {
+    communityNotificationMod.startCommunityNotificationService();
+  } catch (e) {
+    console.warn('[community-notification] failed to start:', e?.message || e);
+  }
+} else {
+  let resolveHint = communityNotificationPath;
+  try {
+    resolveHint = require.resolve(communityNotificationPath);
+  } catch (resolveErr) {
+    resolveHint = `${communityNotificationPath} (${resolveErr?.message || resolveErr})`;
+  }
+  console.warn('[community-notification] service module not loaded; expected at', resolveHint);
 }
 
 // Phase 5 — Relational groups (private, owner-scoped)
