@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, type RefObject } from 'react';
 import type React from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
+import { useProfile } from '../../core/social/hooks';
+import { canGenerateAudio } from '@/lib/entitlement';
 import { Button } from '../shared/Button';
 import type { SandboxReport } from '../../types/sandbox';
 
@@ -27,6 +29,7 @@ export function SandboxAudioPanel({
   audioGenerateError,
   onGenerateAudio,
 }: SandboxAudioPanelProps) {
+  const { user } = useProfile();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
@@ -96,9 +99,6 @@ export function SandboxAudioPanel({
 
   return (
     <div className="mt-6 space-y-2">
-      {/* SUBSCRIPTION GATE: Audio generation can be gated by tier here.
-          Free tier: text reading only. Premium tier: text + audio.
-          For beta: audio CTA is available to all users. */}
       {exportId ? (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-text-primary">Audio</h3>
@@ -146,11 +146,12 @@ export function SandboxAudioPanel({
             </details>
           )}
         </div>
-      ) : (
+      ) : canGenerateAudio(user) ? (
+        // SUBSCRIPTION GATE — swap canGenerateAudio impl at subscription launch
         <Button type="button" variant="secondary" size="sm" onClick={() => void onGenerateAudio()}>
           Hear this Soundtrack
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
