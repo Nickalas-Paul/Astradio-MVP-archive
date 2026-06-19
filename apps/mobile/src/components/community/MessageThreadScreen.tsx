@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserAvatar } from './UserAvatar';
 import { LoadOlderFooter, MessageBubble } from './MessageBubble';
+import { AudioLibraryPicker } from './AudioLibraryPicker';
 import { colors } from '../../constants/colors';
 import { acceptRequest, declineRequest } from '../../lib/community-messages-fetch';
 import { formatApiError } from '../../lib/format-api-error';
@@ -49,8 +50,13 @@ export function MessageThreadScreen({
   } = useDmThread(conversationId, Boolean(authUserId));
 
   const [draft, setDraft] = useState('');
+  const [audioExportId, setAudioExportId] = useState<string | null>(null);
+  const [audioLabel, setAudioLabel] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
+
+  const canSend = Boolean(draft.trim() || audioExportId);
 
   const peerName =
     peerDisplayLabel(conversation?.peer) !== 'Unknown'
@@ -68,12 +74,17 @@ export function MessageThreadScreen({
   const invertedData = [...messages].reverse();
 
   const handleSend = async () => {
-    const text = draft.trim();
-    if (!text || sending) return;
+    if (!canSend || sending) return;
     setSending(true);
     try {
-      await sendMessage(text);
+      await sendMessage(
+        draft.trim(),
+        audioExportId ?? undefined,
+        audioLabel ?? undefined
+      );
       setDraft('');
+      setAudioExportId(null);
+      setAudioLabel(null);
     } catch (err) {
       Alert.alert('Could not send', formatApiError(err, 'Something went wrong'));
     } finally {
@@ -192,29 +203,65 @@ export function MessageThreadScreen({
           ) : null}
 
           {composeEnabled ? (
-            <View style={styles.composeBar}>
-              <TextInput
-                style={styles.input}
-                placeholder="Type a message..."
-                placeholderTextColor={colors.text.muted}
-                value={draft}
-                onChangeText={(text) => setDraft(text.slice(0, MESSAGE_MAX))}
-                multiline
-                maxLength={MESSAGE_MAX}
-              />
-              <Pressable
-                style={[styles.sendBtn, (!draft.trim() || sending) && styles.sendDisabled]}
-                onPress={() => void handleSend()}
-                disabled={!draft.trim() || sending}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={colors.text.primary} />
-                ) : (
-                  <Text style={styles.sendText}>Send</Text>
-                )}
-              </Pressable>
+            <View style={styles.composeWrap}>
+              {audioExportId && audioLabel ? (
+                <View style={styles.audioChip}>
+                  <Text style={styles.audioChipIcon}>♪</Text>
+                  <Text style={styles.audioChipLabel} numberOfLines={1}>
+                    {audioLabel}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setAudioExportId(null);
+                      setAudioLabel(null);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.audioChipRemove}>×</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              <View style={styles.composeBar}>
+                <Pressable
+                  style={({ pressed }) => [styles.attachBtn, pressed && styles.attachPressed]}
+                  onPress={() => setPickerOpen(true)}
+                  accessibilityLabel="Attach audio from Library"
+                >
+                  <Text style={styles.attachIcon}>♪</Text>
+                </Pressable>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.text.muted}
+                  value={draft}
+                  onChangeText={(text) => setDraft(text.slice(0, MESSAGE_MAX))}
+                  multiline
+                  maxLength={MESSAGE_MAX}
+                />
+                <Pressable
+                  style={[styles.sendBtn, (!canSend || sending) && styles.sendDisabled]}
+                  onPress={() => void handleSend()}
+                  disabled={!canSend || sending}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color={colors.text.primary} />
+                  ) : (
+                    <Text style={styles.sendText}>Send</Text>
+                  )}
+                </Pressable>
+              </View>
             </View>
           ) : null}
+
+          <AudioLibraryPicker
+            visible={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={({ exportId, label }) => {
+              setAudioExportId(exportId);
+              setAudioLabel(label);
+            }}
+          />
         </KeyboardAvoidingView>
       )}
     </SafeAreaView>
@@ -276,15 +323,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  composeWrap: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+    paddingTop: 8,
+    paddingBottom: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  audioChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    maxWidth: '100%',
+  },
+  audioChipIcon: {
+    color: colors.accent.DEFAULT,
+    fontSize: 14,
+  },
+  audioChipLabel: {
+    flexShrink: 1,
+    color: colors.text.secondary,
+    fontSize: 12,
+    fontFamily: 'Manrope-Medium',
+    maxWidth: 220,
+  },
+  audioChipRemove: {
+    color: colors.text.secondary,
+    fontSize: 18,
+    lineHeight: 18,
+    paddingHorizontal: 2,
+  },
   composeBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
+  },
+  attachBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachPressed: {
+    opacity: 0.85,
+    borderColor: colors.accent.DEFAULT,
+  },
+  attachIcon: {
+    color: colors.text.secondary,
+    fontSize: 18,
   },
   input: {
     flex: 1,

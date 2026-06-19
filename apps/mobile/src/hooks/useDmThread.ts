@@ -91,9 +91,15 @@ export function useDmThread(conversationId: string | null, enabled = true) {
   }, [hasMore, load, loadingMore, messages]);
 
   const sendMessage = useCallback(
-    async (body: string) => {
+    async (body: string, audioExportId?: string, audioLabel?: string) => {
       if (!conversationId || !authUserId) throw new Error('not_authenticated');
-      const result = await sendMessageApi(conversationId, body, authUserId);
+      const result = await sendMessageApi(
+        conversationId,
+        body,
+        authUserId,
+        audioExportId,
+        audioLabel
+      );
       setMessages((prev) => {
         if (prev.some((m) => m.id === result.message.id)) return prev;
         return [...prev, result.message];

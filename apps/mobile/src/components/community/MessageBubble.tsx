@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { colors } from '../../constants/colors';
 import { formatMessageTime } from '../../lib/signal-display';
 import type { DmMessage } from '../../types/community-messages';
+import { PostAudioSection } from './PostAudioSection';
 
 type MessageBubbleProps = {
   message: DmMessage;
@@ -9,6 +10,8 @@ type MessageBubbleProps = {
 };
 
 export function MessageBubble({ message, isSender }: MessageBubbleProps) {
+  const audioLabel = message.audioLabel?.trim() || 'Audio attached';
+
   return (
     <View style={[styles.row, isSender ? styles.rowSender : styles.rowPeer]}>
       <View style={[styles.bubble, isSender ? styles.bubbleSender : styles.bubblePeer]}>
@@ -16,7 +19,7 @@ export function MessageBubble({ message, isSender }: MessageBubbleProps) {
           <Text style={styles.body}>{message.body}</Text>
         ) : null}
         {message.audioExportId ? (
-          <Text style={styles.audioLabel}>Audio attached</Text>
+          <PostAudioSection exportId={message.audioExportId} label={audioLabel} />
         ) : null}
         <Text style={styles.time}>{formatMessageTime(message.createdAt)}</Text>
       </View>
@@ -74,12 +77,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Manrope-Regular',
     lineHeight: 21,
-  },
-  audioLabel: {
-    color: colors.text.secondary,
-    fontSize: 13,
-    fontFamily: 'Manrope-SemiBold',
-    marginTop: 6,
   },
   time: {
     color: colors.text.muted,

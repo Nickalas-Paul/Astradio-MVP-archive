@@ -49,13 +49,18 @@ export async function fetchThread(
 export async function sendMessage(
   conversationId: string,
   body: string,
-  userId: string
+  userId: string,
+  audioExportId?: string,
+  audioLabel?: string
 ): Promise<SendMessageResponse> {
+  const payload: Record<string, unknown> = { body };
+  if (audioExportId?.trim()) payload.audioExportId = audioExportId.trim();
+  if (audioLabel?.trim()) payload.audioLabel = audioLabel.trim();
   return api<SendMessageResponse>(
     `/api/dm/conversations/${encodeURIComponent(conversationId)}/messages`,
     {
       method: 'POST',
-      body: withUserBody(userId, { body }),
+      body: withUserBody(userId, payload),
     }
   );
 }

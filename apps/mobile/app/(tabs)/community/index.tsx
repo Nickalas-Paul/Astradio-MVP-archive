@@ -93,6 +93,7 @@ export default function CommunityScreen() {
         </View>
       ) : (
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           refreshControl={
             <RefreshControl
