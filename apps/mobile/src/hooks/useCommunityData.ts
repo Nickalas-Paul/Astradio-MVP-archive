@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { RelationalIntent } from '../constants/community-constants';
 import {
   acceptIntent as acceptIntentApi,
   cancelIntent as cancelIntentApi,
@@ -9,6 +10,7 @@ import {
   searchUsers as searchUsersApi,
   sendConnectIntent as sendConnectIntentApi,
 } from '../lib/community-fetch';
+import { normalizeMatchFromApi } from '../lib/community-match-utils';
 import { formatApiError } from '../lib/format-api-error';
 import { useAuthStore } from '../store/auth';
 import type {
@@ -22,7 +24,10 @@ import type {
 export function useCommunityData() {
   const authUserId = useAuthStore((state) => state.user?.id ?? null);
   const [inventory, setInventory] = useState<CommunityInventoryResponse | null>(null);
-  const [matches, setMatches] = useState<MatchResult[]>([]);
+  const [matches, setMatches] = useState<MatchResult[] | null>(null);
+  const [matchesLoaded, setMatchesLoaded] = useState(false);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [chartId, setChartId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,10 +35,9 @@ export function useCommunityData() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [mutationBusy, setMutationBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refreshInventory = useCallback(async () => {
     if (!authUserId) {
       setInventory(null);
-      setMatches([]);
       setUserId(null);
       setChartId(null);
       setError(null);
@@ -47,26 +51,47 @@ export function useCommunityData() {
       const profile = await fetchProfileChartId();
       setUserId(profile.userId);
       setChartId(profile.chartId);
-
-      const [inventoryData, matchesData] = await Promise.all([
-        fetchInventory(profile.userId),
-        fetchMatches(profile.chartId),
-      ]);
-
+      const inventoryData = await fetchInventory(profile.userId);
       setInventory(inventoryData);
-      setMatches(matchesData.matches ?? []);
     } catch (err) {
       setError(formatApiError(err, 'Could not load Community'));
       setInventory(null);
-      setMatches([]);
     } finally {
       setLoading(false);
     }
   }, [authUserId]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshInventory();
+  }, [refreshInventory]);
+
+  const findMatches = useCallback(
+    async (mode: RelationalIntent) => {
+      const cid = chartId;
+      if (!cid) {
+        setMatchesError('Add your natal chart to find matches.');
+        setMatches([]);
+        setMatchesLoaded(true);
+        return;
+      }
+
+      setMatchesLoading(true);
+      setMatchesError(null);
+      try {
+        const response = await fetchMatches(cid, mode, 10);
+        const raw = Array.isArray(response.matches) ? response.matches : [];
+        setMatches(raw.map((row) => normalizeMatchFromApi(row, mode)));
+        setMatchesLoaded(true);
+      } catch (err) {
+        setMatchesError(formatApiError(err, 'Could not load matches'));
+        setMatches([]);
+        setMatchesLoaded(true);
+      } finally {
+        setMatchesLoading(false);
+      }
+    },
+    [chartId]
+  );
 
   const searchUsers = useCallback(
     async (query: string): Promise<SearchUser[]> => {
@@ -90,16 +115,16 @@ export function useCommunityData() {
       setMutationBusy(true);
       try {
         await action();
-        await refresh();
+        await refreshInventory();
       } finally {
         setMutationBusy(false);
       }
     },
-    [refresh]
+    [refreshInventory]
   );
 
   const sendConnect = useCallback(
-    async (toUserId: string, toChartId: string) => {
+    async (toUserId: string, toChartId: string, relationshipKind: RelationalIntent = 'friend') => {
       const uid = userId ?? authUserId;
       const cid = chartId;
       if (!uid || !cid) {
@@ -111,7 +136,7 @@ export function useCommunityData() {
           fromChartId: cid,
           toUserId,
           toChartId,
-          relationshipKind: 'friend',
+          relationshipKind,
         })
       );
     },
@@ -153,6 +178,9 @@ export function useCommunityData() {
     inventory,
     pairs,
     matches,
+    matchesLoaded,
+    matchesLoading,
+    matchesError,
     pendingIncoming,
     pendingOutgoing,
     userId: userId ?? authUserId,
@@ -161,7 +189,8 @@ export function useCommunityData() {
     error,
     searchLoading,
     mutationBusy,
-    refresh,
+    refresh: refreshInventory,
+    findMatches,
     searchUsers,
     sendConnect,
     acceptIntent,

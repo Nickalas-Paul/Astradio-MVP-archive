@@ -1,3 +1,4 @@
+import type { RelationalIntent } from '../constants/community-constants';
 import { api } from './api';
 import type {
   CommunityInventoryResponse,
@@ -36,9 +37,13 @@ export async function searchUsers(query: string, userId: string): Promise<Search
   return Array.isArray(response.users) ? response.users : [];
 }
 
-export async function fetchMatches(chartId: string, limit = 10): Promise<MatchesResponse> {
+export async function fetchMatches(
+  chartId: string,
+  mode: RelationalIntent = 'friend',
+  limit = 10
+): Promise<MatchesResponse> {
   return api<MatchesResponse>(
-    `/api/compat/matches?chartId=${encodeURIComponent(chartId)}&mode=friend&limit=${limit}`
+    `/api/compat/matches?chartId=${encodeURIComponent(chartId)}&mode=${encodeURIComponent(mode)}&limit=${limit}`
   );
 }
 

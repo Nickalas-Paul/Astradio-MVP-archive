@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -8,41 +7,53 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ConnectionCard } from '../../src/components/community/ConnectionCard';
-import { CommunitySkeleton } from '../../src/components/community/CommunitySkeleton';
-import { DiscoverySection } from '../../src/components/community/DiscoverySection';
-import { PendingIntentsSection } from '../../src/components/community/PendingIntentsSection';
+import { CommunitySubTabs } from '../../src/components/community/CommunitySubTabs';
+import { CompatibilityMatchesSection } from '../../src/components/community/CompatibilityMatchesSection';
+import { ConnectionsTabContent } from '../../src/components/community/ConnectionsTabContent';
+import { DiscoverySearchSection } from '../../src/components/community/DiscoverySearchSection';
+import {
+  COMMUNITY_SUB_TABS,
+  type CommunitySubTabId,
+  type RelationalIntent,
+} from '../../src/constants/community-constants';
 import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
 import { colors } from '../../src/constants/colors';
 import { useCommunityData } from '../../src/hooks/useCommunityData';
 
-function SectionDivider() {
-  return <View style={styles.sectionDivider} />;
-}
-
-function SectionHeading({ title }: { title: string }) {
-  return <Text style={styles.sectionHeading}>{title}</Text>;
+function PlaceholderTab({ message }: { message: string }) {
+  return (
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderText}>{message}</Text>
+    </View>
+  );
 }
 
 export default function CommunityScreen() {
+  const [activeTab, setActiveTab] = useState<CommunitySubTabId>('discovery');
+  const [discoveryIntent, setDiscoveryIntent] = useState<RelationalIntent>('friend');
+  const [refreshing, setRefreshing] = useState(false);
+
   const {
     pairs,
     matches,
+    matchesLoaded,
+    matchesLoading,
+    matchesError,
     pendingIncoming,
     pendingOutgoing,
+    chartId,
     loading,
     error,
     searchLoading,
     mutationBusy,
     refresh,
+    findMatches,
     searchUsers,
     sendConnect,
     acceptIntent,
     declineIntent,
     cancelIntent,
   } = useCommunityData();
-
-  const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -52,6 +63,13 @@ export default function CommunityScreen() {
       setRefreshing(false);
     }
   }, [refresh]);
+
+  const handleRequestConnection = useCallback(
+    async (toUserId: string, toChartId: string, intent: RelationalIntent = discoveryIntent) => {
+      await sendConnect(toUserId, toChartId, intent);
+    },
+    [sendConnect, discoveryIntent]
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -67,51 +85,74 @@ export default function CommunityScreen() {
         }
       >
         <Text style={styles.title}>Community</Text>
+        <Text style={styles.subtitle}>
+          Discover, connect, and share with the Astradio community.
+        </Text>
 
-        {loading && pairs.length === 0 && matches.length === 0 ? <CommunitySkeleton /> : null}
+        <CommunitySubTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={COMMUNITY_SUB_TABS}
+        />
 
-        {error && pairs.length === 0 ? (
-          <View style={styles.errorBlock}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable onPress={() => void refresh()}>
-              <Text style={styles.retryText}>Try again</Text>
-            </Pressable>
-          </View>
-        ) : null}
+        <View style={styles.tabContent}>
+          {activeTab === 'discovery' ? (
+            <>
+              <Text style={styles.tabHeading}>Discovery</Text>
+              <Text style={styles.tabDescription}>
+                Find meaningful connections based on astrological compatibility. Choose your intent
+                and we&apos;ll show you the best matches.
+              </Text>
 
-        {!loading || pairs.length > 0 || matches.length > 0 ? (
-          <>
-            <PendingIntentsSection
-              incoming={pendingIncoming}
-              outgoing={pendingOutgoing}
+              <DiscoverySearchSection
+                intent={discoveryIntent}
+                pendingOutgoing={pendingOutgoing}
+                searchUsers={searchUsers}
+                searchLoading={searchLoading}
+                onRequestConnection={(userId, chartId) =>
+                  handleRequestConnection(userId, chartId, discoveryIntent)
+                }
+                mutationBusy={mutationBusy}
+              />
+
+              <CompatibilityMatchesSection
+                chartId={chartId}
+                intent={discoveryIntent}
+                onIntentChange={setDiscoveryIntent}
+                matches={matches}
+                matchesLoaded={matchesLoaded}
+                matchesLoading={matchesLoading}
+                matchesError={matchesError}
+                pendingOutgoing={pendingOutgoing}
+                onFindMatches={findMatches}
+                onRequestConnection={handleRequestConnection}
+                mutationBusy={mutationBusy}
+              />
+            </>
+          ) : null}
+
+          {activeTab === 'connections' ? (
+            <ConnectionsTabContent
+              pairs={pairs}
+              pendingIncoming={pendingIncoming}
+              pendingOutgoing={pendingOutgoing}
+              loading={loading}
+              error={error}
+              onRefresh={refresh}
+              onSwitchToDiscovery={() => setActiveTab('discovery')}
               onAccept={acceptIntent}
               onDecline={declineIntent}
               onCancel={cancelIntent}
               mutationBusy={mutationBusy}
             />
+          ) : null}
 
-            <SectionHeading title="Your Connections" />
-            {pairs.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No connections yet. Discover people below.
-              </Text>
-            ) : (
-              pairs.map((pair) => <ConnectionCard key={pair.id} pair={pair} />)
-            )}
+          {activeTab === 'messages' ? (
+            <PlaceholderTab message="Messages coming soon" />
+          ) : null}
 
-            <SectionDivider />
-
-            <DiscoverySection
-              matches={matches}
-              pairs={pairs}
-              pendingOutgoing={pendingOutgoing}
-              searchUsers={searchUsers}
-              searchLoading={searchLoading}
-              onConnect={sendConnect}
-              connectBusy={mutationBusy}
-            />
-          </>
-        ) : null}
+          {activeTab === 'feed' ? <PlaceholderTab message="Feed coming soon" /> : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -131,41 +172,40 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: 'Cormorant-SemiBold',
     marginTop: 8,
-    marginBottom: 16,
+    textAlign: 'center',
   },
-  sectionHeading: {
-    color: colors.accent.DEFAULT,
-    fontSize: 16,
-    fontFamily: 'Manrope-SemiBold',
-    marginBottom: 12,
-  },
-  sectionDivider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    marginVertical: 20,
-  },
-  emptyText: {
-    color: colors.text.muted,
-    fontSize: 14,
+  subtitle: {
+    color: colors.text.secondary,
+    fontSize: 15,
     fontFamily: 'Manrope-Regular',
     textAlign: 'center',
-    paddingVertical: 16,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 16,
+    lineHeight: 21,
   },
-  errorBlock: {
-    alignItems: 'center',
-    paddingVertical: 32,
+  tabContent: {
+    marginTop: 20,
   },
-  errorText: {
+  tabHeading: {
+    color: colors.text.primary,
+    fontSize: 20,
+    fontFamily: 'Manrope-SemiBold',
+    marginBottom: 6,
+  },
+  tabDescription: {
     color: colors.text.secondary,
     fontSize: 14,
     fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 20,
+    lineHeight: 20,
   },
-  retryText: {
-    color: colors.accent.DEFAULT,
-    fontSize: 14,
-    fontFamily: 'Manrope-Medium',
+  placeholder: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: colors.text.muted,
+    fontSize: 15,
+    fontFamily: 'Manrope-Regular',
   },
 });

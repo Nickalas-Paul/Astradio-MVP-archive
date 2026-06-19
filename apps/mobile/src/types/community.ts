@@ -64,13 +64,28 @@ export type SearchResponse = {
   users: SearchUser[];
 };
 
+export type SynastryBulletLine = { anchor: string; text: string };
+
+export type CompatibilityExplanationProfile = {
+  intent: 'friend' | 'lover';
+  intentFitSummary: string;
+  primarySupports: string[];
+  secondarySupports: string[];
+  tensionsOrLimits: string[];
+  synastryBullets?: {
+    forYou: SynastryBulletLine;
+    forThem: SynastryBulletLine;
+    together: SynastryBulletLine;
+  };
+};
+
 /** GET /api/compat/matches — score/rationale/facets stripped by toPublicCompatMatch. */
 export type MatchResult = {
   userId: string;
   chartId: string;
   displayName: string;
   handle?: string;
-  explanationProfile?: unknown;
+  explanationProfile?: CompatibilityExplanationProfile;
   lastUpdated: string;
   compatibilityFieldHash?: string;
   bio?: string;
