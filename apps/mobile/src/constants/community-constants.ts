@@ -12,8 +12,8 @@ export const RELATIONAL_INTENT_OPTIONS: { value: RelationalIntent; label: string
 export type CommunitySubTabId = 'discovery' | 'connections' | 'messages' | 'feed';
 
 export const COMMUNITY_SUB_TABS: { id: CommunitySubTabId; label: string }[] = [
-  { id: 'discovery', label: 'Discovery' },
-  { id: 'connections', label: 'Connections' },
+  { id: 'discovery', label: 'Discover' },
+  { id: 'connections', label: 'Connect' },
   { id: 'messages', label: 'Messages' },
   { id: 'feed', label: 'Feed' },
 ];

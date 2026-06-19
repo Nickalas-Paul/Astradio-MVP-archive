@@ -7,18 +7,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CommunitySubTabs } from '../../src/components/community/CommunitySubTabs';
-import { CompatibilityMatchesSection } from '../../src/components/community/CompatibilityMatchesSection';
-import { ConnectionsTabContent } from '../../src/components/community/ConnectionsTabContent';
-import { DiscoverySearchSection } from '../../src/components/community/DiscoverySearchSection';
+import { CommunitySubTabs } from '../../../src/components/community/CommunitySubTabs';
+import { CompatibilityMatchesSection } from '../../../src/components/community/CompatibilityMatchesSection';
+import { ConnectionsTabContent } from '../../../src/components/community/ConnectionsTabContent';
+import { DiscoverySearchSection } from '../../../src/components/community/DiscoverySearchSection';
 import {
   COMMUNITY_SUB_TABS,
   type CommunitySubTabId,
   type RelationalIntent,
-} from '../../src/constants/community-constants';
-import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
-import { colors } from '../../src/constants/colors';
-import { useCommunityData } from '../../src/hooks/useCommunityData';
+} from '../../../src/constants/community-constants';
+import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
+import { colors } from '../../../src/constants/colors';
+import { useCommunityData } from '../../../src/hooks/useCommunityData';
 
 function PlaceholderTab({ message }: { message: string }) {
   return (

@@ -11,8 +11,6 @@ import { UserAvatar } from './UserAvatar';
 type MatchCardProps = {
   match: MatchResult;
   intent: RelationalIntent;
-  index: number;
-  total: number;
   pendingOutgoing: PendingIntent[];
   onRequestConnection: (userId: string, chartId: string) => Promise<void>;
   requestBusy?: boolean;
@@ -46,8 +44,6 @@ function getBullets(ep: CompatibilityExplanationProfile | undefined) {
 export function MatchCard({
   match,
   intent,
-  index,
-  total,
   pendingOutgoing,
   onRequestConnection,
   requestBusy = false,
@@ -106,10 +102,6 @@ export function MatchCard({
           )}
         </Pressable>
       </View>
-
-      <Text style={styles.footerMeta}>
-        Card {index + 1} of {total}
-      </Text>
     </View>
   );
 }
@@ -121,7 +113,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: 16,
-    marginBottom: 16,
   },
   header: {
     alignItems: 'center',
@@ -206,13 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope-SemiBold',
     textAlign: 'center',
-  },
-  footerMeta: {
-    color: colors.text.muted,
-    fontSize: 12,
-    fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
-    marginTop: 12,
   },
   pressed: {
     opacity: 0.85,

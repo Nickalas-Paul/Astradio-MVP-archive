@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { FOUNDER_USER_ID } from '../../constants/community-constants';
 import { colors } from '../../constants/colors';
 import type { InventoryPair } from '../../types/community';
@@ -18,11 +19,24 @@ function readingAvailable(status: string): boolean {
 }
 
 export function ConnectionCard({ pair }: ConnectionCardProps) {
+  const router = useRouter();
   const displayName = pair.peerDisplayName?.trim() || 'Connection';
   const handle = pair.peerHandle?.trim();
   const status = String(pair.artifactStatus || 'not_generated');
   const isFounder =
     typeof pair.peerUserId === 'string' && pair.peerUserId.trim() === FOUNDER_USER_ID;
+
+  const openConnection = () => {
+    router.push({
+      pathname: '/community/[relationshipId]',
+      params: {
+        relationshipId: pair.id,
+        peerDisplayName: displayName,
+        peerHandle: handle ?? '',
+        label: pair.label ?? '',
+      },
+    });
+  };
 
   return (
     <View style={styles.card}>
@@ -51,7 +65,7 @@ export function ConnectionCard({ pair }: ConnectionCardProps) {
 
       <View style={styles.actions}>
         <Pressable
-          onPress={() => console.log('navigate to', pair.id)}
+          onPress={openConnection}
           style={({ pressed }) => [styles.actionButton, styles.outlineButton, pressed && styles.pressed]}
         >
           <Text style={styles.outlineButtonText}>Open connection</Text>

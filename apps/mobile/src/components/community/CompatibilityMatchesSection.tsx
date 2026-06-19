@@ -12,11 +12,10 @@ import {
   type RelationalIntent,
 } from '../../constants/community-constants';
 import {
-  calculateDiscoveryRequestsRemaining,
   formatRefreshCountdown,
 } from '../../lib/community-match-utils';
 import type { MatchResult, PendingIntent } from '../../types/community';
-import { MatchCard } from './MatchCard';
+import { MatchCarousel } from './MatchCarousel';
 
 type CompatibilityMatchesSectionProps = {
   chartId: string | null;
@@ -82,7 +81,6 @@ export function CompatibilityMatchesSection({
     [intent, onRequestConnection]
   );
 
-  const requestsRemaining = calculateDiscoveryRequestsRemaining(pendingOutgoing.length);
   const matchList = matches ?? [];
 
   return (
@@ -162,22 +160,15 @@ export function CompatibilityMatchesSection({
                 year: 'numeric',
               })}
             </Text>
-            {matchList.map((match, index) => (
-              <MatchCard
-                key={`${match.userId}-${match.chartId}`}
-                match={match}
-                intent={intent}
-                index={index}
-                total={matchList.length}
-                pendingOutgoing={pendingOutgoing}
-                onRequestConnection={handleRequest}
-                requestBusy={requestBusyId === match.userId}
-                mutationBusy={mutationBusy}
-              />
-            ))}
-            <Text style={styles.footerMeta}>
-              {requestsRemaining} requests remaining · New matches in: {countdown}
-            </Text>
+            <MatchCarousel
+              matches={matchList}
+              intent={intent}
+              pendingOutgoing={pendingOutgoing}
+              onRequestConnection={handleRequest}
+              requestBusyId={requestBusyId}
+              mutationBusy={mutationBusy}
+            />
+            <Text style={styles.footerMeta}>New matches in: {countdown}</Text>
           </View>
         ) : null}
       </View>

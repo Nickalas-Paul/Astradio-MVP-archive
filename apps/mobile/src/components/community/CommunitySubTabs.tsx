@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../constants/colors';
 import type { CommunitySubTabId } from '../../constants/community-constants';
 
@@ -10,11 +10,7 @@ type CommunitySubTabsProps = {
 
 export function CommunitySubTabs({ activeTab, onTabChange, tabs }: CommunitySubTabsProps) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.track}
-    >
+    <View style={styles.row}>
       {tabs.map((tab) => {
         const active = tab.id === activeTab;
         return (
@@ -27,27 +23,32 @@ export function CommunitySubTabs({ activeTab, onTabChange, tabs }: CommunitySubT
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.pillText, active && styles.pillTextActive]}>{tab.label}</Text>
+            <Text style={[styles.pillText, active && styles.pillTextActive]} numberOfLines={1}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  track: {
+  row: {
     flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 6,
   },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flex: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
   },
   pillActive: {
     backgroundColor: colors.accent.DEFAULT,
@@ -55,8 +56,9 @@ const styles = StyleSheet.create({
   },
   pillText: {
     color: colors.text.secondary,
-    fontSize: 14,
+    fontSize: 11,
     fontFamily: 'Manrope-Medium',
+    textAlign: 'center',
   },
   pillTextActive: {
     color: colors.text.primary,
