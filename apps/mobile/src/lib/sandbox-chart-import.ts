@@ -1,3 +1,5 @@
+import * as Crypto from 'expo-crypto';
+
 export const CHART_IMPORT_UNAVAILABLE_MSG =
   "This chart isn't available for import. Connect with this person first, or enter their birth data manually.";
 
@@ -80,13 +82,7 @@ function serializeNumberForHash(n: number): string {
 }
 
 async function sha256Hex(input: string): Promise<string> {
-  if (typeof globalThis.crypto?.subtle !== 'undefined') {
-    const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-  throw new Error('Crypto unavailable for chart hash');
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input);
 }
 
 export async function combinedChartIdOverridesSeed(

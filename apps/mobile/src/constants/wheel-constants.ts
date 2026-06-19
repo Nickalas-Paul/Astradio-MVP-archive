@@ -69,6 +69,7 @@ export const WHEEL_COLORS = {
   zodiacGlyphFill: '#94A3B8',
   angleLabelFill: '#0e9696',
   aspectFallback: '#6a7a8a',
+  houseNumberFill: '#64748B',
 } as const;
 
 export const ASPECT_LINE_COLOR: Record<string, string> = {

@@ -19,3 +19,22 @@ export function signDegToLon(signIdx: number, deg: number, min: number): number 
 export function roundSandboxDegree(lonDeg: number): number {
   return Math.round(lonDeg * 10) / 10;
 }
+
+function normLon(lon: number): number {
+  let value = lon % 360;
+  if (value < 0) value += 360;
+  return value;
+}
+
+/** House number (1–12) for a longitude given 12 cusps. */
+export function lonToHouse(lon: number, cusps: number[]): number | null {
+  if (cusps.length < 12) return null;
+  const x = normLon(lon);
+  for (let index = 0; index < 12; index++) {
+    const start = normLon(cusps[index]!);
+    const end = normLon(cusps[(index + 1) % 12]!);
+    const inSegment = start <= end ? x >= start && x < end : x >= start || x < end;
+    if (inSegment) return index + 1;
+  }
+  return 1;
+}

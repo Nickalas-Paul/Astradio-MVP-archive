@@ -101,14 +101,6 @@ export function ChartImportSearch({ slotIndex, onCancel }: ChartImportSearchProp
             chartDisplayName: displayName,
             snapshot: snap,
             baseSnapshot: snap,
-            birth: {
-              date: wire.date,
-              time: wire.time,
-              lat: wire.lat,
-              lon: wire.lon,
-              timezone: wire.timezone,
-              locationLabel: wire.location.label,
-            },
           });
         } else {
           const serverSnap = await fetchChartSnapshot(chartId);

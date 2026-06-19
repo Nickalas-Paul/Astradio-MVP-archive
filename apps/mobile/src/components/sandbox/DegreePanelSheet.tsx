@@ -16,7 +16,9 @@ import {
   type SandboxPlanetKey,
 } from '../../constants/sandbox-planets';
 import { DEFAULT_FREE_BUILD_ASC_DEG } from '../../lib/sandbox-blank-canvas';
+import { equalHouseCuspsFromAscendant } from '../../lib/sandbox-equal-houses';
 import {
+  lonToHouse,
   lonToSignDeg,
   roundSandboxDegree,
   signDegToLon,
@@ -73,6 +75,16 @@ export function DegreePanelSheet({ visible, onClose }: Props) {
 
   const ascLon = slot ? ascendantFromSlot(slot) : null;
 
+  const cusps = useMemo((): number[] | null => {
+    if (!slot) return null;
+    if (slot.entryMode === 'blank_canvas') {
+      return equalHouseCuspsFromAscendant(slot.freeBuildAscDeg ?? DEFAULT_FREE_BUILD_ASC_DEG);
+    }
+    const houses = slot.snapshot?.houses;
+    if (houses && houses.length === 12) return houses;
+    return null;
+  }, [slot]);
+
   const onAscReset = useCallback(() => {
     if (!slot || !isBlankCanvas) return;
     updateSlot(activeSlotIndex, {
@@ -98,22 +110,27 @@ export function DegreePanelSheet({ visible, onClose }: Props) {
                 editable={isBlankCanvas}
                 resetLabel={resetLabel}
                 showReset={isBlankCanvas && ascLon !== DEFAULT_FREE_BUILD_ASC_DEG}
+                houseNum={cusps ? lonToHouse(ascLon, cusps) : null}
                 onChange={(lon) => handleAscendantChange(lon)}
                 onReset={onAscReset}
               />
             ) : null}
-            {BODY_DISPLAY_ORDER.map((body) => (
+            {BODY_DISPLAY_ORDER.map((body) => {
+              const lon = slot.overrides?.[body]?.lon ?? basePositions[body] ?? 0;
+              return (
               <PlanetRow
                 key={body}
                 label={BODY_LABELS[body] ?? body}
-                lon={slot.overrides?.[body]?.lon ?? basePositions[body] ?? 0}
+                lon={lon}
                 editable
                 resetLabel={resetLabel}
                 showReset={slot.overrides?.[body] != null}
-                onChange={(lon) => handleOverrideChange(body as SandboxPlanetKey, lon)}
+                houseNum={cusps ? lonToHouse(lon, cusps) : null}
+                onChange={(lonVal) => handleOverrideChange(body as SandboxPlanetKey, lonVal)}
                 onReset={() => handleResetPlanet(body as SandboxPlanetKey)}
               />
-            ))}
+              );
+            })}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -127,6 +144,7 @@ function PlanetRow({
   editable,
   resetLabel,
   showReset,
+  houseNum,
   onChange,
   onReset,
 }: {
@@ -135,6 +153,7 @@ function PlanetRow({
   editable: boolean;
   resetLabel: string;
   showReset?: boolean;
+  houseNum?: number | null;
   onChange: (lon: number) => void;
   onReset: () => void;
 }) {
@@ -197,6 +216,9 @@ function PlanetRow({
             {parts.sign} {parts.deg}°{String(parts.min).padStart(2, '0')}&apos;
           </Text>
         )}
+        {houseNum != null ? (
+          <Text style={styles.houseLabel}>House {houseNum}</Text>
+        ) : null}
         {editable && showReset ? (
           <Pressable onPress={onReset} hitSlop={8}>
             <Text style={styles.resetBtn}>{resetLabel}</Text>
@@ -318,6 +340,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
     flex: 1,
+  },
+  houseLabel: {
+    fontFamily: 'Manrope-Regular',
+    fontSize: 12,
+    color: colors.text.muted,
   },
   resetBtn: {
     fontFamily: 'Manrope-SemiBold',

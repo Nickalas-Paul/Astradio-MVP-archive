@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { colors } from '../../constants/colors';
 import { normalizePlanetName, planetColor, PLANET_COLORS } from '../../constants/planet-colors';
-import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH } from '../../constants/wheel-constants';
+import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH, WHEEL_COLORS } from '../../constants/wheel-constants';
 import { angularSeparationDeg, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
 import type { WheelAspect, WheelPlacement } from '../../types/my-sky';
 
@@ -161,6 +161,27 @@ export function NatalWheel({
                 stroke={isAsc ? colors.accent.DEFAULT : colors.border}
                 strokeWidth={isAsc ? 1.5 : 1}
               />
+            );
+          })}
+
+          {cusps.slice(0, 12).map((a0, index) => {
+            const a1 = cusps[(index + 1) % 12]!;
+            const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
+            const midLon = (a0 + span / 2) % 360;
+            const houseLabelRadius = (geometry.innerRadius + geometry.zodiacInnerRadius) / 2;
+            const point = pol(houseLabelRadius, midLon, ascendantLongitude);
+            return (
+              <SvgText
+                key={`house-num-${index}`}
+                x={point.x}
+                y={point.y + 3}
+                fill={WHEEL_COLORS.houseNumberFill}
+                fontSize={10}
+                opacity={0.75}
+                textAnchor="middle"
+              >
+                {index + 1}
+              </SvgText>
             );
           })}
 

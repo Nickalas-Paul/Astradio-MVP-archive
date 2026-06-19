@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,6 +9,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { colors } from '../../constants/colors';
 import { formatApiError } from '../../lib/format-api-error';
 import { searchGeocode } from '../../lib/geocode';
@@ -26,10 +30,55 @@ const HOUSE_SYSTEMS = [
   { value: 'koch', label: 'Koch' },
 ] as const;
 
+function formatDateYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatTimeHHMM(d: Date): string {
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function parseDateYYYYMMDD(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  return new Date();
+}
+
+function parseTimeHHMM(value: string): Date {
+  const d = new Date();
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (match) {
+    d.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  } else {
+    d.setHours(12, 0, 0, 0);
+  }
+  return d;
+}
+
+function formatTime12Hour(hhmm: string): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!match) return '12:00 PM';
+  let h = Number(match[1]);
+  const m = match[2]!;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+
 export function BirthDataForm({ slotIndex, onCancel }: BirthDataFormProps) {
   const updateSlot = useSandboxStore((s) => s.updateSlot);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('12:00');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationLabel, setLocationLabel] = useState('');
   const [location, setLocation] = useState<{
@@ -77,6 +126,32 @@ export function BirthDataForm({ slotIndex, onCancel }: BirthDataFormProps) {
       })();
     }, 300);
   }, [locationQuery]);
+
+  const onDateChange = useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'dismissed') {
+      setShowDatePicker(false);
+      return;
+    }
+    if (selectedDate) {
+      setDate(formatDateYYYYMMDD(selectedDate));
+    }
+  }, []);
+
+  const onTimeChange = useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (event.type === 'dismissed') {
+      setShowTimePicker(false);
+      return;
+    }
+    if (selectedDate) {
+      setTime(formatTimeHHMM(selectedDate));
+    }
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     setError(null);
@@ -143,23 +218,42 @@ export function BirthDataForm({ slotIndex, onCancel }: BirthDataFormProps) {
       <View style={styles.row}>
         <View style={styles.field}>
           <Text style={styles.label}>Date</Text>
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.text.muted}
-            style={styles.input}
-          />
+          <Pressable
+            style={styles.pickerField}
+            onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+          >
+            <Text style={date ? styles.pickerValue : styles.pickerPlaceholder}>
+              {date || 'Select date'}
+            </Text>
+          </Pressable>
+          {showDatePicker ? (
+            <DateTimePicker
+              value={date ? parseDateYYYYMMDD(date) : new Date()}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          ) : null}
         </View>
         <View style={styles.field}>
           <Text style={styles.label}>Time</Text>
-          <TextInput
-            value={time}
-            onChangeText={setTime}
-            placeholder="HH:MM"
-            placeholderTextColor={colors.text.muted}
-            style={styles.input}
-          />
+          <Pressable
+            style={styles.pickerField}
+            onPress={() => setShowTimePicker(true)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pickerValue}>{formatTime12Hour(time)}</Text>
+          </Pressable>
+          {showTimePicker ? (
+            <DateTimePicker
+              value={parseTimeHHMM(time)}
+              mode="time"
+              display="default"
+              is24Hour={false}
+              onChange={onTimeChange}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -275,6 +369,26 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontFamily: 'Manrope-Regular',
     backgroundColor: colors.surfaceLight,
+  },
+  pickerField: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceLight,
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  pickerValue: {
+    color: colors.text.primary,
+    fontFamily: 'Manrope-Regular',
+    fontSize: 14,
+  },
+  pickerPlaceholder: {
+    color: colors.text.muted,
+    fontFamily: 'Manrope-Regular',
+    fontSize: 14,
   },
   selectedLocation: {
     color: colors.accent.DEFAULT,
