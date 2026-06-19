@@ -122,6 +122,7 @@ export default function ConnectionDetailScreen() {
                 exportId={exportId}
                 audioAvailable={audioAvailable}
                 audioGenerating={audioGenerating}
+                peerDisplayName={displayName}
                 onGenerate={generateAudio}
               />
             ) : null}

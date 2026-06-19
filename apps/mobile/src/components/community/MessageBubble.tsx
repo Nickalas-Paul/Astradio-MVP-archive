@@ -19,7 +19,7 @@ export function MessageBubble({ message, isSender }: MessageBubbleProps) {
           <Text style={styles.body}>{message.body}</Text>
         ) : null}
         {message.audioExportId ? (
-          <PostAudioSection exportId={message.audioExportId} label={audioLabel} />
+          <PostAudioSection exportId={message.audioExportId} label={audioLabel} source="dm" />
         ) : null}
         <Text style={styles.time}>{formatMessageTime(message.createdAt)}</Text>
       </View>

@@ -1,92 +1,47 @@
-import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { API_BASE } from '../../lib/api';
 import { getExpoAv } from '../../lib/expo-av-guard';
-import { getToken } from '../../lib/token-storage';
+import { useAudioPlayback } from '../../hooks/useAudioPlayback';
+import type { AudioSource } from '../../store/audio';
 import { colors } from '../../constants/colors';
 
 type PostAudioSectionProps = {
   exportId: string;
   label?: string | null;
+  source?: Extract<AudioSource, 'post' | 'dm'>;
 };
 
-type ExpoAvModule = NonNullable<ReturnType<typeof getExpoAv>>;
-
-function PostAudioPlayerInner({
-  exportId,
-  label,
-  expoAv,
-}: PostAudioSectionProps & { expoAv: ExpoAvModule }) {
-  const { Audio } = expoAv;
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const soundRef = useRef<InstanceType<ExpoAvModule['Audio']['Sound']> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      void (async () => {
-        if (soundRef.current) {
-          await soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
-      })();
-    };
-  }, []);
-
-  const togglePlayback = async () => {
-    setIsLoading(true);
-    try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      if (!soundRef.current) {
-        const token = await getToken();
-        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: `${API_BASE}/api/exports/${exportId}`, headers },
-          { shouldPlay: false }
-        );
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) return;
-          setIsPlaying(status.isPlaying);
-          if (status.didJustFinish) setIsPlaying(false);
-        });
-        soundRef.current = sound;
-      }
-      const status = await soundRef.current.getStatusAsync();
-      if (!status.isLoaded) return;
-      if (status.isPlaying) {
-        await soundRef.current.pauseAsync();
-      } else {
-        await soundRef.current.playAsync();
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+function PostAudioPlayerControls({ exportId, label, source }: PostAudioSectionProps) {
+  const trackLabel = label?.trim() || 'Community Audio';
+  const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
+    exportId,
+    label: trackLabel,
+    source: source ?? 'post',
+  });
 
   return (
-    <Pressable style={styles.audioRow} onPress={() => void togglePlayback()} disabled={isLoading}>
-      {isLoading ? (
+    <Pressable style={styles.audioRow} onPress={handlePlay} disabled={isThisLoading}>
+      {isThisLoading ? (
         <ActivityIndicator size="small" color={colors.accent.DEFAULT} />
       ) : (
-        <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+        <Text style={styles.playIcon}>{isThisPlaying ? '⏸' : '▶'}</Text>
       )}
       <Text style={styles.audioLabel} numberOfLines={1}>
-        {label?.trim() || 'Listen'}
+        {trackLabel}
       </Text>
     </Pressable>
   );
 }
 
-export function PostAudioSection({ exportId, label }: PostAudioSectionProps) {
-  const expoAv = getExpoAv();
-  if (!expoAv) {
+export function PostAudioSection({ exportId, label, source }: PostAudioSectionProps) {
+  if (!getExpoAv()) {
     return (
       <View style={styles.audioRow}>
         <Text style={styles.audioLabelMuted}>Audio requires full build</Text>
       </View>
     );
   }
-  return <PostAudioPlayerInner exportId={exportId} label={label} expoAv={expoAv} />;
+
+  return <PostAudioPlayerControls exportId={exportId} label={label} source={source} />;
 }
 
 const styles = StyleSheet.create({

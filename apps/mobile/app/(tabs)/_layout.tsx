@@ -1,5 +1,17 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
+import { BottomTabBar, type BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
+import MiniPlayer from '../../src/components/global/MiniPlayer';
 import { colors } from '../../src/constants/colors';
+
+function TabBarWithMiniPlayer(props: BottomTabBarProps) {
+  return (
+    <View>
+      <MiniPlayer />
+      <BottomTabBar {...props} />
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -17,6 +29,7 @@ export default function TabLayout() {
           fontSize: 12,
         },
       }}
+      tabBar={(props) => <TabBarWithMiniPlayer {...props} />}
     >
       <Tabs.Screen name="today" options={{ title: 'Today' }} />
       <Tabs.Screen name="my-sky" options={{ title: 'My Sky' }} />

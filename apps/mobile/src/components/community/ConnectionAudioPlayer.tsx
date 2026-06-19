@@ -1,21 +1,58 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { getExpoAv } from '../../lib/expo-av-guard';
+import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
-import { TodayAudioPlayer } from '../today/TodayAudioPlayer';
 
 type ConnectionAudioPlayerProps = {
   visible: boolean;
   exportId: string | null;
   audioAvailable: boolean;
   audioGenerating: boolean;
+  peerDisplayName?: string;
   onGenerate: () => Promise<void>;
 };
+
+function ConnectionPlaybackControls({
+  exportId,
+  peerDisplayName,
+}: {
+  exportId: string;
+  peerDisplayName?: string;
+}) {
+  const label = peerDisplayName?.trim()
+    ? `${peerDisplayName.trim()} Connection`
+    : 'Connection Soundtrack';
+
+  const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
+    exportId,
+    label,
+    source: 'connection',
+  });
+
+  return (
+    <Pressable
+      onPress={handlePlay}
+      disabled={isThisLoading}
+      style={({ pressed }) => [
+        styles.playButton,
+        pressed && styles.pressed,
+        isThisLoading && styles.disabled,
+      ]}
+    >
+      <Text style={styles.playButtonText}>
+        {isThisLoading ? 'Loading...' : isThisPlaying ? 'Pause' : 'Play'}
+      </Text>
+    </Pressable>
+  );
+}
 
 export function ConnectionAudioPlayer({
   visible,
   exportId,
   audioAvailable,
   audioGenerating,
+  peerDisplayName,
   onGenerate,
 }: ConnectionAudioPlayerProps) {
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +66,11 @@ export function ConnectionAudioPlayer({
       <View style={styles.container}>
         <Text style={styles.heading}>Hear this connection</Text>
         <Text style={styles.subtitle}>Your connection soundtrack is ready.</Text>
-        <TodayAudioPlayer exportId={exportId} />
+        {getExpoAv() ? (
+          <ConnectionPlaybackControls exportId={exportId} peerDisplayName={peerDisplayName} />
+        ) : (
+          <Text style={styles.unavailable}>Audio playback requires full build</Text>
+        )}
       </View>
     );
   }
@@ -89,6 +130,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
     marginBottom: 12,
     alignSelf: 'flex-start',
+  },
+  playButton: {
+    minHeight: 48,
+    minWidth: 120,
+    backgroundColor: colors.accent.DEFAULT,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playButtonText: {
+    color: colors.text.primary,
+    fontSize: 16,
+    fontFamily: 'Manrope-SemiBold',
+  },
+  unavailable: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    textAlign: 'center',
+    paddingVertical: 12,
+    alignSelf: 'stretch',
   },
   generateButton: {
     backgroundColor: colors.accent.DEFAULT,

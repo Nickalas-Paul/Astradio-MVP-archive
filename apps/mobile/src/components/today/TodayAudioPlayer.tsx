@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { API_BASE } from '../../lib/api';
 import { getExpoAv } from '../../lib/expo-av-guard';
-import { getToken } from '../../lib/token-storage';
+import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
 
 type TodayAudioPlayerProps = {
   exportId: string;
 };
-
-type ExpoAvModule = NonNullable<ReturnType<typeof getExpoAv>>;
 
 function AudioUnavailable() {
   return (
@@ -19,95 +15,34 @@ function AudioUnavailable() {
   );
 }
 
-function TodayAudioPlayerInner({
-  exportId,
-  expoAv,
-}: {
-  exportId: string;
-  expoAv: ExpoAvModule;
-}) {
-  const { Audio } = expoAv;
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const soundRef = useRef<InstanceType<ExpoAvModule['Audio']['Sound']> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      void (async () => {
-        if (soundRef.current) {
-          await soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
-      })();
-    };
-  }, []);
-
-  const ensureSound = async () => {
-    if (soundRef.current) return soundRef.current;
-
-    const token = await getToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: `${API_BASE}/api/exports/${exportId}`, headers },
-      { shouldPlay: false }
-    );
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded) return;
-      setIsPlaying(status.isPlaying);
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-      }
-    });
-    soundRef.current = sound;
-    return soundRef.current;
-  };
-
-  const togglePlayback = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const sound = await ensureSound();
-      const status = await sound.getStatusAsync();
-      if (!status.isLoaded) {
-        throw new Error('Audio failed to load');
-      }
-      if (status.isPlaying) {
-        await sound.pauseAsync();
-      } else {
-        await sound.playAsync();
-      }
-    } catch {
-      setError('Could not play audio');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+function TodayAudioPlayerControls({ exportId }: TodayAudioPlayerProps) {
+  const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
+    exportId,
+    label: "Today's Transit",
+    source: 'transit',
+  });
 
   return (
     <View style={styles.container}>
       <Pressable
-        onPress={() => void togglePlayback()}
-        disabled={isLoading}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed, isLoading && styles.disabled]}
+        onPress={handlePlay}
+        disabled={isThisLoading}
+        style={({ pressed }) => [styles.button, pressed && styles.pressed, isThisLoading && styles.disabled]}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Play'}
+          {isThisLoading ? 'Loading...' : isThisPlaying ? 'Pause' : 'Play'}
         </Text>
       </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
 
 export function TodayAudioPlayer({ exportId }: TodayAudioPlayerProps) {
-  const expoAv = getExpoAv();
-  if (!expoAv) {
+  if (!getExpoAv()) {
     return <AudioUnavailable />;
   }
 
-  return <TodayAudioPlayerInner exportId={exportId} expoAv={expoAv} />;
+  return <TodayAudioPlayerControls exportId={exportId} />;
 }
 
 const styles = StyleSheet.create({
@@ -141,11 +76,5 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
-  },
-  error: {
-    marginTop: 8,
-    color: colors.error,
-    fontSize: 14,
-    fontFamily: 'Manrope-Regular',
   },
 });
