@@ -12,6 +12,7 @@ import { CompatibilityMatchesSection } from '../../../src/components/community/C
 import { ConnectionsTabContent } from '../../../src/components/community/ConnectionsTabContent';
 import { DiscoverySearchSection } from '../../../src/components/community/DiscoverySearchSection';
 import { FeedTabContent } from '../../../src/components/community/FeedTabContent';
+import { MessagesTabContent } from '../../../src/components/community/MessagesTabContent';
 import {
   COMMUNITY_SUB_TABS,
   type CommunitySubTabId,
@@ -20,14 +21,6 @@ import {
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
 import { useCommunityData } from '../../../src/hooks/useCommunityData';
-
-function PlaceholderTab({ message }: { message: string }) {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>{message}</Text>
-    </View>
-  );
-}
 
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<CommunitySubTabId>('discovery');
@@ -73,6 +66,7 @@ export default function CommunityScreen() {
   );
 
   const isFeedTab = activeTab === 'feed';
+  const isMessagesTab = activeTab === 'messages';
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -90,8 +84,12 @@ export default function CommunityScreen() {
       </View>
 
       {isFeedTab ? (
-        <View style={styles.feedContainer}>
+        <View style={styles.tabPanel}>
           <FeedTabContent active />
+        </View>
+      ) : isMessagesTab ? (
+        <View style={styles.tabPanel}>
+          <MessagesTabContent active />
         </View>
       ) : (
         <ScrollView
@@ -157,9 +155,6 @@ export default function CommunityScreen() {
               />
             ) : null}
 
-            {activeTab === 'messages' ? (
-              <PlaceholderTab message="Messages coming soon" />
-            ) : null}
           </View>
         </ScrollView>
       )}
@@ -175,7 +170,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
   },
-  feedContainer: {
+  tabPanel: {
     flex: 1,
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
     marginTop: 12,
@@ -215,14 +210,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
     marginBottom: 20,
     lineHeight: 20,
-  },
-  placeholder: {
-    paddingVertical: 48,
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: colors.text.muted,
-    fontSize: 15,
-    fontFamily: 'Manrope-Regular',
   },
 });
