@@ -25,10 +25,11 @@ async function parseApiError(response: Response): Promise<ApiError> {
 
 async function apiFormData<T>(path: string, formData: FormData): Promise<T> {
   const token = await getToken();
-  const headers = new Headers();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${withUserId(path.startsWith('/') ? path : `/${path}`, null)}`, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${API_BASE}${normalizedPath}`, {
     method: 'POST',
     headers,
     body: formData,
@@ -85,10 +86,10 @@ export async function uploadPostImage(
   const formData = new FormData();
   formData.append('image', {
     uri: imageUri,
-    type: mimeType,
+    type: mimeType || 'image/jpeg',
     name: 'image.jpg',
-  } as unknown as Blob);
-  formData.append('userId', userId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
 
   return apiFormData<CommunityPost>(
     withUserId(`/api/community/posts/${encodeURIComponent(postId)}/image`, userId),
