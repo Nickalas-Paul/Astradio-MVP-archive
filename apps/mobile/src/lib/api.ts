@@ -21,6 +21,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const response = await fetch(`${API_BASE}${normalizedPath}`, {
+    cache: 'no-store',
     ...options,
     headers,
   });

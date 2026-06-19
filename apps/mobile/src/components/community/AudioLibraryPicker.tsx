@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { api } from '../../lib/api';
+import { formatApiError } from '../../lib/format-api-error';
+import { useAuthStore } from '../../store/auth';
 import { colors } from '../../constants/colors';
 import type { LibraryCompositionRow } from '../../types/my-sky';
 
@@ -59,27 +61,37 @@ function libraryRowSummary(row: LibraryCompositionRow): string {
 }
 
 export function AudioLibraryPicker({ visible, onClose, onSelect }: AudioLibraryPickerProps) {
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   const [rows, setRows] = useState<LibraryCompositionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!userId) {
+      setRows([]);
+      setError('Sign in to load your library');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const list = await api<LibraryCompositionRow[]>('/api/sandbox/compositions?limit=50');
+      const list = await api<LibraryCompositionRow[]>(
+        `/api/sandbox/compositions?limit=50&userId=${encodeURIComponent(userId)}`
+      );
       const withExport = (Array.isArray(list) ? list : []).filter((row) => {
         const exportId = typeof row.export_id === 'string' ? row.export_id.trim() : '';
         return exportId.length > 0;
       });
       setRows(withExport);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load library');
+      setError(formatApiError(err, 'Failed to load library'));
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!visible) return;

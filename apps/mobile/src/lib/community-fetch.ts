@@ -1,5 +1,6 @@
 import type { RelationalIntent } from '../constants/community-constants';
-import { api } from './api';
+import { API_BASE, api, type ApiError } from './api';
+import { getToken } from './token-storage';
 import type {
   CommunityInventoryResponse,
   ConnectIntentResponse,
@@ -23,9 +24,68 @@ export async function fetchProfileChartId(): Promise<{ userId: string; chartId: 
 
 /** Engine inventory uses query userId (not req.user alone). */
 export async function fetchInventory(userId: string): Promise<CommunityInventoryResponse> {
-  return api<CommunityInventoryResponse>(
-    `/api/community/inventory?userId=${encodeURIComponent(userId)}`
-  );
+  const uid = userId.trim();
+  if (!uid) throw { status: 400, error: 'user_id_required' };
+
+  const token = await getToken();
+  const path = `/api/community/inventory?userId=${encodeURIComponent(uid)}`;
+  const response = await fetch(`${API_BASE}${path}`, {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const text = await response.text();
+  let parsed: unknown = null;
+  if (text.trim()) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw {
+        status: response.status,
+        error: 'invalid_json',
+        message: 'Could not load Community inventory',
+      } satisfies ApiError;
+    }
+  }
+
+  if (!response.ok) {
+    const err =
+      typeof parsed === 'object' && parsed !== null
+        ? (parsed as ApiError)
+        : { error: 'inventory_failed' };
+    throw { ...err, status: response.status };
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw { status: response.status, error: 'empty_inventory_response' };
+  }
+
+  const payload = parsed as Record<string, unknown>;
+  if (payload.version !== 'community_inventory_v1') {
+    throw { status: response.status, error: 'unexpected_inventory_version' };
+  }
+
+  return {
+    version: 'community_inventory_v1',
+    userId: String(payload.userId ?? uid),
+    pairs: Array.isArray(payload.pairs) ? (payload.pairs as CommunityInventoryResponse['pairs']) : [],
+    relationalGroups: Array.isArray(payload.relationalGroups) ? payload.relationalGroups : [],
+    campaigns: Array.isArray(payload.campaigns) ? payload.campaigns : [],
+    pendingIncomingIntents: Array.isArray(payload.pendingIncomingIntents)
+      ? (payload.pendingIncomingIntents as CommunityInventoryResponse['pendingIncomingIntents'])
+      : [],
+    pendingOutgoingIntents: Array.isArray(payload.pendingOutgoingIntents)
+      ? (payload.pendingOutgoingIntents as CommunityInventoryResponse['pendingOutgoingIntents'])
+      : [],
+    pendingRelationalGroupInvites: Array.isArray(payload.pendingRelationalGroupInvites)
+      ? payload.pendingRelationalGroupInvites
+      : [],
+    feedSkeleton: Array.isArray(payload.feedSkeleton) ? payload.feedSkeleton : [],
+  };
 }
 
 export async function searchUsers(query: string, userId: string): Promise<SearchResponse['users']> {
