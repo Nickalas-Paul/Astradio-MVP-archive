@@ -22,6 +22,8 @@ export interface SandboxSlot {
   chartId?: string;
   chartDisplayName?: string;
   snapshot?: SandboxSlotSnapshot;
+  baseSnapshot?: SandboxSlotSnapshot;
+  freeBuildAscDeg?: number;
   birth?: {
     date: string;
     time: string;
@@ -29,9 +31,38 @@ export interface SandboxSlot {
     lon: number;
     timezone: string;
     locationLabel?: string;
+    houseSystem?: string;
   };
   overrides?: Record<string, { lon: number }>;
 }
+
+export type SandboxResolveReport = {
+  explanation?: {
+    spec?: string;
+    sections?: Array<{ id: string; title: string; text: string; bullets?: string[] }>;
+  };
+  sandboxSynastryReport?: {
+    schema_version?: string;
+    mode?: string;
+    pairSections?: Array<{
+      pairHeader?: string;
+      sourceSlotIndex?: number;
+      targetSlotIndex?: number;
+      tierBlocks?: Array<{
+        tierId?: string;
+        title?: string;
+        activations?: Array<{
+          aspectKey?: string;
+          directionalHeader?: string;
+          synastryProse?: string;
+          sonicInterplay?: string;
+        }>;
+      }>;
+    }>;
+  };
+  seed?: string;
+  meta?: { combinedHash?: string; canonical_object_hash?: string };
+};
 
 /** GET /api/sandbox/compositions list row (engine SELECT list fields). */
 export interface SavedComposition {

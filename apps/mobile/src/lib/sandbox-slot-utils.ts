@@ -1,3 +1,7 @@
+import { equalHouseCuspsFromAscendant } from './sandbox-equal-houses';
+import { lonToSignDeg } from './sandbox-zodiac';
+import { mapSnapshotToWheel } from './my-sky-mappers';
+import type { EphemerisSnapshot } from '../types/my-sky';
 import type { SandboxSlot, SlotEntryMode } from '../types/sandbox';
 
 export function createEmptySlot(index: number): SandboxSlot {
@@ -25,7 +29,6 @@ export function getSlotPopulationKind(slot: SandboxSlot): SlotEntryMode {
     return 'blank_canvas';
   }
 
-  if (slot.entryMode === 'blank_canvas') return 'blank_canvas';
   if (slot.entryMode === 'birth_incomplete') return 'birth_incomplete';
   if (slot.entryMode === 'chart_id' && !hasChart) return 'empty';
 
@@ -78,7 +81,9 @@ export function projectSlotChips(slots: SandboxSlot[]): SlotChipRow[] {
   const manualIndices: number[] = [];
   for (let i = 0; i < slots.length; i++) {
     const k = getSlotPopulationKind(slots[i]!);
-    if (k === 'empty' || k === 'blank_canvas') manualIndices.push(i);
+    if (k === 'empty' || k === 'blank_canvas' || slots[i]?.entryMode === 'blank_canvas') {
+      manualIndices.push(i);
+    }
   }
   const manualCount = manualIndices.length;
 
@@ -164,8 +169,52 @@ export function snapshotFromEphemeris(raw: unknown): SandboxSlot['snapshot'] | u
     })
     .filter((a): a is { bodyA: string; bodyB: string; type: string; orb: number } => a !== null);
 
-  if (planets.length === 0) return undefined;
+  if (planets.length === 0 && houses.length < 12) return undefined;
   return { planets, houses, aspects };
+}
+
+function snapshotToEphemeris(snap: NonNullable<SandboxSlot['snapshot']>): EphemerisSnapshot {
+  return {
+    planets: snap.planets,
+    houses: snap.houses,
+    aspects: snap.aspects.map((a) => ({
+      bodyA: a.bodyA,
+      bodyB: a.bodyB,
+      type: a.type,
+      orb: a.orb,
+    })),
+  };
+}
+
+/** Wheel data for sandbox slots, including blank-canvas equal houses. */
+export function mapSandboxSlotToWheel(slot: SandboxSlot | undefined) {
+  if (!slot) return null;
+
+  if (slot.entryMode === 'blank_canvas') {
+    const asc = slot.freeBuildAscDeg ?? 0;
+    const cusps = equalHouseCuspsFromAscendant(asc);
+    const snap = slot.snapshot;
+    if (snap && snap.planets.length > 0) {
+      const ephem = snapshotToEphemeris({ ...snap, houses: cusps });
+      const wheel = mapSnapshotToWheel(ephem);
+      if (wheel) {
+        return { ...wheel, cusps, ascendantLongitude: asc };
+      }
+    }
+    return {
+      placements: [],
+      houses: cusps.map((degree, index) => {
+        const { sign, deg } = lonToSignDeg(degree);
+        return { house: index + 1, sign, degree: deg };
+      }),
+      aspects: [],
+      cusps,
+      ascendantLongitude: asc,
+    };
+  }
+
+  if (!slot.snapshot) return null;
+  return mapSnapshotToWheel(snapshotToEphemeris(slot.snapshot));
 }
 
 type WireSlot = {

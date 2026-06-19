@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,14 +10,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../chart/NatalWheel';
+import { BirthDataForm } from './BirthDataForm';
+import { ChartImportSearch } from './ChartImportSearch';
+import { DegreePanelSheet } from './DegreePanelSheet';
+import { SandboxAudioPlayer } from './SandboxAudioPlayer';
+import { SandboxReportDisplay } from './SandboxReportDisplay';
 import { SlotChipStrip } from './SlotChipStrip';
 import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
 import { colors } from '../../constants/colors';
-import { mapSnapshotToWheel } from '../../lib/my-sky-mappers';
-import { getSlotPopulationKind } from '../../lib/sandbox-slot-utils';
-import type { EphemerisSnapshot } from '../../types/my-sky';
+import { useSandboxData } from '../../hooks/useSandboxData';
+import { useSandboxGenerate } from '../../hooks/useSandboxGenerate';
+import { mapSandboxSlotToWheel } from '../../lib/sandbox-slot-utils';
 import {
   activeSlotNeedsEntryChooser,
+  activeSlotShowsBirthForm,
+  activeSlotShowsImport,
   getJourneyTitle,
   setSlotEntryMode,
   useSandboxStore,
@@ -44,28 +52,36 @@ export function SandboxWorkbench() {
   const addSlot = useSandboxStore((s) => s.addSlot);
   const removeSlot = useSandboxStore((s) => s.removeSlot);
   const clearSlot = useSandboxStore((s) => s.clearSlot);
+  const updateSlot = useSandboxStore((s) => s.updateSlot);
+  const surfaceState = useSandboxStore((s) => s.surfaceState);
+  const resolveResult = useSandboxStore((s) => s.resolveResult);
+  const errorMessage = useSandboxStore((s) => s.errorMessage);
+  const resetWorkbenchError = useSandboxStore((s) => s.resetWorkbenchError);
+
+  const { refresh } = useSandboxData();
+  const {
+    canGenerate,
+    generateLoading,
+    saveLoading,
+    audioLoading,
+    canSave,
+    savedThisSession,
+    exportJobId,
+    handleGenerate,
+    handleSave,
+    handleGenerateAudio,
+  } = useSandboxGenerate(() => void refresh());
 
   const activeSlot = slots[activeSlotIndex];
   const showEntryChooser = activeSlotNeedsEntryChooser(activeSlot);
+  const showImport = activeSlotShowsImport(activeSlot);
+  const showBirthForm = activeSlotShowsBirthForm(activeSlot);
   const workbenchTitle = getJourneyTitle(journeyType);
 
-  const wheelData = useMemo(() => {
-    const snap = activeSlot?.snapshot;
-    if (!snap) return null;
-    const ephem: EphemerisSnapshot = {
-      planets: snap.planets,
-      houses: snap.houses,
-      aspects: snap.aspects.map((a) => ({
-        bodyA: a.bodyA,
-        bodyB: a.bodyB,
-        type: a.type,
-        orb: a.orb,
-      })),
-    };
-    return mapSnapshotToWheel(ephem);
-  }, [activeSlot?.snapshot]);
+  const wheelData = useMemo(() => mapSandboxSlotToWheel(activeSlot), [activeSlot]);
 
-  const canGenerate = activeSlot != null && getSlotPopulationKind(activeSlot) !== 'empty';
+  const cancelImport = () => updateSlot(activeSlotIndex, { entryMode: 'empty' });
+  const cancelBirth = () => updateSlot(activeSlotIndex, { entryMode: 'empty' });
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -99,32 +115,13 @@ export function SandboxWorkbench() {
           onClearSlot={clearSlot}
         />
 
-        {degreePanelOpen ? (
-          <View style={styles.degreePlaceholder}>
-            <Text style={styles.degreePlaceholderText}>
-              Planet degree editor — coming in the next update.
-            </Text>
-          </View>
+        {showImport ? (
+          <ChartImportSearch slotIndex={activeSlotIndex} onCancel={cancelImport} />
         ) : null}
 
-        <View style={styles.wheelSection}>
-          <Text style={styles.sectionTitle}>Wheel</Text>
-          {wheelData ? (
-            <NatalWheel
-              size={wheelSize}
-              placements={wheelData.placements}
-              aspects={wheelData.aspects}
-              cusps={wheelData.cusps}
-              ascendantLongitude={wheelData.ascendantLongitude}
-            />
-          ) : (
-            <WheelPlaceholder size={wheelSize} />
-          )}
-          <Text style={styles.wheelHint}>
-            Ephemeris preview for active slot {activeSlotIndex}. Positions here are not the resolved
-            report or audio output.
-          </Text>
-        </View>
+        {showBirthForm ? (
+          <BirthDataForm slotIndex={activeSlotIndex} onCancel={cancelBirth} />
+        ) : null}
 
         {showEntryChooser ? (
           <View style={styles.entryChooser}>
@@ -158,11 +155,76 @@ export function SandboxWorkbench() {
           </View>
         ) : null}
 
+        <View style={styles.wheelSection}>
+          <Text style={styles.sectionTitle}>Wheel</Text>
+          {wheelData ? (
+            <NatalWheel
+              size={wheelSize}
+              placements={wheelData.placements}
+              aspects={wheelData.aspects}
+              cusps={wheelData.cusps}
+              ascendantLongitude={wheelData.ascendantLongitude}
+            />
+          ) : (
+            <WheelPlaceholder size={wheelSize} />
+          )}
+          <Text style={styles.wheelHint}>
+            Ephemeris preview for active slot {activeSlotIndex + 1}. Positions here are not the
+            resolved report or audio output.
+          </Text>
+        </View>
+
+        {surfaceState === 'loading_base' || generateLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={colors.accent.DEFAULT} />
+            <Text style={styles.loadingText}>Generating reading…</Text>
+          </View>
+        ) : null}
+
+        {surfaceState === 'ready_report' && resolveResult ? (
+          <>
+            <SandboxReportDisplay report={resolveResult} />
+            <View style={styles.actionRow}>
+              <Pressable
+                style={[styles.secondaryButton, (!canSave || saveLoading) && styles.buttonDisabled]}
+                disabled={!canSave || saveLoading}
+                onPress={() => void handleSave()}
+                accessibilityRole="button"
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {savedThisSession ? 'Saved' : saveLoading ? 'Saving…' : 'Save'}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.secondaryButton, audioLoading && styles.buttonDisabled]}
+                disabled={audioLoading}
+                onPress={() => void handleGenerateAudio()}
+                accessibilityRole="button"
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {audioLoading ? 'Generating audio…' : 'Hear this Soundtrack'}
+                </Text>
+              </Pressable>
+            </View>
+            {exportJobId ? <SandboxAudioPlayer exportId={exportJobId} /> : null}
+          </>
+        ) : null}
+
+        {surfaceState === 'error' && errorMessage ? (
+          <View style={styles.errorWrap}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Pressable onPress={resetWorkbenchError} accessibilityRole="button">
+              <Text style={styles.resetText}>Reset</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.resolveSection}>
           <Text style={styles.sectionTitle}>Resolve composition</Text>
           <Pressable
-            style={[styles.generateButton, !canGenerate && styles.generateButtonDisabled]}
-            disabled={!canGenerate}
+            style={[styles.generateButton, (!canGenerate || generateLoading) && styles.generateButtonDisabled]}
+            disabled={!canGenerate || generateLoading}
+            onPress={() => void handleGenerate()}
             accessibilityRole="button"
           >
             <Text style={styles.generateButtonText}>Generate</Text>
@@ -172,6 +234,8 @@ export function SandboxWorkbench() {
           ) : null}
         </View>
       </ScrollView>
+
+      <DegreePanelSheet visible={degreePanelOpen} onClose={toggleDegreePanel} />
     </SafeAreaView>
   );
 }
@@ -227,21 +291,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope-Regular',
     marginBottom: 10,
-  },
-  degreePlaceholder: {
-    marginTop: 12,
-    marginBottom: 8,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  degreePlaceholderText: {
-    color: colors.text.secondary,
-    fontSize: 12,
-    fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
   },
   wheelSection: {
     marginTop: 16,
@@ -302,6 +351,56 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: 12,
     fontFamily: 'Manrope-Regular',
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  loadingText: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+  },
+  actionRow: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  secondaryButton: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  secondaryButtonText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    fontFamily: 'Manrope-SemiBold',
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  errorWrap: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: `${colors.error}55`,
+    backgroundColor: `${colors.error}10`,
+    gap: 8,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+  },
+  resetText: {
+    color: colors.accent.DEFAULT,
+    fontSize: 13,
+    fontFamily: 'Manrope-SemiBold',
   },
   resolveSection: {
     borderTopWidth: 1,

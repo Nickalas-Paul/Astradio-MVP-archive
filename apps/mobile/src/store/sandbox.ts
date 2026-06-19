@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { SANDBOX_ENTRY_CARDS, SANDBOX_MAX_SLOTS } from '../constants/sandbox-entry-cards';
 import {
+  buildBlankCanvasSnapshot,
+  DEFAULT_FREE_BUILD_ASC_DEG,
+} from '../lib/sandbox-blank-canvas';
+import {
   createEmptySlot,
   getSlotPopulationKind,
   parsePersistedSandboxSlots,
@@ -8,6 +12,7 @@ import {
 import type {
   SavedCompositionDetail,
   SandboxJourneyType,
+  SandboxResolveReport,
   SandboxSlot,
   SandboxSurfaceState,
   SlotEntryMode,
@@ -35,9 +40,18 @@ export interface SandboxStore {
   activeSlotIndex: number;
   degreePanelOpen: boolean;
   surfaceState: SandboxSurfaceState;
-  resolveResult: unknown | null;
+  resolveResult: SandboxResolveReport | null;
   exportJobId: string | null;
   canSave: boolean;
+  planHash: string | null;
+  combinedHash: string | null;
+  canonicalObjectHash: string | null;
+  lastResolveBody: Record<string, unknown> | null;
+  errorMessage: string | null;
+  savedThisSession: boolean;
+  saveLoading: boolean;
+  generateLoading: boolean;
+  audioLoading: boolean;
 
   selectJourney: (type: SandboxJourneyType) => void;
   continueWorkbench: () => void;
@@ -48,10 +62,41 @@ export interface SandboxStore {
   clearSlot: (index: number) => void;
   updateSlot: (index: number, data: Partial<SandboxSlot>) => void;
   toggleDegreePanel: () => void;
-  setResolveResult: (result: unknown) => void;
+  setResolveSession: (payload: {
+    report: SandboxResolveReport;
+    planHash: string;
+    combinedHash: string;
+    canonicalObjectHash: string | null;
+    exportJobId: string | null;
+    lastResolveBody: Record<string, unknown>;
+  }) => void;
+  setExportJobId: (id: string | null) => void;
+  setSurfaceState: (state: SandboxSurfaceState) => void;
+  setErrorMessage: (message: string | null) => void;
+  setSaveLoading: (loading: boolean) => void;
+  setGenerateLoading: (loading: boolean) => void;
+  setAudioLoading: (loading: boolean) => void;
+  markSaved: () => void;
+  resetWorkbenchError: () => void;
   resetAll: () => void;
   loadComposition: (detail: SavedCompositionDetail) => void;
 }
+
+const sessionInitial = {
+  surfaceState: 'ready_builder' as SandboxSurfaceState,
+  resolveResult: null as SandboxResolveReport | null,
+  exportJobId: null as string | null,
+  canSave: false,
+  planHash: null as string | null,
+  combinedHash: null as string | null,
+  canonicalObjectHash: null as string | null,
+  lastResolveBody: null as Record<string, unknown> | null,
+  errorMessage: null as string | null,
+  savedThisSession: false,
+  saveLoading: false,
+  generateLoading: false,
+  audioLoading: false,
+};
 
 const initialState = {
   entryLayer: 'entry' as const,
@@ -59,10 +104,7 @@ const initialState = {
   slots: [createEmptySlot(0)],
   activeSlotIndex: 0,
   degreePanelOpen: false,
-  surfaceState: 'ready_builder' as SandboxSurfaceState,
-  resolveResult: null as unknown | null,
-  exportJobId: null as string | null,
-  canSave: false,
+  ...sessionInitial,
 };
 
 export const useSandboxStore = create<SandboxStore>((set, get) => ({
@@ -73,10 +115,13 @@ export const useSandboxStore = create<SandboxStore>((set, get) => ({
     const slots: SandboxSlot[] = Array.from({ length: slotCount }, (_, i) => createEmptySlot(i));
 
     if (type === 'whatif') {
+      const asc = DEFAULT_FREE_BUILD_ASC_DEG;
       slots[0] = {
         index: 0,
         entryMode: 'blank_canvas',
         overrides: {},
+        freeBuildAscDeg: asc,
+        snapshot: buildBlankCanvasSnapshot({}, asc),
       };
     }
 
@@ -87,7 +132,6 @@ export const useSandboxStore = create<SandboxStore>((set, get) => ({
       slots,
       activeSlotIndex: 0,
       degreePanelOpen: defaultDegreePanelOpenForJourney(type),
-      surfaceState: 'ready_builder',
     });
   },
 
@@ -142,8 +186,62 @@ export const useSandboxStore = create<SandboxStore>((set, get) => ({
     set((state) => ({ degreePanelOpen: !state.degreePanelOpen }));
   },
 
-  setResolveResult: (result) => {
-    set({ resolveResult: result });
+  setResolveSession: (payload) => {
+    set({
+      resolveResult: payload.report,
+      planHash: payload.planHash,
+      combinedHash: payload.combinedHash,
+      canonicalObjectHash: payload.canonicalObjectHash,
+      exportJobId: payload.exportJobId,
+      lastResolveBody: payload.lastResolveBody,
+      canSave: true,
+      savedThisSession: false,
+      surfaceState: 'ready_report',
+      errorMessage: null,
+    });
+  },
+
+  setExportJobId: (id) => {
+    set({ exportJobId: id });
+  },
+
+  setSurfaceState: (state) => {
+    set({ surfaceState: state });
+  },
+
+  setErrorMessage: (message) => {
+    set({ errorMessage: message });
+  },
+
+  setSaveLoading: (loading) => {
+    set({ saveLoading: loading });
+  },
+
+  setGenerateLoading: (loading) => {
+    set({ generateLoading: loading });
+  },
+
+  setAudioLoading: (loading) => {
+    set({ audioLoading: loading });
+  },
+
+  markSaved: () => {
+    set({ savedThisSession: true, canSave: false });
+  },
+
+  resetWorkbenchError: () => {
+    set({
+      surfaceState: 'ready_builder',
+      errorMessage: null,
+      resolveResult: null,
+      canSave: false,
+      planHash: null,
+      combinedHash: null,
+      canonicalObjectHash: null,
+      lastResolveBody: null,
+      exportJobId: null,
+      savedThisSession: false,
+    });
   },
 
   resetAll: () => {
@@ -160,9 +258,15 @@ export const useSandboxStore = create<SandboxStore>((set, get) => ({
       activeSlotIndex,
       degreePanelOpen: slots.some((s) => s.entryMode === 'blank_canvas'),
       surfaceState: hasReport ? 'ready_report' : 'ready_builder',
-      resolveResult: hasReport ? detail.report : null,
+      resolveResult: hasReport ? (detail.report as SandboxResolveReport) : null,
       exportJobId: detail.export_id ?? null,
       canSave: false,
+      planHash: hasReport ? detail.plan_hash : null,
+      combinedHash: detail.vector_hash ?? detail.seed ?? null,
+      canonicalObjectHash: detail.object_identity_hash ?? null,
+      lastResolveBody: null,
+      savedThisSession: true,
+      errorMessage: null,
     });
   },
 }));
@@ -174,14 +278,29 @@ export function getJourneyTitle(journeyType: SandboxJourneyType | null): string 
 
 export function activeSlotNeedsEntryChooser(slot: SandboxSlot | undefined): boolean {
   if (!slot) return false;
-  const kind = getSlotPopulationKind(slot);
-  return kind === 'empty';
+  return getSlotPopulationKind(slot) === 'empty' && slot.entryMode === 'empty';
+}
+
+export function activeSlotShowsImport(slot: SandboxSlot | undefined): boolean {
+  if (!slot) return false;
+  return slot.entryMode === 'chart_id' && !slot.chartId;
+}
+
+export function activeSlotShowsBirthForm(slot: SandboxSlot | undefined): boolean {
+  if (!slot) return false;
+  return slot.entryMode === 'birth_incomplete' && !slot.birth;
 }
 
 export function setSlotEntryMode(index: number, mode: SlotEntryMode): void {
   const store = useSandboxStore.getState();
   if (mode === 'blank_canvas') {
-    store.updateSlot(index, { entryMode: 'blank_canvas', overrides: {} });
+    const asc = DEFAULT_FREE_BUILD_ASC_DEG;
+    store.updateSlot(index, {
+      entryMode: 'blank_canvas',
+      overrides: {},
+      freeBuildAscDeg: asc,
+      snapshot: buildBlankCanvasSnapshot({}, asc),
+    });
     useSandboxStore.setState({ degreePanelOpen: true });
   } else if (mode === 'birth_incomplete') {
     store.updateSlot(index, { entryMode: 'birth_incomplete' });

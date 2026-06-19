@@ -51,3 +51,23 @@ export async function searchCharts(query: string, userId: string): Promise<Chart
 export async function fetchChartRecord(chartId: string): Promise<Record<string, unknown>> {
   return api<Record<string, unknown>>(`/api/charts/${encodeURIComponent(chartId)}`);
 }
+
+export async function resolveComposition(body: object): Promise<Record<string, unknown>> {
+  return api<Record<string, unknown>>('/api/sandbox/resolve', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function saveComposition(
+  body: object,
+  userId: string
+): Promise<Record<string, unknown>> {
+  return api<Record<string, unknown>>(
+    `/api/sandbox/compositions?userId=${encodeURIComponent(userId)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+}
