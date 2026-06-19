@@ -30,6 +30,7 @@ function FeedTrendingTags({ tags }: { tags: TrendingTag[] }) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={{ flexGrow: 0 }}
       contentContainerStyle={styles.tagsRow}
     >
       {tags.map((item) => (
