@@ -8,17 +8,7 @@ import { useSandboxStore } from '../store/sandbox';
 import type { SandboxSlot } from '../types/sandbox';
 
 function birthWireFromSlot(slot: SandboxSlot) {
-  const wire = birthToWire(slot);
-  if (!wire) return null;
-  return {
-    date: wire.date,
-    time: wire.time,
-    lat: wire.location.lat,
-    lon: wire.location.lon,
-    tz: wire.location.timezone,
-    houseSystem: wire.houseSystem,
-    location: wire.location,
-  };
+  return birthToWire(slot);
 }
 
 export function useSandboxPreviewSync(activeSlotIndex: number) {

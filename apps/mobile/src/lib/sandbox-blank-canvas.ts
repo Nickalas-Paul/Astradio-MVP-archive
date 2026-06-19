@@ -8,7 +8,7 @@ export function dailyTransitBirthForBlankCanvas(): {
   time: string;
   lat: number;
   lon: number;
-  timezone: string;
+  tz: string;
   houseSystem: string;
 } {
   const now = new Date();
@@ -17,7 +17,7 @@ export function dailyTransitBirthForBlankCanvas(): {
     time: '12:00',
     lat: 29.42,
     lon: -98.49,
-    timezone: 'America/Chicago',
+    tz: 'America/Chicago',
     houseSystem: 'equal',
   };
 }

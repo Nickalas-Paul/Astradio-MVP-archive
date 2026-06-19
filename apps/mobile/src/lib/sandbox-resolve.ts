@@ -30,13 +30,10 @@ export function birthToWire(slot: SandboxSlot) {
   return {
     date: b.date,
     time: b.time.length >= 5 ? b.time.slice(0, 5) : b.time,
-    location: {
-      label: b.locationLabel ?? 'Birth location',
-      lat: b.lat,
-      lon: b.lon,
-      timezone: b.timezone || 'UTC',
-    },
-    houseSystem: 'placidus',
+    lat: b.lat,
+    lon: b.lon,
+    tz: b.timezone || 'UTC',
+    houseSystem: b.houseSystem ?? 'placidus',
   };
 }
 
