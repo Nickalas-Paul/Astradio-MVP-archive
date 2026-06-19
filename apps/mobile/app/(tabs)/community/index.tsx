@@ -11,6 +11,7 @@ import { CommunitySubTabs } from '../../../src/components/community/CommunitySub
 import { CompatibilityMatchesSection } from '../../../src/components/community/CompatibilityMatchesSection';
 import { ConnectionsTabContent } from '../../../src/components/community/ConnectionsTabContent';
 import { DiscoverySearchSection } from '../../../src/components/community/DiscoverySearchSection';
+import { FeedTabContent } from '../../../src/components/community/FeedTabContent';
 import {
   COMMUNITY_SUB_TABS,
   type CommunitySubTabId,
@@ -71,19 +72,11 @@ export default function CommunityScreen() {
     [sendConnect, discoveryIntent]
   );
 
+  const isFeedTab = activeTab === 'feed';
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void onRefresh()}
-            tintColor={colors.accent.DEFAULT}
-            colors={[colors.accent.DEFAULT]}
-          />
-        }
-      >
+      <View style={styles.header}>
         <Text style={styles.title}>Community</Text>
         <Text style={styles.subtitle}>
           Discover, connect, and share with the Astradio community.
@@ -94,66 +87,82 @@ export default function CommunityScreen() {
           onTabChange={setActiveTab}
           tabs={COMMUNITY_SUB_TABS}
         />
+      </View>
 
-        <View style={styles.tabContent}>
-          {activeTab === 'discovery' ? (
-            <>
-              <Text style={styles.tabHeading}>Discovery</Text>
-              <Text style={styles.tabDescription}>
-                Find meaningful connections based on astrological compatibility. Choose your intent
-                and we&apos;ll show you the best matches.
-              </Text>
-
-              <DiscoverySearchSection
-                intent={discoveryIntent}
-                pendingOutgoing={pendingOutgoing}
-                searchUsers={searchUsers}
-                searchLoading={searchLoading}
-                onRequestConnection={(userId, chartId) =>
-                  handleRequestConnection(userId, chartId, discoveryIntent)
-                }
-                mutationBusy={mutationBusy}
-              />
-
-              <CompatibilityMatchesSection
-                chartId={chartId}
-                intent={discoveryIntent}
-                onIntentChange={setDiscoveryIntent}
-                matches={matches}
-                matchesLoaded={matchesLoaded}
-                matchesLoading={matchesLoading}
-                matchesError={matchesError}
-                pendingOutgoing={pendingOutgoing}
-                onFindMatches={findMatches}
-                onRequestConnection={handleRequestConnection}
-                mutationBusy={mutationBusy}
-              />
-            </>
-          ) : null}
-
-          {activeTab === 'connections' ? (
-            <ConnectionsTabContent
-              pairs={pairs}
-              pendingIncoming={pendingIncoming}
-              pendingOutgoing={pendingOutgoing}
-              loading={loading}
-              error={error}
-              onRefresh={refresh}
-              onSwitchToDiscovery={() => setActiveTab('discovery')}
-              onAccept={acceptIntent}
-              onDecline={declineIntent}
-              onCancel={cancelIntent}
-              mutationBusy={mutationBusy}
-            />
-          ) : null}
-
-          {activeTab === 'messages' ? (
-            <PlaceholderTab message="Messages coming soon" />
-          ) : null}
-
-          {activeTab === 'feed' ? <PlaceholderTab message="Feed coming soon" /> : null}
+      {isFeedTab ? (
+        <View style={styles.feedContainer}>
+          <FeedTabContent active />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void onRefresh()}
+              tintColor={colors.accent.DEFAULT}
+              colors={[colors.accent.DEFAULT]}
+            />
+          }
+        >
+          <View style={styles.tabContent}>
+            {activeTab === 'discovery' ? (
+              <>
+                <Text style={styles.tabHeading}>Discovery</Text>
+                <Text style={styles.tabDescription}>
+                  Find meaningful connections based on astrological compatibility. Choose your intent
+                  and we&apos;ll show you the best matches.
+                </Text>
+
+                <DiscoverySearchSection
+                  intent={discoveryIntent}
+                  pendingOutgoing={pendingOutgoing}
+                  searchUsers={searchUsers}
+                  searchLoading={searchLoading}
+                  onRequestConnection={(userId, chartId) =>
+                    handleRequestConnection(userId, chartId, discoveryIntent)
+                  }
+                  mutationBusy={mutationBusy}
+                />
+
+                <CompatibilityMatchesSection
+                  chartId={chartId}
+                  intent={discoveryIntent}
+                  onIntentChange={setDiscoveryIntent}
+                  matches={matches}
+                  matchesLoaded={matchesLoaded}
+                  matchesLoading={matchesLoading}
+                  matchesError={matchesError}
+                  pendingOutgoing={pendingOutgoing}
+                  onFindMatches={findMatches}
+                  onRequestConnection={handleRequestConnection}
+                  mutationBusy={mutationBusy}
+                />
+              </>
+            ) : null}
+
+            {activeTab === 'connections' ? (
+              <ConnectionsTabContent
+                pairs={pairs}
+                pendingIncoming={pendingIncoming}
+                pendingOutgoing={pendingOutgoing}
+                loading={loading}
+                error={error}
+                onRefresh={refresh}
+                onSwitchToDiscovery={() => setActiveTab('discovery')}
+                onAccept={acceptIntent}
+                onDecline={declineIntent}
+                onCancel={cancelIntent}
+                mutationBusy={mutationBusy}
+              />
+            ) : null}
+
+            {activeTab === 'messages' ? (
+              <PlaceholderTab message="Messages coming soon" />
+            ) : null}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -162,6 +171,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: AUTH_HORIZONTAL_PADDING,
+  },
+  feedContainer: {
+    flex: 1,
+    paddingHorizontal: AUTH_HORIZONTAL_PADDING,
+    marginTop: 12,
   },
   content: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
