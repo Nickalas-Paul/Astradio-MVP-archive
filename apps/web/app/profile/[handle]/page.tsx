@@ -10,9 +10,9 @@ import { ProfileCompatibilityPanel } from '@/components/ProfileCompatibilityPane
 import { ProfilePersonalizationDisplay } from '@/components/profile/ProfilePersonalizationDisplay';
 import { ExplainerSections } from '@/components/profile/shared/ExplainerSections';
 import { filterIdentityDisplaySections } from '@/components/profile/shared/profile-reading-utils';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
+import { useAudioPlayerStore } from '@/store';
 import { useProfile, useProfileChart } from '@/core/social/hooks';
 import type { ProfileChartSection } from '@/core/social/hooks';
 import type { SynastryBulletLine } from '@/core/compat/types';
@@ -83,17 +83,34 @@ function IdentityReadingSections({ sections }: { sections: ProfileChartSection[]
 function NatalSoundtrackSection({
   exportId,
   chartLoading,
+  handleLabel,
 }: {
   exportId: string | null | undefined;
   chartLoading: boolean;
+  handleLabel: string;
 }) {
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
+
   return (
     <Card elevation="flat" padding="p-4" className="space-y-4">
       <h3 className="font-serif text-h3 font-semibold text-text-primary">Their natal soundtrack</h3>
       {chartLoading ? (
         <p className="text-body-sm text-text-secondary">Loading chart…</p>
       ) : exportId && /^[a-f0-9]{64}$/.test(exportId) ? (
-        <ValidatedExportAudioPlayer exportId={exportId} />
+        <Button
+          type="button"
+          variant="audio"
+          size="sm"
+          onClick={() =>
+            playTrack({
+              exportId,
+              label: `${handleLabel}'s Identity`,
+              source: 'identity',
+            })
+          }
+        >
+          Hear Their Sound
+        </Button>
       ) : (
         <p className="text-body-sm text-accent">Sound unavailable</p>
       )}
@@ -278,6 +295,7 @@ export default function ProfileByHandlePage({ params }: { params: { handle: stri
             <NatalSoundtrackSection
               exportId={chartExplainer?.identity_export_id}
               chartLoading={chartLoading}
+              handleLabel={targetUser?.handle?.trim() || targetUser?.displayName?.trim() || param || 'Profile'}
             />
 
             {showCompatibility && seekerChart?.id && targetChartId ? (

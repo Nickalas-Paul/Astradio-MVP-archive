@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
+import { Button } from '@/components/shared/Button';
+import { useAudioPlayerStore } from '@/store';
 import { exportAudioHeadAvailable } from '@/lib/community/export-audio-blob';
 import { clearCommunityPostAudio } from '@/core/social/community-posts-hooks';
 
@@ -23,6 +24,7 @@ export function CommunityPostAudioSection({
   postUserId,
   onAudioCleared,
 }: CommunityPostAudioSectionProps) {
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [checking, setChecking] = useState(true);
   const [available, setAvailable] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -61,7 +63,20 @@ export function CommunityPostAudioSection({
         <p className="text-xs text-text-muted">Checking audio…</p>
       ) : available ? (
         <div className="space-y-2">
-          <ValidatedExportAudioPlayer exportId={exportId} />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              playTrack({
+                exportId,
+                label: audioLabel?.trim() || 'Community Post',
+                source: 'post',
+              })
+            }
+          >
+            Listen
+          </Button>
           <SaveToLibraryButton
             exportId={exportId}
             source="community_post_audio"

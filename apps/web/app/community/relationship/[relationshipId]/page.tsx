@@ -9,7 +9,7 @@ import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
 import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { useAudioPlayerStore } from '@/store';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { Button } from '@/components/shared/Button';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
@@ -129,6 +129,7 @@ export default function CommunityRelationshipArtifactPage() {
   const params = useParams();
   const relationshipId = typeof params?.relationshipId === 'string' ? params.relationshipId : '';
   const { user, primaryChart, loading: profileLoading } = useProfile();
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
 
   const [relationship, setRelationship] = useState<RelationshipRow | null>(null);
   const [comparison, setComparison] = useState<ComparisonJson | null>(null);
@@ -600,7 +601,20 @@ export default function CommunityRelationshipArtifactPage() {
                     {audioPlayerExportId ? (
                       <div className="space-y-3">
                         <p className="text-body-sm text-text-secondary">Your connection soundtrack is ready.</p>
-                        <ValidatedExportAudioPlayer exportId={audioPlayerExportId} />
+                        <Button
+                          type="button"
+                          variant="audio"
+                          size="sm"
+                          onClick={() =>
+                            playTrack({
+                              exportId: audioPlayerExportId,
+                              label: peerWheelLabel,
+                              source: 'connection',
+                            })
+                          }
+                        >
+                          Hear This Connection
+                        </Button>
                         {relationship && relationship.comparisonId ? (
                           <SaveToLibraryButton
                             exportId={audioPlayerExportId}

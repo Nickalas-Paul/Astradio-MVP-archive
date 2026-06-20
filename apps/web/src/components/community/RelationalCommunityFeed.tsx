@@ -3,11 +3,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart, type RelationalCommunityFeedItem } from '../../core/social/hooks';
-import { ValidatedExportAudioPlayer } from './ValidatedExportAudioPlayer';
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
+import { useAudioPlayerStore } from '@/store';
 import {
   formatSignalTemplateLabel,
   isSignalCreatedTodayUtc,
@@ -155,6 +155,7 @@ export function RelationalCommunityFeed({
   >({});
   const [signalMessageByFeedId, setSignalMessageByFeedId] = useState<Record<string, string>>({});
   const [signalBusyFeedId, setSignalBusyFeedId] = useState<string | null>(null);
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
 
   const loadSentSignalsForFeed = useCallback(async () => {
     if (!userId) return;
@@ -876,7 +877,20 @@ export function RelationalCommunityFeed({
                                       <p className="text-body-sm text-text-secondary">
                                         Your audio forecast is ready.
                                       </p>
-                                      <ValidatedExportAudioPlayer exportId={audioUi.exportId} />
+                                      <Button
+                                        type="button"
+                                        variant="audio"
+                                        size="sm"
+                                        onClick={() =>
+                                          playTrack({
+                                            exportId: audioUi.exportId!,
+                                            label: `${partnerName} Forecast`,
+                                            source: 'forecast',
+                                          })
+                                        }
+                                      >
+                                        Hear This Forecast
+                                      </Button>
                                     </div>
                                   ) : audioUi.state === 'generating' ? (
                                     <Button

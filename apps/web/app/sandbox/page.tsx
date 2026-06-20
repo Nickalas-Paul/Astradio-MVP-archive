@@ -67,7 +67,6 @@ export default function SandboxPage() {
   const hasManuallyToggledDegreePanelRef = useRef(false);
   const entryAutoSkipRef = useRef(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const resolvePreviewBirthBySlotRef = useRef<Map<number, SandboxBirth>>(new Map());
 
   const clearGenerateErrorRef = useRef<() => void>(() => {});
@@ -88,7 +87,6 @@ export default function SandboxPage() {
     dispatchComposition,
     compositionRef,
     resolvePreviewBirthBySlotRef,
-    audioRef,
     surfaceState,
     cancelPendingSnapshotSync: () => cancelPreviewSyncRef.current(),
   });
@@ -568,12 +566,11 @@ export default function SandboxPage() {
                   <SandboxAudioPanel
                     displayReport={displayReport}
                     exportId={exportId}
-                    sandboxAudioSrc={generate.sandboxAudioSrc}
                     exportUnavailableReason={exportUnavailableReason}
-                    audioRef={audioRef}
                     audioGenerateLoading={generate.audioGenerateLoading}
                     audioGenerateError={generate.audioGenerateError}
                     onGenerateAudio={generate.handleGenerateAudio}
+                    compositionLabel="Sandbox Composition"
                   />
                 )}
                 {sandboxDebug && generate.hasGenerated && (

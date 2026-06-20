@@ -1,72 +1,49 @@
 'use client';
 
-import { useState, useCallback, useEffect, type RefObject } from 'react';
-import type React from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getApiBaseUrl } from '../../core/api-base';
 import { useProfile } from '../../core/social/hooks';
 import { canGenerateAudio } from '@/lib/entitlement';
 import { Button } from '../shared/Button';
+import { useAudioPlayerStore } from '@/store';
 import type { SandboxReport } from '../../types/sandbox';
 
 export interface SandboxAudioPanelProps {
   displayReport: SandboxReport | null;
   exportId: string | null;
-  sandboxAudioSrc: string | null;
   exportUnavailableReason: { summary: string; step?: string; message?: string } | null;
-  audioRef: RefObject<HTMLAudioElement | null>;
   audioGenerateLoading: boolean;
   audioGenerateError: string | null;
   onGenerateAudio: () => void;
+  compositionLabel?: string;
 }
 
 export function SandboxAudioPanel({
   displayReport,
   exportId,
-  sandboxAudioSrc,
   exportUnavailableReason,
-  audioRef,
   audioGenerateLoading,
   audioGenerateError,
   onGenerateAudio,
+  compositionLabel,
 }: SandboxAudioPanelProps) {
   const { user } = useProfile();
-  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
 
   useEffect(() => {
     setDownloadError(null);
-    setPlaybackError(null);
   }, [exportId]);
 
-  const handleAudioPlay = useCallback(() => {
-    setPlaybackError(null);
-    const el = audioRef.current;
-    if (!el) return;
-    el.play().catch(() => {
-      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
+  const handlePlaySoundtrack = useCallback(() => {
+    if (!exportId) return;
+    playTrack({
+      exportId,
+      label: compositionLabel?.trim() || 'Sandbox Composition',
+      source: 'sandbox',
     });
-  }, [audioRef]);
-
-  const handleAudioStop = useCallback(() => {
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
-    setPlaybackError(null);
-  }, [audioRef]);
-
-  const handleAudioReplay = useCallback(() => {
-    setPlaybackError(null);
-    const el = audioRef.current;
-    if (!el) return;
-    el.pause();
-    el.currentTime = 0;
-    el.play().catch(() => {
-      setPlaybackError('Playback blocked by browser. Press Play again or allow audio.');
-    });
-  }, [audioRef]);
+  }, [exportId, compositionLabel, playTrack]);
 
   const handleDownloadWav = useCallback(async () => {
     if (!exportId) return;
@@ -103,21 +80,17 @@ export function SandboxAudioPanel({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-text-primary">Audio</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={handleAudioPlay} className="btn-audio">
-              Play
-            </button>
-            <button type="button" onClick={handleAudioStop} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
-              Stop
-            </button>
-            <button type="button" onClick={handleAudioReplay} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
-              Restart
-            </button>
-            <button type="button" onClick={() => void handleDownloadWav()} className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">
+            <Button type="button" variant="secondary" size="sm" onClick={handlePlaySoundtrack}>
+              Hear this Soundtrack
+            </Button>
+            <button
+              type="button"
+              onClick={() => void handleDownloadWav()}
+              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary"
+            >
               Download WAV
             </button>
           </div>
-          <audio key={exportId} ref={audioRef as React.RefObject<HTMLAudioElement>} src={sandboxAudioSrc ?? undefined} controls className="max-w-full w-full" />
-          {playbackError && <p className="text-xs text-red-400">{playbackError}</p>}
           {downloadError && <p className="text-xs text-red-400">{downloadError}</p>}
         </div>
       ) : audioGenerateLoading ? (
@@ -136,7 +109,11 @@ export function SandboxAudioPanel({
             Try again
           </Button>
           {exportUnavailableReason && (exportUnavailableReason.step || exportUnavailableReason.message) && (
-            <details className="text-xs text-text-secondary" open={exportDetailsOpen} onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}>
+            <details
+              className="text-xs text-text-secondary"
+              open={exportDetailsOpen}
+              onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}
+            >
               <summary className="cursor-pointer hover:text-text-primary">Details</summary>
               <pre className="mt-1 p-2 bg-bgElev rounded border border-border/60 overflow-auto">
                 {[exportUnavailableReason.step && `step: ${exportUnavailableReason.step}`, exportUnavailableReason.message]

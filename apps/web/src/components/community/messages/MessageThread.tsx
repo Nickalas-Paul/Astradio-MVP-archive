@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/shared/Button';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
+import { useAudioPlayerStore } from '@/store';
 import { CommunityAudioArtifactPicker } from '@/components/community/posts/CommunityAudioArtifactPicker';
 import { AudioAttachIcon } from '@/components/community/posts/community-post-icons';
 import { getApiBaseUrl } from '@/core/api-base';
@@ -351,6 +351,8 @@ function MessageBubble({
   onReport: () => void;
   reported: boolean;
 }) {
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
+
   return (
     <div className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
       <div className={`relative max-w-[85%] sm:max-w-[70%] ${isSender ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
@@ -364,7 +366,21 @@ function MessageBubble({
           ) : null}
           {message.audioExportId ? (
             <div className="mt-2">
-              <ValidatedExportAudioPlayer exportId={message.audioExportId} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs px-2 py-1 min-h-0 h-auto"
+                onClick={() =>
+                  playTrack({
+                    exportId: message.audioExportId!,
+                    label: message.audioLabel?.trim() || 'Shared Audio',
+                    source: 'dm',
+                  })
+                }
+              >
+                Listen
+              </Button>
             </div>
           ) : null}
           <p className="text-xs text-text-muted mt-1">{formatMessageTime(message.createdAt)}</p>

@@ -1,3 +1,4 @@
+// DEPRECATED — scheduled for removal in Commit D
 'use client';
 
 import { useEffect, useState, useRef } from 'react';

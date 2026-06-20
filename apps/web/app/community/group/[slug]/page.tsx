@@ -6,8 +6,9 @@ import { AppShell } from '@/components/AppShell';
 import { MemberCard } from '@/components/compatibility/MemberCard';
 import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
-import { ValidatedExportAudioPlayer } from '@/components/community/ValidatedExportAudioPlayer';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
+import { Button } from '@/components/shared/Button';
+import { useAudioPlayerStore } from '@/store';
 
 const GUIDANCE_BANNER = 'Public space. No harassment. No hate. No exclusionary or inflammatory topics.';
 
@@ -43,6 +44,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, primaryChart } = useProfile();
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const seekerChartId = hasRealChart(primaryChart) ? primaryChart.id : null;
 
   const [stored, setStored] = useState<{
@@ -244,7 +246,20 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
         {exId ? (
           <section className="space-y-2">
             <h2 className="text-lg font-medium text-text-primary">Sound</h2>
-            <ValidatedExportAudioPlayer exportId={exId} />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                playTrack({
+                  exportId: exId,
+                  label: group?.name?.trim() || slug || 'Group',
+                  source: 'connection',
+                })
+              }
+            >
+              Listen
+            </Button>
             {group ? (
               <SaveToLibraryButton
                 exportId={exId}

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject, type RefObject } from 'react';
+import { useState, useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject } from 'react';
 import { getApiBaseUrl } from '../core/api-base';
-import { getPlayableLyriaUrl } from '../core/audio/lyria-playback';
 import { extractSandboxResolvePayload } from '../../app/sandbox/page-helpers';
 import type { SandboxBirth, EphemerisSnapshot, SandboxReport, SandboxOverrides } from '../types/sandbox';
 import {
@@ -33,13 +32,13 @@ import {
   CHART_IMPORT_UNAVAILABLE_MSG,
 } from '../lib/sandbox-chart-import';
 import type { SandboxSurfaceState } from './useSandboxPreviewSync';
+import { useAudioPlayerStore } from '@/store';
 
 export interface UseSandboxGenerateArgs {
   compositionModel: SandboxCompositionModelState;
   dispatchComposition: Dispatch<SandboxCompositionAction>;
   compositionRef: MutableRefObject<SandboxCompositionModelState>;
   resolvePreviewBirthBySlotRef: MutableRefObject<Map<number, SandboxBirth>>;
-  audioRef: RefObject<HTMLAudioElement | null>;
   surfaceState: SandboxSurfaceState;
   cancelPendingSnapshotSync: () => void;
 }
@@ -50,7 +49,6 @@ export interface UseSandboxGenerateReturn {
   generateLoading: boolean;
   generateError: { chart?: string; report?: string; audio?: string } | null;
   hasGenerated: boolean;
-  sandboxAudioSrc: string | null;
   lastResolveSeedSlotIndex: number | null;
   lastResolveSeedCombinedHash: string | null;
   compositionFingerprintAtLastSeed: string | null;
@@ -73,14 +71,12 @@ export function useSandboxGenerate({
   dispatchComposition,
   compositionRef,
   resolvePreviewBirthBySlotRef,
-  audioRef,
   surfaceState,
   cancelPendingSnapshotSync,
 }: UseSandboxGenerateArgs): UseSandboxGenerateReturn {
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<{ chart?: string; report?: string; audio?: string } | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [lastResolveSeedSlotIndex, setLastResolveSeedSlotIndex] = useState<number | null>(null);
   const [lastResolveSeedCombinedHash, setLastResolveSeedCombinedHash] = useState<string | null>(null);
   const [compositionFingerprintAtLastSeed, setCompositionFingerprintAtLastSeed] = useState<string | null>(null);
@@ -88,21 +84,6 @@ export function useSandboxGenerate({
   const [audioGenerateError, setAudioGenerateError] = useState<string | null>(null);
 
   const preview = compositionModel.preview;
-  const exportId = compositionModel.lastResolve?.exportId ?? null;
-
-  useEffect(() => {
-    if (!exportId) {
-      setSandboxAudioSrc(null);
-      return;
-    }
-    const base = getApiBaseUrl() || '';
-    const url = `${base}/api/exports/${exportId}`;
-    try {
-      setSandboxAudioSrc(getPlayableLyriaUrl({ url }));
-    } catch {
-      setSandboxAudioSrc(null);
-    }
-  }, [exportId]);
 
   const clearGenerateError = useCallback(() => setGenerateError(null), []);
 
@@ -318,11 +299,7 @@ export function useSandboxGenerate({
     setGenerateError(null);
     setAudioGenerateError(null);
     dispatchComposition({ type: 'resolve_cleared' });
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
+    useAudioPlayerStore.getState().stop();
     cancelPendingSnapshotSync();
 
     try {
@@ -508,7 +485,7 @@ export function useSandboxGenerate({
     } finally {
       setGenerateLoading(false);
     }
-  }, [audioRef, cancelPendingSnapshotSync, canGenerate, compositionRef, dispatchComposition, resolvePreviewBirthBySlotRef]);
+  }, [cancelPendingSnapshotSync, canGenerate, compositionRef, dispatchComposition, resolvePreviewBirthBySlotRef]);
 
   const handleGenerateAudio = useCallback(async () => {
     const model = compositionRef.current;
@@ -524,11 +501,7 @@ export function useSandboxGenerate({
 
     setAudioGenerateLoading(true);
     setAudioGenerateError(null);
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
+    useAudioPlayerStore.getState().stop();
 
     try {
       const base = getApiBaseUrl();
@@ -581,7 +554,7 @@ export function useSandboxGenerate({
     } finally {
       setAudioGenerateLoading(false);
     }
-  }, [audioRef, compositionRef, dispatchComposition]);
+  }, [compositionRef, dispatchComposition]);
 
   return {
     canGenerate,
@@ -589,7 +562,6 @@ export function useSandboxGenerate({
     generateLoading,
     generateError,
     hasGenerated,
-    sandboxAudioSrc,
     lastResolveSeedSlotIndex,
     lastResolveSeedCombinedHash,
     compositionFingerprintAtLastSeed,

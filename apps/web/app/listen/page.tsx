@@ -16,10 +16,10 @@ import { extractSandboxResolvePayload } from '../sandbox/page-helpers';
 import { useProfile } from '@/core/social/hooks';
 import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
-import { getPlayableLyriaUrl } from '@/core/audio/lyria-playback';
 import { chartApiOwnerDisplayLabel } from '@/lib/sandbox-bff-wire';
 import { fetchListenSlotSnapshot, extractResolveSlotSnapshots } from '@/lib/listen-chart-snapshot';
 import { SANDBOX_COMPOSE_CONTROLS } from '@/lib/sandbox-composition-state';
+import { useAudioPlayerStore } from '@/store';
 import type { SandboxBirth, SandboxReport } from '@/types/sandbox';
 
 const WheelDisplay = dynamic(
@@ -125,7 +125,6 @@ function ListenPageInner() {
   const [planSha256, setPlanSha256] = useState<string | null>(null);
   const [canonicalObjectHash, setCanonicalObjectHash] = useState<string | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
-  const [sandboxAudioSrc, setSandboxAudioSrc] = useState<string | null>(null);
   const [audioGenerateLoading, setAudioGenerateLoading] = useState(false);
   const [audioGenerateError, setAudioGenerateError] = useState<string | null>(null);
   const [exportUnavailableReason, setExportUnavailableReason] = useState<{
@@ -139,7 +138,6 @@ function ListenPageInner() {
   const [chartBUnavailable, setChartBUnavailable] = useState<string | null>(null);
   const [wheelsLoading, setWheelsLoading] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const resolvedRef = useRef(false);
 
   const fetchChartLabel = useCallback(async (chartId: string): Promise<string> => {
@@ -198,20 +196,6 @@ function ListenPageInner() {
     primaryChart?.label,
     fetchChartLabel,
   ]);
-
-  useEffect(() => {
-    if (!exportId) {
-      setSandboxAudioSrc(null);
-      return;
-    }
-    const base = getApiBaseUrl() || '';
-    const url = `${base}/api/exports/${exportId}`;
-    try {
-      setSandboxAudioSrc(getPlayableLyriaUrl({ url }));
-    } catch {
-      setSandboxAudioSrc(null);
-    }
-  }, [exportId]);
 
   const bothSlotsReady = Boolean(slotA && slotB);
   const showEntryFlow = !displayReport;
@@ -287,11 +271,7 @@ function ListenPageInner() {
     setExportId(null);
     setExportUnavailableReason(null);
     setAudioGenerateError(null);
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
+    useAudioPlayerStore.getState().stop();
 
     const chartAId = slotA.kind === 'chart_id' ? slotA.chartId : null;
     const chartBId = slotB.kind === 'chart_id' ? slotB.chartId : null;
@@ -391,11 +371,7 @@ function ListenPageInner() {
 
     setAudioGenerateLoading(true);
     setAudioGenerateError(null);
-    const el = audioRef.current;
-    if (el) {
-      el.pause();
-      el.currentTime = 0;
-    }
+    useAudioPlayerStore.getState().stop();
 
     try {
       const base = getApiBaseUrl();
@@ -447,7 +423,6 @@ function ListenPageInner() {
     setPlanSha256(null);
     setCanonicalObjectHash(null);
     setExportId(null);
-    setSandboxAudioSrc(null);
     setAudioGenerateError(null);
     setExportUnavailableReason(null);
     setChartASnapshot(null);
@@ -760,12 +735,13 @@ function ListenPageInner() {
                   <SandboxAudioPanel
                     displayReport={displayReport}
                     exportId={exportId}
-                    sandboxAudioSrc={sandboxAudioSrc}
                     exportUnavailableReason={exportUnavailableReason}
-                    audioRef={audioRef}
                     audioGenerateLoading={audioGenerateLoading}
                     audioGenerateError={audioGenerateError}
                     onGenerateAudio={() => void handleGenerateAudio()}
+                    compositionLabel={
+                      slotA && slotB ? `${slotA.label} & ${slotB.label}` : 'Sandbox Composition'
+                    }
                   />
 
                   <div className="mt-8 pt-6 border-t border-border/30 space-y-4">
