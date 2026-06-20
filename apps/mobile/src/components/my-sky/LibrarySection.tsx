@@ -1,16 +1,13 @@
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
+import { groupLibraryRows, type MobileLibraryItem } from '../../lib/library-groups';
 import { useAudioStore, type AudioSource } from '../../store/audio';
 
 type LibrarySectionProps = {
-  items: Array<{
-    id: string;
-    title: string;
-    subtitle: string;
-    hasAudio: boolean;
-    exportId?: string | null;
-    source?: string;
-  }>;
+  items: MobileLibraryItem[];
 };
 
 function isValidExportId(exportId?: string | null): exportId is string {
@@ -35,71 +32,132 @@ function mapSourceToAudioSource(source?: string): AudioSource {
   }
 }
 
-export function LibrarySection({ items }: LibrarySectionProps) {
-  const playTrack = useAudioStore((s) => s.playTrack);
-
-  if (!items.length) {
-    return (
-      <Text style={styles.emptyText}>
-        Your saved readings and soundtracks will appear here
-      </Text>
-    );
+function rowLabel(row: MobileLibraryItem): string {
+  if (row.subtitle?.trim()) {
+    return `${row.title} · ${row.subtitle}`;
   }
+  return row.title;
+}
+
+export function LibrarySection({ items }: LibrarySectionProps) {
+  const router = useRouter();
+  const playTrack = useAudioStore((s) => s.playTrack);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const groups = useMemo(() => groupLibraryRows(items), [items]);
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleRowPress = (row: MobileLibraryItem) => {
+    if (isValidExportId(row.exportId)) {
+      playTrack({
+        exportId: row.exportId,
+        label: rowLabel(row),
+        source: mapSourceToAudioSource(row.source),
+      });
+    }
+
+    router.push({
+      pathname: '/my-sky/library/[id]',
+      params: { id: row.id },
+    });
+  };
 
   return (
     <View style={styles.container}>
-      {items.map((item) => {
-        const playable = isValidExportId(item.exportId);
-
-        const rowContent = (
-          <>
-            <View style={styles.textBlock}>
-              <Text style={styles.title}>{item.title}</Text>
-              {item.subtitle ? <Text style={styles.subtitle}>{item.subtitle}</Text> : null}
+      {groups.map((group) => (
+        <View key={group.key} style={styles.section}>
+          <Pressable onPress={() => toggleSection(group.key)} style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>{group.label}</Text>
+              <Text style={styles.sectionCount}>{group.rows.length}</Text>
             </View>
-            {playable ? <Text style={styles.playIcon}>▶</Text> : null}
-          </>
-        );
-
-        if (!playable) {
-          return (
-            <View key={item.id} style={styles.row}>
-              {rowContent}
-            </View>
-          );
-        }
-
-        return (
-          <Pressable
-            key={item.id}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-            onPress={() => {
-              playTrack({
-                exportId: item.exportId!,
-                label: item.title,
-                source: mapSourceToAudioSource(item.source),
-              });
-            }}
-          >
-            {rowContent}
+            <Text style={styles.sectionToggle}>{collapsedSections.has(group.key) ? '▸' : '▾'}</Text>
           </Pressable>
-        );
-      })}
+
+          {!collapsedSections.has(group.key) ? (
+            group.rows.length === 0 ? (
+              <Text style={styles.emptySection}>{group.emptyMessage}</Text>
+            ) : (
+              group.rows.map((row) => (
+                <Pressable
+                  key={row.id}
+                  onPress={() => handleRowPress(row)}
+                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                >
+                  <View style={styles.rowLeft}>
+                    {isValidExportId(row.exportId) ? (
+                      <Text style={styles.audioIcon}>♫</Text>
+                    ) : null}
+                    <Text style={styles.rowLabel}>{rowLabel(row)}</Text>
+                  </View>
+                  <Text style={styles.viewLabel}>View</Text>
+                </Pressable>
+              ))
+            )
+          ) : null}
+        </View>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    gap: layout.sectionGap,
+  },
+  section: {
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontFamily: 'Manrope-SemiBold',
+    color: colors.accent.DEFAULT,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  sectionCount: {
+    fontSize: 12,
+    color: colors.text.muted,
+    fontFamily: 'Manrope-Regular',
+  },
+  sectionToggle: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontFamily: 'Manrope-Regular',
+  },
+  emptySection: {
+    fontSize: 14,
+    color: colors.text.muted,
+    fontFamily: 'Manrope-Regular',
+    paddingLeft: 8,
+    paddingVertical: 8,
   },
   row: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: layout.card.borderRadius,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: layout.card.padding,
+    paddingVertical: layout.card.padding,
+    marginBottom: layout.cardGap,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -108,30 +166,26 @@ const styles = StyleSheet.create({
   rowPressed: {
     opacity: 0.85,
   },
-  textBlock: {
+  rowLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  title: {
-    color: colors.text.primary,
-    fontSize: 14,
-    fontFamily: 'Manrope-Regular',
-  },
-  subtitle: {
-    color: colors.text.muted,
-    fontSize: 12,
-    fontFamily: 'Manrope-Regular',
-    marginTop: 2,
-  },
-  playIcon: {
+  audioIcon: {
     color: colors.accent.DEFAULT,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Manrope-SemiBold',
   },
-  emptyText: {
-    color: colors.text.muted,
+  rowLabel: {
+    flex: 1,
+    color: colors.text.secondary,
     fontSize: 14,
     fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
-    paddingVertical: 20,
+  },
+  viewLabel: {
+    color: colors.accent.DEFAULT,
+    fontSize: 13,
+    fontFamily: 'Manrope-Medium',
   },
 });

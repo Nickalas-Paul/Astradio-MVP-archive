@@ -10,16 +10,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NatalWheel } from '../../src/components/chart/NatalWheel';
-import { IdentityAudioCard } from '../../src/components/my-sky/IdentityAudioCard';
-import { IdentityReading } from '../../src/components/my-sky/IdentityReading';
-import { LibrarySection } from '../../src/components/my-sky/LibrarySection';
-import { MySkySkeleton } from '../../src/components/my-sky/MySkySkeleton';
-import { ProfileHeader } from '../../src/components/my-sky/ProfileHeader';
-import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
-import { colors } from '../../src/constants/colors';
-import { useMySkyData } from '../../src/hooks/useMySkyData';
-import { useAuthStore } from '../../src/store/auth';
+import { NatalWheel } from '../../../src/components/chart/NatalWheel';
+import { IdentityAudioCard } from '../../../src/components/my-sky/IdentityAudioCard';
+import { IdentityReading } from '../../../src/components/my-sky/IdentityReading';
+import { LibrarySection } from '../../../src/components/my-sky/LibrarySection';
+import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
+import { ProfileHeader } from '../../../src/components/my-sky/ProfileHeader';
+import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
+import { colors } from '../../../src/constants/colors';
+import { useMySkyData } from '../../../src/hooks/useMySkyData';
+import { useAuthStore } from '../../../src/store/auth';
 
 function SectionHeading({ title }: { title: string }) {
   return <Text style={styles.sectionHeading}>{title}</Text>;

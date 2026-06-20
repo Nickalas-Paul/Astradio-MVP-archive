@@ -1,0 +1,347 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AUTH_HORIZONTAL_PADDING } from '../../../../src/constants/auth-styles';
+import { colors } from '../../../../src/constants/colors';
+import { layout } from '../../../../src/constants/layout';
+import { fetchLibraryDetail } from '../../../../src/lib/my-sky-fetch';
+import { useAudioStore, type AudioSource } from '../../../../src/store/audio';
+import type { SavedCompositionDetail } from '../../../../src/types/sandbox';
+
+function isValidExportId(exportId?: string | null): exportId is string {
+  return typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId);
+}
+
+function librarySourceLabel(source: string | null | undefined): string {
+  const value = String(source ?? '').trim();
+  if (value === 'profile_identity') return 'Identity';
+  if (value === 'profile_active') return 'Transit reading';
+  if (value === 'community_relationship') return 'Connection reading';
+  if (value === 'community_group') return 'Group reading';
+  if (value === 'community_relational_weather') return 'Forecast';
+  if (value === 'community_post_audio') return 'Community audio';
+  if (value === 'sandbox') return 'Sandbox reading';
+  if (value === 'sky') return "Today's Sky";
+  return value ? value.replace(/_/g, ' ') : 'Saved reading';
+}
+
+function mapSourceToAudioSource(source?: string | null): AudioSource {
+  switch (source) {
+    case 'profile_identity':
+      return 'identity';
+    case 'profile_active':
+      return 'transit';
+    case 'community_relationship':
+    case 'community_group':
+    case 'community_relational_weather':
+      return 'connection';
+    case 'community_post_audio':
+      return 'post';
+    default:
+      return 'sandbox';
+  }
+}
+
+function formatCreatedAt(createdAt?: string | null): string {
+  if (!createdAt) return '';
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function reportHasReadableContent(report: unknown): boolean {
+  if (report == null) return false;
+  if (typeof report === 'string') return report.trim().length > 0;
+  if (typeof report !== 'object' || Array.isArray(report)) return false;
+  const obj = report as Record<string, unknown>;
+  if (typeof obj.text === 'string' && obj.text.trim()) return true;
+  if (obj.text && typeof obj.text === 'object' && !Array.isArray(obj.text)) {
+    const textObj = obj.text as Record<string, unknown>;
+    if (typeof textObj.short === 'string' && textObj.short.trim()) return true;
+    if (typeof textObj.long === 'string' && textObj.long.trim()) return true;
+  }
+  const explanation = obj.explanation as { sections?: Array<{ text?: string }> } | undefined;
+  if (Array.isArray(explanation?.sections)) {
+    return explanation!.sections!.some((s) => typeof s.text === 'string' && s.text.trim().length > 0);
+  }
+  if (Array.isArray(obj.sections)) {
+    return (obj.sections as Array<{ text?: string }>).some(
+      (s) => typeof s.text === 'string' && s.text.trim().length > 0,
+    );
+  }
+  return false;
+}
+
+function renderReportText(report: unknown): string {
+  if (typeof report === 'string') return report.trim();
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return '';
+  const obj = report as Record<string, unknown>;
+  if (typeof obj.text === 'string') return obj.text.trim();
+  if (obj.text && typeof obj.text === 'object' && !Array.isArray(obj.text)) {
+    const textObj = obj.text as { short?: string; long?: string };
+    return [textObj.short, textObj.long].filter(Boolean).join('\n\n').trim();
+  }
+  const explanation = obj.explanation as { sections?: Array<{ title?: string; text?: string }> } | undefined;
+  if (Array.isArray(explanation?.sections)) {
+    return explanation!.sections!
+      .map((s) => {
+        const title = s.title?.trim();
+        const text = s.text?.trim() ?? '';
+        return title ? `${title}\n\n${text}` : text;
+      })
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+  }
+  return '';
+}
+
+function emptyMessageForSource(source: string | null | undefined, createdAtLabel: string): string {
+  const value = String(source ?? '').trim();
+  if (value === 'profile_identity') {
+    return 'Your identity reading lives on My Sky.';
+  }
+  if (value === 'profile_active') {
+    return createdAtLabel
+      ? `This transit was saved on ${createdAtLabel}. Open Today for current transits.`
+      : 'This transit was saved. Open Today for current transits.';
+  }
+  if (value === 'community_relationship' || value === 'community_group') {
+    return 'Open this connection from Community to see the full reading.';
+  }
+  if (value === 'community_relational_weather') {
+    return 'Forecast text was not stored with this save.';
+  }
+  if (value === 'community_post_audio') {
+    return 'Saved from a community post.';
+  }
+  return 'No reading text saved.';
+}
+
+export default function LibraryDetailScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = typeof params.id === 'string' ? params.id : '';
+  const playTrack = useAudioStore((s) => s.playTrack);
+
+  const [detail, setDetail] = useState<SavedCompositionDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) {
+      setError('Missing library item.');
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setDetail(null);
+
+    void fetchLibraryDetail(id)
+      .then((row) => {
+        if (!cancelled) setDetail(row);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load library item');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const createdAtLabel = useMemo(() => formatCreatedAt(detail?.created_at), [detail?.created_at]);
+  const reportText = useMemo(() => renderReportText(detail?.report), [detail?.report]);
+  const hasReport = useMemo(() => reportHasReadableContent(detail?.report), [detail?.report]);
+  const exportId = detail?.export_id ?? null;
+  const sourceLabel = librarySourceLabel(detail?.source);
+
+  const handleListen = () => {
+    if (!detail || !isValidExportId(exportId)) return;
+    playTrack({
+      exportId,
+      label: sourceLabel,
+      source: mapSourceToAudioSource(detail.source),
+    });
+  };
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backText}>← Back to My Sky</Text>
+        </Pressable>
+
+        {loading ? (
+          <View style={styles.loadingBlock}>
+            <ActivityIndicator color={colors.accent.DEFAULT} />
+            <Text style={styles.loadingText}>Loading saved item…</Text>
+          </View>
+        ) : null}
+
+        {error ? (
+          <View style={styles.errorBlock}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {detail && !loading ? (
+          <View style={styles.detailBlock}>
+            <Text style={styles.title}>{sourceLabel}</Text>
+            {createdAtLabel ? <Text style={styles.subtitle}>{createdAtLabel}</Text> : null}
+
+            {isValidExportId(exportId) ? (
+              <Pressable
+                onPress={handleListen}
+                style={({ pressed }) => [styles.listenButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.listenButtonText}>Listen</Text>
+              </Pressable>
+            ) : null}
+
+            {hasReport ? (
+              <Text style={styles.reportText}>{reportText}</Text>
+            ) : (
+              <Text style={styles.emptyReport}>{emptyMessageForSource(detail.source, createdAtLabel)}</Text>
+            )}
+
+            <View style={styles.metaRow}>
+              {detail.composition_type ? (
+                <Text style={styles.metaBadge}>{detail.composition_type}</Text>
+              ) : null}
+              {createdAtLabel ? <Text style={styles.metaText}>Saved {createdAtLabel}</Text> : null}
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingHorizontal: AUTH_HORIZONTAL_PADDING,
+    paddingBottom: layout.screenBottomPadding,
+  },
+  backButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  backText: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+  },
+  loadingBlock: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  loadingText: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+  },
+  errorBlock: {
+    paddingVertical: 16,
+  },
+  errorText: {
+    color: '#f87171',
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+  },
+  detailBlock: {
+    gap: layout.internalGap + 4,
+  },
+  title: {
+    color: colors.text.primary,
+    fontSize: 24,
+    fontFamily: 'Cormorant-SemiBold',
+  },
+  subtitle: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+  },
+  listenButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent.DEFAULT,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  listenButtonText: {
+    color: colors.background,
+    fontSize: 14,
+    fontFamily: 'Manrope-SemiBold',
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  reportText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Manrope-Regular',
+    marginTop: 8,
+  },
+  emptyReport: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Manrope-Regular',
+    marginTop: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  metaBadge: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontFamily: 'Manrope-Medium',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  metaText: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontFamily: 'Manrope-Regular',
+  },
+});

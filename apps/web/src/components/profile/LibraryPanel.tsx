@@ -1,27 +1,26 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
-import Link from 'next/link';
-import { ExplainerSections } from './shared/ExplainerSections';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import {
   explanationFromCompatibilityText,
   libraryRowSummary,
   librarySourceLabel,
   parseSandboxState,
 } from './shared/profile-library-utils';
-import { mapExplanationToSections } from './shared/profile-reading-utils';
 import { normalizeLocalTime, sandboxStateCompleteForTransit } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
-import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/compatibility-reading-surface';
-import { IdentityMarkdown } from '../shared/IdentityMarkdown';
 import { Card } from '../shared/Card';
 import { Button } from '@/components/shared/Button';
 import { useAudioPlayerStore, type AudioSource } from '@/store';
-import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
-import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
+import { groupLibraryRows } from '@/lib/library/library-groups';
+import { LibraryDetailModal } from './LibraryDetailModal';
 
 function isValidLibraryExportId(eid: unknown): eid is string {
   return typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid);
+}
+
+function isValidExportId(id: string): boolean {
+  return /^[a-f0-9]{64}$/.test(id);
 }
 
 function libraryAudioSource(row: Record<string, unknown>): AudioSource {
@@ -78,6 +77,9 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
     null,
   );
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const groups = useMemo(() => groupLibraryRows(libraryRows), [libraryRows]);
 
   const dispatchLibraryAudio = useCallback(
     (row: Record<string, unknown>, exportId: string) => {
@@ -89,6 +91,28 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
     },
     [playTrack],
   );
+
+  const closeLibraryRow = useCallback(() => {
+    setLibraryOpenId(null);
+    setLibraryDetailRow(null);
+    setLibraryReconstructResult(null);
+    setLibraryReconstructError(null);
+    setLibraryAudioMissingFromStore(null);
+    setLibraryRelationalWeatherTextMissing(false);
+    setLibraryHistoricalArtifact(false);
+    setLibraryCommunityReadingArtifact(null);
+    setLibraryDetailLoading(false);
+    setLibraryReconstructLoading(false);
+  }, []);
+
+  const toggleSection = useCallback((key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const refreshLibrary = useCallback(async () => {
     const base = getApiBaseUrl();
@@ -330,201 +354,84 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   }, [shouldLoad, refreshLibrary]);
 
   return (
-<div className="space-y-4">
-            <p className="text-sm text-text-secondary">
-              Saved profile and community artifacts (text first; audio when export is available). Older engine versions are shown as historical snapshots.
-            </p>
-            {libraryLoading ? (
-              <p className="text-sm text-text-secondary">Loading…</p>
-            ) : (
-              <>
-                <ul className="space-y-3">
-                  {libraryRows.map((row) => (
-                    <Card
-                      as="li"
-                      key={String(row.id)}
-                      elevation="raised"
-                      interactive
-                      className="text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 justify-between min-w-0"
-                    >
-                      <span className="text-text-secondary">{libraryRowSummary(row)}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-accent w-full sm:w-auto min-h-[44px] shrink-0"
-                        onClick={() => void openLibraryRow(String(row.id))}
-                      >
-                        View
-                      </Button>
-                    </Card>
-                  ))}
-                  {libraryRows.length === 0 && (
-                    <li>
-                      <Card size="lg" className="text-center space-y-4 max-w-md mx-auto">
-                        <p className="text-body text-text-secondary">Your library is empty.</p>
-                        <p className="text-body-sm text-text-muted">
-                          Compose your daily transit on Today, then use &quot;Save to Library&quot; to keep readings
-                          and soundtracks here.
-                        </p>
-                        <Link href="/today">
-                          <Button type="button" variant="outline" size="sm">
-                            Go to Today
-                          </Button>
-                        </Link>
-                      </Card>
-                    </li>
-                  )}
-                </ul>
-                {libraryOpenId && (
-                  <Card elevation="raised" className="!rounded space-y-3 mt-4">
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-medium text-text-primary">
-                        {libraryDetailRow ? librarySourceLabel(libraryDetailRow.source) : 'Saved artifact'}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-text-secondary hover:text-text-primary px-2 py-1"
-                        onClick={() => {
-                          setLibraryOpenId(null);
-                          setLibraryDetailRow(null);
-                          setLibraryReconstructResult(null);
-                          setLibraryReconstructError(null);
-                          setLibraryAudioMissingFromStore(null);
-                          setLibraryRelationalWeatherTextMissing(false);
-                          setLibraryHistoricalArtifact(false);
-                          setLibraryCommunityReadingArtifact(null);
-                        }}
-                      >
-                        Close
-                      </Button>
-                    </div>
-                    {libraryDetailLoading && <p className="text-sm text-text-secondary">Loading…</p>}
-                    {libraryHistoricalArtifact && (
-                      <div className="text-sm text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2 space-y-2">
-                        <p>Historical saved artifact.</p>
-                        <p>Composed with an earlier expression version.</p>
-                        <a
-                          href="/today"
-                          className="inline-block px-3 py-1 rounded border border-amber-500/50 text-xs hover:bg-amber-500/10"
+    <>
+      <div className="space-y-6">
+        <p className="text-sm text-text-secondary">
+          Your saved readings and soundtracks, organized by type.
+        </p>
+
+        {libraryLoading ? <p className="text-sm text-text-secondary">Loading library…</p> : null}
+
+        {!libraryLoading
+          ? groups.map((group) => (
+              <section key={group.key}>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(group.key)}
+                  className="flex items-center justify-between w-full text-left py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium uppercase tracking-wider text-accent">{group.label}</h3>
+                    <span className="text-xs text-text-muted">{group.rows.length}</span>
+                  </div>
+                  <span className="text-text-muted text-xs">
+                    {collapsedSections.has(group.key) ? '▸' : '▾'}
+                  </span>
+                </button>
+
+                {!collapsedSections.has(group.key) ? (
+                  group.rows.length === 0 ? (
+                    <p className="text-sm text-text-muted pl-2 py-2">{group.emptyMessage}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {group.rows.map((row) => (
+                        <Card
+                          as="li"
+                          key={String(row.id)}
+                          elevation="raised"
+                          interactive
+                          className="text-sm flex items-center justify-between px-4 py-3 min-w-0"
                         >
-                          Compose current version
-                        </a>
-                      </div>
-                    )}
-                    {libraryReconstructError && (
-                      <p className="text-sm text-red-500">{libraryReconstructError}</p>
-                    )}
-                    {libraryDetailRow != null &&
-                      (libraryDetailRow.source === 'profile_identity' ||
-                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') &&
-                      libraryAudioMissingFromStore !== false ? (
-                        <p className="text-sm text-text-secondary">
-                          Identity comes from your birth chart. Open the Identity tab to compose or play your soundtrack.
-                        </p>
-                      ) : null}
-                    {libraryDetailRow != null &&
-                      (libraryDetailRow.source === 'community_post_audio' ||
-                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_post_audio') ? (
-                        <p className="text-sm text-text-secondary">
-                          {typeof parseSandboxState(libraryDetailRow.sandbox_state)?.originalLabel === 'string'
-                            ? String(parseSandboxState(libraryDetailRow.sandbox_state)?.originalLabel)
-                            : 'Saved from a community post'}
-                        </p>
-                      ) : null}
-                    {libraryReconstructLoading && (
-                      <p className="text-sm text-text-secondary">Loading report…</p>
-                    )}
-                    {libraryCommunityReadingArtifact &&
-                    (libraryDetailRow?.source === 'community_relational_weather' ||
-                      parseSandboxState(libraryDetailRow?.sandbox_state)?.kind === 'community_relational_weather') ? (
-                      <div className="space-y-4">
-                        {(() => {
-                          const art = libraryCommunityReadingArtifact;
-                          const w =
-                            art.weather && typeof art.weather === 'object' ? (art.weather as Record<string, unknown>) : undefined;
-                          const finalized = finalizeRelationalReadingSurfaces({
-                            kind: 'expanded_artifact',
-                            artifact: art,
-                            weather: w,
-                          });
-                          const slots =
-                            finalized.kind === 'expanded_artifact'
-                              ? finalized.slots
-                              : ({
-                                  summary: '',
-                                  support: '',
-                                  tension: '',
-                                  activation: '',
-                                  whatToDo: '',
-                                  audio: '',
-                                } as Record<ExpandedSlotId, string>);
-                          return (
-                            <div className="space-y-4">
-                              {EXPANDED_READING_RENDER_ORDER.map((slot: ExpandedSlotId) => {
-                                const body = slots[slot];
-                                if (!body?.trim()) return null;
-                                return (
-                                  <section key={slot} className="space-y-1">
-                                    <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wide">
-                                      {EXPANDED_SLOT_LABELS[slot]}
-                                    </h4>
-                                    <IdentityMarkdown content={body} />
-                                  </section>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : null}
-                    {libraryReconstructResult != null &&
-                      libraryReconstructResult.explanation != null &&
-                      !libraryCommunityReadingArtifact &&
-                      hasCompatibilityReadingSurface(
-                        libraryReconstructResult.explanation as ExplanationLike,
-                        undefined,
-                      ) && (
-                        <ExplainerSections
-                          sections={mapExplanationToSections(libraryReconstructResult.explanation)}
-                        />
-                      )}
-                    {libraryReconstructResult != null &&
-                      libraryReconstructResult.explanation != null &&
-                      !libraryCommunityReadingArtifact &&
-                      !hasCompatibilityReadingSurface(
-                        libraryReconstructResult.explanation as ExplanationLike,
-                        undefined,
-                      ) &&
-                      !libraryReconstructError && (
-                        <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
-                          Stored reading text for this artifact is missing or empty. Compose a new compatibility reading or
-                          contact support.
-                        </p>
-                      )}
-                    {libraryDetailRow &&
-                      (libraryDetailRow.source === 'community_relational_weather' ||
-                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
-                      libraryRelationalWeatherTextMissing && (
-                        <p className="text-sm text-amber-600 dark:text-amber-300">
-                          Reading text was not stored for this bookmark. Re-save from Today, or
-                          ask an operator to run a library repair.
-                        </p>
-                      )}
-                    {libraryDetailRow &&
-                      (libraryDetailRow.source === 'community_relational_weather' ||
-                        parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'community_relational_weather') &&
-                      libraryAudioMissingFromStore === true && (
-                        <p className="text-sm text-amber-600 dark:text-amber-300">
-                          Audio record missing from storage (export pointer exists but file was not found).
-                        </p>
-                      )}
-                  </Card>
-                )}
-              </>
-            )}
-          </div>
+                          <div className="flex items-center gap-3 min-w-0">
+                            {isValidExportId(String(row.export_id ?? '')) ? (
+                              <span className="text-accent text-xs shrink-0" aria-hidden>
+                                ♫
+                              </span>
+                            ) : null}
+                            <span className="text-text-secondary truncate">{libraryRowSummary(row)}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs shrink-0 min-h-[44px]"
+                            onClick={() => void openLibraryRow(String(row.id))}
+                          >
+                            View
+                          </Button>
+                        </Card>
+                      ))}
+                    </ul>
+                  )
+                ) : null}
+              </section>
+            ))
+          : null}
+      </div>
+
+      <LibraryDetailModal
+        isOpen={libraryOpenId !== null}
+        row={libraryDetailRow}
+        isLoading={libraryDetailLoading}
+        reconstructLoading={libraryReconstructLoading}
+        reconstructResult={libraryReconstructResult}
+        error={libraryReconstructError}
+        audioMissingFromStore={libraryAudioMissingFromStore}
+        relationalWeatherTextMissing={libraryRelationalWeatherTextMissing}
+        historicalArtifact={libraryHistoricalArtifact}
+        communityReadingArtifact={libraryCommunityReadingArtifact}
+        onClose={closeLibraryRow}
+      />
+    </>
   );
 });

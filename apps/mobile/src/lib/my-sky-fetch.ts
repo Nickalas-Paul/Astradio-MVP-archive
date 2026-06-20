@@ -6,6 +6,7 @@ import type {
   ProfileChartResponse,
   ProfileResponse,
 } from '../types/my-sky';
+import type { SavedCompositionDetail } from '../types/sandbox';
 
 export async function fetchMySkyScreenData(): Promise<MySkyScreenData> {
   const profile = await api<ProfileResponse>('/api/profile');
@@ -34,4 +35,8 @@ export async function fetchMySkyScreenData(): Promise<MySkyScreenData> {
   }
 
   return buildMySkyScreenData({ profile, chart, library });
+}
+
+export async function fetchLibraryDetail(id: string): Promise<SavedCompositionDetail> {
+  return api<SavedCompositionDetail>(`/api/sandbox/compositions/${encodeURIComponent(id)}`);
 }
