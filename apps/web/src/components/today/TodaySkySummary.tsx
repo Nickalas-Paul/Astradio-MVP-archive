@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
+import { Button } from '@/components/shared/Button';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
 import { getSkyCache, setSkyCache, cleanExpiredSkyCache } from '@/core/sky-compose-cache';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
 import type { CanonicalLocation } from '@/types/location';
+import { useAudioPlayerStore } from '@/store';
 
 type ExplanationSection = {
   sectionId?: string;
@@ -16,6 +18,12 @@ type ExplanationSection = {
   text?: string;
   bullets?: string[];
   planets?: string[];
+};
+
+type SkyComposeContext = {
+  location: CanonicalLocation;
+  dateStr: string;
+  timeStr: string;
 };
 
 function defaultSkyLocation(): CanonicalLocation {
@@ -87,74 +95,126 @@ function resolveNowDateTime(): { dateStr: string; timeStr: string } {
   return { dateStr, timeStr: `${hh}:${mm}` };
 }
 
+function exportIdFromComposePayload(payload: Record<string, unknown>): string | null {
+  const audio = payload?.audio as Record<string, unknown> | undefined;
+  const exportId = (payload?.export_id ?? audio?.export_id) as string | undefined;
+  if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
+    return exportId;
+  }
+  console.warn('Compose response missing valid export_id');
+  return null;
+}
+
+function resolveSkyLocation(primaryChart: ProfilePrimaryChart | null): Promise<CanonicalLocation> {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const resolvedAt = new Date().toISOString();
+          const browserTz =
+            typeof Intl !== 'undefined' &&
+            typeof Intl.DateTimeFormat === 'function' &&
+            Intl.DateTimeFormat().resolvedOptions().timeZone
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone
+              : 'UTC';
+          resolve({
+            source: 'browser_geo',
+            label: 'Current location',
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            timezone: browserTz,
+            resolvedAt,
+          });
+        },
+        () => {
+          if (
+            primaryChart &&
+            typeof primaryChart.lat === 'number' &&
+            typeof primaryChart.lon === 'number'
+          ) {
+            resolve(chartFallbackLocation(primaryChart));
+          } else {
+            resolve(defaultSkyLocation());
+          }
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    } else if (
+      primaryChart &&
+      typeof primaryChart.lat === 'number' &&
+      typeof primaryChart.lon === 'number'
+    ) {
+      resolve(chartFallbackLocation(primaryChart));
+    } else {
+      resolve(defaultSkyLocation());
+    }
+  });
+}
+
 export interface TodaySkySummaryProps {
   primaryChart: ProfilePrimaryChart | null;
 }
 
 export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [chartData, setChartData] = useState<unknown>(null);
   const [composeHash, setComposeHash] = useState('');
   const [analysisText, setAnalysisText] = useState('');
   const [explanationSections, setExplanationSections] = useState<ExplanationSection[] | null>(null);
+  const [composeContext, setComposeContext] = useState<SkyComposeContext | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [skyAudioLoading, setSkyAudioLoading] = useState(false);
+  const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
+
+  const handleHearTodaysSky = useCallback(async () => {
+    if (!composeContext) return;
+    setSkyAudioLoading(true);
+    setSkyAudioError(null);
+    try {
+      const base = getApiBaseUrl();
+      const composeRes = await fetch(`${base || ''}/api/compose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: composeContext.dateStr,
+          time: composeContext.timeStr,
+          location: composeContext.location,
+          generateAudio: true,
+        }),
+      });
+      const payload = (await composeRes.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!composeRes.ok) {
+        setSkyAudioError(
+          typeof payload.error === 'string' ? payload.error : 'Could not compose sky audio',
+        );
+        return;
+      }
+      const exportId = exportIdFromComposePayload(payload);
+      if (!exportId) {
+        setSkyAudioError('Could not compose sky audio');
+        return;
+      }
+      playTrack({ exportId, label: "Today's Sky", source: 'sky' });
+    } catch {
+      setSkyAudioError('Could not compose sky audio');
+    } finally {
+      setSkyAudioLoading(false);
+    }
+  }, [composeContext, playTrack]);
 
   useEffect(() => {
     let cancelled = false;
-
-    const resolveLocation = (): Promise<CanonicalLocation> =>
-      new Promise((resolve) => {
-        if (typeof window !== 'undefined' && 'geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const resolvedAt = new Date().toISOString();
-              const browserTz =
-                typeof Intl !== 'undefined' &&
-                typeof Intl.DateTimeFormat === 'function' &&
-                Intl.DateTimeFormat().resolvedOptions().timeZone
-                  ? Intl.DateTimeFormat().resolvedOptions().timeZone
-                  : 'UTC';
-              resolve({
-                source: 'browser_geo',
-                label: 'Current location',
-                lat: pos.coords.latitude,
-                lon: pos.coords.longitude,
-                timezone: browserTz,
-                resolvedAt,
-              });
-            },
-            () => {
-              if (
-                primaryChart &&
-                typeof primaryChart.lat === 'number' &&
-                typeof primaryChart.lon === 'number'
-              ) {
-                resolve(chartFallbackLocation(primaryChart));
-              } else {
-                resolve(defaultSkyLocation());
-              }
-            },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-          );
-        } else if (
-          primaryChart &&
-          typeof primaryChart.lat === 'number' &&
-          typeof primaryChart.lon === 'number'
-        ) {
-          resolve(chartFallbackLocation(primaryChart));
-        } else {
-          resolve(defaultSkyLocation());
-        }
-      });
 
     async function load() {
       setIsLoading(true);
       setFailed(false);
       try {
-        const loc = await resolveLocation();
+        const loc = await resolveSkyLocation(primaryChart);
         if (cancelled) return;
 
         const { dateStr, timeStr } = resolveNowDateTime();
+        const context: SkyComposeContext = { location: loc, dateStr, timeStr };
 
         cleanExpiredSkyCache(dateStr);
         const cached = getSkyCache(dateStr, loc.lat, loc.lon);
@@ -163,6 +223,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           setExplanationSections(cached.explanationSections as ExplanationSection[] | null);
           setAnalysisText(cached.analysisText ?? '');
           setChartData(cached.chartData);
+          setComposeContext(context);
           setIsLoading(false);
           return;
         }
@@ -216,6 +277,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setExplanationSections(sections);
         setAnalysisText(sections ? '' : analysis);
         setChartData(wheelSource);
+        setComposeContext(context);
 
         setSkyCache(dateStr, loc.lat, loc.lon, {
           explanationSections: sections,
@@ -243,6 +305,8 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
     return null;
   }
 
+  const hasSkyContent = Boolean(explanationSections?.length || analysisText || chartData);
+
   return (
     <section aria-label="Right now in the sky">
       <div className="space-y-1 mb-6">
@@ -261,6 +325,25 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
         </div>
       </div>
+      {!isLoading && hasSkyContent ? (
+        <div className="mt-6 space-y-2">
+          <Button
+            type="button"
+            variant="audio"
+            size="sm"
+            disabled={skyAudioLoading || !composeContext}
+            loading={skyAudioLoading}
+            onClick={() => void handleHearTodaysSky()}
+          >
+            Hear Today&apos;s Sky
+          </Button>
+          {skyAudioError ? (
+            <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
+              {skyAudioError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

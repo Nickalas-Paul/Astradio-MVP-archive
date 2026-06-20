@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
 
-/** Lightweight existence check — no WAV body (pair with GET in ValidatedExportAudioPlayer). */
+/** Lightweight existence check — no WAV body (pair with GET /api/exports/:id). */
 export async function HEAD(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

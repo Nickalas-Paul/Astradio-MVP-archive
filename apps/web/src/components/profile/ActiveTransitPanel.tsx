@@ -582,7 +582,7 @@ export function ActiveTransitPanel({
                   loading={activeAudioBusy}
                   onClick={() => void generateActiveAudio()}
                 >
-                  Compose transit audio
+                  Hear Your Transit
                 </Button>
                 <Button
                   type="button"
