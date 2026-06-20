@@ -1,3 +1,5 @@
+import type { EphemerisSnapshot } from './my-sky';
+
 export type CanonicalLocation = {
   source: 'browser_geo' | 'geofinder';
   label: string;
@@ -119,4 +121,7 @@ export type TodayScreenData = {
   relationalWeather: TodayRelationalWeatherCard[];
   audioExportId: string | null;
   audioAvailable: boolean;
+  skySnapshot: EphemerisSnapshot | null;
+  natalSnapshot: EphemerisSnapshot | null;
+  transitSnapshot: EphemerisSnapshot | null;
 };

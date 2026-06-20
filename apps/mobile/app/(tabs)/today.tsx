@@ -11,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TodayAudioPlayer } from '../../src/components/today/TodayAudioPlayer';
 import { TodaySkeleton } from '../../src/components/today/TodaySkeleton';
+import { TodaySkyWheel } from '../../src/components/today/TodaySkyWheel';
+import { TodayTransitWheel } from '../../src/components/today/TodayTransitWheel';
 import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
 import { colors } from '../../src/constants/colors';
 import { planetColor } from '../../src/constants/planet-colors';
@@ -39,6 +41,16 @@ function SectionDivider() {
 
 function SectionHeading({ title }: { title: string }) {
   return <Text style={styles.sectionHeading}>{title}</Text>;
+}
+
+function SectionBridge({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <View style={styles.bridge}>
+      <View style={styles.bridgeLine} />
+      <Text style={styles.bridgeTitle}>{title}</Text>
+      <Text style={styles.bridgeSubtitle}>{subtitle}</Text>
+    </View>
+  );
 }
 
 function ActivationProgressBar({
@@ -165,18 +177,30 @@ export default function TodayScreen() {
 
         {data ? (
           <>
-            {data.skySummary ? (
+            {data.skySummary || data.skySnapshot ? (
               <>
                 <SectionDivider />
-                <SectionHeading title="Today's Sky" />
-                <View style={styles.card}>
-                  <MarkdownText tone="primary">{data.skySummary}</MarkdownText>
-                </View>
+                <SectionHeading title="Right Now in the Sky" />
+                {data.skySummary ? (
+                  <View style={styles.card}>
+                    <MarkdownText tone="primary">{data.skySummary}</MarkdownText>
+                  </View>
+                ) : null}
+                <TodaySkyWheel snapshot={data.skySnapshot} />
               </>
             ) : null}
 
+            <SectionBridge
+              title="Your chart"
+              subtitle="That's the weather for everyone. Here's how it's landing on your chart."
+            />
+
             <SectionDivider />
-            <SectionHeading title="Active Transits" />
+            <SectionHeading title="Your Transit" />
+            <TodayTransitWheel
+              natalSnapshot={data.natalSnapshot}
+              transitSnapshot={data.transitSnapshot}
+            />
             {data.transits.length === 0 ? (
               <Text style={styles.emptyText}>No active transits today</Text>
             ) : (
@@ -195,6 +219,10 @@ export default function TodayScreen() {
 
             {data.relationalWeather.length > 0 ? (
               <>
+                <SectionBridge
+                  title="Your connections"
+                  subtitle="Now zoom out. Here's how today's sky is activating your connections."
+                />
                 <SectionDivider />
                 <SectionHeading title="Relational Weather" />
                 {data.relationalWeather.map((weather) => (
@@ -254,6 +282,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 12,
+  },
+  bridge: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  bridgeLine: {
+    width: 48,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.accent.DEFAULT,
+    marginBottom: 4,
+  },
+  bridgeTitle: {
+    color: colors.accent.DEFAULT,
+    fontSize: 14,
+    fontFamily: 'Manrope-SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  bridgeSubtitle: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    textAlign: 'center',
+    maxWidth: 320,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: colors.surface,

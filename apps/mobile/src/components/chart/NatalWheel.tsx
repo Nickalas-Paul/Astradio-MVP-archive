@@ -7,12 +7,16 @@ import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH, WHEEL_COLORS } from '../.
 import { angularSeparationDeg, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
 import type { WheelAspect, WheelPlacement } from '../../types/my-sky';
 
+const TRANSIT_GLYPH_COLOR = '#94A3B8';
+
 type NatalWheelProps = {
   size: number;
   placements: WheelPlacement[];
   aspects: WheelAspect[];
   cusps: number[];
   ascendantLongitude: number;
+  /** Optional inner-ring transit glyphs (composite transit chart). */
+  transitPlacements?: WheelPlacement[];
 };
 
 const CLUSTER_THRESHOLD_DEG = 8;
@@ -64,6 +68,7 @@ export function NatalWheel({
   aspects,
   cusps,
   ascendantLongitude,
+  transitPlacements,
 }: NatalWheelProps) {
   const geometry = useMemo(() => {
     const cx = size / 2;
@@ -98,6 +103,35 @@ export function NatalWheel({
   const planetRadii = useMemo(
     () => clusterPlanetRadii(visiblePlanets, geometry.planetRadius, size),
     [visiblePlanets, geometry.planetRadius, size]
+  );
+
+  const transitLookup = useMemo(() => {
+    const lookup = new Map<string, number>();
+    for (const placement of transitPlacements ?? []) {
+      lookup.set(bodyKey(placement.body), placement.longitude);
+    }
+    return lookup;
+  }, [transitPlacements]);
+
+  const visibleTransitPlanets = useMemo(() => {
+    if (!transitPlacements?.length) return [];
+    const planets: Array<{ key: string; lon: number; glyph: string }> = [];
+    for (const body of BODY_DISPLAY_ORDER) {
+      const lon = transitLookup.get(body);
+      if (lon == null) continue;
+      planets.push({ key: body, lon, glyph: PLANET_GLYPH[body] ?? '•' });
+    }
+    return planets;
+  }, [transitPlacements, transitLookup]);
+
+  const transitPlanetRadius = useMemo(
+    () => (geometry.innerRadius + geometry.planetRadius) / 2,
+    [geometry.innerRadius, geometry.planetRadius]
+  );
+
+  const transitPlanetRadii = useMemo(
+    () => clusterPlanetRadii(visibleTransitPlanets, transitPlanetRadius, size),
+    [visibleTransitPlanets, transitPlanetRadius, size]
   );
 
   return (
@@ -221,6 +255,24 @@ export function NatalWheel({
                 x={point.x}
                 y={point.y + 4}
                 fill={color}
+                fontSize={11}
+                fontWeight="600"
+                textAnchor="middle"
+              >
+                {planet.glyph}
+              </SvgText>
+            );
+          })}
+
+          {visibleTransitPlanets.map((planet) => {
+            const radius = transitPlanetRadii.get(planet.key) ?? transitPlanetRadius;
+            const point = pol(radius, planet.lon, ascendantLongitude);
+            return (
+              <SvgText
+                key={`transit-${planet.key}`}
+                x={point.x}
+                y={point.y + 4}
+                fill={TRANSIT_GLYPH_COLOR}
                 fontSize={11}
                 fontWeight="600"
                 textAnchor="middle"

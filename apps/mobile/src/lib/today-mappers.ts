@@ -3,6 +3,7 @@ import {
   activationHeatLevel,
   computeActivationThresholds,
 } from './activation-heat';
+import type { EphemerisSnapshot } from '../types/my-sky';
 import type {
   ActiveStateResponse,
   CanonicalLocation,
@@ -222,6 +223,32 @@ export function resolveAudioExportId(
   return { exportId: null, available: false };
 }
 
+function parseSnapshotFingerprint(raw: unknown): EphemerisSnapshot | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as EphemerisSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function parseIdentitySnapshots(activeState: ActiveStateResponse | null): {
+  natal: EphemerisSnapshot | null;
+  transit: EphemerisSnapshot | null;
+} {
+  const identity = activeState?.identity;
+  if (!identity || typeof identity !== 'object') {
+    return { natal: null, transit: null };
+  }
+  const record = identity as Record<string, unknown>;
+  return {
+    natal: parseSnapshotFingerprint(record.natal_snapshot_fingerprint),
+    transit: parseSnapshotFingerprint(record.transit_snapshot_fingerprint),
+  };
+}
+
 export function buildSkyComposeRequestBody(
   date: string,
   time: string,
@@ -246,14 +273,19 @@ export function buildTodayScreenData(input: {
   skyCompose: ComposeLikeResponse | null;
   activeState: ActiveStateResponse | null;
   relationalFeed: RelationalFeedResponse | null;
+  skySnapshot: EphemerisSnapshot | null;
 }): TodayScreenData {
   const { exportId, available } = resolveAudioExportId(input.activeState, input.skyCompose);
+  const { natal, transit } = parseIdentitySnapshots(input.activeState);
   return {
     skySummary: input.skyCompose ? extractSkySummary(input.skyCompose) : '',
     transits: input.activeState ? mapActiveTransits(input.activeState) : [],
     relationalWeather: mapRelationalWeather(input.relationalFeed),
     audioExportId: exportId,
     audioAvailable: available,
+    skySnapshot: input.skySnapshot,
+    natalSnapshot: natal,
+    transitSnapshot: transit,
   };
 }
 

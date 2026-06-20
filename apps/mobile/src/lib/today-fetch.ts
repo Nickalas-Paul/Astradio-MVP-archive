@@ -7,8 +7,10 @@ import {
   resolveNowInTimezone,
   type ProfileResponse,
 } from './today-mappers';
+import type { EphemerisSnapshot } from '../types/my-sky';
 import type {
   ActiveStateResponse,
+  CanonicalLocation,
   ComposeLikeResponse,
   RelationalFeedResponse,
   TodayScreenData,
@@ -20,9 +22,79 @@ import type {
  * 2. POST /api/compose — global sky summary (web: TodaySkySummary)
  * 3. POST /api/profile/active-state — personal overlay transits (requires chartId, date, time, location)
  * 4. POST /api/community/relational-feed — relational weather cards
+ * 5. GET /api/chart-snapshot — current sky wheel (web: TodaySkySummary)
  *
  * POST /api/profile/active-state does NOT accept an empty body.
  */
+export async function fetchSkySnapshot(
+  date: string,
+  time: string,
+  lat: number,
+  lon: number,
+  timezone: string
+): Promise<EphemerisSnapshot | null> {
+  try {
+    const params = new URLSearchParams({
+      date,
+      time,
+      lat: String(lat),
+      lon: String(lon),
+      timezone,
+    });
+    return await api<EphemerisSnapshot>(`/api/chart-snapshot?${params.toString()}`);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchActiveStateWithRetry(
+  body: {
+    chartId: string;
+    calendarDate: string;
+    localTime: string;
+    location: CanonicalLocation;
+    generateAudio: boolean;
+  },
+  userId: string
+): Promise<ActiveStateResponse | null> {
+  try {
+    return await api<ActiveStateResponse>('/api/profile/active-state', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  } catch {
+    try {
+      return await api<ActiveStateResponse>('/api/profile/active-state', {
+        method: 'POST',
+        body: JSON.stringify({ ...body, userId }),
+      });
+    } catch {
+      return null;
+    }
+  }
+}
+
+async function fetchRelationalFeedWithRetry(
+  feedTransit: ReturnType<typeof buildFeedTransit>,
+  userId: string
+): Promise<RelationalFeedResponse | null> {
+  try {
+    return await api<RelationalFeedResponse>('/api/community/relational-feed', {
+      method: 'POST',
+      body: JSON.stringify({ transit: feedTransit }),
+    });
+  } catch {
+    try {
+      return await api<RelationalFeedResponse>('/api/community/relational-feed', {
+        method: 'POST',
+        body: JSON.stringify({ transit: feedTransit, userId }),
+      });
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function fetchTodayScreenData(userId: string): Promise<TodayScreenData> {
   const profile = await api<ProfileResponse>('/api/profile');
   const chart = profile.primaryChart;
@@ -36,19 +108,6 @@ export async function fetchTodayScreenData(userId: string): Promise<TodayScreenD
   const { date, time } = resolveNowInTimezone(timezone);
   const feedTransit = buildFeedTransit(chart);
 
-  let skyCompose: ComposeLikeResponse | null = null;
-  try {
-    skyCompose = await api<ComposeLikeResponse>('/api/compose', {
-      method: 'POST',
-      body: JSON.stringify(
-        buildSkyComposeRequestBody(date, time, location, false)
-      ),
-    });
-  } catch {
-    skyCompose = null;
-  }
-
-  let activeState: ActiveStateResponse | null = null;
   const activeStateBody = {
     chartId: chart.id,
     calendarDate: date,
@@ -56,34 +115,22 @@ export async function fetchTodayScreenData(userId: string): Promise<TodayScreenD
     location,
     generateAudio: false,
   };
-  try {
-    activeState = await api<ActiveStateResponse>('/api/profile/active-state', {
-      method: 'POST',
-      body: JSON.stringify(activeStateBody),
-    });
-  } catch {
-    activeState = await api<ActiveStateResponse>('/api/profile/active-state', {
-      method: 'POST',
-      body: JSON.stringify({ ...activeStateBody, userId }),
-    });
-  }
 
-  let relationalFeed: RelationalFeedResponse | null = null;
-  try {
-    relationalFeed = await api<RelationalFeedResponse>('/api/community/relational-feed', {
-      method: 'POST',
-      body: JSON.stringify({ transit: feedTransit }),
-    });
-  } catch {
-    try {
-      relationalFeed = await api<RelationalFeedResponse>('/api/community/relational-feed', {
-        method: 'POST',
-        body: JSON.stringify({ transit: feedTransit, userId }),
-      });
-    } catch {
-      relationalFeed = null;
-    }
-  }
+  const [skyCompose, activeState, relationalFeed, skySnapshot] = await Promise.all([
+    (async (): Promise<ComposeLikeResponse | null> => {
+      try {
+        return await api<ComposeLikeResponse>('/api/compose', {
+          method: 'POST',
+          body: JSON.stringify(buildSkyComposeRequestBody(date, time, location, false)),
+        });
+      } catch {
+        return null;
+      }
+    })(),
+    fetchActiveStateWithRetry(activeStateBody, userId),
+    fetchRelationalFeedWithRetry(feedTransit, userId),
+    fetchSkySnapshot(date, time, location.lat, location.lon, timezone),
+  ]);
 
-  return buildTodayScreenData({ skyCompose, activeState, relationalFeed });
+  return buildTodayScreenData({ skyCompose, activeState, relationalFeed, skySnapshot });
 }
