@@ -114,7 +114,9 @@ function RelationalWeatherCard({ weather }: { weather: TodayRelationalWeatherCar
       ]}
     >
       <View style={styles.weatherHeader}>
-        <Text style={styles.transitTitle}>{weather.connectionName}</Text>
+        <Text style={[styles.transitTitle, styles.weatherConnectionName]}>
+          {weather.connectionName}
+        </Text>
         <Text style={[styles.heatLabel, { color: heat.label }]}>
           {activationHeatLabel(weather.heatLevel)}
         </Text>
@@ -338,6 +340,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 6,
     flexShrink: 1,
+  },
+  weatherConnectionName: {
+    color: colors.text.primary,
+    marginBottom: 0,
   },
   weatherHeader: {
     flexDirection: 'row',
