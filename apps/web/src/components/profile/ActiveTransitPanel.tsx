@@ -369,8 +369,11 @@ export function ActiveTransitPanel({
     }
   };
 
+  const activeExportId = activeResult ? exportIdFromComposePayload(activeResult) : null;
+
   const canSaveCurrentTransit = () => {
     if (!chartId || !activeResult) return false;
+    if (!activeExportId) return false;
     const h = activeResult.hashes as { plan_sha256?: string } | undefined;
     if (!h?.plan_sha256) return false;
     if (!activeDate || !activeTime || !activeTransitResolvedAt) return false;
@@ -390,7 +393,11 @@ export function ActiveTransitPanel({
     const h = activeResult.hashes as { plan_sha256?: string } | undefined;
     const id = activeResult.identity as { object_identity_hash?: string } | undefined;
     const exp = activeResult.explanation as { meta?: { canonical_object_hash?: string } } | undefined;
-    const exportId = activeResult.export_id as string | null | undefined;
+    const exportId = activeExportId;
+    if (!exportId) {
+      onSaveError('Compose transit audio before saving to library.');
+      return;
+    }
     const ph = h?.plan_sha256 ?? '';
     const oid = id?.object_identity_hash ?? exp?.meta?.canonical_object_hash ?? '';
     if (!ph) return;

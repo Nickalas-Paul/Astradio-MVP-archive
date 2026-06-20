@@ -127,6 +127,9 @@ function ListenPageInner() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [audioGenerateLoading, setAudioGenerateLoading] = useState(false);
   const [audioGenerateError, setAudioGenerateError] = useState<string | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSucceeded, setSaveSucceeded] = useState(false);
   const [exportUnavailableReason, setExportUnavailableReason] = useState<{
     summary: string;
     step?: string;
@@ -271,6 +274,8 @@ function ListenPageInner() {
     setExportId(null);
     setExportUnavailableReason(null);
     setAudioGenerateError(null);
+    setSaveError(null);
+    setSaveSucceeded(false);
     useAudioPlayerStore.getState().stop();
 
     const chartAId = slotA.kind === 'chart_id' ? slotA.chartId : null;
@@ -416,6 +421,79 @@ function ListenPageInner() {
     }
   }, [lastSubmittedBody, planSha256, canonicalObjectHash]);
 
+  const canSaveListen = Boolean(displayReport && planSha256 && lastSubmittedBody);
+
+  const handleSaveToLibrary = useCallback(async () => {
+    if (!canSaveListen || !displayReport || !planSha256 || !lastSubmittedBody) return;
+
+    setSaveLoading(true);
+    setSaveError(null);
+    setSaveSucceeded(false);
+
+    try {
+      const seed =
+        typeof lastSubmittedBody.seed === 'string' && lastSubmittedBody.seed.trim()
+          ? lastSubmittedBody.seed.trim()
+          : planSha256;
+      const {
+        generateAudio: _generateAudio,
+        expectedPlanSha256: _expectedPlanSha256,
+        expectedObjectIdentityHash: _expectedObjectIdentityHash,
+        ...compositionInput
+      } = lastSubmittedBody;
+      const artifact_envelope = {
+        composition_mode: 'overlay' as const,
+        canonical_slot_order: [0, 1],
+        canonical_input_hash: null,
+        canonical_input_hash_version: 2,
+        output_kind:
+          (typeof lastSubmittedBody.output_kind === 'string' ? lastSubmittedBody.output_kind : null) ?? 'full',
+      };
+      const r = await fetch('/api/sandbox/compositions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          sandbox_state: {
+            composition_input: compositionInput,
+            last_submitted_resolve_body: lastSubmittedBody,
+            full_resolve_response: null,
+          },
+          vector_hash: seed,
+          seed,
+          plan_hash: planSha256,
+          report: {
+            ...displayReport,
+            artifact_envelope,
+          },
+          provider: null,
+          provider_version: null,
+          export_id: exportId ?? null,
+          source: 'sandbox',
+          composition_type: 'A+B',
+          object_identity_hash: canonicalObjectHash,
+        }),
+      });
+      const data = (await r.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!r.ok) {
+        setSaveError((data?.error ?? data?.message) || `Save failed: ${r.status}`);
+        return;
+      }
+      setSaveSucceeded(true);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaveLoading(false);
+    }
+  }, [
+    canSaveListen,
+    displayReport,
+    planSha256,
+    lastSubmittedBody,
+    exportId,
+    canonicalObjectHash,
+  ]);
+
   const handleStartOver = useCallback(() => {
     setDisplayReport(null);
     setResolveError(null);
@@ -424,6 +502,8 @@ function ListenPageInner() {
     setCanonicalObjectHash(null);
     setExportId(null);
     setAudioGenerateError(null);
+    setSaveError(null);
+    setSaveSucceeded(false);
     setExportUnavailableReason(null);
     setChartASnapshot(null);
     setChartBSnapshot(null);
@@ -743,6 +823,26 @@ function ListenPageInner() {
                       slotA && slotB ? `${slotA.label} & ${slotB.label}` : 'Sandbox Composition'
                     }
                   />
+                  {canSaveListen ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={saveLoading}
+                        loading={saveLoading}
+                        onClick={() => void handleSaveToLibrary()}
+                      >
+                        {saveLoading ? 'Saving…' : 'Save to Library'}
+                      </Button>
+                      {saveSucceeded ? <p className="text-xs text-text-muted">Saved</p> : null}
+                      {saveError ? (
+                        <p className="text-xs text-red-400" role="alert">
+                          {saveError}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className="mt-8 pt-6 border-t border-border/30 space-y-4">
                     <p className="text-body-sm text-text-muted text-center italic font-serif">

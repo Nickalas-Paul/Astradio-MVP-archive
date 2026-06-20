@@ -117,5 +117,7 @@ export type MySkyScreenData = {
     title: string;
     subtitle: string;
     hasAudio: boolean;
+    exportId?: string | null;
+    source?: string;
   }>;
 };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
 import { Button } from '@/components/shared/Button';
+import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
 import { getSkyCache, setSkyCache, cleanExpiredSkyCache } from '@/core/sky-compose-cache';
@@ -166,6 +167,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   const [failed, setFailed] = useState(false);
   const [skyAudioLoading, setSkyAudioLoading] = useState(false);
   const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
+  const [skyExportId, setSkyExportId] = useState<string | null>(null);
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!composeContext) return;
@@ -195,6 +197,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setSkyAudioError('Could not compose sky audio');
         return;
       }
+      setSkyExportId(exportId);
       playTrack({ exportId, label: "Today's Sky", source: 'sky' });
     } catch {
       setSkyAudioError('Could not compose sky audio');
@@ -327,16 +330,32 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
       </div>
       {!isLoading && hasSkyContent ? (
         <div className="mt-6 space-y-2">
-          <Button
-            type="button"
-            variant="audio"
-            size="sm"
-            disabled={skyAudioLoading || !composeContext}
-            loading={skyAudioLoading}
-            onClick={() => void handleHearTodaysSky()}
-          >
-            Hear Today&apos;s Sky
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="audio"
+              size="sm"
+              disabled={skyAudioLoading || !composeContext}
+              loading={skyAudioLoading}
+              onClick={() => void handleHearTodaysSky()}
+            >
+              Hear Today&apos;s Sky
+            </Button>
+            {skyExportId && composeContext ? (
+              <SaveToLibraryButton
+                exportId={skyExportId}
+                source="sky"
+                compositionType="sky"
+                sandboxState={{
+                  kind: 'sky_summary',
+                  date: composeContext.dateStr,
+                  time: composeContext.timeStr,
+                  location: composeContext.location,
+                }}
+                label="Today's Sky"
+              />
+            ) : null}
+          </div>
           {skyAudioError ? (
             <p className="text-sm text-amber-600 dark:text-amber-300" role="alert">
               {skyAudioError}

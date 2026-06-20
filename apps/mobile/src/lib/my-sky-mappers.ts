@@ -180,6 +180,7 @@ function librarySourceLabel(source: unknown): string {
   if (value === 'community_group') return 'Group reading';
   if (value === 'community_post_audio') return 'Community audio';
   if (value === 'sandbox') return 'Sandbox reading';
+  if (value === 'sky') return "Today's sky";
   return value ? value.replace(/_/g, ' ') : 'Saved reading';
 }
 
@@ -200,6 +201,8 @@ export function mapLibraryItems(rows: LibraryCompositionRow[]): MySkyScreenData[
     title: librarySourceLabel(row.source),
     subtitle: formatLibraryDate(row.created_at),
     hasAudio: typeof row.export_id === 'string' && /^[a-f0-9]{64}$/.test(row.export_id),
+    exportId: typeof row.export_id === 'string' ? row.export_id : null,
+    source: typeof row.source === 'string' ? row.source : undefined,
   }));
 }
 
