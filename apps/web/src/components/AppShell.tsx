@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import HeaderTabs from './HeaderTabs';
-import { PlayerBar } from './PlayerBar';
+import { GlobalAudioPlayer } from './GlobalAudioPlayer';
 import { ToastContainer } from './ToastContainer';
 import { useUIStore } from '../store';
 
@@ -11,7 +11,7 @@ interface AppShellProps {
   children: ReactNode;
   showContextRail?: boolean;
   contextRailContent?: ReactNode;
-  /** When false, hides the global PlayerBar (e.g. Home uses local Lyria transport). */
+  /** When false, hides the global audio player (e.g. Home uses local Lyria transport). */
   showPlayer?: boolean;
   /** Padding/classes on the page content wrapper; default matches app routes. */
   contentClassName?: string;
@@ -45,7 +45,7 @@ export function AppShell({
         <div className={`flex-1 ${contentClassName}`.trim()}>{children}</div>
       </main>
 
-      {showPlayer && <PlayerBar />}
+      {showPlayer && <GlobalAudioPlayer />}
       <ToastContainer />
     </div>
   );
