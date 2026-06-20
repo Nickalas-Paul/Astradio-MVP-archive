@@ -77,7 +77,7 @@ export default function AboutPage() {
               <h3 className="text-xl font-semibold text-text-primary">AI Composition</h3>
               <p className="text-text-secondary">
                 Our machine learning model translates astrological patterns into musical parameters, 
-                generating unique compositions for each chart.
+                composing unique soundtracks for each chart.
               </p>
             </div>
             
