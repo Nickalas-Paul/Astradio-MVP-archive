@@ -311,14 +311,14 @@ function mapErrorState(error: string | null): SurfaceErrorState | null {
   ) {
     return {
       title: 'This daily is out of date',
-      description: 'The current state no longer matches the generated daily. Regenerate the daily before continuing.',
+      description: 'The current state no longer matches the composed daily. Recompose the daily before continuing.',
       tone: 'warning',
     };
   }
   if (message.includes('challenge_unavailable') || message.includes('invalid_participant_roster') || message.includes('invalid_choice_mapping')) {
     return {
       title: 'Campaign cannot continue safely',
-      description: 'The Campaign returned a fail-closed response. Try generating the daily again.',
+      description: 'The Campaign returned a fail-closed response. Try composing the daily again.',
       tone: 'danger',
     };
   }
@@ -419,7 +419,7 @@ function ControlPanel(props: {
         <div className="space-y-1">
           <h2 className="text-sm font-medium text-text-primary">Daily controls</h2>
           <p className="text-xs text-text-secondary">
-            Adjust the timing for this daily. Solo mode can optionally set a place override from search before generation.
+            Adjust the timing for this daily. Solo mode can optionally set a place override from search before composition.
           </p>
         </div>
         <button
@@ -428,7 +428,7 @@ function ControlPanel(props: {
           disabled={isLoadingDaily}
           onClick={onGenerate}
         >
-          {isLoadingDaily ? 'Generating...' : 'Generate Daily'}
+          {isLoadingDaily ? 'Composing...' : 'Compose Daily'}
         </button>
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -813,7 +813,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
             (data as { code?: string; message?: string; error?: string }).code ||
               (data as { message?: string }).message ||
               (data as { error?: string }).error ||
-              'Failed to generate campaign daily'
+              'Failed to compose campaign daily'
           );
         }
         if (dailyLoadGenRef.current !== gen) return;
@@ -952,7 +952,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
               <h1 className="text-2xl font-semibold">Campaign</h1>
               <p className="text-sm text-text-secondary">Chapter {(activeState?.chapter ?? 1)}{groupStage === 'waiting' ? ' · Waiting on the group' : groupStage === 'resolved' ? ' · Resolution complete' : ''}</p>
             </div>
-            {daily ? <p className="text-sm text-text-secondary">{daily.fromCache ? 'Loaded from cached daily artifact.' : 'Fresh daily artifact generated.'}</p> : null}
+            {daily ? <p className="text-sm text-text-secondary">{daily.fromCache ? 'Loaded from cached daily artifact.' : 'Fresh daily artifact composed.'}</p> : null}
           </div>
         </section>
 
@@ -1102,7 +1102,7 @@ export function CampaignDailyClient({ campaignId }: { campaignId: string }) {
           <section className="rounded border border-white/10 bg-white/[0.03] p-5">
             <h2 className="text-lg font-semibold">Today&apos;s challenge</h2>
             <p className="mt-2 text-sm text-text-secondary">
-              No daily is available yet for this date and time. Adjust controls and use Generate Daily, or confirm your place and saved profile location for solo mode.
+              No daily is available yet for this date and time. Adjust controls and use Compose Daily, or confirm your place and saved profile location for solo mode.
             </p>
           </section>
         )}

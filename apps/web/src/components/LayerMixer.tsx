@@ -25,7 +25,7 @@ export function LayerMixer({ layers, onLayerChange, className = '' }: LayerMixer
           </div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">No Layers Available</h3>
           <p className="text-sm text-text-secondary">
-            Generate a composition to see and control individual audio layers
+            Compose to see and control individual audio layers
           </p>
         </div>
       </Card>

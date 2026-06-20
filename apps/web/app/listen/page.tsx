@@ -385,7 +385,7 @@ function ListenPageInner() {
 
   const handleGenerateAudio = useCallback(async () => {
     if (!lastSubmittedBody || !planSha256 || !canonicalObjectHash) {
-      setAudioGenerateError('Generate a text reading first.');
+      setAudioGenerateError('Compose a text reading first.');
       return;
     }
 
@@ -419,7 +419,7 @@ function ListenPageInner() {
           (typeof resolveData.code === 'string' ? resolveData.code : null) ||
           `Audio resolve failed (${resolveRes.status})`;
         setAudioGenerateError(String(msg));
-        setExportUnavailableReason({ summary: 'Audio generation failed', message: String(msg) });
+        setExportUnavailableReason({ summary: 'Audio composition failed', message: String(msg) });
         return;
       }
 
@@ -434,7 +434,7 @@ function ListenPageInner() {
       setExportId(exportIdNext);
       setExportUnavailableReason(null);
     } catch (e) {
-      setAudioGenerateError(e instanceof Error ? e.message : 'Audio generation failed');
+      setAudioGenerateError(e instanceof Error ? e.message : 'Audio composition failed');
     } finally {
       setAudioGenerateLoading(false);
     }

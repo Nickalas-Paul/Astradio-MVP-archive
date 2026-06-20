@@ -1062,13 +1062,13 @@ export function createCompatRouter(): import('express').Router {
       const result = await generateProfileIdentityAudioForChart(chart);
       if (!result.identity_export_id) {
         return res.status(502).json({
-          error: result.error || 'Audio generation failed',
+          error: result.error || 'Audio composition failed',
         });
       }
       return res.status(200).json({ identity_export_id: result.identity_export_id });
     } catch (e: unknown) {
       console.error('[compat] POST /profile/identity-audio', e);
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Audio generation failed' });
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Audio composition failed' });
     }
   });
 
@@ -1250,7 +1250,7 @@ export function createCompatRouter(): import('express').Router {
         const eo = typeof body.expectedObjectIdentityHash === 'string' ? body.expectedObjectIdentityHash.trim() : '';
         if (!ep || !eo) {
           return res.status(400).json({
-            error: 'generateAudio requires expectedPlanSha256 and expectedObjectIdentityHash from prior text response',
+            error: 'Audio composition requires expectedPlanSha256 and expectedObjectIdentityHash from prior text response',
             code: 'PROFILE_ACTIVE_AUDIO_EXPECTED_HASHES',
           });
         }

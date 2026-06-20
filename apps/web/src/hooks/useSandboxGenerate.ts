@@ -168,7 +168,7 @@ export function useSandboxGenerate({
       activeSlot?.entry_mode === 'birth_data' &&
       slotWirePopulationKind(activeSlot) === 'empty'
     ) {
-      generateDisabledReasons.push('Enter birth data for this slot before you can generate.');
+      generateDisabledReasons.push('Enter birth data for this slot before you can compose.');
     } else if (populatedSlotIndices.length >= 2 && !aggregateEligible) {
       generateDisabledReasons.push(
         'Two or more occupied slots must each be a stored chart, birth data, or a blank chart with planets placed.',
@@ -504,7 +504,7 @@ export function useSandboxGenerate({
         exportUnavailableReason: exportUnavailableReasonNext,
       });
     } catch (e) {
-      setGenerateError({ report: e instanceof Error ? e.message : 'Generate failed' });
+      setGenerateError({ report: e instanceof Error ? e.message : 'Composition failed' });
     } finally {
       setGenerateLoading(false);
     }
@@ -514,7 +514,7 @@ export function useSandboxGenerate({
     const model = compositionRef.current;
     const lr = model.lastResolve;
     if (lr?.source !== 'live_resolve' || !lr.lastSubmittedResolveBody) {
-      setAudioGenerateError('Generate a text reading first.');
+      setAudioGenerateError('Compose a text reading first.');
       return;
     }
     if (!lr.planSha256 || !lr.canonicalObjectHash) {
@@ -554,7 +554,7 @@ export function useSandboxGenerate({
         dispatchComposition({
           type: 'resolve_audio_update',
           exportId: null,
-          exportUnavailableReason: { summary: 'Audio generation failed', message: String(msg) },
+          exportUnavailableReason: { summary: 'Audio composition failed', message: String(msg) },
         });
         return;
       }
@@ -577,7 +577,7 @@ export function useSandboxGenerate({
         exportUnavailableReason: null,
       });
     } catch (e) {
-      setAudioGenerateError(e instanceof Error ? e.message : 'Audio generation failed');
+      setAudioGenerateError(e instanceof Error ? e.message : 'Audio composition failed');
     } finally {
       setAudioGenerateLoading(false);
     }

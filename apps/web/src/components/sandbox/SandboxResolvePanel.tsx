@@ -26,7 +26,7 @@ export function SandboxResolvePanel({
   canSave,
   onGenerate,
   onSave,
-  generateButtonLabel = 'Generate from current composition',
+  generateButtonLabel = 'Compose from current',
   resolveUiMode = 'standard',
 }: SandboxResolvePanelProps) {
   const isBlankCanvasUi = resolveUiMode === 'blank_canvas';

@@ -342,7 +342,7 @@ export default function SandboxPage() {
 
   const generateButtonLabel = onlyBlankCanvasPopulated
     ? 'Build this composition'
-    : 'Generate from current composition';
+    : 'Compose from current';
 
   const birthFormLoading = surfaceState === 'loading_base';
 
@@ -350,7 +350,7 @@ export default function SandboxPage() {
     if (onlyBlankCanvasPopulated) {
       return 'Place planets on the wheel, then build a reading from your composition.';
     }
-    return 'Compose a chart, then generate a reading and soundtrack.';
+    return 'Compose a chart, then compose a reading and soundtrack.';
   }, [onlyBlankCanvasPopulated]);
 
   const hasSavedCompositions = persistence.savedList.length > 0;

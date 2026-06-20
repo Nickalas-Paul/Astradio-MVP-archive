@@ -22,7 +22,7 @@ function textFromReadingSnapshot(snapshot: unknown): string {
 }
 
 function groupArtifactLabel(artifactStatus: string, hasExportRef: boolean) {
-  if (artifactStatus === 'not_generated') return 'Reading not generated';
+  if (artifactStatus === 'not_generated') return 'Reading not composed';
   if (hasExportRef) return 'Reading available · sound record on file';
   if (artifactStatus === 'text_available') return 'Reading available';
   return 'Reading available';
@@ -236,7 +236,7 @@ export default function CommunityGroupPage({ params }: { params: { slug: string 
             <p className="text-sm text-text-secondary">
               {user?.id === group.ownerId
                 ? 'No stored reading yet. A reading will be prepared when the group composition is available.'
-                : 'No stored reading for this group yet. The group owner may need to open the group once to generate a stored reading.'}
+                : 'No stored reading for this group yet. The group owner may need to open the group once to compose a stored reading.'}
             </p>
           ) : null}
         </section>

@@ -155,7 +155,7 @@ export function WheelDisplay({
                 {emptyMessage ?? 'Waiting for chart data…'}
               </p>
               {!emptyMessage ? (
-                <p className="text-xs text-text-secondary mt-1">Generate a chart to see the wheel</p>
+                <p className="text-xs text-text-secondary mt-1">Compose a chart to see the wheel</p>
               ) : null}
             </div>
           </div>

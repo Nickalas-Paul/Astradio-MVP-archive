@@ -59,8 +59,8 @@ export function SandboxProvenancePanel({
       </summary>
       <p className="mt-2 text-xs text-text-secondary">
         Secondary only: export the last bundle or replay the <span className="font-medium text-text-primary">exact JSON</span> from the previous resolve. This is not a second
-        Generate and does <span className="font-medium text-text-primary">not</span> use your current wheel; use{' '}
-        <span className="font-medium text-text-primary">Generate from current composition</span> for that.
+        Compose and does <span className="font-medium text-text-primary">not</span> use your current wheel; use{' '}
+        <span className="font-medium text-text-primary">Compose from current</span> for that.
       </p>
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <button onClick={onExportJson} className="px-3 py-1.5 text-xs rounded-lg border border-border bg-bgElev hover:bg-bgElev/80 text-text-primary">

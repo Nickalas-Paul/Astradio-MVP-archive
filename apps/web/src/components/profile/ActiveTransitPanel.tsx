@@ -312,11 +312,11 @@ export function ActiveTransitPanel({
     const plan = hashes?.plan_sha256;
     const oid = exp?.meta?.canonical_object_hash;
     if (!plan || !oid) {
-      setActiveError('Generate transit report first, then generate audio.');
+      setActiveError('Compose a transit report first, then compose audio.');
       return;
     }
     if (!isPersistableChartTimezone(activeTz) || !activeTransitResolvedAt) {
-      setActiveError('Resolve location with a valid timezone before generating audio.');
+      setActiveError('Resolve location with a valid timezone before composing audio.');
       return;
     }
     const base = getApiBaseUrl();
@@ -325,7 +325,7 @@ export function ActiveTransitPanel({
     try {
       const loc = buildLocation();
       if (!loc) {
-        setActiveError('Resolve location with a valid timezone before generating audio.');
+        setActiveError('Resolve location with a valid timezone before composing audio.');
         return;
       }
       const r = await fetch(`${base || ''}/api/profile/active-state`, {
@@ -429,7 +429,7 @@ export function ActiveTransitPanel({
     onSaved();
   };
 
-  const reportButtonLabel = activeResult ? 'Refresh transit report' : 'Generate transit report';
+  const reportButtonLabel = activeResult ? 'Refresh transit report' : 'Compose transit report';
 
   const renderWheelColumn = (maxSize?: number) => {
     if (!activeWheelSlots) return null;
@@ -579,7 +579,7 @@ export function ActiveTransitPanel({
                   loading={activeAudioBusy}
                   onClick={() => void generateActiveAudio()}
                 >
-                  Generate transit audio
+                  Compose transit audio
                 </Button>
                 <Button
                   type="button"

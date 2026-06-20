@@ -82,7 +82,7 @@ export function useSandboxGenerate(onSaved?: () => void) {
       const state = useSandboxStore.getState();
       const populated = getPopulatedSlotIndices(state.slots);
       if (populated.length === 0) {
-        throw new Error('Populate at least one slot before generating.');
+        throw new Error('Populate at least one slot before composing.');
       }
 
       const seedIdx = populated[0]!;
@@ -166,7 +166,7 @@ export function useSandboxGenerate(onSaved?: () => void) {
       });
     } catch (e) {
       setSurfaceState('error');
-      setErrorMessage(formatApiError(e, e instanceof Error ? e.message : 'Generate failed'));
+      setErrorMessage(formatApiError(e, e instanceof Error ? e.message : 'Composition failed'));
     } finally {
       setGenerateLoading(false);
     }
@@ -271,7 +271,7 @@ export function useSandboxGenerate(onSaved?: () => void) {
       };
       const resolveData = await resolveComposition(audioBody);
       if (resolveData.ok === false) {
-        throw new Error(String(resolveData.error ?? resolveData.message ?? 'Audio generation failed'));
+        throw new Error(String(resolveData.error ?? resolveData.message ?? 'Audio composition failed'));
       }
       const resolved = extractSandboxResolvePayload(resolveData);
       if (!resolved?.exportId) {
@@ -279,7 +279,7 @@ export function useSandboxGenerate(onSaved?: () => void) {
       }
       setExportJobId(resolved.exportId);
     } catch (e) {
-      setErrorMessage(formatApiError(e, 'Audio generation failed'));
+      setErrorMessage(formatApiError(e, 'Audio composition failed'));
     } finally {
       setAudioLoading(false);
     }

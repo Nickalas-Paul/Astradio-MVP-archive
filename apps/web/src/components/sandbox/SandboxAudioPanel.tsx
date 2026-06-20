@@ -122,9 +122,9 @@ export function SandboxAudioPanel({
         </div>
       ) : audioGenerateLoading ? (
         <div className="space-y-2">
-          <p className="text-sm text-text-secondary">Generating audio…</p>
+          <p className="text-sm text-text-secondary">Composing audio…</p>
           <Button type="button" variant="secondary" size="sm" loading disabled>
-            Generating audio…
+            Composing audio…
           </Button>
         </div>
       ) : audioGenerateError ? (

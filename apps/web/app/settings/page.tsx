@@ -157,12 +157,12 @@ export default function SettingsPage() {
                     onChange={(e) => updateSettings({ audioQuality: e.target.value as any })}
                     className="input w-full"
                   >
-                    <option value="low">Low (faster generation)</option>
+                    <option value="low">Low (faster composition)</option>
                     <option value="standard">Standard (balanced)</option>
                     <option value="high">High (best quality)</option>
                   </select>
                   <p className="text-xs text-text-secondary mt-1">
-                    Higher quality takes longer to generate but produces better audio
+                    Higher quality takes longer to compose but produces better audio
                   </p>
                 </div>
 

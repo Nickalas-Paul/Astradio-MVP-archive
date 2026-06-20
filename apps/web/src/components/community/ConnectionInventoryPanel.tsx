@@ -15,7 +15,7 @@ import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflo
 function inventoryArtifactStatusCopy(status: string) {
   if (status === 'audio_available') return 'Reading available · sound record on file';
   if (status === 'text_available') return 'Reading available';
-  return 'Reading not generated';
+  return 'Reading not composed';
 }
 
 type Props = {

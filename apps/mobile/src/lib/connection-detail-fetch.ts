@@ -106,7 +106,7 @@ export async function generateConnectionAudio(relationshipId: string): Promise<s
   if (!isValidExportId(exportId)) {
     throw {
       status: 500,
-      error: typeof data.error === 'string' ? data.error : 'Could not generate connection audio',
+      error: typeof data.error === 'string' ? data.error : 'Could not compose connection audio',
     };
   }
   return exportId;

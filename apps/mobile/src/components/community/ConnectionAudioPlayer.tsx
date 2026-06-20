@@ -84,8 +84,8 @@ export function ConnectionAudioPlayer({
           void onGenerate().catch((err) => {
             const message =
               err && typeof err === 'object' && 'error' in err
-                ? String((err as { error?: string }).error ?? 'Could not generate audio')
-                : 'Could not generate audio';
+                ? String((err as { error?: string }).error ?? 'Could not compose audio')
+                : 'Could not compose audio';
             setError(message.replace(/_/g, ' '));
           });
         }}
@@ -99,7 +99,7 @@ export function ConnectionAudioPlayer({
         {audioGenerating ? (
           <ActivityIndicator color={colors.text.primary} />
         ) : (
-          <Text style={styles.generateText}>Generate Soundtrack</Text>
+          <Text style={styles.generateText}>Compose Soundtrack</Text>
         )}
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -177,7 +177,7 @@ export function SandboxWorkbench() {
         {surfaceState === 'loading_base' || generateLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color={colors.accent.DEFAULT} />
-            <Text style={styles.loadingText}>Generating reading…</Text>
+            <Text style={styles.loadingText}>Composing reading…</Text>
           </View>
         ) : null}
 
@@ -202,7 +202,7 @@ export function SandboxWorkbench() {
                 accessibilityRole="button"
               >
                 <Text style={styles.secondaryButtonText}>
-                  {audioLoading ? 'Generating audio…' : 'Hear this Soundtrack'}
+                  {audioLoading ? 'Composing audio…' : 'Hear this Soundtrack'}
                 </Text>
               </Pressable>
             </View>
@@ -227,10 +227,10 @@ export function SandboxWorkbench() {
             onPress={() => void handleGenerate()}
             accessibilityRole="button"
           >
-            <Text style={styles.generateButtonText}>Generate</Text>
+            <Text style={styles.generateButtonText}>Compose</Text>
           </Pressable>
           {!canGenerate ? (
-            <Text style={styles.generateHint}>Populate a chart to generate</Text>
+            <Text style={styles.generateHint}>Populate a chart to compose</Text>
           ) : null}
         </View>
       </ScrollView>

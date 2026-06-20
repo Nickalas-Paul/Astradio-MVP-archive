@@ -419,7 +419,7 @@ export default function CommunityRelationshipArtifactPage() {
             ? data.error
             : typeof data.message === 'string'
               ? data.message
-              : 'Could not generate connection audio.'
+              : 'Could not compose connection audio.'
         );
         return;
       }
@@ -429,7 +429,7 @@ export default function CommunityRelationshipArtifactPage() {
       setExportReachable(null);
     } catch {
       setAudioUiState('error');
-      setAudioError('Could not generate connection audio.');
+      setAudioError('Could not compose connection audio.');
     }
   }, [relationshipId]);
 
@@ -620,7 +620,7 @@ export default function CommunityRelationshipArtifactPage() {
                       </div>
                     ) : audioUiState === 'generating' ? (
                       <Button type="button" variant="audio" size="sm" loading disabled>
-                        Generating audio…
+                        Composing audio…
                       </Button>
                     ) : audioUiState === 'error' ? (
                       <div className="space-y-2">
@@ -634,7 +634,7 @@ export default function CommunityRelationshipArtifactPage() {
                     ) : exId && exportReachable === false ? (
                       <div className="space-y-2">
                         <p className="text-body-sm text-amber-600 dark:text-amber-300">
-                          Sound record not in storage. Generate a new soundtrack.
+                          Sound record not in storage. Compose a new soundtrack.
                         </p>
                         <Button type="button" variant="audio" size="sm" onClick={() => void handleGenerateConnectionAudio()}>
                           Hear this connection

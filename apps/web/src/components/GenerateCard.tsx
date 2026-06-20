@@ -45,12 +45,12 @@ export function GenerateCard({
       addToast({
         type: 'info',
         title: 'Composition started',
-        message: 'Your 30-second track is being generated...',
+        message: 'Your 30-second track is being composed...',
       });
     } catch (err) {
       addToast({
         type: 'error',
-        title: 'Generation failed',
+        title: 'Composition failed',
         message: err instanceof Error ? err.message : 'Unknown error occurred',
       });
     }
@@ -60,27 +60,27 @@ export function GenerateCard({
     cancel();
     addToast({
       type: 'info',
-      title: 'Generation cancelled',
-      message: 'Composition generation has been stopped.',
+      title: 'Composition cancelled',
+      message: 'Composition has been stopped.',
     });
   };
 
   const getStageMessage = () => {
     switch (stage) {
       case 'queued':
-        return 'Queued for generation...';
+        return 'Queued...';
       case 'preparing':
         return 'Preparing composition...';
       case 'generating':
-        return 'Generating musical layers...';
+        return 'Composing musical layers...';
       case 'mixing':
         return 'Mixing and mastering...';
       case 'ready':
         return 'Composition ready!';
       case 'error':
-        return 'Generation failed';
+        return 'Composition failed';
       default:
-        return 'Ready to generate';
+        return 'Ready to compose';
     }
   };
 
@@ -98,7 +98,7 @@ export function GenerateCard({
         {/* Header */}
         <div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            Generate 30-Second Track
+            Compose 30-Second Track
           </h3>
           <p className="text-sm text-text-secondary">
             Create a personalized musical composition based on your astrological chart
@@ -162,7 +162,7 @@ export function GenerateCard({
         <div className="flex space-x-3">
           {isCurrentlyGenerating ? (
             <Button type="button" variant="secondary" className="flex-1" onClick={handleCancel}>
-              Cancel Generation
+              Cancel
             </Button>
           ) : (
             <Button
@@ -172,7 +172,7 @@ export function GenerateCard({
               onClick={handleGenerate}
               disabled={!canGenerate}
             >
-              {stage === 'ready' ? 'Generate New Track' : 'Generate 30s Track'}
+              {stage === 'ready' ? 'Compose New Track' : 'Compose 30s Track'}
             </Button>
           )}
 

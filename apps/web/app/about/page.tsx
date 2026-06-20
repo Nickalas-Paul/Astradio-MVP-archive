@@ -85,7 +85,7 @@ export default function AboutPage() {
               <div className="w-20 h-20 bg-warning/20 border border-warning rounded-full flex items-center justify-center mx-auto">
                 <span className="text-3xl">🎵</span>
               </div>
-              <h3 className="text-xl font-semibold text-text-primary">Musical Generation</h3>
+              <h3 className="text-xl font-semibold text-text-primary">Musical Composition</h3>
               <p className="text-text-secondary">
                 Advanced audio synthesis creates layered compositions with melody, harmony, 
                 rhythm, and texture elements.

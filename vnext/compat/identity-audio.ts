@@ -55,7 +55,7 @@ export async function generateProfileIdentityAudioForChart(
   chart: Chart
 ): Promise<{ identity_export_id: string | null; error?: string }> {
   if (!chart.timezone?.trim()) {
-    return { identity_export_id: null, error: 'Chart timezone required for audio generation' };
+    return { identity_export_id: null, error: 'Chart timezone required for audio composition' };
   }
   const exportId = await runProfileIdentityAudioCompose(chart, null, { logErrors: false });
   if (exportId) {
@@ -63,7 +63,7 @@ export async function generateProfileIdentityAudioForChart(
   }
   return {
     identity_export_id: null,
-    error: 'Audio generation failed or export is disabled on the server',
+    error: 'Audio composition failed or export is disabled on the server',
   };
 }
 

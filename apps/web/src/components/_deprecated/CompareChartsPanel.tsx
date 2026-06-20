@@ -412,7 +412,7 @@ export function CompareChartsPanel({ onSwitchToGroups }: CompareChartsPanelProps
           disabled={loading || (!chartAId && !chartA.date)}
           className="rounded-lg bg-emerald px-4 py-2 text-sm font-medium text-bg hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? 'Generating…' : 'Generate compatibility'}
+          {loading ? 'Composing…' : 'Compose compatibility'}
         </button>
       </div>
 

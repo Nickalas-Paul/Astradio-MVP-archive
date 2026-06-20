@@ -215,7 +215,7 @@ export function IdentityPanel({
         error?: string;
       };
       if (!r.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Generation failed');
+        throw new Error(typeof data.error === 'string' ? data.error : 'Composition failed');
       }
       const eid = data.identity_export_id;
       if (!eid || !/^[a-f0-9]{64}$/.test(eid)) {
@@ -224,7 +224,7 @@ export function IdentityPanel({
       await refreshChart();
       const url = await blobUrlFromComposePayload(getApiBaseUrl(), { export_id: eid });
       if (!url) {
-        throw new Error('Could not load generated audio');
+        throw new Error('Could not load composed audio');
       }
       setIdentityAudioUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -261,7 +261,7 @@ export function IdentityPanel({
     audioState === 'error'
       ? 'Something went wrong. Try again.'
       : exportFetchFailed
-        ? 'Your soundtrack needs to be regenerated.'
+        ? 'Your soundtrack needs to be recomposed.'
         : showChartUpdatedPrompt
           ? 'Your chart was updated. Ready to hear the new you?'
           : 'Hear what your chart sounds like.';
@@ -384,7 +384,7 @@ export function IdentityPanel({
       {showFirstListenComposeDelayed && (
         <div className="space-y-3">
           <p className="text-sm text-text-secondary">
-            Your soundtrack is taking a little longer than usual. You can generate it now.
+            Your soundtrack is taking a little longer than usual. You can compose it now.
           </p>
         </div>
       )}
@@ -407,7 +407,7 @@ export function IdentityPanel({
         <div className="space-y-2">
           <p className="text-sm text-text-secondary">Building your soundtrack…</p>
           <Button type="button" variant="audio" size="sm" disabled loading>
-            Generating…
+            Composing…
           </Button>
         </div>
       )}

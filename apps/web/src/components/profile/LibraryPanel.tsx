@@ -282,7 +282,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
       if (source === 'profile_active' || ps?.kind === 'profile_active') {
         if (!ps || !sandboxStateCompleteForTransit(ps)) {
           setLibraryReconstructError(
-            'This bookmark was saved before transit details were stored. Generate a new report from Today and save again.',
+            'This bookmark was saved before transit details were stored. Compose a new report from Today and save again.',
           );
           return;
         }
@@ -364,7 +364,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       <Card size="lg" className="text-center space-y-4 max-w-md mx-auto">
                         <p className="text-body text-text-secondary">Your library is empty.</p>
                         <p className="text-body-sm text-text-muted">
-                          Generate your daily transit on Today, then use &quot;Save to Library&quot; to keep readings
+                          Compose your daily transit on Today, then use &quot;Save to Library&quot; to keep readings
                           and soundtracks here.
                         </p>
                         <Link href="/today">
@@ -409,12 +409,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                     {libraryHistoricalArtifact && (
                       <div className="text-sm text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2 space-y-2">
                         <p>Historical saved artifact.</p>
-                        <p>Generated with an earlier expression version.</p>
+                        <p>Composed with an earlier expression version.</p>
                         <a
                           href="/today"
                           className="inline-block px-3 py-1 rounded border border-amber-500/50 text-xs hover:bg-amber-500/10"
                         >
-                          Generate current version
+                          Compose current version
                         </a>
                       </div>
                     )}
@@ -427,7 +427,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       !libraryDetailAudioUrl &&
                       libraryAudioMissingFromStore !== false ? (
                         <p className="text-sm text-text-secondary">
-                          Identity comes from your birth chart. Open the Identity tab to generate or play your soundtrack.
+                          Identity comes from your birth chart. Open the Identity tab to compose or play your soundtrack.
                         </p>
                       ) : null}
                     {libraryDetailRow != null &&
@@ -505,7 +505,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                       ) &&
                       !libraryReconstructError && (
                         <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
-                          Stored reading text for this artifact is missing or empty. Generate a new compatibility reading or
+                          Stored reading text for this artifact is missing or empty. Compose a new compatibility reading or
                           contact support.
                         </p>
                       )}

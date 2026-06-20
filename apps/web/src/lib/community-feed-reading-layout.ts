@@ -61,7 +61,7 @@ export const DEDUPE_SLOT_ORDER: ExpandedSlotId[] = [
 
 /** When no compose sections exist, do not surface short+long blob text; leave summary empty unless policy keeps safe fragments. */
 const MINIMAL_UNAVAILABLE_SUMMARY_NOTE =
-  'Minimal reading state: structured sections were unavailable for this bookmark. Open this connection again to regenerate.';
+  'Minimal reading state: structured sections were unavailable for this bookmark. Open this connection again to recompose.';
 
 function sectionIdOf(s: RawSection): string {
   return String(s.sectionId ?? s.id ?? '').trim();

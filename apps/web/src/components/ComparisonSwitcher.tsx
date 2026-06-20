@@ -134,7 +134,7 @@ export function ComparisonSwitcher({
               <span className="text-accent">✓</span>
             </div>
             <p className="text-xs text-text-secondary mt-1">
-              Generate a composition that blends the energies of both charts
+              Compose a reading that blends the energies of both charts
             </p>
           </motion.div>
         )}

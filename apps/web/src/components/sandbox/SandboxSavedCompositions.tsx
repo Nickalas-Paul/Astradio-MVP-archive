@@ -41,7 +41,7 @@ export function SandboxSavedCompositions({
       </div>
       {listError && <p className="mb-2 text-xs text-danger">{listError}</p>}
       {savedList.length === 0 ? (
-        <p className="text-xs text-text-secondary">No saved compositions. Generate then Save.</p>
+        <p className="text-xs text-text-secondary">No saved compositions. Compose then Save.</p>
       ) : (
         <ul className="space-y-2 max-h-48 overflow-y-auto">
           {savedList.map((item) => (

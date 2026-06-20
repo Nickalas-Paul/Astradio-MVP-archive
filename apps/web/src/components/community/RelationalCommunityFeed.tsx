@@ -512,7 +512,7 @@ export function RelationalCommunityFeed({
             [feedId]: {
               state: 'error',
               exportId: null,
-              error: audioErr || 'Audio forecast could not be generated. Please try again.',
+              error: audioErr || 'Audio forecast could not be composed. Please try again.',
             },
           }));
         }
@@ -800,7 +800,7 @@ export function RelationalCommunityFeed({
                             if (freshness?.isHistorical !== true) return null;
                             return (
                               <p className="text-caption text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2">
-                                Historical saved reading. Generated with an earlier expression version. Expand again to
+                                Historical saved reading. Composed with an earlier expression version. Expand again to
                                 refresh this connection.
                               </p>
                             );
@@ -886,7 +886,7 @@ export function RelationalCommunityFeed({
                                       loading
                                       disabled
                                     >
-                                      Generating forecast…
+                                      Composing forecast…
                                     </Button>
                                   ) : audioUi.state === 'error' ? (
                                     <div className="space-y-2">
@@ -912,7 +912,7 @@ export function RelationalCommunityFeed({
                                       onClick={() => void generateFeedAudio(item)}
                                       disabled={busyByFeedId[item.feed_item_id]}
                                     >
-                                      Generate audio forecast
+                                      Compose audio forecast
                                     </Button>
                                   )}
                                 </section>
