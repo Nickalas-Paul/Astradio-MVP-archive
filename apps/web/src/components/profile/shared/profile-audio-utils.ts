@@ -1,3 +1,4 @@
+// DEPRECATED — scheduled for removal in Commit D
 const identityAudioSyncKey = (chartId: string) => `astradio_identity_audio_sync_${chartId}`;
 
 export function getIdentityAudioChartSync(chartId: string): string | null {

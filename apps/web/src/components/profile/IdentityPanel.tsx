@@ -6,7 +6,6 @@ import { useProfileChart, type ProfilePrimaryChart } from '../../core/social/hoo
 import { BirthChartSection } from './BirthChartSection';
 import { ExplainerSections } from './shared/ExplainerSections';
 import {
-  blobUrlFromComposePayload,
   getIdentityAudioChartSync,
   isChartUpdatedSinceLastIdentityAudio,
   isFirstIdentityListen,
@@ -19,6 +18,7 @@ import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { FtueTodayBridgeNudge } from '../ftue/FtueTodayBridgeNudge';
+import { useAudioPlayerStore } from '@/store';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -55,16 +55,13 @@ export function IdentityPanel({
 }: IdentityPanelProps) {
   const { data: chartData, loading: chartLoading, error: chartError, refresh: refreshChart } =
     useProfileChart(chartId);
-  const [identityAudioUrl, setIdentityAudioUrl] = useState<string | null>(null);
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [audioState, setAudioState] = useState<IdentityAudioState>(
     noRealChart ? 'no_chart' : 'loading',
   );
   const [audioGenerating, setAudioGenerating] = useState(false);
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [composePollExhausted, setComposePollExhausted] = useState(false);
-  const [exportFetchFailed, setExportFetchFailed] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   /** Captured once per chart — survives sync-key write during the same session. */
   const sessionFirstListenRef = useRef<boolean | null>(null);
   const autoplayAttemptedRef = useRef(false);
@@ -77,9 +74,7 @@ export function IdentityPanel({
   useEffect(() => {
     sessionFirstListenRef.current = null;
     autoplayAttemptedRef.current = false;
-    setAutoplayBlocked(false);
     setComposePollExhausted(false);
-    setExportFetchFailed(false);
   }, [chartId]);
 
   useEffect(() => {
@@ -97,48 +92,12 @@ export function IdentityPanel({
     const eid = chartData.identity_export_id;
     const validEid = isValidIdentityExportId(eid);
 
-    setIdentityAudioUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-
     if (!validEid) {
-      setExportFetchFailed(false);
       setAudioState('missing');
-      return undefined;
+      return;
     }
 
-    setExportFetchFailed(false);
-    setAudioState('loading');
-
-    let cancelled = false;
-    const base = getApiBaseUrl();
-
-    void (async () => {
-      try {
-        const url = await blobUrlFromComposePayload(base, { export_id: eid });
-        if (cancelled) {
-          if (url) URL.revokeObjectURL(url);
-          return;
-        }
-        if (url) {
-          setIdentityAudioUrl(url);
-          setAudioState('available');
-        } else {
-          setExportFetchFailed(true);
-          setAudioState('missing');
-        }
-      } catch {
-        if (!cancelled) {
-          setExportFetchFailed(true);
-          setAudioState('missing');
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setAudioState('available');
   }, [chartData?.identity_export_id, chartData, noRealChart]);
 
   // First visit: poll for background registration compose when export id not ready yet.
@@ -165,42 +124,17 @@ export function IdentityPanel({
     refreshChart,
   ]);
 
-  // First listen: auto-play when audio becomes available.
+  // First listen: auto-dispatch to GlobalAudioPlayer when export is available.
   useEffect(() => {
-    if (audioState !== 'available' || !identityAudioUrl || !isFirstListen) return;
+    if (audioState !== 'available' || !isFirstListen) return;
     if (autoplayAttemptedRef.current) return;
 
-    let cancelled = false;
-    const frameId = requestAnimationFrame(() => {
-      void (async () => {
-        const audio = audioRef.current;
-        if (!audio || cancelled) return;
-        autoplayAttemptedRef.current = true;
-        try {
-          await audio.play();
-          if (!cancelled) setAutoplayBlocked(false);
-        } catch {
-          if (!cancelled) setAutoplayBlocked(true);
-        }
-      })();
-    });
+    const eid = chartData?.identity_export_id;
+    if (!isValidIdentityExportId(eid)) return;
 
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frameId);
-    };
-  }, [audioState, identityAudioUrl, isFirstListen]);
-
-  const handleProminentPlay = useCallback(async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    try {
-      await audio.play();
-      setAutoplayBlocked(false);
-    } catch {
-      // Browser still blocking — keep prominent CTA visible.
-    }
-  }, []);
+    autoplayAttemptedRef.current = true;
+    playTrack({ exportId: eid, label: 'Your Identity', source: 'identity' });
+  }, [audioState, isFirstListen, chartData?.identity_export_id, playTrack]);
 
   const handleGenerateIdentityAudio = useCallback(async () => {
     setAudioGenerating(true);
@@ -219,30 +153,23 @@ export function IdentityPanel({
       }
       const eid = data.identity_export_id;
       if (!eid || !/^[a-f0-9]{64}$/.test(eid)) {
+        console.warn('Identity compose response missing valid export_id');
         throw new Error('No export ID returned');
       }
       await refreshChart();
-      const url = await blobUrlFromComposePayload(getApiBaseUrl(), { export_id: eid });
-      if (!url) {
-        throw new Error('Could not load composed audio');
-      }
-      setIdentityAudioUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
+      playTrack({ exportId: eid, label: 'Your Identity', source: 'identity' });
       setAudioState('available');
     } catch {
       setAudioState('error');
     } finally {
       setAudioGenerating(false);
     }
-  }, [refreshChart]);
+  }, [refreshChart, playTrack]);
 
   useEffect(() => {
     const updatedAt = chartData?.chart?.updatedAt;
     if (audioState === 'available' && chartId && updatedAt) {
       setIdentityAudioChartSync(chartId, updatedAt);
-      setExportFetchFailed(false);
     }
   }, [audioState, chartId, chartData?.chart?.updatedAt]);
 
@@ -260,18 +187,15 @@ export function IdentityPanel({
   const missingMessage =
     audioState === 'error'
       ? 'Something went wrong. Try again.'
-      : exportFetchFailed
-        ? 'Your soundtrack needs to be recomposed.'
-        : showChartUpdatedPrompt
-          ? 'Your chart was updated. Ready to hear the new you?'
-          : 'Hear what your chart sounds like.';
+      : showChartUpdatedPrompt
+        ? 'Your chart was updated. Ready to hear the new you?'
+        : 'Hear what your chart sounds like.';
 
   const showFirstListenComposing =
     isFirstListen &&
     audioState === 'missing' &&
     !composePollExhausted &&
-    !showChartUpdatedPrompt &&
-    !exportFetchFailed;
+    !showChartUpdatedPrompt;
 
   const showFirstListenComposeDelayed =
     isFirstListen && audioState === 'missing' && composePollExhausted && !showChartUpdatedPrompt;
@@ -279,7 +203,7 @@ export function IdentityPanel({
   const showGenerateButton =
     (audioState === 'missing' || audioState === 'error') &&
     !showFirstListenComposing &&
-    (exportFetchFailed || !showFirstListenComposeDelayed || showChartUpdatedPrompt);
+    (!showFirstListenComposeDelayed || showChartUpdatedPrompt);
 
   const renderWheel = (maxSize: number) => {
     if (loading) {
@@ -319,51 +243,22 @@ export function IdentityPanel({
     );
   };
 
-  const renderHiddenAudio = () =>
-    identityAudioUrl ? (
-      <audio
-        ref={audioRef}
-        src={identityAudioUrl}
-        className={autoplayBlocked ? 'sr-only' : 'w-full'}
-        controls={!autoplayBlocked && audioState === 'available'}
-        preload="metadata"
-      />
-    ) : null;
-
   const renderAudio = () => (
     <>
       {audioState === 'loading' && (
         <p className="text-sm text-text-secondary">Loading your soundtrack…</p>
       )}
-      {audioState === 'available' && identityAudioUrl && !autoplayBlocked && (
+      {audioState === 'available' && hasValidExportId && chartId && chartData?.identity_export_id ? (
         <div className="space-y-2">
-          <p className="text-sm text-text-secondary">Listen to this reading</p>
-          {renderHiddenAudio()}
-          {hasValidExportId && chartId && chartData?.identity_export_id ? (
-            <SaveToLibraryButton
-              exportId={String(chartData.identity_export_id)}
-              source="profile_identity"
-              compositionType="A"
-              sandboxState={{ kind: 'profile_identity', chartId }}
-              label="Your natal soundtrack"
-            />
-          ) : null}
+          <SaveToLibraryButton
+            exportId={String(chartData.identity_export_id)}
+            source="profile_identity"
+            compositionType="A"
+            sandboxState={{ kind: 'profile_identity', chartId }}
+            label="Your natal soundtrack"
+          />
         </div>
-      )}
-      {audioState === 'available' && identityAudioUrl && autoplayBlocked && (
-        <div className="space-y-2">
-          {renderHiddenAudio()}
-          {hasValidExportId && chartId && chartData?.identity_export_id ? (
-            <SaveToLibraryButton
-              exportId={String(chartData.identity_export_id)}
-              source="profile_identity"
-              compositionType="A"
-              sandboxState={{ kind: 'profile_identity', chartId }}
-              label="Your natal soundtrack"
-            />
-          ) : null}
-        </div>
-      )}
+      ) : null}
       {showFirstListenComposing && (
         <div className="space-y-2" aria-live="polite">
           <p className="text-sm text-text-secondary animate-pulse">Composing your soundtrack…</p>
@@ -414,27 +309,6 @@ export function IdentityPanel({
     </>
   );
 
-  const renderProminentPlayCta = () =>
-    autoplayBlocked && identityAudioUrl ? (
-      <div className="rounded-2xl border border-border bg-bgElev/80 p-4 sm:p-5 space-y-3">
-        <p className="text-body font-medium text-text-primary">Your soundtrack is ready</p>
-        <Button
-          type="button"
-          variant="audio"
-          size="sm"
-          className="w-full min-h-[48px]"
-          onClick={() => void handleProminentPlay()}
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            <span aria-hidden className="text-base leading-none">
-              ▶
-            </span>
-            Play soundtrack
-          </span>
-        </Button>
-      </div>
-    ) : null;
-
   const wheelAndAudio = (maxSize: number) => (
     <div className="space-y-4">
       {renderWheel(maxSize)}
@@ -454,8 +328,6 @@ export function IdentityPanel({
           />
         ) : (
           <>
-            {renderProminentPlayCta()}
-
             <div className="md:hidden max-w-[280px] mx-auto w-full">{wheelAndAudio(280)}</div>
 
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">

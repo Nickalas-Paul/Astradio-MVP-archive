@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { LocationFinder } from '../sandbox/LocationFinder';
 import { ExplainerSections } from './shared/ExplainerSections';
-import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
 import { mapExplanationToSections } from './shared/profile-reading-utils';
 import {
   isValidTransitLocationSource,
@@ -26,6 +25,7 @@ import type { CanonicalLocation } from '../../types/location';
 import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { InputField } from '@/components/shared/Input';
+import { useAudioPlayerStore } from '@/store';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -44,6 +44,16 @@ function formatTransitDate(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function exportIdFromComposePayload(payload: Record<string, unknown>): string | null {
+  const audio = payload?.audio as Record<string, unknown> | undefined;
+  const exportId = (payload?.export_id ?? audio?.export_id) as string | undefined;
+  if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
+    return exportId;
+  }
+  console.warn('Compose response missing valid export_id');
+  return null;
 }
 
 export interface ActiveTransitPanelProps {
@@ -74,8 +84,8 @@ export function ActiveTransitPanel({
   const [activeResult, setActiveResult] = useState<Record<string, unknown> | null>(null);
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState<string | null>(null);
-  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
   const [activeAudioBusy, setActiveAudioBusy] = useState(false);
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
@@ -172,7 +182,6 @@ export function ActiveTransitPanel({
     );
     setActiveResult(entry.activeState);
     setActiveError(null);
-    setActiveAudioUrl(null);
     setLoadedFromCache(true);
   }, []);
 
@@ -216,7 +225,6 @@ export function ActiveTransitPanel({
       const base = getApiBaseUrl();
       setActiveLoading(true);
       setActiveError(null);
-      setActiveAudioUrl(null);
       setLoadedFromCache(false);
       try {
         const r = await fetch(`${base || ''}/api/profile/active-state`, {
@@ -348,9 +356,12 @@ export function ActiveTransitPanel({
         return;
       }
       setActiveResult(j);
-      const url = await blobUrlFromComposePayload(base, j);
-      if (activeAudioUrl) URL.revokeObjectURL(activeAudioUrl);
-      setActiveAudioUrl(url);
+      const exportId = exportIdFromComposePayload(j);
+      if (!exportId) {
+        setActiveError('Audio export not available.');
+        return;
+      }
+      playTrack({ exportId, label: 'Your Transit', source: 'transit' });
     } catch (e) {
       setActiveError(e instanceof Error ? e.message : 'Audio failed');
     } finally {
@@ -458,12 +469,6 @@ export function ActiveTransitPanel({
             Wheel unavailable for selected slot.
           </div>
         )}
-        {activeAudioUrl && (
-          <div className="space-y-2">
-            <p className="text-sm text-text-secondary">Listen to this reading</p>
-            <audio controls src={activeAudioUrl} className="w-full" preload="metadata" />
-          </div>
-        )}
       </div>
     );
   };
@@ -530,7 +535,6 @@ export function ActiveTransitPanel({
                       clearTransitCacheForDate(dateForCache, chartId);
                     }
                     setActiveResult(null);
-                    setActiveAudioUrl(null);
                     setLoadedFromCache(false);
                     setActiveLocLabel(r.label);
                     setActiveLat(String(r.lat));
@@ -546,7 +550,6 @@ export function ActiveTransitPanel({
                       clearTransitCacheForDate(activeDate, chartId);
                     }
                     setActiveResult(null);
-                    setActiveAudioUrl(null);
                     setLoadedFromCache(false);
                     setActiveLocLabel('');
                     setActiveLat('');

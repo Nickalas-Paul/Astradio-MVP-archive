@@ -3,7 +3,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import Link from 'next/link';
 import { ExplainerSections } from './shared/ExplainerSections';
-import { blobUrlFromComposePayload } from './shared/profile-audio-utils';
 import {
   explanationFromCompatibilityText,
   libraryRowSummary,
@@ -17,8 +16,38 @@ import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/
 import { IdentityMarkdown } from '../shared/IdentityMarkdown';
 import { Card } from '../shared/Card';
 import { Button } from '@/components/shared/Button';
+import { useAudioPlayerStore, type AudioSource } from '@/store';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
+
+function isValidLibraryExportId(eid: unknown): eid is string {
+  return typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid);
+}
+
+function libraryAudioSource(row: Record<string, unknown>): AudioSource {
+  const source = row.source;
+  const ps = parseSandboxState(row.sandbox_state);
+  const kind = ps?.kind ?? source;
+  if (source === 'profile_identity' || kind === 'profile_identity') return 'identity';
+  if (source === 'profile_active' || kind === 'profile_active') return 'transit';
+  if (source === 'community_relationship' || kind === 'community_relationship') return 'connection';
+  if (source === 'community_group' || kind === 'community_group') return 'connection';
+  if (source === 'community_relational_weather' || kind === 'community_relational_weather') return 'connection';
+  if (source === 'community_post_audio' || kind === 'community_post_audio') return 'post';
+  return 'sandbox';
+}
+
+async function exportExistsInStore(base: string, eid: string): Promise<boolean> {
+  try {
+    const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
+      method: 'HEAD',
+      credentials: 'same-origin',
+    });
+    return headRes.status === 204 || headRes.status === 200;
+  } catch {
+    return false;
+  }
+}
 
 export type LibraryPanelHandle = {
   refresh: () => Promise<void>;
@@ -42,12 +71,23 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   const [libraryReconstructLoading, setLibraryReconstructLoading] = useState(false);
   const [libraryReconstructResult, setLibraryReconstructResult] = useState<Record<string, unknown> | null>(null);
   const [libraryReconstructError, setLibraryReconstructError] = useState<string | null>(null);
-  const [libraryDetailAudioUrl, setLibraryDetailAudioUrl] = useState<string | null>(null);
   const [libraryAudioMissingFromStore, setLibraryAudioMissingFromStore] = useState<boolean | null>(null);
+  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [libraryRelationalWeatherTextMissing, setLibraryRelationalWeatherTextMissing] = useState(false);
   const [libraryHistoricalArtifact, setLibraryHistoricalArtifact] = useState(false);
   const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
     null,
+  );
+
+  const dispatchLibraryAudio = useCallback(
+    (row: Record<string, unknown>, exportId: string) => {
+      playTrack({
+        exportId,
+        label: libraryRowSummary(row) || librarySourceLabel(row.source),
+        source: libraryAudioSource(row),
+      });
+    },
+    [playTrack],
   );
 
   const refreshLibrary = useCallback(async () => {
@@ -73,10 +113,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
     setLibraryRelationalWeatherTextMissing(false);
     setLibraryHistoricalArtifact(false);
     setLibraryCommunityReadingArtifact(null);
-    if (libraryDetailAudioUrl) {
-      URL.revokeObjectURL(libraryDetailAudioUrl);
-      setLibraryDetailAudioUrl(null);
-    }
     setLibraryDetailLoading(true);
     setLibraryReconstructLoading(false);
     const base = getApiBaseUrl();
@@ -96,20 +132,13 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
       const ps = parseSandboxState(row.sandbox_state);
       if (source === 'profile_identity' || ps?.kind === 'profile_identity') {
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          try {
-            const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
-              method: 'HEAD',
-              credentials: 'same-origin',
-            });
-            if (headRes.status !== 204 && headRes.status !== 200) {
-              setLibraryAudioMissingFromStore(true);
-            } else {
-              const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-              if (url) setLibraryDetailAudioUrl(url);
-            }
-          } catch {
+        if (isValidLibraryExportId(eid)) {
+          const exists = await exportExistsInStore(base, eid);
+          if (!exists) {
             setLibraryAudioMissingFromStore(true);
+          } else {
+            setLibraryAudioMissingFromStore(false);
+            dispatchLibraryAudio(row, eid);
           }
         }
         setLibraryDetailLoading(false);
@@ -117,10 +146,8 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
       }
       if (source === 'community_post_audio' || ps?.kind === 'community_post_audio') {
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-          if (url) setLibraryDetailAudioUrl(url);
-          else setLibraryAudioMissingFromStore(true);
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
         }
         setLibraryDetailLoading(false);
         return;
@@ -149,9 +176,8 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
           explanation: explanationFromCompatibilityText(cmp.compatibilityText),
         });
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-          if (url) setLibraryDetailAudioUrl(url);
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
         }
         return;
       }
@@ -183,9 +209,8 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
           },
         });
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-          if (url) setLibraryDetailAudioUrl(url);
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
         }
         return;
       }
@@ -216,25 +241,13 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
           setLibraryReconstructResult(null);
           setLibraryDetailLoading(false);
           const eid = row.export_id;
-          if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-            try {
-              const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
-                method: 'HEAD',
-                credentials: 'same-origin',
-              });
-              if (headRes.status !== 204 && headRes.status !== 200) {
-                setLibraryAudioMissingFromStore(true);
-              } else {
-                const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-                if (url) {
-                  setLibraryDetailAudioUrl(url);
-                  setLibraryAudioMissingFromStore(false);
-                } else {
-                  setLibraryAudioMissingFromStore(true);
-                }
-              }
-            } catch {
+          if (isValidLibraryExportId(eid)) {
+            const exists = await exportExistsInStore(base, eid);
+            if (!exists) {
               setLibraryAudioMissingFromStore(true);
+            } else {
+              setLibraryAudioMissingFromStore(false);
+              dispatchLibraryAudio(row, eid);
             }
           } else {
             setLibraryAudioMissingFromStore(null);
@@ -254,25 +267,13 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
         setLibraryCommunityReadingArtifact(artifactPayload);
         setLibraryReconstructResult({ explanation: null });
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          try {
-            const headRes = await fetch(`${base || ''}/api/exports/${encodeURIComponent(eid)}`, {
-              method: 'HEAD',
-              credentials: 'same-origin',
-            });
-            if (headRes.status !== 204 && headRes.status !== 200) {
-              setLibraryAudioMissingFromStore(true);
-            } else {
-              const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-              if (url) {
-                setLibraryDetailAudioUrl(url);
-                setLibraryAudioMissingFromStore(false);
-              } else {
-                setLibraryAudioMissingFromStore(true);
-              }
-            }
-          } catch {
+        if (isValidLibraryExportId(eid)) {
+          const exists = await exportExistsInStore(base, eid);
+          if (!exists) {
             setLibraryAudioMissingFromStore(true);
+          } else {
+            setLibraryAudioMissingFromStore(false);
+            dispatchLibraryAudio(row, eid);
           }
         } else {
           setLibraryAudioMissingFromStore(null);
@@ -309,9 +310,8 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
         }
         setLibraryReconstructResult(j);
         const eid = row.export_id;
-        if (typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid)) {
-          const url = await blobUrlFromComposePayload(base, { export_id: eid } as Record<string, unknown>);
-          if (url) setLibraryDetailAudioUrl(url);
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
         }
       }
     } catch (e) {
@@ -396,10 +396,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                           setLibraryRelationalWeatherTextMissing(false);
                           setLibraryHistoricalArtifact(false);
                           setLibraryCommunityReadingArtifact(null);
-                          if (libraryDetailAudioUrl) {
-                            URL.revokeObjectURL(libraryDetailAudioUrl);
-                            setLibraryDetailAudioUrl(null);
-                          }
                         }}
                       >
                         Close
@@ -424,7 +420,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                     {libraryDetailRow != null &&
                       (libraryDetailRow.source === 'profile_identity' ||
                         parseSandboxState(libraryDetailRow.sandbox_state)?.kind === 'profile_identity') &&
-                      !libraryDetailAudioUrl &&
                       libraryAudioMissingFromStore !== false ? (
                         <p className="text-sm text-text-secondary">
                           Identity comes from your birth chart. Open the Identity tab to compose or play your soundtrack.
@@ -526,12 +521,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                           Audio record missing from storage (export pointer exists but file was not found).
                         </p>
                       )}
-                    {libraryDetailAudioUrl && (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-sm text-text-secondary">Listen to this reading</p>
-                        <audio controls src={libraryDetailAudioUrl} className="w-full max-w-md" preload="metadata" />
-                      </div>
-                    )}
                   </Card>
                 )}
               </>
