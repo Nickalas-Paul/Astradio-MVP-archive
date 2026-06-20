@@ -181,11 +181,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionLabel: {
-    color: colors.text.muted,
-    fontSize: 11,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   empty: {
     color: colors.text.muted,

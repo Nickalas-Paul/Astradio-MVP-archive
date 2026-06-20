@@ -16,7 +16,7 @@ import { DegreePanelSheet } from './DegreePanelSheet';
 import { SandboxAudioPlayer } from './SandboxAudioPlayer';
 import { SandboxReportDisplay } from './SandboxReportDisplay';
 import { SlotChipStrip } from './SlotChipStrip';
-import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
+import { layout } from '../../constants/layout';
 import { colors } from '../../constants/colors';
 import { useSandboxData } from '../../hooks/useSandboxData';
 import { useSandboxGenerate } from '../../hooks/useSandboxGenerate';
@@ -40,7 +40,7 @@ function WheelPlaceholder({ size }: { size: number }) {
 
 export function SandboxWorkbench() {
   const { width } = useWindowDimensions();
-  const wheelSize = Math.min(width - AUTH_HORIZONTAL_PADDING * 2, 360);
+  const wheelSize = width - layout.screenPadding * 2;
 
   const backToEntry = useSandboxStore((s) => s.backToEntry);
   const toggleDegreePanel = useSandboxStore((s) => s.toggleDegreePanel);
@@ -246,8 +246,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    paddingHorizontal: AUTH_HORIZONTAL_PADDING,
-    paddingBottom: 32,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: 40,
   },
   headerRow: {
     flexDirection: 'row',
@@ -274,8 +274,8 @@ const styles = StyleSheet.create({
   },
   workbenchTitle: {
     color: colors.text.primary,
-    fontSize: 32,
-    fontFamily: 'Cormorant-Bold',
+    fontSize: 28,
+    fontFamily: 'Cormorant-SemiBold',
     marginBottom: 6,
   },
   workbenchSubtitle: {
@@ -299,8 +299,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     alignSelf: 'stretch',
-    color: colors.text.primary,
-    fontSize: 18,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 12,
   },

@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   tabHeading: {
-    color: colors.text.primary,
-    fontSize: 20,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 6,
   },

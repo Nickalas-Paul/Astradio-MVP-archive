@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   sectionDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    marginTop: 24,
+    marginTop: 20,
     marginBottom: 16,
   },
   sectionHeading: {

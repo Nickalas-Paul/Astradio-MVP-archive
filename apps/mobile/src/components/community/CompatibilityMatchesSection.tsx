@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sectionTitle: {
-    color: colors.text.primary,
-    fontSize: 18,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 4,
   },

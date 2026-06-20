@@ -1,10 +1,8 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { NatalWheel } from '../chart/NatalWheel';
-import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
+import { layout } from '../../constants/layout';
 import { mapSnapshotToWheel } from '../../lib/my-sky-mappers';
 import type { EphemerisSnapshot } from '../../types/my-sky';
-
-const MAX_WHEEL_SIZE = 300;
 
 type TodaySkyWheelProps = {
   snapshot: EphemerisSnapshot | null;
@@ -15,7 +13,7 @@ export function TodaySkyWheel({ snapshot }: TodaySkyWheelProps) {
   const wheel = snapshot ? mapSnapshotToWheel(snapshot) : null;
   if (!wheel) return null;
 
-  const wheelSize = Math.min(width - AUTH_HORIZONTAL_PADDING * 2, MAX_WHEEL_SIZE);
+  const wheelSize = width - layout.screenPadding * 2;
 
   return (
     <View style={styles.container}>

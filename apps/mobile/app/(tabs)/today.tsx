@@ -181,12 +181,12 @@ export default function TodayScreen() {
               <>
                 <SectionDivider />
                 <SectionHeading title="Right Now in the Sky" />
+                <TodaySkyWheel snapshot={data.skySnapshot} />
                 {data.skySummary ? (
                   <View style={styles.card}>
                     <MarkdownText tone="primary">{data.skySummary}</MarkdownText>
                   </View>
                 ) : null}
-                <TodaySkyWheel snapshot={data.skySnapshot} />
               </>
             ) : null}
 
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   transitCard: {
     backgroundColor: colors.surface,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   weatherCard: {
     borderRadius: 12,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderLeftWidth: 2,
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   transitTitle: {
     fontSize: 15,

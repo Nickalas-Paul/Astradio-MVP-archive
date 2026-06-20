@@ -124,8 +124,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    padding: 12,
-    marginBottom: 8,
+    padding: 16,
+    marginBottom: 10,
   },
   textBlock: {
     flex: 1,

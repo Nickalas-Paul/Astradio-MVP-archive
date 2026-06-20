@@ -120,8 +120,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: colors.text.primary,
-    fontSize: 18,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 4,
   },
@@ -148,8 +148,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sectionHeading: {
-    color: colors.text.primary,
-    fontSize: 14,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 10,
   },

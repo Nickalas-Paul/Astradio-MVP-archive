@@ -7,8 +7,6 @@ import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH, WHEEL_COLORS } from '../.
 import { angularSeparationDeg, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
 import type { WheelAspect, WheelPlacement } from '../../types/my-sky';
 
-const TRANSIT_GLYPH_COLOR = '#94A3B8';
-
 type NatalWheelProps = {
   size: number;
   placements: WheelPlacement[];
@@ -146,7 +144,7 @@ export function NatalWheel({
           />
 
           {Array.from({ length: 12 }, (_, signIndex) => {
-            const fill = signIndex % 2 === 0 ? '#151B24' : '#1A222E';
+            const fill = signIndex % 2 === 0 ? WHEEL_COLORS.zodiacFillA : WHEEL_COLORS.zodiacFillB;
             return (
               <Path
                 key={`zodiac-${signIndex}`}
@@ -157,7 +155,7 @@ export function NatalWheel({
                   ascendantLongitude
                 )}
                 fill={fill}
-                stroke="#333333"
+                stroke={WHEEL_COLORS.ringStroke}
                 strokeWidth={1}
               />
             );
@@ -272,7 +270,7 @@ export function NatalWheel({
                 key={`transit-${planet.key}`}
                 x={point.x}
                 y={point.y + 4}
-                fill={TRANSIT_GLYPH_COLOR}
+                fill={WHEEL_COLORS.transitGlyphFill}
                 fontSize={11}
                 fontWeight="600"
                 textAnchor="middle"
@@ -284,7 +282,7 @@ export function NatalWheel({
 
           <Circle
             r={geometry.outerRadius}
-            stroke="#333333"
+            stroke={WHEEL_COLORS.ringStroke}
             strokeWidth={1}
             fill="transparent"
           />

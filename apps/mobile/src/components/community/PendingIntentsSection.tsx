@@ -68,8 +68,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heading: {
-    color: colors.text.primary,
-    fontSize: 14,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     marginBottom: 10,
   },

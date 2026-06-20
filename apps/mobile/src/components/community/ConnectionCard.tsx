@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    padding: 14,
+    padding: 16,
     marginBottom: 10,
   },
   topRow: {

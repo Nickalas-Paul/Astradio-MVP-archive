@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleSender: {
-    backgroundColor: 'rgba(14, 150, 150, 0.2)',
+    backgroundColor: colors.senderBubble,
     borderBottomRightRadius: 4,
   },
   bubblePeer: {

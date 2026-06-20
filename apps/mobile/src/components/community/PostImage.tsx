@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { API_BASE } from '../../lib/api';
 import { getToken } from '../../lib/token-storage';
 import { colors } from '../../constants/colors';
@@ -17,17 +18,17 @@ function resolveImageUri(imageUrl: string): string {
 export function PostImage({ postId, imageUrl }: PostImageProps) {
   const uri = resolveImageUri(imageUrl);
   const [authHeaders, setAuthHeaders] = useState<Record<string, string> | undefined>();
+  const [authReady, setAuthReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const token = await getToken();
       if (cancelled) return;
-      setAuthHeaders(token ? { Authorization: `Bearer ${token}` } : undefined);
+      setAuthHeaders(token ? { Authorization: `Bearer ${token}` } : {});
+      setAuthReady(true);
       setFailed(false);
-      setLoading(true);
     })();
     return () => {
       cancelled = true;
@@ -42,23 +43,22 @@ export function PostImage({ postId, imageUrl }: PostImageProps) {
     );
   }
 
+  if (!authReady) {
+    return (
+      <View style={styles.placeholder}>
+        <ActivityIndicator color={colors.accent.DEFAULT} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
-      {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.accent.DEFAULT} />
-        </View>
-      ) : null}
       <Image
         source={{ uri, headers: authHeaders }}
         style={styles.image}
-        resizeMode="cover"
+        contentFit="cover"
         accessibilityLabel="Post image"
-        onLoadEnd={() => setLoading(false)}
-        onError={() => {
-          setFailed(true);
-          setLoading(false);
-        }}
+        onError={() => setFailed(true)}
       />
     </View>
   );
@@ -74,12 +74,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     aspectRatio: 4 / 3,
-  },
-  loader: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
   },
   placeholder: {
     marginTop: 12,

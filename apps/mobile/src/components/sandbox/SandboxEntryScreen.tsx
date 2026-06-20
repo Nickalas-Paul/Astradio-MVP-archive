@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
   hero: {
     alignItems: 'center',
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text.primary,
-    fontSize: 32,
-    fontFamily: 'Cormorant-Bold',
+    fontSize: 28,
+    fontFamily: 'Cormorant-SemiBold',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -167,8 +167,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
   },
   cardTitle: {
     color: colors.text.primary,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   savedTitle: {
-    color: colors.text.primary,
+    color: colors.accent.DEFAULT,
     fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
   },

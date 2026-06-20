@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    color: colors.text.primary,
-    fontSize: 18,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
   },
   refresh: {
@@ -196,17 +196,15 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.accent.DEFAULT,
-    fontSize: 11,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   sectionLabelMuted: {
-    color: colors.text.secondary,
-    fontSize: 11,
+    color: colors.accent.DEFAULT,
+    fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   incomingCard: {
     backgroundColor: colors.surfaceLight,

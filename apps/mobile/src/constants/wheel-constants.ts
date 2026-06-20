@@ -62,11 +62,13 @@ export const BODY_DISPLAY_ORDER = [
 
 export const WHEEL_COLORS = {
   outerRingStroke: '#4a5a7a',
+  ringStroke: '#333333',
   houseStroke: '#3d4f6e',
   houseFill: '#1a2435',
   zodiacFillA: '#151B24',
   zodiacFillB: '#1A222E',
   zodiacGlyphFill: '#94A3B8',
+  transitGlyphFill: 'rgba(255,255,255,0.7)',
   angleLabelFill: '#0e9696',
   aspectFallback: '#6a7a8a',
   houseNumberFill: '#64748B',

@@ -1,12 +1,10 @@
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { NatalWheel } from '../chart/NatalWheel';
-import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
+import { WHEEL_COLORS } from '../../constants/wheel-constants';
 import { mapSnapshotToWheel } from '../../lib/my-sky-mappers';
 import type { EphemerisSnapshot } from '../../types/my-sky';
-
-const MAX_WHEEL_SIZE = 300;
-const TRANSIT_LEGEND_COLOR = '#94A3B8';
 
 export type TodayTransitWheelProps = {
   natalSnapshot: EphemerisSnapshot | null;
@@ -19,7 +17,7 @@ export function TodayTransitWheel({ natalSnapshot, transitSnapshot }: TodayTrans
   const transitWheel = transitSnapshot ? mapSnapshotToWheel(transitSnapshot) : null;
   if (!natalWheel || !transitWheel) return null;
 
-  const wheelSize = Math.min(width - AUTH_HORIZONTAL_PADDING * 2, MAX_WHEEL_SIZE);
+  const wheelSize = width - layout.screenPadding * 2;
 
   return (
     <View style={styles.container}>
@@ -37,7 +35,7 @@ export function TodayTransitWheel({ natalSnapshot, transitSnapshot }: TodayTrans
           <Text style={styles.legendText}>Natal positions</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: TRANSIT_LEGEND_COLOR }]} />
+          <View style={[styles.legendDot, { backgroundColor: WHEEL_COLORS.transitGlyphFill }]} />
           <Text style={styles.legendText}>Transiting positions</Text>
         </View>
       </View>

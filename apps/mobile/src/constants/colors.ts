@@ -14,4 +14,6 @@ export const colors = {
   },
   error: '#e74c3c',
   success: '#2ecc71',
+  senderBubble: 'rgba(14,150,150,0.2)',
+  overlay: 'rgba(0,0,0,0.5)',
 };

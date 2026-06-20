@@ -89,15 +89,15 @@ const styles = StyleSheet.create({
   heading: {
     fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
-    color: colors.text.primary,
+    color: colors.accent.DEFAULT,
   },
   synastry: {
     gap: 12,
   },
   synastryTitle: {
-    fontFamily: 'Cormorant-Bold',
-    fontSize: 22,
-    color: colors.text.primary,
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 16,
+    color: colors.accent.DEFAULT,
     paddingHorizontal: 4,
   },
   tierBlock: {
