@@ -2260,7 +2260,7 @@ if (hasDb) {
       if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
       const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
       const rows = await db.getRows(
-        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, source, composition_type, object_identity_hash, created_at FROM astradio_sandbox_compositions WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT $2",
+        "SELECT id, sandbox_state, vector_hash, seed, plan_hash, provider, provider_version, export_id, source, composition_type, object_identity_hash, display_label, created_at FROM astradio_sandbox_compositions WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT $2",
         [ownerUserId, limit]
       );
       return res.json(rows);
@@ -2300,11 +2300,38 @@ if (hasDb) {
       return res.status(500).json({ error: e?.message || "Could not delete composition" });
     }
   });
+  app.patch("/api/sandbox/compositions/:id", async (req, res) => {
+    try {
+      const ownerUserId = sandboxCallerUserId(req);
+      if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
+      const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ error: "Missing composition id" });
+      const body = req.body || {};
+      const { display_label } = body;
+      if (display_label !== null && display_label !== undefined && typeof display_label !== "string") {
+        return res.status(400).json({ error: "display_label must be a string or null" });
+      }
+      const label =
+        typeof display_label === "string" ? display_label.trim().slice(0, 100) || null : null;
+      const result = await db.query(
+        "UPDATE astradio_sandbox_compositions SET display_label = $1, updated_at = NOW() WHERE id = $2 AND owner_user_id = $3 RETURNING id, display_label",
+        [label, id, ownerUserId]
+      );
+      if (!result.rowCount) {
+        return res.status(404).json({ error: "Composition not found" });
+      }
+      return res.json(result.rows[0]);
+    } catch (e) {
+      console.error("[sandbox/compositions] PATCH by id", e);
+      return res.status(500).json({ error: e?.message || "Could not update composition" });
+    }
+  });
 } else {
   app.post("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot save compositions" }));
   app.get("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot list compositions" }));
   app.get("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot load composition" }));
   app.delete("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot delete composition" }));
+  app.patch("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot update composition" }));
 }
 
 // Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false). (only active when DEPRECATE_LEGACY_ROUTES=false).

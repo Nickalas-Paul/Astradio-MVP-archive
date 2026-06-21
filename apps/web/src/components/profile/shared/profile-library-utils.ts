@@ -134,6 +134,9 @@ function sameCalendarDay(a: unknown, b: unknown): boolean {
 }
 
 export function libraryRowSummary(row: Record<string, unknown>): string {
+  const customLabel = String(row.display_label ?? '').trim();
+  if (customLabel) return customLabel;
+
   const source = String(row.source ?? '').trim();
   const ps = parseSandboxState(row.sandbox_state);
   const createdDate = formatLibraryCreatedAt(row.created_at);

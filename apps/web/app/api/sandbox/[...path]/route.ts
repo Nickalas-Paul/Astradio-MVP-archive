@@ -125,3 +125,40 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ p
     );
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  try {
+    const { path } = await params;
+    const pathStr = path.join('/');
+    if (!pathStr.startsWith('compositions/')) {
+      return NextResponse.json(
+        { error: 'Method not allowed. Use PATCH /api/sandbox/compositions/:id.' },
+        { status: 405 }
+      );
+    }
+    const backend = getEngineBaseUrl();
+    const body = await req.json().catch(() => ({}));
+    const targetUrl = new URL(`${backend}/api/sandbox/${pathStr}`);
+    if (isCompositionsRoute(pathStr)) {
+      const userId = getSessionUserId(req.cookies);
+      if (userId) targetUrl.searchParams.set('userId', userId);
+    }
+    const r = await fetch(targetUrl.toString(), {
+      method: 'PATCH',
+      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({ error: r.statusText || 'Invalid response' }));
+    if (!r.ok) {
+      return jsonResponseForUpstreamError(r.status, data, r.statusText);
+    }
+    return NextResponse.json(data, { status: r.status });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Sandbox API unavailable';
+    console.error('[api/sandbox] proxy PATCH error:', message);
+    return NextResponse.json(
+      { error: message },
+      { status: 502 }
+    );
+  }
+}

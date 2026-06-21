@@ -77,6 +77,7 @@ export interface SavedComposition {
   source: string | null;
   composition_type: string | null;
   object_identity_hash: string | null;
+  display_label: string | null;
   created_at: string;
 }
 
@@ -98,6 +99,7 @@ export interface SavedCompositionDetail {
   source: string | null;
   composition_type: string | null;
   object_identity_hash: string | null;
+  display_label: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -76,6 +76,7 @@ export type LibraryCompositionRow = {
   sandbox_state?: unknown;
   created_at?: string;
   report?: unknown;
+  display_label?: string | null;
 };
 
 export type WheelPlacement = {

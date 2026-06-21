@@ -99,6 +99,7 @@ export interface LibraryDetailModalProps {
   communityReadingArtifact: Record<string, unknown> | null;
   onClose: () => void;
   onDeleted?: () => void;
+  onRenamed?: () => void;
 }
 
 export function LibraryDetailModal({
@@ -114,11 +115,17 @@ export function LibraryDetailModal({
   communityReadingArtifact,
   onClose,
   onDeleted,
+  onRenamed,
 }: LibraryDetailModalProps) {
   const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [savedDisplayLabel, setSavedDisplayLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -134,7 +141,40 @@ export function LibraryDetailModal({
     setDeleteConfirm(false);
     setDeleteLoading(false);
     setDeleteError(null);
+    setIsEditing(false);
+    setEditLabel('');
+    setRenameLoading(false);
+    setRenameError(null);
+    setSavedDisplayLabel(null);
   }, [isOpen]);
+
+  const handleRename = useCallback(async () => {
+    const rowId = row?.id;
+    if (typeof rowId !== 'string' || !rowId.trim()) return;
+    setRenameLoading(true);
+    setRenameError(null);
+    try {
+      const base = getApiBaseUrl();
+      const trimmed = editLabel.trim();
+      const res = await fetch(`${base || ''}/api/sandbox/compositions/${encodeURIComponent(rowId)}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_label: trimmed || null }),
+      });
+      if (!res.ok) throw new Error('Rename failed');
+      const data = (await res.json().catch(() => ({}))) as { display_label?: string | null };
+      setSavedDisplayLabel(
+        typeof data.display_label === 'string' ? data.display_label : trimmed || null,
+      );
+      setIsEditing(false);
+      onRenamed?.();
+    } catch {
+      setRenameError('Could not rename');
+    } finally {
+      setRenameLoading(false);
+    }
+  }, [row?.id, editLabel, onRenamed]);
 
   const handleDelete = useCallback(async () => {
     const rowId = row?.id;
@@ -171,6 +211,14 @@ export function LibraryDetailModal({
   const skyDateLabel =
     (typeof sandboxState?.date === 'string' && sandboxState.date.trim()) || createdAtLabel || 'this date';
 
+  const derivedTitle = row
+    ? libraryRowSummary(row) || librarySourceLabel(row.source)
+    : 'Saved artifact';
+  const displayName =
+    savedDisplayLabel ??
+    (typeof row?.display_label === 'string' && row.display_label.trim() ? row.display_label.trim() : null) ??
+    derivedTitle;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
@@ -187,10 +235,57 @@ export function LibraryDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 pb-4 border-b border-border/60">
-          <div className="min-w-0 space-y-1">
-            <h2 id="library-detail-title" className="text-h3 font-serif text-text-primary">
-              {row ? librarySourceLabel(row.source) : 'Saved artifact'}
-            </h2>
+          <div className="min-w-0 space-y-1 flex-1">
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!row) return;
+                  setEditLabel(
+                    savedDisplayLabel ??
+                      (typeof row.display_label === 'string' ? row.display_label : '') ??
+                      '',
+                  );
+                  setIsEditing(true);
+                }}
+                className="text-left text-h3 font-serif text-text-primary hover:text-accent transition-colors"
+                title="Click to rename"
+              >
+                {displayName}
+                {row ? <span className="ml-2 text-xs text-text-muted">✎</span> : null}
+              </button>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={editLabel}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    placeholder={derivedTitle || 'Name this track'}
+                    maxLength={100}
+                    autoFocus
+                    className="bg-transparent border border-border rounded px-2 py-1 text-sm text-text-primary focus:border-accent outline-none w-full max-w-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleRename();
+                      if (e.key === 'Escape') setIsEditing(false);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleRename()}
+                    disabled={renameLoading}
+                  >
+                    {renameLoading ? '…' : 'Save'}
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+                {renameError ? <p className="text-sm text-red-400">{renameError}</p> : null}
+              </div>
+            )}
             {createdAtLabel ? (
               <p className="text-xs text-text-muted">{createdAtLabel}</p>
             ) : null}

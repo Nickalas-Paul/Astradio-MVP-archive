@@ -451,6 +451,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
         communityReadingArtifact={libraryCommunityReadingArtifact}
         onClose={closeLibraryRow}
         onDeleted={() => void refreshLibrary()}
+        onRenamed={() => void refreshLibrary()}
       />
     </>
   );

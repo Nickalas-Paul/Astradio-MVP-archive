@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,6 +15,7 @@ import { AUTH_HORIZONTAL_PADDING } from '../../../../src/constants/auth-styles';
 import { colors } from '../../../../src/constants/colors';
 import { layout } from '../../../../src/constants/layout';
 import { deleteLibraryComposition, fetchLibraryDetail } from '../../../../src/lib/my-sky-fetch';
+import { api } from '../../../../src/lib/api';
 import { useAudioStore, type AudioSource } from '../../../../src/store/audio';
 import type { SavedCompositionDetail } from '../../../../src/types/sandbox';
 
@@ -192,6 +194,9 @@ export default function LibraryDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -262,6 +267,40 @@ export default function LibraryDetailScreen() {
     }
   };
 
+  const handleRename = async () => {
+    if (!id) return;
+    setRenameLoading(true);
+    try {
+      const trimmed = editLabel.trim();
+      const updated = await api<{ display_label?: string | null }>(
+        `/api/sandbox/compositions/${encodeURIComponent(id)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ display_label: trimmed || null }),
+        },
+      );
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              display_label:
+                typeof updated.display_label === 'string'
+                  ? updated.display_label
+                  : trimmed || null,
+            }
+          : prev,
+      );
+      setIsEditing(false);
+    } catch {
+      Alert.alert('Error', 'Could not rename this track.');
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
+  const displayTitle =
+    (typeof detail?.display_label === 'string' && detail.display_label.trim()) || sourceLabel;
+
   const contentMessage =
     detail && !hasReport
       ? emptyMessageForSource(detail.source, createdAtLabel, sandboxState)
@@ -289,7 +328,37 @@ export default function LibraryDetailScreen() {
 
         {detail && !loading ? (
           <View style={styles.detailBlock}>
-            <Text style={styles.title}>{sourceLabel}</Text>
+            {!isEditing ? (
+              <Pressable
+                onPress={() => {
+                  setEditLabel(detail.display_label || '');
+                  setIsEditing(true);
+                }}
+              >
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{displayTitle}</Text>
+                  <Text style={styles.editHint}>✎</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.renameRow}>
+                <TextInput
+                  value={editLabel}
+                  onChangeText={setEditLabel}
+                  placeholder="Name this track"
+                  maxLength={100}
+                  autoFocus
+                  style={styles.renameInput}
+                  placeholderTextColor={colors.text.muted}
+                />
+                <Pressable onPress={() => void handleRename()} disabled={renameLoading}>
+                  <Text style={styles.renameSave}>{renameLoading ? '…' : 'Save'}</Text>
+                </Pressable>
+                <Pressable onPress={() => setIsEditing(false)} disabled={renameLoading}>
+                  <Text style={styles.renameCancel}>Cancel</Text>
+                </Pressable>
+              </View>
+            )}
             {createdAtLabel ? <Text style={styles.subtitle}>{createdAtLabel}</Text> : null}
 
             {isValidExportId(exportId) ? (
@@ -375,10 +444,48 @@ const styles = StyleSheet.create({
   detailBlock: {
     gap: layout.internalGap + 4,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
     color: colors.text.primary,
     fontSize: 24,
     fontFamily: 'Cormorant-SemiBold',
+  },
+  editHint: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontFamily: 'Manrope-Regular',
+  },
+  renameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  renameInput: {
+    flex: 1,
+    minWidth: 160,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    color: colors.text.primary,
+    fontSize: 15,
+    fontFamily: 'Manrope-Regular',
+  },
+  renameSave: {
+    color: colors.accent.DEFAULT,
+    fontSize: 14,
+    fontFamily: 'Manrope-Medium',
+  },
+  renameCancel: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
   },
   subtitle: {
     color: colors.text.muted,

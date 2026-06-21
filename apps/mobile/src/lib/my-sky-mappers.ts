@@ -268,6 +268,9 @@ function sameCalendarDay(a: unknown, b: unknown): boolean {
 }
 
 function libraryRowSummary(row: LibraryCompositionRow): string {
+  const customLabel = String(row.display_label ?? '').trim();
+  if (customLabel) return customLabel;
+
   const source = String(row.source ?? '').trim();
   const ps = parseSandboxState(row.sandbox_state);
   const createdDate = formatLibraryDateValue(row.created_at);
