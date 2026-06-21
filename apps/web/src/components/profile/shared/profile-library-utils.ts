@@ -42,6 +42,7 @@ export function librarySourceLabel(source: unknown): string {
   if (s === 'profile_identity') return 'Identity';
   if (s === 'community_post_audio') return 'Community audio';
   if (s === 'sandbox') return 'Sandbox reading';
+  if (s === 'sky') return "Today's Sky";
   return s ? s.replace(/_/g, ' ') : 'Saved reading';
 }
 
@@ -110,9 +111,51 @@ export function libraryChartDetailSuffix(row: Record<string, unknown>): string {
   return '';
 }
 
+function formatLibraryDateValue(value: unknown): string {
+  if (value == null || value === '') return '';
+  const d = new Date(String(value));
+  if (Number.isNaN(d.getTime())) return String(value).trim();
+  return d.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function sameCalendarDay(a: unknown, b: unknown): boolean {
+  const da = new Date(String(a));
+  const db = new Date(String(b));
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return false;
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
 export function libraryRowSummary(row: Record<string, unknown>): string {
-  const date = formatLibraryCreatedAt(row.created_at);
+  const source = String(row.source ?? '').trim();
+  const ps = parseSandboxState(row.sandbox_state);
+  const createdDate = formatLibraryCreatedAt(row.created_at);
+
+  if (source === 'sky' || ps?.kind === 'sky_summary') {
+    const skyDate =
+      typeof ps?.date === 'string' && ps.date.trim()
+        ? formatLibraryDateValue(ps.date)
+        : createdDate;
+    return skyDate ? `Today's Sky · ${skyDate}` : "Today's Sky";
+  }
+
+  let displayDate = createdDate;
+  if (source === 'profile_active' || ps?.kind === 'profile_active') {
+    const calendarDate = typeof ps?.calendarDate === 'string' ? ps.calendarDate.trim() : '';
+    if (calendarDate && row.created_at != null && !sameCalendarDay(calendarDate, row.created_at)) {
+      const transitDate = formatLibraryDateValue(calendarDate);
+      if (transitDate) displayDate = transitDate;
+    }
+  }
+
   const label = librarySourceLabel(row.source);
   const suffix = libraryChartDetailSuffix(row);
-  return [date, label].filter(Boolean).join(' · ') + suffix;
+  return [displayDate, label].filter(Boolean).join(' · ') + suffix;
 }

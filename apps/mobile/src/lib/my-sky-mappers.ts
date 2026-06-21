@@ -180,14 +180,75 @@ function librarySourceLabel(source: unknown): string {
   if (value === 'community_group') return 'Group reading';
   if (value === 'community_post_audio') return 'Community audio';
   if (value === 'sandbox') return 'Sandbox reading';
-  if (value === 'sky') return "Today's sky";
+  if (value === 'sky') return "Today's Sky";
   return value ? value.replace(/_/g, ' ') : 'Saved reading';
 }
 
-function formatLibraryDate(createdAt: unknown): string {
-  if (createdAt == null || createdAt === '') return '';
-  const date = new Date(String(createdAt));
-  if (Number.isNaN(date.getTime())) return '';
+function parseSandboxState(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function formatChartNameList(names: string[]): string {
+  if (names.length === 0) return '';
+  if (names.length === 1) return names[0]!;
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+function chartNamesFromRow(row: LibraryCompositionRow): string[] {
+  const names: string[] = [];
+  const ps = parseSandboxState(row.sandbox_state);
+  const compositionInput = ps?.composition_input;
+  if (compositionInput && typeof compositionInput === 'object' && !Array.isArray(compositionInput)) {
+    const slots = (compositionInput as { slots?: unknown }).slots;
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        if (!slot || typeof slot !== 'object' || Array.isArray(slot)) continue;
+        const displayName = (slot as { chart_display_name?: unknown }).chart_display_name;
+        if (typeof displayName === 'string' && displayName.trim()) {
+          names.push(displayName.trim());
+        }
+      }
+    }
+  }
+  return names;
+}
+
+function libraryChartDetailSuffix(row: LibraryCompositionRow): string {
+  const compositionType = String(row.composition_type ?? '').trim();
+  if (compositionType === 'A') return '';
+
+  const names = chartNamesFromRow(row);
+  if (names.length > 0) {
+    return ` · ${formatChartNameList(names)}`;
+  }
+
+  if (compositionType === 'A+B') return ' · 2 charts';
+  if (compositionType === 'A+B+N') {
+    const source = String(row.source ?? '').trim();
+    if (source === 'community_group') return ' · Group reading';
+    return ' · 3 charts';
+  }
+
+  return '';
+}
+
+function formatLibraryDateValue(value: unknown): string {
+  if (value == null || value === '') return '';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value).trim();
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -195,11 +256,49 @@ function formatLibraryDate(createdAt: unknown): string {
   });
 }
 
+function sameCalendarDay(a: unknown, b: unknown): boolean {
+  const da = new Date(String(a));
+  const db = new Date(String(b));
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return false;
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
+function libraryRowSummary(row: LibraryCompositionRow): string {
+  const source = String(row.source ?? '').trim();
+  const ps = parseSandboxState(row.sandbox_state);
+  const createdDate = formatLibraryDateValue(row.created_at);
+
+  if (source === 'sky' || ps?.kind === 'sky_summary') {
+    const skyDate =
+      typeof ps?.date === 'string' && ps.date.trim()
+        ? formatLibraryDateValue(ps.date)
+        : createdDate;
+    return skyDate ? `Today's Sky · ${skyDate}` : "Today's Sky";
+  }
+
+  let displayDate = createdDate;
+  if (source === 'profile_active' || ps?.kind === 'profile_active') {
+    const calendarDate = typeof ps?.calendarDate === 'string' ? ps.calendarDate.trim() : '';
+    if (calendarDate && row.created_at != null && !sameCalendarDay(calendarDate, row.created_at)) {
+      const transitDate = formatLibraryDateValue(calendarDate);
+      if (transitDate) displayDate = transitDate;
+    }
+  }
+
+  const label = librarySourceLabel(row.source);
+  const suffix = libraryChartDetailSuffix(row);
+  return [displayDate, label].filter(Boolean).join(' · ') + suffix;
+}
+
 export function mapLibraryItems(rows: LibraryCompositionRow[]): MySkyScreenData['libraryItems'] {
   return rows.map((row) => ({
     id: String(row.id),
-    title: librarySourceLabel(row.source),
-    subtitle: formatLibraryDate(row.created_at),
+    title: libraryRowSummary(row) || librarySourceLabel(row.source),
+    subtitle: '',
     hasAudio: typeof row.export_id === 'string' && /^[a-f0-9]{64}$/.test(row.export_id),
     exportId: typeof row.export_id === 'string' ? row.export_id : null,
     source: typeof row.source === 'string' ? row.source : undefined,

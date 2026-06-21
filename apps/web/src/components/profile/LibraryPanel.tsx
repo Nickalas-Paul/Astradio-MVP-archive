@@ -374,7 +374,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
     <>
       <div className="space-y-6">
         <p className="text-sm text-text-secondary">
-          Your saved readings and soundtracks, organized by type.
+          Your saved readings and soundtracks.
         </p>
 
         {libraryLoading ? <p className="text-sm text-text-secondary">Loading library…</p> : null}
@@ -414,7 +414,9 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
                               <span className="text-accent text-xs shrink-0" aria-hidden>
                                 ♫
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="text-xs text-text-muted shrink-0">text</span>
+                            )}
                             <span className="text-text-secondary truncate">{libraryRowSummary(row)}</span>
                           </div>
                           <Button

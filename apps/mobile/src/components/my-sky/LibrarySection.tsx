@@ -94,7 +94,9 @@ export function LibrarySection({ items }: LibrarySectionProps) {
                   <View style={styles.rowLeft}>
                     {isValidExportId(row.exportId) ? (
                       <Text style={styles.audioIcon}>♫</Text>
-                    ) : null}
+                    ) : (
+                      <Text style={styles.textOnlyIcon}>text</Text>
+                    )}
                     <Text style={styles.rowLabel}>{rowLabel(row)}</Text>
                   </View>
                   <Text style={styles.viewLabel}>View</Text>
@@ -176,6 +178,11 @@ const styles = StyleSheet.create({
     color: colors.accent.DEFAULT,
     fontSize: 12,
     fontFamily: 'Manrope-SemiBold',
+  },
+  textOnlyIcon: {
+    color: colors.text.muted,
+    fontSize: 11,
+    fontFamily: 'Manrope-Regular',
   },
   rowLabel: {
     flex: 1,
