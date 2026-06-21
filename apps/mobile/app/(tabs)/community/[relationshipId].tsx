@@ -7,6 +7,7 @@ import { DualWheelDisplay, DualWheelSkeleton } from '../../../src/components/com
 import { SonicBulletsSection } from '../../../src/components/community/SonicBulletsSection';
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
+import { layout } from '../../../src/constants/layout';
 import { useConnectionDetail } from '../../../src/hooks/useConnectionDetail';
 import { useAuthStore } from '../../../src/store/auth';
 
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: layout.screenBottomPadding,
   },
   pinnedTop: {
     borderBottomWidth: StyleSheet.hairlineWidth,

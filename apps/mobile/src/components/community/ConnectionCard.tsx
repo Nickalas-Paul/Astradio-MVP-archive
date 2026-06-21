@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FOUNDER_USER_ID } from '../../constants/community-constants';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
 import type { InventoryPair } from '../../types/community';
 import { UserAvatar } from './UserAvatar';
 import { PeerBigThreeGlyphs } from './PeerBigThreeGlyphs';
@@ -93,12 +94,12 @@ export function ConnectionCard({ pair }: ConnectionCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    backgroundColor: layout.card.backgroundColor,
+    borderRadius: layout.card.borderRadius,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    padding: layout.card.padding,
+    marginBottom: layout.cardGap,
   },
   topRow: {
     flexDirection: 'row',

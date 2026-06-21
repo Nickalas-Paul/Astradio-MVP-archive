@@ -516,7 +516,7 @@ function ListenPageInner() {
   if (profileLoading || prefillLoading) {
     return (
       <AppShell>
-        <div className="max-w-3xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-6">
           <p className="text-text-secondary">Loading…</p>
         </div>
       </AppShell>
@@ -526,7 +526,7 @@ function ListenPageInner() {
   if (!user) {
     return (
       <AppShell>
-        <div className="max-w-3xl mx-auto p-6 space-y-4 text-center">
+        <div className="max-w-4xl mx-auto p-6 space-y-4 text-center">
           <h1 className="font-serif text-h1 font-bold text-text-primary">How Does Your Relationship Sound?</h1>
           <p className="text-text-secondary">Sign in to combine charts and hear your connection.</p>
           <Link href="/profile">
@@ -541,7 +541,7 @@ function ListenPageInner() {
 
   return (
     <AppShell>
-      <div className={`mx-auto p-6 space-y-8 ${displayReport ? 'max-w-6xl' : 'max-w-3xl'}`}>
+      <div className="max-w-4xl mx-auto p-6 space-y-8">
         <header className="text-center space-y-2">
           <h1 className="font-serif text-h1 font-bold text-text-primary">How Does Your Relationship Sound?</h1>
           <p className="text-lg text-text-secondary">
@@ -925,7 +925,7 @@ export default function ListenPage() {
     <Suspense
       fallback={
         <AppShell>
-          <div className="max-w-3xl mx-auto p-6">
+          <div className="max-w-4xl mx-auto p-6">
             <p className="text-text-secondary">Loading…</p>
           </div>
         </AppShell>

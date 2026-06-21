@@ -27,7 +27,7 @@ function TodayContent() {
 
   return (
     <PlacementHighlightProvider>
-      <div className="max-w-6xl mx-auto">
+      <div>
         <FtueTodayWelcomeBanner key="ftue-today-welcome" />
 
         {profileLoading ? (
@@ -108,7 +108,7 @@ function TodayContent() {
 export default function TodayPage() {
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

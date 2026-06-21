@@ -18,6 +18,7 @@ import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
 import { ProfileHeader } from '../../../src/components/my-sky/ProfileHeader';
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
+import { layout } from '../../../src/constants/layout';
 import { typography } from '../../../src/constants/typography';
 import { useMySkyData } from '../../../src/hooks/useMySkyData';
 import { useAuthStore } from '../../../src/store/auth';
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
-    paddingBottom: 40,
+    paddingBottom: layout.screenBottomPadding,
   },
   title: {
     ...typography.screenTitle,
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
   sectionDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    marginTop: 20,
+    marginTop: layout.sectionGap,
     marginBottom: 16,
   },
   sectionHeading: {

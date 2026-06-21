@@ -14,6 +14,7 @@ import { TodaySkyWheel } from '../../src/components/today/TodaySkyWheel';
 import { TodayTransitWheel } from '../../src/components/today/TodayTransitWheel';
 import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
 import { colors } from '../../src/constants/colors';
+import { layout } from '../../src/constants/layout';
 import { typography } from '../../src/constants/typography';
 import { planetColor } from '../../src/constants/planet-colors';
 import { useTodayData } from '../../src/hooks/useTodayData';
@@ -443,28 +444,28 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    backgroundColor: layout.card.backgroundColor,
+    borderRadius: layout.card.borderRadius,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    padding: layout.card.padding,
+    marginBottom: layout.cardGap,
   },
   transitCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    backgroundColor: layout.card.backgroundColor,
+    borderRadius: layout.card.borderRadius,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    padding: layout.card.padding,
+    marginBottom: layout.cardGap,
   },
   weatherCard: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderRadius: layout.card.borderRadius,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
     borderLeftWidth: 2,
-    padding: 16,
-    marginBottom: 10,
+    padding: layout.card.padding,
+    marginBottom: layout.cardGap,
   },
   transitTitle: {
     fontSize: 15,
@@ -570,7 +571,7 @@ const styles = StyleSheet.create({
   audioCtaBlock: {
     alignItems: 'center',
     marginTop: 4,
-    marginBottom: 10,
+    marginBottom: layout.cardGap,
   },
   audioButton: {
     minHeight: 48,

@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
 import { typography } from '../../constants/typography';
 import {
   SANDBOX_ENTRY_CARDS,
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
-    paddingBottom: 40,
+    paddingBottom: layout.screenBottomPadding,
   },
   hero: {
     alignItems: 'center',
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
   continueWrap: {
-    marginBottom: 20,
+    marginBottom: layout.sectionGap,
   },
   continueText: {
     color: colors.text.secondary,
@@ -157,18 +158,18 @@ const styles = StyleSheet.create({
   cardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: layout.cardGap,
     marginBottom: 28,
   },
   journeyCard: {
     width: '48%',
     flexGrow: 1,
     minHeight: 180,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: layout.card.backgroundColor,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    borderRadius: layout.card.borderRadius,
+    padding: layout.card.padding,
   },
   cardTitle: {
     color: colors.text.primary,
@@ -198,11 +199,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-SemiBold',
   },
   savedSection: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: layout.card.backgroundColor,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
     borderRadius: 16,
-    padding: 16,
+    padding: layout.card.padding,
   },
   savedHeader: {
     flexDirection: 'row',

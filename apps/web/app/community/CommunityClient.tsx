@@ -111,7 +111,7 @@ function GroupsList({
 
   if (!userId) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-8">
         <Card elevation="raised" padding="px-4 py-3" className="text-sm text-text-secondary">
           {GROUPS_INTRO}
         </Card>
@@ -121,7 +121,7 @@ function GroupsList({
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-8">
       <Card elevation="raised" padding="px-4 py-3" className="text-sm text-text-secondary">
         {GROUPS_INTRO}
       </Card>
@@ -354,7 +354,7 @@ function CommunityClientInner() {
           className="w-full"
         >
           {activeTab === 'discovery' && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8">
               <div>
                 <h2 className="text-xl font-semibold text-text-primary mb-2">Discovery</h2>
                 <p className="text-text-secondary text-sm mb-6">
@@ -393,11 +393,11 @@ function CommunityClientInner() {
           )}
 
           {activeTab === 'connections' && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8">
               {showConnectionsUnifiedEmpty ? (
                 <ConnectionsUnifiedEmpty onSwitchToDiscovery={() => setTab('discovery')} />
               ) : null}
-              <div className={showConnectionsUnifiedEmpty ? 'hidden' : 'space-y-6'} aria-hidden={showConnectionsUnifiedEmpty}>
+              <div className={showConnectionsUnifiedEmpty ? 'hidden' : 'space-y-8'} aria-hidden={showConnectionsUnifiedEmpty}>
                 <ConnectionInventoryPanel
                   currentUserId={user?.id ?? null}
                   viewerChartId={seekerChartId}
@@ -434,7 +434,7 @@ function CommunityClientInner() {
           )}
 
           {activeTab === 'feed' && (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8">
               <CommunityNotificationsPanel />
               <CommunityFeed />
             </div>

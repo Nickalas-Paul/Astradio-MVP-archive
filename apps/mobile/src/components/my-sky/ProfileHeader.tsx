@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { API_BASE } from '../../lib/api';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
 import type { ProfileUser } from '../../types/my-sky';
 
 type ProfileHeaderProps = {
@@ -41,8 +42,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: layout.cardGap,
+    marginBottom: layout.sectionGap,
   },
   avatarImage: {
     width: 48,

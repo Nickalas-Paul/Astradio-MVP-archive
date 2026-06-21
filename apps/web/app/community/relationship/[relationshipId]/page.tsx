@@ -12,6 +12,7 @@ import { fetchListenSlotSnapshot } from '@/lib/listen-chart-snapshot';
 import { useAudioPlayerStore } from '@/store';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { Button } from '@/components/shared/Button';
+import { Card } from '@/components/shared/Card';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
 import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflowMenu';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
@@ -498,7 +499,7 @@ export default function CommunityRelationshipArtifactPage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="max-w-6xl mx-auto space-y-8">
         <Link href="/community" className="text-text-secondary hover:text-text-primary text-sm">
           ← Back to Community
         </Link>
@@ -550,9 +551,9 @@ export default function CommunityRelationshipArtifactPage() {
               </div>
             ) : null}
 
-            <div className="min-w-0 space-y-6">
+            <div className="min-w-0 space-y-8">
                 {comparison && hasReadingSurface && (
-                  <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
+                  <Card as="section" elevation="resting" size="sm" className="space-y-4">
                     <h2 className="text-lg font-medium text-text-primary">Reading</h2>
                     {readingSections.length > 0 ? (
                       <div className="space-y-4">
@@ -580,7 +581,7 @@ export default function CommunityRelationshipArtifactPage() {
                         ) : null}
                       </div>
                     )}
-                  </section>
+                  </Card>
                 )}
 
                 {signalHistory && user?.id && peer?.userId ? (
@@ -593,18 +594,18 @@ export default function CommunityRelationshipArtifactPage() {
                 ) : null}
 
                 {musicalBullets.length > 0 ? (
-                  <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
+                  <Card as="section" elevation="resting" size="sm" className="space-y-4">
                     <h2 className="reading-section-header">How This Connection Sounds</h2>
                     <div className="space-y-4">
                       {musicalBullets.map((bullet, i) => (
                         <ConnectionReadingMarkdown key={i} content={String(bullet)} />
                       ))}
                     </div>
-                  </section>
+                  </Card>
                 ) : null}
 
                 {showConnectionAudio && (
-                  <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
+                  <Card as="section" elevation="resting" size="sm" className="space-y-4">
                     <h2 className="reading-section-header">Hear this connection</h2>
                     {sonicText ? (
                       <div className="text-body-sm text-text-secondary leading-relaxed">
@@ -673,7 +674,7 @@ export default function CommunityRelationshipArtifactPage() {
                         Hear this connection
                       </Button>
                     )}
-                  </section>
+                  </Card>
                 )}
 
                 {comparison && !hasReadingSurface && !materializeError && (

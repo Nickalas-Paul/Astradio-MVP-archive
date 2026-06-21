@@ -12,8 +12,8 @@ export const layout = {
   },
 
   // Standard section spacing
-  sectionGap: 20,
-  cardGap: 10,
+  sectionGap: 24,
+  cardGap: 12,
   internalGap: 8,
 
   // Screen bottom padding

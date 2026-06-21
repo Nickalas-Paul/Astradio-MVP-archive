@@ -8,6 +8,24 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /**
+       * SPACING RHYTHM SYSTEM
+       * Page sections:     space-y-8  (32px) — between major zones on a page
+       * Card groups:       space-y-6  (24px) — between cards/panels within a section
+       * In-card content:   space-y-4  (16px) — between elements within a card
+       * Dense lists:       space-y-3  (12px) — between compact rows (library, inventory)
+       * Inline elements:   space-y-2  (8px)  — between tightly coupled elements
+       *
+       * CARD PADDING TIERS (via <Card> component)
+       * sm:  p-4  (16px) — default, list items, compact panels
+       * md:  p-5  (20px) — standard content cards, entry cards
+       * lg:  p-6  (24px) — hero cards, expanded states, empty states
+       *
+       * PAGE MAX-WIDTH TIERS
+       * Reading surfaces (My Sky, Connection detail, Listen): max-w-4xl (896px)
+       * Multi-column surfaces (Today, Sandbox workbench):     max-w-6xl (1152px)
+       * Marketing/hero (Home, Community hero):                max-w-7xl (1280px)
+       */
       colors: {
         bg: '#0C1320',
         surface: '#0F172A',

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { MarkdownText } from '../shared/MarkdownText';
 import { PlanetText } from '../shared/PlanetText';
 import { colors } from '../../constants/colors';
+import { layout } from '../../constants/layout';
 import { typography } from '../../constants/typography';
 import type { ProfileChartSection } from '../../types/my-sky';
 
@@ -46,14 +47,14 @@ export function IdentityReading({ sections }: IdentityReadingProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: layout.sectionGap,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
+    backgroundColor: layout.card.backgroundColor,
+    borderRadius: layout.card.borderRadius,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    padding: layout.card.padding,
   },
   sectionHeaderSpacing: {
     marginBottom: 8,

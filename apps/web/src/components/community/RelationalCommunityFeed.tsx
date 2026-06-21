@@ -892,7 +892,7 @@ export function RelationalCommunityFeed({
 
                                 <div className="border-t border-border" aria-hidden />
 
-                                <section className="rounded-lg border border-border bg-surface-0 p-4 space-y-4">
+                                <section className="space-y-4 border-t border-border pt-4">
                                   <h2 className="reading-section-header">Hear today&apos;s forecast</h2>
                                   {sonicForecast ? (
                                     <div className="text-body-sm text-text-secondary leading-relaxed">

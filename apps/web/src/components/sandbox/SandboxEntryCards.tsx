@@ -87,7 +87,7 @@ export interface SandboxEntryCardsProps {
 export function SandboxEntryCards({ onSelect, onContinue, hasExistingComposition }: SandboxEntryCardsProps) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
         {ENTRY_CARDS.map((card) => (
           <Card
             key={card.id}

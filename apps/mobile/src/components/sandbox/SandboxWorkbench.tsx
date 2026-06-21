@@ -290,11 +290,11 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: 12,
     fontFamily: 'Manrope-Regular',
-    marginBottom: 10,
+    marginBottom: layout.cardGap,
   },
   wheelSection: {
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: layout.sectionGap,
     alignItems: 'center',
   },
   sectionTitle: {
@@ -328,16 +328,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   entryChooser: {
-    marginBottom: 20,
+    marginBottom: layout.sectionGap,
   },
   entryOptions: {
-    gap: 10,
+    gap: layout.cardGap,
   },
   entryOption: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
+    backgroundColor: layout.card.backgroundColor,
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    borderRadius: layout.card.borderRadius,
     padding: 14,
     minHeight: 72,
   },

@@ -684,7 +684,7 @@ export default function HomePage() {
   return (
     <AppShell showPlayer={false} contentClassName="">
       {/* Hero + primary CTA */}
-      <section className="text-center py-12 md:py-16 space-y-6 max-w-3xl mx-auto px-4">
+      <section className="text-center py-12 md:py-16 space-y-6 max-w-7xl mx-auto px-4">
         <h1 className="text-h1 sm:text-display md:text-display-lg font-serif text-text-primary">
           Astrology you can hear.
         </h1>
@@ -731,7 +731,7 @@ export default function HomePage() {
 
       {/* Sky report + wheel */}
       <PlacementHighlightProvider>
-        <section className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+        <section className="max-w-7xl mx-auto px-4 py-8 md:py-10">
           <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
             <Card elevation="resting" padding="p-6">
               <h2 className="reading-section-header mb-4">Right now in the sky</h2>

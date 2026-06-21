@@ -279,7 +279,13 @@ export function ConnectionInventoryPanel({
                   return (
                   <li
                     key={String(intent.id)}
-                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5"
+                    className="list-none"
+                  >
+                  <Card
+                    as="div"
+                    elevation="flat"
+                    size="sm"
+                    className="flex flex-wrap items-center justify-between gap-2 border-amber-500/30 bg-amber-500/5"
                   >
                     <span className="text-sm text-text-primary">
                       {fromDisplayName ?? 'Unknown user'}
@@ -307,6 +313,7 @@ export function ConnectionInventoryPanel({
                         {declining === intent.id ? '…' : 'Decline'}
                       </button>
                     </div>
+                  </Card>
                   </li>
                   );
                 })}
@@ -323,7 +330,7 @@ export function ConnectionInventoryPanel({
                     as="li"
                     key={String(inv.id)}
                     elevation="raised"
-                    padding="p-3"
+                    size="sm"
                     className="flex flex-wrap items-center justify-between gap-2"
                   >
                     <span className="text-sm text-text-primary">
@@ -368,7 +375,7 @@ export function ConnectionInventoryPanel({
                     as="li"
                     key={String(intent.id)}
                     elevation="raised"
-                    padding="p-3"
+                    size="sm"
                     className="flex flex-wrap items-center justify-between gap-2"
                   >
                     <span className="text-sm text-text-primary">
@@ -406,7 +413,7 @@ export function ConnectionInventoryPanel({
                     key={String(p.id)}
                     elevation="raised"
                     interactive
-                    className="space-y-2"
+                    className="space-y-3"
                   >
                     <div className="flex items-start gap-3">
                       <PeerAvatar
@@ -521,7 +528,7 @@ export function ConnectionInventoryPanel({
             {(data as CommunityInventoryV1).relationalGroups?.length === 0 ? (
               <p className="text-sm text-text-secondary">None yet. Use Discovery to create a group from selected people.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {(data as CommunityInventoryV1).relationalGroups.map((g: Record<string, unknown>) => {
                   const gSlug = (g.slug as string | undefined) || (g.id as string);
                   return (
@@ -530,7 +537,7 @@ export function ConnectionInventoryPanel({
                       key={String(g.id)}
                       elevation="raised"
                       interactive
-                      className="text-sm text-text-primary space-y-2"
+                      className="text-sm text-text-primary space-y-3"
                     >
                       <div>{String(g.name)}</div>
                       <p className="text-xs text-text-secondary">
@@ -557,13 +564,13 @@ export function ConnectionInventoryPanel({
             {(data as CommunityInventoryV1).campaigns?.length === 0 ? (
               <p className="text-sm text-text-secondary">No campaigns linked to you yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {(data as CommunityInventoryV1).campaigns.map((c: Record<string, unknown>) => (
                   <Card
                     as="li"
                     key={String(c.campaignId)}
                     elevation="raised"
-                    padding="p-3"
+                    size="sm"
                     className="text-sm text-text-primary"
                   >
                     {typeof c.title === 'string' && c.title.trim()
