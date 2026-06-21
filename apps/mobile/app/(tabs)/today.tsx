@@ -26,6 +26,7 @@ import {
 import { useAudioStore } from '../../src/store/audio';
 import { useAuthStore } from '../../src/store/auth';
 import { MarkdownText } from '../../src/components/shared/MarkdownText';
+import { UserAvatar } from '../../src/components/community/UserAvatar';
 import { FtueBanner } from '../../src/components/ftue/FtueBanner';
 import { FTUE_KEYS } from '../../src/lib/ftue-storage';
 import { PlanetText } from '../../src/components/shared/PlanetText';
@@ -127,9 +128,18 @@ function RelationalWeatherCard({ weather }: { weather: TodayRelationalWeatherCar
       ]}
     >
       <View style={styles.weatherHeader}>
-        <Text style={[styles.transitTitle, styles.weatherConnectionName]}>
-          {weather.connectionName}
-        </Text>
+        <View style={styles.weatherTitleRow}>
+          {weather.peerUserId ? (
+            <UserAvatar
+              userId={weather.peerUserId}
+              displayName={weather.peerDisplayName ?? weather.connectionName}
+              size={30}
+            />
+          ) : null}
+          <Text style={[styles.transitTitle, styles.weatherConnectionName, styles.weatherTitleText]}>
+            {weather.connectionName}
+          </Text>
+        </View>
         <Text style={[styles.heatLabel, { color: heat.label }]}>
           {activationHeatLabel(weather.heatLevel)}
         </Text>
@@ -472,6 +482,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
     marginBottom: 4,
+  },
+  weatherTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  weatherTitleText: {
+    flex: 1,
+    minWidth: 0,
   },
   heatLabel: {
     fontSize: 11,

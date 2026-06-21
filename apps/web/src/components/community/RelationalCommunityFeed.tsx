@@ -6,6 +6,7 @@ import { useRelationalCommunityFeed, type ProfilePrimaryChart, type RelationalCo
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
 import { WeatherAspectGlyphPair } from '@/components/community/WeatherAspectGlyphPair';
+import { PeerAvatar } from '@/components/community/PeerAvatar';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { useAudioPlayerStore } from '@/store';
@@ -62,6 +63,14 @@ function pairRelationshipHeading(partnerLabel: string): string {
   if (!t) return 'Your relationship';
   if (/^Your relationship with /i.test(t)) return t;
   return `Your relationship with ${t}`;
+}
+
+function peerDisplayNameFromHeading(partnerName: string, identityLine?: string): string {
+  const stripped = partnerName.replace(/^Your relationship with /i, '').trim();
+  if (stripped && stripped !== partnerName) return stripped;
+  const fromIdentity = identityLine?.trim();
+  if (fromIdentity) return fromIdentity;
+  return partnerName.trim() || 'Connection';
 }
 
 function activationHeatColor(activation: number, high: number, mild: number): string {
@@ -750,6 +759,12 @@ export function RelationalCommunityFeed({
                 ? item.connection_identity_line.trim()
                 : identity);
             const canExpand = item.connection_kind !== 'campaign_group';
+            const peerUserId =
+              !isGroup && userId ? feedSignalRecipientUserId(item, userId) : null;
+            const peerDisplayName = peerDisplayNameFromHeading(
+              partnerName,
+              typeof item.connection_identity_line === 'string' ? item.connection_identity_line : undefined
+            );
 
             return (
               <li key={item.feed_item_id}>
@@ -766,7 +781,15 @@ export function RelationalCommunityFeed({
                   {isExpanded ? (
                     <div key="expanded" className="animate-fade-in space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          {!isGroup && peerUserId ? (
+                            <PeerAvatar
+                              peerUserId={peerUserId}
+                              displayName={peerDisplayName}
+                              size={30}
+                            />
+                          ) : null}
+                          <div className="space-y-1 min-w-0 flex-1">
                           {isGroup ? (
                             <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
                               Group
@@ -776,6 +799,7 @@ export function RelationalCommunityFeed({
                             {isGroup ? partnerName : pairRelationshipHeading(partnerName)}
                           </h3>
                           <p className="text-body-sm text-text-secondary">Today&apos;s transit weather report</p>
+                          </div>
                         </div>
                         <Button
                           type="button"
@@ -974,7 +998,15 @@ export function RelationalCommunityFeed({
                   ) : (
                     <div key="collapsed" className="animate-fade-in space-y-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          {!isGroup && peerUserId ? (
+                            <PeerAvatar
+                              peerUserId={peerUserId}
+                              displayName={peerDisplayName}
+                              size={30}
+                            />
+                          ) : null}
+                          <div className="space-y-1 min-w-0 flex-1">
                           {isGroup ? (
                             <p className="text-caption font-medium uppercase tracking-wide text-text-secondary">
                               Group
@@ -997,6 +1029,7 @@ export function RelationalCommunityFeed({
                           <p className="text-caption text-text-muted">
                             Today&apos;s transits shaping your connection
                           </p>
+                          </div>
                         </div>
                       </div>
 

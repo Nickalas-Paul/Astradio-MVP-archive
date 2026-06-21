@@ -159,7 +159,7 @@ export function WheelSvgCore({
 
   const zodiacBand = R_ZODIAC - R_OUT;
   const zodiacGlyphSize = Math.max(8, zodiacBand * 0.55);
-  const angleGlyphSize = size >= 320 ? 18 : 14;
+  const angleGlyphSize = size >= 400 ? 24 : 18;
 
   const showSignGlyphs = isTechnical && size >= 200;
 

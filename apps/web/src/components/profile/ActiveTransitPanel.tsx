@@ -89,18 +89,9 @@ export function ActiveTransitPanel({
   const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
-  const [transitWheelMaxSize, setTransitWheelMaxSize] = useState(320);
   const fetchInFlightRef = useRef(false);
 
-  useEffect(() => {
-    const update = () => {
-      const vhCap = Math.floor(window.innerHeight * 0.4) - 32;
-      setTransitWheelMaxSize(Math.min(320, Math.max(200, vhCap)));
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
+  const TRANSIT_WHEEL_MAX_SIZE = 480;
 
   const activeWheelSlots = useMemo(() => {
     const id = activeResult?.identity as
@@ -622,15 +613,18 @@ export function ActiveTransitPanel({
           {librarySaveError ? <p className="text-sm text-danger">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
 
-          {activeWheelSlots ? (
-            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[40vh] overflow-hidden">
-              <div className="max-w-md mx-auto w-full">{renderWheelColumn(transitWheelMaxSize)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-start">
+            <div className="min-w-0 space-y-4">
+              {activeResult?.explanation ? (
+                <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
+              ) : null}
             </div>
-          ) : null}
-
-          {activeResult?.explanation ? (
-            <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
-          ) : null}
+            {activeWheelSlots ? (
+              <div className="min-w-0 md:sticky md:top-20">
+                {renderWheelColumn(TRANSIT_WHEEL_MAX_SIZE)}
+              </div>
+            ) : null}
+          </div>
         </>
       )}
     </div>

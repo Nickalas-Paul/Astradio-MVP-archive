@@ -13,41 +13,7 @@ import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflo
 import { PeerBigThreeGlyphs } from '@/components/community/PeerBigThreeGlyphs';
 import type { PeerBigThreeSigns } from '@/lib/sign-glyph-utils';
 
-/** Peer avatar — same visual pattern as ConversationList PeerAvatar; loads by userId when inventory has no avatarUrl. */
-function ConnectionPeerAvatar({
-  peerUserId,
-  displayName,
-}: {
-  peerUserId: string | null | undefined;
-  displayName: string;
-}) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const initial = (displayName || 'Connection').charAt(0).toUpperCase();
-  const userId = typeof peerUserId === 'string' ? peerUserId.trim() : '';
-  const avatarSrc =
-    userId && !imgFailed ? `${getApiBaseUrl() || ''}/api/profile/avatar/${encodeURIComponent(userId)}` : null;
-
-  if (avatarSrc) {
-    return (
-      <img
-        src={avatarSrc}
-        alt=""
-        className="h-10 w-10 rounded-full object-cover bg-surface-2 shrink-0"
-        onError={() => setImgFailed(true)}
-      />
-    );
-  }
-
-  return (
-    <div
-      className="h-10 w-10 rounded-full bg-accent/20 text-accent flex items-center justify-center text-sm font-semibold shrink-0"
-      aria-hidden
-    >
-      {initial}
-    </div>
-  );
-}
-
+import { PeerAvatar } from '@/components/community/PeerAvatar';
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
   if (status === 'audio_available') return 'Reading available · sound record on file';
@@ -443,7 +409,7 @@ export function ConnectionInventoryPanel({
                     className="space-y-2"
                   >
                     <div className="flex items-start gap-3">
-                      <ConnectionPeerAvatar
+                      <PeerAvatar
                         peerUserId={typeof p.peerUserId === 'string' ? p.peerUserId : null}
                         displayName={peerDisplayName}
                       />

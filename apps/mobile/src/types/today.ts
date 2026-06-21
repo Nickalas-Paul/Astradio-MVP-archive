@@ -91,6 +91,7 @@ export type RelationalFeedItem = {
   feed_item_id: string;
   connection_kind: string;
   connection_identity_line?: string;
+  participant_user_ids?: string[];
   collapsed_display?: {
     primary_line?: string;
     enhanced_title?: string;
@@ -127,6 +128,8 @@ export type TodayRelationalWeatherLine = {
 export type TodayRelationalWeatherCard = {
   id: string;
   connectionName: string;
+  peerUserId?: string | null;
+  peerDisplayName?: string;
   activationEffective: number;
   heatLevel: 'high' | 'active' | 'mild';
   microTag?: string;

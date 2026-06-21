@@ -143,5 +143,6 @@ export async function fetchTodayScreenData(userId: string): Promise<TodayScreenD
       time,
       location,
     },
+    viewerUserId: userId,
   });
 }

@@ -21,7 +21,6 @@ type NatalWheelProps = {
 const NATAL_PLANET_GLYPH_SIZE = 14;
 const TRANSIT_PLANET_GLYPH_SIZE = 12;
 const SIGN_GLYPH_SIZE = 14;
-const ANGLE_GLYPH_SIZE = 14;
 
 const ANGLE_GLYPH_BY_HOUSE_INDEX: Record<number, 'ascendant' | 'midheaven'> = {
   0: 'ascendant',
@@ -79,6 +78,8 @@ export function NatalWheel({
   ascendantLongitude,
   transitPlacements,
 }: NatalWheelProps) {
+  const angleGlyphSize = size >= 400 ? 24 : 18;
+
   const geometry = useMemo(() => {
     const cx = size / 2;
     const { R_ZODIAC, R_OUT, R_IN, planetRadius } = wheelRadii(size);
@@ -371,7 +372,7 @@ export function NatalWheel({
                   angleGlyph,
                   anglePoint.x,
                   anglePoint.y,
-                  ANGLE_GLYPH_SIZE,
+                  angleGlyphSize,
                   ANGLE_GLYPH_COLOR[angleGlyphKey]
                 )}
               </G>

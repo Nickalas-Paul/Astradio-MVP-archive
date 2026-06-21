@@ -145,7 +145,10 @@ function activationDescription(line: RelationalFeedActivationLine): string {
   return line.text.trim();
 }
 
-export function mapRelationalWeather(payload: RelationalFeedResponse | null): TodayRelationalWeatherCard[] {
+export function mapRelationalWeather(
+  payload: RelationalFeedResponse | null,
+  viewerUserId: string | null
+): TodayRelationalWeatherCard[] {
   if (!payload?.items?.length) return [];
 
   const scores = payload.items.map(
@@ -154,14 +157,31 @@ export function mapRelationalWeather(payload: RelationalFeedResponse | null): To
   const { highThreshold, mildThreshold } = computeActivationThresholds(scores);
 
   return payload.items
-    .map((item) => mapRelationalFeedItem(item, highThreshold, mildThreshold))
+    .map((item) => mapRelationalFeedItem(item, highThreshold, mildThreshold, viewerUserId))
     .filter((item): item is TodayRelationalWeatherCard => item !== null);
+}
+
+function peerUserIdFromFeedItem(item: RelationalFeedItem, viewerUserId: string | null): string | null {
+  if (!viewerUserId || item.connection_kind !== 'pair') return null;
+  const ids = item.participant_user_ids;
+  if (!ids?.length) return null;
+  const other = ids.find((id) => id !== viewerUserId);
+  return other ?? null;
+}
+
+function peerDisplayNameFromHeading(connectionName: string, identityLine?: string): string {
+  const stripped = connectionName.replace(/^Your relationship with /i, '').trim();
+  if (stripped && stripped !== connectionName) return stripped;
+  const fromIdentity = identityLine?.trim();
+  if (fromIdentity) return fromIdentity;
+  return connectionName.trim() || 'Connection';
 }
 
 function mapRelationalFeedItem(
   item: RelationalFeedItem,
   highThreshold: number,
-  mildThreshold: number
+  mildThreshold: number,
+  viewerUserId: string | null
 ): TodayRelationalWeatherCard | null {
   const display = item.collapsed_display;
   const lines = display?.activation_lines ?? [];
@@ -194,9 +214,16 @@ function mapRelationalFeedItem(
 
   if (!mappedLines.length) return null;
 
+  const peerUserId = peerUserIdFromFeedItem(item, viewerUserId);
+  const peerDisplayName = peerDisplayNameFromHeading(
+    connectionName,
+    item.connection_identity_line
+  );
+
   return {
     id: item.feed_item_id,
     connectionName,
+    ...(peerUserId ? { peerUserId, peerDisplayName } : {}),
     activationEffective,
     heatLevel,
     microTag: display?.micro_tag?.trim() || undefined,
@@ -299,13 +326,14 @@ export function buildTodayScreenData(input: {
   relationalFeed: RelationalFeedResponse | null;
   skySnapshot: EphemerisSnapshot | null;
   composeContext: TodayComposeContext | null;
+  viewerUserId?: string | null;
 }): TodayScreenData {
   const { exportId, available } = resolveAudioExportId(input.activeState, input.skyCompose);
   const { natal, transit } = parseIdentitySnapshots(input.activeState);
   return {
     skySummary: input.skyCompose ? extractSkySummary(input.skyCompose) : '',
     transits: input.activeState ? mapActiveTransits(input.activeState) : [],
-    relationalWeather: mapRelationalWeather(input.relationalFeed),
+    relationalWeather: mapRelationalWeather(input.relationalFeed, input.viewerUserId ?? null),
     audioExportId: exportId,
     audioAvailable: available,
     composeContext: input.composeContext,

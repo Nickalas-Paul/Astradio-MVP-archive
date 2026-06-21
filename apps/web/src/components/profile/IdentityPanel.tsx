@@ -318,13 +318,6 @@ export function IdentityPanel({
     </>
   );
 
-  const wheelAndAudio = (maxSize: number) => (
-    <div className="space-y-4">
-      {renderWheel(maxSize)}
-      {renderAudio()}
-    </div>
-  );
-
   return (
     <PlacementHighlightProvider>
       <div className="space-y-8">
@@ -337,7 +330,11 @@ export function IdentityPanel({
           />
         ) : (
           <>
-            <div className="w-full max-w-[480px] mx-auto">{wheelAndAudio(480)}</div>
+            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[40vh] overflow-hidden">
+              <div className="max-w-[480px] mx-auto">{renderWheel(480)}</div>
+            </div>
+
+            <div className="max-w-[480px] mx-auto space-y-4">{renderAudio()}</div>
 
             <div className="min-w-0 w-full">
               {loading && !chartData && (
