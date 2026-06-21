@@ -179,8 +179,8 @@ export function WheelSvgCore({
   );
 
   const planetRadii = useMemo(
-    () => clusterPlanetRadii(planetClusterInput, planetRadius, size),
-    [planetClusterInput, planetRadius, size]
+    () => clusterPlanetRadii(planetClusterInput, planetRadius, size, R_IN + 5, R_OUT - 5),
+    [planetClusterInput, planetRadius, size, R_IN, R_OUT]
   );
 
   return (

@@ -94,7 +94,7 @@ export function ActiveTransitPanel({
 
   useEffect(() => {
     const update = () => {
-      const vhCap = Math.floor(window.innerHeight * 0.45) - 32;
+      const vhCap = Math.floor(window.innerHeight * 0.4) - 32;
       setTransitWheelMaxSize(Math.min(320, Math.max(200, vhCap)));
     };
     update();
@@ -623,7 +623,7 @@ export function ActiveTransitPanel({
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
 
           {activeWheelSlots ? (
-            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[45vh] overflow-hidden">
+            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[40vh] overflow-hidden">
               <div className="max-w-md mx-auto w-full">{renderWheelColumn(transitWheelMaxSize)}</div>
             </div>
           ) : null}

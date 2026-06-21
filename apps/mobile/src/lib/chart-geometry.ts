@@ -73,29 +73,72 @@ export function wheelRadii(size: number) {
   };
 }
 
-const CLUSTER_THRESHOLD_DEG = 8;
+const CLUSTER_THRESHOLD_DEG = 12;
+
+function radialShiftForClusterIndex(clusterIndex: number, offset: number, clusterSize: number): number {
+  if (clusterIndex === 0) return 0;
+  if (clusterSize >= 3) {
+    const pattern = [offset, -offset, offset * 1.8, -offset * 1.8];
+    const idx = clusterIndex - 1;
+    if (idx < pattern.length) return pattern[idx]!;
+    return idx % 2 === 0 ? offset * 1.8 : -offset * 1.8;
+  }
+  return clusterIndex % 2 === 1 ? -offset : offset;
+}
+
+function clampRadius(radius: number, minRadius?: number, maxRadius?: number): number {
+  let r = radius;
+  if (minRadius != null) r = Math.max(minRadius, r);
+  if (maxRadius != null) r = Math.min(maxRadius, r);
+  return r;
+}
 
 export function clusterPlanetRadii(
   planets: Array<{ key: string; lon: number }>,
   baseRadius: number,
-  size: number
+  size: number,
+  minRadius?: number,
+  maxRadius?: number
 ): Map<string, number> {
   const sorted = [...planets].sort((a, b) => a.lon - b.lon);
   const radii = new Map<string, number>();
-  const offset = size * 0.025;
-  let clusterIndex = 0;
-  let prevLon: number | null = null;
+  const offset = size * 0.035;
 
-  for (const planet of sorted) {
-    if (prevLon == null || angularSeparationDeg(planet.lon, prevLon) >= CLUSTER_THRESHOLD_DEG) {
-      clusterIndex = 0;
+  if (sorted.length === 0) return radii;
+
+  type ClusterMember = { key: string; lon: number };
+  const clusters: ClusterMember[][] = [];
+  let current: ClusterMember[] = [sorted[0]!];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const planet = sorted[i]!;
+    const prev = current[current.length - 1]!;
+    if (angularSeparationDeg(planet.lon, prev.lon) < CLUSTER_THRESHOLD_DEG) {
+      current.push(planet);
     } else {
-      clusterIndex += 1;
+      clusters.push(current);
+      current = [planet];
     }
+  }
+  clusters.push(current);
 
-    const radialShift = clusterIndex === 0 ? 0 : clusterIndex % 2 === 1 ? -offset : offset;
-    radii.set(planet.key, baseRadius + radialShift);
-    prevLon = planet.lon;
+  if (clusters.length >= 2) {
+    const firstCluster = clusters[0]!;
+    const lastCluster = clusters[clusters.length - 1]!;
+    const firstPlanet = firstCluster[0]!;
+    const lastPlanet = lastCluster[lastCluster.length - 1]!;
+    if (angularSeparationDeg(firstPlanet.lon, lastPlanet.lon) < CLUSTER_THRESHOLD_DEG) {
+      clusters[0] = [...lastCluster, ...firstCluster];
+      clusters.pop();
+    }
+  }
+
+  for (const cluster of clusters) {
+    const clusterSize = cluster.length;
+    cluster.forEach((planet, clusterIndex) => {
+      const shift = radialShiftForClusterIndex(clusterIndex, offset, clusterSize);
+      radii.set(planet.key, clampRadius(baseRadius + shift, minRadius, maxRadius));
+    });
   }
 
   return radii;

@@ -5,6 +5,7 @@ import { getApiBaseUrl } from '../../core/api-base';
 import { useRelationalCommunityFeed, type ProfilePrimaryChart, type RelationalCommunityFeedItem } from '../../core/social/hooks';
 import { finalizeRelationalReadingSurfaces } from '../../lib/relational-reading-enforcement';
 import { IdentityMarkdown } from '@/components/shared/IdentityMarkdown';
+import { WeatherAspectGlyphPair } from '@/components/community/WeatherAspectGlyphPair';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { useAudioPlayerStore } from '@/store';
@@ -841,9 +842,12 @@ export function RelationalCommunityFeed({
                                             key={`${item.feed_item_id}-spot-${idx}`}
                                             className="space-y-2"
                                           >
-                                            <p className="text-caption font-medium uppercase tracking-wide text-accent">
-                                              {getRoleLabel(line.role)}
-                                            </p>
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                              <p className="text-caption font-medium uppercase tracking-wide text-accent">
+                                                {getRoleLabel(line.role)}
+                                              </p>
+                                              <WeatherAspectGlyphPair prefix={activationLinePrefix(line)} />
+                                            </div>
                                             {activationLinePrefix(line) ? (
                                               <p className="text-body-sm text-text-secondary">
                                                 {activationLinePrefix(line)}
@@ -1000,9 +1004,12 @@ export function RelationalCommunityFeed({
                         <ul className="list-none space-y-3 pl-0">
                           {betaLines.map((line, idx) => (
                             <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
-                              <p className="text-caption font-medium uppercase tracking-wide text-accent">
-                                {getRoleLabel(line.role)}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <p className="text-caption font-medium uppercase tracking-wide text-accent">
+                                  {getRoleLabel(line.role)}
+                                </p>
+                                <WeatherAspectGlyphPair prefix={activationLinePrefix(line)} />
+                              </div>
                               <div className="text-body-sm text-text-secondary leading-relaxed min-w-0 break-words">
                                 <IdentityMarkdown content={line.text} />
                               </div>

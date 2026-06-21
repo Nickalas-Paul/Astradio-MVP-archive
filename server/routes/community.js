@@ -415,6 +415,59 @@ function buildCommunityRelationalWeatherObjectIdentityHash(input) {
   return crypto.createHash('sha256').update(canonicalJson(input), 'utf8').digest('hex');
 }
 
+const ZODIAC_SIGN_NAMES = [
+  'aries',
+  'taurus',
+  'gemini',
+  'cancer',
+  'leo',
+  'virgo',
+  'libra',
+  'scorpio',
+  'sagittarius',
+  'capricorn',
+  'aquarius',
+  'pisces',
+];
+
+function lonToSignName(lon) {
+  if (typeof lon !== 'number' || !Number.isFinite(lon)) return undefined;
+  let x = lon % 360;
+  if (x < 0) x += 360;
+  return ZODIAC_SIGN_NAMES[Math.floor(x / 30) % 12];
+}
+
+function parseSnapshotJson(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function bigThreeFromSnapshot(raw) {
+  const snap = parseSnapshotJson(raw);
+  if (!snap || !Array.isArray(snap.planets)) return null;
+  const sun = snap.planets.find((p) => String(p?.name || '').toLowerCase() === 'sun');
+  const moon = snap.planets.find((p) => String(p?.name || '').toLowerCase() === 'moon');
+  if (!sun || !moon) return null;
+  const sunSign = lonToSignName(sun.lon);
+  const moonSign = lonToSignName(moon.lon);
+  if (!sunSign || !moonSign) return null;
+  const risingSign =
+    Array.isArray(snap.houses) && snap.houses.length >= 1 ? lonToSignName(snap.houses[0]) : undefined;
+  return {
+    sun: sunSign,
+    moon: moonSign,
+    ...(risingSign ? { rising: risingSign } : {}),
+  };
+}
+
 async function enrichRelationshipForViewer(rel, viewerUserId, exportByComparisonId) {
   const cLo = await pgStore.getChart(rel.chartIdLow);
   const cHi = await pgStore.getChart(rel.chartIdHigh);
@@ -443,6 +496,11 @@ async function enrichRelationshipForViewer(rel, viewerUserId, exportByComparison
   if (rel.comparisonId) {
     artifactStatus = exportJobId ? 'audio_available' : 'text_available';
   }
+  let peerBigThree = null;
+  if (peerChartId && pgStore.getChartWithSnapshot) {
+    const peerRow = await pgStore.getChartWithSnapshot(peerChartId);
+    peerBigThree = bigThreeFromSnapshot(peerRow?.snapshot_json);
+  }
   return {
     ...rel,
     peerUserId,
@@ -451,6 +509,7 @@ async function enrichRelationshipForViewer(rel, viewerUserId, exportByComparison
     peerHandle,
     exportJobId,
     artifactStatus,
+    ...(peerBigThree ? { peerBigThree } : {}),
   };
 }
 

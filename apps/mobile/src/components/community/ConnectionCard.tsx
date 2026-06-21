@@ -4,6 +4,7 @@ import { FOUNDER_USER_ID } from '../../constants/community-constants';
 import { colors } from '../../constants/colors';
 import type { InventoryPair } from '../../types/community';
 import { UserAvatar } from './UserAvatar';
+import { PeerBigThreeGlyphs } from './PeerBigThreeGlyphs';
 
 type ConnectionCardProps = {
   pair: InventoryPair;
@@ -53,6 +54,7 @@ export function ConnectionCard({ pair }: ConnectionCardProps) {
               {displayName}
               {handle ? <Text style={styles.handle}> @{handle}</Text> : null}
             </Text>
+            <PeerBigThreeGlyphs bigThree={pair.peerBigThree} />
             {pair.label ? (
               <View style={styles.labelBadge}>
                 <Text style={styles.labelBadgeText}>{formatLabel(pair.label)}</Text>

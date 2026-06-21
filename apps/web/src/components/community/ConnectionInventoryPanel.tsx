@@ -10,6 +10,8 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
 import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflowMenu';
+import { PeerBigThreeGlyphs } from '@/components/community/PeerBigThreeGlyphs';
+import type { PeerBigThreeSigns } from '@/lib/sign-glyph-utils';
 
 /** Peer avatar — same visual pattern as ConversationList PeerAvatar; loads by userId when inventory has no avatarUrl. */
 function ConnectionPeerAvatar({
@@ -447,11 +449,12 @@ export function ConnectionInventoryPanel({
                       />
                       <div className="flex flex-1 flex-wrap items-start justify-between gap-2 min-w-0">
                         <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span>
+                          <span className="inline-flex flex-wrap items-center gap-x-1">
                             {peerDisplayName}{' '}
                             {(p.peerHandle as string) ? (
                               <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
                             ) : null}
+                            <PeerBigThreeGlyphs bigThree={p.peerBigThree as PeerBigThreeSigns | undefined} />
                           </span>
                           {p.label ? (
                             <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">

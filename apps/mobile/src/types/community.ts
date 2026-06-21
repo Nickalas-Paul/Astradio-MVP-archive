@@ -25,6 +25,12 @@ export type InventoryPair = {
   peerChartId: string | null;
   peerDisplayName?: string;
   peerHandle?: string;
+  /** Sun / moon / rising sign names from peer chart snapshot (inventory enrichment). */
+  peerBigThree?: {
+    sun: string;
+    moon: string;
+    rising?: string;
+  };
   exportJobId?: string | null;
   artifactStatus: 'not_generated' | 'text_available' | 'audio_available' | string;
 };

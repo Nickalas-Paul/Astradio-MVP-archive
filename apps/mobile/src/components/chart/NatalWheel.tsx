@@ -110,8 +110,15 @@ export function NatalWheel({
   }, [longitudeLookup]);
 
   const planetRadii = useMemo(
-    () => clusterPlanetRadii(visiblePlanets, geometry.planetRadius, size),
-    [visiblePlanets, geometry.planetRadius, size]
+    () =>
+      clusterPlanetRadii(
+        visiblePlanets,
+        geometry.planetRadius,
+        size,
+        geometry.innerRadius + 5,
+        geometry.zodiacInnerRadius - 5
+      ),
+    [visiblePlanets, geometry.planetRadius, geometry.innerRadius, geometry.zodiacInnerRadius, size]
   );
 
   const transitLookup = useMemo(() => {
@@ -139,8 +146,15 @@ export function NatalWheel({
   );
 
   const transitPlanetRadii = useMemo(
-    () => clusterPlanetRadii(visibleTransitPlanets, transitPlanetRadius, size),
-    [visibleTransitPlanets, transitPlanetRadius, size]
+    () =>
+      clusterPlanetRadii(
+        visibleTransitPlanets,
+        transitPlanetRadius,
+        size,
+        geometry.innerRadius + 5,
+        geometry.zodiacInnerRadius - 5
+      ),
+    [visibleTransitPlanets, transitPlanetRadius, geometry.innerRadius, geometry.zodiacInnerRadius, size]
   );
 
   return (
