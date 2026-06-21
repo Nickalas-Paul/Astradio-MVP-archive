@@ -60,31 +60,31 @@ export default function ConnectionDetailScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back to Community</Text>
-        </Pressable>
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>← Back to Community</Text>
+      </Pressable>
 
-        {loading ? (
-          <View style={styles.loadingBlock}>
-            <View style={styles.headerSkeleton} />
-            <DualWheelSkeleton />
-            <View style={styles.textSkeleton} />
-            <View style={styles.textSkeletonShort} />
-          </View>
-        ) : null}
+      {loading ? (
+        <View style={styles.loadingBlock}>
+          <View style={styles.headerSkeleton} />
+          <DualWheelSkeleton />
+          <View style={styles.textSkeleton} />
+          <View style={styles.textSkeletonShort} />
+        </View>
+      ) : null}
 
-        {error && !relationship ? (
-          <View style={styles.errorBlock}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable onPress={() => void refresh()}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : null}
+      {error && !relationship ? (
+        <View style={styles.errorBlock}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={() => void refresh()}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-        {!loading && relationship ? (
-          <>
+      {!loading && relationship ? (
+        <>
+          <View style={styles.pinnedTop}>
             <View style={styles.header}>
               <Text style={styles.title}>
                 {displayName}
@@ -99,16 +99,18 @@ export default function ConnectionDetailScreen() {
               ) : null}
             </View>
 
-            {materializeError ? (
-              <Text style={styles.warning}>{materializeError}</Text>
-            ) : null}
-
             <DualWheelDisplay
               viewerLabel={viewerLabel}
               peerLabel={peerDisplayName?.trim() || peerLabel}
               viewerWheel={viewerSnapshot}
               peerWheel={peerSnapshot}
             />
+          </View>
+
+          <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent}>
+            {materializeError ? (
+              <Text style={styles.warning}>{materializeError}</Text>
+            ) : null}
 
             <SonicBulletsSection bullets={sonicBullets} />
 
@@ -126,9 +128,9 @@ export default function ConnectionDetailScreen() {
                 onGenerate={generateAudio}
               />
             ) : null}
-          </>
-        ) : null}
-      </ScrollView>
+          </ScrollView>
+        </>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -137,14 +139,24 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  content: {
     paddingHorizontal: AUTH_HORIZONTAL_PADDING,
+  },
+  scrollBody: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingBottom: 40,
+  },
+  pinnedTop: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
+    marginBottom: 8,
+    backgroundColor: colors.background,
   },
   backButton: {
     paddingVertical: 8,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   backText: {
     color: colors.text.secondary,
@@ -152,7 +164,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Medium',
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
   title: {

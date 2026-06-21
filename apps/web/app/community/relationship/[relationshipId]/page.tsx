@@ -449,6 +449,19 @@ export default function CommunityRelationshipArtifactPage() {
   const audioPlayerExportId = audioReady ? exId : null;
   const labelBadge = relationshipLabelBadge(relationship?.label);
 
+  /** Cap wheel SVG size at ~34% viewport height (desktop base 300px, mobile 200px). */
+  const [wheelMaxSize, setWheelMaxSize] = useState(200);
+  useEffect(() => {
+    const update = () => {
+      const vhCap = Math.floor(window.innerHeight * 0.34);
+      const base = window.innerWidth >= 1024 ? 300 : 200;
+      setWheelMaxSize(Math.min(base, vhCap));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   const renderDualWheels = (maxSize: number, className = '') => (
     <div className={className}>
       {wheelsLoading ? (
@@ -532,11 +545,12 @@ export default function CommunityRelationshipArtifactPage() {
             {materializeError && <p className="text-amber-600 dark:text-amber-300 text-sm">{materializeError}</p>}
 
             {chartPair ? (
-              <div className="lg:hidden">{renderDualWheels(200)}</div>
+              <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm">
+                {renderDualWheels(wheelMaxSize)}
+              </div>
             ) : null}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
-              <div className="min-w-0 space-y-6">
+            <div className="min-w-0 space-y-6">
                 {comparison && hasReadingSurface && (
                   <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
                     <h2 className="text-lg font-medium text-text-primary">Reading</h2>
@@ -668,13 +682,6 @@ export default function CommunityRelationshipArtifactPage() {
                     a new compatibility reading from Community.
                   </p>
                 )}
-              </div>
-
-              {chartPair ? (
-                <div className="hidden lg:block lg:sticky lg:top-20 shrink-0 space-y-4">
-                  {renderDualWheels(300)}
-                </div>
-              ) : null}
             </div>
           </>
         )}

@@ -10,6 +10,8 @@ type DualWheelDisplayProps = {
   viewerWheel: MySkyScreenData['wheel'];
   peerWheel: MySkyScreenData['wheel'];
   loading?: boolean;
+  /** Optional cap on wheel diameter (e.g. ~35% of screen height). */
+  maxWheelSize?: number;
 };
 
 export function DualWheelDisplay({
@@ -18,10 +20,13 @@ export function DualWheelDisplay({
   viewerWheel,
   peerWheel,
   loading = false,
+  maxWheelSize,
 }: DualWheelDisplayProps) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const gap = 16;
-  const wheelSize = Math.floor((width - AUTH_HORIZONTAL_PADDING * 2 - gap) / 2);
+  const widthBased = Math.floor((width - AUTH_HORIZONTAL_PADDING * 2 - gap) / 2);
+  const heightCap = Math.max(96, Math.floor(height * 0.35) - 28);
+  const wheelSize = Math.min(widthBased, heightCap, maxWheelSize ?? widthBased);
 
   if (loading) {
     return (
@@ -75,9 +80,11 @@ export function DualWheelDisplay({
 }
 
 export function DualWheelSkeleton() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const gap = 16;
-  const wheelSize = Math.floor((width - AUTH_HORIZONTAL_PADDING * 2 - gap) / 2);
+  const widthBased = Math.floor((width - AUTH_HORIZONTAL_PADDING * 2 - gap) / 2);
+  const heightCap = Math.max(96, Math.floor(height * 0.35) - 28);
+  const wheelSize = Math.min(widthBased, heightCap);
 
   return (
     <View style={[styles.row, { gap }]}>
