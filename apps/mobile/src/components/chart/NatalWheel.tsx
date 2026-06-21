@@ -5,7 +5,7 @@ import { colors } from '../../constants/colors';
 import { normalizePlanetName, planetColor, PLANET_COLORS } from '../../constants/planet-colors';
 import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH, WHEEL_COLORS } from '../../constants/wheel-constants';
 import { getPlanetGlyphPath, getSignGlyphPath, type GlyphData } from '../../constants/wheel-glyphs';
-import { angularSeparationDeg, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
+import { clusterPlanetRadii, degreeTickStyle, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
 import type { WheelAspect, WheelPlacement } from '../../types/my-sky';
 
 type NatalWheelProps = {
@@ -18,10 +18,20 @@ type NatalWheelProps = {
   transitPlacements?: WheelPlacement[];
 };
 
-const CLUSTER_THRESHOLD_DEG = 8;
 const NATAL_PLANET_GLYPH_SIZE = 14;
 const TRANSIT_PLANET_GLYPH_SIZE = 12;
 const SIGN_GLYPH_SIZE = 14;
+const ANGLE_GLYPH_SIZE = 14;
+
+const ANGLE_GLYPH_BY_HOUSE_INDEX: Record<number, 'ascendant' | 'midheaven'> = {
+  0: 'ascendant',
+  9: 'midheaven',
+};
+
+const ANGLE_GLYPH_COLOR: Record<'ascendant' | 'midheaven', string> = {
+  ascendant: PLANET_COLORS.ascendant,
+  midheaven: PLANET_COLORS.mc,
+};
 
 function renderWheelGlyph(
   glyph: GlyphData,
@@ -59,32 +69,6 @@ function resolveBodyLongitude(
   if (lookup.has(key)) return lookup.get(key);
   const placement = placements.find((item) => bodyKey(item.body) === key);
   return placement?.longitude;
-}
-
-function clusterPlanetRadii(
-  planets: Array<{ key: string; lon: number }>,
-  baseRadius: number,
-  size: number
-): Map<string, number> {
-  const sorted = [...planets].sort((a, b) => a.lon - b.lon);
-  const radii = new Map<string, number>();
-  const offset = size * 0.025;
-  let clusterIndex = 0;
-  let prevLon: number | null = null;
-
-  for (const planet of sorted) {
-    if (prevLon == null || angularSeparationDeg(planet.lon, prevLon) >= CLUSTER_THRESHOLD_DEG) {
-      clusterIndex = 0;
-    } else {
-      clusterIndex += 1;
-    }
-
-    const radialShift = clusterIndex === 0 ? 0 : clusterIndex % 2 === 1 ? -offset : offset;
-    radii.set(planet.key, baseRadius + radialShift);
-    prevLon = planet.lon;
-  }
-
-  return radii;
 }
 
 export function NatalWheel({
@@ -188,6 +172,24 @@ export function NatalWheel({
             );
           })}
 
+          {Array.from({ length: 360 }, (_, i) => {
+            const deg = i;
+            const { len, strokeWidth } = degreeTickStyle(deg, size);
+            const outer = pol(geometry.outerRadius, deg, ascendantLongitude);
+            const inner = pol(geometry.outerRadius - len, deg, ascendantLongitude);
+            return (
+              <Line
+                key={`tick-${deg}`}
+                x1={outer.x}
+                y1={outer.y}
+                x2={inner.x}
+                y2={inner.y}
+                stroke={WHEEL_COLORS.outerRingStroke}
+                strokeWidth={strokeWidth}
+              />
+            );
+          })}
+
           {Array.from({ length: 12 }, (_, signIndex) => {
             const midLon = signIndex * 30 + 15;
             const glyphRadius = (geometry.outerRadius + geometry.zodiacInnerRadius) / 2;
@@ -243,18 +245,35 @@ export function NatalWheel({
             const midLon = (a0 + span / 2) % 360;
             const houseLabelRadius = (geometry.innerRadius + geometry.zodiacInnerRadius) / 2;
             const point = pol(houseLabelRadius, midLon, ascendantLongitude);
+            const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[index];
+            const anglePoint =
+              angleGlyphKey != null
+                ? pol(geometry.zodiacInnerRadius - 8, a0, ascendantLongitude)
+                : null;
+            const angleGlyph =
+              angleGlyphKey != null ? getPlanetGlyphPath(angleGlyphKey) : null;
             return (
-              <SvgText
-                key={`house-num-${index}`}
-                x={point.x}
-                y={point.y + 3}
-                fill={WHEEL_COLORS.houseNumberFill}
-                fontSize={10}
-                opacity={0.75}
-                textAnchor="middle"
-              >
-                {index + 1}
-              </SvgText>
+              <G key={`house-${index}`}>
+                <SvgText
+                  x={point.x}
+                  y={point.y + 3}
+                  fill={WHEEL_COLORS.houseNumberFill}
+                  fontSize={10}
+                  opacity={0.75}
+                  textAnchor="middle"
+                >
+                  {index + 1}
+                </SvgText>
+                {angleGlyphKey != null && anglePoint != null && angleGlyph ? (
+                  renderWheelGlyph(
+                    angleGlyph,
+                    anglePoint.x,
+                    anglePoint.y,
+                    ANGLE_GLYPH_SIZE,
+                    ANGLE_GLYPH_COLOR[angleGlyphKey]
+                  )
+                ) : null}
+              </G>
             );
           })}
 

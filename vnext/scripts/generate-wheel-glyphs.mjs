@@ -25,6 +25,9 @@ const PLANET_KEY_TO_FILE = {
   pallas: 'pallas',
   juno: 'juno',
   vesta: 'vesta',
+  ascendant: 'ascendant',
+  midheaven: 'midheaven',
+  mc: 'midheaven',
 };
 
 const SIGN_FILES = [

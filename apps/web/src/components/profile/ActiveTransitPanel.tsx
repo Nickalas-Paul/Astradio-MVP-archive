@@ -612,24 +612,14 @@ export function ActiveTransitPanel({
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
 
           {activeWheelSlots ? (
-            <div className="md:hidden max-w-sm mx-auto w-full">{renderWheelColumn(300)}</div>
+            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm">
+              <div className="max-w-md mx-auto w-full">{renderWheelColumn(400)}</div>
+            </div>
           ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
-            <div className="min-w-0">
-              {activeResult?.explanation ? (
-                <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
-              ) : null}
-            </div>
-            {activeWheelSlots ? (
-              <div
-                className="hidden md:block md:sticky md:top-20 shrink-0"
-                style={{ maxWidth: '360px' }}
-              >
-                {renderWheelColumn(340)}
-              </div>
-            ) : null}
-          </div>
+          {activeResult?.explanation ? (
+            <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
+          ) : null}
         </>
       )}
     </div>

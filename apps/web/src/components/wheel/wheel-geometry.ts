@@ -104,6 +104,42 @@ export function aspectLineStyle(orb: number | undefined): { strokeWidth: number;
   };
 }
 
+const CLUSTER_THRESHOLD_DEG = 8;
+
+/** Radial offsets for planets within 8° of each other (matches mobile NatalWheel). */
+export function clusterPlanetRadii(
+  planets: Array<{ key: string; lon: number }>,
+  baseRadius: number,
+  size: number
+): Map<string, number> {
+  const sorted = [...planets].sort((a, b) => a.lon - b.lon);
+  const radii = new Map<string, number>();
+  const offset = size * 0.025;
+  let clusterIndex = 0;
+  let prevLon: number | null = null;
+
+  for (const planet of sorted) {
+    if (prevLon == null || angularSeparationDeg(planet.lon, prevLon) >= CLUSTER_THRESHOLD_DEG) {
+      clusterIndex = 0;
+    } else {
+      clusterIndex += 1;
+    }
+
+    const radialShift = clusterIndex === 0 ? 0 : clusterIndex % 2 === 1 ? -offset : offset;
+    radii.set(planet.key, baseRadius + radialShift);
+    prevLon = planet.lon;
+  }
+
+  return radii;
+}
+
+export function degreeTickStyle(deg: number, size: number): { len: number; strokeWidth: number } {
+  if (deg % 30 === 0) return { len: size * 0.025, strokeWidth: 1 };
+  if (deg % 10 === 0) return { len: size * 0.018, strokeWidth: 1 };
+  if (deg % 5 === 0) return { len: size * 0.012, strokeWidth: 0.75 };
+  return { len: size * 0.006, strokeWidth: 0.5 };
+}
+
 /** Pointer angle (SVG coords) → absolute ecliptic longitude, accounting for ASC anchor. */
 export function angleToLonDeg(angleRad: number, ascendantDeg: number = 0): number {
   let wheelLon = (-angleRad * 180) / Math.PI + 180;
