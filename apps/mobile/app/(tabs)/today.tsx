@@ -14,6 +14,7 @@ import { TodaySkyWheel } from '../../src/components/today/TodaySkyWheel';
 import { TodayTransitWheel } from '../../src/components/today/TodayTransitWheel';
 import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
 import { colors } from '../../src/constants/colors';
+import { typography } from '../../src/constants/typography';
 import { planetColor } from '../../src/constants/planet-colors';
 import { useTodayData } from '../../src/hooks/useTodayData';
 import { api } from '../../src/lib/api';
@@ -382,9 +383,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
+    ...typography.screenTitle,
     color: colors.text.primary,
-    fontSize: 28,
-    fontFamily: 'Cormorant-SemiBold',
     marginTop: 8,
   },
   date: {

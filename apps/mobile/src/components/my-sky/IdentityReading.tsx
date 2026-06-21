@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { MarkdownText } from '../shared/MarkdownText';
 import { PlanetText } from '../shared/PlanetText';
 import { colors } from '../../constants/colors';
+import { typography } from '../../constants/typography';
 import type { ProfileChartSection } from '../../types/my-sky';
 
 type IdentityReadingProps = {
@@ -30,7 +31,7 @@ export function IdentityReading({ sections }: IdentityReadingProps) {
           {isSonicSection(section) ? (
             <Text style={styles.sonicLabel}>How This Sounds</Text>
           ) : null}
-          <PlanetText tone="primary" defaultColor={colors.text.primary} style={styles.cardTitle}>
+          <PlanetText tone="primary" defaultColor={colors.text.primary} style={[typography.sectionHeader, styles.sectionHeaderSpacing]}>
             {cleanSectionTitle(section.title)}
           </PlanetText>
           <MarkdownText>{section.text}</MarkdownText>
@@ -54,9 +55,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 16,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontFamily: 'Manrope-SemiBold',
+  sectionHeaderSpacing: {
     marginBottom: 8,
   },
   sonicLabel: {

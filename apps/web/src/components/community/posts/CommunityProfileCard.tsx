@@ -23,7 +23,7 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
           </div>
         )}
         <div className="space-y-1 min-w-0">
-          <h1 className="text-h2 font-serif text-text-primary truncate">{name}</h1>
+          <h1 className="text-h3 font-serif text-text-primary truncate">{name}</h1>
           {profile.handle ? <p className="text-sm text-text-secondary">@{profile.handle}</p> : null}
           {profile.bio ? <p className="text-body-sm text-text-primary whitespace-pre-wrap">{profile.bio}</p> : null}
           <p className="text-xs text-text-secondary">{profile.postCount} posts</p>

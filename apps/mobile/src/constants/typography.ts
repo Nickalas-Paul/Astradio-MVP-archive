@@ -5,11 +5,18 @@ export const typography = {
     fontSize: 28,
   },
 
-  // Section headers (one style, consistent across all tabs)
+  // Section headers (identity report sections, teal accent)
   sectionHeader: {
-    fontFamily: 'Manrope-SemiBold',
-    fontSize: 16,
-    color: '#0e9696', // always teal
+    fontFamily: 'Cormorant-SemiBold',
+    fontSize: 22,
+    color: '#0e9696',
+  },
+
+  // Planet headings in identity readings (e.g. "Sun in Taurus, 10th House")
+  planetHeading: {
+    fontFamily: 'Cormorant-SemiBold',
+    fontSize: 20,
+    color: '#0e9696',
   },
 
   // Card titles (inside cards, connection names, transit titles)

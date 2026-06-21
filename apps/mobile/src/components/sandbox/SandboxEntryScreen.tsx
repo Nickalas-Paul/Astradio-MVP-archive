@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AUTH_HORIZONTAL_PADDING } from '../../constants/auth-styles';
 import { colors } from '../../constants/colors';
+import { typography } from '../../constants/typography';
 import {
   SANDBOX_ENTRY_CARDS,
   SANDBOX_HERO_SUBTITLE,
@@ -127,9 +128,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: {
+    ...typography.screenTitle,
     color: colors.text.primary,
-    fontSize: 28,
-    fontFamily: 'Cormorant-SemiBold',
     marginBottom: 12,
     textAlign: 'center',
   },

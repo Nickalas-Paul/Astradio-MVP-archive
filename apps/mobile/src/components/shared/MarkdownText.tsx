@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { colors } from '../../constants/colors';
+import { typography } from '../../constants/typography';
 
 type MarkdownTextProps = {
   children: string;
@@ -147,10 +148,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-SemiBold',
   },
   h3: {
-    color: colors.text.primary,
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: 'Manrope-SemiBold',
+    ...typography.planetHeading,
+    lineHeight: 28,
+    marginBottom: 0,
   },
   headingMargin: {
     marginTop: 12,

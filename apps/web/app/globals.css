@@ -116,7 +116,7 @@
   }
 
   .reading-section-header {
-    @apply relative text-2xl font-serif font-semibold mb-3 pb-2
+    @apply relative text-h2 font-serif font-semibold mb-3 pb-2
            bg-gradient-to-r from-accent to-[#0bbfbf] bg-clip-text text-transparent;
   }
 

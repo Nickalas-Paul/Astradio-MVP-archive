@@ -20,6 +20,7 @@ import {
 } from '../../../src/constants/community-constants';
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
+import { typography } from '../../../src/constants/typography';
 import { useCommunityData } from '../../../src/hooks/useCommunityData';
 import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
 import { FTUE_KEYS } from '../../../src/lib/ftue-storage';
@@ -190,9 +191,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
+    ...typography.screenTitle,
     color: colors.text.primary,
-    fontSize: 28,
-    fontFamily: 'Cormorant-SemiBold',
     marginTop: 8,
     textAlign: 'center',
   },

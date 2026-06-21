@@ -18,6 +18,7 @@ import { SandboxReportDisplay } from './SandboxReportDisplay';
 import { SlotChipStrip } from './SlotChipStrip';
 import { layout } from '../../constants/layout';
 import { colors } from '../../constants/colors';
+import { typography } from '../../constants/typography';
 import { useSandboxData } from '../../hooks/useSandboxData';
 import { useSandboxGenerate } from '../../hooks/useSandboxGenerate';
 import { mapSandboxSlotToWheel } from '../../lib/sandbox-slot-utils';
@@ -273,9 +274,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   workbenchTitle: {
+    ...typography.screenTitle,
     color: colors.text.primary,
-    fontSize: 28,
-    fontFamily: 'Cormorant-SemiBold',
     marginBottom: 6,
   },
   workbenchSubtitle: {

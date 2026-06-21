@@ -34,7 +34,7 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
         >
-          <h1 className="text-h1 font-bold text-text-primary">
+          <h1 className="text-h1 font-serif font-bold text-text-primary">
             Settings
           </h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">

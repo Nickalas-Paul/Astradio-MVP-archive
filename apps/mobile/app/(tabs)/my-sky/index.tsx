@@ -18,6 +18,7 @@ import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
 import { ProfileHeader } from '../../../src/components/my-sky/ProfileHeader';
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
+import { typography } from '../../../src/constants/typography';
 import { useMySkyData } from '../../../src/hooks/useMySkyData';
 import { useAuthStore } from '../../../src/store/auth';
 import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
@@ -186,9 +187,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
+    ...typography.screenTitle,
     color: colors.text.primary,
-    fontSize: 28,
-    fontFamily: 'Cormorant-SemiBold',
     marginTop: 8,
     marginBottom: 16,
   },
