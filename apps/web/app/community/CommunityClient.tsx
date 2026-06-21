@@ -323,9 +323,7 @@ function CommunityClientInner() {
           </motion.div>
         ) : null}
 
-        {showDiscoveryConnectionsChrome && !profileLoading && user ? (
-          <FtueConnectionsWelcomeBanner />
-        ) : null}
+        {showDiscoveryConnectionsChrome ? <FtueConnectionsWelcomeBanner /> : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

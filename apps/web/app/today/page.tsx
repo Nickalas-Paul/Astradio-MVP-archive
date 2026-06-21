@@ -24,12 +24,11 @@ function TodayContent() {
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
   const noRealChart = !realChart || primaryChart?.id === DEFAULT_PROFILE_CHART_ID;
-  const isSignedIn = !profileLoading && user !== null;
 
   return (
     <PlacementHighlightProvider>
       <div className="max-w-6xl mx-auto">
-        {isSignedIn ? <FtueTodayWelcomeBanner key="ftue-today-welcome" /> : null}
+        <FtueTodayWelcomeBanner key="ftue-today-welcome" />
 
         {profileLoading ? (
           <p className="text-sm text-text-secondary text-center">Loading Today…</p>

@@ -17,7 +17,6 @@ import { snapshotSafeForWheel } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
-import { FtueTodayBridgeNudge } from '../ftue/FtueTodayBridgeNudge';
 import { useAudioPlayerStore } from '@/store';
 
 const WheelDisplay = dynamic(
@@ -357,8 +356,6 @@ export function IdentityPanel({
                 {wheelAndAudio(340)}
               </div>
             </div>
-
-            <FtueTodayBridgeNudge />
           </>
         )}
 

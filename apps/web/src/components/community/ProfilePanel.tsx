@@ -12,6 +12,7 @@ import { LibraryPanel, type LibraryPanelHandle } from '../profile/LibraryPanel';
 import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { Card } from '@/components/shared/Card';
+import { FtueTodayBridgeNudge } from '../ftue/FtueTodayBridgeNudge';
 
 const MotionCard = motion(Card);
 
@@ -116,6 +117,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
           activeTab={profileSection}
           onTabChange={(id) => setProfileSection(id as 'identity' | 'library')}
         />
+
+        {profileSection === 'identity' && !noRealChart ? <FtueTodayBridgeNudge /> : null}
 
         {profileSection === 'identity' && (
           <IdentityPanel
