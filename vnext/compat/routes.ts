@@ -1059,6 +1059,14 @@ export function createCompatRouter(): import('express').Router {
       if (!chart || chart.ownerId !== proxyUserId) {
         return res.status(404).json({ error: 'Chart not found' });
       }
+      const existingExportId = chart.identityExportId;
+      if (
+        typeof existingExportId === 'string' &&
+        existingExportId.trim() &&
+        /^[a-f0-9]{64}$/.test(existingExportId)
+      ) {
+        return res.status(200).json({ identity_export_id: existingExportId });
+      }
       const result = await generateProfileIdentityAudioForChart(chart);
       if (!result.identity_export_id) {
         return res.status(502).json({

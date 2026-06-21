@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useProfileChart, type ProfilePrimaryChart } from '../../core/social/hooks';
+import { type ProfileChartResponse, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { BirthChartSection } from './BirthChartSection';
 import { ExplainerSections } from './shared/ExplainerSections';
 import {
@@ -24,8 +24,8 @@ const WheelDisplay = dynamic(
   { ssr: false, loading: () => <div className="aspect-square bg-bgElev rounded-2xl border border-border animate-pulse" /> }
 );
 
-const COMPOSE_POLL_INTERVAL_MS = 5000;
-const COMPOSE_POLL_MAX_ATTEMPTS = 12;
+const COMPOSE_POLL_INTERVAL_MS = 8000;
+const COMPOSE_POLL_MAX_ATTEMPTS = 8;
 
 type IdentityAudioState =
   | 'no_chart'
@@ -43,6 +43,10 @@ export interface IdentityPanelProps {
   chartId: string | null;
   noRealChart: boolean;
   primaryChart: ProfilePrimaryChart | null;
+  chartData: ProfileChartResponse | null;
+  chartLoading: boolean;
+  chartError: string | null;
+  refreshChart: () => Promise<void>;
   onProfileRefresh: () => Promise<void>;
 }
 
@@ -50,10 +54,12 @@ export function IdentityPanel({
   chartId,
   noRealChart,
   primaryChart,
+  chartData,
+  chartLoading,
+  chartError,
+  refreshChart,
   onProfileRefresh,
 }: IdentityPanelProps) {
-  const { data: chartData, loading: chartLoading, error: chartError, refresh: refreshChart } =
-    useProfileChart(chartId);
   const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [audioState, setAudioState] = useState<IdentityAudioState>(
     noRealChart ? 'no_chart' : 'loading',
@@ -75,11 +81,6 @@ export function IdentityPanel({
     autoplayAttemptedRef.current = false;
     setComposePollExhausted(false);
   }, [chartId]);
-
-  useEffect(() => {
-    if (!chartId) return;
-    void refreshChart();
-  }, [chartId, refreshChart]);
 
   useEffect(() => {
     if (noRealChart) {
@@ -105,7 +106,13 @@ export function IdentityPanel({
     if (isValidIdentityExportId(chartData?.identity_export_id)) return;
 
     let attempts = 0;
+    let cancelled = false;
     const intervalId = window.setInterval(() => {
+      if (cancelled) return;
+      if (isValidIdentityExportId(chartData?.identity_export_id)) {
+        window.clearInterval(intervalId);
+        return;
+      }
       attempts += 1;
       void refreshChart();
       if (attempts >= COMPOSE_POLL_MAX_ATTEMPTS) {
@@ -113,7 +120,10 @@ export function IdentityPanel({
         setComposePollExhausted(true);
       }
     }, COMPOSE_POLL_INTERVAL_MS);
-    return () => window.clearInterval(intervalId);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [
     chartId,
     isFirstListen,

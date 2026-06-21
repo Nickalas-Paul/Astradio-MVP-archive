@@ -10,6 +10,10 @@ import { composeAPI } from '../api/compose';
 import type { ComposeRequest } from '../explainer/contracts';
 import * as storage from './storage';
 
+export function isValidChartIdentityExportId(eid: unknown): eid is string {
+  return typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid);
+}
+
 function chartRowToInput(chart: Chart): ChartInput {
   const t =
     typeof chart.time === 'string' && chart.time.length >= 5
@@ -49,7 +53,6 @@ export async function persistProfileIdentityAudioAfterPrimaryAttach(
 
 /**
  * User-initiated identity audio (Identity tab CTA). Awaits compose and returns export id or error.
- * Pass priorNatalFingerprint `null` to force generation for current chart inputs.
  */
 export async function generateProfileIdentityAudioForChart(
   chart: Chart
@@ -57,9 +60,17 @@ export async function generateProfileIdentityAudioForChart(
   if (!chart.timezone?.trim()) {
     return { identity_export_id: null, error: 'Chart timezone required for audio composition' };
   }
-  const exportId = await runProfileIdentityAudioCompose(chart, null, { logErrors: false });
+  if (isValidChartIdentityExportId(chart.identityExportId)) {
+    return { identity_export_id: chart.identityExportId };
+  }
+  const priorNatalFingerprint = await natalSnapshotFingerprintForChart(chart);
+  const exportId = await runProfileIdentityAudioCompose(chart, priorNatalFingerprint, { logErrors: false });
   if (exportId) {
     return { identity_export_id: exportId };
+  }
+  const freshChart = await storage.getChart(chart.id);
+  if (freshChart && isValidChartIdentityExportId(freshChart.identityExportId)) {
+    return { identity_export_id: freshChart.identityExportId };
   }
   return {
     identity_export_id: null,
@@ -86,8 +97,24 @@ async function runProfileIdentityAudioCompose(
   }
 
   const newFp = bundle.natal_snapshot_fingerprint;
-  const shouldGenerate = priorNatalFingerprint === null || priorNatalFingerprint !== newFp;
-  if (!shouldGenerate) return null;
+  const hasExistingExport = isValidChartIdentityExportId(chart.identityExportId);
+  const shouldGenerate =
+    !hasExistingExport || priorNatalFingerprint === null || priorNatalFingerprint !== newFp;
+  if (!shouldGenerate) {
+    if (isValidChartIdentityExportId(chart.identityExportId)) {
+      return chart.identityExportId;
+    }
+    const freshAfterSkip = await storage.getChart(chart.id);
+    if (freshAfterSkip && isValidChartIdentityExportId(freshAfterSkip.identityExportId)) {
+      return freshAfterSkip.identityExportId;
+    }
+    return null;
+  }
+
+  const freshChart = await storage.getChart(chart.id);
+  if (freshChart && isValidChartIdentityExportId(freshChart.identityExportId)) {
+    return freshChart.identityExportId;
+  }
 
   const tz = chart.timezone!.trim();
   const composeReq: ComposeRequest = {

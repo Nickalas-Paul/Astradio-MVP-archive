@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { InputField } from '@/components/shared/Input';
-import type { ProfilePrimaryChart, ProfileUser } from '@/core/social/hooks';
-import { useProfileChart } from '@/core/social/hooks';
+import type { ProfileChartResponse, ProfilePrimaryChart, ProfileUser } from '@/core/social/hooks';
 import { buildChartPlacementOptions } from '@/lib/profile-chart-placements';
 
 const BIO_MAX = 250;
@@ -17,6 +16,8 @@ const HIGHLIGHTS_MAX = 3;
 export interface ProfileHeaderCardProps {
   user: ProfileUser;
   primaryChart: ProfilePrimaryChart | null;
+  profileChartData: ProfileChartResponse | null;
+  profileChartLoading: boolean;
   onProfileRefresh: () => void | Promise<void>;
   onLogout?: () => void | Promise<void>;
 }
@@ -27,9 +28,16 @@ function formatBirthData(chart: ProfilePrimaryChart | null): string | undefined 
   return time ? `${chart.date} · ${time}` : chart.date;
 }
 
-export function ProfileHeaderCard({ user, primaryChart, onProfileRefresh, onLogout }: ProfileHeaderCardProps) {
-  const chartId = primaryChart?.id ?? null;
-  const { data: chartData, loading: chartLoading } = useProfileChart(chartId);
+export function ProfileHeaderCard({
+  user,
+  primaryChart,
+  profileChartData,
+  profileChartLoading,
+  onProfileRefresh,
+  onLogout,
+}: ProfileHeaderCardProps) {
+  const chartData = profileChartData;
+  const chartLoading = profileChartLoading;
 
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName || '');

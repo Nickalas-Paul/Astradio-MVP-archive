@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useProfile } from '../../core/social/hooks';
+import { useProfile, useProfileChart } from '../../core/social/hooks';
 import { DEFAULT_PROFILE_CHART_ID, hasRealChart } from '../../core/social/constants';
 import { ProfileAuthPanel } from '../profile/ProfileAuthPanel';
 import { ProfileHeaderCard } from '../profile/ProfileHeaderCard';
@@ -27,6 +27,12 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
   const { user, primaryChart, loading: profileLoading, error: profileError, refresh } = useProfile();
   const realChart = hasRealChart(primaryChart) ? primaryChart : null;
   const chartId = realChart?.id ?? null;
+  const {
+    data: profileChartData,
+    loading: profileChartLoading,
+    error: profileChartError,
+    refresh: refreshProfileChart,
+  } = useProfileChart(chartId);
   const searchParams = useSearchParams();
   const [profileSection, setProfileSection] = useState<'identity' | 'library'>('identity');
   const libraryRef = useRef<LibraryPanelHandle>(null);
@@ -79,6 +85,8 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
         <ProfileHeaderCard
           user={user}
           primaryChart={primaryChart}
+          profileChartData={profileChartData}
+          profileChartLoading={profileChartLoading}
           onProfileRefresh={refresh}
           onLogout={async () => {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
@@ -125,6 +133,10 @@ export function ProfilePanel({ onSwitchToConnections }: ProfilePanelProps) {
             chartId={chartId}
             noRealChart={noRealChart}
             primaryChart={primaryChart}
+            chartData={profileChartData}
+            chartLoading={profileChartLoading}
+            chartError={profileChartError}
+            refreshChart={refreshProfileChart}
             onProfileRefresh={() => refresh()}
           />
         )}
