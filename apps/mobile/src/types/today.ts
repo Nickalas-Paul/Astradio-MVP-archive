@@ -60,7 +60,25 @@ export type ComposeLikeResponse = {
 export type ActiveStateResponse = ComposeLikeResponse & {
   identity?: Record<string, unknown>;
   text?: unknown;
+  hashes?: {
+    plan_sha256?: string;
+    explanation?: string;
+    control?: string;
+    audio?: string;
+  };
 };
+
+export type TodayComposeContext = {
+  chartId: string;
+  date: string;
+  time: string;
+  location: CanonicalLocation;
+};
+
+export type TodayTransitHashes = {
+  expectedPlanSha256: string;
+  expectedObjectIdentityHash: string;
+} | null;
 
 export type RelationalFeedActivationLine = {
   text: string;
@@ -121,6 +139,8 @@ export type TodayScreenData = {
   relationalWeather: TodayRelationalWeatherCard[];
   audioExportId: string | null;
   audioAvailable: boolean;
+  composeContext: TodayComposeContext | null;
+  transitHashes: TodayTransitHashes;
   skySnapshot: EphemerisSnapshot | null;
   natalSnapshot: EphemerisSnapshot | null;
   transitSnapshot: EphemerisSnapshot | null;

@@ -14,9 +14,11 @@ import type {
   RelationalFeedActivationLine,
   RelationalFeedItem,
   RelationalFeedResponse,
+  TodayComposeContext,
   TodayRelationalWeatherCard,
   TodayScreenData,
   TodayTransitCard,
+  TodayTransitHashes,
 } from '../types/today';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -249,6 +251,28 @@ function parseIdentitySnapshots(activeState: ActiveStateResponse | null): {
   };
 }
 
+export function exportIdFromComposePayload(payload: Record<string, unknown>): string | null {
+  const audio = payload.audio as Record<string, unknown> | undefined;
+  const exportId = (payload.export_id ?? audio?.export_id) as string | undefined;
+  if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
+    return exportId;
+  }
+  return null;
+}
+
+export function extractTransitHashes(activeState: ActiveStateResponse | null): TodayTransitHashes {
+  if (!activeState) return null;
+  const plan = activeState.hashes?.plan_sha256;
+  const oid = activeState.explanation?.meta?.canonical_object_hash;
+  if (typeof plan === 'string' && plan.trim() && typeof oid === 'string' && oid.trim()) {
+    return {
+      expectedPlanSha256: plan.trim(),
+      expectedObjectIdentityHash: oid.trim(),
+    };
+  }
+  return null;
+}
+
 export function buildSkyComposeRequestBody(
   date: string,
   time: string,
@@ -274,6 +298,7 @@ export function buildTodayScreenData(input: {
   activeState: ActiveStateResponse | null;
   relationalFeed: RelationalFeedResponse | null;
   skySnapshot: EphemerisSnapshot | null;
+  composeContext: TodayComposeContext | null;
 }): TodayScreenData {
   const { exportId, available } = resolveAudioExportId(input.activeState, input.skyCompose);
   const { natal, transit } = parseIdentitySnapshots(input.activeState);
@@ -283,6 +308,8 @@ export function buildTodayScreenData(input: {
     relationalWeather: mapRelationalWeather(input.relationalFeed),
     audioExportId: exportId,
     audioAvailable: available,
+    composeContext: input.composeContext,
+    transitHashes: extractTransitHashes(input.activeState),
     skySnapshot: input.skySnapshot,
     natalSnapshot: natal,
     transitSnapshot: transit,

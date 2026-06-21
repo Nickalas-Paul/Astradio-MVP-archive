@@ -132,5 +132,16 @@ export async function fetchTodayScreenData(userId: string): Promise<TodayScreenD
     fetchSkySnapshot(date, time, location.lat, location.lon, timezone),
   ]);
 
-  return buildTodayScreenData({ skyCompose, activeState, relationalFeed, skySnapshot });
+  return buildTodayScreenData({
+    skyCompose,
+    activeState,
+    relationalFeed,
+    skySnapshot,
+    composeContext: {
+      chartId: chart.id,
+      date,
+      time,
+      location,
+    },
+  });
 }

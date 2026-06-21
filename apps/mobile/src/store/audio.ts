@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AudioSource = 'identity' | 'transit' | 'connection' | 'sandbox' | 'post' | 'dm';
+export type AudioSource = 'identity' | 'transit' | 'connection' | 'sandbox' | 'sky' | 'post' | 'dm';
 
 export interface AudioTrack {
   exportId: string;

@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TodayAudioPlayer } from '../../src/components/today/TodayAudioPlayer';
 import { TodaySkeleton } from '../../src/components/today/TodaySkeleton';
 import { TodaySkyWheel } from '../../src/components/today/TodaySkyWheel';
 import { TodayTransitWheel } from '../../src/components/today/TodayTransitWheel';
@@ -17,6 +16,13 @@ import { AUTH_HORIZONTAL_PADDING } from '../../src/constants/auth-styles';
 import { colors } from '../../src/constants/colors';
 import { planetColor } from '../../src/constants/planet-colors';
 import { useTodayData } from '../../src/hooks/useTodayData';
+import { api } from '../../src/lib/api';
+import { formatApiError } from '../../src/lib/format-api-error';
+import {
+  buildSkyComposeRequestBody,
+  exportIdFromComposePayload,
+} from '../../src/lib/today-mappers';
+import { useAudioStore } from '../../src/store/audio';
 import { useAuthStore } from '../../src/store/auth';
 import { MarkdownText } from '../../src/components/shared/MarkdownText';
 import { PlanetText } from '../../src/components/shared/PlanetText';
@@ -24,7 +30,11 @@ import {
   ACTIVATION_HEAT_COLORS,
   activationHeatLabel,
 } from '../../src/lib/activation-heat';
-import type { TodayRelationalWeatherCard, TodayRelationalWeatherLine } from '../../src/types/today';
+import type {
+  ActiveStateResponse,
+  TodayRelationalWeatherCard,
+  TodayRelationalWeatherLine,
+} from '../../src/types/today';
 
 function formatTodayDate(): string {
   return new Date().toLocaleDateString(undefined, {
@@ -133,8 +143,14 @@ function RelationalWeatherCard({ weather }: { weather: TodayRelationalWeatherCar
 export default function TodayScreen() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const playTrack = useAudioStore((state) => state.playTrack);
   const { data, isLoading, error, refetch } = useTodayData();
   const [refreshing, setRefreshing] = useState(false);
+  const [skyAudioLoading, setSkyAudioLoading] = useState(false);
+  const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
+  const [transitAudioLoading, setTransitAudioLoading] = useState(false);
+  const [transitAudioError, setTransitAudioError] = useState<string | null>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -144,6 +160,75 @@ export default function TodayScreen() {
       setRefreshing(false);
     }
   }, [refetch]);
+
+  const handleHearTodaysSky = useCallback(async () => {
+    if (!data?.composeContext) return;
+    setSkyAudioLoading(true);
+    setSkyAudioError(null);
+    try {
+      const { date, time, location } = data.composeContext;
+      const payload = await api<Record<string, unknown>>('/api/compose', {
+        method: 'POST',
+        body: JSON.stringify(buildSkyComposeRequestBody(date, time, location, true)),
+      });
+      const exportId = exportIdFromComposePayload(payload);
+      if (!exportId) {
+        setSkyAudioError('Could not compose sky audio');
+        return;
+      }
+      playTrack({ exportId, label: "Today's Sky", source: 'sky' });
+    } catch (err) {
+      setSkyAudioError(formatApiError(err, 'Could not compose sky audio'));
+    } finally {
+      setSkyAudioLoading(false);
+    }
+  }, [data?.composeContext, playTrack]);
+
+  const handleHearYourTransit = useCallback(async () => {
+    if (!data?.composeContext) return;
+    if (!data.transitHashes) {
+      setTransitAudioError('Compose a transit report first, then compose audio.');
+      return;
+    }
+    setTransitAudioLoading(true);
+    setTransitAudioError(null);
+    try {
+      const { chartId, date, time, location } = data.composeContext;
+      const { expectedPlanSha256, expectedObjectIdentityHash } = data.transitHashes;
+      const body = {
+        chartId,
+        calendarDate: date,
+        localTime: time.length === 5 ? time : time.slice(0, 5),
+        location,
+        generateAudio: true,
+        expectedPlanSha256,
+        expectedObjectIdentityHash,
+      };
+      let payload: ActiveStateResponse;
+      try {
+        payload = await api<ActiveStateResponse>('/api/profile/active-state', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      } catch {
+        if (!userId) throw new Error('Could not compose transit audio');
+        payload = await api<ActiveStateResponse>('/api/profile/active-state', {
+          method: 'POST',
+          body: JSON.stringify({ ...body, userId }),
+        });
+      }
+      const exportId = exportIdFromComposePayload(payload as Record<string, unknown>);
+      if (!exportId) {
+        setTransitAudioError('Could not compose transit audio');
+        return;
+      }
+      playTrack({ exportId, label: 'Your Transit', source: 'transit' });
+    } catch (err) {
+      setTransitAudioError(formatApiError(err, 'Could not compose transit audio'));
+    } finally {
+      setTransitAudioLoading(false);
+    }
+  }, [data?.composeContext, data?.transitHashes, playTrack, userId]);
 
   const handleSignOut = async () => {
     await logout();
@@ -189,6 +274,24 @@ export default function TodayScreen() {
                     <MarkdownText tone="primary">{data.skySummary}</MarkdownText>
                   </View>
                 ) : null}
+                {data.composeContext ? (
+                  <View style={styles.audioCtaBlock}>
+                    <Pressable
+                      onPress={() => void handleHearTodaysSky()}
+                      disabled={skyAudioLoading}
+                      style={({ pressed }) => [
+                        styles.audioButton,
+                        pressed && styles.audioButtonPressed,
+                        skyAudioLoading && styles.audioButtonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.audioButtonText}>
+                        {skyAudioLoading ? 'Composing...' : "Hear Today's Sky"}
+                      </Text>
+                    </Pressable>
+                    {skyAudioError ? <Text style={styles.audioError}>{skyAudioError}</Text> : null}
+                  </View>
+                ) : null}
               </>
             ) : null}
 
@@ -219,6 +322,25 @@ export default function TodayScreen() {
               ))
             )}
 
+            {data.composeContext ? (
+              <View style={styles.audioCtaBlock}>
+                <Pressable
+                  onPress={() => void handleHearYourTransit()}
+                  disabled={transitAudioLoading}
+                  style={({ pressed }) => [
+                    styles.audioButton,
+                    pressed && styles.audioButtonPressed,
+                    transitAudioLoading && styles.audioButtonDisabled,
+                  ]}
+                >
+                  <Text style={styles.audioButtonText}>
+                    {transitAudioLoading ? 'Composing...' : 'Hear Your Transit'}
+                  </Text>
+                </Pressable>
+                {transitAudioError ? <Text style={styles.audioError}>{transitAudioError}</Text> : null}
+              </View>
+            ) : null}
+
             {data.relationalWeather.length > 0 ? (
               <>
                 <SectionBridge
@@ -230,14 +352,6 @@ export default function TodayScreen() {
                 {data.relationalWeather.map((weather) => (
                   <RelationalWeatherCard key={weather.id} weather={weather} />
                 ))}
-              </>
-            ) : null}
-
-            {data.audioExportId ? (
-              <>
-                <SectionDivider />
-                <SectionHeading title="Today's Soundtrack" />
-                <TodayAudioPlayer exportId={data.audioExportId} />
               </>
             ) : null}
           </>
@@ -424,6 +538,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     paddingVertical: 12,
+  },
+  audioCtaBlock: {
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  audioButton: {
+    minHeight: 48,
+    minWidth: 200,
+    backgroundColor: colors.accent.DEFAULT,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioButtonPressed: {
+    opacity: 0.85,
+  },
+  audioButtonDisabled: {
+    opacity: 0.6,
+  },
+  audioButtonText: {
+    color: colors.text.primary,
+    fontSize: 15,
+    fontFamily: 'Manrope-SemiBold',
+  },
+  audioError: {
+    color: colors.error,
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+    marginTop: 8,
+    textAlign: 'center',
   },
   errorBlock: {
     alignItems: 'center',

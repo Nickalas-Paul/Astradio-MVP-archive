@@ -26,7 +26,7 @@ function mapSourceToAudioSource(source?: string): AudioSource {
     case 'community_post_audio':
       return 'post';
     case 'sky':
-      return 'sandbox';
+      return 'sky';
     default:
       return 'sandbox';
   }

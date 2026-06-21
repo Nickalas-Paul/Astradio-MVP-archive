@@ -62,6 +62,8 @@ function mapSourceToAudioSource(source?: string | null): AudioSource {
       return 'connection';
     case 'community_post_audio':
       return 'post';
+    case 'sky':
+      return 'sky';
     default:
       return 'sandbox';
   }
