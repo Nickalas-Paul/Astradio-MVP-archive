@@ -20,6 +20,8 @@ import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
 import { useMySkyData } from '../../../src/hooks/useMySkyData';
 import { useAuthStore } from '../../../src/store/auth';
+import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
+import { FTUE_KEYS } from '../../../src/lib/ftue-storage';
 
 function SectionHeading({ title }: { title: string }) {
   return <Text style={styles.sectionHeading}>{title}</Text>;
@@ -152,6 +154,13 @@ export default function MySkyScreen() {
                 {data.identityExportId ? (
                   <IdentityAudioCard exportId={data.identityExportId} />
                 ) : null}
+
+                <FtueBanner
+                  storageKey={FTUE_KEYS.todayBridgeNudge}
+                  message="Your chart never changes. But the sky does, every day. See how today is activating your chart."
+                  actionLabel="Go to Today →"
+                  onAction={() => router.push('/(tabs)/today')}
+                />
               </>
             ) : null}
 

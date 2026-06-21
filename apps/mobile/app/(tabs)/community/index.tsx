@@ -21,6 +21,8 @@ import {
 import { AUTH_HORIZONTAL_PADDING } from '../../../src/constants/auth-styles';
 import { colors } from '../../../src/constants/colors';
 import { useCommunityData } from '../../../src/hooks/useCommunityData';
+import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
+import { FTUE_KEYS } from '../../../src/lib/ftue-storage';
 
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<CommunitySubTabId>('discovery');
@@ -105,6 +107,13 @@ export default function CommunityScreen() {
           }
         >
           <View style={styles.tabContent}>
+            {activeTab === 'discovery' || activeTab === 'connections' ? (
+              <FtueBanner
+                storageKey={FTUE_KEYS.connectionsWelcome}
+                message="Discovery finds people whose charts resonate with yours. Connections tracks the relationships you've built. You already have one. Take a look."
+              />
+            ) : null}
+
             {activeTab === 'discovery' ? (
               <>
                 <Text style={styles.tabHeading}>Discovery</Text>

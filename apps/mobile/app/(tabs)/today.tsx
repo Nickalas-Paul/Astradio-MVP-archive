@@ -25,6 +25,8 @@ import {
 import { useAudioStore } from '../../src/store/audio';
 import { useAuthStore } from '../../src/store/auth';
 import { MarkdownText } from '../../src/components/shared/MarkdownText';
+import { FtueBanner } from '../../src/components/ftue/FtueBanner';
+import { FTUE_KEYS } from '../../src/lib/ftue-storage';
 import { PlanetText } from '../../src/components/shared/PlanetText';
 import {
   ACTIVATION_HEAT_COLORS,
@@ -250,6 +252,11 @@ export default function TodayScreen() {
       >
         <Text style={styles.title}>Today</Text>
         <Text style={styles.date}>{formatTodayDate()}</Text>
+
+        <FtueBanner
+          storageKey={FTUE_KEYS.todayWelcome}
+          message="Today shows you three things: what the sky is doing right now, how it's activating your chart specifically, and how it's shaping your connections. It refreshes every day."
+        />
 
         {isLoading && !data ? <TodaySkeleton /> : null}
 
