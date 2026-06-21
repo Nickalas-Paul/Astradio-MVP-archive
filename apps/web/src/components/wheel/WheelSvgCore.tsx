@@ -64,7 +64,7 @@ function renderInlineGlyph({
   gProps?: SVGAttributes<SVGGElement> & { 'data-planet'?: string };
 }) {
   return (
-    <g transform={`translate(${x}, ${y})`} opacity={opacity} {...gProps}>
+    <g transform={`translate(${x}, ${y})`} opacity={opacity} pointerEvents="all" {...gProps}>
       <svg
         x={-size / 2}
         y={-size / 2}
@@ -80,6 +80,7 @@ function renderInlineGlyph({
           strokeWidth={haloWidth}
           strokeLinejoin="round"
           paintOrder="stroke fill"
+          pointerEvents="visiblePainted"
         />
       </svg>
     </g>
@@ -281,7 +282,8 @@ export function WheelSvgCore({
         {chart.cusps.slice(0, 12).map((a0, i) => {
           const a1 = chart.cusps[(i + 1) % 12]!;
           const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
-          const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[i];
+          const midLon = (a0 + span / 2) % 360;
+          const midPt = pol((R_OUT + R_IN) / 2, midLon, asc);
           return (
             <g key={i}>
               <path
@@ -291,39 +293,16 @@ export function WheelSvgCore({
                 strokeWidth={houseSectorStroke}
                 opacity={1}
               />
-              {(() => {
-                const midLon = (a0 + span / 2) % 360;
-                const midPt = pol((R_OUT + R_IN) / 2, midLon, asc);
-                const anglePt = angleGlyphKey != null ? pol(R_OUT - 8, a0, asc) : null;
-                const angleGlyph =
-                  angleGlyphKey != null ? getPlanetGlyphSvg(angleGlyphKey) : null;
-                return (
-                  <>
-                    <text
-                      x={midPt.x}
-                      y={midPt.y + 3}
-                      textAnchor="middle"
-                      fill={WHEEL_COLORS.houseNumberFill}
-                      fontSize={10}
-                      fontFamily={WHEEL_GLYPH_FONT}
-                    >
-                      {i + 1}
-                    </text>
-                    {angleGlyphKey != null && anglePt != null && angleGlyph ? (
-                      <g key={`angle-${angleGlyphKey}`} pointerEvents="none">
-                        {renderInlineGlyph({
-                          glyph: angleGlyph,
-                          x: anglePt.x,
-                          y: anglePt.y,
-                          size: angleGlyphSize,
-                          fill: ANGLE_GLYPH_COLOR[angleGlyphKey],
-                          haloWidth: 1.5,
-                        })}
-                      </g>
-                    ) : null}
-                  </>
-                );
-              })()}
+              <text
+                x={midPt.x}
+                y={midPt.y + 3}
+                textAnchor="middle"
+                fill={WHEEL_COLORS.houseNumberFill}
+                fontSize={10}
+                fontFamily={WHEEL_GLYPH_FONT}
+              >
+                {i + 1}
+              </text>
             </g>
           );
         })}
@@ -478,6 +457,26 @@ export function WheelSvgCore({
             </text>
           );
         })()}
+
+        {chart.cusps.slice(0, 12).map((a0, i) => {
+          const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[i];
+          if (angleGlyphKey == null) return null;
+          const angleGlyph = getPlanetGlyphSvg(angleGlyphKey);
+          if (!angleGlyph) return null;
+          const anglePt = pol(R_OUT - 8, a0, asc);
+          return (
+            <g key={`angle-${angleGlyphKey}`} pointerEvents="none">
+              {renderInlineGlyph({
+                glyph: angleGlyph,
+                x: anglePt.x,
+                y: anglePt.y,
+                size: angleGlyphSize,
+                fill: ANGLE_GLYPH_COLOR[angleGlyphKey],
+                haloWidth: 1.5,
+              })}
+            </g>
+          );
+        })}
       </g>
     </svg>
   );

@@ -89,7 +89,18 @@ export function ActiveTransitPanel({
   const [activeSlotIndex, setActiveSlotIndex] = useState<0 | 1>(0);
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
+  const [transitWheelMaxSize, setTransitWheelMaxSize] = useState(320);
   const fetchInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const update = () => {
+      const vhCap = Math.floor(window.innerHeight * 0.45) - 32;
+      setTransitWheelMaxSize(Math.min(320, Math.max(200, vhCap)));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const activeWheelSlots = useMemo(() => {
     const id = activeResult?.identity as
@@ -612,8 +623,8 @@ export function ActiveTransitPanel({
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
 
           {activeWheelSlots ? (
-            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm">
-              <div className="max-w-md mx-auto w-full">{renderWheelColumn(400)}</div>
+            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[45vh] overflow-hidden">
+              <div className="max-w-md mx-auto w-full">{renderWheelColumn(transitWheelMaxSize)}</div>
             </div>
           ) : null}
 

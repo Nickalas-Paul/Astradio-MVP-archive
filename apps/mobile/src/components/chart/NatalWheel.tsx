@@ -245,35 +245,18 @@ export function NatalWheel({
             const midLon = (a0 + span / 2) % 360;
             const houseLabelRadius = (geometry.innerRadius + geometry.zodiacInnerRadius) / 2;
             const point = pol(houseLabelRadius, midLon, ascendantLongitude);
-            const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[index];
-            const anglePoint =
-              angleGlyphKey != null
-                ? pol(geometry.zodiacInnerRadius - 8, a0, ascendantLongitude)
-                : null;
-            const angleGlyph =
-              angleGlyphKey != null ? getPlanetGlyphPath(angleGlyphKey) : null;
             return (
-              <G key={`house-${index}`}>
-                <SvgText
-                  x={point.x}
-                  y={point.y + 3}
-                  fill={WHEEL_COLORS.houseNumberFill}
-                  fontSize={10}
-                  opacity={0.75}
-                  textAnchor="middle"
-                >
-                  {index + 1}
-                </SvgText>
-                {angleGlyphKey != null && anglePoint != null && angleGlyph ? (
-                  renderWheelGlyph(
-                    angleGlyph,
-                    anglePoint.x,
-                    anglePoint.y,
-                    ANGLE_GLYPH_SIZE,
-                    ANGLE_GLYPH_COLOR[angleGlyphKey]
-                  )
-                ) : null}
-              </G>
+              <SvgText
+                key={`house-num-${index}`}
+                x={point.x}
+                y={point.y + 3}
+                fill={WHEEL_COLORS.houseNumberFill}
+                fontSize={10}
+                opacity={0.75}
+                textAnchor="middle"
+              >
+                {index + 1}
+              </SvgText>
             );
           })}
 
@@ -359,6 +342,25 @@ export function NatalWheel({
               >
                 {planet.glyph}
               </SvgText>
+            );
+          })}
+
+          {cusps.slice(0, 12).map((a0, index) => {
+            const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[index];
+            if (angleGlyphKey == null) return null;
+            const angleGlyph = getPlanetGlyphPath(angleGlyphKey);
+            if (!angleGlyph) return null;
+            const anglePoint = pol(geometry.zodiacInnerRadius - 8, a0, ascendantLongitude);
+            return (
+              <G key={`angle-${angleGlyphKey}`}>
+                {renderWheelGlyph(
+                  angleGlyph,
+                  anglePoint.x,
+                  anglePoint.y,
+                  ANGLE_GLYPH_SIZE,
+                  ANGLE_GLYPH_COLOR[angleGlyphKey]
+                )}
+              </G>
             );
           })}
 

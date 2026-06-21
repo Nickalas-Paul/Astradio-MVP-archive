@@ -1,13 +1,38 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
+import { normalizePlanetName } from '../../core/planet-identity';
+import { lonToSignDegMin, SIGN_NAMES } from '../../lib/zodiac-degrees';
+import { BODY_LABELS, type BodyKey } from '../../../../../vnext/canonical-bodies';
 import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { WheelSvgCore } from './WheelSvgCore';
+
+function planetDisplayName(bodyKey: string): string {
+  const canonical = normalizePlanetName(bodyKey);
+  return BODY_LABELS[canonical as BodyKey] ?? canonical.charAt(0).toUpperCase() + canonical.slice(1);
+}
+
+function formatPlanetHoverLabel(bodyKey: string, lon: number): string {
+  const { signIndex, degree, minutes } = lonToSignDegMin(lon);
+  const signName = SIGN_NAMES[signIndex] ?? '';
+  const minStr = String(minutes).padStart(2, '0');
+  return `${planetDisplayName(bodyKey)} · ${signName} ${degree}°${minStr}'`;
+}
+
+function lookupLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
+  const canonical = normalizePlanetName(bodyKey);
+  if (canonical === 'southNode') {
+    const nn = positions.northNode ?? positions.northnode ?? positions.NorthNode;
+    if (typeof nn === 'number' && Number.isFinite(nn)) return (nn + 180) % 360;
+  }
+  const deg = positions[canonical] ?? positions[bodyKey] ?? positions[bodyKey.toLowerCase()];
+  return typeof deg === 'number' && Number.isFinite(deg) ? deg : undefined;
+}
 
 export interface WheelDisplayProps {
   chartData?: unknown;
@@ -44,6 +69,14 @@ export function WheelDisplay({
     (highlightedPlanets.size > 0 ? highlightedPlanets : undefined);
 
   const enableBidirectional = planetHighlightProp == null;
+
+  const hoverLabel = useMemo(() => {
+    if (highlightedPlanets.size !== 1 || !normalized) return null;
+    const bodyKey = [...highlightedPlanets][0]!;
+    const lon = lookupLongitude(normalized.positions, bodyKey);
+    if (lon == null) return null;
+    return formatPlanetHoverLabel(bodyKey, lon);
+  }, [highlightedPlanets, normalized]);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -160,7 +193,15 @@ export function WheelDisplay({
             </div>
           </div>
         )}
-        <div className="wheel-overlay" />
+        {hoverLabel ? (
+          <div
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[92%] px-2.5 py-1 rounded-md bg-bg/95 border border-border text-caption text-text-primary text-center pointer-events-none z-10 whitespace-nowrap"
+            aria-live="polite"
+          >
+            {hoverLabel}
+          </div>
+        ) : null}
+        <div className="wheel-overlay pointer-events-none" />
       </motion.div>
     </div>
   );

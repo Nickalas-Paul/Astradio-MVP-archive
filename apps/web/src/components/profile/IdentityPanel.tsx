@@ -337,34 +337,25 @@ export function IdentityPanel({
           />
         ) : (
           <>
-            <div className="md:hidden max-w-[280px] mx-auto w-full">{wheelAndAudio(280)}</div>
+            <div className="w-full max-w-[480px] mx-auto">{wheelAndAudio(480)}</div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
-              <div className="min-w-0 w-full">
-                {loading && !chartData && (
-                  <div className="space-y-4">
-                    <div className="h-20 bg-bgElev rounded animate-pulse" />
-                    <div className="h-20 bg-bgElev rounded animate-pulse" />
-                  </div>
-                )}
-                {error && !chartData && (
-                  <p className="text-text-secondary text-sm">{error}</p>
-                )}
-                {hasExplainer && (
-                  <ExplainerSections
-                    sections={filterIdentityDisplaySections(
-                      mapExplanationToSections(chartData!.explainer)
-                    )}
-                  />
-                )}
-              </div>
-
-              <div
-                className="hidden md:block md:sticky md:top-20 shrink-0"
-                style={{ maxWidth: '360px' }}
-              >
-                {wheelAndAudio(340)}
-              </div>
+            <div className="min-w-0 w-full">
+              {loading && !chartData && (
+                <div className="space-y-4">
+                  <div className="h-20 bg-bgElev rounded animate-pulse" />
+                  <div className="h-20 bg-bgElev rounded animate-pulse" />
+                </div>
+              )}
+              {error && !chartData && (
+                <p className="text-text-secondary text-sm">{error}</p>
+              )}
+              {hasExplainer && (
+                <ExplainerSections
+                  sections={filterIdentityDisplaySections(
+                    mapExplanationToSections(chartData!.explainer)
+                  )}
+                />
+              )}
             </div>
           </>
         )}
