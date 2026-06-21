@@ -11,6 +11,41 @@ import { Card } from '@/components/shared/Card';
 import { MessagePeerButton } from '@/components/community/messages/MessagePeerButton';
 import { ConnectionOverflowMenu } from '@/components/community/ConnectionOverflowMenu';
 
+/** Peer avatar — same visual pattern as ConversationList PeerAvatar; loads by userId when inventory has no avatarUrl. */
+function ConnectionPeerAvatar({
+  peerUserId,
+  displayName,
+}: {
+  peerUserId: string | null | undefined;
+  displayName: string;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const initial = (displayName || 'Connection').charAt(0).toUpperCase();
+  const userId = typeof peerUserId === 'string' ? peerUserId.trim() : '';
+  const avatarSrc =
+    userId && !imgFailed ? `${getApiBaseUrl() || ''}/api/profile/avatar/${encodeURIComponent(userId)}` : null;
+
+  if (avatarSrc) {
+    return (
+      <img
+        src={avatarSrc}
+        alt=""
+        className="h-10 w-10 rounded-full object-cover bg-surface-2 shrink-0"
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="h-10 w-10 rounded-full bg-accent/20 text-accent flex items-center justify-center text-sm font-semibold shrink-0"
+      aria-hidden
+    >
+      {initial}
+    </div>
+  );
+}
+
 /** Inventory is conservative: export id does not mean playable audio. */
 function inventoryArtifactStatusCopy(status: string) {
   if (status === 'audio_available') return 'Reading available · sound record on file';
@@ -395,7 +430,9 @@ export function ConnectionInventoryPanel({
               <p className="text-sm text-text-secondary">No saved pair connections yet.</p>
             ) : (
               <ul className="space-y-3">
-                {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => (
+                {(data as CommunityInventoryV1).pairs.map((p: Record<string, unknown>) => {
+                  const peerDisplayName = (p.peerDisplayName as string) || 'Connection';
+                  return (
                   <Card
                     as="li"
                     key={String(p.id)}
@@ -403,35 +440,41 @@ export function ConnectionInventoryPanel({
                     interactive
                     className="space-y-2"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5 min-w-0">
-                        <span>
-                          {(p.peerDisplayName as string) || 'Connection'}{' '}
-                          {(p.peerHandle as string) ? (
-                            <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                    <div className="flex items-start gap-3">
+                      <ConnectionPeerAvatar
+                        peerUserId={typeof p.peerUserId === 'string' ? p.peerUserId : null}
+                        displayName={peerDisplayName}
+                      />
+                      <div className="flex flex-1 flex-wrap items-start justify-between gap-2 min-w-0">
+                        <div className="text-sm font-medium text-text-primary flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span>
+                            {peerDisplayName}{' '}
+                            {(p.peerHandle as string) ? (
+                              <span className="text-text-secondary font-normal">@{p.peerHandle as string}</span>
+                            ) : null}
+                          </span>
+                          {p.label ? (
+                            <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">
+                              {String(p.label)}
+                            </span>
                           ) : null}
-                        </span>
-                        {p.label ? (
-                          <span className="text-xs bg-accent/10 text-accent rounded-full px-2 py-0.5 font-medium">
-                            {String(p.label)}
-                          </span>
-                        ) : null}
-                        {FOUNDER_USER_ID &&
-                        typeof p.peerUserId === 'string' &&
-                        p.peerUserId.trim() === FOUNDER_USER_ID ? (
-                          <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
-                            Founder
-                          </span>
+                          {FOUNDER_USER_ID &&
+                          typeof p.peerUserId === 'string' &&
+                          p.peerUserId.trim() === FOUNDER_USER_ID ? (
+                            <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 font-normal px-1.5 py-0.5 rounded-full border border-border/60">
+                              Founder
+                            </span>
+                          ) : null}
+                        </div>
+                        {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
+                          <ConnectionOverflowMenu
+                            relationshipId={String(p.id)}
+                            peerDisplayName={peerDisplayName}
+                            peerUserId={String(p.peerUserId)}
+                            onActionComplete={() => refresh()}
+                          />
                         ) : null}
                       </div>
-                      {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
-                        <ConnectionOverflowMenu
-                          relationshipId={String(p.id)}
-                          peerDisplayName={String(p.peerDisplayName || 'Connection')}
-                          peerUserId={String(p.peerUserId)}
-                          onActionComplete={() => refresh()}
-                        />
-                      ) : null}
                     </div>
                     {(() => {
                       const status = String(p.artifactStatus || 'not_generated');
@@ -498,7 +541,8 @@ export function ConnectionInventoryPanel({
                     </div>
                     {/* PairWeatherPreview removed for beta - theme tags need humanized display */}
                   </Card>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </section>

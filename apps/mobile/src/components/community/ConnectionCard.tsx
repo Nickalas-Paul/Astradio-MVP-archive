@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { FOUNDER_USER_ID } from '../../constants/community-constants';
 import { colors } from '../../constants/colors';
 import type { InventoryPair } from '../../types/community';
+import { UserAvatar } from './UserAvatar';
 
 type ConnectionCardProps = {
   pair: InventoryPair;
@@ -41,21 +42,28 @@ export function ConnectionCard({ pair }: ConnectionCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>
-            {displayName}
-            {handle ? <Text style={styles.handle}> @{handle}</Text> : null}
-          </Text>
-          {pair.label ? (
-            <View style={styles.labelBadge}>
-              <Text style={styles.labelBadgeText}>{formatLabel(pair.label)}</Text>
-            </View>
-          ) : null}
-          {isFounder ? (
-            <View style={styles.founderBadge}>
-              <Text style={styles.founderBadgeText}>Founder</Text>
-            </View>
-          ) : null}
+        <UserAvatar
+          userId={pair.peerUserId}
+          displayName={displayName}
+          size={40}
+        />
+        <View style={styles.nameBlock}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>
+              {displayName}
+              {handle ? <Text style={styles.handle}> @{handle}</Text> : null}
+            </Text>
+            {pair.label ? (
+              <View style={styles.labelBadge}>
+                <Text style={styles.labelBadgeText}>{formatLabel(pair.label)}</Text>
+              </View>
+            ) : null}
+            {isFounder ? (
+              <View style={styles.founderBadge}>
+                <Text style={styles.founderBadgeText}>Founder</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -91,7 +99,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 6,
+  },
+  nameBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   nameRow: {
     flexDirection: 'row',
