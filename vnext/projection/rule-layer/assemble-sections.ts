@@ -292,6 +292,7 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
 
   if (surface === 'compat_pair') {
     return withOrder([
+      'connection_structure',
       'core_identity',
       'personal_expression',
       'growth_expansion',
@@ -299,7 +300,6 @@ function filterAndOrderPhase3Sections(sections: ProjectedExplanationSection[], s
       'no_activations',
       'synthesis_a',
       'synthesis_b',
-      'connection_structure',
       'relational_field',
       'relational_weather_v1',
       'aspects',
@@ -1301,6 +1301,9 @@ export function assemblePhaseDSections(params: PhaseDAssemblyParams): ProjectedE
       tier: tierEff,
       seed,
       suppressEnsembleFraming: options.suppressEnsembleFraming,
+      seekerSnapshot: options.snapshot,
+      targetSnapshot: options.secondarySnapshot,
+      compatClassCode: options.compatClassCode,
     }
   );
   framed = applyAggregateSurfaceIdentityOverrides(framed, surface, seed, core, tierEff, reportPadUsed);

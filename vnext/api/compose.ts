@@ -1022,13 +1022,21 @@ export class ComposeAPI {
     const musicalText = musicalSection?.text || '';
     const musicalBullets = musicalSection?.bullets || [];
     /** Do not join all sections: `short` is already the signatures/relational_field block; joining every section repeated it in `long` (Community + feed UI). */
-    const leadSectionIds = new Set(['signatures', 'aspects', 'relational_field', 'group_key_interactions_v1']);
+    const leadSectionIds = new Set([
+      'connection_structure',
+      'signatures',
+      'aspects',
+      'relational_field',
+      'group_key_interactions_v1',
+    ]);
     const longBody = projected
       .filter((s) => !leadSectionIds.has(s.id))
       .map((s) => s.text)
       .filter(Boolean)
       .join('\n\n');
 
+    const connectionPrefaceText =
+      projected.find((s) => s.id === 'connection_structure')?.text?.trim() ?? '';
     const summaryCandidates = [
       firstSentenceForSummary(projected.find((s) => s.id === 'relational_field')?.text || signaturesText),
       firstSentenceForSummary(projected.find((s) => s.id === 'interaction_map')?.text || ''),
@@ -1038,7 +1046,9 @@ export class ComposeAPI {
           ''
       ),
     ].filter((s) => s.length > 0);
-    const compressedSummary = summaryCandidates.slice(0, 3).join(' ');
+    const compressedSummary = connectionPrefaceText
+      ? connectionPrefaceText
+      : summaryCandidates.slice(0, 3).join(' ');
 
     const text = {
       short: compressedSummary,
