@@ -1,30 +1,42 @@
 'use client';
 
 import type { PlanetKey, SandboxOverrides } from '../../types/sandbox';
+import { PLANET_COLORS } from '../../core/planet-identity';
 import { BODY_DISPLAY_ORDER, BODY_LABELS } from '../../../../../vnext/canonical-bodies';
+import { PLANET_GLYPH } from '../wheel/wheel-constants';
+import { getPlanetGlyphSvg } from '../wheel/wheel-glyphs';
 
 const PLANET_ORDER: PlanetKey[] = [...BODY_DISPLAY_ORDER] as PlanetKey[];
 
-const PLANET_GLYPH: Record<string, string> = {
-  sun: '\u2609',
-  moon: '\u263D',
-  mercury: '\u263F',
-  venus: '\u2640',
-  mars: '\u2642',
-  jupiter: '\u2643',
-  saturn: '\u2644',
-  uranus: '\u2645',
-  neptune: '\u2646',
-  pluto: '\u2647',
-  northNode: '\u260A',
-  chiron: '\u26B7',
-  ceres: '\u26B3',
-  pallas: '\u26B4',
-  juno: '\u26B5',
-  vesta: '\u26B6',
-};
-
 const PLANET_LABELS: Record<PlanetKey, string> = { ...BODY_LABELS } as Record<PlanetKey, string>;
+
+const CHIP_GLYPH_SIZE = 14;
+
+function PlanetChipGlyph({ planet }: { planet: PlanetKey }) {
+  const glyph = getPlanetGlyphSvg(planet);
+  const fill = PLANET_COLORS[planet] ?? '#e8ecf1';
+
+  if (glyph) {
+    return (
+      <svg
+        className="inline-block align-middle mr-1"
+        width={CHIP_GLYPH_SIZE}
+        height={CHIP_GLYPH_SIZE}
+        viewBox={glyph.viewBox}
+        overflow="visible"
+        aria-hidden
+      >
+        <path d={glyph.pathData} fill={fill} />
+      </svg>
+    );
+  }
+
+  return (
+    <span className="mr-1" aria-hidden>
+      {PLANET_GLYPH[planet] ?? '•'}
+    </span>
+  );
+}
 
 export interface PlanetPaletteProps {
   overrides: SandboxOverrides;
@@ -57,7 +69,7 @@ export function PlanetPalette({ overrides, selectedPlanet, onSelectPlanet }: Pla
             }`}
             title={isPlaced ? `${PLANET_LABELS[planet]} placed. Click to place elsewhere` : `Click wheel to place ${PLANET_LABELS[planet]}`}
           >
-            <span className="mr-1" aria-hidden>{PLANET_GLYPH[planet] ?? '•'}</span>
+            <PlanetChipGlyph planet={planet} />
             {PLANET_LABELS[planet]}
           </button>
         );

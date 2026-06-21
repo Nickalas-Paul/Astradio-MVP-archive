@@ -4,6 +4,7 @@ import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { colors } from '../../constants/colors';
 import { normalizePlanetName, planetColor, PLANET_COLORS } from '../../constants/planet-colors';
 import { BODY_DISPLAY_ORDER, PLANET_GLYPH, SIGN_GLYPH, WHEEL_COLORS } from '../../constants/wheel-constants';
+import { getPlanetGlyphPath, getSignGlyphPath, type GlyphData } from '../../constants/wheel-glyphs';
 import { angularSeparationDeg, pol, wheelRadii, zodiacSegmentPath } from '../../lib/chart-geometry';
 import type { WheelAspect, WheelPlacement } from '../../types/my-sky';
 
@@ -18,6 +19,32 @@ type NatalWheelProps = {
 };
 
 const CLUSTER_THRESHOLD_DEG = 8;
+const NATAL_PLANET_GLYPH_SIZE = 14;
+const TRANSIT_PLANET_GLYPH_SIZE = 12;
+const SIGN_GLYPH_SIZE = 14;
+
+function renderWheelGlyph(
+  glyph: GlyphData,
+  x: number,
+  y: number,
+  size: number,
+  fill: string,
+  opacity = 1
+) {
+  return (
+    <G x={x} y={y} opacity={opacity}>
+      <Svg
+        x={-size / 2}
+        y={-size / 2}
+        width={size}
+        height={size}
+        viewBox={glyph.viewBox}
+      >
+        <Path d={glyph.pathData} fill={fill} />
+      </Svg>
+    </G>
+  );
+}
 
 function bodyKey(body: string): string {
   return body.toLowerCase().replace(/\s+/g, '');
@@ -165,6 +192,20 @@ export function NatalWheel({
             const midLon = signIndex * 30 + 15;
             const glyphRadius = (geometry.outerRadius + geometry.zodiacInnerRadius) / 2;
             const point = pol(glyphRadius, midLon, ascendantLongitude);
+            const signGlyph = getSignGlyphPath(signIndex);
+            if (signGlyph) {
+              return (
+                <G key={`sign-${signIndex}`}>
+                  {renderWheelGlyph(
+                    signGlyph,
+                    point.x,
+                    point.y,
+                    SIGN_GLYPH_SIZE,
+                    WHEEL_COLORS.zodiacGlyphFill
+                  )}
+                </G>
+              );
+            }
             return (
               <SvgText
                 key={`sign-${signIndex}`}
@@ -247,6 +288,14 @@ export function NatalWheel({
             const radius = planetRadii.get(planet.key) ?? geometry.planetRadius;
             const point = pol(radius, planet.lon, ascendantLongitude);
             const color = PLANET_COLORS[normalizePlanetName(planet.key)] ?? colors.text.primary;
+            const planetGlyph = getPlanetGlyphPath(planet.key);
+            if (planetGlyph) {
+              return (
+                <G key={`planet-${planet.key}`}>
+                  {renderWheelGlyph(planetGlyph, point.x, point.y, NATAL_PLANET_GLYPH_SIZE, color)}
+                </G>
+              );
+            }
             return (
               <SvgText
                 key={`planet-${planet.key}`}
@@ -265,6 +314,20 @@ export function NatalWheel({
           {visibleTransitPlanets.map((planet) => {
             const radius = transitPlanetRadii.get(planet.key) ?? transitPlanetRadius;
             const point = pol(radius, planet.lon, ascendantLongitude);
+            const transitGlyph = getPlanetGlyphPath(planet.key);
+            if (transitGlyph) {
+              return (
+                <G key={`transit-${planet.key}`}>
+                  {renderWheelGlyph(
+                    transitGlyph,
+                    point.x,
+                    point.y,
+                    TRANSIT_PLANET_GLYPH_SIZE,
+                    WHEEL_COLORS.transitGlyphFill
+                  )}
+                </G>
+              );
+            }
             return (
               <SvgText
                 key={`transit-${planet.key}`}

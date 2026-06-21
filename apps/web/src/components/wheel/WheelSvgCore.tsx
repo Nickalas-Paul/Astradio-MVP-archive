@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type Ref, PointerEvent } from 'react';
+import { useMemo, type Ref, PointerEvent, type SVGAttributes } from 'react';
 import type { ChartForWheel } from '../../core/chart-adapter';
 import { PLANET_COLORS, normalizePlanetName } from '../../core/planet-identity';
 import { formatCuspDegreeLabel } from '../../lib/zodiac-degrees';
@@ -24,6 +24,7 @@ import {
   resolveAscendantLongitude,
   zodiacSegmentPath,
 } from './wheel-geometry';
+import { getPlanetGlyphSvg, getSignGlyphSvg, type GlyphData } from './wheel-glyphs';
 
 const BODY_ORDER: readonly string[] = BODY_DISPLAY_ORDER;
 
@@ -36,6 +37,52 @@ const ANGLE_LABEL_BY_HOUSE_INDEX: Record<number, string> = {
 };
 
 const SOUTH_NODE_OPACITY = 0.45;
+const PLANET_GLYPH_SIZE = 16;
+const PLANET_GLYPH_SIZE_HIGHLIGHTED = 22;
+const SOUTH_NODE_GLYPH_SIZE = 13;
+const SOUTH_NODE_GLYPH_SIZE_HIGHLIGHTED = 18;
+
+function renderInlineGlyph({
+  glyph,
+  x,
+  y,
+  size,
+  fill,
+  haloWidth = 2.5,
+  opacity = 1,
+  gProps = {},
+}: {
+  glyph: GlyphData;
+  x: number;
+  y: number;
+  size: number;
+  fill: string;
+  haloWidth?: number;
+  opacity?: number;
+  gProps?: SVGAttributes<SVGGElement> & { 'data-planet'?: string };
+}) {
+  return (
+    <g transform={`translate(${x}, ${y})`} opacity={opacity} {...gProps}>
+      <svg
+        x={-size / 2}
+        y={-size / 2}
+        width={size}
+        height={size}
+        viewBox={glyph.viewBox}
+        overflow="visible"
+      >
+        <path
+          d={glyph.pathData}
+          fill={fill}
+          stroke={WHEEL_COLORS.glyphHaloStroke}
+          strokeWidth={haloWidth}
+          strokeLinejoin="round"
+          paintOrder="stroke fill"
+        />
+      </svg>
+    </g>
+  );
+}
 
 function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
   const deg = positions[bodyKey] ?? positions[bodyKey.toLowerCase()];
@@ -187,6 +234,21 @@ export function WheelSvgCore({
               ? Array.from({ length: 12 }, (_, signIndex) => {
                   const midLon = signIndex * 30 + 15;
                   const pt = pol((R_ZODIAC + R_OUT) / 2, midLon, asc);
+                  const signGlyph = getSignGlyphSvg(signIndex);
+                  if (signGlyph) {
+                    return (
+                      <g key={`zodiac-glyph-${signIndex}`} pointerEvents="none">
+                        {renderInlineGlyph({
+                          glyph: signGlyph,
+                          x: pt.x,
+                          y: pt.y,
+                          size: zodiacGlyphSize,
+                          fill: WHEEL_COLORS.zodiacGlyphFill,
+                          haloWidth: 1.5,
+                        })}
+                      </g>
+                    );
+                  }
                   return (
                     <text
                       key={`zodiac-glyph-${signIndex}`}
@@ -348,13 +410,42 @@ export function WheelSvgCore({
         {planetNames.map((name) => {
           const deg = positionLongitude(positions, name);
           if (deg == null) return null;
-          const glyph = glyphForBody(name);
-          if (!glyph) return null;
           const p = pol(planetRadius, deg, asc);
           const canonicalName = normalizePlanetName(name);
           const isHighlighted = highlightSet.has(canonicalName);
           const fill = PLANET_COLORS[canonicalName] ?? WHEEL_COLORS.planetGlyphFill;
           const planetInteractive = !interactive && (onPlanetHover != null || onPlanetClick != null);
+          const glyphSize = isHighlighted ? PLANET_GLYPH_SIZE_HIGHLIGHTED : PLANET_GLYPH_SIZE;
+          const planetGlyph = getPlanetGlyphSvg(name);
+          const interactionProps: SVGAttributes<SVGGElement> & { 'data-planet'?: string } = {
+            'data-planet': canonicalName,
+            style: {
+              transition: 'opacity 0.2s ease',
+              cursor: planetInteractive ? 'pointer' : interactive ? 'grab' : undefined,
+              userSelect: interactive ? ('none' as const) : undefined,
+            },
+            onMouseEnter: planetInteractive ? () => onPlanetHover?.(canonicalName) : undefined,
+            onMouseLeave: planetInteractive ? () => onPlanetHover?.(null) : undefined,
+            onClick: planetInteractive ? () => onPlanetClick?.(canonicalName) : undefined,
+          };
+
+          if (planetGlyph) {
+            return (
+              <g key={name}>
+                {renderInlineGlyph({
+                  glyph: planetGlyph,
+                  x: p.x,
+                  y: p.y,
+                  size: glyphSize,
+                  fill,
+                  gProps: interactionProps,
+                })}
+              </g>
+            );
+          }
+
+          const unicodeGlyph = glyphForBody(name);
+          if (!unicodeGlyph) return null;
           return (
             <text
               key={name}
@@ -377,7 +468,7 @@ export function WheelSvgCore({
               onMouseLeave={planetInteractive ? () => onPlanetHover?.(null) : undefined}
               onClick={planetInteractive ? () => onPlanetClick?.(canonicalName) : undefined}
             >
-              {glyph}
+              {unicodeGlyph}
             </text>
           );
         })}
@@ -389,6 +480,27 @@ export function WheelSvgCore({
           const p = pol(planetRadius, southLon, asc);
           const southHighlighted = highlightSet.has(normalizePlanetName('southNode'));
           const southFill = PLANET_COLORS.southNode ?? WHEEL_COLORS.planetGlyphFill;
+          const southGlyphSize = southHighlighted
+            ? SOUTH_NODE_GLYPH_SIZE_HIGHLIGHTED
+            : SOUTH_NODE_GLYPH_SIZE;
+          const southGlyph = getPlanetGlyphSvg('southNode');
+
+          if (southGlyph) {
+            return (
+              <g key="southNode-derived" pointerEvents="none">
+                {renderInlineGlyph({
+                  glyph: southGlyph,
+                  x: p.x,
+                  y: p.y,
+                  size: southGlyphSize,
+                  fill: southFill,
+                  opacity: southHighlighted ? 1 : SOUTH_NODE_OPACITY,
+                  gProps: { 'data-planet': 'southNode' },
+                })}
+              </g>
+            );
+          }
+
           return (
             <text
               key="southNode-derived"
