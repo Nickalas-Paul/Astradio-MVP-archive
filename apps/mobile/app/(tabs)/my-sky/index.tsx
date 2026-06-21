@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -35,8 +35,15 @@ export default function MySkyScreen() {
   const { width } = useWindowDimensions();
   const { data, isLoading, error, refetch } = useMySkyData();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'identity' | 'library'>('identity');
+  const scrollRef = useRef<ScrollView>(null);
 
   const wheelSize = width - AUTH_HORIZONTAL_PADDING * 2;
+
+  const handleTabChange = (tab: 'identity' | 'library') => {
+    setActiveTab(tab);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -61,6 +68,7 @@ export default function MySkyScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
@@ -88,29 +96,66 @@ export default function MySkyScreen() {
           <>
             <ProfileHeader user={data.user} bigThree={data.bigThree} />
 
-            {data.wheel ? (
-              <NatalWheel
-                size={wheelSize}
-                placements={data.wheel.placements}
-                aspects={data.wheel.aspects}
-                cusps={data.wheel.cusps}
-                ascendantLongitude={data.wheel.ascendantLongitude}
-              />
-            ) : (
-              <Text style={styles.emptyText}>Chart wheel unavailable</Text>
-            )}
+            <View style={styles.tabBar}>
+              <Pressable
+                onPress={() => handleTabChange('identity')}
+                style={[
+                  styles.tabButton,
+                  activeTab === 'identity' && styles.tabButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    activeTab === 'identity' && styles.tabLabelActive,
+                  ]}
+                >
+                  Identity
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleTabChange('library')}
+                style={[
+                  styles.tabButton,
+                  activeTab === 'library' && styles.tabButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    activeTab === 'library' && styles.tabLabelActive,
+                  ]}
+                >
+                  Library
+                </Text>
+              </Pressable>
+            </View>
 
-            <SectionDivider />
-            <SectionHeading title="Your Identity" />
-            <IdentityReading sections={data.identitySections} />
+            {activeTab === 'identity' ? (
+              <>
+                {data.wheel ? (
+                  <NatalWheel
+                    size={wheelSize}
+                    placements={data.wheel.placements}
+                    aspects={data.wheel.aspects}
+                    cusps={data.wheel.cusps}
+                    ascendantLongitude={data.wheel.ascendantLongitude}
+                  />
+                ) : (
+                  <Text style={styles.emptyText}>Chart wheel unavailable</Text>
+                )}
 
-            {data.identityExportId ? (
-              <IdentityAudioCard exportId={data.identityExportId} />
+                <SectionDivider />
+                <SectionHeading title="Your Identity" />
+                <IdentityReading sections={data.identitySections} />
+
+                {data.identityExportId ? (
+                  <IdentityAudioCard exportId={data.identityExportId} />
+                ) : null}
+              </>
             ) : null}
 
-            <SectionDivider />
-            <SectionHeading title="Library" />
-            <LibrarySection items={data.libraryItems} />
+            {activeTab === 'library' ? <LibrarySection items={data.libraryItems} /> : null}
           </>
         ) : null}
 
@@ -137,6 +182,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Cormorant-SemiBold',
     marginTop: 8,
     marginBottom: 16,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  tabButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: colors.accent.DEFAULT,
+  },
+  tabLabel: {
+    fontSize: 15,
+    fontFamily: 'Manrope-Regular',
+    color: colors.text.muted,
+  },
+  tabLabelActive: {
+    fontFamily: 'Manrope-Medium',
+    color: colors.text.primary,
   },
   sectionDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
