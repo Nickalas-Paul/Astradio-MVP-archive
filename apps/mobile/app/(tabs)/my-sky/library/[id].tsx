@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,12 +13,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AUTH_HORIZONTAL_PADDING } from '../../../../src/constants/auth-styles';
 import { colors } from '../../../../src/constants/colors';
 import { layout } from '../../../../src/constants/layout';
-import { fetchLibraryDetail } from '../../../../src/lib/my-sky-fetch';
+import { deleteLibraryComposition, fetchLibraryDetail } from '../../../../src/lib/my-sky-fetch';
 import { useAudioStore, type AudioSource } from '../../../../src/store/audio';
 import type { SavedCompositionDetail } from '../../../../src/types/sandbox';
 
 function isValidExportId(exportId?: string | null): exportId is string {
   return typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId);
+}
+
+function parseSandboxState(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function librarySourceLabel(source: string | null | undefined): string {
@@ -61,10 +78,19 @@ function formatCreatedAt(createdAt?: string | null): string {
   });
 }
 
+function isMetadataOnlyReport(report: unknown): boolean {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return false;
+  const keys = Object.keys(report as Record<string, unknown>);
+  if (keys.length === 0) return true;
+  const metadataKeys = new Set(['savedFrom', 'label', 'at']);
+  return keys.every((k) => metadataKeys.has(k));
+}
+
 function reportHasReadableContent(report: unknown): boolean {
   if (report == null) return false;
   if (typeof report === 'string') return report.trim().length > 0;
   if (typeof report !== 'object' || Array.isArray(report)) return false;
+  if (isMetadataOnlyReport(report)) return false;
   const obj = report as Record<string, unknown>;
   if (typeof obj.text === 'string' && obj.text.trim()) return true;
   if (obj.text && typeof obj.text === 'object' && !Array.isArray(obj.text)) {
@@ -105,18 +131,41 @@ function renderReportText(report: unknown): string {
       .join('\n\n')
       .trim();
   }
+  if (Array.isArray(obj.sections)) {
+    return (obj.sections as Array<{ title?: string; text?: string }>)
+      .map((s) => {
+        const title = s.title?.trim();
+        const text = s.text?.trim() ?? '';
+        return title ? `${title}\n\n${text}` : text;
+      })
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+  }
   return '';
 }
 
-function emptyMessageForSource(source: string | null | undefined, createdAtLabel: string): string {
+function emptyMessageForSource(
+  source: string | null | undefined,
+  createdAtLabel: string,
+  sandboxState: Record<string, unknown> | null,
+): string {
   const value = String(source ?? '').trim();
   if (value === 'profile_identity') {
-    return 'Your identity reading lives on My Sky.';
+    return 'Your identity soundtrack. Visit My Sky for the full reading.';
   }
   if (value === 'profile_active') {
     return createdAtLabel
       ? `This transit was saved on ${createdAtLabel}. Open Today for current transits.`
       : 'This transit was saved. Open Today for current transits.';
+  }
+  if (value === 'sandbox') {
+    return 'No reading text saved for this composition.';
+  }
+  if (value === 'sky') {
+    const skyDate =
+      (typeof sandboxState?.date === 'string' && sandboxState.date.trim()) || createdAtLabel || 'this date';
+    return `Today's Sky for ${skyDate}.`;
   }
   if (value === 'community_relationship' || value === 'community_group') {
     return 'Open this connection from Community to see the full reading.';
@@ -139,6 +188,8 @@ export default function LibraryDetailScreen() {
   const [detail, setDetail] = useState<SavedCompositionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -170,11 +221,23 @@ export default function LibraryDetailScreen() {
     };
   }, [id]);
 
+  const sandboxState = useMemo(() => parseSandboxState(detail?.sandbox_state), [detail?.sandbox_state]);
   const createdAtLabel = useMemo(() => formatCreatedAt(detail?.created_at), [detail?.created_at]);
   const reportText = useMemo(() => renderReportText(detail?.report), [detail?.report]);
   const hasReport = useMemo(() => reportHasReadableContent(detail?.report), [detail?.report]);
   const exportId = detail?.export_id ?? null;
   const sourceLabel = librarySourceLabel(detail?.source);
+
+  useEffect(() => {
+    if (!detail || !isValidExportId(exportId)) return;
+    if (detail.source === 'profile_identity') {
+      playTrack({
+        exportId,
+        label: sourceLabel,
+        source: 'identity',
+      });
+    }
+  }, [detail, exportId, playTrack, sourceLabel]);
 
   const handleListen = () => {
     if (!detail || !isValidExportId(exportId)) return;
@@ -184,6 +247,23 @@ export default function LibraryDetailScreen() {
       source: mapSourceToAudioSource(detail.source),
     });
   };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      await deleteLibraryComposition(id);
+      router.back();
+    } catch {
+      Alert.alert('Error', 'Could not remove this item.');
+      setDeleting(false);
+    }
+  };
+
+  const contentMessage =
+    detail && !hasReport
+      ? emptyMessageForSource(detail.source, createdAtLabel, sandboxState)
+      : null;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -221,9 +301,9 @@ export default function LibraryDetailScreen() {
 
             {hasReport ? (
               <Text style={styles.reportText}>{reportText}</Text>
-            ) : (
-              <Text style={styles.emptyReport}>{emptyMessageForSource(detail.source, createdAtLabel)}</Text>
-            )}
+            ) : contentMessage ? (
+              <Text style={styles.emptyReport}>{contentMessage}</Text>
+            ) : null}
 
             <View style={styles.metaRow}>
               {detail.composition_type ? (
@@ -231,6 +311,21 @@ export default function LibraryDetailScreen() {
               ) : null}
               {createdAtLabel ? <Text style={styles.metaText}>Saved {createdAtLabel}</Text> : null}
             </View>
+
+            {!deleteConfirm ? (
+              <Pressable onPress={() => setDeleteConfirm(true)} style={styles.deleteButton}>
+                <Text style={styles.deleteText}>Remove from Library</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.deleteConfirmRow}>
+                <Pressable onPress={() => void handleDelete()} disabled={deleting}>
+                  <Text style={styles.deleteText}>{deleting ? 'Removing…' : 'Confirm Remove'}</Text>
+                </Pressable>
+                <Pressable onPress={() => setDeleteConfirm(false)} disabled={deleting}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         ) : null}
       </ScrollView>
@@ -342,6 +437,28 @@ const styles = StyleSheet.create({
   metaText: {
     color: colors.text.muted,
     fontSize: 12,
+    fontFamily: 'Manrope-Regular',
+  },
+  deleteButton: {
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  deleteConfirmRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  deleteText: {
+    color: '#f87171',
+    fontSize: 14,
+    fontFamily: 'Manrope-Medium',
+    textAlign: 'center',
+  },
+  cancelText: {
+    color: colors.text.muted,
+    fontSize: 14,
     fontFamily: 'Manrope-Regular',
   },
 });

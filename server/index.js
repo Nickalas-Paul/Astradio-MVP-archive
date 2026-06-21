@@ -2281,10 +2281,30 @@ if (hasDb) {
       return res.status(500).json({ error: e?.message || "Failed to load composition" });
     }
   });
+  app.delete("/api/sandbox/compositions/:id", async (req, res) => {
+    try {
+      const ownerUserId = sandboxCallerUserId(req);
+      if (!ownerUserId) return res.status(401).json({ error: "caller required (x-caller-user-id or userId)" });
+      const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ error: "Missing composition id" });
+      const result = await db.query(
+        "DELETE FROM astradio_sandbox_compositions WHERE id = $1 AND owner_user_id = $2 RETURNING id",
+        [id, ownerUserId]
+      );
+      if (!result.rowCount) {
+        return res.status(404).json({ error: "Composition not found" });
+      }
+      return res.json({ deleted: true, id: result.rows[0]?.id ?? id });
+    } catch (e) {
+      console.error("[sandbox/compositions] DELETE by id", e);
+      return res.status(500).json({ error: e?.message || "Could not delete composition" });
+    }
+  });
 } else {
   app.post("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot save compositions" }));
   app.get("/api/sandbox/compositions", (req, res) => res.status(503).json({ error: "Database unavailable; cannot list compositions" }));
   app.get("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot load composition" }));
+  app.delete("/api/sandbox/compositions/:id", (req, res) => res.status(503).json({ error: "Database unavailable; cannot delete composition" }));
 }
 
 // Legacy /api/render endpoint (only active when DEPRECATE_LEGACY_ROUTES=false). (only active when DEPRECATE_LEGACY_ROUTES=false).

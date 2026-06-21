@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../../../src/components/chart/NatalWheel';
 import { IdentityAudioCard } from '../../../src/components/my-sky/IdentityAudioCard';
@@ -46,6 +46,12 @@ export default function MySkyScreen() {
       setRefreshing(false);
     }
   }, [refetch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const handleSignOut = async () => {
     await logout();

@@ -40,3 +40,7 @@ export async function fetchMySkyScreenData(): Promise<MySkyScreenData> {
 export async function fetchLibraryDetail(id: string): Promise<SavedCompositionDetail> {
   return api<SavedCompositionDetail>(`/api/sandbox/compositions/${encodeURIComponent(id)}`);
 }
+
+export async function deleteLibraryComposition(id: string): Promise<void> {
+  await api(`/api/sandbox/compositions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

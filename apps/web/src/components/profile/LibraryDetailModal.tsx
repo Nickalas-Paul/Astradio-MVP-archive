@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ExplainerSections } from './shared/ExplainerSections';
 import {
   formatLibraryCreatedAt,
@@ -13,6 +13,7 @@ import { hasCompatibilityReadingSurface, type ExplanationLike } from '../../lib/
 import { IdentityMarkdown } from '../shared/IdentityMarkdown';
 import { Card } from '../shared/Card';
 import { Button } from '@/components/shared/Button';
+import { getApiBaseUrl } from '@/core/api-base';
 import { useAudioPlayerStore, type AudioSource } from '@/store';
 import { EXPANDED_READING_RENDER_ORDER, EXPANDED_SLOT_LABELS } from '../../lib/community-feed-reading-layout';
 import { finalizeRelationalReadingSurfaces, type ExpandedSlotId } from '../../lib/relational-reading-enforcement';
@@ -27,11 +28,62 @@ function libraryAudioSource(row: Record<string, unknown>): AudioSource {
   const kind = ps?.kind ?? source;
   if (source === 'profile_identity' || kind === 'profile_identity') return 'identity';
   if (source === 'profile_active' || kind === 'profile_active') return 'transit';
+  if (source === 'sky' || kind === 'sky_summary') return 'sky';
   if (source === 'community_relationship' || kind === 'community_relationship') return 'connection';
   if (source === 'community_group' || kind === 'community_group') return 'connection';
   if (source === 'community_relational_weather' || kind === 'community_relational_weather') return 'connection';
   if (source === 'community_post_audio' || kind === 'community_post_audio') return 'post';
   return 'sandbox';
+}
+
+function isMetadataOnlyReport(report: unknown): boolean {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return false;
+  const keys = Object.keys(report as Record<string, unknown>);
+  if (keys.length === 0) return true;
+  const metadataKeys = new Set(['savedFrom', 'label', 'at']);
+  return keys.every((k) => metadataKeys.has(k));
+}
+
+function reportExplanation(report: unknown): unknown {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return null;
+  const obj = report as Record<string, unknown>;
+  if (obj.explanation) return obj.explanation;
+  if (Array.isArray(obj.sections)) return { sections: obj.sections };
+  return null;
+}
+
+function reportMarkdownText(report: unknown): string | null {
+  if (typeof report === 'string' && report.trim()) return report.trim();
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return null;
+  const obj = report as Record<string, unknown>;
+  if (typeof obj.text === 'string' && obj.text.trim()) return obj.text.trim();
+  if (obj.text && typeof obj.text === 'object' && !Array.isArray(obj.text)) {
+    const textObj = obj.text as { short?: string; long?: string };
+    const combined = [textObj.short, textObj.long].filter(Boolean).join('\n\n').trim();
+    if (combined) return combined;
+  }
+  return null;
+}
+
+function renderStoredReportContent(report: unknown, emptyMessage: string) {
+  const markdown = reportMarkdownText(report);
+  if (markdown) {
+    return <IdentityMarkdown content={markdown} />;
+  }
+
+  const explanation = reportExplanation(report);
+  if (
+    explanation &&
+    hasCompatibilityReadingSurface(explanation as ExplanationLike, undefined)
+  ) {
+    return <ExplainerSections sections={mapExplanationToSections(explanation)} />;
+  }
+
+  if (isMetadataOnlyReport(report) || report == null) {
+    return <p className="text-sm text-text-secondary">{emptyMessage}</p>;
+  }
+
+  return <p className="text-sm text-text-secondary">{emptyMessage}</p>;
 }
 
 export interface LibraryDetailModalProps {
@@ -46,6 +98,7 @@ export interface LibraryDetailModalProps {
   historicalArtifact: boolean;
   communityReadingArtifact: Record<string, unknown> | null;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
 export function LibraryDetailModal({
@@ -60,8 +113,12 @@ export function LibraryDetailModal({
   historicalArtifact,
   communityReadingArtifact,
   onClose,
+  onDeleted,
 }: LibraryDetailModalProps) {
   const playTrack = useAudioPlayerStore((s) => s.playTrack);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,12 +129,47 @@ export function LibraryDetailModal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (isOpen) return;
+    setDeleteConfirm(false);
+    setDeleteLoading(false);
+    setDeleteError(null);
+  }, [isOpen]);
+
+  const handleDelete = useCallback(async () => {
+    const rowId = row?.id;
+    if (typeof rowId !== 'string' || !rowId.trim()) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base || ''}/api/sandbox/compositions/${encodeURIComponent(rowId)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      onClose();
+      onDeleted?.();
+    } catch {
+      setDeleteError('Could not remove this item. Try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [row?.id, onClose, onDeleted]);
+
   if (!isOpen) return null;
 
   const exportId = row && isValidLibraryExportId(row.export_id) ? row.export_id : null;
   const compositionType =
     row && typeof row.composition_type === 'string' ? row.composition_type.trim() : '';
   const createdAtLabel = row ? formatLibraryCreatedAt(row.created_at) : '';
+  const sandboxState = row ? parseSandboxState(row.sandbox_state) : null;
+  const source = row ? String(row.source ?? '') : '';
+  const isIdentity = source === 'profile_identity' || sandboxState?.kind === 'profile_identity';
+  const isSandbox = source === 'sandbox';
+  const isSky = source === 'sky' || sandboxState?.kind === 'sky_summary';
+  const skyDateLabel =
+    (typeof sandboxState?.date === 'string' && sandboxState.date.trim()) || createdAtLabel || 'this date';
 
   return (
     <div
@@ -148,14 +240,27 @@ export function LibraryDetailModal({
 
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-          {row != null &&
-            (row.source === 'profile_identity' ||
-              parseSandboxState(row.sandbox_state)?.kind === 'profile_identity') &&
-            audioMissingFromStore !== false ? (
-              <p className="text-sm text-text-secondary">
-                Identity comes from your birth chart. Open the Identity tab to compose or play your soundtrack.
-              </p>
-            ) : null}
+          {row != null && isIdentity ? (
+            <p className="text-sm text-text-secondary">
+              {exportId
+                ? 'Your identity soundtrack. Visit My Sky for the full reading.'
+                : 'Your identity reading lives on the Identity tab.'}
+            </p>
+          ) : null}
+
+          {row != null && isSandbox && !isLoading
+            ? renderStoredReportContent(
+                row.report,
+                'This reading was saved without text content.',
+              )
+            : null}
+
+          {row != null && isSky && !isLoading
+            ? renderStoredReportContent(
+                row.report,
+                `Today's Sky for ${skyDateLabel}. Hear the soundtrack or visit Today for the current sky.`,
+              )
+            : null}
 
           {row != null &&
             (row.source === 'community_post_audio' ||
@@ -218,6 +323,8 @@ export function LibraryDetailModal({
           {reconstructResult != null &&
             reconstructResult.explanation != null &&
             !communityReadingArtifact &&
+            !isSandbox &&
+            !isSky &&
             hasCompatibilityReadingSurface(reconstructResult.explanation as ExplanationLike, undefined) && (
               <ExplainerSections sections={mapExplanationToSections(reconstructResult.explanation)} />
             )}
@@ -225,6 +332,8 @@ export function LibraryDetailModal({
           {reconstructResult != null &&
             reconstructResult.explanation != null &&
             !communityReadingArtifact &&
+            !isSandbox &&
+            !isSky &&
             !hasCompatibilityReadingSurface(reconstructResult.explanation as ExplanationLike, undefined) &&
             !error && (
               <p className="text-sm text-amber-600 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
@@ -254,14 +363,53 @@ export function LibraryDetailModal({
         </div>
 
         {row ? (
-          <div className="pt-4 border-t border-border/60 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-            {compositionType ? (
-              <span className="px-2 py-0.5 rounded border border-border/60 bg-bgElev/50">
-                {compositionType}
-              </span>
-            ) : null}
-            {createdAtLabel ? <span>Saved {createdAtLabel}</span> : null}
-          </div>
+          <>
+            <div className="pt-4 border-t border-border/60 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+              {compositionType ? (
+                <span className="px-2 py-0.5 rounded border border-border/60 bg-bgElev/50">
+                  {compositionType}
+                </span>
+              ) : null}
+              {createdAtLabel ? <span>Saved {createdAtLabel}</span> : null}
+            </div>
+
+            <div className="border-t border-border pt-3 mt-4">
+              {!deleteConfirm ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-400 hover:text-red-300"
+                  onClick={() => setDeleteConfirm(true)}
+                >
+                  Remove from Library
+                </Button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm text-text-secondary">Remove this item?</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400"
+                    onClick={() => void handleDelete()}
+                    disabled={deleteLoading}
+                  >
+                    {deleteLoading ? 'Removing…' : 'Confirm'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+              {deleteError ? <p className="text-sm text-red-400 mt-1">{deleteError}</p> : null}
+            </div>
+          </>
         ) : null}
       </Card>
     </div>

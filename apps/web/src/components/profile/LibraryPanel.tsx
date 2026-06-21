@@ -33,6 +33,7 @@ function libraryAudioSource(row: Record<string, unknown>): AudioSource {
   if (source === 'community_group' || kind === 'community_group') return 'connection';
   if (source === 'community_relational_weather' || kind === 'community_relational_weather') return 'connection';
   if (source === 'community_post_audio' || kind === 'community_post_audio') return 'post';
+  if (source === 'sky' || kind === 'sky_summary') return 'sky';
   return 'sandbox';
 }
 
@@ -338,6 +339,22 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
           dispatchLibraryAudio(row, eid);
         }
       }
+      if (source === 'sandbox') {
+        const eid = row.export_id;
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
+        }
+        setLibraryDetailLoading(false);
+        return;
+      }
+      if (source === 'sky' || ps?.kind === 'sky_summary') {
+        const eid = row.export_id;
+        if (isValidLibraryExportId(eid)) {
+          dispatchLibraryAudio(row, eid);
+        }
+        setLibraryDetailLoading(false);
+        return;
+      }
     } catch (e) {
       setLibraryReconstructError(e instanceof Error ? e.message : 'Failed to open');
     } finally {
@@ -431,6 +448,7 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
         historicalArtifact={libraryHistoricalArtifact}
         communityReadingArtifact={libraryCommunityReadingArtifact}
         onClose={closeLibraryRow}
+        onDeleted={() => void refreshLibrary()}
       />
     </>
   );
