@@ -26,6 +26,23 @@ const WheelDisplay = dynamic(
 
 const COMPOSE_POLL_INTERVAL_MS = 8000;
 const COMPOSE_POLL_MAX_ATTEMPTS = 8;
+const SIDEBAR_WHEEL_MAX_SIZE = 480;
+const EXPANDED_WHEEL_MAX_SIZE = 600;
+
+function ExpandWheelIcon() {
+  return (
+    <svg
+      className="w-3.5 h-3.5 text-text-primary"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
+  );
+}
 
 type IdentityAudioState =
   | 'no_chart'
@@ -61,6 +78,7 @@ export function IdentityPanel({
   onProfileRefresh,
 }: IdentityPanelProps) {
   const playTrack = useAudioPlayerStore((s) => s.playTrack);
+  const [wheelExpanded, setWheelExpanded] = useState(false);
   const [audioState, setAudioState] = useState<IdentityAudioState>(
     noRealChart ? 'no_chart' : 'loading',
   );
@@ -80,7 +98,21 @@ export function IdentityPanel({
     sessionFirstListenRef.current = null;
     autoplayAttemptedRef.current = false;
     setComposePollExhausted(false);
+    setWheelExpanded(false);
   }, [chartId]);
+
+  useEffect(() => {
+    if (!wheelExpanded) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setWheelExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [wheelExpanded]);
+
+  const openWheelExpanded = useCallback(() => {
+    setWheelExpanded(true);
+  }, []);
 
   useEffect(() => {
     if (noRealChart) {
@@ -252,6 +284,38 @@ export function IdentityPanel({
     );
   };
 
+  const renderExpandableWheel = (maxSize: number) => (
+    <div
+      className="relative group md:cursor-pointer"
+      onClick={() => {
+        if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+          openWheelExpanded();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+          e.preventDefault();
+          openWheelExpanded();
+        }
+      }}
+      role="presentation"
+    >
+      {renderWheel(maxSize)}
+      <button
+        type="button"
+        className="hidden md:flex absolute bottom-3 right-3 z-10 h-6 w-6 items-center justify-center rounded-md bg-bg/80 border border-border/80 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-bgElev pointer-events-auto"
+        aria-label="Expand wheel"
+        onClick={(e) => {
+          e.stopPropagation();
+          openWheelExpanded();
+        }}
+      >
+        <ExpandWheelIcon />
+      </button>
+    </div>
+  );
+
   const renderAudio = () => (
     <>
       {audioState === 'loading' && (
@@ -329,14 +393,8 @@ export function IdentityPanel({
             primaryChart={primaryChart}
           />
         ) : (
-          <>
-            <div className="sticky top-20 z-30 -mx-6 px-6 py-4 mb-2 bg-bg border-b border-border/60 shadow-sm max-h-[40vh] overflow-hidden">
-              <div className="max-w-[480px] mx-auto">{renderWheel(480)}</div>
-            </div>
-
-            <div className="max-w-[480px] mx-auto space-y-4">{renderAudio()}</div>
-
-            <div className="min-w-0 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-start">
+            <div className="min-w-0 w-full order-2 md:order-1">
               {loading && !chartData && (
                 <div className="space-y-4">
                   <div className="h-20 bg-bgElev rounded animate-pulse" />
@@ -354,7 +412,12 @@ export function IdentityPanel({
                 />
               )}
             </div>
-          </>
+
+            <div className="min-w-0 order-1 md:order-2 md:sticky md:top-20 space-y-4">
+              {renderExpandableWheel(SIDEBAR_WHEEL_MAX_SIZE)}
+              {renderAudio()}
+            </div>
+          </div>
         )}
 
         {noRealChart && (
@@ -363,6 +426,34 @@ export function IdentityPanel({
           </p>
         )}
       </div>
+
+      {wheelExpanded ? (
+        <div
+          className="fixed inset-0 z-50 hidden md:flex items-center justify-center p-4 bg-black/60"
+          role="presentation"
+          onClick={() => setWheelExpanded(false)}
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-bg/90 border border-border text-text-secondary hover:text-text-primary"
+            aria-label="Close expanded wheel"
+            onClick={() => setWheelExpanded(false)}
+          >
+            <span className="text-xl leading-none" aria-hidden>
+              ×
+            </span>
+          </button>
+          <div
+            className="w-[min(600px,90vw,80vh)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Expanded chart wheel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderWheel(EXPANDED_WHEEL_MAX_SIZE)}
+          </div>
+        </div>
+      ) : null}
     </PlacementHighlightProvider>
   );
 };
