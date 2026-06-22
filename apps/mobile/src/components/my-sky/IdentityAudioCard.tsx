@@ -19,26 +19,29 @@ function AudioUnavailable() {
 function IdentityAudioCardControls({ exportId }: IdentityAudioCardProps) {
   const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
     exportId,
-    label: 'Your Identity',
+    label: 'Identity Soundtrack',
     source: 'identity',
   });
 
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>Your Sound</Text>
-      <Pressable
-        onPress={handlePlay}
-        disabled={isThisLoading}
-        style={({ pressed }) => [
-          styles.hearButton,
-          pressed && styles.pressed,
-          isThisLoading && styles.disabled,
-        ]}
-      >
-        <Text style={styles.hearButtonText}>
-          {isThisLoading ? 'Loading…' : isThisPlaying ? 'Playing your chart' : 'Hear your chart'}
-        </Text>
-      </Pressable>
+      <View style={styles.row}>
+        <Pressable
+          onPress={handlePlay}
+          disabled={isThisLoading}
+          style={({ pressed }) => [
+            styles.playButton,
+            pressed && styles.pressed,
+            isThisLoading && styles.disabled,
+          ]}
+        >
+          <Text style={styles.playButtonText}>
+            {isThisLoading ? '…' : isThisPlaying ? '❚❚' : '▶'}
+          </Text>
+        </Pressable>
+        <Text style={styles.label}>Identity Soundtrack</Text>
+      </View>
     </View>
   );
 }
@@ -68,19 +71,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 10,
   },
-  hearButton: {
-    minHeight: 44,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  playButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.accent.DEFAULT,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hearButtonText: {
+  playButtonText: {
+    color: colors.text.primary,
+    fontSize: 16,
+    fontFamily: 'Manrope-SemiBold',
+  },
+  label: {
     color: colors.text.primary,
     fontSize: 15,
-    fontFamily: 'Manrope-SemiBold',
+    fontFamily: 'Manrope-Regular',
   },
   unavailable: {
     color: colors.text.muted,

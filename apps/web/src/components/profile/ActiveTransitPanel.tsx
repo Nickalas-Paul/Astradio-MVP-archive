@@ -605,10 +605,7 @@ export function ActiveTransitPanel({
                   size="sm"
                   className="w-full sm:w-auto min-h-[44px]"
                   onClick={() =>
-                    playTrack(
-                      { exportId: activeExportId, label: 'Your Transit', source: 'transit' },
-                      { autoplay: true },
-                    )
+                    playTrack({ exportId: activeExportId, label: 'Your Transit', source: 'transit' })
                   }
                 >
                   Hear Your Transit

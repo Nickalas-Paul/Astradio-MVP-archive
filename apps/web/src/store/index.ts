@@ -3,7 +3,7 @@ import { devtools, persist } from 'zustand/middleware';
 import type { AppState, PlayerState, CompositionJob, ChartSummary, Toast } from '../types';
 
 export { useAudioPlayerStore } from './audio-player';
-export type { AudioSource, AudioTrack, PlayTrackOptions } from './audio-player';
+export type { AudioSource, AudioTrack } from './audio-player';
 
 // === Player Store ===
 interface PlayerStore extends PlayerState {

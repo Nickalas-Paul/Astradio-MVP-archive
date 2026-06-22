@@ -17,11 +17,6 @@ export interface AudioTrack {
   source: AudioSource;
 }
 
-export type PlayTrackOptions = {
-  /** When false, load the track into the mini-bar without starting playback. Default true. */
-  autoplay?: boolean;
-};
-
 interface AudioPlayerState {
   currentTrack: AudioTrack | null;
   resolvedUrl: string | null;
@@ -32,7 +27,7 @@ interface AudioPlayerState {
   volume: number;
   error: string | null;
 
-  playTrack: (track: AudioTrack, options?: PlayTrackOptions) => void;
+  playTrack: (track: AudioTrack) => void;
   stop: () => void;
   togglePlayPause: () => void;
   seek: (time: number) => void;
@@ -58,17 +53,16 @@ export const useAudioPlayerStore = create<AudioPlayerState>()(
       volume: 0.8,
       error: null,
 
-      playTrack: (track, options) => {
-        const autoplay = options?.autoplay !== false;
+      playTrack: (track) => {
         const current = get().currentTrack;
         if (current?.exportId === track.exportId) {
-          set({ isPlaying: autoplay, error: null });
+          set({ isPlaying: true, error: null });
           return;
         }
         set({
           currentTrack: track,
           resolvedUrl: null,
-          isPlaying: autoplay,
+          isPlaying: false,
           isLoading: true,
           currentTime: 0,
           duration: 0,

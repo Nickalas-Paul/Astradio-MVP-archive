@@ -6,10 +6,8 @@ import { type ProfileChartResponse, type ProfilePrimaryChart } from '../../core/
 import { BirthChartSection } from './BirthChartSection';
 import { ExplainerSections } from './shared/ExplainerSections';
 import {
-  hasIdentityFirstListenCompleted,
   isChartUpdatedSinceLastIdentityAudio,
   isFirstIdentityListen,
-  markIdentityFirstListenCompleted,
   setIdentityAudioChartSync,
 } from './shared/profile-audio-utils';
 import { filterIdentityDisplaySections, mapExplanationToSections } from './shared/profile-reading-utils';
@@ -88,7 +86,6 @@ export function IdentityPanel({
 
   /** Captured once per chart — survives sync-key write during the same session. */
   const sessionFirstListenRef = useRef<boolean | null>(null);
-  const autoplayAttemptedRef = useRef(false);
 
   if (chartId && sessionFirstListenRef.current === null) {
     sessionFirstListenRef.current = isFirstIdentityListen(chartId);
@@ -97,7 +94,6 @@ export function IdentityPanel({
 
   useEffect(() => {
     sessionFirstListenRef.current = null;
-    autoplayAttemptedRef.current = false;
     setComposePollExhausted(false);
     setWheelExpanded(false);
   }, [chartId]);
@@ -166,20 +162,6 @@ export function IdentityPanel({
     refreshChart,
   ]);
 
-  // First listen: auto-dispatch only once ever — the registration "aha" moment.
-  useEffect(() => {
-    if (audioState !== 'available' || !isFirstListen) return;
-    if (hasIdentityFirstListenCompleted()) return;
-    if (autoplayAttemptedRef.current) return;
-
-    const eid = chartData?.identity_export_id;
-    if (!isValidIdentityExportId(eid)) return;
-
-    autoplayAttemptedRef.current = true;
-    markIdentityFirstListenCompleted();
-    playTrack({ exportId: eid, label: 'Your Identity', source: 'identity' }, { autoplay: true });
-  }, [audioState, isFirstListen, chartData?.identity_export_id, playTrack]);
-
   const handleGenerateIdentityAudio = useCallback(async () => {
     setAudioGenerating(true);
     setAudioState('generating');
@@ -201,8 +183,7 @@ export function IdentityPanel({
         throw new Error('No export ID returned');
       }
       await refreshChart();
-      markIdentityFirstListenCompleted();
-      playTrack({ exportId: eid, label: 'Your Identity', source: 'identity' }, { autoplay: true });
+      playTrack({ exportId: eid, label: 'Your Identity', source: 'identity' });
       setAudioState('available');
     } catch {
       setAudioState('error');
@@ -326,33 +307,13 @@ export function IdentityPanel({
         <p className="text-sm text-text-secondary">Loading your soundtrack…</p>
       )}
       {audioState === 'available' && hasValidExportId && chartId && chartData?.identity_export_id ? (
-        <div className="space-y-3">
-          <Button
-            type="button"
-            variant="audio"
-            size="sm"
-            className="w-full sm:w-auto min-h-[44px]"
-            onClick={() =>
-              playTrack(
-                {
-                  exportId: String(chartData.identity_export_id),
-                  label: 'Your Identity',
-                  source: 'identity',
-                },
-                { autoplay: true },
-              )
-            }
-          >
-            Hear your chart
-          </Button>
-          <SaveToLibraryButton
-            exportId={String(chartData.identity_export_id)}
-            source="profile_identity"
-            compositionType="A"
-            sandboxState={{ kind: 'profile_identity', chartId }}
-            label="Your natal soundtrack"
-          />
-        </div>
+        <SaveToLibraryButton
+          exportId={String(chartData.identity_export_id)}
+          source="profile_identity"
+          compositionType="A"
+          sandboxState={{ kind: 'profile_identity', chartId }}
+          label="Your natal soundtrack"
+        />
       ) : null}
       {showFirstListenComposing && (
         <div className="space-y-2" aria-live="polite">

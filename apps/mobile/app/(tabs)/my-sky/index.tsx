@@ -11,7 +11,6 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../../../src/components/chart/NatalWheel';
-import { IdentityAudioCard } from '../../../src/components/my-sky/IdentityAudioCard';
 import { IdentityReading } from '../../../src/components/my-sky/IdentityReading';
 import { LibrarySection } from '../../../src/components/my-sky/LibrarySection';
 import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
@@ -152,10 +151,6 @@ export default function MySkyScreen() {
                 <SectionDivider />
                 <SectionHeading title="Your Identity" />
                 <IdentityReading sections={data.identitySections} />
-
-                {data.identityExportId ? (
-                  <IdentityAudioCard exportId={data.identityExportId} />
-                ) : null}
 
                 <FtueBanner
                   storageKey={FTUE_KEYS.todayBridgeNudge}

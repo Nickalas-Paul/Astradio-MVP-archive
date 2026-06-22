@@ -128,7 +128,6 @@ export function GlobalAudioPlayer() {
         useAudioPlayerStore.getState()._setResolvedUrl(url);
         useAudioPlayerStore.getState()._setIsLoading(false);
 
-        if (!useAudioPlayerStore.getState().isPlaying) return;
         await audio.play();
         if (cancelled || loadingExportIdRef.current !== exportId) return;
         useAudioPlayerStore.getState()._setIsPlaying(true);
