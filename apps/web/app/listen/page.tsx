@@ -18,6 +18,9 @@ import { hasRealChart } from '@/core/social/constants';
 import { getApiBaseUrl } from '@/core/api-base';
 import { chartApiOwnerDisplayLabel } from '@/lib/sandbox-bff-wire';
 import { fetchListenSlotSnapshot, extractResolveSlotSnapshots } from '@/lib/listen-chart-snapshot';
+import { buildListenPairSeed } from '@/lib/pair-comparison-lookup';
+import { useExistingComparisonLookup } from '@/hooks/useExistingComparisonLookup';
+import { ExistingConnectionNotice } from '@/components/shared/ExistingConnectionNotice';
 import { SANDBOX_COMPOSE_CONTROLS } from '@/lib/sandbox-composition-state';
 import { useAudioPlayerStore } from '@/store';
 import type { SandboxBirth, SandboxReport } from '@/types/sandbox';
@@ -142,6 +145,10 @@ function ListenPageInner() {
   const [wheelsLoading, setWheelsLoading] = useState(false);
 
   const resolvedRef = useRef(false);
+
+  const slotAChartId = slotA?.kind === 'chart_id' ? slotA.chartId : null;
+  const slotBChartId = slotB?.kind === 'chart_id' ? slotB.chartId : null;
+  const existingComparison = useExistingComparisonLookup(slotAChartId, slotBChartId);
 
   const fetchChartLabel = useCallback(async (chartId: string): Promise<string> => {
     const base = getApiBaseUrl();
@@ -280,7 +287,7 @@ function ListenPageInner() {
 
     const chartAId = slotA.kind === 'chart_id' ? slotA.chartId : null;
     const chartBId = slotB.kind === 'chart_id' ? slotB.chartId : null;
-    const seed = `listen_${chartAId || 'manual'}_${chartBId || 'manual'}_${Date.now()}`;
+    const seed = buildListenPairSeed(chartAId, chartBId);
 
     const body: Record<string, unknown> = {
       schema_version: '1',
@@ -764,6 +771,10 @@ function ListenPageInner() {
                 </Button>
               </div>
             ) : null}
+
+            {existingComparison ? (
+              <ExistingConnectionNotice relationshipId={existingComparison.relationshipId} />
+            ) : null}
           </div>
         )}
 
@@ -811,6 +822,9 @@ function ListenPageInner() {
 
               <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
                 <div className="min-w-0 space-y-6">
+                  {existingComparison ? (
+                    <ExistingConnectionNotice relationshipId={existingComparison.relationshipId} />
+                  ) : null}
                   <SandboxAudioPanel
                     prominent
                     displayReport={displayReport}

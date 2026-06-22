@@ -1666,6 +1666,54 @@ export function createCompatRouter(): import('express').Router {
     }
   });
 
+  // GET /api/comparisons/lookup?chartA=&chartB= — lightweight pair dedup for Sandbox/Listen
+  router.get('/comparisons/lookup', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const viewerUserId = resolveProxySessionUserId(req);
+      if (!viewerUserId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const chartA = String(req.query.chartA ?? '').trim();
+      const chartB = String(req.query.chartB ?? '').trim();
+      if (!chartA || !chartB) {
+        return res.status(400).json({ error: 'chartA and chartB query params required' });
+      }
+
+      const comparisonRow = storage.findComparisonByChartPair
+        ? await storage.findComparisonByChartPair(chartA, chartB)
+        : null;
+      if (!comparisonRow?.id) {
+        return res.json({ exists: false });
+      }
+
+      const [chartLow, chartHigh] = await Promise.all([
+        storage.getChart(chartA.localeCompare(chartB, 'en') <= 0 ? chartA : chartB),
+        storage.getChart(chartA.localeCompare(chartB, 'en') <= 0 ? chartB : chartA),
+      ]);
+      const ownsPairChart =
+        chartLow?.ownerId === viewerUserId || chartHigh?.ownerId === viewerUserId;
+
+      const relationshipRow = storage.findRelationshipWithComparisonByChartPair
+        ? await storage.findRelationshipWithComparisonByChartPair(chartA, chartB, viewerUserId)
+        : null;
+
+      if (!ownsPairChart && !relationshipRow) {
+        return res.json({ exists: false });
+      }
+
+      return res.json({
+        exists: true,
+        comparisonId: String(comparisonRow.id),
+        ...(relationshipRow?.id ? { relationshipId: String(relationshipRow.id) } : {}),
+      });
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error('[compat] GET /comparisons/lookup', err);
+      return res.status(500).json({ error: err?.message || 'Lookup failed' });
+    }
+  });
+
   // GET /api/comparisons/:id
   router.get('/comparisons/:id', async (req: import('express').Request, res: import('express').Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

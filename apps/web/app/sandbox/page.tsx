@@ -44,6 +44,9 @@ import {
 import { useSandboxPreviewSync, type SandboxSurfaceState } from '../../src/hooks/useSandboxPreviewSync';
 import { useSandboxGenerate } from '../../src/hooks/useSandboxGenerate';
 import { useSandboxPersistence } from '../../src/hooks/useSandboxPersistence';
+import { useExistingComparisonLookup } from '../../src/hooks/useExistingComparisonLookup';
+import { storedChartIdsFromSlots } from '../../src/lib/pair-comparison-lookup';
+import { ExistingConnectionNotice } from '../../src/components/shared/ExistingConnectionNotice';
 import type { EphemerisSnapshot, SandboxSnapshotMeta } from '../../src/types/sandbox';
 
 function defaultDegreePanelOpenForJourney(mode: SandboxEntryMode): boolean {
@@ -120,6 +123,15 @@ export default function SandboxPage() {
   const slotProjectionRows = useMemo(
     () => projectSlotsFromCompositionInput(compositionModel.compositionInput),
     [compositionModel.compositionInput],
+  );
+
+  const storedChartPair = useMemo(
+    () => storedChartIdsFromSlots(compositionModel.compositionInput.slots),
+    [compositionModel.compositionInput.slots],
+  );
+  const existingComparison = useExistingComparisonLookup(
+    storedChartPair?.chartAId,
+    storedChartPair?.chartBId,
   );
 
   const hasExistingComposition = useMemo(
@@ -561,6 +573,11 @@ export default function SandboxPage() {
                   generateButtonLabel={generateButtonLabel}
                   resolveUiMode={onlyBlankCanvasPopulated ? 'blank_canvas' : 'standard'}
                 />
+                {existingComparison ? (
+                  <div className="mt-4">
+                    <ExistingConnectionNotice relationshipId={existingComparison.relationshipId} />
+                  </div>
+                ) : null}
                 <SandboxReportSections displayReport={displayReport} />
                 {displayReport && (
                   <SandboxAudioPanel

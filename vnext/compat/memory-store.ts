@@ -244,6 +244,21 @@ export async function getComparison(id: string): Promise<Comparison | undefined>
   return comparisons.get(id);
 }
 
+export async function findComparisonByChartPair(
+  _chartAId: string,
+  _chartBId: string
+): Promise<{ id: string } | null> {
+  return null;
+}
+
+export async function findRelationshipWithComparisonByChartPair(
+  _chartAId: string,
+  _chartBId: string,
+  _viewerUserId: string
+): Promise<{ id: string; comparison_id?: string } | null> {
+  return null;
+}
+
 export async function listComparisonsByUser(userId: string): Promise<Comparison[]> {
   return Array.from(comparisons.values()).filter((c) => (c as any).createdBy === userId);
 }

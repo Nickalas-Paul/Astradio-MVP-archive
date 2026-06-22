@@ -55,6 +55,13 @@ export type StorageAdapter = {
   listChartsByOwner: (ownerId: string) => Promise<Chart[]>;
   createComparison: (input: Omit<Comparison, 'id' | 'createdAt'>) => Promise<Comparison>;
   getComparison: (id: string) => Promise<Comparison | undefined>;
+  /** Lexicographic pair lookup for cross-surface dedup notices. */
+  findComparisonByChartPair?: (chartAId: string, chartBId: string) => Promise<{ id: string } | null>;
+  findRelationshipWithComparisonByChartPair?: (
+    chartAId: string,
+    chartBId: string,
+    viewerUserId: string
+  ) => Promise<{ id: string; comparison_id?: string } | null>;
   /** Optional: list comparisons owned by a given user (scoped by createdBy or equivalent). */
   listComparisonsByUser?: (userId: string) => Promise<Comparison[]>;
   ensureDefaultProfileChart: () => Promise<Chart>;
@@ -154,6 +161,27 @@ export async function createComparison(input: Omit<Comparison, 'id' | 'createdAt
 
 export async function getComparison(id: string): Promise<Comparison | undefined> {
   return adapter.getComparison(id);
+}
+
+export async function findComparisonByChartPair(
+  chartAId: string,
+  chartBId: string
+): Promise<{ id: string } | null> {
+  if (adapter.findComparisonByChartPair) {
+    return adapter.findComparisonByChartPair(chartAId, chartBId);
+  }
+  return null;
+}
+
+export async function findRelationshipWithComparisonByChartPair(
+  chartAId: string,
+  chartBId: string,
+  viewerUserId: string
+): Promise<{ id: string; comparison_id?: string } | null> {
+  if (adapter.findRelationshipWithComparisonByChartPair) {
+    return adapter.findRelationshipWithComparisonByChartPair(chartAId, chartBId, viewerUserId);
+  }
+  return null;
 }
 
 export async function listComparisonsByUser(userId: string): Promise<Comparison[]> {
