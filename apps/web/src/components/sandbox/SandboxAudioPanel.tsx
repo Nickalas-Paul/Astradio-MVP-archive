@@ -95,8 +95,8 @@ export function SandboxAudioPanel({
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="audio"
-              size={prominent ? 'md' : 'secondary'}
+              variant={prominent ? 'audio' : 'secondary'}
+              size={prominent ? 'md' : 'sm'}
               className={audioButtonClass}
               onClick={handlePlaySoundtrack}
             >
