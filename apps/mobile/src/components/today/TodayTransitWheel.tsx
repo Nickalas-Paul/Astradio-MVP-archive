@@ -1,5 +1,6 @@
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { NatalWheel } from '../chart/NatalWheel';
+import { ExpandableWheelFrame } from '../chart/ExpandableWheelFrame';
 import { colors } from '../../constants/colors';
 import { layout } from '../../constants/layout';
 import { WHEEL_COLORS } from '../../constants/wheel-constants';
@@ -21,14 +22,18 @@ export function TodayTransitWheel({ natalSnapshot, transitSnapshot }: TodayTrans
 
   return (
     <View style={styles.container}>
-      <NatalWheel
-        size={wheelSize}
-        placements={natalWheel.placements}
-        aspects={natalWheel.aspects}
-        cusps={natalWheel.cusps}
-        ascendantLongitude={natalWheel.ascendantLongitude}
-        transitPlacements={transitWheel.placements}
-      />
+      <ExpandableWheelFrame wheelSize={wheelSize}>
+        {(size) => (
+          <NatalWheel
+            size={size}
+            placements={natalWheel.placements}
+            aspects={natalWheel.aspects}
+            cusps={natalWheel.cusps}
+            ascendantLongitude={natalWheel.ascendantLongitude}
+            transitPlacements={transitWheel.placements}
+          />
+        )}
+      </ExpandableWheelFrame>
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.accent.DEFAULT }]} />

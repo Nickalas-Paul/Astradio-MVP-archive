@@ -11,6 +11,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../../../src/components/chart/NatalWheel';
+import { ExpandableWheelFrame } from '../../../src/components/chart/ExpandableWheelFrame';
 import { IdentityReading } from '../../../src/components/my-sky/IdentityReading';
 import { LibrarySection } from '../../../src/components/my-sky/LibrarySection';
 import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
@@ -137,13 +138,17 @@ export default function MySkyScreen() {
             {activeTab === 'identity' ? (
               <>
                 {data.wheel ? (
-                  <NatalWheel
-                    size={wheelSize}
-                    placements={data.wheel.placements}
-                    aspects={data.wheel.aspects}
-                    cusps={data.wheel.cusps}
-                    ascendantLongitude={data.wheel.ascendantLongitude}
-                  />
+                  <ExpandableWheelFrame wheelSize={wheelSize}>
+                    {(size) => (
+                      <NatalWheel
+                        size={size}
+                        placements={data.wheel!.placements}
+                        aspects={data.wheel!.aspects}
+                        cusps={data.wheel!.cusps}
+                        ascendantLongitude={data.wheel!.ascendantLongitude}
+                      />
+                    )}
+                  </ExpandableWheelFrame>
                 ) : (
                   <Text style={styles.emptyText}>Chart wheel unavailable</Text>
                 )}

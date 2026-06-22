@@ -53,6 +53,7 @@ function renderInlineGlyph({
   haloWidth = 2.5,
   opacity = 1,
   gProps = {},
+  signGlyph = false,
 }: {
   glyph: GlyphData;
   x: number;
@@ -62,6 +63,8 @@ function renderInlineGlyph({
   haloWidth?: number;
   opacity?: number;
   gProps?: SVGAttributes<SVGGElement> & { 'data-planet'?: string };
+  /** Zodiac band glyphs: center on point with no text-baseline offset. */
+  signGlyph?: boolean;
 }) {
   return (
     <g transform={`translate(${x}, ${y})`} opacity={opacity} pointerEvents="all" {...gProps}>
@@ -71,17 +74,22 @@ function renderInlineGlyph({
         width={size}
         height={size}
         viewBox={glyph.viewBox}
+        preserveAspectRatio="xMidYMid meet"
         overflow="visible"
       >
-        <path
-          d={glyph.pathData}
-          fill={fill}
-          stroke={WHEEL_COLORS.glyphHaloStroke}
-          strokeWidth={haloWidth}
-          strokeLinejoin="round"
-          paintOrder="stroke fill"
-          pointerEvents="visiblePainted"
-        />
+        {signGlyph ? (
+          <path d={glyph.pathData} fill={fill} pointerEvents="visiblePainted" />
+        ) : (
+          <path
+            d={glyph.pathData}
+            fill={fill}
+            stroke={WHEEL_COLORS.glyphHaloStroke}
+            strokeWidth={haloWidth}
+            strokeLinejoin="round"
+            paintOrder="stroke fill"
+            pointerEvents="visiblePainted"
+          />
+        )}
       </svg>
     </g>
   );
@@ -233,6 +241,7 @@ export function WheelSvgCore({
                           size: zodiacGlyphSize,
                           fill: WHEEL_COLORS.zodiacGlyphFill,
                           haloWidth: 1.5,
+                          signGlyph: true,
                         })}
                       </g>
                     );
@@ -241,8 +250,9 @@ export function WheelSvgCore({
                     <text
                       key={`zodiac-glyph-${signIndex}`}
                       x={pt.x}
-                      y={pt.y + zodiacGlyphSize * 0.35}
+                      y={pt.y}
                       textAnchor="middle"
+                      dominantBaseline="central"
                       fill={WHEEL_COLORS.zodiacGlyphFill}
                       fontSize={zodiacGlyphSize}
                       fontFamily={WHEEL_GLYPH_FONT}

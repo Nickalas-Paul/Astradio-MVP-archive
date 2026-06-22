@@ -1,5 +1,6 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { NatalWheel } from '../chart/NatalWheel';
+import { ExpandableWheelFrame } from '../chart/ExpandableWheelFrame';
 import { layout } from '../../constants/layout';
 import { mapSnapshotToWheel } from '../../lib/my-sky-mappers';
 import type { EphemerisSnapshot } from '../../types/my-sky';
@@ -17,13 +18,17 @@ export function TodaySkyWheel({ snapshot }: TodaySkyWheelProps) {
 
   return (
     <View style={styles.container}>
-      <NatalWheel
-        size={wheelSize}
-        placements={wheel.placements}
-        aspects={wheel.aspects}
-        cusps={wheel.cusps}
-        ascendantLongitude={wheel.ascendantLongitude}
-      />
+      <ExpandableWheelFrame wheelSize={wheelSize}>
+        {(size) => (
+          <NatalWheel
+            size={size}
+            placements={wheel.placements}
+            aspects={wheel.aspects}
+            cusps={wheel.cusps}
+            ascendantLongitude={wheel.ascendantLongitude}
+          />
+        )}
+      </ExpandableWheelFrame>
     </View>
   );
 }

@@ -41,13 +41,14 @@ function renderWheelGlyph(
   opacity = 1
 ) {
   return (
-    <G x={x} y={y} opacity={opacity}>
+    <G transform={`translate(${x}, ${y})`} opacity={opacity}>
       <Svg
         x={-size / 2}
         y={-size / 2}
         width={size}
         height={size}
         viewBox={glyph.viewBox}
+        preserveAspectRatio="xMidYMid meet"
       >
         <Path d={glyph.pathData} fill={fill} />
       </Svg>
@@ -218,7 +219,7 @@ export function NatalWheel({
                     point.x,
                     point.y,
                     SIGN_GLYPH_SIZE,
-                    WHEEL_COLORS.zodiacGlyphFill
+                    WHEEL_COLORS.zodiacGlyphFill,
                   )}
                 </G>
               );
@@ -227,10 +228,11 @@ export function NatalWheel({
               <SvgText
                 key={`sign-${signIndex}`}
                 x={point.x}
-                y={point.y + 4}
+                y={point.y}
                 fill={colors.text.primary}
                 fontSize={10}
                 textAnchor="middle"
+                alignmentBaseline="middle"
               >
                 {SIGN_GLYPH[signIndex]}
               </SvgText>
