@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Card } from '@/components/shared/Card';
 import { Button } from '@/components/shared/Button';
 import { HISTORICAL_PRESETS, type HistoricalPreset } from '@/data/historical-presets';
@@ -18,7 +18,21 @@ export interface SandboxEntryCard {
   iconBgClass: string;
 }
 
-const SANDBOX_VISITS_KEY = 'astradio_sandbox_visits';
+const HINT_KEY_PREFIX = 'astradio_sandbox_hint_';
+
+function hintStorageKey(cardId: SandboxEntryMode): string {
+  const keyId = cardId === 'solo' ? 'single' : cardId;
+  return `${HINT_KEY_PREFIX}${keyId}`;
+}
+
+function isHintDismissed(cardId: SandboxEntryMode): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return localStorage.getItem(hintStorageKey(cardId)) === 'dismissed';
+  } catch {
+    return true;
+  }
+}
 
 const SoloIcon = ({ className }: { className?: string }) => (
   <svg width={48} height={48} viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
@@ -58,7 +72,7 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
     id: 'solo',
     title: 'What does this chart sound like?',
     description: 'Import your chart or enter birth data. One chart, one reading, one soundtrack.',
-    hint: 'Every chart has a frequency. Every frequency has a sound.',
+    hint: 'Enter any birthday and hear what the sky sounded like at that exact moment.',
     slotCount: 1,
     icon: <SoloIcon className="text-accent" />,
     iconColorClass: 'text-accent',
@@ -68,7 +82,7 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
     id: 'pair',
     title: 'How do two charts connect?',
     description: 'Two charts side by side. See what happens between them and hear the connection.',
-    hint: 'Two charts in the same room produce a third sound that belongs to neither.',
+    hint: "Compare any two people's charts and hear the sound of their connection.",
     slotCount: 2,
     icon: <PairIcon className="text-[#E8C56D]" />,
     iconColorClass: 'text-[#E8C56D]',
@@ -78,7 +92,7 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
     id: 'whatif',
     title: 'What if?',
     description: 'Start from a blank chart. Place planets anywhere. Hear what the configuration sounds like.',
-    hint: 'Any date. Any location. Any moment in time has a sky, and every sky has a sound.',
+    hint: 'The Moon Landing. Your graduation. Last Tuesday. Any date and place has a unique sky.',
     slotCount: 1,
     icon: <WhatIfIcon className="text-[#D4836D]" />,
     iconColorClass: 'text-[#D4836D]',
@@ -88,7 +102,7 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
     id: 'group',
     title: 'Group chemistry',
     description: 'Three or more charts in the same room. What does the group dynamic sound like?',
-    hint: 'Three or more voices layered. The ensemble creates something none of them carry alone.',
+    hint: 'Put your whole friend group in one chart and hear what happens when all your charts overlap.',
     slotCount: 3,
     icon: <GroupIcon className="text-[#8FAFD4]" />,
     iconColorClass: 'text-[#8FAFD4]',
@@ -96,51 +110,33 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
   },
 ];
 
-function useCoarsePointerLayout(): boolean {
-  const [coarse, setCoarse] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const mq = window.matchMedia('(max-width: 767px), (hover: none)');
-    const update = () => setCoarse(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
-  return coarse;
-}
-
 function JourneyEntryCard({
   card,
-  showHints,
-  staticHints,
   onSelect,
 }: {
   card: SandboxEntryCard;
-  showHints: boolean;
-  staticHints: boolean;
   onSelect: () => void;
 }) {
-  const [hintEntered, setHintEntered] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
-    if (!showHints || !staticHints) {
-      setHintEntered(false);
-      return undefined;
+    setShowHint(!isHintDismissed(card.id));
+  }, [card.id]);
+
+  const dismissHint = useCallback(() => {
+    try {
+      localStorage.setItem(hintStorageKey(card.id), 'dismissed');
+    } catch {
+      // ignore quota / private mode
     }
-    const frame = window.requestAnimationFrame(() => setHintEntered(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, [showHints, staticHints, card.id]);
+    setShowHint(false);
+  }, [card.id]);
 
   return (
     <Card
       elevation="resting"
       size="md"
-      tabIndex={staticHints ? undefined : 0}
-      className={`min-h-[180px] flex flex-col transition-all duration-200 hover:border-accent/50 hover:shadow-md outline-none ${
-        staticHints ? '' : 'group focus-within:border-accent/50 focus-within:shadow-md'
-      }`}
+      className="min-h-[180px] flex flex-col transition-all duration-200 hover:border-accent/50 hover:shadow-md"
     >
       <div className="flex flex-col items-center text-center flex-1">
         <div
@@ -149,22 +145,20 @@ function JourneyEntryCard({
           {card.icon}
         </div>
         <h3 className="text-h3 font-serif text-text-primary mb-3">{card.title}</h3>
-        <p className="text-body-sm text-text-secondary flex-1 mb-2">{card.description}</p>
-        {showHints ? (
-          <p
-            className={`text-caption text-text-muted italic font-serif mb-4 transition-opacity duration-300 ${
-              staticHints
-                ? hintEntered
-                  ? 'opacity-100'
-                  : 'opacity-0'
-                : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-            }`}
-          >
-            {card.hint}
-          </p>
-        ) : (
-          <div className="mb-4" aria-hidden />
-        )}
+        <p className="text-body-sm text-text-secondary flex-1 mb-4">{card.description}</p>
+        {showHint ? (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20 w-full mb-4 text-left">
+            <p className="text-caption text-text-secondary flex-1">{card.hint}</p>
+            <button
+              type="button"
+              onClick={dismissHint}
+              aria-label="Dismiss hint"
+              className="text-text-muted hover:text-text-primary text-caption shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
         <Button type="button" variant="outline" size="sm" onClick={onSelect}>
           Start
         </Button>
@@ -186,20 +180,6 @@ export function SandboxEntryCards({
   onContinue,
   hasExistingComposition,
 }: SandboxEntryCardsProps) {
-  const staticHints = useCoarsePointerLayout();
-  const [showHints, setShowHints] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const visits = parseInt(localStorage.getItem(SANDBOX_VISITS_KEY) || '0', 10);
-      localStorage.setItem(SANDBOX_VISITS_KEY, String(visits + 1));
-      setShowHints(visits < 2);
-    } catch {
-      setShowHints(false);
-    }
-  }, []);
-
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
@@ -207,8 +187,6 @@ export function SandboxEntryCards({
           <JourneyEntryCard
             key={card.id}
             card={card}
-            showHints={showHints}
-            staticHints={staticHints}
             onSelect={() => onSelect(card.id, card.slotCount)}
           />
         ))}

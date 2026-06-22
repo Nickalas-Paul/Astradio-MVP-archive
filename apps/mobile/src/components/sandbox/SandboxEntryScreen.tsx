@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,7 +16,7 @@ import {
   SANDBOX_HERO_SUBTITLE,
 } from '../../constants/sandbox-entry-cards';
 import { HISTORICAL_PRESETS, type HistoricalPreset } from '../../data/historical-presets';
-import { incrementSandboxVisitCount } from '../../lib/ftue-storage';
+import { SandboxCardHint } from './SandboxCardHint';
 import { SandboxJourneyIcon } from './SandboxJourneyIcon';
 import { compositionHasExistingData } from '../../lib/sandbox-slot-utils';
 import { useSandboxData } from '../../hooks/useSandboxData';
@@ -33,39 +32,17 @@ function formatSavedDate(iso: string | undefined): string {
 
 function JourneyCard({
   card,
-  showHints,
   onStart,
 }: {
   card: (typeof SANDBOX_ENTRY_CARDS)[number];
-  showHints: boolean;
   onStart: () => void;
 }) {
-  const [hintVisible, setHintVisible] = useState(false);
-
-  useEffect(() => {
-    if (!showHints) {
-      setHintVisible(false);
-      return undefined;
-    }
-    const frame = requestAnimationFrame(() => setHintVisible(true));
-    return () => cancelAnimationFrame(frame);
-  }, [showHints, card.id]);
-
   return (
     <View style={styles.journeyCard}>
       <SandboxJourneyIcon journey={card.id} />
       <Text style={styles.cardTitle}>{card.title}</Text>
       <Text style={styles.cardDescription}>{card.description}</Text>
-      {showHints ? (
-        <Text
-          style={[
-            styles.cardHint,
-            { opacity: hintVisible ? 1 : 0 },
-          ]}
-        >
-          {card.hint}
-        </Text>
-      ) : null}
+      <SandboxCardHint journeyId={card.id} hintText={card.hint} />
       <Pressable style={styles.startButton} onPress={onStart} accessibilityRole="button">
         <Text style={styles.startButtonText}>Start</Text>
       </Pressable>
@@ -83,14 +60,6 @@ export function SandboxEntryScreen() {
     useSandboxData();
 
   const hasExisting = compositionHasExistingData({ slots, resolveResult });
-  const [showHints, setShowHints] = useState(false);
-  const visitsTrackedRef = useRef(false);
-
-  useEffect(() => {
-    if (visitsTrackedRef.current) return;
-    visitsTrackedRef.current = true;
-    void incrementSandboxVisitCount().then(({ showHints: next }) => setShowHints(next));
-  }, []);
 
   const handlePresetSelect = (preset: HistoricalPreset) => {
     selectJourney('solo', { historicalPreset: preset });
@@ -118,7 +87,6 @@ export function SandboxEntryScreen() {
             <JourneyCard
               key={card.id}
               card={card}
-              showHints={showHints}
               onStart={() => selectJourney(card.id as SandboxJourneyType)}
             />
           ))}
@@ -258,14 +226,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
     lineHeight: 17,
     flex: 1,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  cardHint: {
-    ...typography.hintText,
-    color: colors.text.muted,
-    lineHeight: 18,
-    marginBottom: 10,
+    marginBottom: 12,
     textAlign: 'center',
   },
   startButton: {

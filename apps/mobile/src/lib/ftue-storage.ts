@@ -4,8 +4,14 @@ const FTUE_KEYS = {
   todayWelcome: 'astradio_ftue_today_welcome',
   connectionsWelcome: 'astradio_ftue_connections_welcome',
   todayBridgeNudge: 'astradio_ftue_today_nudge',
-  sandboxVisits: 'astradio_sandbox_visits',
 } as const;
+
+const SANDBOX_HINT_KEY_PREFIX = 'astradio_sandbox_hint_';
+
+export function sandboxCardHintKey(journeyId: 'solo' | 'pair' | 'whatif' | 'group'): string {
+  const keyId = journeyId === 'solo' ? 'single' : journeyId;
+  return `${SANDBOX_HINT_KEY_PREFIX}${keyId}`;
+}
 
 export async function isFtueDismissed(key: string): Promise<boolean> {
   try {
@@ -21,16 +27,6 @@ export async function dismissFtue(key: string): Promise<void> {
     await SecureStore.setItemAsync(key, 'dismissed');
   } catch {
     // silent
-  }
-}
-
-export async function incrementSandboxVisitCount(): Promise<{ showHints: boolean }> {
-  try {
-    const visits = parseInt((await SecureStore.getItemAsync(FTUE_KEYS.sandboxVisits)) || '0', 10);
-    await SecureStore.setItemAsync(FTUE_KEYS.sandboxVisits, String(visits + 1));
-    return { showHints: visits < 2 };
-  } catch {
-    return { showHints: false };
   }
 }
 
