@@ -39,6 +39,10 @@ import path from 'path';
 import { formatSandboxChartSearchLabel } from './chart-search-label';
 import { clientAvatarUrl } from './client-avatar-url';
 import { ownPrimaryChartPayload, publicPrimaryChartPayload, chartPayloadForPublicView } from './chart-privacy';
+import { enforceAudioEntitlement } from '../entitlements/apply-audio-gate';
+import { getEntitlementMePayload } from '../entitlements/can-generate-audio';
+import { handleStripeWebhook } from '../webhooks/stripe-webhook';
+import { handleGooglePlayNotification } from '../webhooks/google-play-webhook';
 
 const express = require('express') as typeof import('express');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -132,6 +136,7 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
     }>
   >;
   chartAccessibleToUser: (userId: string, chartId: string) => Promise<boolean>;
+  getOrCreateEntitlement: (userId: string) => Promise<unknown>;
 };
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const emailUtil = require(path.join(__dirname, '..', '..', '..', '..', 'lib', 'email')) as {
@@ -734,6 +739,12 @@ export function createCompatRouter(): import('express').Router {
         throw e;
       }
 
+      try {
+        await astradioPgStore.getOrCreateEntitlement(user.id);
+      } catch (entitlementErr) {
+        console.error('[compat] POST /auth/register entitlement seed', entitlementErr);
+      }
+
       return res.status(200).json({ message: REGISTRATION_SENT_MESSAGE });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -1051,6 +1062,9 @@ export function createCompatRouter(): import('express').Router {
       if (!proxyUserId) {
         return res.status(401).json({ error: 'proxy_identity_required' });
       }
+      const gateResult = await enforceAudioEntitlement(req, res);
+      if (!gateResult) return;
+
       const primaryChartId =
         storage.getUserPrimaryChart != null ? await storage.getUserPrimaryChart(proxyUserId) : undefined;
       if (!primaryChartId || primaryChartId === storage.DEFAULT_PROFILE_CHART_ID) {
@@ -1263,6 +1277,8 @@ export function createCompatRouter(): import('express').Router {
             code: 'PROFILE_ACTIVE_AUDIO_EXPECTED_HASHES',
           });
         }
+        const gateResult = await enforceAudioEntitlement(req, res);
+        if (!gateResult) return;
       }
       const proxyUserId = resolveProxySessionUserId(req);
       const userIdForProjection =
@@ -1815,6 +1831,48 @@ export function createCompatRouter(): import('express').Router {
       console.error('[compat] POST /compatibility/intent', err);
       const code = err?.message?.includes('not found') ? 404 : 500;
       return res.status(code).json({ error: err?.message || 'Failed to compute compatibility intent' });
+    }
+  });
+
+  // GET /api/entitlements/me — current user entitlement state for monetization UI.
+  router.get('/entitlements/me', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      const proxyUserId = resolveProxySessionUserId(req);
+      if (!proxyUserId) {
+        return res.status(401).json({ error: 'proxy_identity_required' });
+      }
+      const payload = await getEntitlementMePayload(proxyUserId);
+      return res.status(200).json(payload);
+    } catch (e: unknown) {
+      console.error('[compat] GET /entitlements/me', e);
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to load entitlements' });
+    }
+  });
+
+  router.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const sig = req.headers['stripe-signature'] as string;
+      const rawBody =
+        Buffer.isBuffer(req.body)
+          ? req.body.toString('utf-8')
+          : typeof req.body === 'string'
+            ? req.body
+            : JSON.stringify(req.body ?? {});
+      const result = await handleStripeWebhook(rawBody, sig);
+      res.json(result);
+    } catch (err) {
+      console.error('[Stripe Webhook]', err);
+      res.status(400).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  router.post('/webhooks/google-play', express.json(), async (req, res) => {
+    try {
+      const result = await handleGooglePlayNotification(req.body.message);
+      res.json(result);
+    } catch (err) {
+      console.error('[Google Play Webhook]', err);
+      res.status(400).json({ error: 'Notification processing failed' });
     }
   });
 

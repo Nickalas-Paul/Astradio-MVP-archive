@@ -20,6 +20,11 @@ const {
 } = require('../../dist/vnext/vnext/compat/comparison-service');
 const { coerceRelationshipModeFromStorage } = require('../../dist/vnext/vnext/compat/types');
 
+function enforceAudioEntitlementForRequest(req, res) {
+  const mod = require('../../dist/vnext/vnext/entitlements/apply-audio-gate');
+  return mod.enforceAudioEntitlement(req, res);
+}
+
 function createStage4Router() {
   const router = express.Router({ mergeParams: true });
 
@@ -185,6 +190,10 @@ function createStage4Router() {
 
       const wantCompose = String(req.query.compose || '').trim() === '1';
       const generateAudio = String(req.query.generateAudio || '').trim() === '1';
+      if (generateAudio) {
+        const gateResult = await enforceAudioEntitlementForRequest(req, res);
+        if (!gateResult) return;
+      }
       const forecastResponseAudio = (exportJobId, composeAudio) => {
         const base = {
           format: 'wav',
@@ -613,6 +622,8 @@ function createStage4Router() {
   router.post('/relationships/:id/audio', async (req, res) => {
     const ownerUserId = requireOwner(req, res);
     if (!ownerUserId) return;
+    const gateResult = await enforceAudioEntitlementForRequest(req, res);
+    if (!gateResult) return;
     try {
       const relationship = await pgStore.getRelationshipById(req.params.id);
       if (!relationship || relationship.ownerUserId !== ownerUserId) {

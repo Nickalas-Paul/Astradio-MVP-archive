@@ -101,6 +101,13 @@ export function createSandboxRouter(): import('express').Router {
 
   router.post('/sandbox/resolve', async (req: import('express').Request, res: import('express').Response) => {
     try {
+      const body = req.body || {};
+      if (body.generateAudio === true) {
+        const { enforceAudioEntitlement } = await import('../entitlements/apply-audio-gate');
+        const gateResult = await enforceAudioEntitlement(req, res);
+        if (!gateResult) return;
+      }
+
       const result = await executeSandboxComposition(req.body);
       if (!result.ok) {
         return res.status(result.status).json({

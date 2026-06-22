@@ -2095,6 +2095,15 @@ export async function vnextCompose(req: any, res: any) {
   const mode = req.body && req.body.mode;
   console.log('[api/compose] entered rid=%s mode=%s', requestId, mode ?? '—');
   try {
+    const body = req.body || {};
+    const wantAudio =
+      body.generateAudio === true || (!body.mode && body.generateAudio !== false);
+    if (wantAudio) {
+      const { enforceAudioEntitlement } = await import('../entitlements/apply-audio-gate');
+      const gateResult = await enforceAudioEntitlement(req, res);
+      if (!gateResult) return;
+    }
+
     const request = req.body;
     const response = await composeAPI.compose(request);
     res.json(response);
