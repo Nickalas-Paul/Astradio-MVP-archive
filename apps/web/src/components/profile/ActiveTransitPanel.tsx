@@ -584,17 +584,6 @@ export function ActiveTransitPanel({
                 </Button>
                 <Button
                   type="button"
-                  variant="audio"
-                  size="sm"
-                  className="w-full sm:w-auto min-h-[44px]"
-                  disabled={activeAudioBusy || !activeResult}
-                  loading={activeAudioBusy}
-                  onClick={() => void generateActiveAudio()}
-                >
-                  Hear Your Transit
-                </Button>
-                <Button
-                  type="button"
                   variant="secondary"
                   size="sm"
                   className="w-full sm:w-auto min-h-[44px]"
@@ -606,6 +595,39 @@ export function ActiveTransitPanel({
               </div>
             </div>
           )}
+
+          {activeResult ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {activeExportId ? (
+                <Button
+                  type="button"
+                  variant="audio"
+                  size="sm"
+                  className="w-full sm:w-auto min-h-[44px]"
+                  onClick={() =>
+                    playTrack(
+                      { exportId: activeExportId, label: 'Your Transit', source: 'transit' },
+                      { autoplay: true },
+                    )
+                  }
+                >
+                  Hear Your Transit
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="audio"
+                  size="sm"
+                  className="w-full sm:w-auto min-h-[44px]"
+                  disabled={activeAudioBusy}
+                  loading={activeAudioBusy}
+                  onClick={() => void generateActiveAudio()}
+                >
+                  Compose Your Transit
+                </Button>
+              )}
+            </div>
+          ) : null}
 
           {activeLoading && (
             <p className="text-sm text-text-secondary">Loading today&apos;s transit…</p>

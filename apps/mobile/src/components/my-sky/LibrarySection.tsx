@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { colors } from '../../constants/colors';
 import { layout } from '../../constants/layout';
 import { groupLibraryRows, type MobileLibraryItem } from '../../lib/library-groups';
-import { useAudioStore, type AudioSource } from '../../store/audio';
 
 type LibrarySectionProps = {
   items: MobileLibraryItem[];
@@ -12,24 +11,6 @@ type LibrarySectionProps = {
 
 function isValidExportId(exportId?: string | null): exportId is string {
   return typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId);
-}
-
-function mapSourceToAudioSource(source?: string): AudioSource {
-  switch (source) {
-    case 'profile_identity':
-      return 'identity';
-    case 'profile_active':
-      return 'transit';
-    case 'community_relationship':
-    case 'community_group':
-      return 'connection';
-    case 'community_post_audio':
-      return 'post';
-    case 'sky':
-      return 'sky';
-    default:
-      return 'sandbox';
-  }
 }
 
 function rowLabel(row: MobileLibraryItem): string {
@@ -41,7 +22,6 @@ function rowLabel(row: MobileLibraryItem): string {
 
 export function LibrarySection({ items }: LibrarySectionProps) {
   const router = useRouter();
-  const playTrack = useAudioStore((s) => s.playTrack);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const groups = useMemo(() => groupLibraryRows(items), [items]);
 
@@ -55,14 +35,6 @@ export function LibrarySection({ items }: LibrarySectionProps) {
   };
 
   const handleRowPress = (row: MobileLibraryItem) => {
-    if (isValidExportId(row.exportId)) {
-      playTrack({
-        exportId: row.exportId,
-        label: rowLabel(row),
-        source: mapSourceToAudioSource(row.source),
-      });
-    }
-
     router.push({
       pathname: '/my-sky/library/[id]',
       params: { id: row.id },

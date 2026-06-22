@@ -1,4 +1,23 @@
 const identityAudioSyncKey = (chartId: string) => `astradio_identity_audio_sync_${chartId}`;
+const IDENTITY_FIRST_LISTEN_DONE_KEY = 'astradio_identity_first_listen_done';
+
+export function hasIdentityFirstListenCompleted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(IDENTITY_FIRST_LISTEN_DONE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markIdentityFirstListenCompleted(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(IDENTITY_FIRST_LISTEN_DONE_KEY, '1');
+  } catch {
+    // ignore quota / private mode
+  }
+}
 
 export function getIdentityAudioChartSync(chartId: string): string | null {
   if (typeof window === 'undefined') return null;

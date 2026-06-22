@@ -9,10 +9,9 @@ import {
 } from './shared/profile-library-utils';
 import { normalizeLocalTime, sandboxStateCompleteForTransit } from './shared/profile-transit-utils';
 import { getApiBaseUrl } from '../../core/api-base';
+import { groupLibraryRows } from '@/lib/library/library-groups';
 import { Card } from '../shared/Card';
 import { Button } from '@/components/shared/Button';
-import { useAudioPlayerStore, type AudioSource } from '@/store';
-import { groupLibraryRows } from '@/lib/library/library-groups';
 import { LibraryDetailModal } from './LibraryDetailModal';
 
 function isValidLibraryExportId(eid: unknown): eid is string {
@@ -21,20 +20,6 @@ function isValidLibraryExportId(eid: unknown): eid is string {
 
 function isValidExportId(id: string): boolean {
   return /^[a-f0-9]{64}$/.test(id);
-}
-
-function libraryAudioSource(row: Record<string, unknown>): AudioSource {
-  const source = row.source;
-  const ps = parseSandboxState(row.sandbox_state);
-  const kind = ps?.kind ?? source;
-  if (source === 'profile_identity' || kind === 'profile_identity') return 'identity';
-  if (source === 'profile_active' || kind === 'profile_active') return 'transit';
-  if (source === 'community_relationship' || kind === 'community_relationship') return 'connection';
-  if (source === 'community_group' || kind === 'community_group') return 'connection';
-  if (source === 'community_relational_weather' || kind === 'community_relational_weather') return 'connection';
-  if (source === 'community_post_audio' || kind === 'community_post_audio') return 'post';
-  if (source === 'sky' || kind === 'sky_summary') return 'sky';
-  return 'sandbox';
 }
 
 async function exportExistsInStore(base: string, eid: string): Promise<boolean> {
@@ -72,7 +57,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   const [libraryReconstructResult, setLibraryReconstructResult] = useState<Record<string, unknown> | null>(null);
   const [libraryReconstructError, setLibraryReconstructError] = useState<string | null>(null);
   const [libraryAudioMissingFromStore, setLibraryAudioMissingFromStore] = useState<boolean | null>(null);
-  const playTrack = useAudioPlayerStore((s) => s.playTrack);
   const [libraryRelationalWeatherTextMissing, setLibraryRelationalWeatherTextMissing] = useState(false);
   const [libraryHistoricalArtifact, setLibraryHistoricalArtifact] = useState(false);
   const [libraryCommunityReadingArtifact, setLibraryCommunityReadingArtifact] = useState<Record<string, unknown> | null>(
@@ -81,17 +65,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => groupLibraryRows(libraryRows), [libraryRows]);
-
-  const dispatchLibraryAudio = useCallback(
-    (row: Record<string, unknown>, exportId: string) => {
-      playTrack({
-        exportId,
-        label: libraryRowSummary(row) || librarySourceLabel(row.source),
-        source: libraryAudioSource(row),
-      });
-    },
-    [playTrack],
-  );
 
   const closeLibraryRow = useCallback(() => {
     setLibraryOpenId(null);
@@ -163,17 +136,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
             setLibraryAudioMissingFromStore(true);
           } else {
             setLibraryAudioMissingFromStore(false);
-            dispatchLibraryAudio(row, eid);
           }
         }
         setLibraryDetailLoading(false);
         return;
       }
       if (source === 'community_post_audio' || ps?.kind === 'community_post_audio') {
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
         setLibraryDetailLoading(false);
         return;
       }
@@ -200,10 +168,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
         setLibraryReconstructResult({
           explanation: explanationFromCompatibilityText(cmp.compatibilityText),
         });
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
         return;
       }
       if (source === 'community_group' || ps?.kind === 'community_group') {
@@ -233,10 +197,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
             sections: [{ sectionId: 'community', title: 'Group relationship artifact', text: readingText }],
           },
         });
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
         return;
       }
       if (source === 'community_relational_weather' || ps?.kind === 'community_relational_weather') {
@@ -272,7 +232,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
               setLibraryAudioMissingFromStore(true);
             } else {
               setLibraryAudioMissingFromStore(false);
-              dispatchLibraryAudio(row, eid);
             }
           } else {
             setLibraryAudioMissingFromStore(null);
@@ -298,7 +257,6 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
             setLibraryAudioMissingFromStore(true);
           } else {
             setLibraryAudioMissingFromStore(false);
-            dispatchLibraryAudio(row, eid);
           }
         } else {
           setLibraryAudioMissingFromStore(null);
@@ -334,24 +292,12 @@ export const LibraryPanel = forwardRef<LibraryPanelHandle, LibraryPanelProps>(fu
           return;
         }
         setLibraryReconstructResult(j);
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
       }
       if (source === 'sandbox') {
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
         setLibraryDetailLoading(false);
         return;
       }
       if (source === 'sky' || ps?.kind === 'sky_summary') {
-        const eid = row.export_id;
-        if (isValidLibraryExportId(eid)) {
-          dispatchLibraryAudio(row, eid);
-        }
         setLibraryDetailLoading(false);
         return;
       }

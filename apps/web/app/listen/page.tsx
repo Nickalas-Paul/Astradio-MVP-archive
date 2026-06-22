@@ -811,8 +811,8 @@ function ListenPageInner() {
 
               <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] md:gap-8 items-start">
                 <div className="min-w-0 space-y-6">
-                  <SandboxReportSections displayReport={displayReport} />
                   <SandboxAudioPanel
+                    prominent
                     displayReport={displayReport}
                     exportId={exportId}
                     exportUnavailableReason={exportUnavailableReason}
@@ -823,6 +823,7 @@ function ListenPageInner() {
                       slotA && slotB ? `${slotA.label} & ${slotB.label}` : 'Sandbox Composition'
                     }
                   />
+                  <SandboxReportSections displayReport={displayReport} />
                   {canSaveListen ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Button

@@ -89,7 +89,7 @@ export default function MiniPlayer() {
         const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
         const { sound } = await expoAv.Audio.Sound.createAsync(
           { uri: `${API_BASE}/api/exports/${exportId}`, headers },
-          { shouldPlay: true }
+          { shouldPlay: useAudioStore.getState().isPlaying },
         );
 
         if (cancelled || loadingTrackIdRef.current !== exportId) {

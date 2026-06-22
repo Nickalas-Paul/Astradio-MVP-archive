@@ -235,17 +235,6 @@ export default function LibraryDetailScreen() {
   const exportId = detail?.export_id ?? null;
   const sourceLabel = librarySourceLabel(detail?.source);
 
-  useEffect(() => {
-    if (!detail || !isValidExportId(exportId)) return;
-    if (detail.source === 'profile_identity') {
-      playTrack({
-        exportId,
-        label: sourceLabel,
-        source: 'identity',
-      });
-    }
-  }, [detail, exportId, playTrack, sourceLabel]);
-
   const handleListen = () => {
     if (!detail || !isValidExportId(exportId)) return;
     playTrack({
