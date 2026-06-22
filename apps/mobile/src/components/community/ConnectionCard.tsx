@@ -81,14 +81,12 @@ export function ConnectionCard({ pair }: ConnectionCardProps) {
         >
           <Text style={styles.outlineButtonText}>Open connection</Text>
         </Pressable>
-        <View style={styles.secondaryActions}>
-          <Pressable
-            onPress={() => console.log('hear connection', pair.id)}
-            style={({ pressed }) => [styles.ghostButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.ghostButtonText}>Hear this connection</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => console.log('hear connection', pair.id)}
+          style={({ pressed }) => [styles.actionButton, styles.ghostButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.ghostButtonText}>Hear this connection</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -162,14 +160,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 4,
-  },
-  secondaryActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
   },
   actionButton: {
     borderRadius: 8,
@@ -177,7 +171,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 44,
     justifyContent: 'center',
-    width: '100%',
   },
   outlineButton: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -190,11 +183,6 @@ const styles = StyleSheet.create({
   },
   ghostButton: {
     backgroundColor: colors.surfaceLight,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 36,
-    justifyContent: 'center',
   },
   ghostButtonText: {
     color: colors.text.secondary,

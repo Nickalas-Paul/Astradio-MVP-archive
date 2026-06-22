@@ -481,45 +481,39 @@ export function ConnectionInventoryPanel({
                         </p>
                       );
                     })()}
-                    <div className="space-y-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                          router.push(`/community/relationship/${encodeURIComponent(String(p.id))}`)
-                        }
+                    <div className="flex flex-wrap gap-2 pt-1 items-center">
+                      <Link
+                        href={`/community/relationship/${encodeURIComponent(String(p.id))}`}
+                        className="btn-outline text-xs px-3 py-2 min-h-[44px] inline-flex items-center justify-center w-full sm:w-auto"
                       >
                         Open connection
-                      </Button>
-                      <div className="flex items-center gap-2 justify-end">
-                        {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
-                          <MessagePeerButton peerUserId={String(p.peerUserId)} iconOnly />
-                        ) : null}
-                        {(() => {
-                          const peerChartId =
-                            typeof p.peerChartId === 'string' && p.peerChartId.trim() ? p.peerChartId.trim() : null;
-                          const chartA =
-                            viewerChartId?.trim() ||
-                            viewerChartIdFromPair(p, peerChartId);
-                          if (!chartA || !peerChartId) return null;
-                          return (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                router.push(
-                                  `/listen?chartA=${encodeURIComponent(chartA)}&chartB=${encodeURIComponent(peerChartId)}&relationshipId=${encodeURIComponent(String(p.id))}`
-                                );
-                              }}
-                            >
-                              Hear this connection
-                            </Button>
-                          );
-                        })()}
-                      </div>
+                      </Link>
+                      {typeof p.peerUserId === 'string' && p.peerUserId.trim() ? (
+                        <MessagePeerButton peerUserId={String(p.peerUserId)} iconOnly />
+                      ) : null}
+                      {(() => {
+                        const peerChartId =
+                          typeof p.peerChartId === 'string' && p.peerChartId.trim() ? p.peerChartId.trim() : null;
+                        const chartA =
+                          viewerChartId?.trim() ||
+                          viewerChartIdFromPair(p, peerChartId);
+                        if (!chartA || !peerChartId) return null;
+                        return (
+                          <Button
+                            type="button"
+                            variant="audio"
+                            size="sm"
+                            className="min-h-[44px]"
+                            onClick={() => {
+                              router.push(
+                                `/listen?chartA=${encodeURIComponent(chartA)}&chartB=${encodeURIComponent(peerChartId)}&relationshipId=${encodeURIComponent(String(p.id))}`
+                              );
+                            }}
+                          >
+                            Hear this connection
+                          </Button>
+                        );
+                      })()}
                     </div>
                     {/* PairWeatherPreview removed for beta - theme tags need humanized display */}
                   </Card>
