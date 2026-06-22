@@ -6,6 +6,7 @@
 import * as storage from './storage';
 import { getChartById, createChart, listChartsByOwner, selectHandleResolvedChart, getChartSnapshotCached } from './chart-store';
 import { createComparison, parseExpansionTier } from './comparison-service';
+import { viewerOrientedComparisonText } from './comparison-viewer-orientation';
 import { getProfileChartExplainer } from './profile-chart';
 import { buildProfileActiveStateProjection } from '../profile/profile-active-state';
 import { generateExtendedCompatibility, getCompatMatches, toPublicCompatMatch } from './matches';
@@ -1670,17 +1671,33 @@ export function createCompatRouter(): import('express').Router {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const comparison = (await storage.getComparison(id)) as ComparisonWithRoles | undefined;
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
-    const seekerChartId = comparison.seekerChartId || comparison.chartAId;
-    const targetChartId = comparison.targetChartId || comparison.chartBId;
+
+    const viewerUserId = resolveProxySessionUserId(req) || null;
+    let viewerChartId: string | null = null;
+    if (viewerUserId && storage.getUserPrimaryChart) {
+      const primary = await storage.getUserPrimaryChart(viewerUserId);
+      viewerChartId = primary?.trim() || null;
+    }
+
+    const oriented = viewerOrientedComparisonText(comparison, viewerChartId);
+    const seekerChartId = oriented.seekerChartId;
+    const targetChartId = oriented.targetChartId;
+
+    const { compatibilityTextReverse: _reverse, ...comparisonRest } = comparison as Comparison & {
+      compatibilityTextReverse?: unknown;
+    };
+
     return res.json({
-      ...comparison,
+      ...comparisonRest,
+      compatibilityText: oriented.compatibilityText,
       seekerChartId,
       targetChartId,
       relationshipMode: coerceRelationshipModeFromStorage(comparison.relationshipMode),
       roles: {
         seekerChartId,
-        targetChartId
-      }
+        targetChartId,
+        usedReverseOrientation: oriented.usedReverseOrientation,
+      },
     });
   });
 

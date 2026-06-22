@@ -109,6 +109,9 @@ export interface CompatibilityTextStructured {
 
 export type CompatibilityText = CompatibilityTextStructured | string;
 
+/** chartB-as-seeker text ({ short, long, bullets }); NULL for legacy rows. */
+export type CompatibilityTextReverse = CompatibilityTextStructured | undefined;
+
 export interface Comparison {
   id: string;
   chartAId: string;
@@ -126,6 +129,8 @@ export interface Comparison {
   mergedFeatureVector64: number[];
   mergedFeatureHash?: string;
   compatibilityText: CompatibilityText;
+  /** Viewer-oriented when chartB is seeker; stored separately from forward text. */
+  compatibilityTextReverse?: CompatibilityTextReverse;
   planHash: string;
   compositionId: string;
   exportJobId?: string;

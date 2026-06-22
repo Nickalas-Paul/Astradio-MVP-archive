@@ -16,6 +16,9 @@ import * as crypto from 'crypto';
 import { computeCompatibilitySystem } from '../compatibility/service';
 import type { CompatibilityComputationResult } from '../compatibility/service';
 import type { AggregateComposeResult } from '../api/compose';
+import {
+  compatibilityTextFromComposeResult,
+} from './comparison-viewer-orientation';
 
 const COMPOSE_SKIPPED_SENTINEL = '__compose_skipped__';
 
@@ -48,6 +51,8 @@ export interface CreateComparisonInput {
   persist?: boolean;
   /** Pair forecast: scope compatibility scoring to relationship binding; omit for standalone comparisons. */
   relationshipBindingId?: string | null;
+  /** When true, run Lyria export during aggregate compose (feed audio opt-in). Forward orientation only. */
+  generateAudio?: boolean;
 }
 
 export interface CreateComparisonResult {
@@ -245,17 +250,27 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
     relationshipBindingId: input.relationshipBindingId ?? null,
     fusion: input.fusion,
     expansionTier: input.expansionTier,
+    generateAudio: input.generateAudio === true,
+  });
+
+  const reverseCore = await composeComparisonAggregateReading({
+    chartAId: chartB.id,
+    chartBId: chartA.id,
+    relationshipMode: input.relationshipMode,
+    seekerChartId: chartB.id,
+    targetChartId: chartA.id,
+    relationshipBindingId: input.relationshipBindingId ?? null,
+    fusion: input.fusion,
+    expansionTier: input.expansionTier,
+    generateAudio: false,
   });
 
   const result = core.compose;
   const merged = core.merged;
   const compatibility = core.compatibility;
 
-  const compatText: CompatibilityTextStructured = {
-    short: (result.text as any)?.short ?? '',
-    long: (result.text as any)?.long ?? '',
-    bullets: Array.isArray((result.text as any)?.bullets) ? (result.text as any).bullets : [],
-  };
+  const compatText = compatibilityTextFromComposeResult(result.text);
+  const compatTextReverse = compatibilityTextFromComposeResult(reverseCore.compose.text);
 
   const persist = input.persist !== false;
   let comparison: Comparison | undefined;
@@ -271,6 +286,7 @@ export async function createComparison(input: CreateComparisonInput): Promise<Cr
       mergedFeatureVector64: Array.from(merged),
       mergedFeatureHash: mergedFeatureHash(merged),
       compatibilityText: compatText,
+      compatibilityTextReverse: compatTextReverse,
       planHash: result.planHash,
       compositionId: result.planHash,
       createdBy: input.createdBy,
