@@ -552,7 +552,7 @@ function ListenPageInner() {
         {showEntryFlow && (
           <div className="space-y-6">
             <section className="space-y-4">
-              <h2 className="text-lg font-semibold text-text-primary">Chart A</h2>
+              <h2 className="font-serif text-lg font-semibold text-text-primary">Chart A</h2>
               {slotA ? (
                 <Card elevation="raised" className="space-y-2">
                   <p className="text-sm font-medium text-text-primary">{slotA.label}</p>
@@ -660,7 +660,7 @@ function ListenPageInner() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-lg font-semibold text-text-primary">Chart B</h2>
+              <h2 className="font-serif text-lg font-semibold text-text-primary">Chart B</h2>
               {slotB ? (
                 <Card elevation="raised" className="space-y-2">
                   <p className="text-sm font-medium text-text-primary">{slotB.label}</p>
@@ -771,7 +771,7 @@ function ListenPageInner() {
           <PlacementHighlightProvider>
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">Your connection reading</h2>
+                <h2 className="font-serif text-lg font-semibold text-text-primary">Your connection reading</h2>
                 <Button type="button" variant="outline" size="sm" onClick={handleStartOver}>
                   Choose different charts
                 </Button>

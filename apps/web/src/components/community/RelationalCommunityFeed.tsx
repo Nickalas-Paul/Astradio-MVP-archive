@@ -57,6 +57,19 @@ function getRoleLabel(role: string | undefined): string {
   }
 }
 
+function getRoleLabelColorClass(role: string | undefined): string {
+  switch (role) {
+    case 'you_bring':
+      return 'text-accent';
+    case 'they_bring':
+      return 'text-[#E8C56D]';
+    case 'tests_both':
+      return 'text-[#D4836D]';
+    default:
+      return 'text-accent';
+  }
+}
+
 /** Pair card title — enhanced_title may already include the full relationship phrase. */
 function pairRelationshipHeading(partnerLabel: string): string {
   const t = partnerLabel.trim();
@@ -867,7 +880,7 @@ export function RelationalCommunityFeed({
                                             className="space-y-2"
                                           >
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                              <p className="text-caption font-medium uppercase tracking-wide text-accent">
+                                              <p className={`text-caption font-medium uppercase tracking-wide ${getRoleLabelColorClass(line.role)}`}>
                                                 {getRoleLabel(line.role)}
                                               </p>
                                               <WeatherAspectGlyphPair prefix={activationLinePrefix(line)} />
@@ -1038,7 +1051,7 @@ export function RelationalCommunityFeed({
                           {betaLines.map((line, idx) => (
                             <li key={`${item.feed_item_id}-ln-${idx}`} className="space-y-1">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <p className="text-caption font-medium uppercase tracking-wide text-accent">
+                                <p className={`text-caption font-medium uppercase tracking-wide ${getRoleLabelColorClass(line.role)}`}>
                                   {getRoleLabel(line.role)}
                                 </p>
                                 <WeatherAspectGlyphPair prefix={activationLinePrefix(line)} />

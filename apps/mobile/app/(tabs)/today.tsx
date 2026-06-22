@@ -88,13 +88,26 @@ function ActivationProgressBar({
   );
 }
 
+function weatherRoleLabelColor(role: string): string {
+  switch (role) {
+    case 'you_bring':
+      return colors.accent.DEFAULT;
+    case 'they_bring':
+      return '#E8C56D';
+    case 'tests_both':
+      return '#D4836D';
+    default:
+      return colors.accent.DEFAULT;
+  }
+}
+
 function ActivationLineRow({ line }: { line: TodayRelationalWeatherLine }) {
   const accentColor = line.transitPlanet ? planetColor(line.transitPlanet) : colors.text.muted;
   const headline = line.prefix.trim();
 
   return (
     <View style={styles.weatherLine}>
-      <Text style={styles.weatherLabel}>{line.label}</Text>
+      <Text style={[styles.weatherLabel, { color: weatherRoleLabelColor(line.role) }]}>{line.label}</Text>
       {headline ? (
         <View style={styles.activationHeadlineRow}>
           <View style={[styles.planetDot, { backgroundColor: accentColor ?? colors.text.muted }]} />
@@ -530,7 +543,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   weatherLabel: {
-    color: colors.text.muted,
     fontSize: 11,
     fontFamily: 'Manrope-SemiBold',
     textTransform: 'uppercase',

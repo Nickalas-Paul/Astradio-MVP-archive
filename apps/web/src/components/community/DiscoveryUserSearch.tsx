@@ -153,7 +153,7 @@ export function DiscoveryUserSearch({
   return (
     <section className="space-y-3 pb-6 border-b border-border/50" aria-label="User search">
       <div>
-        <h3 className="text-body font-medium text-text-secondary">Find someone specific</h3>
+        <h3 className="font-serif text-body font-medium text-text-secondary">Find someone specific</h3>
         <p className="text-caption text-text-muted mt-1">Search by display name or handle</p>
       </div>
       <input

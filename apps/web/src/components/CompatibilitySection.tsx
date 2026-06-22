@@ -103,7 +103,7 @@ export function CompatibilitySection({
   if (!hasProfile) {
     return (
       <Card elevation="resting" className={className}>
-        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <h3 className="font-serif text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
           Create a profile with your natal chart first. Astradio profiles are chart-based: add your birth date, time, and birth place in the My Sky tab. Then return here to find compatible connections.
         </p>
@@ -123,7 +123,7 @@ export function CompatibilitySection({
   if (!chartId) {
     return (
       <Card elevation="resting" className={className}>
-        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <h3 className="font-serif text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
           Add your natal chart to your profile to see compatibility-driven matches. Go to the My Sky tab and add your birth date, time, and birth place.
         </p>
@@ -143,7 +143,7 @@ export function CompatibilitySection({
   if (!isFeatureEnabled('ENABLE_COMPAT')) {
     return (
       <Card elevation="resting" className={className}>
-        <h3 className="text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
+        <h3 className="font-serif text-h3 font-semibold text-text-primary mb-4">Compatibility</h3>
         <p className="text-body-sm text-text-secondary">
           You’re set up with a natal chart. Compatibility matching will be enabled in a future update.
         </p>
@@ -239,7 +239,7 @@ export function CompatibilitySection({
 
   const header = (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-      <h3 className="text-h3 font-semibold text-text-primary shrink-0">Compatibility matches</h3>
+      <h3 className="font-serif text-h3 font-semibold text-text-primary shrink-0">Compatibility matches</h3>
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto min-w-0">
         {intentRow ? <div className="overflow-x-auto scrollbar-hide w-full sm:w-auto">{intentRow}</div> : null}
         <div className="w-full sm:w-auto shrink-0">{findMatchesControl}</div>

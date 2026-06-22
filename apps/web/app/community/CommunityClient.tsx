@@ -356,7 +356,7 @@ function CommunityClientInner() {
           {activeTab === 'discovery' && (
             <div className="max-w-4xl mx-auto space-y-8">
               <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-2">Discovery</h2>
+                <h2 className="font-serif text-xl font-semibold text-text-primary mb-2">Discovery</h2>
                 <p className="text-text-secondary text-sm mb-6">
                   Find meaningful connections based on astrological compatibility. Choose your intent and
                   we&apos;ll show you the best matches.
@@ -372,7 +372,7 @@ function CommunityClientInner() {
               />
 
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-text-primary mb-1">Intentional matching</h2>
+                <h2 className="font-serif text-lg font-semibold text-text-primary mb-1">Intentional matching</h2>
                 <p className="text-sm text-text-secondary max-w-2xl mb-2">
                   Choose an intent, then find matches. Results load only after you click Find matches and appear
                   directly below.
@@ -405,7 +405,7 @@ function CommunityClientInner() {
                   onMetaChange={setInventoryMeta}
                 />
                 <div>
-                  <h2 className="text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
+                  <h2 className="font-serif text-lg font-semibold text-text-primary mb-2">Relational groups</h2>
                   <GroupsList userId={user?.id ?? null} onMetaChange={setGroupsMeta} />
                 </div>
               </div>

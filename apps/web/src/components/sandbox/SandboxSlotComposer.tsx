@@ -89,7 +89,7 @@ export function SandboxSlotComposer({
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold text-text-primary">Astrology Composition</h2>
+          <h2 className="font-serif text-xl font-semibold text-text-primary">Astrology Composition</h2>
           <p className="text-xs text-text-secondary mt-0.5">
             {compositionInput.slots.length} slot{compositionInput.slots.length === 1 ? '' : 's'} · editing slot{' '}
             {activeIndex + 1}
