@@ -428,6 +428,7 @@ function CommunityClientInner() {
                   onOpenConversation={(id) => setSelectedConversationId(id)}
                   onMetaChange={({ unreadTotal }) => setDmUnreadTotal(unreadTotal)}
                   refreshSignal={dmRefreshSignal}
+                  onSwitchToConnections={() => setTab('connections')}
                 />
               )}
             </div>

@@ -39,6 +39,7 @@ type ConversationListProps = {
   onOpenConversation: (conversationId: string) => void;
   onMetaChange?: (meta: { unreadTotal: number }) => void;
   refreshSignal?: number;
+  onSwitchToConnections?: () => void;
 };
 
 export function ConversationList({
@@ -46,6 +47,7 @@ export function ConversationList({
   onOpenConversation,
   onMetaChange,
   refreshSignal = 0,
+  onSwitchToConnections,
 }: ConversationListProps) {
   const { data, loading, error, refresh, unreadTotal } = useDmConversations(Boolean(currentUserId));
 
@@ -108,9 +110,17 @@ export function ConversationList({
 
   if (!hasRequests && !hasConversations) {
     return (
-      <p className="text-sm text-text-muted text-center py-8">
-        No conversations yet. Start one from a connection&apos;s profile.
-      </p>
+      <Card size="lg" className="text-center space-y-4 max-w-lg mx-auto">
+        <h3 className="font-serif text-h3 text-text-primary">No messages yet</h3>
+        <p className="text-body-sm text-text-secondary">
+          Start a conversation from any connection&apos;s profile.
+        </p>
+        {onSwitchToConnections ? (
+          <Button type="button" variant="outline" size="sm" onClick={onSwitchToConnections}>
+            View your connections
+          </Button>
+        ) : null}
+      </Card>
     );
   }
 

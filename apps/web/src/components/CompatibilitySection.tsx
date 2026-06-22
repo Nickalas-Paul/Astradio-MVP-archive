@@ -283,17 +283,16 @@ export function CompatibilitySection({
     return (
       <Card elevation="resting" className={className}>
         {header}
-        <Card size="lg" className="text-center space-y-3">
-          <p className="text-body text-text-secondary">
-            No matches found today. Try a different intent or check back tomorrow.
+        <Card size="lg" className="text-center space-y-4">
+          <h3 className="font-serif text-h3 text-text-primary">No matches right now</h3>
+          <p className="text-body-sm text-text-secondary">
+            Try a different intent, or explore the Listen page to hear any two charts together.
           </p>
-          <p className="text-body-sm text-text-muted">
-            You can also search for someone specific above, or{' '}
-            <Link href="/listen" className="text-accent hover:underline">
-              hear what any two charts sound like
-            </Link>{' '}
-            without matching first.
-          </p>
+          <Link href="/listen">
+            <Button type="button" variant="outline" size="sm">
+              Go to Listen
+            </Button>
+          </Link>
         </Card>
       </Card>
     );

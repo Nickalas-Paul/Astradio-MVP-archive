@@ -692,28 +692,39 @@ export default function HomePage() {
           The planets are always in motion. Every alignment carries a sound.
         </p>
 
-        <div className="pt-4 flex flex-col items-center gap-3">
+        <div className="pt-4 flex flex-col sm:flex-row items-center gap-3 justify-center w-full max-w-md mx-auto">
           {isPlaying ? (
             <Button
               type="button"
               variant="secondary"
               disabled={disabled}
               onClick={() => stopSoundtrack()}
-              className="text-lg px-10 py-4 w-full md:w-auto"
+              className="text-lg px-10 py-4 w-full sm:w-auto"
             >
               Stop
             </Button>
           ) : (
-            <Button
-              type="button"
-              variant="audio"
-              disabled={disabled || audioLoading}
-              loading={audioLoading}
-              onClick={() => void handleTodaySoundtrack()}
-              className="text-lg px-10 py-4 w-full md:w-auto"
-            >
-              Today&apos;s Soundtrack
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="audio"
+                disabled={disabled || audioLoading}
+                loading={audioLoading}
+                onClick={() => void handleTodaySoundtrack()}
+                className="text-lg px-10 py-4 w-full sm:w-auto"
+              >
+                Today&apos;s Soundtrack
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => router.push('/profile')}
+                className="text-lg px-10 py-4 w-full sm:w-auto"
+              >
+                Create your chart
+              </Button>
+            </>
           )}
         </div>
 

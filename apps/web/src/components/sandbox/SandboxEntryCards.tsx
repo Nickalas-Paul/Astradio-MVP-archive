@@ -12,24 +12,26 @@ export interface SandboxEntryCard {
   description: string;
   slotCount: number;
   icon: ReactNode;
+  iconColorClass: string;
+  iconBgClass: string;
 }
 
-const SoloIcon = () => (
-  <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden className="text-text-muted">
+const SoloIcon = ({ className }: { className?: string }) => (
+  <svg width={48} height={48} viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
     <circle cx="14" cy="14" r="9" stroke="currentColor" strokeWidth="1.5" />
     <circle cx="14" cy="11" r="3" fill="currentColor" opacity="0.5" />
   </svg>
 );
 
-const PairIcon = () => (
-  <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden className="text-text-muted">
+const PairIcon = ({ className }: { className?: string }) => (
+  <svg width={48} height={48} viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
     <circle cx="10" cy="14" r="7" stroke="currentColor" strokeWidth="1.5" />
     <circle cx="18" cy="14" r="7" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 
-const WhatIfIcon = () => (
-  <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden className="text-text-muted">
+const WhatIfIcon = ({ className }: { className?: string }) => (
+  <svg width={48} height={48} viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
     <path
       d="M14 4l2.2 6.8H23l-5.5 4 2.1 6.7L14 17.4 8.4 21.5l2.1-6.7-5.5-4h6.8L14 4z"
       stroke="currentColor"
@@ -39,8 +41,8 @@ const WhatIfIcon = () => (
   </svg>
 );
 
-const GroupIcon = () => (
-  <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden className="text-text-muted">
+const GroupIcon = ({ className }: { className?: string }) => (
+  <svg width={48} height={48} viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
     <circle cx="8" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
     <circle cx="20" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
     <circle cx="14" cy="20" r="5" stroke="currentColor" strokeWidth="1.5" />
@@ -53,28 +55,36 @@ const ENTRY_CARDS: SandboxEntryCard[] = [
     title: 'What does this chart sound like?',
     description: 'Import your chart or enter birth data. One chart, one reading, one soundtrack.',
     slotCount: 1,
-    icon: <SoloIcon />,
+    icon: <SoloIcon className="text-accent" />,
+    iconColorClass: 'text-accent',
+    iconBgClass: 'bg-accent/10',
   },
   {
     id: 'pair',
     title: 'How do two charts connect?',
     description: 'Two charts side by side. See what happens between them and hear the connection.',
     slotCount: 2,
-    icon: <PairIcon />,
+    icon: <PairIcon className="text-[#E8C56D]" />,
+    iconColorClass: 'text-[#E8C56D]',
+    iconBgClass: 'bg-[#E8C56D]/10',
   },
   {
     id: 'whatif',
     title: 'What if?',
     description: 'Start from a blank chart. Place planets anywhere. Hear what the configuration sounds like.',
     slotCount: 1,
-    icon: <WhatIfIcon />,
+    icon: <WhatIfIcon className="text-[#D4836D]" />,
+    iconColorClass: 'text-[#D4836D]',
+    iconBgClass: 'bg-[#D4836D]/10',
   },
   {
     id: 'group',
     title: 'Group chemistry',
     description: 'Three or more charts in the same room. What does the group dynamic sound like?',
     slotCount: 3,
-    icon: <GroupIcon />,
+    icon: <GroupIcon className="text-[#8FAFD4]" />,
+    iconColorClass: 'text-[#8FAFD4]',
+    iconBgClass: 'bg-[#8FAFD4]/10',
   },
 ];
 
@@ -95,20 +105,23 @@ export function SandboxEntryCards({ onSelect, onContinue, hasExistingComposition
             size="md"
             className="min-h-[180px] flex flex-col transition-all duration-200 hover:border-accent/50 hover:shadow-md"
           >
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <h3 className="text-h3 font-serif text-text-primary pr-2">{card.title}</h3>
-              <div className="shrink-0">{card.icon}</div>
+            <div className="flex flex-col items-center text-center flex-1">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${card.iconBgClass}`}
+              >
+                {card.icon}
+              </div>
+              <h3 className="text-h3 font-serif text-text-primary mb-3">{card.title}</h3>
+              <p className="text-body-sm text-text-secondary flex-1 mb-4">{card.description}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onSelect(card.id, card.slotCount)}
+              >
+                Start
+              </Button>
             </div>
-            <p className="text-body-sm text-text-secondary flex-1 mb-4">{card.description}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() => onSelect(card.id, card.slotCount)}
-            >
-              Start
-            </Button>
           </Card>
         ))}
       </div>

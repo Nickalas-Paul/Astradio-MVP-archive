@@ -10,6 +10,7 @@ type MessagesTabProps = {
   onOpenConversation: (conversationId: string) => void;
   onMetaChange?: (meta: { unreadTotal: number }) => void;
   refreshSignal?: number;
+  onSwitchToConnections?: () => void;
 };
 
 export function MessagesTab({
@@ -18,6 +19,7 @@ export function MessagesTab({
   onOpenConversation,
   onMetaChange,
   refreshSignal = 0,
+  onSwitchToConnections,
 }: MessagesTabProps) {
   const [, setSignalsMeta] = useState({ loading: true, empty: true });
 
@@ -33,6 +35,7 @@ export function MessagesTab({
         onOpenConversation={onOpenConversation}
         onMetaChange={onMetaChange}
         refreshSignal={refreshSignal}
+        onSwitchToConnections={onSwitchToConnections}
       />
     </div>
   );

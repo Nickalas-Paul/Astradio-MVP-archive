@@ -15,6 +15,7 @@ import {
   SANDBOX_ENTRY_CARDS,
   SANDBOX_HERO_SUBTITLE,
 } from '../../constants/sandbox-entry-cards';
+import { SandboxJourneyIcon } from './SandboxJourneyIcon';
 import { compositionHasExistingData } from '../../lib/sandbox-slot-utils';
 import { useSandboxData } from '../../hooks/useSandboxData';
 import { useSandboxStore } from '../../store/sandbox';
@@ -58,6 +59,7 @@ export function SandboxEntryScreen() {
         <View style={styles.cardGrid}>
           {SANDBOX_ENTRY_CARDS.map((card) => (
             <View key={card.id} style={styles.journeyCard}>
+              <SandboxJourneyIcon journey={card.id} />
               <Text style={styles.cardTitle}>{card.title}</Text>
               <Text style={styles.cardDescription}>{card.description}</Text>
               <Pressable
@@ -170,12 +172,14 @@ const styles = StyleSheet.create({
     borderColor: layout.card.borderColor,
     borderRadius: layout.card.borderRadius,
     padding: layout.card.padding,
+    alignItems: 'center',
   },
   cardTitle: {
     color: colors.text.primary,
     fontSize: 17,
     fontFamily: 'Cormorant-SemiBold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   cardDescription: {
     color: colors.text.secondary,
@@ -184,9 +188,9 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     flex: 1,
     marginBottom: 12,
+    textAlign: 'center',
   },
   startButton: {
-    alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: colors.accent.DEFAULT,
     borderRadius: 8,
