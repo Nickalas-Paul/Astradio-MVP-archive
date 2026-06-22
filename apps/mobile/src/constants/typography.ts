@@ -66,4 +66,10 @@ export const typography = {
     fontFamily: 'Cormorant-SemiBold',
     fontSize: 24,
   },
+
+  // FTUE card hints (Sandbox entry provocations)
+  hintText: {
+    fontFamily: 'Cormorant-Italic',
+    fontSize: 14,
+  },
 };

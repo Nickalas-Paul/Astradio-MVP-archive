@@ -188,7 +188,8 @@ export function useSandboxGenerate(onSaved?: () => void) {
       const compositionInput = {
         schema_version: '1',
         slots: state.slots.map((slot) => ({
-          ...(slot.chartId ? { chart_id: slot.chartId, chart_display_name: slot.chartDisplayName } : {}),
+          ...(slot.chartId ? { chart_id: slot.chartId } : {}),
+          ...(slot.chartDisplayName?.trim() ? { chart_display_name: slot.chartDisplayName.trim() } : {}),
           ...(slot.birth
             ? {
                 ephemeris_birth: {

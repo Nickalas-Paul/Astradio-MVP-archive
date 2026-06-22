@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -21,6 +21,7 @@ import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { useSandboxData } from '../../hooks/useSandboxData';
 import { useSandboxGenerate } from '../../hooks/useSandboxGenerate';
+import { applyHistoricalPresetWithErrorHandling } from '../../lib/sandbox-historical-preset';
 import { mapSandboxSlotToWheel } from '../../lib/sandbox-slot-utils';
 import {
   activeSlotNeedsEntryChooser,
@@ -58,6 +59,21 @@ export function SandboxWorkbench() {
   const resolveResult = useSandboxStore((s) => s.resolveResult);
   const errorMessage = useSandboxStore((s) => s.errorMessage);
   const resetWorkbenchError = useSandboxStore((s) => s.resetWorkbenchError);
+  const pendingHistoricalPreset = useSandboxStore((s) => s.pendingHistoricalPreset);
+  const setErrorMessage = useSandboxStore((s) => s.setErrorMessage);
+
+  const presetApplyingRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendingHistoricalPreset || presetApplyingRef.current) return;
+    presetApplyingRef.current = true;
+    const preset = pendingHistoricalPreset;
+    useSandboxStore.setState({ pendingHistoricalPreset: null });
+    void applyHistoricalPresetWithErrorHandling(0, preset).then((message) => {
+      if (message) setErrorMessage(message);
+      presetApplyingRef.current = false;
+    });
+  }, [pendingHistoricalPreset, setErrorMessage]);
 
   const { refresh } = useSandboxData();
   const {

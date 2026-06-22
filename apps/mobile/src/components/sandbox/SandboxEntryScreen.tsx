@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,6 +16,8 @@ import {
   SANDBOX_ENTRY_CARDS,
   SANDBOX_HERO_SUBTITLE,
 } from '../../constants/sandbox-entry-cards';
+import { HISTORICAL_PRESETS, type HistoricalPreset } from '../../data/historical-presets';
+import { incrementSandboxVisitCount } from '../../lib/ftue-storage';
 import { SandboxJourneyIcon } from './SandboxJourneyIcon';
 import { compositionHasExistingData } from '../../lib/sandbox-slot-utils';
 import { useSandboxData } from '../../hooks/useSandboxData';
@@ -28,6 +31,48 @@ function formatSavedDate(iso: string | undefined): string {
   return d.toLocaleString();
 }
 
+function JourneyCard({
+  card,
+  showHints,
+  onStart,
+}: {
+  card: (typeof SANDBOX_ENTRY_CARDS)[number];
+  showHints: boolean;
+  onStart: () => void;
+}) {
+  const [hintVisible, setHintVisible] = useState(false);
+
+  useEffect(() => {
+    if (!showHints) {
+      setHintVisible(false);
+      return undefined;
+    }
+    const frame = requestAnimationFrame(() => setHintVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, [showHints, card.id]);
+
+  return (
+    <View style={styles.journeyCard}>
+      <SandboxJourneyIcon journey={card.id} />
+      <Text style={styles.cardTitle}>{card.title}</Text>
+      <Text style={styles.cardDescription}>{card.description}</Text>
+      {showHints ? (
+        <Text
+          style={[
+            styles.cardHint,
+            { opacity: hintVisible ? 1 : 0 },
+          ]}
+        >
+          {card.hint}
+        </Text>
+      ) : null}
+      <Pressable style={styles.startButton} onPress={onStart} accessibilityRole="button">
+        <Text style={styles.startButtonText}>Start</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function SandboxEntryScreen() {
   const selectJourney = useSandboxStore((s) => s.selectJourney);
   const continueWorkbench = useSandboxStore((s) => s.continueWorkbench);
@@ -38,6 +83,18 @@ export function SandboxEntryScreen() {
     useSandboxData();
 
   const hasExisting = compositionHasExistingData({ slots, resolveResult });
+  const [showHints, setShowHints] = useState(false);
+  const visitsTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (visitsTrackedRef.current) return;
+    visitsTrackedRef.current = true;
+    void incrementSandboxVisitCount().then(({ showHints: next }) => setShowHints(next));
+  }, []);
+
+  const handlePresetSelect = (preset: HistoricalPreset) => {
+    selectJourney('solo', { historicalPreset: preset });
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -58,19 +115,33 @@ export function SandboxEntryScreen() {
 
         <View style={styles.cardGrid}>
           {SANDBOX_ENTRY_CARDS.map((card) => (
-            <View key={card.id} style={styles.journeyCard}>
-              <SandboxJourneyIcon journey={card.id} />
-              <Text style={styles.cardTitle}>{card.title}</Text>
-              <Text style={styles.cardDescription}>{card.description}</Text>
+            <JourneyCard
+              key={card.id}
+              card={card}
+              showHints={showHints}
+              onStart={() => selectJourney(card.id as SandboxJourneyType)}
+            />
+          ))}
+        </View>
+
+        <View style={styles.historicalSection}>
+          <Text style={styles.historicalTitle}>Historical Soundscapes</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.presetRow}
+          >
+            {HISTORICAL_PRESETS.map((preset) => (
               <Pressable
-                style={styles.startButton}
-                onPress={() => selectJourney(card.id as SandboxJourneyType)}
+                key={preset.id}
+                style={styles.presetPill}
+                onPress={() => handlePresetSelect(preset)}
                 accessibilityRole="button"
               >
-                <Text style={styles.startButtonText}>Start</Text>
+                <Text style={styles.presetPillText}>{preset.label}</Text>
               </Pressable>
-            </View>
-          ))}
+            ))}
+          </ScrollView>
         </View>
 
         <View style={styles.savedSection}>
@@ -187,7 +258,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
     lineHeight: 17,
     flex: 1,
-    marginBottom: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  cardHint: {
+    ...typography.hintText,
+    color: colors.text.muted,
+    lineHeight: 18,
+    marginBottom: 10,
     textAlign: 'center',
   },
   startButton: {
@@ -201,6 +279,34 @@ const styles = StyleSheet.create({
     color: colors.accent.DEFAULT,
     fontSize: 13,
     fontFamily: 'Manrope-SemiBold',
+  },
+  historicalSection: {
+    marginBottom: 28,
+    gap: 12,
+  },
+  historicalTitle: {
+    fontFamily: 'Cormorant-SemiBold',
+    fontSize: 22,
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  presetRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  presetPill: {
+    borderWidth: layout.card.borderWidth,
+    borderColor: layout.card.borderColor,
+    borderRadius: 999,
+    paddingHorizontal: layout.card.padding,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+  },
+  presetPillText: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
   },
   savedSection: {
     backgroundColor: layout.card.backgroundColor,

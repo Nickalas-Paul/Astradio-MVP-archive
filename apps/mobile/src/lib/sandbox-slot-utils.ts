@@ -113,6 +113,15 @@ export function projectSlotChips(slots: SandboxSlot[]): SlotChipRow[] {
       };
     }
     if (k === 'ephemeris_birth' && slot.birth) {
+      const displayName = slot.chartDisplayName?.trim();
+      if (displayName) {
+        return {
+          index,
+          label: displayName,
+          isManualStyle: false,
+          populationKind: k,
+        };
+      }
       const timeShort = slot.birth.time.length >= 5 ? slot.birth.time.slice(0, 5) : slot.birth.time;
       return {
         index,

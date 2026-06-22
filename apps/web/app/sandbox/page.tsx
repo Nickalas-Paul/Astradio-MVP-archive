@@ -11,6 +11,7 @@ import { SandboxSavedCompositions } from '../../src/components/sandbox/SandboxSa
 import { SandboxWheelPanel } from '../../src/components/sandbox/SandboxWheelPanel';
 import { SandboxSlotComposer } from '../../src/components/sandbox/SandboxSlotComposer';
 import { SandboxEntryCards, type SandboxEntryMode } from '../../src/components/sandbox/SandboxEntryCards';
+import { historicalPresetToBirth, type HistoricalPreset } from '../../src/data/historical-presets';
 import { SandboxResolvePanel } from '../../src/components/sandbox/SandboxResolvePanel';
 import { SandboxAudioPanel } from '../../src/components/sandbox/SandboxAudioPanel';
 import { SandboxProvenancePanel } from '../../src/components/sandbox/SandboxProvenancePanel';
@@ -69,6 +70,8 @@ export default function SandboxPage() {
   const [degreePanelOpen, setDegreePanelOpen] = useState(false);
   const hasManuallyToggledDegreePanelRef = useRef(false);
   const entryAutoSkipRef = useRef(false);
+  const pendingPrefillRef = useRef<HistoricalPreset | null>(null);
+  const prefillApplyingRef = useRef(false);
 
   const resolvePreviewBirthBySlotRef = useRef<Map<number, SandboxBirth>>(new Map());
 
@@ -147,7 +150,7 @@ export default function SandboxPage() {
   }, [hasExistingComposition]);
 
   const handleEntrySelect = useCallback(
-    (mode: SandboxEntryMode, slotCount: number) => {
+    (mode: SandboxEntryMode, slotCount: number, options?: { prefill?: HistoricalPreset }) => {
       previewSync.cancelPendingSnapshotSync();
       resolvePreviewBirthBySlotRef.current.clear();
       generate.clearSeedFingerprintState();
@@ -165,6 +168,9 @@ export default function SandboxPage() {
 
       if (mode === 'whatif') {
         dispatchComposition({ type: 'set_entry_mode', entryMode: 'blank_canvas' });
+      } else if (options?.prefill) {
+        dispatchComposition({ type: 'set_entry_mode', entryMode: 'birth_data' });
+        pendingPrefillRef.current = options.prefill;
       }
 
       hasManuallyToggledDegreePanelRef.current = false;
@@ -175,6 +181,29 @@ export default function SandboxPage() {
     },
     [generate, previewSync]
   );
+
+  const handlePresetSelect = useCallback(
+    (preset: HistoricalPreset) => {
+      handleEntrySelect('solo', 1, { prefill: preset });
+    },
+    [handleEntrySelect]
+  );
+
+  useEffect(() => {
+    if (entryLayer !== 'workbench' || !pendingPrefillRef.current || prefillApplyingRef.current) return;
+    const preset = pendingPrefillRef.current;
+    pendingPrefillRef.current = null;
+    prefillApplyingRef.current = true;
+    const birth = historicalPresetToBirth(preset);
+    void previewSync
+      .handleBirthSubmit(birth, { chartDisplayName: preset.label })
+      .catch(() => {
+        /* surfaceState/error set in handleBirthSubmit */
+      })
+      .finally(() => {
+        prefillApplyingRef.current = false;
+      });
+  }, [entryLayer, previewSync]);
 
   const handleEntryContinue = useCallback(() => {
     setEntryLayer('workbench');
@@ -408,6 +437,7 @@ export default function SandboxPage() {
             </div>
             <SandboxEntryCards
               onSelect={handleEntrySelect}
+              onPresetSelect={handlePresetSelect}
               onContinue={handleEntryContinue}
               hasExistingComposition={hasExistingComposition}
             />

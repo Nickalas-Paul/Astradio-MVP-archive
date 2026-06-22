@@ -41,7 +41,7 @@ export interface UseSandboxPreviewSyncArgs {
 
 export interface UseSandboxPreviewSyncReturn {
   handleOverrideChange: (planet: PlanetKey, lonDeg: number | null) => void;
-  handleBirthSubmit: (birth: SandboxBirth) => Promise<void>;
+  handleBirthSubmit: (birth: SandboxBirth, options?: { chartDisplayName?: string }) => Promise<void>;
   handleResetAllOverrides: () => void;
   handleRemoveSlot: (index: number) => void;
   handleClearSlot: (index: number) => void;
@@ -263,7 +263,7 @@ export function useSandboxPreviewSync({
   }, [compositionModel.compositionInput.active_slot_index, syncPreviewToActiveSlot]);
 
   const handleBirthSubmit = useCallback(
-    async (b: SandboxBirth) => {
+    async (b: SandboxBirth, options?: { chartDisplayName?: string }) => {
       setSurfaceState('loading_base');
       setError(null);
       onClearGenerateError?.();
@@ -301,6 +301,7 @@ export function useSandboxPreviewSync({
           snapshot: effectiveSnapshot,
           meta,
           ...(baseSnapshot ? { baseSnapshot } : {}),
+          ...(options?.chartDisplayName ? { chartDisplayName: options.chartDisplayName } : {}),
         });
         resolvePreviewBirthBySlotRef.current.set(
           getActiveSlotIndexFromCompositionInput(compositionRef.current.compositionInput),

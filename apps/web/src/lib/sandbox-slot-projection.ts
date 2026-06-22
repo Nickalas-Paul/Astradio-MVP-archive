@@ -74,6 +74,14 @@ export function projectSlotsFromCompositionInput(input: SandboxCompositionInputS
     }
     if (k === 'ephemeris_birth') {
       const b = slot.ephemeris_birth!;
+      const displayName = typeof slot.chart_display_name === 'string' ? slot.chart_display_name.trim() : '';
+      if (displayName) {
+        return {
+          index,
+          kind: 'birth' as const,
+          chipText: displayName,
+        };
+      }
       const timeShort = b.time.length >= 5 ? b.time.slice(0, 5) : b.time;
       return {
         index,

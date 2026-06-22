@@ -55,12 +55,24 @@ export function slotToWire(
   transientBirth?: ReturnType<typeof dailyTransitBirthForBlankCanvas>
 ) {
   const overrides = overridesToWire(slot.overrides);
+  const displayName =
+    typeof slot.chartDisplayName === 'string' && slot.chartDisplayName.trim()
+      ? slot.chartDisplayName.trim()
+      : undefined;
   if (slot.chartId) {
-    return { chart_id: slot.chartId.trim(), overrides };
+    return {
+      chart_id: slot.chartId.trim(),
+      ...(displayName ? { chart_display_name: displayName } : {}),
+      overrides,
+    };
   }
   const birthWire = birthToWire(slot);
   if (birthWire) {
-    return { ephemeris_birth: birthWire, overrides };
+    return {
+      ephemeris_birth: birthWire,
+      ...(displayName ? { chart_display_name: displayName } : {}),
+      overrides,
+    };
   }
   if (slot.entryMode === 'blank_canvas' && transientBirth) {
     return { ephemeris_birth: transientBirth, overrides };

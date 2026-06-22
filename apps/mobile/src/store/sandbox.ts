@@ -17,6 +17,7 @@ import type {
   SandboxSurfaceState,
   SlotEntryMode,
 } from '../types/sandbox';
+import type { HistoricalPreset } from '../data/historical-presets';
 
 const JOURNEY_SLOT_COUNT: Record<SandboxJourneyType, number> = {
   solo: 1,
@@ -52,8 +53,9 @@ export interface SandboxStore {
   saveLoading: boolean;
   generateLoading: boolean;
   audioLoading: boolean;
+  pendingHistoricalPreset: HistoricalPreset | null;
 
-  selectJourney: (type: SandboxJourneyType) => void;
+  selectJourney: (type: SandboxJourneyType, options?: { historicalPreset?: HistoricalPreset }) => void;
   continueWorkbench: () => void;
   backToEntry: () => void;
   setActiveSlot: (index: number) => void;
@@ -96,6 +98,7 @@ const sessionInitial = {
   saveLoading: false,
   generateLoading: false,
   audioLoading: false,
+  pendingHistoricalPreset: null as HistoricalPreset | null,
 };
 
 const initialState = {
@@ -110,7 +113,7 @@ const initialState = {
 export const useSandboxStore = create<SandboxStore>((set, get) => ({
   ...initialState,
 
-  selectJourney: (type) => {
+  selectJourney: (type, options) => {
     const slotCount = JOURNEY_SLOT_COUNT[type];
     const slots: SandboxSlot[] = Array.from({ length: slotCount }, (_, i) => createEmptySlot(i));
 
@@ -132,6 +135,7 @@ export const useSandboxStore = create<SandboxStore>((set, get) => ({
       slots,
       activeSlotIndex: 0,
       degreePanelOpen: defaultDegreePanelOpenForJourney(type),
+      pendingHistoricalPreset: options?.historicalPreset ?? null,
     });
   },
 

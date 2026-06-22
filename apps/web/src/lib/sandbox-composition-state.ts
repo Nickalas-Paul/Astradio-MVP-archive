@@ -325,6 +325,7 @@ export type SandboxCompositionAction =
       meta: SandboxSnapshotMeta;
       /** Natal-only snapshot when overrides were preserved; omit when snapshot is already natal-only. */
       baseSnapshot?: EphemerisSnapshot;
+      chartDisplayName?: string;
     }
   | {
       type: 'import_chart_id_success';
@@ -465,9 +466,15 @@ export function sandboxCompositionReducer(
       let slots = withSlotsEnsured(state.compositionInput.slots, idx);
       const prevSlot = slots[idx] ?? { overrides: { planets: {} } };
       const preserved = normalizeSandboxOverrides(prevSlot.overrides ?? { planets: {} });
+      const displayName = action.chartDisplayName?.trim();
       slots = [...slots];
       const { free_build_asc_deg: _dropAsc, ...prevWithoutAsc } = prevSlot;
-      slots[idx] = { ...prevWithoutAsc, ephemeris_birth: action.birth, overrides: preserved };
+      slots[idx] = {
+        ...prevWithoutAsc,
+        ephemeris_birth: action.birth,
+        overrides: preserved,
+        ...(displayName ? { chart_display_name: displayName } : {}),
+      };
       const base = action.baseSnapshot ?? action.snapshot;
       return {
         ...state,
@@ -784,6 +791,9 @@ export function serializeSandboxResolveRequestBody(
   const transientBirth = options?.transientEphemerisBirthBySlotIndex;
   const slots = compositionInput.slots.map((slot, index) => ({
     ...(slot.chart_id ? { chart_id: slot.chart_id } : {}),
+    ...(typeof slot.chart_display_name === 'string' && slot.chart_display_name.trim()
+      ? { chart_display_name: slot.chart_display_name.trim() }
+      : {}),
     ...(slot.ephemeris_birth
       ? { ephemeris_birth: slot.ephemeris_birth }
       : transientBirth && transientBirth[index]
