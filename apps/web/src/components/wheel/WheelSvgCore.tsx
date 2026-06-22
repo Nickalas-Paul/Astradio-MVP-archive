@@ -67,10 +67,10 @@ function renderInlineGlyph({
   signGlyph?: boolean;
 }) {
   return (
-    <g transform={`translate(${x}, ${y})`} opacity={opacity} pointerEvents="all" {...gProps}>
+    <g opacity={opacity} pointerEvents="all" {...gProps}>
       <svg
-        x={-size / 2}
-        y={-size / 2}
+        x={x - size / 2}
+        y={y - size / 2}
         width={size}
         height={size}
         viewBox={glyph.viewBox}

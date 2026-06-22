@@ -14,6 +14,7 @@ function InlineSignGlyph({ signName, size = 15 }: { signName: string; size?: num
       width={size}
       height={size}
       viewBox={glyph.viewBox}
+      preserveAspectRatio="xMidYMid meet"
       className="inline-block shrink-0"
       aria-hidden
     >

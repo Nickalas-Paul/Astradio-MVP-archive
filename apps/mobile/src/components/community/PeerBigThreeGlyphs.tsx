@@ -35,7 +35,12 @@ function InlineSignGlyph({ signName, size = 15 }: { signName: string; size?: num
   if (!glyph) return null;
 
   return (
-    <Svg width={size} height={size} viewBox={glyph.viewBox}>
+    <Svg
+      width={size}
+      height={size}
+      viewBox={glyph.viewBox}
+      preserveAspectRatio="xMidYMid meet"
+    >
       <Path d={glyph.pathData} fill={colors.text.secondary} />
     </Svg>
   );

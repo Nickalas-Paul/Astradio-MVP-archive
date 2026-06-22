@@ -40,11 +40,10 @@ function renderWheelGlyph(
   fill: string,
   opacity = 1
 ) {
+  // Nested Svg x/y is unreliable on react-native-svg; center via G transform instead.
   return (
-    <G transform={`translate(${x}, ${y})`} opacity={opacity}>
+    <G transform={`translate(${x - size / 2}, ${y - size / 2})`} opacity={opacity}>
       <Svg
-        x={-size / 2}
-        y={-size / 2}
         width={size}
         height={size}
         viewBox={glyph.viewBox}
