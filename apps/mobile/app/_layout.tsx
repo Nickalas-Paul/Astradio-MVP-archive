@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { useEffect } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,8 +14,8 @@ function LoadingScreen() {
         source={require('../assets/logo-wordmark.png')}
         style={styles.logo}
         resizeMode="contain"
-        accessibilityLabel="Astradio"
       />
+      <Text style={styles.appName}>Astradio</Text>
     </View>
   );
 }
@@ -69,5 +69,11 @@ const styles = StyleSheet.create({
   logo: {
     height: 32,
     width: 32,
+    marginBottom: 12,
+  },
+  appName: {
+    color: colors.text.primary,
+    fontSize: 32,
+    fontFamily: 'Cormorant-SemiBold',
   },
 });

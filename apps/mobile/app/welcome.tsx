@@ -16,8 +16,8 @@ export default function WelcomeScreen() {
             source={require('../assets/logo-wordmark.png')}
             style={styles.logo}
             resizeMode="contain"
-            accessibilityLabel="Astradio"
           />
+          <Text style={styles.title}>Astradio</Text>
           <Text style={styles.tagline}>astrology you can hear</Text>
         </View>
 
@@ -54,6 +54,13 @@ const styles = StyleSheet.create({
   logo: {
     height: 36,
     width: 36,
+    marginBottom: 12,
+  },
+  title: {
+    color: colors.text.primary,
+    fontSize: 34,
+    fontFamily: 'Cormorant-SemiBold',
+    textAlign: 'center',
   },
   tagline: {
     color: colors.text.secondary,

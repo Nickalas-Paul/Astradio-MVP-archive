@@ -30,8 +30,9 @@ export function AppShell({
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
       <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-bg/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3 min-w-0">
-          <Link href="/" className="shrink-0">
-            <img src="/logo-wordmark.png" alt="Astradio" className="h-6 w-auto" />
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <img src="/logo-wordmark.png" alt="" className="h-6 w-6 rounded" />
+            <span className="text-accent font-semibold tracking-wide">Astradio</span>
           </Link>
           <HeaderTabs />
         </div>
