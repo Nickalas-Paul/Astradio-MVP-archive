@@ -10,6 +10,24 @@ import { composeAPI } from '../api/compose';
 import type { ComposeRequest } from '../explainer/contracts';
 import * as storage from './storage';
 
+/** Global safety ceiling for post-registration auto-compose (not per-user). */
+const REG_HOOK_IDENTITY_AUDIO_WINDOW_MS = 15 * 60 * 1000;
+const REG_HOOK_IDENTITY_AUDIO_MAX = 10;
+const regHookIdentityAudioTimestamps: number[] = [];
+
+function tryConsumeRegistrationHookIdentityAudioSlot(): boolean {
+  const now = Date.now();
+  const cutoff = now - REG_HOOK_IDENTITY_AUDIO_WINDOW_MS;
+  while (regHookIdentityAudioTimestamps.length > 0 && regHookIdentityAudioTimestamps[0]! < cutoff) {
+    regHookIdentityAudioTimestamps.shift();
+  }
+  if (regHookIdentityAudioTimestamps.length >= REG_HOOK_IDENTITY_AUDIO_MAX) {
+    return false;
+  }
+  regHookIdentityAudioTimestamps.push(now);
+  return true;
+}
+
 export function isValidChartIdentityExportId(eid: unknown): eid is string {
   return typeof eid === 'string' && /^[a-f0-9]{64}$/.test(eid);
 }
@@ -48,7 +66,10 @@ export async function persistProfileIdentityAudioAfterPrimaryAttach(
   chart: Chart,
   priorNatalFingerprint: string | null
 ): Promise<void> {
-  await runProfileIdentityAudioCompose(chart, priorNatalFingerprint, { logErrors: true });
+  await runProfileIdentityAudioCompose(chart, priorNatalFingerprint, {
+    logErrors: true,
+    registrationHook: true,
+  });
 }
 
 /**
@@ -81,7 +102,7 @@ export async function generateProfileIdentityAudioForChart(
 async function runProfileIdentityAudioCompose(
   chart: Chart,
   priorNatalFingerprint: string | null,
-  opts: { logErrors: boolean }
+  opts: { logErrors: boolean; registrationHook?: boolean }
 ): Promise<string | null> {
   if (!chart.timezone?.trim()) return null;
 
@@ -132,6 +153,13 @@ async function runProfileIdentityAudioCompose(
   };
 
   try {
+    if (opts.registrationHook && !tryConsumeRegistrationHookIdentityAudioSlot()) {
+      console.warn(
+        '[compat] identity audio: registration hook rate limit exceeded (10 per 15min global); skipping auto-compose'
+      );
+      return null;
+    }
+
     const result = await composeAPI.compose(composeReq);
     const exportId = (result as { export_id?: string | null }).export_id;
     if (typeof exportId === 'string' && /^[a-f0-9]{64}$/.test(exportId)) {
