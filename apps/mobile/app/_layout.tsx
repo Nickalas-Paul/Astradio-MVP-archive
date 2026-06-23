@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,7 +10,12 @@ import { useAuthStore } from '../src/store/auth';
 function LoadingScreen() {
   return (
     <View style={styles.loading}>
-      <Text style={styles.appName}>Astradio</Text>
+      <Image
+        source={require('../assets/logo-wordmark.png')}
+        style={styles.logo}
+        resizeMode="contain"
+        accessibilityLabel="Astradio"
+      />
     </View>
   );
 }
@@ -61,9 +66,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  appName: {
-    color: colors.text.primary,
-    fontSize: 32,
-    fontFamily: 'Cormorant-SemiBold',
+  logo: {
+    height: 32,
+    width: 32,
   },
 });

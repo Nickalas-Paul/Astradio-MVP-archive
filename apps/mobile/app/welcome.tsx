@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AuthButton } from '../src/components/auth/AuthButton';
@@ -12,7 +12,12 @@ export default function WelcomeScreen() {
     <SafeAreaView style={authStyles.screen}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Astradio</Text>
+          <Image
+            source={require('../assets/logo-wordmark.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Astradio"
+          />
           <Text style={styles.tagline}>astrology you can hear</Text>
         </View>
 
@@ -46,11 +51,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 48,
   },
-  title: {
-    color: colors.text.primary,
-    fontSize: 34,
-    fontFamily: 'Cormorant-SemiBold',
-    textAlign: 'center',
+  logo: {
+    height: 36,
+    width: 36,
   },
   tagline: {
     color: colors.text.secondary,
