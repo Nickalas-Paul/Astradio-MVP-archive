@@ -54,9 +54,9 @@ export function HeaderTabs() {
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
 
   return (
-    <div className="flex items-center gap-3 min-w-0 shrink-0">
+    <div className="flex items-center gap-3 min-w-0 flex-1 justify-end">
       <nav
-        className="flex items-center gap-2 text-body-sm overflow-x-auto scrollbar-hide max-w-[calc(100vw-10rem)] sm:max-w-none"
+        className="flex items-center gap-2 text-body-sm overflow-x-auto scrollbar-hide min-w-0 flex-1"
         aria-label="Main navigation"
       >
         {NAV.map(({ href, label }) => (

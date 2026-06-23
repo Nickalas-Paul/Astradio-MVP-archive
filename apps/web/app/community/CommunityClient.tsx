@@ -289,14 +289,14 @@ function CommunityClientInner() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto w-full min-w-0 space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
+          className="text-center space-y-4 px-4 min-w-0"
         >
           <h1 className="text-h1 font-serif font-bold text-text-primary">Community</h1>
-          <p className="text-lg text-text-secondary max-w-2xl mx-auto">
+          <p className="text-lg text-text-secondary max-w-2xl mx-auto break-words">
             Discover, connect, and share with the Astradio community.
           </p>
         </motion.div>
@@ -329,8 +329,9 @@ function CommunityClientInner() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="min-w-0 w-full"
         >
-          <div className="-mx-2 px-2 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
+          <div className="-mx-2 px-2 min-w-0 overflow-x-auto scrollbar-hide md:mx-0 md:px-0">
             <Tabs
               variant="pill"
               ariaLabel="Community sections"
