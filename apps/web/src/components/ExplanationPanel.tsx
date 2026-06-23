@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { usePlacementHighlight } from '@/core/PlacementHighlightContext';
 import { useScrollToHighlightedSection } from '@/core/useScrollToHighlightedSection';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
@@ -107,8 +108,9 @@ export function ExplanationPanel({
   className = '',
   embedded = false,
 }: ExplanationPanelProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
-  useScrollToHighlightedSection(highlightedPlanets);
+  useScrollToHighlightedSection(highlightedPlanets, scrollContainerRef);
   const hasSections = Array.isArray(sections) && sections.length > 0;
   const panelTitleClass = embedded
     ? 'reading-section-header mb-4'
@@ -131,7 +133,7 @@ export function ExplanationPanel({
     return (
       <div className={`space-y-4 ${className}`}>
         {!embedded && <h3 className={panelTitleClass}>{PANEL_TITLE}</h3>}
-        <div className="space-y-6 max-w-3xl">
+        <div ref={scrollContainerRef} className="space-y-6 max-w-3xl">
           {sorted.map((sec, idx) => {
             const title = displayTitle(sec);
             let sectionText = sec.text ?? '';

@@ -632,14 +632,18 @@ export function ActiveTransitPanel({
           {librarySaveError ? <p className="text-sm text-danger">{librarySaveError}</p> : null}
           {activeError && <p className="text-sm text-danger">{activeError}</p>}
 
-          <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-start">
+          <div
+            className={`grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-start${
+              activeLoading || !activeResult ? ' min-h-[400px]' : ''
+            }`}
+          >
             <div className="min-w-0 space-y-4">
               {activeResult?.explanation ? (
                 <ExplainerSections sections={mapExplanationToSections(activeResult.explanation)} />
               ) : null}
             </div>
             {activeWheelSlots ? (
-              <div className="min-w-0 md:sticky md:top-20">
+              <div className="min-w-0 md:sticky md:top-24">
                 {renderWheelColumn(TRANSIT_WHEEL_MAX_SIZE)}
               </div>
             ) : null}

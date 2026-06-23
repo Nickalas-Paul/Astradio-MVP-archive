@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { ProfileChartSection } from '../../../core/social/hooks';
 import { stripReadingPresentationNoise } from '../../../lib/reading-presentation-filter';
 import { usePlacementHighlight } from '../../../core/PlacementHighlightContext';
@@ -24,8 +25,9 @@ export function ExplainerSections({
   sections: ProfileChartSection[];
   hideSectionIds?: readonly string[];
 }) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
-  useScrollToHighlightedSection(highlightedPlanets);
+  useScrollToHighlightedSection(highlightedPlanets, scrollContainerRef);
 
   const hidden = hideSectionIds ? new Set(hideSectionIds) : null;
   const visible = hidden ? sections.filter((s) => !hidden.has(s.id)) : sections;
@@ -36,7 +38,7 @@ export function ExplainerSections({
     return a.id.localeCompare(b.id, 'en');
   });
   return (
-    <div className="space-y-6">
+    <div ref={scrollContainerRef} className="space-y-6">
       {sorted.map((sec) => {
         const planets = sectionHighlightPlanets(sec);
         const isHighlightedFromWheel = planets.some((p) => highlightedPlanets.has(p));
