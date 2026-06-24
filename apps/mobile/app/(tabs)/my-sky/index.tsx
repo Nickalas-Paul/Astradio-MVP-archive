@@ -1,10 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import {
+  Alert,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -21,6 +25,8 @@ import { colors } from '../../../src/constants/colors';
 import { layout } from '../../../src/constants/layout';
 import { typography } from '../../../src/constants/typography';
 import { useMySkyData } from '../../../src/hooks/useMySkyData';
+import { API_BASE } from '../../../src/lib/api';
+import { getToken } from '../../../src/lib/token-storage';
 import { useAuthStore } from '../../../src/store/auth';
 import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
 import { FTUE_KEYS } from '../../../src/lib/ftue-storage';
@@ -40,6 +46,9 @@ export default function MySkyScreen() {
   const { data, isLoading, error, refetch } = useMySkyData();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'identity' | 'library'>('identity');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const wheelSize = width - AUTH_HORIZONTAL_PADDING * 2;
@@ -67,6 +76,79 @@ export default function MySkyScreen() {
   const handleSignOut = async () => {
     await logout();
     router.replace('/welcome');
+  };
+
+  const finishAccountDeletion = async (password: string) => {
+    setDeleteLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Something went wrong. Please try again.');
+        return;
+      }
+      const response = await fetch(`${API_BASE}/api/auth/account`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      if (response.ok) {
+        setDeleteModalVisible(false);
+        setDeletePassword('');
+        await logout();
+        router.replace('/welcome');
+        return;
+      }
+      if (response.status === 403) {
+        Alert.alert('Incorrect password');
+        return;
+      }
+      Alert.alert('Something went wrong. Please try again.');
+    } catch {
+      Alert.alert('Something went wrong. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const promptDeletePassword = () => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Confirm Password',
+        'Enter your password to confirm account deletion.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete My Account',
+            style: 'destructive',
+            onPress: (value) => {
+              void finishAccountDeletion(value || '');
+            },
+          },
+        ],
+        'secure-text'
+      );
+      return;
+    }
+    setDeletePassword('');
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteAccountPress = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all associated data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => promptDeletePassword(),
+        },
+      ]
+    );
   };
 
   return (
@@ -173,7 +255,73 @@ export default function MySkyScreen() {
         <Pressable onPress={() => void handleSignOut()} style={styles.signOutButton}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
+        <Pressable onPress={handleDeleteAccountPress} style={styles.deleteAccountButton}>
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!deleteLoading) {
+            setDeleteModalVisible(false);
+            setDeletePassword('');
+          }
+        }}
+      >
+        <Pressable
+          style={styles.deleteModalBackdrop}
+          onPress={() => {
+            if (!deleteLoading) {
+              setDeleteModalVisible(false);
+              setDeletePassword('');
+            }
+          }}
+        >
+          <Pressable style={styles.deleteModalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.deleteModalTitle}>Confirm Password</Text>
+            <Text style={styles.deleteModalMessage}>
+              Enter your password to confirm account deletion.
+            </Text>
+            <TextInput
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Password"
+              placeholderTextColor={colors.text.muted}
+              style={styles.deleteModalInput}
+              editable={!deleteLoading}
+            />
+            <View style={styles.deleteModalActions}>
+              <Pressable
+                onPress={() => {
+                  if (!deleteLoading) {
+                    setDeleteModalVisible(false);
+                    setDeletePassword('');
+                  }
+                }}
+                style={styles.deleteModalCancel}
+                disabled={deleteLoading}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void finishAccountDeletion(deletePassword)}
+                style={styles.deleteModalConfirm}
+                disabled={deleteLoading || !deletePassword.trim()}
+              >
+                <Text style={styles.deleteModalConfirmText}>
+                  {deleteLoading ? 'Deleting…' : 'Delete My Account'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -258,11 +406,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
-    marginBottom: 40,
   },
   signOutText: {
     color: colors.text.muted,
     fontSize: 14,
     fontFamily: 'Manrope-Regular',
+  },
+  deleteAccountButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  deleteAccountText: {
+    color: '#f87171',
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+  },
+  deleteModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: AUTH_HORIZONTAL_PADDING,
+  },
+  deleteModalCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: 20,
+  },
+  deleteModalTitle: {
+    color: colors.text.primary,
+    fontSize: 18,
+    fontFamily: 'Manrope-SemiBold',
+    marginBottom: 8,
+  },
+  deleteModalMessage: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    marginBottom: 16,
+  },
+  deleteModalInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.text.primary,
+    fontSize: 16,
+    fontFamily: 'Manrope-Regular',
+    marginBottom: 16,
+  },
+  deleteModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  deleteModalCancel: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  deleteModalCancelText: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontFamily: 'Manrope-Medium',
+  },
+  deleteModalConfirm: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  deleteModalConfirmText: {
+    color: '#f87171',
+    fontSize: 14,
+    fontFamily: 'Manrope-Medium',
   },
 });

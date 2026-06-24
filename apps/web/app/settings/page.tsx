@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppShell } from '../../src/components/AppShell';
 import { BirthChartSection } from '../../src/components/profile/BirthChartSection';
@@ -13,16 +15,60 @@ import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { user, primaryChart, loading: profileLoading, refresh } = useProfile();
   const chartId = primaryChart?.id ?? null;
   const { refresh: refreshChart } = useProfileChart(chartId);
   const { settings, updateSettings } = useSettingsStore();
   const { theme, setTheme } = useUIStore();
   const { mode: wheelDisplayMode, setMode: setWheelDisplayMode } = useWheelDisplayMode();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     await refresh();
+  };
+
+  const openDeleteModal = () => {
+    setDeletePassword('');
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setDeleteModalOpen(false);
+    setDeletePassword('');
+    setDeleteError(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError(null);
+    setDeleteLoading(true);
+    try {
+      const resp = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      if (resp.ok) {
+        router.push('/');
+        return;
+      }
+      if (resp.status === 403) {
+        setDeleteError('Incorrect password');
+      } else {
+        setDeleteError('Something went wrong. Please try again.');
+      }
+    } catch {
+      setDeleteError('Something went wrong. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   return (
@@ -255,6 +301,15 @@ export default function SettingsPage() {
                     >
                       Log out
                     </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      className="w-full"
+                      onClick={openDeleteModal}
+                    >
+                      Delete Account
+                    </Button>
                     <div className="border-t border-border pt-4">
                       <ProfilePanelFooter user={user} onPrivacyUpdate={() => refresh()} />
                     </div>
@@ -318,6 +373,61 @@ export default function SettingsPage() {
           </Link>
         </p>
       </div>
+
+      {deleteModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-border bg-bgElev p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="delete-account-title" className="text-h4 font-semibold text-text-primary mb-3">
+              Delete Account
+            </h2>
+            <p className="text-sm text-text-secondary mb-4">
+              This will permanently delete your account, charts, readings, compositions, and all associated data.
+              This cannot be undone.
+            </p>
+            <label htmlFor="delete-account-password" className="block text-sm font-medium text-text-primary mb-1">
+              Enter your password to confirm
+            </label>
+            <input
+              id="delete-account-password"
+              type="password"
+              autoComplete="current-password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary mb-2"
+              disabled={deleteLoading}
+            />
+            {deleteError ? (
+              <p className="text-sm text-red-400 mt-2" role="alert">
+                {deleteError}
+              </p>
+            ) : null}
+            <div className="mt-6 flex gap-3 justify-end">
+              <Button type="button" variant="secondary" size="sm" onClick={closeDeleteModal} disabled={deleteLoading}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                loading={deleteLoading}
+                disabled={!deletePassword.trim()}
+                onClick={() => void handleDeleteAccount()}
+              >
+                Delete My Account
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

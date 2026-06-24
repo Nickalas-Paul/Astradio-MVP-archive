@@ -104,6 +104,10 @@ const astradioPgStore = require(path.join(__dirname, '..', '..', '..', '..', 'li
   getUserAuthForLogin: (
     e: string
   ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
+  getUserAuthById: (
+    userId: string
+  ) => Promise<{ id: string; displayName: string; handle?: string; passwordHash: string | null } | null>;
+  deleteAccount: (userId: string) => Promise<{ deleted: boolean }>;
   createEmailVerificationToken: (userId: string) => Promise<string>;
   verifyEmailToken: (token: string) => Promise<{ valid: boolean; userId?: string; email?: string }>;
   isEmailVerified: (userId: string) => Promise<boolean>;
@@ -845,6 +849,37 @@ export function createCompatRouter(): import('express').Router {
     } catch (e: unknown) {
       console.error('[compat] POST /auth/token', e);
       return res.status(500).json({ error: 'Token issuance failed' });
+    }
+  });
+
+  router.delete('/auth/account', async (req: import('express').Request, res: import('express').Response) => {
+    try {
+      if (!process.env.POSTGRES_URL) {
+        return res.status(501).json({ error: 'auth_requires_postgres' });
+      }
+      const userId = resolveProxySessionUserId(req);
+      if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+      const body = (req.body || {}) as { password?: string };
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (!password) {
+        return res.status(400).json({ error: 'password_required' });
+      }
+
+      const user = await astradioPgStore.getUserAuthById(userId);
+      if (!user) return res.status(404).json({ error: 'user_not_found' });
+      if (!user.passwordHash) {
+        return res.status(403).json({ error: 'invalid_password' });
+      }
+
+      const passwordValid = await argon2.verify(user.passwordHash, password);
+      if (!passwordValid) return res.status(403).json({ error: 'invalid_password' });
+
+      await astradioPgStore.deleteAccount(userId);
+      return res.json({ deleted: true });
+    } catch (e: unknown) {
+      console.error('[compat] DELETE /auth/account', e);
+      return res.status(500).json({ error: 'account_deletion_failed' });
     }
   });
 
