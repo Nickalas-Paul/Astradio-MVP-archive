@@ -296,20 +296,27 @@ export interface LyriaPredictResult {
   requestId?: string;
 }
 
-export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaPredictResult> {
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.VERTEX_AI_LOCATION || 'us-central1';
-  if (!projectId) {
-    throw new Error('GOOGLE_CLOUD_PROJECT is required for Lyria');
-  }
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${LYRIA_MODEL}:predict`;
+const MAX_LYRIA_ATTEMPTS = 3;
+
+/** Deterministic seed mutation for recitation retries (Lyria accepts positive int seeds). */
+function rotateLyriaSeed(baseSeed: number, attempt: number): number {
+  return ((baseSeed ^ Math.imul(attempt, 0x5deece66d)) >>> 0) % 0x7fffffff;
+}
+
+type LyriaPredictOnceParams = LyriaPredictInput & {
+  url: string;
+  token: string;
+};
+
+async function callLyriaPredictOnce(params: LyriaPredictOnceParams): Promise<LyriaPredictResult> {
+  const { url, token, prompt, seed, negative_prompt } = params;
 
   const instance: Record<string, unknown> = {
-    prompt: input.prompt,
-    seed: input.seed,
+    prompt,
+    seed,
   };
-  if (input.negative_prompt != null && input.negative_prompt !== '') {
-    instance.negative_prompt = input.negative_prompt;
+  if (negative_prompt != null && negative_prompt !== '') {
+    instance.negative_prompt = negative_prompt;
   } else {
     instance.negative_prompt = 'vocals';
   }
@@ -330,12 +337,11 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
       })
     );
     // Phase 3.1: duration contract — Lyria returns ~30–33s per clip (fixed by API, no duration param)
-    console.log('[LYRIA_PARAMS]', JSON.stringify({ duration_expected_s: 30, candidates: 1 }));
+    console.log('[LYRIA_PARAMS]', JSON.stringify({ duration_expected_s: 30, candidates: 1, seed }));
   } catch {
     // best-effort only
   }
 
-  const token = await getAccessToken();
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -562,6 +568,39 @@ export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaP
     model: (data.model as string) || LYRIA_MODEL,
     requestId: data.deployedModelId as string | undefined,
   };
+}
+
+export async function callLyriaPredict(input: LyriaPredictInput): Promise<LyriaPredictResult> {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+  const location = process.env.VERTEX_AI_LOCATION || 'us-central1';
+  if (!projectId) {
+    throw new Error('GOOGLE_CLOUD_PROJECT is required for Lyria');
+  }
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${LYRIA_MODEL}:predict`;
+  const token = await getAccessToken();
+
+  for (let attempt = 1; attempt <= MAX_LYRIA_ATTEMPTS; attempt++) {
+    const currentSeed = attempt === 1 ? input.seed : rotateLyriaSeed(input.seed, attempt);
+    try {
+      return await callLyriaPredictOnce({
+        ...input,
+        seed: currentSeed,
+        url,
+        token,
+      });
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === 'LYRIA_RECITATION_BLOCKED' && attempt < MAX_LYRIA_ATTEMPTS) {
+        console.warn(
+          `[LYRIA_RETRY] Recitation blocked, retrying with rotated seed (attempt ${attempt + 1}/${MAX_LYRIA_ATTEMPTS})`
+        );
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error('Lyria predict exhausted retries');
 }
 
 async function getAccessToken(): Promise<string> {

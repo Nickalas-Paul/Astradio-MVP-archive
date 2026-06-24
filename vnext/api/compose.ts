@@ -232,7 +232,7 @@ export class ComposeAPI {
 
       const isSkyRequest = (request as ComposeRequest).mode === 'sky';
 
-      // Check cache for idempotent response. Sky mode caches failed exports to avoid Lyria retry storms.
+      // Check cache for idempotent response. Sky mode caches deterministic failed exports; recitation blocks are retried fresh.
       if (this.compositionCache.has(requestKey)) {
         const cached = this.compositionCache.get(requestKey);
         const cachedAudio = cached && cached.audio;
@@ -241,8 +241,16 @@ export class ComposeAPI {
           cachedAudio.export_enabled === true &&
           cachedAudio.export_attempted === true &&
           cachedAudio.export_error != null;
+        const cachedRecitationBlocked =
+          cachedExportFailed && cachedAudio.export_error === 'lyria_recitation_blocked';
 
-        if (cachedExportFailed && !isSkyRequest) {
+        if (cachedRecitationBlocked && wantAudio) {
+          console.log(
+            '[COMPOSE] Ignoring cached recitation-blocked export for key:',
+            requestKey.slice(0, 8),
+            '— retrying Lyria'
+          );
+        } else if (cachedExportFailed && !isSkyRequest) {
           console.log(
             '[COMPOSE] Ignoring cached failed export for key:',
             requestKey.slice(0, 8),
@@ -817,18 +825,19 @@ export class ComposeAPI {
         ...(audioDebug !== undefined && { audio_debug: audioDebug })
       } as any;
 
-      // Cache the response for idempotency. Non-sky failed exports stay uncached so fixes can take effect.
+      // Cache the response for idempotency. Recitation-blocked exports are never cached (probabilistic; retry on next request).
       const audioMeta = (response as any).audio || {};
       const exportFailed =
         audioMeta.export_enabled === true &&
         audioMeta.export_attempted === true &&
         audioMeta.export_error != null;
+      const isRecitationBlocked = audioMeta.export_error === 'lyria_recitation_blocked';
       const shouldCache =
         !audioMeta ||
         audioMeta.export_enabled !== true ||
         audioMeta.export_attempted !== true ||
         audioMeta.export_error == null ||
-        (isSkyRequest && exportFailed);
+        (isSkyRequest && exportFailed && !isRecitationBlocked);
       if (shouldCache) {
         this.compositionCache.set(requestKey, response);
         console.log('[COMPOSE] Cached composition for key:', requestKey.slice(0, 8));
