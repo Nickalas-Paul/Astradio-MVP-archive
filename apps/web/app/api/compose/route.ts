@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { CanonicalLocation } from '../../../src/types/location';
+import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
+import { getSessionUserId } from '@/lib/session';
 
 // Canonical client-side compose payload for sky mode (home page)
 const CanonicalLocationSchema = z.object({
@@ -21,9 +23,10 @@ const SkyClientComposeSchema = z.object({
 
 type SkyClientComposeBody = z.infer<typeof SkyClientComposeSchema>;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.json().catch(() => ({}));
+    const sessionUserId = getSessionUserId(req.cookies);
 
     if (rawBody && typeof rawBody.mode === 'string' && rawBody.mode === 'compatibility') {
       return NextResponse.json(
@@ -38,7 +41,9 @@ export async function POST(req: Request) {
     // Pass through engine-shaped requests (sandbox, overlay) to backend as-is
     const isEngineShape = rawBody && (rawBody.mode === 'sandbox' || rawBody.mode === 'overlay');
     let bodyToSend: string;
+    let wantsAudio = false;
     if (isEngineShape) {
+      wantsAudio = rawBody.generateAudio === true;
       bodyToSend = JSON.stringify(rawBody);
     } else {
       const validationResult = SkyClientComposeSchema.safeParse(rawBody);
@@ -56,6 +61,7 @@ export async function POST(req: Request) {
       }
       const data: SkyClientComposeBody = validationResult.data;
       const { date, time, location, generateAudio } = data;
+      wantsAudio = generateAudio === true;
       // Wall-clock calendar + time in the client's canonical IANA zone (same contract as Profile active-state / Campaign transit).
       const datetime = `${date}T${time}:00`;
       const latitude = location.lat;
@@ -73,12 +79,18 @@ export async function POST(req: Request) {
       });
     }
 
+    if (wantsAudio && !sessionUserId) {
+      return NextResponse.json({ error: 'Sign in to hear audio' }, { status: 401 });
+    }
+
     const { getEngineBaseUrl } = await import('@/lib/engine-base');
-    const { engineProxyHeaders } = await import('@/lib/engine-proxy-headers');
     const base = getEngineBaseUrl();
+    const proxyHeaders = sessionUserId
+      ? engineProxySessionHeaders(sessionUserId, { 'Content-Type': 'application/json' })
+      : engineProxyHeaders({ 'Content-Type': 'application/json' });
     const r = await fetch(`${base}/api/compose`, {
       method: 'POST',
-      headers: engineProxyHeaders({ 'Content-Type': 'application/json' }),
+      headers: proxyHeaders,
       body: bodyToSend,
     });
 
