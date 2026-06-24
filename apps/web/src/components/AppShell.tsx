@@ -38,12 +38,12 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="flex-1 flex">
+      <main className="flex-1 flex min-w-0">
         {sidebarOpen && showContextRail && (
           <aside className="w-80 bg-surface-1 border-r border-border p-6">{contextRailContent}</aside>
         )}
 
-        <div className={`flex-1 ${contentClassName}`.trim()}>{children}</div>
+        <div className={`flex-1 min-w-0 ${contentClassName}`.trim()}>{children}</div>
       </main>
 
       {showPlayer && <GlobalAudioPlayer />}

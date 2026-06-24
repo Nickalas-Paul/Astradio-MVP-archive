@@ -335,7 +335,6 @@ function CommunityClientInner() {
             <Tabs
               variant="pill"
               ariaLabel="Community sections"
-              className="min-w-max md:min-w-0"
               tabs={tabs.map((tab) => ({
                 id: tab.id,
                 label: tab.label,
