@@ -57,6 +57,8 @@ export function GlobalAudioPlayer() {
     };
 
     const onError = () => {
+      const el = audioRef.current;
+      if (el && !el.paused && el.currentTime > 0) return;
       useAudioPlayerStore.getState()._setError('Playback failed');
     };
 
@@ -66,6 +68,7 @@ export function GlobalAudioPlayer() {
 
     const onPlay = () => {
       useAudioPlayerStore.getState()._setIsPlaying(true);
+      useAudioPlayerStore.getState()._setError(null);
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -146,15 +149,15 @@ export function GlobalAudioPlayer() {
 
   useEffect(() => {
     if (isLoading || !currentTrack || !audioRef.current) return;
+    const audio = audioRef.current;
 
     void (async () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-
       try {
         if (isPlaying) {
-          await audio.play();
-        } else {
+          if (audio.paused) {
+            await audio.play();
+          }
+        } else if (!audio.paused) {
           audio.pause();
         }
       } catch {
