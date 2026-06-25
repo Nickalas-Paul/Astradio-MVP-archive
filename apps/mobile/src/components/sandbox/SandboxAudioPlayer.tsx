@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
 
@@ -7,13 +6,7 @@ type Props = {
   exportId: string;
 };
 
-function AudioUnavailable() {
-  return (
-    <Text style={styles.hint}>Audio playback requires a full build (not available in Expo Go).</Text>
-  );
-}
-
-function SandboxAudioPlayerControls({ exportId }: Props) {
+export function SandboxAudioPlayer({ exportId }: Props) {
   const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
     exportId,
     label: 'Sandbox Composition',
@@ -31,29 +24,11 @@ function SandboxAudioPlayerControls({ exportId }: Props) {
   );
 }
 
-export function SandboxAudioPlayer({ exportId }: Props) {
-  if (!getExpoAv()) {
-    return (
-      <View style={styles.wrap}>
-        <AudioUnavailable />
-      </View>
-    );
-  }
-
-  return <SandboxAudioPlayerControls exportId={exportId} />;
-}
-
 const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     paddingVertical: 12,
     gap: 8,
-  },
-  hint: {
-    fontFamily: 'Manrope-Regular',
-    fontSize: 13,
-    color: colors.text.secondary,
-    textAlign: 'center',
   },
   playBtn: {
     paddingHorizontal: 20,

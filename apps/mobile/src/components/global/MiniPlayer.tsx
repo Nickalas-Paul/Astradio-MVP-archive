@@ -6,14 +6,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { API_BASE } from '../../lib/api';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { getToken } from '../../lib/token-storage';
 import { useAudioStore } from '../../store/audio';
 import { colors } from '../../constants/colors';
-
-type ExpoAvModule = NonNullable<ReturnType<typeof getExpoAv>>;
-type SoundInstance = InstanceType<ExpoAvModule['Audio']['Sound']>;
 
 export default function MiniPlayer() {
   const currentTrack = useAudioStore((s) => s.currentTrack);
@@ -29,33 +26,30 @@ export default function MiniPlayer() {
   const resume = useAudioStore((s) => s.resume);
   const stop = useAudioStore((s) => s.stop);
 
-  const soundRef = useRef<SoundInstance | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const statusSubRef = useRef<{ remove: () => void } | null>(null);
   const lastStatusPositionRef = useRef(0);
   const seekInProgressRef = useRef(false);
   const loadingTrackIdRef = useRef<string | null>(null);
 
+  const releasePlayer = () => {
+    statusSubRef.current?.remove();
+    statusSubRef.current = null;
+    playerRef.current?.remove();
+    playerRef.current = null;
+  };
+
   useEffect(() => {
-    const expoAv = getExpoAv();
-    if (!expoAv) return;
-    void expoAv.Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
+    void setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      interruptionMode: 'duckOthers',
     });
   }, []);
 
   useEffect(() => {
     return () => {
-      void (async () => {
-        if (soundRef.current) {
-          try {
-            await soundRef.current.unloadAsync();
-          } catch {
-            // ignore unload errors on teardown
-          }
-          soundRef.current = null;
-        }
-      })();
+      releasePlayer();
     };
   }, []);
 
@@ -65,114 +59,103 @@ export default function MiniPlayer() {
     let cancelled = false;
 
     void (async () => {
-      if (soundRef.current) {
-        try {
-          await soundRef.current.unloadAsync();
-        } catch {
-          // ignore
-        }
-        soundRef.current = null;
-      }
+      releasePlayer();
 
       if (!exportId || cancelled) {
-        return;
-      }
-
-      const expoAv = getExpoAv();
-      if (!expoAv) {
-        setError('Audio playback requires full build');
         return;
       }
 
       try {
         const token = await getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        const { sound } = await expoAv.Audio.Sound.createAsync(
+        const player = createAudioPlayer(
           { uri: `${API_BASE}/api/exports/${exportId}`, headers },
-          { shouldPlay: true },
+          { updateInterval: 250, downloadFirst: true },
         );
 
         if (cancelled || loadingTrackIdRef.current !== exportId) {
-          await sound.unloadAsync();
+          player.remove();
           return;
         }
 
-        soundRef.current = sound;
+        playerRef.current = player;
         lastStatusPositionRef.current = 0;
 
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) return;
+        statusSubRef.current = player.addListener('playbackStatusUpdate', (status) => {
+          if (!status.isLoaded) {
+            if (status.error) {
+              setError('Could not play audio');
+              setLoading(false);
+            }
+            return;
+          }
 
           if (status.didJustFinish) {
             useAudioStore.getState().stop();
             return;
           }
 
-          const nextPosition = status.positionMillis / 1000;
-          const nextDuration = (status.durationMillis ?? 0) / 1000;
+          const nextPosition = status.currentTime;
+          const nextDuration = status.duration;
           lastStatusPositionRef.current = nextPosition;
 
           if (seekInProgressRef.current) return;
 
           setPlaybackStatus({
-            isPlaying: status.isPlaying,
+            isPlaying: status.playing,
             position: nextPosition,
             duration: nextDuration,
           });
+          setLoading(false);
         });
 
-        if (!useAudioStore.getState().isPlaying) {
-          await sound.pauseAsync();
+        if (useAudioStore.getState().isPlaying) {
+          player.play();
+        } else {
+          setLoading(false);
         }
-
-        setLoading(false);
       } catch {
         if (!cancelled && loadingTrackIdRef.current === exportId) {
           setError('Could not play audio');
+          setLoading(false);
         }
       }
     })();
 
     return () => {
       cancelled = true;
+      releasePlayer();
     };
   }, [currentTrack?.exportId, setError, setLoading, setPlaybackStatus]);
 
   useEffect(() => {
-    if (isLoading || !soundRef.current) return;
+    if (isLoading || !playerRef.current) return;
 
-    void (async () => {
-      const sound = soundRef.current;
-      if (!sound) return;
-
-      try {
-        const status = await sound.getStatusAsync();
-        if (!status.isLoaded) return;
-
-        if (status.isPlaying && !isPlaying) {
-          await sound.pauseAsync();
-        } else if (!status.isPlaying && isPlaying) {
-          await sound.playAsync();
-        }
-      } catch {
-        setError('Could not play audio');
+    const player = playerRef.current;
+    try {
+      if (player.playing && !isPlaying) {
+        player.pause();
+      } else if (!player.playing && isPlaying) {
+        player.play();
       }
-    })();
+    } catch {
+      setError('Could not play audio');
+    }
   }, [isPlaying, isLoading, setError]);
 
   useEffect(() => {
-    if (isLoading || !soundRef.current) return;
+    if (isLoading || !playerRef.current) return;
 
     if (Math.abs(position - lastStatusPositionRef.current) < 0.25) {
       return;
     }
 
-    const sound = soundRef.current;
+    const player = playerRef.current;
     seekInProgressRef.current = true;
 
     void (async () => {
       try {
-        await sound.setPositionAsync(position * 1000);
+        await player.seekTo(position);
         lastStatusPositionRef.current = position;
       } catch {
         setError('Could not seek audio');

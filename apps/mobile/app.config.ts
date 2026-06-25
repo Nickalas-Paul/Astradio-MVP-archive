@@ -19,6 +19,7 @@ const config = {
     supportsTablet: false,
   },
   android: {
+    package: 'io.astradio.app',
     adaptiveIcon: {
       backgroundColor: '#111111',
       foregroundImage: './assets/android-icon-foreground.png',
@@ -30,9 +31,14 @@ const config = {
   web: {
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-router', 'expo-font', 'expo-secure-store'],
+  plugins: ['expo-audio', 'expo-router', 'expo-font', 'expo-secure-store'],
   experiments: {
     typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      projectId: '649114e2-8e54-4027-9b10-a63c9c4479e8',
+    },
   },
 };
 

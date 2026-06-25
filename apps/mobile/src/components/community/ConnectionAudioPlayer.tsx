@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
 
@@ -66,11 +65,7 @@ export function ConnectionAudioPlayer({
       <View style={styles.container}>
         <Text style={styles.heading}>Hear this connection</Text>
         <Text style={styles.subtitle}>Your connection soundtrack is ready.</Text>
-        {getExpoAv() ? (
-          <ConnectionPlaybackControls exportId={exportId} peerDisplayName={peerDisplayName} />
-        ) : (
-          <Text style={styles.unavailable}>Audio playback requires full build</Text>
-        )}
+        <ConnectionPlaybackControls exportId={exportId} peerDisplayName={peerDisplayName} />
       </View>
     );
   }
@@ -145,14 +140,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
-  },
-  unavailable: {
-    color: colors.text.muted,
-    fontSize: 14,
-    fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
-    paddingVertical: 12,
-    alignSelf: 'stretch',
   },
   generateButton: {
     backgroundColor: colors.accent.DEFAULT,

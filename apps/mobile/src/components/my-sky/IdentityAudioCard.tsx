@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
 
@@ -7,16 +6,7 @@ type IdentityAudioCardProps = {
   exportId: string;
 };
 
-function AudioUnavailable() {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.label}>Identity Soundtrack</Text>
-      <Text style={styles.unavailable}>Audio playback requires full build</Text>
-    </View>
-  );
-}
-
-function IdentityAudioCardControls({ exportId }: IdentityAudioCardProps) {
+export function IdentityAudioCard({ exportId }: IdentityAudioCardProps) {
   const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
     exportId,
     label: 'Identity Soundtrack',
@@ -44,14 +34,6 @@ function IdentityAudioCardControls({ exportId }: IdentityAudioCardProps) {
       </View>
     </View>
   );
-}
-
-export function IdentityAudioCard({ exportId }: IdentityAudioCardProps) {
-  if (!getExpoAv()) {
-    return <AudioUnavailable />;
-  }
-
-  return <IdentityAudioCardControls exportId={exportId} />;
 }
 
 const styles = StyleSheet.create({
@@ -92,11 +74,6 @@ const styles = StyleSheet.create({
   label: {
     color: colors.text.primary,
     fontSize: 15,
-    fontFamily: 'Manrope-Regular',
-  },
-  unavailable: {
-    color: colors.text.muted,
-    fontSize: 14,
     fontFamily: 'Manrope-Regular',
   },
   pressed: {

@@ -1,5 +1,4 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import type { AudioSource } from '../../store/audio';
 import { colors } from '../../constants/colors';
@@ -10,7 +9,7 @@ type PostAudioSectionProps = {
   source?: Extract<AudioSource, 'post' | 'dm'>;
 };
 
-function PostAudioPlayerControls({ exportId, label, source }: PostAudioSectionProps) {
+export function PostAudioSection({ exportId, label, source }: PostAudioSectionProps) {
   const trackLabel = label?.trim() || 'Community Audio';
   const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
     exportId,
@@ -30,18 +29,6 @@ function PostAudioPlayerControls({ exportId, label, source }: PostAudioSectionPr
       </Text>
     </Pressable>
   );
-}
-
-export function PostAudioSection({ exportId, label, source }: PostAudioSectionProps) {
-  if (!getExpoAv()) {
-    return (
-      <View style={styles.audioRow}>
-        <Text style={styles.audioLabelMuted}>Audio requires full build</Text>
-      </View>
-    );
-  }
-
-  return <PostAudioPlayerControls exportId={exportId} label={label} source={source} />;
 }
 
 const styles = StyleSheet.create({
@@ -68,10 +55,5 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontSize: 14,
     fontFamily: 'Manrope-SemiBold',
-  },
-  audioLabelMuted: {
-    color: colors.text.muted,
-    fontSize: 13,
-    fontFamily: 'Manrope-Regular',
   },
 });

@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { getExpoAv } from '../../lib/expo-av-guard';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import { colors } from '../../constants/colors';
 
@@ -7,15 +6,7 @@ type TodayAudioPlayerProps = {
   exportId: string;
 };
 
-function AudioUnavailable() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.unavailable}>Audio playback requires full build</Text>
-    </View>
-  );
-}
-
-function TodayAudioPlayerControls({ exportId }: TodayAudioPlayerProps) {
+export function TodayAudioPlayer({ exportId }: TodayAudioPlayerProps) {
   const { handlePlay, isThisPlaying, isThisLoading } = useAudioPlayback({
     exportId,
     label: "Today's Transit",
@@ -37,24 +28,9 @@ function TodayAudioPlayerControls({ exportId }: TodayAudioPlayerProps) {
   );
 }
 
-export function TodayAudioPlayer({ exportId }: TodayAudioPlayerProps) {
-  if (!getExpoAv()) {
-    return <AudioUnavailable />;
-  }
-
-  return <TodayAudioPlayerControls exportId={exportId} />;
-}
-
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-  },
-  unavailable: {
-    color: colors.text.muted,
-    fontSize: 14,
-    fontFamily: 'Manrope-Regular',
-    textAlign: 'center',
-    paddingVertical: 12,
   },
   button: {
     minHeight: 48,
