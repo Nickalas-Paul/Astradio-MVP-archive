@@ -127,6 +127,10 @@ export default function ConnectionDetailScreen() {
                 audioGenerating={audioGenerating}
                 peerDisplayName={displayName}
                 onGenerate={generateAudio}
+                relationshipId={relationship.id}
+                comparisonId={relationship.comparisonId}
+                chartIdLow={relationship.chartIdLow}
+                chartIdHigh={relationship.chartIdHigh}
               />
             ) : null}
           </ScrollView>

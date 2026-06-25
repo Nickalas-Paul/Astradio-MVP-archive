@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAudioPlayback } from '../../hooks/useAudioPlayback';
+import { SaveToLibraryButton } from '../shared/SaveToLibraryButton';
 import { colors } from '../../constants/colors';
 
 type ConnectionAudioPlayerProps = {
@@ -10,6 +11,10 @@ type ConnectionAudioPlayerProps = {
   audioGenerating: boolean;
   peerDisplayName?: string;
   onGenerate: () => Promise<void>;
+  relationshipId?: string;
+  comparisonId?: string | null;
+  chartIdLow?: string;
+  chartIdHigh?: string;
 };
 
 function ConnectionPlaybackControls({
@@ -53,6 +58,10 @@ export function ConnectionAudioPlayer({
   audioGenerating,
   peerDisplayName,
   onGenerate,
+  relationshipId,
+  comparisonId,
+  chartIdLow,
+  chartIdHigh,
 }: ConnectionAudioPlayerProps) {
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +75,29 @@ export function ConnectionAudioPlayer({
         <Text style={styles.heading}>Hear this connection</Text>
         <Text style={styles.subtitle}>Your connection soundtrack is ready.</Text>
         <ConnectionPlaybackControls exportId={exportId} peerDisplayName={peerDisplayName} />
+        {relationshipId && comparisonId ? (
+          <SaveToLibraryButton
+            exportId={exportId}
+            source="community_relationship"
+            compositionType="A+B"
+            label="Connection reading"
+            objectIdentityHash={comparisonId}
+            sandboxState={{
+              kind: 'community_relationship',
+              relationshipId,
+              comparisonId,
+              chartIdLow,
+              chartIdHigh,
+            }}
+          />
+        ) : (
+          <SaveToLibraryButton
+            exportId={exportId}
+            source="community_relationship"
+            compositionType="A+B"
+            label="Connection reading"
+          />
+        )}
       </View>
     );
   }

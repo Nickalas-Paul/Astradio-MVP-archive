@@ -7,6 +7,7 @@ import { groupLibraryRows, type MobileLibraryItem } from '../../lib/library-grou
 
 type LibrarySectionProps = {
   items: MobileLibraryItem[];
+  libraryError?: string | null;
 };
 
 function isValidExportId(exportId?: string | null): exportId is string {
@@ -20,7 +21,7 @@ function rowLabel(row: MobileLibraryItem): string {
   return row.title;
 }
 
-export function LibrarySection({ items }: LibrarySectionProps) {
+export function LibrarySection({ items, libraryError }: LibrarySectionProps) {
   const router = useRouter();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const groups = useMemo(() => groupLibraryRows(items), [items]);
@@ -43,6 +44,7 @@ export function LibrarySection({ items }: LibrarySectionProps) {
 
   return (
     <View style={styles.container}>
+      {libraryError ? <Text style={styles.libraryError}>{libraryError}</Text> : null}
       {groups.map((group) => (
         <View key={group.key} style={styles.section}>
           <Pressable onPress={() => toggleSection(group.key)} style={styles.sectionHeader}>
@@ -85,6 +87,13 @@ export function LibrarySection({ items }: LibrarySectionProps) {
 const styles = StyleSheet.create({
   container: {
     gap: layout.sectionGap,
+  },
+  libraryError: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    textAlign: 'center',
+    paddingVertical: 8,
   },
   section: {
     marginBottom: 8,

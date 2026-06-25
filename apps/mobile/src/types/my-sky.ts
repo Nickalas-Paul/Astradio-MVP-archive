@@ -121,4 +121,5 @@ export type MySkyScreenData = {
     exportId?: string | null;
     source?: string;
   }>;
+  libraryError: string | null;
 };

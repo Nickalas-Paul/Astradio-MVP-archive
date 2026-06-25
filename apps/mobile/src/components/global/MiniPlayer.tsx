@@ -7,8 +7,7 @@ import {
   View,
 } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { API_BASE } from '../../lib/api';
-import { getToken } from '../../lib/token-storage';
+import { resolveLocalExportUri } from '../../lib/export-audio-local';
 import { useAudioStore } from '../../store/audio';
 import { colors } from '../../constants/colors';
 
@@ -66,12 +65,8 @@ export default function MiniPlayer() {
       }
 
       try {
-        const token = await getToken();
-        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        const player = createAudioPlayer(
-          { uri: `${API_BASE}/api/exports/${exportId}`, headers },
-          { updateInterval: 250, downloadFirst: true },
-        );
+        const localUri = await resolveLocalExportUri(exportId);
+        const player = createAudioPlayer(localUri, { updateInterval: 250 });
 
         if (cancelled || loadingTrackIdRef.current !== exportId) {
           player.remove();

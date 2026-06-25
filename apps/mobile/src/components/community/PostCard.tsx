@@ -102,7 +102,7 @@ export function PostCard({
 
       {post.imageUrl ? <PostImage postId={post.id} imageUrl={post.imageUrl} /> : null}
       {post.audioExportId ? (
-        <PostAudioSection exportId={post.audioExportId} label={post.audioLabel} />
+        <PostAudioSection exportId={post.audioExportId} postId={post.id} label={post.audioLabel} />
       ) : null}
 
       <View style={styles.actions}>

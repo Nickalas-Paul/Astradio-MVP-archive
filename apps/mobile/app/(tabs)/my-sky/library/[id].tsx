@@ -17,6 +17,7 @@ import { layout } from '../../../../src/constants/layout';
 import { deleteLibraryComposition, fetchLibraryDetail } from '../../../../src/lib/my-sky-fetch';
 import { api } from '../../../../src/lib/api';
 import { useAudioStore, type AudioSource } from '../../../../src/store/audio';
+import { useAuthStore } from '../../../../src/store/auth';
 import type { SavedCompositionDetail } from '../../../../src/types/sandbox';
 
 function isValidExportId(exportId?: string | null): exportId is string {
@@ -188,6 +189,7 @@ export default function LibraryDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
   const playTrack = useAudioStore((s) => s.playTrack);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const [detail, setDetail] = useState<SavedCompositionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,8 +201,8 @@ export default function LibraryDetailScreen() {
   const [renameLoading, setRenameLoading] = useState(false);
 
   useEffect(() => {
-    if (!id) {
-      setError('Missing library item.');
+    if (!id || !userId) {
+      setError(!id ? 'Missing library item.' : 'Sign in to view library items.');
       setLoading(false);
       return;
     }
@@ -210,7 +212,7 @@ export default function LibraryDetailScreen() {
     setError(null);
     setDetail(null);
 
-    void fetchLibraryDetail(id)
+    void fetchLibraryDetail(id, userId)
       .then((row) => {
         if (!cancelled) setDetail(row);
       })
@@ -226,7 +228,7 @@ export default function LibraryDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, userId]);
 
   const sandboxState = useMemo(() => parseSandboxState(detail?.sandbox_state), [detail?.sandbox_state]);
   const createdAtLabel = useMemo(() => formatCreatedAt(detail?.created_at), [detail?.created_at]);
@@ -245,10 +247,10 @@ export default function LibraryDetailScreen() {
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || !userId) return;
     setDeleting(true);
     try {
-      await deleteLibraryComposition(id);
+      await deleteLibraryComposition(id, userId);
       router.back();
     } catch {
       Alert.alert('Error', 'Could not remove this item.');
@@ -257,12 +259,12 @@ export default function LibraryDetailScreen() {
   };
 
   const handleRename = async () => {
-    if (!id) return;
+    if (!id || !userId) return;
     setRenameLoading(true);
     try {
       const trimmed = editLabel.trim();
       const updated = await api<{ display_label?: string | null }>(
-        `/api/sandbox/compositions/${encodeURIComponent(id)}`,
+        `/api/sandbox/compositions/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
         {
           method: 'PATCH',
           body: JSON.stringify({ display_label: trimmed || null }),

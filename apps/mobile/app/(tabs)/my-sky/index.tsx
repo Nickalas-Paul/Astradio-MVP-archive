@@ -17,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../../../src/components/chart/NatalWheel';
 import { ExpandableWheelFrame } from '../../../src/components/chart/ExpandableWheelFrame';
 import { IdentityReading } from '../../../src/components/my-sky/IdentityReading';
+import { IdentityAudioCard } from '../../../src/components/my-sky/IdentityAudioCard';
+import { GenerateIdentityAudioButton } from '../../../src/components/my-sky/GenerateIdentityAudioButton';
 import { LibrarySection } from '../../../src/components/my-sky/LibrarySection';
 import { MySkySkeleton } from '../../../src/components/my-sky/MySkySkeleton';
 import { ProfileHeader } from '../../../src/components/my-sky/ProfileHeader';
@@ -30,6 +32,7 @@ import { getToken } from '../../../src/lib/token-storage';
 import { useAuthStore } from '../../../src/store/auth';
 import { FtueBanner } from '../../../src/components/ftue/FtueBanner';
 import { FTUE_KEYS } from '../../../src/lib/ftue-storage';
+import { SaveToLibraryButton } from '../../../src/components/shared/SaveToLibraryButton';
 
 function SectionHeading({ title }: { title: string }) {
   return <Text style={styles.sectionHeading}>{title}</Text>;
@@ -235,6 +238,24 @@ export default function MySkyScreen() {
                   <Text style={styles.emptyText}>Chart wheel unavailable</Text>
                 )}
 
+                {data.identityExportId ? (
+                  <>
+                    <IdentityAudioCard exportId={data.identityExportId} />
+                    <SaveToLibraryButton
+                      exportId={data.identityExportId}
+                      source="profile_identity"
+                      compositionType="A"
+                      label="Your natal soundtrack"
+                      sandboxState={{
+                        kind: 'profile_identity',
+                        chartId: data.primaryChart?.id ?? '',
+                      }}
+                    />
+                  </>
+                ) : data.primaryChart?.id ? (
+                  <GenerateIdentityAudioButton onGenerated={refetch} />
+                ) : null}
+
                 <SectionDivider />
                 <SectionHeading title="Your Identity" />
                 <IdentityReading sections={data.identitySections} />
@@ -248,7 +269,9 @@ export default function MySkyScreen() {
               </>
             ) : null}
 
-            {activeTab === 'library' ? <LibrarySection items={data.libraryItems} /> : null}
+            {activeTab === 'library' ? (
+              <LibrarySection items={data.libraryItems} libraryError={data.libraryError} />
+            ) : null}
           </>
         ) : null}
 

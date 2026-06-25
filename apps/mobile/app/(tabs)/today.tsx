@@ -30,6 +30,7 @@ import { MarkdownText } from '../../src/components/shared/MarkdownText';
 import { UserAvatar } from '../../src/components/community/UserAvatar';
 import { FtueBanner } from '../../src/components/ftue/FtueBanner';
 import { FTUE_KEYS } from '../../src/lib/ftue-storage';
+import { SaveToLibraryButton } from '../../src/components/shared/SaveToLibraryButton';
 import { PlanetText } from '../../src/components/shared/PlanetText';
 import {
   ACTIVATION_HEAT_COLORS,
@@ -176,8 +177,10 @@ export default function TodayScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [skyAudioLoading, setSkyAudioLoading] = useState(false);
   const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
+  const [skyExportId, setSkyExportId] = useState<string | null>(null);
   const [transitAudioLoading, setTransitAudioLoading] = useState(false);
   const [transitAudioError, setTransitAudioError] = useState<string | null>(null);
+  const [transitExportId, setTransitExportId] = useState<string | null>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -203,6 +206,7 @@ export default function TodayScreen() {
         setSkyAudioError('Could not compose sky audio');
         return;
       }
+      setSkyExportId(exportId);
       playTrack({ exportId, label: "Today's Sky", source: 'sky' });
     } catch (err) {
       setSkyAudioError(formatApiError(err, 'Could not compose sky audio'));
@@ -249,6 +253,7 @@ export default function TodayScreen() {
         setTransitAudioError('Could not compose transit audio');
         return;
       }
+      setTransitExportId(exportId);
       playTrack({ exportId, label: 'Your Transit', source: 'transit' });
     } catch (err) {
       setTransitAudioError(formatApiError(err, 'Could not compose transit audio'));
@@ -322,6 +327,20 @@ export default function TodayScreen() {
                       </Text>
                     </Pressable>
                     {skyAudioError ? <Text style={styles.audioError}>{skyAudioError}</Text> : null}
+                    {skyExportId && data.composeContext ? (
+                      <SaveToLibraryButton
+                        exportId={skyExportId}
+                        source="sky"
+                        compositionType="sky"
+                        label="Today's Sky"
+                        sandboxState={{
+                          kind: 'sky_summary',
+                          date: data.composeContext.date,
+                          time: data.composeContext.time,
+                          location: data.composeContext.location,
+                        }}
+                      />
+                    ) : null}
                   </View>
                 ) : null}
               </>
@@ -370,6 +389,25 @@ export default function TodayScreen() {
                   </Text>
                 </Pressable>
                 {transitAudioError ? <Text style={styles.audioError}>{transitAudioError}</Text> : null}
+                {transitExportId && data.composeContext ? (
+                  <SaveToLibraryButton
+                    exportId={transitExportId}
+                    source="profile_active"
+                    compositionType="A+B"
+                    label="Your Transit"
+                    objectIdentityHash={data.transitHashes?.expectedObjectIdentityHash}
+                    sandboxState={{
+                      kind: 'profile_active',
+                      chartId: data.composeContext.chartId,
+                      calendarDate: data.composeContext.date,
+                      localTime:
+                        data.composeContext.time.length === 5
+                          ? data.composeContext.time
+                          : data.composeContext.time.slice(0, 5),
+                      location: data.composeContext.location,
+                    }}
+                  />
+                ) : null}
               </View>
             ) : null}
 

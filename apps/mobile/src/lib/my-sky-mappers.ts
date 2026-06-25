@@ -312,6 +312,7 @@ export function buildMySkyScreenData(input: {
   profile: ProfileResponse;
   chart: ProfileChartResponse | null;
   library: LibraryCompositionRow[];
+  libraryError?: string | null;
 }): MySkyScreenData {
   const user = input.profile.user!;
   const snapshot = input.chart?.snapshot;
@@ -324,5 +325,6 @@ export function buildMySkyScreenData(input: {
     identitySections: mapIdentitySections(input.chart),
     identityExportId: resolveIdentityExportId(input.chart),
     libraryItems: mapLibraryItems(input.library),
+    libraryError: input.libraryError ?? null,
   };
 }
