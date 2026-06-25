@@ -12,6 +12,7 @@ import { HashtagText } from './HashtagText';
 import { PostAudioSection } from './PostAudioSection';
 import { PostImage } from './PostImage';
 import { UserAvatar } from './UserAvatar';
+import { openReportSheet } from '../shared/ReportSheet';
 import { colors } from '../../constants/colors';
 import { formatCommunityTimestamp } from '../../lib/community-timestamp';
 import type { CommunityPost } from '../../types/community-feed';
@@ -36,7 +37,9 @@ export function PostCard({
   onDelete,
 }: PostCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reported, setReported] = useState(false);
   const isOwner = Boolean(currentUserId && post.userId === currentUserId);
+  const canReport = Boolean(currentUserId && !isOwner);
   const displayName = post.author?.displayName?.trim() || 'Anonymous';
   const handle = post.author?.handle?.trim().replace(/^@/, '') || '';
 
@@ -52,6 +55,15 @@ export function PostCard({
         },
       },
     ]);
+  };
+
+  const handleReport = () => {
+    setMenuOpen(false);
+    openReportSheet({
+      targetType: 'post',
+      targetId: post.id,
+      onReported: () => setReported(true),
+    });
   };
 
   return (
@@ -70,7 +82,7 @@ export function PostCard({
           </Text>
           <Text style={styles.timestamp}>{formatCommunityTimestamp(post.createdAt)}</Text>
         </View>
-        {isOwner ? (
+        {isOwner || canReport ? (
           <>
             <Pressable
               style={styles.menuButton}
@@ -82,9 +94,20 @@ export function PostCard({
             <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
               <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
                 <View style={styles.menuSheet}>
-                  <TouchableOpacity style={styles.menuItem} onPress={confirmDelete}>
-                    <Text style={styles.menuDelete}>Delete</Text>
-                  </TouchableOpacity>
+                  {isOwner ? (
+                    <TouchableOpacity style={styles.menuItem} onPress={confirmDelete}>
+                      <Text style={styles.menuDelete}>Delete</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {canReport ? (
+                    reported ? (
+                      <Text style={styles.menuReported}>Reported</Text>
+                    ) : (
+                      <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
+                        <Text style={styles.menuReport}>Report</Text>
+                      </TouchableOpacity>
+                    )
+                  ) : null}
                 </View>
               </Pressable>
             </Modal>
@@ -184,6 +207,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Manrope-SemiBold',
     textAlign: 'center',
+  },
+  menuReport: {
+    color: colors.text.primary,
+    fontSize: 16,
+    fontFamily: 'Manrope-SemiBold',
+    textAlign: 'center',
+  },
+  menuReported: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    textAlign: 'center',
+    paddingVertical: 12,
   },
   title: {
     color: colors.text.primary,

@@ -22,6 +22,7 @@ import { formatApiError } from '../../lib/format-api-error';
 import { MESSAGE_MAX, peerDisplayLabel } from '../../lib/signal-display';
 import { useAuthStore } from '../../store/auth';
 import { useDmThread } from '../../hooks/useDmThread';
+import { openReportSheet } from '../shared/ReportSheet';
 import type { DmMessage } from '../../types/community-messages';
 
 type MessageThreadScreenProps = {
@@ -55,6 +56,10 @@ export function MessageThreadScreen({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
+  const [peerReported, setPeerReported] = useState(false);
+
+  const canReportPeer =
+    Boolean(authUserId && conversation?.peer?.userId && conversation.peer.userId !== authUserId);
 
   const canSend = Boolean(draft.trim() || audioExportId);
 
@@ -140,6 +145,26 @@ export function MessageThreadScreen({
           </Text>
           {handle ? <Text style={styles.headerHandle}>@{handle}</Text> : null}
         </View>
+        {canReportPeer ? (
+          peerReported ? (
+            <Text style={styles.reportedLabel}>Reported</Text>
+          ) : (
+            <Pressable
+              onPress={() => {
+                const peerId = conversation?.peer?.userId;
+                if (!peerId) return;
+                openReportSheet({
+                  targetType: 'user',
+                  targetId: peerId,
+                  onReported: () => setPeerReported(true),
+                });
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.reportLink}>Report</Text>
+            </Pressable>
+          )
+        ) : null}
       </View>
 
       {loading ? (
@@ -300,6 +325,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-SemiBold',
   },
   headerHandle: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontFamily: 'Manrope-Regular',
+  },
+  reportLink: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontFamily: 'Manrope-Medium',
+  },
+  reportedLabel: {
     color: colors.text.muted,
     fontSize: 12,
     fontFamily: 'Manrope-Regular',

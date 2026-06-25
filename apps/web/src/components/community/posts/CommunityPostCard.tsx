@@ -10,6 +10,7 @@ import { formatCommunityTimestamp } from '@/lib/community-timestamp';
 import { communityAuthorInitial } from '@/lib/community-author-display';
 import { CommunityPostAudioSection } from '@/components/community/posts/CommunityPostAudioSection';
 import { HashtagText } from '@/components/community/posts/HashtagText';
+import { ReportModal } from '@/components/shared/ReportModal';
 import {
   ChatBubbleIcon,
   HeartIcon,
@@ -32,10 +33,14 @@ function AuthorHeader({
   post,
   currentUserId,
   onDeleteRequest,
+  onReportRequest,
+  reported,
 }: {
   post: CommunityPost;
   currentUserId?: string | null;
   onDeleteRequest: () => void;
+  onReportRequest: () => void;
+  reported: boolean;
 }) {
   const displayName = post.author?.displayName?.trim() || '';
   const handle = post.author?.handle?.trim().replace(/^@/, '') || '';
@@ -120,6 +125,36 @@ function AuthorHeader({
                 </div>
               ) : null}
             </div>
+          ) : currentUserId ? (
+            <div className="relative shrink-0" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-muted hover:text-text-primary transition-colors"
+                aria-label="Post options"
+                aria-expanded={menuOpen}
+              >
+                <OverflowMenuIcon />
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-lg border border-border bg-surface-1 shadow-lg py-1">
+                  {reported ? (
+                    <p className="px-3 py-2 text-xs text-text-muted">Reported</p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onReportRequest();
+                      }}
+                    >
+                      Report
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
@@ -141,6 +176,8 @@ export function CommunityPostCard({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reported, setReported] = useState(false);
   const shareCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -226,7 +263,13 @@ export function CommunityPostCard({
 
   return (
     <Card elevation="resting" size={compact ? 'sm' : 'md'} className="space-y-4">
-      <AuthorHeader post={post} currentUserId={currentUserId} onDeleteRequest={() => setConfirmOpen(true)} />
+      <AuthorHeader
+        post={post}
+        currentUserId={currentUserId}
+        onDeleteRequest={() => setConfirmOpen(true)}
+        onReportRequest={() => setReportOpen(true)}
+        reported={reported}
+      />
 
       {confirmOpen ? (
         <div className="rounded-lg border border-border bg-surface-0 p-4 space-y-3">
@@ -329,6 +372,14 @@ export function CommunityPostCard({
           {shareCopied ? <span className="text-xs text-accent">Link copied</span> : null}
         </button>
       </div>
+
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="post"
+        targetId={post.id}
+        onReported={() => setReported(true)}
+      />
     </Card>
   );
 }

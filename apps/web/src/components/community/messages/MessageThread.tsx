@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/shared/Button';
+import { ReportModal } from '@/components/shared/ReportModal';
 import { useAudioPlayerStore } from '@/store';
 import { CommunityAudioArtifactPicker } from '@/components/community/posts/CommunityAudioArtifactPicker';
 import { AudioAttachIcon } from '@/components/community/posts/community-post-icons';
@@ -56,6 +57,9 @@ export function MessageThread({ conversationId, currentUserId, onBack, onRefresh
   const [moderationError, setModerationError] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
+  const [peerReported, setPeerReported] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -152,21 +156,9 @@ export function MessageThread({ conversationId, currentUserId, onBack, onRefresh
     }
   };
 
-  const reportMessage = async (messageId: string) => {
-    const r = await fetch(`${getApiBaseUrl() || ''}/api/community/report`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targetType: 'message',
-        targetId: messageId,
-        reason: 'inappropriate',
-      }),
-    });
-    if (r.ok) {
-      setReportedIds((prev) => new Set(prev).add(messageId));
-      setMenuOpenId(null);
-    }
+  const reportMessage = (messageId: string) => {
+    setMenuOpenId(null);
+    setReportMessageId(messageId);
   };
 
   if (!currentUserId) {
@@ -209,6 +201,19 @@ export function MessageThread({ conversationId, currentUserId, onBack, onRefresh
         <span className="text-[10px] uppercase tracking-wide text-text-secondary/80 px-1.5 py-0.5 rounded-full border border-border/60">
           Friend
         </span>
+        {conversation.peer?.userId && conversation.peer.userId !== currentUserId ? (
+          peerReported ? (
+            <span className="text-xs text-text-muted shrink-0">Reported</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setReportUserOpen(true)}
+              className="text-xs text-text-secondary hover:text-text-primary shrink-0"
+            >
+              Report
+            </button>
+          )
+        ) : null}
       </div>
 
       <div ref={threadRef} className="flex-1 overflow-y-auto py-4 space-y-3 min-h-[200px] max-h-[55vh]">
@@ -230,7 +235,7 @@ export function MessageThread({ conversationId, currentUserId, onBack, onRefresh
             isSender={m.senderId === currentUserId}
             menuOpen={menuOpenId === m.id}
             onToggleMenu={() => setMenuOpenId((prev) => (prev === m.id ? null : m.id))}
-            onReport={() => void reportMessage(m.id)}
+            onReport={() => reportMessage(m.id)}
             reported={reportedIds.has(m.id)}
           />
         ))}
@@ -332,6 +337,32 @@ export function MessageThread({ conversationId, currentUserId, onBack, onRefresh
           setAudioPickerOpen(false);
         }}
       />
+
+      {reportMessageId ? (
+        <ReportModal
+          open
+          onClose={() => setReportMessageId(null)}
+          targetType="message"
+          targetId={reportMessageId}
+          onReported={() => {
+            setReportedIds((prev) => new Set(prev).add(reportMessageId));
+            setReportMessageId(null);
+          }}
+        />
+      ) : null}
+
+      {conversation.peer?.userId && reportUserOpen ? (
+        <ReportModal
+          open
+          onClose={() => setReportUserOpen(false)}
+          targetType="user"
+          targetId={conversation.peer.userId}
+          onReported={() => {
+            setPeerReported(true);
+            setReportUserOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

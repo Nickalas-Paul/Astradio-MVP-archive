@@ -1,16 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Card } from '@/components/shared/Card';
+import { Button } from '@/components/shared/Button';
 import { CommunityPostCard } from '@/components/community/posts/CommunityPostCard';
+import { ReportModal } from '@/components/shared/ReportModal';
 import type { CommunityPublicProfile } from '@/core/social/community-posts-hooks';
 
 interface CommunityProfileCardProps {
   profile: CommunityPublicProfile;
+  currentUserId?: string | null;
 }
 
-export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
+export function CommunityProfileCard({ profile, currentUserId }: CommunityProfileCardProps) {
   const name = profile.displayName || profile.handle || profile.userId;
+  const isSelf = Boolean(currentUserId && profile.userId === currentUserId);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reported, setReported] = useState(false);
   return (
     <Card elevation="resting" className="space-y-4">
       <div className="flex items-start gap-4">
@@ -27,6 +34,17 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
           {profile.handle ? <p className="text-sm text-text-secondary">@{profile.handle}</p> : null}
           {profile.bio ? <p className="text-body-sm text-text-primary whitespace-pre-wrap">{profile.bio}</p> : null}
           <p className="text-xs text-text-secondary">{profile.postCount} posts</p>
+          {!isSelf && currentUserId ? (
+            <div className="pt-2">
+              {reported ? (
+                <p className="text-xs text-text-muted">User reported</p>
+              ) : (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setReportOpen(true)}>
+                  Report user
+                </Button>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
       {profile.recentPosts?.length ? (
@@ -35,7 +53,7 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
           <ul className="space-y-3">
             {profile.recentPosts.map((post) => (
               <li key={post.id}>
-                <CommunityPostCard post={post} compact />
+                <CommunityPostCard post={post} currentUserId={currentUserId} compact />
               </li>
             ))}
           </ul>
@@ -46,6 +64,16 @@ export function CommunityProfileCard({ profile }: CommunityProfileCardProps) {
       <Link href="/community?tab=feed" className="text-sm text-accent hover:underline inline-block">
         ← Back to feed
       </Link>
+
+      {!isSelf && currentUserId ? (
+        <ReportModal
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetType="user"
+          targetId={profile.userId}
+          onReported={() => setReported(true)}
+        />
+      ) : null}
     </Card>
   );
 }
