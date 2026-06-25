@@ -1435,6 +1435,7 @@ const socialLimiter = rateLimit({
 
 // Apply rate limits
 app.use('/api/compose', composeLimiter);
+app.use('/api/profile/active-state', composeLimiter);
 app.use('/api/connect', socialLimiter);
 app.use('/api/like', socialLimiter);
 app.use('/api/save', socialLimiter);

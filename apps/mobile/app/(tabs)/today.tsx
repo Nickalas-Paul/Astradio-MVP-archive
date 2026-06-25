@@ -193,6 +193,10 @@ export default function TodayScreen() {
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!data?.composeContext) return;
+    if (skyExportId) {
+      playTrack({ exportId: skyExportId, label: "Today's Sky", source: 'sky' });
+      return;
+    }
     setSkyAudioLoading(true);
     setSkyAudioError(null);
     try {
@@ -213,10 +217,14 @@ export default function TodayScreen() {
     } finally {
       setSkyAudioLoading(false);
     }
-  }, [data?.composeContext, playTrack]);
+  }, [data?.composeContext, playTrack, skyExportId]);
 
   const handleHearYourTransit = useCallback(async () => {
     if (!data?.composeContext) return;
+    if (transitExportId) {
+      playTrack({ exportId: transitExportId, label: 'Your Transit', source: 'transit' });
+      return;
+    }
     if (!data.transitHashes) {
       setTransitAudioError('Compose a transit report first, then compose audio.');
       return;
@@ -260,7 +268,7 @@ export default function TodayScreen() {
     } finally {
       setTransitAudioLoading(false);
     }
-  }, [data?.composeContext, data?.transitHashes, playTrack, userId]);
+  }, [data?.composeContext, data?.transitHashes, playTrack, transitExportId, userId]);
 
   const handleSignOut = async () => {
     await logout();
@@ -323,7 +331,11 @@ export default function TodayScreen() {
                       ]}
                     >
                       <Text style={styles.audioButtonText}>
-                        {skyAudioLoading ? 'Composing...' : "Hear Today's Sky"}
+                        {skyAudioLoading
+                          ? 'Composing...'
+                          : skyExportId
+                            ? "Replay Today's Sky"
+                            : "Hear Today's Sky"}
                       </Text>
                     </Pressable>
                     {skyAudioError ? <Text style={styles.audioError}>{skyAudioError}</Text> : null}
@@ -385,7 +397,11 @@ export default function TodayScreen() {
                   ]}
                 >
                   <Text style={styles.audioButtonText}>
-                    {transitAudioLoading ? 'Composing...' : 'Hear Your Transit'}
+                    {transitAudioLoading
+                      ? 'Composing...'
+                      : transitExportId
+                        ? 'Replay Your Transit'
+                        : 'Hear Your Transit'}
                   </Text>
                 </Pressable>
                 {transitAudioError ? <Text style={styles.audioError}>{transitAudioError}</Text> : null}

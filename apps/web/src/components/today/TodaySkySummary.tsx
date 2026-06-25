@@ -171,6 +171,10 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!composeContext) return;
+    if (skyExportId) {
+      playTrack({ exportId: skyExportId, label: "Today's Sky", source: 'sky' });
+      return;
+    }
     setSkyAudioLoading(true);
     setSkyAudioError(null);
     try {
@@ -204,7 +208,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
     } finally {
       setSkyAudioLoading(false);
     }
-  }, [composeContext, playTrack]);
+  }, [composeContext, playTrack, skyExportId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,7 +343,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
               loading={skyAudioLoading}
               onClick={() => void handleHearTodaysSky()}
             >
-              Hear Today&apos;s Sky
+              {skyExportId ? "Replay Today's Sky" : "Hear Today's Sky"}
             </Button>
             {skyExportId && composeContext ? (
               <SaveToLibraryButton

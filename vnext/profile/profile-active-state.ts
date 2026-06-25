@@ -200,6 +200,9 @@ export async function buildProfileActiveStateProjection(params: {
     transitCalendarDate: calendarDate,
     transitDiversificationContext: previousDiversification,
     generateAudio,
+    ...(params.userId && String(params.userId).trim()
+      ? { sessionUserId: String(params.userId).trim() }
+      : {}),
     ...(generateAudio &&
     typeof params.expectedPlanSha256 === 'string' &&
     params.expectedPlanSha256.length > 0 &&

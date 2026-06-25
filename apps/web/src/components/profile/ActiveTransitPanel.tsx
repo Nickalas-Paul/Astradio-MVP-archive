@@ -363,6 +363,13 @@ export function ActiveTransitPanel({
         setActiveError('Audio export not available.');
         return;
       }
+      const timeNorm = activeTime.length === 5 ? activeTime : activeTime.slice(0, 5);
+      setTransitCache(activeDate, chartId, loc.lat, loc.lon, {
+        calendarDate: activeDate,
+        localTime: timeNorm,
+        location: loc,
+        activeState: j,
+      });
       playTrack({ exportId, label: 'Your Transit', source: 'transit' });
     } catch (e) {
       setActiveError(e instanceof Error ? e.message : 'Audio failed');

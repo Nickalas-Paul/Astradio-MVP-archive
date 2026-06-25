@@ -480,6 +480,20 @@ export async function ensureDevUser(): Promise<any> {
 export async function createExportJob(_input: any): Promise<any> {
   return Promise.resolve(null);
 }
+export async function findTodayExportForUser(
+  _userId: string,
+  _source: string
+): Promise<{ export_id: string } | null> {
+  return null;
+}
+export async function recordTodayExportForUser(
+  _userId: string,
+  _source: string,
+  _exportId: string,
+  _opts?: Record<string, unknown>
+): Promise<unknown> {
+  return null;
+}
 export async function getExportJob(_id: string): Promise<any> {
   return undefined;
 }

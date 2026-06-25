@@ -59,6 +59,88 @@ import { guidanceFromFeatures } from '../astro/guidance';
 import { buildCompositionNarrativePlan } from '../audio/composition-narrative';
 import type { ExpansionTier, ProjectionSurface, ProjectionValidation } from '../projection/projection-types';
 import type { RelationshipMode } from '../compat/types';
+import path from 'path';
+import { exportExists, getExportWavPath } from '../render/export-cache';
+
+type DailyExportSource = 'sky' | 'profile_active';
+
+type DailyExportPgStore = {
+  findTodayExportForUser: (
+    userId: string,
+    source: string
+  ) => Promise<{ export_id: string } | null>;
+  recordTodayExportForUser: (
+    userId: string,
+    source: string,
+    exportId: string,
+    opts?: Record<string, unknown>
+  ) => Promise<unknown>;
+};
+
+function loadDailyExportPgStore(): DailyExportPgStore | null {
+  if (!process.env.POSTGRES_URL) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require(path.join(process.cwd(), 'lib', 'pg-store.js')) as DailyExportPgStore;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDailyExportSource(
+  request: ComposeRequest,
+  generateAudio: boolean
+): DailyExportSource | null {
+  const sessionUserId =
+    typeof request.sessionUserId === 'string' ? request.sessionUserId.trim() : '';
+  if (!generateAudio || !sessionUserId) return null;
+  if (request.mode === 'sky') return 'sky';
+  if (
+    request.mode === 'overlay' &&
+    typeof request.transitCalendarDate === 'string' &&
+    request.transitCalendarDate.trim().length > 0
+  ) {
+    return 'profile_active';
+  }
+  return null;
+}
+
+async function findReusableDailyExportId(
+  userId: string,
+  source: DailyExportSource
+): Promise<string | null> {
+  const pg = loadDailyExportPgStore();
+  if (!pg?.findTodayExportForUser) return null;
+  const existing = await pg.findTodayExportForUser(userId, source);
+  const exportId = existing?.export_id;
+  if (!exportId || !/^[a-f0-9]{64}$/.test(exportId)) return null;
+  if (!exportExists(exportId)) return null;
+  return exportId;
+}
+
+async function recordDailyExportIfNeeded(
+  userId: string,
+  source: DailyExportSource,
+  exportId: string,
+  opts: { planHash?: string; chartHash?: string; sizeBytes?: number; exportMeta?: Record<string, unknown> }
+): Promise<void> {
+  const pg = loadDailyExportPgStore();
+  if (!pg?.recordTodayExportForUser) return;
+  try {
+    await pg.recordTodayExportForUser(userId, source, exportId, {
+      planHash: opts.planHash,
+      chartHash: opts.chartHash,
+      sizeBytes: opts.sizeBytes,
+      filePath: getExportWavPath(exportId),
+      exportMeta: opts.exportMeta,
+    });
+  } catch (e) {
+    console.warn(
+      '[COMPOSE_DAILY] record export failed:',
+      e instanceof Error ? e.message : String(e)
+    );
+  }
+}
 
 function parseExpansionTier(v: unknown): ExpansionTier {
   if (v === 'expanded' || v === 'extended') return v;
@@ -480,8 +562,40 @@ export class ComposeAPI {
 
       // Generate audio: shared Lyria/provider path (only when generateAudio is explicitly true)
       const wavExportEnabled = process.env.ENABLE_WAV_EXPORT === '1';
+      const dailyExportSource = resolveDailyExportSource(request as ComposeRequest, generateAudio);
+      const sessionUserId =
+        typeof (request as ComposeRequest).sessionUserId === 'string'
+          ? (request as ComposeRequest).sessionUserId!.trim()
+          : '';
+      let reusedDailyExportId: string | null = null;
+      if (dailyExportSource && sessionUserId) {
+        reusedDailyExportId = await findReusableDailyExportId(sessionUserId, dailyExportSource);
+        if (reusedDailyExportId) {
+          console.log(
+            '[COMPOSE_DAILY] reuse export user=%s source=%s id=%s',
+            sessionUserId.slice(0, 8),
+            dailyExportSource,
+            reusedDailyExportId.slice(0, 16)
+          );
+        }
+      }
       const wavBundle = generateAudio
-        ? await runLyriaAlignedExportBlock(
+        ? reusedDailyExportId
+          ? {
+              audio: {
+                format: 'wav' as const,
+                base64: '',
+                sha256: this.sha256(`daily_export_reuse:${reusedDailyExportId}`),
+                latency_ms: 0,
+                size_bytes: 0,
+              },
+              audio_export_available: true,
+              export_id: reusedDailyExportId,
+              export_meta: undefined,
+              export_attempted: true,
+              export_error: null as ExportErrorCode | null,
+            }
+          : await runLyriaAlignedExportBlock(
             (buf, sec) => this.validateRenderedWavDuration(buf, sec),
             {
               plan,
@@ -509,6 +623,20 @@ export class ComposeAPI {
             export_attempted: false,
             export_error: 'export_not_attempted' as ExportErrorCode,
           };
+      if (
+        dailyExportSource &&
+        sessionUserId &&
+        !reusedDailyExportId &&
+        wavBundle.export_id &&
+        wavBundle.audio_export_available
+      ) {
+        await recordDailyExportIfNeeded(sessionUserId, dailyExportSource, wavBundle.export_id, {
+          planHash: computePlanHash(plan),
+          chartHash: payload.hash,
+          sizeBytes: wavBundle.audio.size_bytes,
+          exportMeta: wavBundle.export_meta as Record<string, unknown> | undefined,
+        });
+      }
       const audio = wavBundle.audio;
       let audio_export_available = wavBundle.audio_export_available;
       let export_id = wavBundle.export_id;
@@ -2113,7 +2241,12 @@ export async function vnextCompose(req: any, res: any) {
       if (!gateResult) return;
     }
 
-    const request = req.body;
+    const { resolveSessionUserId } = await import('../entitlements/apply-audio-gate');
+    const sessionUserId = resolveSessionUserId(req);
+    const request = {
+      ...(req.body || {}),
+      ...(sessionUserId ? { sessionUserId } : {}),
+    };
     const response = await composeAPI.compose(request);
     res.json(response);
   } catch (error: any) {

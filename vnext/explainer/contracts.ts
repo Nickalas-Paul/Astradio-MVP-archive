@@ -185,6 +185,8 @@ export interface ComposeRequest {
   expectedObjectIdentityHash?: string;
   /** Overlay / profile active-state: YYYY-MM-DD for transit diversification persistence. */
   transitCalendarDate?: string;
+  /** Server-only: authenticated user id for daily export limits (sky / profile active audio). */
+  sessionUserId?: string;
   /** Overlay: prior generation aspect keys to penalize on repeat (cross-day diversity). */
   transitDiversificationContext?: {
     calendarDate: string;
