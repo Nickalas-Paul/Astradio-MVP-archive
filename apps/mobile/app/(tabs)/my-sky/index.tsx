@@ -275,6 +275,9 @@ export default function MySkyScreen() {
           </>
         ) : null}
 
+        <Pressable onPress={() => router.push('/privacy')} style={styles.privacyLink}>
+          <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+        </Pressable>
         <Pressable onPress={() => void handleSignOut()} style={styles.signOutButton}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
@@ -424,11 +427,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Manrope-Medium',
   },
+  privacyLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 32,
+  },
+  privacyLinkText: {
+    color: colors.accent.DEFAULT,
+    fontSize: 14,
+    fontFamily: 'Manrope-Medium',
+  },
   signOutButton: {
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 8,
   },
   signOutText: {
     color: colors.text.muted,

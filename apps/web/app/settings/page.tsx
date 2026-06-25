@@ -355,9 +355,16 @@ export default function SettingsPage() {
             
             <div>
               <h3 className="text-sm font-medium text-text-primary mb-2">Support</h3>
-              <button className="text-sm text-accent hover:text-accent">
-                Contact Support
-              </button>
+              <a href="mailto:Support@astradio.io" className="text-sm text-accent hover:underline">
+                Support@astradio.io
+              </a>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Privacy</h3>
+              <Link href="/privacy" className="text-sm text-accent hover:underline">
+                Privacy Policy
+              </Link>
             </div>
           </div>
           </Card>
@@ -370,6 +377,10 @@ export default function SettingsPage() {
           ·{' '}
           <Link href="/profile" className="text-accent hover:underline">
             My Sky
+          </Link>
+          {' · '}
+          <Link href="/privacy" className="text-accent hover:underline">
+            Privacy Policy
           </Link>
         </p>
       </div>
