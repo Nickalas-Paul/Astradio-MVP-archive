@@ -1,6 +1,6 @@
 import { getToken } from './token-storage';
 
-export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || 'https://your-render-url.onrender.com').replace(/\/+$/, '');
+export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || 'https://astradio-mvp-archive.onrender.com').replace(/\/+$/, '');
 
 export type ApiError = {
   status: number;
