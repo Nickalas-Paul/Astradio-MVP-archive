@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   description: 'Personalized 60-second musical compositions based on your astrological chart',
   keywords: ['astrology', 'music', 'composition', 'wheel', 'chart'],
   authors: [{ name: 'Astradio Team' }],
+  metadataBase: new URL('https://astradio.io'),
+  alternates: {
+    canonical: '/',
+  },
 };
 
 export default function RootLayout({
