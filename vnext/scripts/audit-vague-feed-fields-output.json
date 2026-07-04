@@ -1,0 +1,14 @@
+{
+  "vague_feed_entries": {
+    "total_scanned": 390,
+    "total_with_feed": 390,
+    "total_count": 0,
+    "explicit_count_full_text": 390,
+    "first_sentence_ok_count": 390,
+    "needs_first_sentence_rewrite": 0,
+    "partial_ok_opener_only": 0,
+    "by_pattern": {},
+    "by_file": {},
+    "entries": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "email": "nico@astradio.io",
+  "password": "TestPassword123!",
+  "displayName": "Nico",
+  "chart": {
+    "label": "Nico",
+    "date": "1979-09-09",
+    "time": "12:00",
+    "lat": 40.7128,
+    "lon": -74.006,
+    "timezone": "America/New_York"
+  }
+}

@@ -1,0 +1,2315 @@
+{
+  "total": 330,
+  "matches": [
+    {
+      "file": "apps/web/app/layout.tsx",
+      "line": 25,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Astradio — Astrological Wheel Composer"
+    },
+    {
+      "file": "apps/web/app/profile/[handle]/page.tsx",
+      "line": 123,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Connection requests — Phase 6C-2"
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 221,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on clarity — lines are reading sharper in aggregate."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 223,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on momentum — follow-through is carrying the trend."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 225,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on ambiguity — resolution is intentionally deferred in aggregate."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 227,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on containment — boundaries and exposure caps dominate the trend."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 229,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on cohesion — connection and steadiness lead the aggregate."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 231,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on repair — reciprocity signals are elevated in aggregate."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 233,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on integration — reframing is doing more work than closure in aggregate."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 235,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Weight on stability — limits and pacing dominate the aggregate trend."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 237,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Strain flagged — smaller, legible moves are overrepresented in recent resolutions."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 239,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[tone_track] Insufficient signal yet — trend still forming from recent resolutions."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 255,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[state] History buffer non-empty — prior resolutions are feeding forward into the next daily hash."
+    },
+    {
+      "file": "apps/web/app/rpg/campaign/[campaignId]/CampaignDailyClient.tsx",
+      "line": 258,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "[state] No history rows yet — first resolution will initialize the visible trace buffer."
+    },
+    {
+      "file": "apps/web/app/sandbox/page.tsx",
+      "line": 489,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "—"
+    },
+    {
+      "file": "apps/web/app/verify-email/page.tsx",
+      "line": 84,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Verification email sent — check your inbox."
+    },
+    {
+      "file": "apps/web/src/components/profile/ProfileAuthPanel.tsx",
+      "line": 92,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Verification email sent — check your inbox."
+    },
+    {
+      "file": "apps/web/src/components/profile/ProfileHeaderCard.tsx",
+      "line": 174,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Display name must be 1–${DISPLAY_NAME_MAX} characters."
+    },
+    {
+      "file": "apps/web/src/components/sandbox/PlanetPalette.tsx",
+      "line": 58,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "${PLANET_LABELS[planet]} placed — click to place elsewhere"
+    },
+    {
+      "file": "apps/web/src/hooks/useSandboxGenerate.ts",
+      "line": 152,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "A slot has both chart ID and birth data—clear one or split them so each slot is either a stored chart or ephemeris birth."
+    },
+    {
+      "file": "apps/web/src/hooks/useSandboxGenerate.ts",
+      "line": 157,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "A slot has date/time but no coordinates—select a full location (lat/lon) for each birth slot before resolve."
+    },
+    {
+      "file": "apps/web/src/hooks/useSandboxGenerate.ts",
+      "line": 178,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Choose how to start above—blank chart or birth data—or import a stored chart."
+    },
+    {
+      "file": "apps/web/src/lib/community-feed-reading-layout.ts",
+      "line": 149,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Name feelings plainly without rehearsing the whole story—short beats matter more than perfect wording today."
+    },
+    {
+      "file": "apps/web/src/lib/community-feed-reading-layout.ts",
+      "line": 153,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Use the ease between you to pin down one practical next step—comfort can skip the details you still need."
+    },
+    {
+      "file": "apps/web/src/lib/community-feed-reading-layout.ts",
+      "line": 157,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Say the request in one sentence, then listen—clarity matters more than volume or pace."
+    },
+    {
+      "file": "apps/web/src/lib/community-feed-reading-layout.ts",
+      "line": 160,
+      "dashType": "em dash",
+      "category": "UI string",
+      "string": "Choose one small adjustment instead of a sweeping overhaul—progress accumulates in inches."
+    },
+    {
+      "file": "scripts/phase2-mars-houses.json",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act with total commitment, fight to win completely, and pursue goals with obsessive focus. When you want something, you commit everything to getting it. When you're angry, you strategize and execute with precision. Your assertion is ..."
+    },
+    {
+      "file": "scripts/phase2-mars-houses.json",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "re angry, you may not show it directly—you might withdraw or express it through subtle means. Your assertion is private and compassionate. You serve without needing credit. This isn"
+    },
+    {
+      "file": "scripts/phase2-mars-houses.json",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act behind the scenes, fight indirectly or internally, and pursue goals through private work and spiritual practice. When you want something, you work toward it without needing recognition. When you're angry, you may not show it dire..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 3,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Mars in Aries, its home sign, means how you assert yourself and pursue what you want is at maximum directness and speed. You act immediately. You fight cleanly. Mars is your drive, anger, and physical energy, and in Aries it operate..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 10,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act methodically, fight by refusing to yield, and work with steady endurance. When you want something, you pursue it patiently over time. When you're angry, you don't explode—you hold it and it doesn't fade easily. Your assertion is ..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 16,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act through conversation, fight with arguments, and need mental variety to stay energized. When you want something, you research it, talk about it, approach it from multiple angles. When you're angry, you argue your case verbally. Yo..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 21,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Mars in Cancer means how you assert yourself and pursue what you want is organized around protection, emotional motivation, and defending what matters. You act when emotionally moved. You fight to protect. Mars is your drive and ass..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 22,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act when emotionally motivated, fight to protect loved ones, and need emotional security to assert yourself. When you want something, you have to feel it's right emotionally. When you're angry, it's usually because someone hurt you o..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 28,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act with confidence, fight with pride, and need recognition for your efforts. When you want something, you pursue it visibly and with style. When you're angry, you express it dramatically. Your assertion is theatrical and generous. Y..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 34,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t charge forward blindly—you fix what"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 34,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act precisely, fight by pointing out errors, and need your efforts to be competent and useful. When you want something, you plan carefully and execute skillfully. When you're angry, you criticize what's not working. Your assertion is..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 40,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act diplomatically, fight for fairness, and need your assertion to be balanced and graceful. When you want something, you consider how it affects everyone. When you're angry, you try to resolve it fairly. Your assertion is measured a..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t explode—you plan and execute revenge. Your assertion is intense and controlled. You don"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act strategically, fight to win completely, and pursue goals with obsessive focus. When you want something, you commit totally and won't quit until you have it. When you're angry, you don't explode—you plan and execute revenge. Your ..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 52,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t hedge your bets—you commit fully and trust the outcome. This isn"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 52,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act boldly, fight for what you believe, and pursue goals that feel meaningful and expansive. When you want something, you aim high and trust you'll figure it out on the way. When you're angry, you say exactly what you think. Your ass..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 58,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t waste energy on immediate gratification—you invest it in long-term achievement. This isn"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 58,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act strategically, fight with discipline, and pursue goals with patient determination. When you want something, you build toward it systematically over years. When you're angry, you don't let it show—you use it as fuel. Your assertio..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 64,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t force through with emotion—you outthink the opposition. This isn"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 64,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act independently, fight for groups and principles, and pursue goals that challenge conventional approaches. When you want something, you find unconventional ways to achieve it. When you're angry, it's usually about systemic unfairne..."
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "re angry, you may not express it—you absorb it or channel it into art. Your assertion is fluid and compassionate. You don"
+    },
+    {
+      "file": "scripts/phase2-mars-signs.json",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You act intuitively, fight indirectly or not at all, and pursue goals through adaptation rather than force. When you want something, you feel your way toward it rather than charging directly. When you're angry, you may not express it—you..."
+    },
+    {
+      "file": "scripts/phase2-mercury-houses.json",
+      "line": 4,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "re thinking, everyone knows it—you talk through your thought process. When you have an idea, you say it immediately. Your mental style is quick and expressive. You can"
+    },
+    {
+      "file": "scripts/phase2-mercury-houses.json",
+      "line": 4,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You think visibly, speak constantly, and identify strongly with your ideas. When you're thinking, everyone knows it—you talk through your thought process. When you have an idea, you say it immediately. Your mental style is quick and expr..."
+    },
+    {
+      "file": "scripts/phase2-mercury-houses.json",
+      "line": 15,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Mercury in the 3rd house, its natural home, means how you think and communicate is at maximum agility and local connection. You think constantly. The 3rd house is immediate environment and communication, and your Mercury here operat..."
+    },
+    {
+      "file": "scripts/phase2-mercury-signs.json",
+      "line": 15,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Mercury in Gemini, its home sign, means how you think and communicate is at maximum agility and range. You think fast. You speak easily. Mercury is how you process information, and in Gemini it operates at full strength—curious, fle..."
+    },
+    {
+      "file": "scripts/phase2-mercury-signs.json",
+      "line": 33,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Mercury in Virgo, its home sign, means how you think and communicate is at maximum precision and analytical power. You think carefully. You speak accurately. Mercury is how you process information, and in Virgo it operates at full s..."
+    },
+    {
+      "file": "scripts/phase2-venus-signs.json",
+      "line": 9,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Venus in Taurus, its home sign, means how you love and what you value is at maximum sensuality and stability. You love steadily. You desire physical pleasure and material beauty. Venus is how you relate and what brings you pleasure,..."
+    },
+    {
+      "file": "scripts/phase2-venus-signs.json",
+      "line": 39,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Venus in Libra, its home sign, means how you love and what you value is at maximum grace, balance, and relational beauty. You love harmoniously. You desire partnership and aesthetic rightness. Venus is how you relate and what brings..."
+    },
+    {
+      "file": "scripts/phase3-jupiter-houses.json",
+      "line": 51,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Jupiter in the 9th house, its natural home, means where you grow and find meaning is at maximum capacity for understanding, belief, and expansion. Philosophy is your element. The 9th house is wisdom and exploration, and your Jupiter..."
+    },
+    {
+      "file": "scripts/phase3-jupiter-signs.json",
+      "line": 10,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t trust abstract promises—you trust what you can hold. This isn"
+    },
+    {
+      "file": "scripts/phase3-jupiter-signs.json",
+      "line": 10,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You grow through patient building, find meaning in beauty and abundance, and expand by creating tangible value. When you're pursuing growth, you work steadily and build gradually. When you're looking for wisdom, you find it in nature and..."
+    },
+    {
+      "file": "scripts/phase3-jupiter-signs.json",
+      "line": 51,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Jupiter in Sagittarius, its home sign, means where you grow and find meaning is at maximum expansion, optimism, and philosophical reach. You expand naturally. Jupiter is your capacity for growth and wisdom, and in Sagittarius it ope..."
+    },
+    {
+      "file": "scripts/phase3-pluto-signs.json",
+      "line": 45,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Pluto in Scorpio, its home sign, means where your generation faces power and transforms is at maximum depth and intensity. Your generation transforms transformation itself. Pluto is the capacity for death and rebirth, and in Scorpio..."
+    },
+    {
+      "file": "scripts/phase3-pluto-signs.json",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s everywhere—you"
+    },
+    {
+      "file": "scripts/phase3-pluto-signs.json",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You transform through total confrontation with shadow, face death and rebirth at maximum intensity, and participate in your generation's meta-transformation of what change means. When you're encountering Pluto, it's everywhere—you're tra..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 4,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t require perfection to be legitimate. Your mastery is earned courage—the capacity to move forward even when you"
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 4,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with assertion, work to build confidence, and develop mastery through learning to act decisively. When you need to take initiative, you might freeze or overcompensate with aggression. When you're developing courage, you're l..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 10,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with feeling secure, work to build material stability, and develop mastery through learning when enough is enough. When you're facing resource questions, you might restrict excessively or accumulate compulsively. When you're..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 16,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with communication, work to build intellectual confidence, and develop mastery through learning to express ideas clearly. When you need to speak authoritatively, you might stay silent or cover insecurity with excessive talki..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 22,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with emotional expression, work to build capacity for care, and develop mastery through learning to create real sanctuary. When you need to be emotionally vulnerable, you might shut down or become overwhelmed. When you're de..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 28,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t require perfection to be legitimate. Your mastery is earned radiance—the capacity to express fully without needing external validation to know you"
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 28,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with visibility, work to build creative confidence, and develop mastery through learning to express yourself without needing constant validation. When you need to shine, you might hide or overcompensate with performance. Whe..."
+    },
+    {
+      "file": "scripts/phase3-saturn-signs.json",
+      "line": 34,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You struggle with feeling competent, work to build genuine skill, and develop mastery through learning when good enough is actually good enough. When you need to be useful, you might avoid work from fear of doing it poorly or work obsess..."
+    },
+    {
+      "file": "scripts/phase3-uranus-signs.json",
+      "line": 63,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Your Uranus in Aquarius, its home sign, means where you innovate and break patterns is at maximum capacity for revolution, collective vision, and reimagining what progress means. Your generation disrupts disruption itself. Uranus is the ..."
+    },
+    {
+      "file": "scripts/phase3-uranus-signs.json",
+      "line": 64,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "You break patterns around innovation itself, question what revolution means, and contribute to your generation's meta-revolution in understanding progress. When you're being disruptive, it shows up everywhere—you question the questions. ..."
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 175,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Venus–Mars harmony"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 176,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Sun–Moon connection"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 177,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Venus–Sun attraction"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 178,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mars–Moon passion"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 182,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mercury–Jupiter flow"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 183,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Sun–Jupiter warmth"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Moon–Venus comfort"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 185,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mercury–Mercury sync"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 190,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Venus–Neptune inspiration"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 191,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mercury–Uranus innovation"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 195,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Jupiter–Sun wisdom"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 196,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Saturn–Mercury discipline"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 197,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Jupiter–Mercury teaching"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 202,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mars–Mars tension"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 203,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Saturn–Sun challenge"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 207,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Venus–Mars harmony"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 208,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Mercury–Jupiter flow"
+    },
+    {
+      "file": "server/compat/score.ts",
+      "line": 210,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Jupiter–Sun wisdom"
+    },
+    {
+      "file": "vnext/api/feed-collapsed-display.ts",
+      "line": 87,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/community/group-profile.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Higher collective tension — dynamic, growth-oriented."
+    },
+    {
+      "file": "vnext/community/group-profile.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Moderate tension — balanced flow."
+    },
+    {
+      "file": "vnext/community/group-profile.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Lower tension — ease and alignment."
+    },
+    {
+      "file": "vnext/compatibility/discovery-explanation.ts",
+      "line": 288,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Low friction field — limited growth pressure"
+    },
+    {
+      "file": "vnext/compatibility/discovery-explanation.ts",
+      "line": 294,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Low friction field — limited growth pressure"
+    },
+    {
+      "file": "vnext/explainer/README-v1.1.md",
+      "line": 55,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "mostly stepwise motion, kept close and careful — steady connections"
+    },
+    {
+      "file": "vnext/explainer/README-v1.1.md",
+      "line": 56,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "strong, accented patterns, with pronounced off-beats — Mars"
+    },
+    {
+      "file": "vnext/explainer/README-v1.1.md",
+      "line": 113,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Tone: energetic, assertive. mostly stepwise motion, kept close and careful — steady connections. Arcs surge then soften, echoing Fire's bursts of energy."
+    },
+    {
+      "file": "vnext/explainer/README-v1.1.md",
+      "line": 114,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Tone: energetic, assertive. mostly stepwise motion, kept close and careful — steady connections. simple, even rhythms, on straight time. measured, Jupiter-steady tempo. balanced layering keeps clarity. themes recur often, Venus's love of..."
+    },
+    {
+      "file": "vnext/explainer/README-v1.1.md",
+      "line": 116,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "• mostly stepwise motion, kept close and careful — steady connections."
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 100,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "Light, airy phrasing with mainly stepwise motion and gentle rise–fall arcs. Subtle syncopation hints at sociability (Air/Venus), while recurring motifs keep it cohesive."
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 101,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "The musical expression unfolds through mainly stepwise motion with gentle rise–fall arcs, creating a flowing journey for the listener. Swung eighth-note feel provides the rhythmic foundation, while Air influence infuses the piece with mo..."
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 103,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "• mainly stepwise motion with gentle rise–fall arcs creates the melodic foundation"
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 104,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "• gentle rise–fall arcs shapes the overall contour"
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 110,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "gentle rise–fall arcs"
+    },
+    {
+      "file": "vnext/explainer/README.md",
+      "line": 203,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "• gentle rise–fall arcs shapes the overall contour"
+    },
+    {
+      "file": "vnext/projection/insight/feed-aspect-insight-v1.ts",
+      "line": 164,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "${prefix}—${selectedSentences}"
+    },
+    {
+      "file": "vnext/projection/rule-layer/assemble-sections.ts",
+      "line": 176,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "This connection runs on chemistry you can feel before you can explain it—the friction is real, but so is the pull."
+    },
+    {
+      "file": "vnext/projection/rule-layer/assemble-sections.ts",
+      "line": 179,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "What you have here is specific to the two of you—not a crowd read, not a generic verdict."
+    },
+    {
+      "file": "vnext/projection/rule-layer/claim-expression-bundles.ts",
+      "line": 146,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "[claim-expression-bundles] ${id}: optional slot count must be 1–3, got ${optCount}"
+    },
+    {
+      "file": "vnext/projection/rule-layer/claim-expression-bundles.ts",
+      "line": 572,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "${role}: expected length ${min}–${max}, got ${arr.length}"
+    },
+    {
+      "file": "vnext/projection/rule-layer/claim-expression-bundles.ts",
+      "line": 582,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "${id}: core must have 1–3 entries, got ${b.core.length}"
+    },
+    {
+      "file": "vnext/rpg/reflection-mapper.ts",
+      "line": 114,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "${basePrompt} Choose one concrete action—however small—that represents care or commitment, and complete it fully."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 25,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t analyzing your actions from outside—it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 25,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury, articulation and strategic thought, meets Mars, raw drive and the force that moves without waiting, at the same degree. What you think and what you pursue are fused during this 2-3 day window. Your mind isn't analyzing your acti..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 27,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 27,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury and Mars are meeting at the same degree between these charts today. One person's articulation and the other person's drive are fused right now. The current sky is opening a window where thinking and acting aren't separate—when on..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 32,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury opposes Mars across 180 degrees, maximum distance between articulation and action. What you're thinking and what you're pursuing are pulling in opposite directions during this 2-3 day period. Your mind and your body are at full p..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 38,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury forms a sextile to Mars, 60 degrees of productive cooperation between thinking and acting. Your articulation and your drive are operating in compatible modes during this 2-3 day window. What you think can support what you pursue ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 44,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury forms a trine to Mars, 120 degrees in the same elemental family. Your thinking and your drive are drawing from the same source during this 2-3 day window. What you articulate and what you pursue recognize each other as kin. Mercu..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 51,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury forms a square to Mars, 90 degrees of sustained friction between thinking and acting. What you can articulate clearly and what you're actively pursuing are cutting across each other during this 2-3 day period. Your mind and your ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 53,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury and Mars are at friction point between these charts right now. One person's thinking and the other person's drive are cutting across each other today with more geometric precision than on an ordinary day. The current sky is makin..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 59,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon, emotional instinct and the body's immediate responses, meets Mercury, articulation and strategic thought, at the same degree. What you feel and how you think aren't separate systems during this 6-8 hour window. They run on the ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 60,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Talking through a feeling and having the feeling are the same process during this window. Writing about emotion and processing emotion are identical activities right now. The Moon and Mercury conjunction means your thinking is never pure..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 61,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 61,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon and Mercury are meeting at the same degree between these charts today. One person's emotional instinct and the other person's thinking are fused right now. The current sky is opening a window where feeling and articulation aren'..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 66,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon opposes Mercury across 180 degrees, maximum distance between feeling and thinking. What you're experiencing emotionally and what you're able to articulate are at opposite poles during this 6-8 hour period. Your emotional body an..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 78,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t a failure of either planet—the Moon is feeling legitimately and Mercury is thinking legitimately, but they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 78,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a square to Mercury, 90 degrees of sustained friction between feeling and thinking. What your body needs emotionally and what your mind wants to articulate are cutting across each other during this 6-8 hour period. Your lu..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 85,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a trine to Mercury, 120 degrees in the same elemental family. What you're feeling emotionally and how you're thinking are drawing from the same source during this 6-8 hour window. Your emotional instinct and your cognitive..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 92,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury, articulation and strategic thought, meets Venus, aesthetic value and relational attunement, at the same degree. What you think and what you find beautiful occupy the same space during this 2-3 day window. Your mind and your sens..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 93,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s genuine rather than performed. The Mercury-Venus conjunction means thinking and valuing are operating as one function—your mind serves your taste and your taste informs your thinking without friction. Use this for conversations about b..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 93,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Talking about what you love and actually loving it are the same gesture during this window. When you articulate aesthetic judgment, it's genuine rather than performed. The Mercury-Venus conjunction means thinking and valuing are operatin..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 94,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 94,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury and Venus are meeting at the same degree between these charts today. One person's thinking and the other person's aesthetic sense are fused right now. The current sky is opening a window where articulation and beauty aren't separ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 99,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury opposes Venus across 180 degrees, maximum distance between articulation and aesthetic value. What you can think clearly about and what you find beautiful are at opposite poles during this 2-3 day period. Your mind and your sense ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 111,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—Mercury is thinking legitimately and Venus is valuing legitimately, but they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 111,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury forms a square to Venus, 90 degrees of sustained friction between thinking and valuing. What you can articulate clearly and what you find aesthetically appealing are cutting across each other during this 2-3 day period. Your mind..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 118,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury forms a trine to Venus, 120 degrees in the same elemental family. What you think and what you value are drawing from the same source during this 2-3 day window. Your mind and your aesthetic sense recognize each other as kin. Merc..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 126,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Sun and Mercury are flowing together between these charts today with natural ease. One person's identity and the other person's thinking are drawing from the same elemental source right now. The current sky is amplifying how easily o..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 131,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Sun and Mercury are at opposite poles between these charts today. One person's identity and the other person's thinking are at maximum distance from each other right now. The current sky is making visible the gap between authentic se..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 136,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t competing—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 136,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Mercury are meeting at the same degree between these charts today. One person's expansion impulse and the other person's thinking are fused right now. The current sky is opening a window where big vision and articulate precis..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 141,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—both the expansion and the precision are legitimate. There"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 141,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Mercury are at friction point between these charts today. One person's expansion impulse and the other person's articulate precision are cutting across each other with more geometric force than usual right now. The current sk..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 155,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate during this 6-8 hour window. They occupy the same space. Your lunar body and your Venus function are fused—what feels safe and what feels beautiful are the same thing right now. When you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 155,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon, emotional need and instinctive response, meets Venus, aesthetic value and relational attunement, at the same degree. What you need emotionally and what you find beautiful aren't separate during this 6-8 hour window. They occupy..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 156,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Reaching out and caring are the same gesture during this window. When you express affection, it's genuinely serving your own emotional need rather than performing connection. The Moon-Venus conjunction means self-care and other-care aren..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 157,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon and Venus are meeting at the same degree between these charts today. One person's emotional need and the other person's sense of beauty are fused right now. The current sky is opening a window where comfort and aesthetic appeal ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 162,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon opposes Venus across 180 degrees, maximum distance between emotional need and aesthetic value. What your body needs for safety and what you find relationally beautiful are at opposite poles during this 6-8 hour period. Your luna..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 168,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—the Moon is needing legitimately and Venus is valuing legitimately, but they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 168,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a square to Venus, 90 degrees of sustained friction between emotional need and relational attunement. What your body needs for safety and what creates aesthetic harmony are cutting across each other during this 6-8 hour pe..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 175,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a trine to Venus, 120 degrees in the same elemental family. What you need emotionally and what you find beautiful are drawing from the same source during this 6-8 hour window. Your lunar instinct and your Venus function re..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 176,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t in competition—they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 176,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Self-care and relational beauty support each other naturally during this window. What your Moon needs and what Venus values aren't in competition—they're compatible. Use this for moments that benefit from emotional honesty delivered with..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 182,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate during this 6-8 hour window. Your emotional body and your Mars function are fused—when you feel something, you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 182,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon, emotional instinct and reactive need, meets Mars, drive and physical force, at the same degree. What you feel and what you pursue aren't separate during this 6-8 hour window. Your emotional body and your Mars function are fused..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 183,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "What you want and what you feel are the same impulse during this window. When emotion arises, Mars is already engaged—anger becomes action, desire becomes pursuit, fear becomes withdrawal without the gap that allows choice. The Moon-Mars..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 184,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon and Mars are meeting at the same degree between these charts today. One person's emotional instinct and the other person's drive are fused right now. The current sky is opening a window where feeling and action aren't separate—w..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 189,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "re pursuing actively are at opposite poles during this 6-8 hour period. Your lunar instinct and your Mars function are pulling in different directions—when you feel emotionally secure, you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 189,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon opposes Mars across 180 degrees, maximum distance between emotional need and drive. What your body needs for safety and what you're pursuing actively are at opposite poles during this 6-8 hour period. Your lunar instinct and you..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 195,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a square to Mars, 90 degrees of sustained friction between emotional reaction and physical drive. What your body needs for safety and what you're actively pursuing are cutting across each other during this 6-8 hour period...."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 202,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a trine to Mars, 120 degrees in the same elemental family. What you feel emotionally and what you pursue physically are drawing from the same source during this 6-8 hour window. Your lunar instinct and your Mars function r..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 203,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t in competition—when the Moon is engaged, Mars knows what to do with that engagement. Use this for pursuits that need both emotional commitment and physical follow-through, confrontations where feeling fuels appropriate force rather tha..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 203,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Emotional honesty and decisive action support each other naturally during this window. What you feel and what you pursue aren't in competition—when the Moon is engaged, Mars knows what to do with that engagement. Use this for pursuits th..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 210,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon, emotional instinct and the body's immediate responses, forms a sextile to the Sun, conscious identity and the principle of deliberate self-expression, creating a 6-8 hour window of productive cooperation. Your lunar reactions a..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 211,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Reaching out feels emotionally coherent during this window rather than forced. Your Moon isn't pulling you back into safety while your Sun tries to occupy space. The sextile means emotional safety and public visibility are compatible rat..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 216,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a square to the Sun, 90 degrees of sustained friction between emotional instinct and conscious identity. What your body needs for safety and what you're trying to express publicly are cutting across each other during this ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 222,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s deliberate visibility are operating in natural harmony—when you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 222,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon forms a trine to the Sun, 120 degrees in the same elemental family. Your emotional instinct and your conscious identity are drawing from the same source during this 6-8 hour window. What your body needs emotionally and what you'..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 223,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t in competition—when your Sun is visible, your Moon doesn"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 223,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Showing up feels emotionally coherent during this window. What you express publicly and what you actually need aren't in competition—when your Sun is visible, your Moon doesn't undermine it; when your Moon needs something, your Sun can s..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 228,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "re trying to express publicly are at opposite poles during this 6-8 hour period. Your lunar instinct and your solar aims are pulling in different directions—when you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 228,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon opposes the Sun across 180 degrees, maximum distance between emotional need and conscious identity. What your body needs for safety and what you're trying to express publicly are at opposite poles during this 6-8 hour period. Yo..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 234,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Moon, emotional instinct and reactive need, meets the Sun, conscious identity and deliberate expression, at the same degree. This is the New Moon of your personal lunar cycle. What you feel and who you are occupy the same space durin..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 240,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mars, drive and physical force, forms a sextile to the Sun, conscious identity and deliberate self-expression, creating a 3-5 day window of productive cooperation. Your drive and your sense of self are operating in compatible modes. What..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 241,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s identity are compatible—when you act, it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 241,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pursuing what you want feels aligned with who you are during this window rather than forcing you to perform someone else's version of success. Mars's drive and the Sun's identity are compatible—when you act, it's in service of your actua..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 246,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mars forms a square to the Sun, 90 degrees of sustained friction between drive and identity. What you're actively pursuing and who you actually are cut across each other during this 3-5 day period. Mars's force and the Sun's conscious ai..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 252,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s conscious expression are operating in natural harmony—when you act, it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 252,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mars forms a trine to the Sun, 120 degrees in the same elemental family. Your drive and your identity are drawing from the same source during this 3-5 day window. What you're pursuing and who you are recognize each other as kin. Mars's p..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 253,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pursuing goals feels aligned with your genuine identity during this window. What you're fighting for and who you actually are aren't in competition—Mars's drive serves the Sun's authentic expression naturally. Use this for pursuits that ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 258,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus, aesthetic value and relational attunement, forms a sextile to the Sun, conscious identity and self-expression, creating a 3-5 day window of productive cooperation. Your sense of beauty and your sense of self are operating in compa..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 259,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t competing—when you show up as yourself, it can include beauty; when you create relational grace, it doesn"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 259,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Being yourself and being graceful feel compatible during this window rather than opposed. Venus's aesthetic sense and the Sun's authentic expression aren't competing—when you show up as yourself, it can include beauty; when you create re..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 264,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—Venus is valuing legitimately and the Sun is expressing legitimately, but they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 264,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus forms a square to the Sun, 90 degrees of sustained friction between aesthetic value and identity. What you find beautiful and who you actually are cut across each other during this 3-5 day period. Venus's sense of grace and the Sun..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 270,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus opposes the Sun across 180 degrees, maximum distance between aesthetic value and conscious identity. What you find beautiful and who you actually are sit at opposite poles during this 3-5 day period. Venus's sense of grace and the ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 276,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus, aesthetic value and relational attunement, meets Mars, drive and physical force, at the same degree. What you find beautiful and what you pursue actively occupy the same space during this 3-5 day window. Your sense of grace and yo..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 278,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 278,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mars and Venus are meeting at the same degree between these charts today. One person's drive and the other person's aesthetic sense are fused right now. The current sky is opening a window where action and beauty aren't separate—when one..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 283,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s physical force are pulling in different directions—when you"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 283,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus opposes Mars across 180 degrees, maximum distance between aesthetic value and drive. What you find beautiful and what you're actively pursuing are at opposite poles during this 3-5 day period. Venus's sense of grace and Mars's phys..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 290,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Creating beauty and taking action feel compatible during this window rather than opposed. Venus's aesthetics and Mars's drive aren't competing—when you value something, Mars can pursue it without the force demolishing the grace; when Mar..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 295,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Venus forms a square to Mars, 90 degrees of sustained friction between aesthetic value and drive. What you find beautiful and what you're actively pursuing cut across each other during this 3-5 day period. Venus's sense of grace and Mars..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 307,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch1-tier1-feed.ts",
+      "line": 307,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "The Sun and Venus are meeting at the same degree between these charts today. One person's identity and the other person's aesthetic sense are fused right now. The current sky is opening a window where authentic self-expression and relati..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 106,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Venus meets your natal Sun at the same degree, fusing your conscious identity with beauty, love, and relational value during this 2-3 day window. Who you are and what you find beautiful arrive at the same frequency—your sense ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 113,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s also the limit—the trine won"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 113,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Self-expression feels aesthetically right during this window without needing to manufacture it. What you create and who you are feel like the same thing. Relationships benefit from having your identity and your warmth available simultane..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 118,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Venus forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between your sense of purpose and relational grace. Your sense of beauty and your sense of self are operating in compatible modes. Wh..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 119,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t competing—when you show up as yourself, it can include beauty; when you create relational grace, it doesn"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 119,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Being yourself and being graceful feel compatible during this window rather than opposed. Venus's aesthetic sense and the Sun's authentic expression aren't competing—when you show up as yourself, it can include beauty; when you create re..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 124,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—both planets are legitimate—but they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 124,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Venus forms a square to your natal Sun, 90 degrees of sustained friction between aesthetic value and identity during this 2-3 day period. What you find beautiful and who you actually are cut across each other. Venus's sense of..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 130,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Venus opposes your natal Sun across 180 degrees, maximum distance between aesthetic value and conscious identity during this 2-3 day period. What you find beautiful and who you actually are sit at opposite poles. Venus's sense..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 148,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Mars forms a square to your natal Sun, 90 degrees of sustained friction between drive and identity during this 2-3 day period. What you're actively pursuing and who you actually are cut across each other. Mars's force and the ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 154,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s conscious expression are operating in natural harmony—when you act, it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 154,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Mars forms a trine to your natal Sun, 120 degrees in the same elemental family during this 2-3 day window. Your drive and your identity are drawing from the same source. What you're pursuing and who you are recognize each othe..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 155,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pursuing goals feels aligned with your genuine identity during this window. What you're fighting for and who you actually are aren't in competition—Mars's drive serves the Sun's authentic expression naturally. Use this for pursuits that ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 160,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Mars forms a sextile to your natal Sun, opening a 2-3 day channel of productive cooperation between drive and deliberate self-expression. Your drive and your sense of self are operating in compatible modes. What you want to pu..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 161,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "s identity are compatible—when you act, it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 161,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pursuing what you want feels aligned with who you are during this window rather than forcing you to perform someone else's version of success. Mars's drive and the Sun's identity are compatible—when you act, it's in service of your actua..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 185,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t failure—it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 185,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Mercury are at opposite poles between these charts today. One person's expansion impulse and the other person's articulate precision are at maximum distance from each other right now. The current sky is making visible the gap..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 190,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when one person"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 190,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Mercury are meeting at the same degree between these charts today. One person's structural requirement and the other person's thinking are fused right now. The current sky is opening a window where discipline and articulation ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 200,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Mercury are at friction point between these charts today. One person's structural requirement and the other person's thinking are cutting across each other with more geometric force than usual right now. The current sky is mak..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 210,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t pathological—it"
+    },
+    {
+      "file": "vnext/scripts/apply-batch3-complete.ts",
+      "line": 210,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Mercury are at opposite poles between these charts today. One person's structural requirement and the other person's thinking are at maximum distance from each other right now. The current sky is making visible the gap between..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 96,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—they"
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 96,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Sun meets your natal Mercury at the same degree, fusing identity and communication. What you need to express and who you are occupy the same space during this 1-2 day period. Your sense of self and your articulation principle ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 97,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Speaking and being feel unified during this window. What you're saying and who you are aren't separate—the Sun's identity includes your Mercury's articulation naturally. Use this for conversations that require personal authority, communi..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 101,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Sun opposes your natal Mercury across 180 degrees, maximum distance between identity and communication. What you need to be and what you need to express are pulling in opposite directions during this 1-2 day period. Your sense..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 112,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Speaking feels aligned with being during this window. What you're expressing and who you are aren't in competition—the Sun's identity includes your Mercury's articulation naturally. Use this for communications that need both personal aut..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch4-tier2-feed.ts",
+      "line": 116,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Sun forms a sextile to your natal Mercury, 60 degrees of productive cooperation. Identity and communication are operating in compatible modes during this 1-2 day period. Your sense of self and your articulation principle have ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 15,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Uranus meets natal Mercury at the same degree between these charts today. One person's disruptive clarity and the other person's articulation are fused right now. The current sky is opening a window where innovation and commun..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 17,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Uranus is at friction point with natal Mercury between these charts today. One person's disruptive clarity and the other person's need for coherent expression are cutting across each other. The current sky is making visible th..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 20,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Neptune meets natal Mercury at the same degree between these charts today. One person's transcendent vision and the other person's articulation are fused right now. The current sky is opening a window where mysticism and commu..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 22,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Neptune is at friction point with natal Mercury between these charts today. One person's transcendent vision and the other person's need for coherent expression are cutting across each other. The current sky is making visible ..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 25,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "t separate—when Pluto demands truth beneath the surface, Mercury articulates what"
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 25,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Pluto meets natal Mercury at the same degree between these charts today. One person's transformative intensity and the other person's articulation are fused right now. The current sky is opening a window where depth and commun..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 27,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Pluto is at friction point with natal Mercury between these charts today. One person's transformative intensity and the other person's need for coherent expression are cutting across each other. The current sky is making visib..."
+    },
+    {
+      "file": "vnext/scripts/apply-batch6-mercury-feed.ts",
+      "line": 35,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Transiting Mercury meets natal Mercury at the same degree between these charts today. Two articulation styles, two ways of processing information, are occupying the same space right now. The current sky is opening a window where both peo..."
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 101,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 101,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "–"
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 105,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 105,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "–"
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 109,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explain-factor-map-shape-test.ts",
+      "line": 109,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "–"
+    },
+    {
+      "file": "vnext/scripts/explain-spec-shape-test.ts",
+      "line": 90,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explain-spec-shape-test.ts",
+      "line": 90,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "–"
+    },
+    {
+      "file": "vnext/scripts/explainer-alignment-report.ts",
+      "line": 64,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explainer-alignment-report.ts",
+      "line": 65,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explainer-alignment-report.ts",
+      "line": 66,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/explainer-alignment-report.ts",
+      "line": 67,
+      "dashType": "em dash",
+      "category": "API response",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 36,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Ceres and Sun span the identity–nurture axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 38,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Ceres and Moon pull from opposite ends of the tending–feeling spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 40,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Ceres and Venus sit at opposing ends of the care–beauty axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 42,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Ceres opposes Mars across these charts today—nurture and drive on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 44,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Chiron and Sun span the identity–wound axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Chiron and Moon pull from opposite ends of the safety–healing spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 48,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Chiron and Venus sit at opposing ends of the wound–grace axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 50,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Chiron opposes Mars across these charts today—healing and force on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 52,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Juno and Sun span the identity–partnership axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 54,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Juno and Moon pull from opposite ends of the bond–need spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 56,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Juno and Venus sit at opposing ends of the commitment–pleasure axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 58,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Juno opposes Mars across these charts today—contract and impulse on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 60,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pallas and Sun span the identity–strategy axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 62,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pallas and Moon pull from opposite ends of the pattern–feeling spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 64,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pallas and Venus sit at opposing ends of the wisdom–harmony axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 66,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pallas opposes Mars across these charts today—strategy and action on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 68,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Vesta and Sun span the identity–devotion axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Vesta and Moon pull from opposite ends of the sanctuary–need spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 72,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Vesta and Venus sit at opposing ends of the sacred–pleasure axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 74,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Vesta opposes Mars across these charts today—focus and drive on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 79,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Juno and Venus draw from the same commitment–beauty current between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 276,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-asteroid-feed-7e.ts",
+      "line": 333,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "# ${label} — surgical feed edits"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 42,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Sun span the identity–horizon axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 44,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Moon pull from opposite ends of the nourishment–expansion spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Venus sit at opposing ends of the abundance–beauty axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 48,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter opposes Mars across these charts today—vision and impulse on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 50,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Jupiter occupy opposite ends of the meaning–scale axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 52,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Jupiter face opposite demands between these charts today—structure versus growth"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 56,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Jupiter span the dissolve–expand polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 58,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Jupiter stand on opposite sides of the depth–abundance divide between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 76,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Venus draw from the same abundance–beauty current between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 86,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Sun span the identity–structure axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 88,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Moon pull from opposite ends of the duty–need spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 90,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Venus sit at opposing ends of the commitment–pleasure axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 92,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn opposes Mars across these charts today—restraint and impulse on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 94,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Saturn occupy opposite ends of the obligation–freedom axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 98,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Saturn span the dissolve–form polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 100,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Saturn stand on opposite sides of the depth–boundary divide between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 279,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "than on an ordinary day. This makes visible the structural gap between $1 in this connection—"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 325,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 343,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-jupiter-saturn-feed-7c.ts",
+      "line": 406,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "# ${label} — surgical feed edits"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 31,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Sun and Mercury span the identity–mind axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 35,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury and Venus sit at opposite ends of the clarity–grace axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 37,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Mercury opposes Mars across these charts today—thought and action on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 41,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Saturn and Mercury stand at opposing ends of the discipline–fluency axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 43,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Jupiter and Mercury occupy opposite ends of the vision–precision spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 47,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Mercury occupy opposing ends of the meaning–language axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 49,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Mercury face each other across the depth–clarity divide between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 255,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "than on an ordinary day. This makes visible the structural gap between articulation and action in this connection—"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 290,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 308,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-mercury-feed-7b.ts",
+      "line": 362,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "# mercury.ts — surgical feed edits (50 entries)"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 34,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Sun span the identity–awakening axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 36,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Moon pull from opposite ends of the security–liberation spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 38,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Venus sit at opposing ends of the freedom–harmony axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 40,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus opposes Mars across these charts today—disruption and drive on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 42,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Uranus occupy opposite ends of the pattern–break axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 44,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Neptune span the shock–dissolve polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 46,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Pluto stand on opposite sides of the rupture–depth divide between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 51,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Sun span the identity–mystery axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 53,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Moon pull from opposite ends of the feeling–dissolution spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 55,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Venus sit at opposing ends of the beauty–boundary axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 57,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune opposes Mars across these charts today—dream and force on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 59,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Neptune occupy opposite ends of the veil–clarity axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 61,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Uranus span the dissolve–awaken polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 63,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Neptune and Pluto stand on opposite sides of the fog–power divide between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 68,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Sun span the identity–power axis at full polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 70,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Moon pull from opposite ends of the safety–exposure spectrum between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 72,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Venus sit at opposing ends of the love–intensity axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 74,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto opposes Mars across these charts today—depth and drive on opposite ends of the field."
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 76,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Pluto occupy opposite ends of the control–surrender axis between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 80,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Neptune span the power–dissolve polarity between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 85,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Pluto and Venus draw from the same love–depth current between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 90,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "Uranus and Pluto draw from the same revolution–depth current between these charts today"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 282,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "than on an ordinary day. This makes visible the structural gap between $1 in this connection—"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 347,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-outer-planets-feed-7d.ts",
+      "line": 404,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "# ${label} — surgical feed edits"
+    },
+    {
+      "file": "vnext/scripts/surgical-personal-feed-7a.ts",
+      "line": 141,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "—"
+    },
+    {
+      "file": "vnext/scripts/surgical-personal-feed-7a.ts",
+      "line": 146,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "${opener}—intent and feeling share one pitch in this connection."
+    },
+    {
+      "file": "vnext/scripts/surgical-personal-feed-7a.ts",
+      "line": 207,
+      "dashType": "em dash",
+      "category": "content template",
+      "string": "# personal.ts — surgical feed edits (50 entries)"
+    }
+  ]
+}

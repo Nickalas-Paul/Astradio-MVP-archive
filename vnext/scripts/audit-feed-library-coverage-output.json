@@ -1,0 +1,71 @@
+{
+  "sourceEntryCount": 390,
+  "indexedEntryCount": 390,
+  "gridTotal": 450,
+  "gridHasEntry": 450,
+  "gridMissingCount": 0,
+  "gridCoveragePct": 100,
+  "fieldAudit": {
+    "feed": {
+      "populated": 390,
+      "byClass": {
+        "transit_relational": 389,
+        "transit_personal": 1
+      }
+    },
+    "core_transit": {
+      "populated": 260,
+      "transitPersonal": 248
+    },
+    "behavioral_transit": {
+      "populated": 260,
+      "transitPersonal": 184
+    },
+    "both_transit_fields": 260
+  },
+  "tierMissingEntries": {
+    "tier1": 0,
+    "tier2": 0,
+    "tier3": 0,
+    "tier4": 0
+  },
+  "tierNeedsContentOnExisting": {
+    "tier1": 0,
+    "tier2": 0,
+    "tier3": 0,
+    "tier4": 0
+  },
+  "topPairGaps": [],
+  "sampleEntries": {
+    "feed_transit_relational": [
+      {
+        "key": "CERES_SUN_CONJUNCTION",
+        "feed": "The current sky is moving through the place where this person's sense of who they are is organized around caring and nurturing. There is something about purpose and care in this connection today worth"
+      },
+      {
+        "key": "CERES_SUN_SEXTILE",
+        "feed": "The current sky is opening easy access between how this person expresses themselves and how they care. There is useful balance available in this connection today between tending and being."
+      },
+      {
+        "key": "CERES_SUN_SQUARE",
+        "feed": "A transit is pressing on the friction between how this person expresses their purpose and what they are called to care for. Something in this connection today is activating the tension between selfhoo"
+      }
+    ],
+    "feed_natal_only": [],
+    "core_transit_samples": [
+      {
+        "key": "JUPITER_SUN_CONJUNCTION",
+        "core_transit": "Transiting Jupiter meets your natal Sun at conjunction, activating a 1-2 week window of maximum expansion where the principle of growth, opportunity, and amplified confidence lands directly on your se"
+      },
+      {
+        "key": "JUPITER_SUN_SEXTILE",
+        "core_transit": "Transiting Jupiter forms a sextile to your natal Sun, opening a 1-2 week channel of easy cooperation between your sense of purpose and the arrival of genuine opportunity. The sixty-degree geometry mea"
+      },
+      {
+        "key": "JUPITER_SUN_SQUARE",
+        "core_transit": "Transiting Jupiter forms a square to your natal Sun, activating a 1-2 week window of genuine friction between your desire for expansion and what your actual capacity can sustain. The ninety-degree geo"
+      }
+    ],
+    "no_core_transit_tier1": []
+  }
+}

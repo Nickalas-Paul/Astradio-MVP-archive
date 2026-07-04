@@ -30,7 +30,8 @@ async function main(): Promise<void> {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const pgStore = require('../../../lib/pg-store');
+  // Path from compiled dist/vnext/vnext/scripts/ -> repo root lib
+  const pgStore = require('../../../../lib/pg-store');
   setStorage(pgStore);
 
   const batchLimit = Number(process.env.BACKFILL_REVERSE_BATCH_LIMIT || 500);
