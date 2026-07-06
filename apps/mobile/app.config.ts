@@ -32,7 +32,13 @@ const config = {
   web: {
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-audio', 'expo-router', 'expo-font', 'expo-secure-store'],
+  plugins: ['expo-audio', 'expo-router', 'expo-font', 'expo-secure-store', 'expo-updates'],
+  updates: {
+    url: 'https://u.expo.dev/649114e2-8e54-4027-9b10-a63c9c4479e8',
+  },
+  runtimeVersion: {
+    policy: 'appVersion' as const,
+  },
   experiments: {
     typedRoutes: true,
   },
