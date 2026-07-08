@@ -114,6 +114,14 @@ export default function TermsPage() {
           <Link href="/today" className="text-accent hover:underline">
             Today
           </Link>
+          {' · '}
+          <Link href="/privacy" className="text-accent hover:underline">
+            Privacy Policy
+          </Link>
+          {' · '}
+          <Link href="/terms" className="text-accent hover:underline">
+            Terms of Service
+          </Link>
         </p>
       </article>
     </AppShell>

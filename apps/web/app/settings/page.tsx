@@ -366,6 +366,13 @@ export default function SettingsPage() {
                 Privacy Policy
               </Link>
             </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Terms</h3>
+              <Link href="/terms" className="text-sm text-accent hover:underline">
+                Terms of Service
+              </Link>
+            </div>
           </div>
           </Card>
         </motion.div>

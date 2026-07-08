@@ -275,9 +275,15 @@ export default function MySkyScreen() {
           </>
         ) : null}
 
-        <Pressable onPress={() => router.push('/privacy')} style={styles.privacyLink}>
-          <Text style={styles.privacyLinkText}>Privacy Policy</Text>
-        </Pressable>
+        <View style={styles.legalLinks}>
+          <Pressable onPress={() => router.push('/privacy')} style={styles.legalLink}>
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={styles.legalLinkSeparator}>·</Text>
+          <Pressable onPress={() => router.push('/terms')} style={styles.legalLink}>
+            <Text style={styles.legalLinkText}>Terms of Service</Text>
+          </Pressable>
+        </View>
         <Pressable onPress={() => void handleSignOut()} style={styles.signOutButton}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
@@ -427,16 +433,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Manrope-Medium',
   },
-  privacyLink: {
-    minHeight: 44,
+  legalLinks: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
+    gap: 8,
   },
-  privacyLinkText: {
+  legalLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legalLinkText: {
     color: colors.accent.DEFAULT,
     fontSize: 14,
     fontFamily: 'Manrope-Medium',
+  },
+  legalLinkSeparator: {
+    color: colors.text.muted,
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
   },
   signOutButton: {
     minHeight: 48,
