@@ -2027,6 +2027,33 @@ app.post("/api/compose", vnextCompose);
 const exportsSubdir = path.join(EXPORT_ROOT, 'exports');
 try { fs.mkdirSync(exportsSubdir, { recursive: true }); } catch (_) {}
 
+/** Resolve extension + Content-Type for GET/HEAD /api/exports/:id (WAV default; MP4 via DB, query, or Accept). */
+async function resolveExportStreamOptions(id, req) {
+  const formatParam = String(req.query?.format || '').trim().toLowerCase();
+  if (formatParam === 'mp4' || formatParam === 'video') {
+    return { extension: '.mp4', contentType: 'video/mp4' };
+  }
+
+  const accept = String(req.headers?.accept || '').toLowerCase();
+  if (accept.includes('video/mp4') && !accept.includes('audio/wav') && !accept.includes('audio/*')) {
+    return { extension: '.mp4', contentType: 'video/mp4' };
+  }
+
+  if (process.env.POSTGRES_URL) {
+    try {
+      const pgStore = optionalRequire(path.join(__dirname, '..', 'lib', 'pg-store'));
+      if (pgStore && typeof pgStore.getExportJob === 'function') {
+        const job = await pgStore.getExportJob(id);
+        if (job && job.contentType === 'video/mp4') {
+          return { extension: '.mp4', contentType: 'video/mp4' };
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { extension: '.wav', contentType: 'audio/wav' };
+}
+
 app.post('/api/exports', requireBeta, async (req, res) => {
   try {
     const body = req.body || {};
@@ -2075,7 +2102,8 @@ app.head('/api/exports/:id', async (req, res) => {
     if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).end();
     const existsFn = exportStore && typeof exportStore.exists === 'function' ? exportStore.exists.bind(exportStore) : null;
     if (!existsFn) return res.status(501).end();
-    const ok = await existsFn(id);
+    const streamOpts = await resolveExportStreamOptions(id, req);
+    const ok = await existsFn(id, streamOpts.extension);
     if (!ok) return res.status(404).end();
     return res.status(204).end();
   } catch (e) {
@@ -2088,7 +2116,8 @@ app.get('/api/exports/:id', async (req, res) => {
     if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).json({ error: 'invalid_id', message: 'Export id must be 64 hex characters' });
     // Stream from export store first. Compose writes WAV here; DB job (createExportJob) is only created
     // by POST /api/exports, so requiring getExportJob would 404 for compose-origin exports after refresh.
-    const streamed = await exportStore.stream(id, res);
+    const streamOpts = await resolveExportStreamOptions(id, req);
+    const streamed = await exportStore.stream(id, res, streamOpts);
     if (!streamed) return res.status(404).json({ error: 'not_found', message: 'Export not found' });
   } catch (e) {
     if (!res.headersSent) res.status(500).json({ error: 'export_stream_failed', message: e.message });

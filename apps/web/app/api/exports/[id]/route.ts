@@ -1,3 +1,9 @@
+// NOTE: This proxy buffers the full response body (arrayBuffer()).
+// Vercel serverless functions have a 4.5 MB response limit.
+// Video exports (MP4, typically 5-15 MB) must be served directly
+// from the engine URL, not through this proxy.
+// See: video pipeline delivery strategy (direct Render URL for video).
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getEngineBaseUrl } from '@/lib/engine-base';
 import { engineProxyHeaders, engineProxySessionHeaders } from '@/lib/engine-proxy-headers';
