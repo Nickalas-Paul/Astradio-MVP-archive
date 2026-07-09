@@ -24,14 +24,12 @@ export interface VideoEncodeResult {
 }
 
 const DEFAULT_OPTIONS: Required<VideoEncodeOptions> = {
-  width: 1080,
-  height: 1920,
-  fps: 30,
+  width: 720,
+  height: 1280,
+  fps: 24,
   durationSeconds: 30,
   crf: 23,
 };
-
-const FRAME_BATCH_SIZE = 50;
 
 function resolveOptions(options?: Partial<VideoEncodeOptions>): Required<VideoEncodeOptions> {
   return { ...DEFAULT_OPTIONS, ...options };
@@ -64,14 +62,7 @@ function runFfmpeg(args: string[]): Promise<void> {
 
 /**
  * Generates a complete MP4 video from a chart snapshot and audio.
- *
- * Pipeline:
- *   1. Generate SVG frames via frame-generator
- *   2. Convert each SVG to PNG via sharp
- *   3. Write PNGs to temp directory
- *   4. Write WAV to temp file
- *   5. Run ffmpeg-static to composite PNG sequence + WAV → MP4
- *   6. Read MP4 into buffer, clean up temp files, return
+ * Processes one frame at a time to stay within low-memory environments.
  */
 export async function encodeVideo(
   snapshot: EphemerisSnapshot,
@@ -94,47 +85,25 @@ export async function encodeVideo(
   );
 
   try {
-    const svgPhaseStart = Date.now();
-    for (let batchStart = 0; batchStart < totalFrames; batchStart += FRAME_BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + FRAME_BATCH_SIZE, totalFrames);
-      await Promise.all(
-        Array.from({ length: batchEnd - batchStart }, (_, offset) => {
-          const i = batchStart + offset;
-          return (async () => {
-            const { svg } = generateFrame(snapshot, i, frameOpts);
-            const filename = `frame_${String(i + 1).padStart(4, '0')}.svg`;
-            await fs.promises.writeFile(path.join(tempDir, filename), svg, 'utf8');
-          })();
-        }),
-      );
+    const framePhaseStart = Date.now();
+    for (let i = 0; i < totalFrames; i++) {
+      const frameNumber = i + 1;
+      const framePath = path.join(tempDir, `frame_${String(frameNumber).padStart(4, '0')}.png`);
 
-      if (batchEnd % 100 === 0 || batchEnd === totalFrames) {
-        console.log(`[VIDEO_ENCODE] Frame generation: ${batchEnd}/${totalFrames}...`);
+      let svg: string | null = generateFrame(snapshot, i, frameOpts).svg;
+      let png: Buffer | null = await svgToPng(svg, opts.width, opts.height);
+      await fs.promises.writeFile(framePath, png);
+      svg = null;
+      png = null;
+
+      if (i % 100 === 0 || i === totalFrames - 1) {
+        console.log(`[VIDEO_ENCODE] Frame ${i + 1}/${totalFrames}`);
       }
     }
-    const svgPhaseMs = Date.now() - svgPhaseStart;
+    const framePhaseMs = Date.now() - framePhaseStart;
     console.log(
-      `[VIDEO_ENCODE] Frame generation complete: ${totalFrames} frames in ${(svgPhaseMs / 1000).toFixed(1)}s`,
+      `[VIDEO_ENCODE] Frame generation complete: ${totalFrames} frames in ${(framePhaseMs / 1000).toFixed(1)}s`,
     );
-
-    const pngPhaseStart = Date.now();
-    for (let batchStart = 0; batchStart < totalFrames; batchStart += FRAME_BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + FRAME_BATCH_SIZE, totalFrames);
-      await Promise.all(
-        Array.from({ length: batchEnd - batchStart }, (_, offset) => {
-          const i = batchStart + offset;
-          return (async () => {
-            const stem = `frame_${String(i + 1).padStart(4, '0')}`;
-            const svg = await fs.promises.readFile(path.join(tempDir, `${stem}.svg`), 'utf8');
-            const png = await svgToPng(svg, opts.width, opts.height);
-            await fs.promises.writeFile(path.join(tempDir, `${stem}.png`), png);
-            await fs.promises.unlink(path.join(tempDir, `${stem}.svg`));
-          })();
-        }),
-      );
-    }
-    const pngPhaseMs = Date.now() - pngPhaseStart;
-    console.log(`[VIDEO_ENCODE] SVG→PNG conversion complete in ${(pngPhaseMs / 1000).toFixed(1)}s`);
 
     const wavPath = path.join(tempDir, 'audio.wav');
     await fs.promises.writeFile(wavPath, wavBuffer);
@@ -142,6 +111,8 @@ export async function encodeVideo(
     const outputPath = path.join(tempDir, 'output.mp4');
     const ffmpegArgs = [
       '-y',
+      '-threads',
+      '1',
       '-framerate',
       String(opts.fps),
       '-i',

@@ -7,6 +7,7 @@ import { encodeVideo } from '../render/video-encoder';
 import { exportFormatOptions } from '../render/export-formats';
 import { generateSilentWav } from '../render/silent-wav';
 import { computeVideoExportKey } from '../render/video-export-key';
+import { triggerVideoEncodeJob } from './trigger-video-job';
 import type { LyriaExportBundle } from './run-lyria-export-block';
 
 export type ComposeVideoMeta = {
@@ -204,8 +205,8 @@ export async function runComposeVideoBlock(params: {
       };
     }
 
-    console.log(`[COMPOSE_VIDEO] Queuing background encode: ${videoExportKey}`);
-    void encodeAndStoreVideo({
+    console.log(`[COMPOSE_VIDEO] Queuing encode job: ${videoExportKey}`);
+    const encodeParams: EncodeAndStoreParams = {
       request,
       snapshot,
       wavBundle,
@@ -214,12 +215,15 @@ export async function runComposeVideoBlock(params: {
       sessionUserId,
       payloadHash,
       durationSeconds,
-    }).catch((err) => {
-      console.error(
-        '[COMPOSE_VIDEO] Background failed:',
-        err instanceof Error ? err.message : err,
-      );
-    });
+    };
+    void triggerVideoEncodeJob(videoExportKey, snapshot, () => encodeAndStoreVideo(encodeParams)).catch(
+      (err) => {
+        console.error(
+          '[COMPOSE_VIDEO] Failed to trigger encode job:',
+          err instanceof Error ? err.message : err,
+        );
+      },
+    );
 
     return {
       video_export_id: videoExportKey,
