@@ -10,6 +10,24 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 
+function copyDirRecursive(srcDir, dstDir) {
+  if (!fs.existsSync(srcDir)) {
+    console.error(`[copy-vnext-assets] Source directory missing: ${srcDir}`);
+    process.exit(1);
+  }
+  fs.mkdirSync(dstDir, { recursive: true });
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const srcPath = path.join(srcDir, entry.name);
+    const dstPath = path.join(dstDir, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, dstPath);
+    } else {
+      fs.copyFileSync(srcPath, dstPath);
+      console.log(`[copy-vnext-assets] Copied ${path.relative(ROOT, srcPath)} -> ${path.relative(ROOT, dstPath)}`);
+    }
+  }
+}
+
 const ASSETS = [
   // Runtime loads from dist/vnext/vnext/ (server vnextRoot)
   { src: 'vnext/explainer/mapping-tables-v1.json', dst: 'dist/vnext/vnext/explainer/mapping-tables-v1.json' },
@@ -41,3 +59,9 @@ for (const { src, dst } of ASSETS) {
   fs.copyFileSync(srcPath, dstPath);
   console.log(`[copy-vnext-assets] Copied ${src} -> ${dst}`);
 }
+
+// Video pipeline fonts + logo (design-tokens.ts paths under dist/vnext/vnext/assets/)
+copyDirRecursive(
+  path.join(ROOT, 'vnext/assets'),
+  path.join(ROOT, 'dist/vnext/vnext/assets'),
+);
