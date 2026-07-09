@@ -163,8 +163,10 @@ function corsOrigin(origin, cb) {
     .map(s => s.trim())
     .filter(Boolean);
   if (process.env.NODE_ENV !== 'production') list.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001');
+  // Production web app (direct browser video GET from Render exports)
+  list.push('https://astradio.io', 'https://www.astradio.io');
   if (/^https:\/\/[^/]+\.vercel\.app$/i.test(origin)) list.push(origin);
-  const allowed = list.length ? list : ['http://localhost:3000'];
+  const allowed = list.length ? [...new Set(list)] : ['http://localhost:3000'];
   if (!origin || allowed.includes(origin)) return cb(null, true);
   cb(null, false);
 }

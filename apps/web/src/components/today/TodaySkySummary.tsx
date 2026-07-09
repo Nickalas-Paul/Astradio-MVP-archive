@@ -12,6 +12,9 @@ import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
 import type { CanonicalLocation } from '@/types/location';
 import { useAudioPlayerStore } from '@/store';
+import { ExportVideoPlayer } from '@/components/video/ExportVideoPlayer';
+
+const videoEnabled = process.env.NEXT_PUBLIC_ENABLE_VIDEO === '1';
 
 type ExplanationSection = {
   sectionId?: string;
@@ -106,6 +109,19 @@ function exportIdFromComposePayload(payload: Record<string, unknown>): string | 
   return null;
 }
 
+function videoFromComposePayload(payload: Record<string, unknown>): {
+  exportId: string | null;
+  available: boolean;
+} {
+  const exportId =
+    typeof payload.video_export_id === 'string' &&
+    /^[a-f0-9]{64}$/.test(payload.video_export_id)
+      ? payload.video_export_id
+      : null;
+  const available = payload.video_export_available === true && exportId != null;
+  return { exportId, available };
+}
+
 function resolveSkyLocation(primaryChart: ProfilePrimaryChart | null): Promise<CanonicalLocation> {
   return new Promise((resolve) => {
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
@@ -168,6 +184,8 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   const [skyAudioLoading, setSkyAudioLoading] = useState(false);
   const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
   const [skyExportId, setSkyExportId] = useState<string | null>(null);
+  const [videoExportId, setVideoExportId] = useState<string | null>(null);
+  const [videoExportAvailable, setVideoExportAvailable] = useState(false);
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!composeContext) return;
@@ -187,6 +205,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           time: composeContext.timeStr,
           location: composeContext.location,
           generateAudio: true,
+          ...(videoEnabled ? { generateVideo: true, videoTier: 'standard' as const } : {}),
         }),
       });
       const payload = (await composeRes.json().catch(() => ({}))) as Record<string, unknown>;
@@ -200,6 +219,11 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
       if (!exportId) {
         setSkyAudioError('Could not compose sky audio');
         return;
+      }
+      const video = videoFromComposePayload(payload);
+      if (video.available && video.exportId) {
+        setVideoExportId(video.exportId);
+        setVideoExportAvailable(true);
       }
       setSkyExportId(exportId);
       playTrack({ exportId, label: "Today's Sky", source: 'sky' });
@@ -255,6 +279,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
             time: timeStr,
             location: loc,
             generateAudio: false,
+            ...(videoEnabled ? { generateVideo: true, videoTier: 'standard' as const } : {}),
           }),
         });
         const payload = (await composeRes.json().catch(() => ({}))) as Record<string, unknown>;
@@ -278,6 +303,12 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         if (!wheelSource) {
           wheelSource = payload.controlSurface ?? payload.controls ?? null;
           if (wheelSource) wheelSource = normalizeChartForWheel(wheelSource);
+        }
+
+        const video = videoFromComposePayload(payload);
+        if (video.available && video.exportId) {
+          setVideoExportId(video.exportId);
+          setVideoExportAvailable(true);
         }
 
         setComposeHash(hash);
@@ -313,6 +344,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   }
 
   const hasSkyContent = Boolean(explanationSections?.length || analysisText || chartData);
+  const showVideoPlayer = videoExportAvailable && videoExportId != null;
 
   return (
     <section aria-label="Right now in the sky">
@@ -329,7 +361,11 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           isLoading={isLoading}
         />
         <div className="min-w-0 md:sticky md:top-20">
-          <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
+          {showVideoPlayer ? (
+            <ExportVideoPlayer exportId={videoExportId} className="w-full mx-auto" />
+          ) : (
+            <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
+          )}
         </div>
       </div>
       {!isLoading && hasSkyContent ? (
