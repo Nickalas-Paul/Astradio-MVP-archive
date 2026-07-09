@@ -13,6 +13,7 @@ export type ComposeVideoMeta = {
   format: 'mp4';
   export_id?: string;
   export_error?: string;
+  status?: 'processing' | 'ready';
   duration_s?: number;
   size_bytes?: number;
   encode_time_ms?: number;
@@ -81,9 +82,84 @@ async function tryCreateExportJob(input: Record<string, unknown>): Promise<void>
   }
 }
 
+type EncodeAndStoreParams = {
+  request: ComposeRequest;
+  snapshot: EphemerisSnapshot;
+  wavBundle: LyriaExportBundle;
+  videoExportKey: string;
+  dailyExportSource: string | null;
+  sessionUserId: string;
+  payloadHash: string;
+  durationSeconds: number;
+};
+
+async function encodeAndStoreVideo(params: EncodeAndStoreParams): Promise<void> {
+  const {
+    request,
+    snapshot,
+    wavBundle,
+    videoExportKey,
+    dailyExportSource,
+    sessionUserId,
+    payloadHash,
+    durationSeconds,
+  } = params;
+
+  const videoFormat = exportFormatOptions('video');
+  const exportStore = getExportStore();
+
+  const videoStartTime = Date.now();
+  const wavForVideo = await resolveWavForVideo(wavBundle);
+  const videoResult = await encodeVideo(snapshot, wavForVideo, { durationSeconds });
+
+  const sha256 = createHash('sha256').update(videoResult.mp4Buffer).digest('hex');
+  const integrity = {
+    sha256,
+    size_bytes: videoResult.fileSizeBytes,
+    createdAt: new Date().toISOString(),
+    payload_hash: payloadHash,
+    media_type: 'video',
+    video_tier: request.videoTier || 'standard',
+    duration_s: videoResult.durationSeconds,
+  };
+
+  if (exportStore?.put) {
+    await exportStore.put(videoExportKey, videoResult.mp4Buffer, integrity, videoFormat);
+  }
+
+  const storageKey = exportStore?.storageKey
+    ? exportStore.storageKey(videoExportKey, videoFormat.extension)
+    : undefined;
+
+  await tryCreateExportJob({
+    id: videoExportKey,
+    requestId: videoExportKey,
+    userId: sessionUserId || null,
+    planHash: null,
+    chartHash: payloadHash,
+    filePath: storageKey || `video/${videoExportKey}.mp4`,
+    contentType: videoFormat.contentType,
+    sizeBytes: videoResult.fileSizeBytes,
+    storageKey: storageKey || undefined,
+    exportMeta: {
+      media_type: 'video',
+      video_tier: request.videoTier || 'standard',
+      source: dailyExportSource || 'video',
+      duration_s: videoResult.durationSeconds,
+      encode_time_ms: Date.now() - videoStartTime,
+      sha256,
+    },
+  });
+
+  const encodeTimeMs = Date.now() - videoStartTime;
+  console.log(
+    `[COMPOSE_VIDEO] OK: ${videoExportKey} (${(videoResult.fileSizeBytes / 1024 / 1024).toFixed(1)} MB) in ${encodeTimeMs}ms`,
+  );
+}
+
 /**
  * Optional MP4 export after audio compose. Skipped unless generateVideo + ENABLE_VIDEO_EXPORT.
- * Failures are non-fatal for the overall compose response.
+ * Encodes fire-and-forget when not cached; compose response returns immediately.
  */
 export async function runComposeVideoBlock(params: {
   request: ComposeRequest;
@@ -121,69 +197,36 @@ export async function runComposeVideoBlock(params: {
         video: {
           format: 'mp4',
           export_id: videoExportKey,
+          status: 'ready',
           duration_s: durationSeconds,
           size_bytes: sizeBytes,
         },
       };
     }
 
-    const videoStartTime = Date.now();
-    const wavForVideo = await resolveWavForVideo(wavBundle);
-    const videoResult = await encodeVideo(snapshot, wavForVideo, { durationSeconds });
-
-    const sha256 = createHash('sha256').update(videoResult.mp4Buffer).digest('hex');
-    const integrity = {
-      sha256,
-      size_bytes: videoResult.fileSizeBytes,
-      createdAt: new Date().toISOString(),
-      payload_hash: payloadHash,
-      media_type: 'video',
-      video_tier: request.videoTier || 'standard',
-      duration_s: videoResult.durationSeconds,
-    };
-
-    if (exportStore?.put) {
-      await exportStore.put(videoExportKey, videoResult.mp4Buffer, integrity, videoFormat);
-    }
-
-    const storageKey = exportStore?.storageKey
-      ? exportStore.storageKey(videoExportKey, videoFormat.extension)
-      : undefined;
-
-    await tryCreateExportJob({
-      id: videoExportKey,
-      requestId: videoExportKey,
-      userId: sessionUserId || null,
-      planHash: null,
-      chartHash: payloadHash,
-      filePath: storageKey || `video/${videoExportKey}.mp4`,
-      contentType: videoFormat.contentType,
-      sizeBytes: videoResult.fileSizeBytes,
-      storageKey: storageKey || undefined,
-      exportMeta: {
-        media_type: 'video',
-        video_tier: request.videoTier || 'standard',
-        source: dailyExportSource || 'video',
-        duration_s: videoResult.durationSeconds,
-        encode_time_ms: Date.now() - videoStartTime,
-        sha256,
-      },
+    console.log(`[COMPOSE_VIDEO] Queuing background encode: ${videoExportKey}`);
+    void encodeAndStoreVideo({
+      request,
+      snapshot,
+      wavBundle,
+      videoExportKey,
+      dailyExportSource,
+      sessionUserId,
+      payloadHash,
+      durationSeconds,
+    }).catch((err) => {
+      console.error(
+        '[COMPOSE_VIDEO] Background failed:',
+        err instanceof Error ? err.message : err,
+      );
     });
-
-    const encodeTimeMs = Date.now() - videoStartTime;
-    console.log(
-      `[COMPOSE_VIDEO] OK: ${videoExportKey} (${(videoResult.fileSizeBytes / 1024 / 1024).toFixed(1)} MB) in ${encodeTimeMs}ms`,
-    );
 
     return {
       video_export_id: videoExportKey,
-      video_export_available: true,
+      video_export_available: false,
       video: {
         format: 'mp4',
-        export_id: videoExportKey,
-        duration_s: videoResult.durationSeconds,
-        size_bytes: videoResult.fileSizeBytes,
-        encode_time_ms: encodeTimeMs,
+        status: 'processing',
       },
     };
   } catch (err) {

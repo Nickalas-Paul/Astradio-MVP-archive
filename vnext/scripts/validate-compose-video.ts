@@ -92,36 +92,39 @@ async function main(): Promise<void> {
   const hasAudioExport = Boolean(response.export_id);
   const hasVideoExportId = Boolean(response.video_export_id);
   const videoFormatOk = response.video?.format === 'mp4';
-  const storeOk =
-    hasVideoExportId && store?.exists
-      ? await store.exists(response.video_export_id!, '.mp4')
-      : false;
+  const composeReturnedFast = elapsedMs < 60_000;
 
   console.log('[validate-compose-video] elapsed_ms:', elapsedMs);
+  console.log('[validate-compose-video] compose returned quickly:', composeReturnedFast);
   console.log('[validate-compose-video] text present:', hasText);
   console.log('[validate-compose-video] audio export_id present:', hasAudioExport);
   console.log('[validate-compose-video] video_export_id:', response.video_export_id ?? '—');
   console.log('[validate-compose-video] video_export_available:', response.video_export_available);
   console.log('[validate-compose-video] video.format:', response.video?.format ?? '—');
-  console.log('[validate-compose-video] video.size_bytes:', response.video?.size_bytes ?? '—');
-  console.log('[validate-compose-video] video.encode_time_ms:', response.video?.encode_time_ms ?? '—');
-  console.log('[validate-compose-video] export store .mp4 exists:', storeOk);
+  console.log('[validate-compose-video] video.status:', (response.video as { status?: string })?.status ?? '—');
 
   if (response.video?.export_error) {
     console.error('[validate-compose-video] video.export_error:', response.video.export_error);
   }
 
-  const ok =
-    hasText &&
-    hasVideoExportId &&
-    response.video_export_available === true &&
-    videoFormatOk &&
-    storeOk &&
-    typeof response.video?.size_bytes === 'number' &&
-    response.video.size_bytes > 0;
-
-  if (!ok) {
+  if (!hasText || !hasVideoExportId || !videoFormatOk || !composeReturnedFast) {
     throw new Error('Compose video validation failed — see log above');
+  }
+
+  let storeOk = false;
+  if (hasVideoExportId && store?.exists) {
+    const pollStarted = Date.now();
+    while (Date.now() - pollStarted < 180_000) {
+      storeOk = await store.exists(response.video_export_id!, '.mp4');
+      if (storeOk) break;
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+
+  console.log('[validate-compose-video] export store .mp4 exists:', storeOk);
+
+  if (!storeOk) {
+    throw new Error('Compose video validation failed — background encode did not finish');
   }
 
   console.log('[validate-compose-video] OK');

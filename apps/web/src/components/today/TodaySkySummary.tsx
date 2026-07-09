@@ -109,17 +109,19 @@ function exportIdFromComposePayload(payload: Record<string, unknown>): string | 
   return null;
 }
 
-function videoFromComposePayload(payload: Record<string, unknown>): {
-  exportId: string | null;
-  available: boolean;
-} {
+function applyVideoFromComposePayload(
+  payload: Record<string, unknown>,
+  setVideoExportId: (id: string | null) => void,
+  setVideoExportAvailable: (available: boolean) => void,
+): void {
   const exportId =
     typeof payload.video_export_id === 'string' &&
     /^[a-f0-9]{64}$/.test(payload.video_export_id)
       ? payload.video_export_id
       : null;
-  const available = payload.video_export_available === true && exportId != null;
-  return { exportId, available };
+  if (!exportId) return;
+  setVideoExportId(exportId);
+  setVideoExportAvailable(payload.video_export_available === true);
 }
 
 function resolveSkyLocation(primaryChart: ProfilePrimaryChart | null): Promise<CanonicalLocation> {
@@ -220,11 +222,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setSkyAudioError('Could not compose sky audio');
         return;
       }
-      const video = videoFromComposePayload(payload);
-      if (video.available && video.exportId) {
-        setVideoExportId(video.exportId);
-        setVideoExportAvailable(true);
-      }
+      applyVideoFromComposePayload(payload, setVideoExportId, setVideoExportAvailable);
       setSkyExportId(exportId);
       playTrack({ exportId, label: "Today's Sky", source: 'sky' });
     } catch {
@@ -305,11 +303,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           if (wheelSource) wheelSource = normalizeChartForWheel(wheelSource);
         }
 
-        const video = videoFromComposePayload(payload);
-        if (video.available && video.exportId) {
-          setVideoExportId(video.exportId);
-          setVideoExportAvailable(true);
-        }
+        applyVideoFromComposePayload(payload, setVideoExportId, setVideoExportAvailable);
 
         setComposeHash(hash);
         setExplanationSections(sections);
@@ -344,7 +338,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   }
 
   const hasSkyContent = Boolean(explanationSections?.length || analysisText || chartData);
-  const showVideoPlayer = videoExportAvailable && videoExportId != null;
+  const showVideoPlayer = videoExportId != null;
 
   return (
     <section aria-label="Right now in the sky">
@@ -362,7 +356,11 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         />
         <div className="min-w-0 md:sticky md:top-20">
           {showVideoPlayer ? (
-            <ExportVideoPlayer exportId={videoExportId} className="w-full mx-auto" />
+            <ExportVideoPlayer
+              exportId={videoExportId}
+              available={videoExportAvailable}
+              className="w-full mx-auto"
+            />
           ) : (
             <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
           )}

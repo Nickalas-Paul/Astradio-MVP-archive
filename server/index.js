@@ -2098,11 +2098,40 @@ app.post('/api/exports', requireBeta, async (req, res) => {
     res.status(500).json({ error: 'export_failed', message: e.message });
   }
 });
+app.get('/api/exports/:id/status', async (req, res) => {
+  try {
+    const id = (req.params.id || '').trim();
+    if (!/^[a-f0-9]{64}$/.test(id)) {
+      return res.status(400).json({ error: 'invalid_id', message: 'Export id must be 64 hex characters' });
+    }
+    const existsFn =
+      exportStore && typeof exportStore.exists === 'function'
+        ? exportStore.exists.bind(exportStore)
+        : null;
+    if (!existsFn) return res.status(501).json({ error: 'storage_unavailable' });
+
+    const wavExists = await existsFn(id, '.wav');
+    const mp4Exists = await existsFn(id, '.mp4');
+
+    return res.json({
+      id,
+      available: wavExists || mp4Exists,
+      format: mp4Exists ? 'mp4' : wavExists ? 'wav' : null,
+    });
+  } catch (e) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'export_status_failed', message: e.message });
+    }
+  }
+});
 app.head('/api/exports/:id', async (req, res) => {
   try {
     const id = (req.params.id || '').trim();
     if (!/^[a-f0-9]{64}$/.test(id)) return res.status(400).end();
-    const existsFn = exportStore && typeof exportStore.exists === 'function' ? exportStore.exists.bind(exportStore) : null;
+    const existsFn =
+      exportStore && typeof exportStore.exists === 'function'
+        ? exportStore.exists.bind(exportStore)
+        : null;
     if (!existsFn) return res.status(501).end();
     const streamOpts = await resolveExportStreamOptions(id, req);
     const ok = await existsFn(id, streamOpts.extension);
