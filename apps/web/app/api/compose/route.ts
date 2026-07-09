@@ -19,6 +19,8 @@ const SkyClientComposeSchema = z.object({
   time: z.string().regex(/^\d{2}:\d{2}$/),
   location: CanonicalLocationSchema,
   generateAudio: z.boolean().optional(),
+  generateVideo: z.boolean().optional(),
+  videoTier: z.enum(['standard', 'premium']).optional(),
 });
 
 type SkyClientComposeBody = z.infer<typeof SkyClientComposeSchema>;
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
         );
       }
       const data: SkyClientComposeBody = validationResult.data;
-      const { date, time, location, generateAudio } = data;
+      const { date, time, location, generateAudio, generateVideo, videoTier } = data;
       wantsAudio = generateAudio === true;
       // Wall-clock calendar + time in the client's canonical IANA zone (same contract as Profile active-state / Campaign transit).
       const datetime = `${date}T${time}:00`;
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
         },
         locationMeta: location as CanonicalLocation,
         generateAudio: generateAudio === true,
+        ...(generateVideo === true ? { generateVideo: true } : {}),
+        ...(videoTier ? { videoTier } : {}),
       });
     }
 

@@ -35,6 +35,7 @@ import { controlPayloadFromSeed } from '../compat/payload-from-seed';
 import { buildComparisonPlanChartContext, buildGroupPlanChartContext } from './plan-chart-context-reduction';
 import { buildArchitectureForAggregate } from './aggregate-architecture';
 import { runLyriaAlignedExportBlock, type ExportErrorCode } from './run-lyria-export-block';
+import { runComposeVideoBlock } from './compose-video-block';
 import type { RelationalWeatherStateV1 } from '../relational/weather/types';
 import { mergeRelationalWeatherIntoPlanChartContext } from '../relational/weather/merge-plan-context';
 import {
@@ -311,6 +312,9 @@ export class ComposeAPI {
 
       const requestKey = this.compositionCacheKeyForRequest(request);
       const wantAudio = (request as ComposeRequest).generateAudio === true;
+      const wantVideo =
+        (request as ComposeRequest).generateVideo === true &&
+        process.env.ENABLE_VIDEO_EXPORT === '1';
 
       const isSkyRequest = (request as ComposeRequest).mode === 'sky';
 
@@ -341,7 +345,15 @@ export class ComposeAPI {
           );
         } else {
           const hasExport = Boolean(cached?.export_id && cached?.audio_export_available);
-          if (!wantAudio || hasExport || (isSkyRequest && cachedExportFailed)) {
+          const hasVideoExport = Boolean(
+            cached?.video_export_id && cached?.video_export_available,
+          );
+          if (wantVideo && !hasVideoExport) {
+            console.log(
+              '[COMPOSE] Cache hit missing video export; regenerating for key:',
+              requestKey.slice(0, 8),
+            );
+          } else if (!wantAudio || hasExport || (isSkyRequest && cachedExportFailed)) {
             if (cachedExportFailed && isSkyRequest && wantAudio) {
               console.log(
                 '[COMPOSE] Returning cached failed sky audio for key:',
@@ -645,6 +657,15 @@ export class ComposeAPI {
       let export_error: ExportErrorCode | null = wavBundle.export_error;
       let audioDebug: any = wavBundle.audioDebug;
 
+      const videoBlock = await runComposeVideoBlock({
+        request: request as ComposeRequest,
+        snapshot,
+        wavBundle,
+        dailyExportSource,
+        sessionUserId,
+        payloadHash: payload.hash,
+      });
+
       const targetLengthSec = DEFAULT_DURATION_S;
       
       const endTime = process.hrtime.bigint();
@@ -860,6 +881,11 @@ export class ComposeAPI {
         duration_s: DEFAULT_DURATION_S,
         ...(export_id != null && { export_id }),
         ...(export_meta != null && { export_meta }),
+        ...(videoBlock.video_export_id != null && { video_export_id: videoBlock.video_export_id }),
+        ...(videoBlock.video_export_available != null && {
+          video_export_available: videoBlock.video_export_available,
+        }),
+        ...(videoBlock.video != null && { video: videoBlock.video }),
         audio_export_available: audio_export_available,
         controls: payload,
         astro: {
@@ -2243,11 +2269,13 @@ export async function vnextCompose(req: any, res: any) {
 
     const { resolveSessionUserId } = await import('../entitlements/apply-audio-gate');
     const sessionUserId = resolveSessionUserId(req);
-    const request = {
+    const composeRequest: ComposeRequest = {
       ...(req.body || {}),
       ...(sessionUserId ? { sessionUserId } : {}),
+      generateVideo: body.generateVideo === true,
+      videoTier: body.videoTier || 'standard',
     };
-    const response = await composeAPI.compose(request);
+    const response = await composeAPI.compose(composeRequest);
     res.json(response);
   } catch (error: any) {
     console.error('[VNEXT_COMPOSE] Error:', error);

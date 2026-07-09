@@ -140,6 +140,16 @@ export interface ComposeResponse {
     plan_sha256: string; // Always present
     midi_sha256?: string; // Present when MIDI is included
   } & { [key: string]: string | null | undefined }; // Allow dynamic hash fields
+  video_export_id?: string;
+  video_export_available?: boolean;
+  video?: {
+    format: 'mp4';
+    export_id?: string;
+    export_error?: string;
+    duration_s?: number;
+    size_bytes?: number;
+    encode_time_ms?: number;
+  };
 }
 
 export interface ComposeRequest {
@@ -175,6 +185,10 @@ export interface ComposeRequest {
    * Omitted defaults to true only for empty-body sandbox fallback in compose (backward compat); callers should set explicitly.
    */
   generateAudio?: boolean;
+  /** When true, run MP4 video export after compose (gated by ENABLE_VIDEO_EXPORT). */
+  generateVideo?: boolean;
+  /** Video encode tier when generateVideo is true. Defaults to standard. */
+  videoTier?: 'standard' | 'premium';
   /**
    * Server-only: profile natal identity audio from `vnext/compat/identity-audio` when true.
    * Selects identity-only Lyria render seed variation; not used by clients or public APIs.
