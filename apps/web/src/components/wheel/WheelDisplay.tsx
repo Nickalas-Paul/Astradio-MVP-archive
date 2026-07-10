@@ -11,6 +11,7 @@ import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
+import { AnimatedWheelSvgCore } from './AnimatedWheelSvgCore';
 import { WheelSvgCore } from './WheelSvgCore';
 
 function planetDisplayName(bodyKey: string): string {
@@ -159,33 +160,25 @@ export function WheelDisplay({
       >
         {normalized ? (
           (() => {
-            const wheelSvgCore = (
-              <WheelSvgCore
-                chart={normalized}
-                size={wheelSize}
-                ascendantLongitude={resolveAscendantLongitude(normalized)}
-                aspects={aspects}
-                showAspectLines={aspectLinesVisible}
-                planetHighlight={effectiveHighlight}
-                displayMode={displayMode}
-                onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
-              />
-            );
+            const wheelProps = {
+              chart: normalized,
+              size: wheelSize,
+              ascendantLongitude: resolveAscendantLongitude(normalized),
+              aspects,
+              showAspectLines: aspectLinesVisible,
+              planetHighlight: effectiveHighlight,
+              displayMode,
+              onPlanetHover: enableBidirectional ? handlePlanetHover : undefined,
+            };
 
-            // Render mode branch — animated and cinematic components will be added in Phases B and C.
-            // Until then, all modes fall through to static WheelSvgCore.
             if (renderMode === 'cinematic') {
               // Phase C: lazy-loaded CinematicWheel will mount here
-              // Fallback to static until implemented
-              return wheelSvgCore;
+              return <WheelSvgCore {...wheelProps} />;
             }
             if (renderMode === 'animated') {
-              // Phase B: AnimatedWheelSvgCore will mount here
-              // Fallback to static until implemented
-              return wheelSvgCore;
+              return <AnimatedWheelSvgCore {...wheelProps} />;
             }
-            // Static (default): current WheelSvgCore render
-            return wheelSvgCore;
+            return <WheelSvgCore {...wheelProps} />;
           })()
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
