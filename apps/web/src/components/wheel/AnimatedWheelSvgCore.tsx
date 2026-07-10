@@ -2,17 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAudioPlayerStore } from '../../store/audio-player';
-import {
-  computeAnimationState,
-  HOLD_START,
-  MAX_ASPECTS,
-  ROTATION_DEG_PER_SEC,
-  type AnimationState,
-} from '../../../../../vnext/render/animation-timing';
+import { ROTATION_DEG_PER_SEC } from '../../../../../vnext/render/animation-timing';
 import { WheelSvgCore, type WheelSvgCoreProps } from './WheelSvgCore';
 
-const ANIMATION_FPS = 24;
-const MS_PER_FRAME = 1000 / ANIMATION_FPS;
+const DRAW_IN_COMPLETE_SEC = 3.0;
+const HOLD_ROTATION_RAMP_START_SEC = 2.4;
+const HOLD_ROTATION_RAMP_END_SEC = 3.0;
+const HOLD_ROTATION_RAMP_DURATION_SEC = HOLD_ROTATION_RAMP_END_SEC - HOLD_ROTATION_RAMP_START_SEC;
 
 export type AnimatedWheelSvgCoreProps = Omit<
   WheelSvgCoreProps,
@@ -42,84 +38,77 @@ const INITIAL_LAYERS: LayerAnimationProps = {
   aspectOpacity: 0,
   planetOpacity: 0,
   angleOpacity: 0,
-  planetCount: 0,
-  rotationDeg: 0,
-};
-
-const HOLD_LAYERS: LayerAnimationProps = {
-  zodiacOpacity: 1,
-  houseOpacity: 1,
-  aspectOpacity: 1,
-  planetOpacity: 1,
-  angleOpacity: 1,
   planetCount: undefined,
   rotationDeg: 0,
 };
 
-function mapAnimationStateToLayers(anim: AnimationState): LayerAnimationProps {
-  const maxPlanets = 13;
-  const revealingPlanet = anim.planetPartial > 0 && anim.planetsVisible < maxPlanets;
-  const planetCount = anim.planetsVisible + (revealingPlanet ? 1 : 0);
-  const planetOpacity =
-    anim.planetOpacity *
-    (revealingPlanet
-      ? Math.max(0.2, anim.planetPartial)
-      : planetCount > 0
-        ? 1
-        : 0);
-
-  const revealingAspect = anim.aspectProgress > 0 && anim.aspectsVisible < MAX_ASPECTS;
-  const aspectOpacity =
-    anim.aspectsVisible > 0 || revealingAspect
-      ? revealingAspect
-        ? Math.max(0.2, anim.aspectProgress)
-        : 1
-      : 0;
-
-  const revealingCusp = anim.cuspPartial > 0 && anim.cuspsVisible < 12;
-  const houseOpacity =
-    anim.cuspOpacity *
-    (anim.cuspsVisible >= 12
-      ? 1
-      : revealingCusp
-        ? Math.max(0.2, anim.cuspPartial)
-        : anim.cuspsVisible > 0
-          ? 1
-          : 0);
-
-  return {
-    zodiacOpacity: anim.zodiacOpacity,
-    planetCount: planetCount > 0 ? planetCount : 0,
-    planetOpacity,
-    aspectOpacity,
-    houseOpacity,
-    angleOpacity: anim.cuspsVisible >= 12 ? anim.cuspOpacity : houseOpacity,
-    rotationDeg: anim.rotationDeg,
-  };
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3);
 }
 
-function sliceVisibleAspects(
-  aspects: WheelSvgCoreProps['aspects'],
-  anim: AnimationState,
-): WheelSvgCoreProps['aspects'] {
-  if (!aspects?.length) return aspects;
-  const limit =
-    anim.aspectsVisible + (anim.aspectProgress > 0 && anim.aspectsVisible < MAX_ASPECTS ? 1 : 0);
-  if (limit <= 0) return [];
-  return aspects.slice(0, limit);
+function phaseProgress(elapsedSec: number, startSec: number, endSec: number): number {
+  if (elapsedSec <= startSec) return 0;
+  if (elapsedSec >= endSec) return 1;
+  return easeOutCubic((elapsedSec - startSec) / (endSec - startSec));
 }
 
-function holdRotationDeg(frameIndex: number): number {
-  if (frameIndex < HOLD_START) return 0;
-  return ((frameIndex - HOLD_START) / ANIMATION_FPS) * ROTATION_DEG_PER_SEC;
+/** Integral of easeOutCubic from 0 to t (t in 0..1). */
+function integralEaseOutCubic01(t: number): number {
+  const u = Math.min(Math.max(t, 0), 1);
+  return (3 * u * u) / 2 - u * u * u + (u * u * u * u) / 4;
 }
 
-function resolveHoldRotation(frameIndex: number): number {
+function slowRotationDeg(elapsedSec: number): number {
+  if (elapsedSec <= HOLD_ROTATION_RAMP_START_SEC) return 0;
+
+  if (elapsedSec < HOLD_ROTATION_RAMP_END_SEC) {
+    const rampElapsed = elapsedSec - HOLD_ROTATION_RAMP_START_SEC;
+    const u = rampElapsed / HOLD_ROTATION_RAMP_DURATION_SEC;
+    return (
+      HOLD_ROTATION_RAMP_DURATION_SEC * integralEaseOutCubic01(u) * ROTATION_DEG_PER_SEC
+    );
+  }
+
+  const rampRotation =
+    HOLD_ROTATION_RAMP_DURATION_SEC *
+    integralEaseOutCubic01(1) *
+    ROTATION_DEG_PER_SEC;
+  return rampRotation + (elapsedSec - HOLD_ROTATION_RAMP_END_SEC) * ROTATION_DEG_PER_SEC;
+}
+
+function resolveHoldRotation(elapsedSec: number): number {
+  if (elapsedSec < DRAW_IN_COMPLETE_SEC) {
+    return slowRotationDeg(elapsedSec);
+  }
   const { isPlaying, currentTime, duration } = useAudioPlayerStore.getState();
   if (isPlaying && duration > 0) {
     return (currentTime / duration) * 360;
   }
-  return holdRotationDeg(frameIndex);
+  return slowRotationDeg(elapsedSec);
+}
+
+function computeWidgetLayers(elapsedSec: number): LayerAnimationProps {
+  if (elapsedSec >= DRAW_IN_COMPLETE_SEC) {
+    return {
+      zodiacOpacity: 1,
+      houseOpacity: 1,
+      aspectOpacity: 1,
+      planetOpacity: 1,
+      angleOpacity: 1,
+      planetCount: undefined,
+      rotationDeg: resolveHoldRotation(elapsedSec),
+    };
+  }
+
+  return {
+    zodiacOpacity: phaseProgress(elapsedSec, 0.0, 0.8),
+    planetOpacity: phaseProgress(elapsedSec, 0.4, 1.4),
+    aspectOpacity: phaseProgress(elapsedSec, 1.0, 2.0),
+    houseOpacity: phaseProgress(elapsedSec, 1.4, 2.4),
+    angleOpacity: phaseProgress(elapsedSec, 1.4, 2.4),
+    planetCount: undefined,
+    rotationDeg: slowRotationDeg(elapsedSec),
+  };
 }
 
 export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSvgCoreProps) {
@@ -127,14 +116,11 @@ export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSv
   const mountTimeRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
   const visibleRef = useRef(true);
-  const drawInCompleteRef = useRef(false);
 
   const [layers, setLayers] = useState<LayerAnimationProps>(INITIAL_LAYERS);
-  const [visibleAspects, setVisibleAspects] = useState<WheelSvgCoreProps['aspects']>([]);
 
   useEffect(() => {
     mountTimeRef.current = performance.now();
-    drawInCompleteRef.current = false;
 
     const tick = () => {
       if (!visibleRef.current || mountTimeRef.current == null) {
@@ -142,24 +128,8 @@ export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSv
         return;
       }
 
-      const elapsedMs = performance.now() - mountTimeRef.current;
-      const frameIndex = Math.floor(elapsedMs / MS_PER_FRAME);
-
-      if (!drawInCompleteRef.current && frameIndex >= HOLD_START) {
-        drawInCompleteRef.current = true;
-      }
-
-      if (drawInCompleteRef.current) {
-        setLayers({
-          ...HOLD_LAYERS,
-          rotationDeg: resolveHoldRotation(frameIndex),
-        });
-        setVisibleAspects(aspects);
-      } else {
-        const anim = computeAnimationState(frameIndex, ANIMATION_FPS);
-        setLayers(mapAnimationStateToLayers(anim));
-        setVisibleAspects(sliceVisibleAspects(aspects, anim));
-      }
+      const elapsedSec = (performance.now() - mountTimeRef.current) / 1000;
+      setLayers(computeWidgetLayers(elapsedSec));
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -195,7 +165,7 @@ export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSv
     <div ref={containerRef} className="w-full h-full">
       <WheelSvgCore
         {...wheelProps}
-        aspects={visibleAspects}
+        aspects={aspects}
         zodiacOpacity={layers.zodiacOpacity}
         houseOpacity={layers.houseOpacity}
         aspectOpacity={layers.aspectOpacity}
