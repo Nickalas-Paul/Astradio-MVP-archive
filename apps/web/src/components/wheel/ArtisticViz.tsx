@@ -16,17 +16,15 @@ import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { normalizePlanetName, PLANET_COLORS } from '../../core/planet-identity';
 import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 import { useAudioPlayerStore } from '../../store/audio-player';
-import { resolveAscendantLongitude } from './wheel-geometry';
 import type { WheelAspect } from './wheel-constants';
 
-const SCENE_RADIUS = 1.8;
-const ATMOSPHERE_SIZE = 14;
+const ATMOSPHERE_SIZE = 16;
 
-const ELEMENT_PALETTE = {
-  fire: { a: new THREE.Color('#991b1b'), b: new THREE.Color('#b45309') },
-  water: { a: new THREE.Color('#1e3a5f'), b: new THREE.Color('#0e7490') },
-  earth: { a: new THREE.Color('#78350f'), b: new THREE.Color('#065f46') },
-  air: { a: new THREE.Color('#64748b'), b: new THREE.Color('#bae6fd') },
+const ELEMENT_COLORS = {
+  fire: { a: '#3b0a0a', b: '#5c1a0a', c: '#8b4513' },
+  water: { a: '#0a1628', b: '#0c2d48', c: '#134e6f' },
+  earth: { a: '#1a1408', b: '#2d2010', c: '#4a3728' },
+  air: { a: '#101820', b: '#1a2530', c: '#2d3748' },
 } as const;
 
 const SIGN_ELEMENT = [
@@ -44,32 +42,50 @@ const SIGN_ELEMENT = [
   'water',
 ] as const;
 
-const ASPECT_VISUAL: Record<
-  string,
-  { color: string; pulseSpeed: number; baseOpacity: number; line: boolean }
-> = {
-  conjunction: { color: '#fbbf24', pulseSpeed: 0, baseOpacity: 0.85, line: false },
-  sextile: { color: '#5eead4', pulseSpeed: 0.3, baseOpacity: 0.45, line: true },
-  square: { color: '#f87171', pulseSpeed: 1.5, baseOpacity: 0.55, line: true },
-  trine: { color: '#fcd34d', pulseSpeed: 0.5, baseOpacity: 0.5, line: true },
-  opposition: { color: '#a78bfa', pulseSpeed: 0.8, baseOpacity: 0.55, line: true },
+const ELEMENT_ZONE_ANGLE: Record<keyof typeof ELEMENT_COLORS, number> = {
+  fire: -Math.PI / 2,
+  water: Math.PI,
+  earth: Math.PI / 2,
+  air: 0,
 };
 
-const PLANET_SIZE: Record<string, number> = {
-  sun: 0.12,
-  moon: 0.1,
-  mercury: 0.07,
-  venus: 0.07,
-  mars: 0.07,
-  jupiter: 0.08,
-  saturn: 0.08,
-  uranus: 0.05,
-  neptune: 0.05,
-  pluto: 0.05,
-  northNode: 0.04,
-  southNode: 0.04,
-  chiron: 0.04,
-};
+const LUMINARIES = new Set(['sun', 'moon']);
+
+const ATMOSPHERE_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ATMOSPHERE_FRAGMENT = `
+  uniform float uTime;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+  uniform vec3 uColorC;
+  uniform float uTension;
+  uniform float uSaturation;
+  varying vec2 vUv;
+
+  void main() {
+    vec2 uv = vUv;
+    float complexity = 2.5 + uTension * 2.0;
+    float noise1 = sin(uv.x * complexity + uTime * 0.15) * cos(uv.y * (complexity - 0.5) + uTime * 0.12);
+    float noise2 = sin(uv.x * (complexity - 1.2) - uTime * 0.1 + 1.5) * cos(uv.y * (complexity + 0.7) + uTime * 0.08);
+    float combined = (noise1 + noise2) * 0.5 + 0.5;
+
+    float dist = length(uv - 0.5) * 2.0;
+    float radial = 1.0 - smoothstep(0.0, 1.2, dist);
+
+    vec3 color = mix(uColorA, uColorB, combined);
+    color = mix(color, uColorC, combined * radial * 0.4);
+    color *= 0.35 + radial * 0.15;
+    color *= uSaturation;
+
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
 
 export interface ArtisticVizProps {
   chart: ChartForWheel;
@@ -80,22 +96,17 @@ export interface ArtisticVizProps {
   onReady?: () => void;
 }
 
-function lonToScenePos(lon: number, asc: number, radius: number): [number, number, number] {
-  const angle = ((lon - asc + 180) * Math.PI) / 180;
-  return [radius * Math.cos(angle), radius * Math.sin(angle), 0];
-}
-
 function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
   const deg = positions[bodyKey] ?? positions[bodyKey.toLowerCase()];
   return typeof deg === 'number' && Number.isFinite(deg) ? deg : undefined;
 }
 
-function elementWeightsFromChart(positions: Record<string, number>): Record<string, number> {
+function elementWeightsFromChart(positions: Record<string, number>): Record<keyof typeof ELEMENT_COLORS, number> {
   const counts = { fire: 0, water: 0, earth: 0, air: 0 };
   for (const name of BODY_DISPLAY_ORDER) {
     const lon = positionLongitude(positions, name);
     if (lon == null) continue;
-    const signIndex = Math.floor(((lon % 360) + 360) % 360 / 30) % 12;
+    const signIndex = Math.floor((((lon % 360) + 360) % 360) / 30) % 12;
     const element = SIGN_ELEMENT[signIndex] ?? 'earth';
     counts[element] += 1;
   }
@@ -108,17 +119,106 @@ function elementWeightsFromChart(positions: Record<string, number>): Record<stri
   };
 }
 
-function createLineSegmentGeometry(
-  x1: number,
-  y1: number,
-  z1: number,
-  x2: number,
-  y2: number,
-  z2: number,
-): THREE.BufferGeometry {
+function planetElement(lon: number): keyof typeof ELEMENT_COLORS {
+  const signIndex = Math.floor((((lon % 360) + 360) % 360) / 30) % 12;
+  return SIGN_ELEMENT[signIndex] ?? 'earth';
+}
+
+function blendElementPalettes(weights: Record<keyof typeof ELEMENT_COLORS, number>) {
+  const a = new THREE.Color(0, 0, 0);
+  const b = new THREE.Color(0, 0, 0);
+  const c = new THREE.Color(0, 0, 0);
+  let total = 0;
+
+  for (const element of Object.keys(ELEMENT_COLORS) as (keyof typeof ELEMENT_COLORS)[]) {
+    const weight = weights[element] ?? 0;
+    if (weight <= 0.001) continue;
+    const palette = ELEMENT_COLORS[element];
+    const ca = new THREE.Color(palette.a);
+    const cb = new THREE.Color(palette.b);
+    const cc = new THREE.Color(palette.c);
+    a.r += ca.r * weight;
+    a.g += ca.g * weight;
+    a.b += ca.b * weight;
+    b.r += cb.r * weight;
+    b.g += cb.g * weight;
+    b.b += cb.b * weight;
+    c.r += cc.r * weight;
+    c.g += cc.g * weight;
+    c.b += cc.b * weight;
+    total += weight;
+  }
+
+  if (total > 0) {
+    a.multiplyScalar(1 / total);
+    b.multiplyScalar(1 / total);
+    c.multiplyScalar(1 / total);
+  } else {
+    a.set(ELEMENT_COLORS.earth.a);
+    b.set(ELEMENT_COLORS.earth.b);
+    c.set(ELEMENT_COLORS.earth.c);
+  }
+
+  return { a, b, c };
+}
+
+function hashSeed(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function seededRandom(seed: number, index: number): number {
+  const x = Math.sin(seed * 12.9898 + index * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function aspectMidpointDegrees(lonA: number, lonB: number): number {
+  let diff = lonB - lonA;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return (((lonA + diff / 2) % 360) + 360) % 360;
+}
+
+function buildPolygonPoints(vertexCount: number, rotationDeg: number, radius: number): number[] {
+  const points: number[] = [];
+  for (let i = 0; i < vertexCount; i += 1) {
+    const angle = ((rotationDeg + (360 / vertexCount) * i) * Math.PI) / 180;
+    points.push(radius * Math.cos(angle), radius * Math.sin(angle));
+  }
+  return points;
+}
+
+function buildLineGeometry(points: number[], z = 0): THREE.BufferGeometry {
+  const positions: number[] = [];
+  for (let i = 0; i < points.length; i += 2) {
+    positions.push(points[i], points[i + 1], z);
+  }
+  if (points.length >= 2) {
+    positions.push(points[0], points[1], z);
+  }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute([x1, y1, z1, x2, y2, z2], 3));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   return geometry;
+}
+
+function buildDiameterPoints(angleDeg: number, radius: number): number[] {
+  const angle = (angleDeg * Math.PI) / 180;
+  const x = radius * Math.cos(angle);
+  const y = radius * Math.sin(angle);
+  return [-x, -y, x, y];
+}
+
+function aspectStrength(orb?: number): number {
+  const o = typeof orb === 'number' ? orb : 5;
+  return Math.max(0.25, 1 - o / 10);
+}
+
+function aspectBodies(asp: WheelAspect): { bodyA: string; bodyB: string } {
+  return {
+    bodyA: asp.bodyA ?? asp.a ?? '',
+    bodyB: asp.bodyB ?? asp.b ?? '',
+  };
 }
 
 class WebGLErrorBoundary extends Component<
@@ -141,267 +241,454 @@ class WebGLErrorBoundary extends Component<
   }
 }
 
-function ElementalAtmosphere({
-  composeControls,
+function AtmosphericBackground({
   positions,
+  composeControls,
   audioIntensity,
 }: {
-  composeControls?: ComposeVisualControls | null;
   positions: Record<string, number>;
+  composeControls?: ComposeVisualControls | null;
   audioIntensity: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const weights = useMemo(() => elementWeightsFromChart(positions), [positions]);
+  const palette = useMemo(() => blendElementPalettes(weights), [weights]);
 
-  const dominant =
-    composeControls?.elementDominance?.toLowerCase() ??
-    (Object.entries(weights).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'earth');
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uColorA: { value: palette.a.clone() },
+          uColorB: { value: palette.b.clone() },
+          uColorC: { value: palette.c.clone() },
+          uTension: { value: composeControls?.aspectTension ?? 0.5 },
+          uSaturation: { value: 1 },
+        },
+        vertexShader: ATMOSPHERE_VERTEX,
+        fragmentShader: ATMOSPHERE_FRAGMENT,
+        depthWrite: false,
+      }),
+    [palette, composeControls?.aspectTension],
+  );
 
   useFrame((state) => {
     if (!meshRef.current) return;
-    const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-    const t = state.clock.elapsedTime;
-    const wobble = 0.5 + 0.5 * Math.sin(t * 0.3);
-
-    const palette = ELEMENT_PALETTE[dominant as keyof typeof ELEMENT_PALETTE] ?? ELEMENT_PALETTE.earth;
-    const blended = new THREE.Color();
-    blended.copy(palette.a).lerp(palette.b, wobble * 0.35 + weights[dominant as keyof typeof weights] * 0.25);
-
-    for (const [key, weight] of Object.entries(weights)) {
-      if (key === dominant || weight < 0.05) continue;
-      const p = ELEMENT_PALETTE[key as keyof typeof ELEMENT_PALETTE];
-      if (!p) continue;
-      const tint = new THREE.Color().copy(p.a).lerp(p.b, 0.5);
-      blended.lerp(tint, weight * 0.35);
-    }
-
-    const satBoost = 1 + audioIntensity * 0.12;
-    mat.color.copy(blended).multiplyScalar(0.22 * satBoost);
-    mat.opacity = 0.92;
+    const mat = meshRef.current.material as THREE.ShaderMaterial;
+    mat.uniforms.uTime.value = state.clock.elapsedTime;
+    mat.uniforms.uColorA.value.copy(palette.a);
+    mat.uniforms.uColorB.value.copy(palette.b);
+    mat.uniforms.uColorC.value.copy(palette.c);
+    mat.uniforms.uTension.value = composeControls?.aspectTension ?? 0.5;
+    mat.uniforms.uSaturation.value = 1 + audioIntensity * 0.15;
   });
 
+  useEffect(() => () => material.dispose(), [material]);
+
   return (
-    <mesh ref={meshRef} position={[0, 0, -2]}>
+    <mesh ref={meshRef} position={[0, 0, -2]} material={material}>
       <planeGeometry args={[ATMOSPHERE_SIZE, ATMOSPHERE_SIZE]} />
-      <meshBasicMaterial transparent opacity={0.92} depthWrite={false} />
     </mesh>
   );
 }
 
-function AspectLineSegment({
-  p1,
-  p2,
+function PulsingLineShape({
+  geometry,
   color,
   baseOpacity,
-  pulseSpeed,
+  pulseRate,
+  phaseOffset,
   intensityMult,
-  clockRef,
+  scale = 1,
 }: {
-  p1: [number, number, number];
-  p2: [number, number, number];
+  geometry: THREE.BufferGeometry;
   color: string;
   baseOpacity: number;
-  pulseSpeed: number;
+  pulseRate: number;
+  phaseOffset: number;
   intensityMult: number;
-  clockRef: React.MutableRefObject<number>;
+  scale?: number;
 }) {
-  const geometry = useMemo(
-    () => createLineSegmentGeometry(p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]),
-    [p1, p2],
-  );
-
   const lineObject = useMemo(() => {
     const material = new THREE.LineBasicMaterial({
       color,
       transparent: true,
       opacity: baseOpacity,
+      depthWrite: false,
     });
     return new THREE.Line(geometry, material);
   }, [geometry, color, baseOpacity]);
 
   useFrame((state) => {
-    clockRef.current = state.clock.elapsedTime;
     const mat = lineObject.material as THREE.LineBasicMaterial;
-    const t = state.clock.elapsedTime;
-    const pulse =
-      pulseSpeed > 0
-        ? 0.85 + 0.15 * Math.sin(t * pulseSpeed * Math.PI * 2 + p1[0] * 2)
-        : 1;
+    const pulse = 0.7 + 0.3 * Math.sin(state.clock.elapsedTime * pulseRate + phaseOffset);
     mat.opacity = Math.min(1, baseOpacity * pulse * intensityMult);
   });
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       lineObject.geometry.dispose();
       (lineObject.material as THREE.Material).dispose();
-    };
-  }, [lineObject]);
+    },
+    [lineObject],
+  );
 
-  return <primitive object={lineObject} />;
+  return (
+    <group scale={scale}>
+      <primitive object={lineObject} />
+    </group>
+  );
 }
 
 function SacredGeometry({
   aspects,
   positions,
-  asc,
   intensityMult,
+  pulseRateMult,
 }: {
   aspects: WheelAspect[];
   positions: Record<string, number>;
-  asc: number;
   intensityMult: number;
+  pulseRateMult: number;
 }) {
-  const clockRef = useRef(0);
-
-  const lines = useMemo(() => {
-    const out: {
+  const shapes = useMemo(() => {
+    type ShapeDef = {
       key: string;
-      p1: [number, number, number];
-      p2: [number, number, number];
-      color: string;
+      kind: 'triangle' | 'square' | 'opposition' | 'sextile';
+      rotationDeg: number;
       baseOpacity: number;
-      pulseSpeed: number;
-    }[] = [];
+      pulseRate: number;
+      phaseOffset: number;
+      color: string;
+      radius: number;
+    };
+
+    const out: ShapeDef[] = [];
+    let conjunctionStrength = 0;
 
     for (const asp of aspects) {
       const type = (asp.type ?? '').toLowerCase();
-      const visual = ASPECT_VISUAL[type];
-      if (!visual?.line) continue;
-
-      const bodyA = asp.bodyA ?? asp.a ?? '';
-      const bodyB = asp.bodyB ?? asp.b ?? '';
+      const { bodyA, bodyB } = aspectBodies(asp);
       const lonA = positionLongitude(positions, bodyA);
       const lonB = positionLongitude(positions, bodyB);
       if (lonA == null || lonB == null) continue;
 
-      const orb = typeof asp.orb === 'number' ? asp.orb : 5;
-      const tightness = Math.max(0.25, 1 - orb / 10);
+      const strength = aspectStrength(asp.orb);
+      const midDeg = aspectMidpointDegrees(lonA, lonB);
+      const phase = midDeg * 0.017;
 
-      out.push({
-        key: `${bodyA}-${bodyB}-${type}`,
-        p1: lonToScenePos(lonA, asc, SCENE_RADIUS),
-        p2: lonToScenePos(lonB, asc, SCENE_RADIUS),
-        color: visual.color,
-        baseOpacity: visual.baseOpacity * tightness,
-        pulseSpeed: visual.pulseSpeed,
-      });
+      if (type === 'conjunction') {
+        conjunctionStrength += strength;
+        continue;
+      }
+
+      if (type === 'trine') {
+        out.push({
+          key: `${bodyA}-${bodyB}-trine`,
+          kind: 'triangle',
+          rotationDeg: midDeg,
+          baseOpacity: 0.15 + strength * 0.15,
+          pulseRate: 0.4,
+          phaseOffset: phase,
+          color: '#fcd34d',
+          radius: 1.2,
+        });
+      } else if (type === 'square') {
+        out.push({
+          key: `${bodyA}-${bodyB}-square`,
+          kind: 'square',
+          rotationDeg: midDeg,
+          baseOpacity: 0.12 + strength * 0.12,
+          pulseRate: 1.2,
+          phaseOffset: phase,
+          color: '#ef4444',
+          radius: 1.0,
+        });
+      } else if (type === 'opposition') {
+        out.push({
+          key: `${bodyA}-${bodyB}-opposition`,
+          kind: 'opposition',
+          rotationDeg: midDeg,
+          baseOpacity: 0.18 + strength * 0.12,
+          pulseRate: 0.6,
+          phaseOffset: phase,
+          color: '#a78bfa',
+          radius: 1.4,
+        });
+      } else if (type === 'sextile') {
+        out.push({
+          key: `${bodyA}-${bodyB}-sextile`,
+          kind: 'sextile',
+          rotationDeg: midDeg,
+          baseOpacity: 0.08 + strength * 0.04,
+          pulseRate: 0.2,
+          phaseOffset: phase,
+          color: '#5eead4',
+          radius: 0.85,
+        });
+      }
     }
-    return out;
-  }, [aspects, positions, asc]);
+
+    return { shapes: out, conjunctionStrength };
+  }, [aspects, positions]);
+
+  const conjunctionRadius = Math.min(0.3, 0.15 + shapes.conjunctionStrength * 0.05);
+  const conjunctionOpacity = Math.min(0.75, 0.25 + shapes.conjunctionStrength * 0.15) * intensityMult;
+  const conjunctionRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (!conjunctionRef.current || shapes.conjunctionStrength <= 0) return;
+    const mat = conjunctionRef.current.material as THREE.MeshBasicMaterial;
+    const pulse = 0.75 + 0.25 * Math.sin(state.clock.elapsedTime * 0.5);
+    mat.opacity = conjunctionOpacity * pulse;
+  });
 
   return (
     <group>
-      {lines.map((line) => (
-        <AspectLineSegment
-          key={line.key}
-          p1={line.p1}
-          p2={line.p2}
-          color={line.color}
-          baseOpacity={line.baseOpacity}
-          pulseSpeed={line.pulseSpeed}
-          intensityMult={intensityMult}
-          clockRef={clockRef}
-        />
-      ))}
+      {shapes.conjunctionStrength > 0 ? (
+        <mesh ref={conjunctionRef} position={[0, 0, 0.05]}>
+          <sphereGeometry args={[conjunctionRadius, 24, 24]} />
+          <meshBasicMaterial color="#fef3c7" transparent opacity={conjunctionOpacity} depthWrite={false} />
+        </mesh>
+      ) : null}
+
+      {shapes.shapes.map((shape) => {
+        let points: number[];
+        if (shape.kind === 'triangle') {
+          points = buildPolygonPoints(3, shape.rotationDeg, shape.radius);
+        } else if (shape.kind === 'square') {
+          points = buildPolygonPoints(4, shape.rotationDeg + 45, shape.radius);
+        } else if (shape.kind === 'sextile') {
+          points = buildPolygonPoints(6, shape.rotationDeg, shape.radius);
+        } else {
+          points = buildDiameterPoints(shape.rotationDeg, shape.radius);
+        }
+
+        const geometry = shape.kind === 'opposition'
+          ? (() => {
+              const g = new THREE.BufferGeometry();
+              g.setAttribute(
+                'position',
+                new THREE.Float32BufferAttribute(
+                  [points[0], points[1], 0, points[2], points[3], 0],
+                  3,
+                ),
+              );
+              return g;
+            })()
+          : buildLineGeometry(points, 0);
+
+        const glowGeometry = geometry.clone();
+
+        return (
+          <group key={shape.key}>
+            <PulsingLineShape
+              geometry={geometry}
+              color={shape.color}
+              baseOpacity={shape.baseOpacity}
+              pulseRate={shape.pulseRate * pulseRateMult}
+              phaseOffset={shape.phaseOffset}
+              intensityMult={intensityMult}
+            />
+            <PulsingLineShape
+              geometry={glowGeometry}
+              color={shape.color}
+              baseOpacity={shape.baseOpacity * 0.3}
+              pulseRate={shape.pulseRate * pulseRateMult}
+              phaseOffset={shape.phaseOffset + 0.5}
+              intensityMult={intensityMult}
+              scale={1.05}
+            />
+          </group>
+        );
+      })}
     </group>
   );
 }
 
-function PlanetNode({
-  name,
-  lon,
-  asc,
-  index,
-  conjunctionBoost,
+function PlanetParticle({
+  x,
+  y,
+  color,
+  coreRadius,
+  glowRadius,
+  coreOpacity,
+  glowOpacity,
+  seed,
   audioIntensity,
 }: {
-  name: string;
-  lon: number;
-  asc: number;
-  index: number;
-  conjunctionBoost: number;
+  x: number;
+  y: number;
+  color: string;
+  coreRadius: number;
+  glowRadius: number;
+  coreOpacity: number;
+  glowOpacity: number;
+  seed: number;
   audioIntensity: number;
 }) {
   const coreRef = useRef<THREE.Mesh>(null);
-  const haloRef = useRef<THREE.Mesh>(null);
-  const canonical = normalizePlanetName(name);
-  const color = PLANET_COLORS[canonical] ?? '#e8ecf1';
-  const coreSize = PLANET_SIZE[canonical] ?? 0.06;
-  const [x, y, z] = lonToScenePos(lon, asc, SCENE_RADIUS);
+  const glowRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const playBoost = audioIntensity > 0 ? 1.15 : 1;
-    const phase = index * 0.7;
-    const glowBase = 0.18 + conjunctionBoost * 0.25;
-    const glowOpacity = (glowBase + 0.07 * Math.sin(t * 0.4 * playBoost + phase)) * (1 + audioIntensity * 0.2);
-
-    if (haloRef.current) {
-      const mat = haloRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = Math.min(0.55, glowOpacity);
+    const breathe = 0.7 + 0.3 * Math.sin(state.clock.elapsedTime * 0.3 + seed);
+    const audioBoost = 1 + audioIntensity * 0.3;
+    if (glowRef.current) {
+      (glowRef.current.material as THREE.MeshBasicMaterial).opacity = Math.min(
+        0.35,
+        glowOpacity * breathe * audioBoost,
+      );
     }
     if (coreRef.current) {
-      const mat = coreRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.75 + conjunctionBoost * 0.15 + audioIntensity * 0.1;
+      (coreRef.current.material as THREE.MeshBasicMaterial).opacity = Math.min(
+        0.95,
+        coreOpacity * (0.9 + breathe * 0.1),
+      );
     }
   });
 
   return (
-    <group position={[x, y, z]}>
-      <mesh ref={haloRef}>
-        <sphereGeometry args={[coreSize * 3, 12, 12]} />
-        <meshBasicMaterial color={color} transparent opacity={0.2} depthWrite={false} />
+    <group position={[x, y, 0.1]}>
+      <mesh ref={glowRef}>
+        <sphereGeometry args={[glowRadius, 10, 10]} />
+        <meshBasicMaterial color={color} transparent opacity={glowOpacity} depthWrite={false} />
       </mesh>
       <mesh ref={coreRef}>
-        <sphereGeometry args={[coreSize, 16, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={0.9} />
+        <sphereGeometry args={[coreRadius, 10, 10]} />
+        <meshBasicMaterial color={color} transparent opacity={coreOpacity} depthWrite={false} />
       </mesh>
     </group>
   );
 }
 
-function PlanetNodes({
+function PlanetEnergyField({
   positions,
-  asc,
   aspects,
   audioIntensity,
 }: {
   positions: Record<string, number>;
-  asc: number;
   aspects?: WheelAspect[];
   audioIntensity: number;
 }) {
-  const conjunctionBoost = useMemo(() => {
-    const boost = new Map<string, number>();
+  const particles = useMemo(() => {
+    const conjunctGroups = new Map<string, string[]>();
+    const parent = new Map<string, string>();
+
+    function find(name: string): string {
+      const p = parent.get(name);
+      if (!p || p === name) return name;
+      const root = find(p);
+      parent.set(name, root);
+      return root;
+    }
+
+    function union(a: string, b: string) {
+      const ra = find(a);
+      const rb = find(b);
+      if (ra !== rb) parent.set(rb, ra);
+    }
+
+    for (const name of BODY_DISPLAY_ORDER) {
+      const canonical = normalizePlanetName(name);
+      parent.set(canonical, canonical);
+    }
+
     for (const asp of aspects ?? []) {
       if ((asp.type ?? '').toLowerCase() !== 'conjunction') continue;
-      const bodyA = asp.bodyA ?? asp.a ?? '';
-      const bodyB = asp.bodyB ?? asp.b ?? '';
-      boost.set(normalizePlanetName(bodyA), (boost.get(normalizePlanetName(bodyA)) ?? 0) + 0.5);
-      boost.set(normalizePlanetName(bodyB), (boost.get(normalizePlanetName(bodyB)) ?? 0) + 0.5);
+      const { bodyA, bodyB } = aspectBodies(asp);
+      const lonA = positionLongitude(positions, bodyA);
+      const lonB = positionLongitude(positions, bodyB);
+      if (lonA == null || lonB == null) continue;
+      const delta = Math.abs(lonA - lonB);
+      if (Math.min(delta, 360 - delta) <= 8) {
+        union(normalizePlanetName(bodyA), normalizePlanetName(bodyB));
+      }
     }
-    return boost;
-  }, [aspects]);
 
-  const planets = useMemo(
-    () =>
-      BODY_DISPLAY_ORDER.flatMap((name, index) => {
+    for (const name of BODY_DISPLAY_ORDER) {
+      const canonical = normalizePlanetName(name);
+      const root = find(canonical);
+      if (!conjunctGroups.has(root)) conjunctGroups.set(root, []);
+      conjunctGroups.get(root)!.push(name);
+    }
+
+    type Particle = {
+      key: string;
+      x: number;
+      y: number;
+      color: string;
+      coreRadius: number;
+      glowRadius: number;
+      coreOpacity: number;
+      glowOpacity: number;
+      seed: number;
+    };
+
+    const out: Particle[] = [];
+
+    for (const [, group] of conjunctGroups) {
+      const groupLons = group
+        .map((name) => positionLongitude(positions, name))
+        .filter((lon): lon is number => lon != null);
+      if (groupLons.length === 0) continue;
+
+      const avgLon = groupLons.reduce((a, b) => a + b, 0) / groupLons.length;
+      const element = planetElement(avgLon);
+      const zoneAngle = ELEMENT_ZONE_ANGLE[element];
+      const baseX = Math.cos(zoneAngle) * 0.8;
+      const baseY = Math.sin(zoneAngle) * 0.8;
+      const isConjunctionCluster = group.length > 1;
+      const scatterScale = isConjunctionCluster ? 0.25 : 0.6;
+
+      for (const name of group) {
         const lon = positionLongitude(positions, name);
-        return lon == null ? [] : [{ name, lon, index }];
-      }),
-    [positions],
-  );
+        if (lon == null) continue;
+        const canonical = normalizePlanetName(name);
+        const color = PLANET_COLORS[canonical] ?? '#e8ecf1';
+        const seed = hashSeed(`${name}-${lon.toFixed(2)}`);
+        const isLuminary = LUMINARIES.has(canonical);
+        const particleCount = isLuminary ? 7 : 4;
+        const coreBase = isLuminary ? 0.05 : 0.03;
+        const glowBase = isLuminary ? 0.11 : 0.09;
+        const coreOpacityBase = isLuminary ? 0.85 : 0.55;
+        const glowOpacityBase = isLuminary ? 0.14 : 0.1;
+
+        for (let j = 0; j < particleCount; j += 1) {
+          const px = baseX + (seededRandom(seed, j * 2) - 0.5) * scatterScale;
+          const py = baseY + (seededRandom(seed, j * 2 + 1) - 0.5) * scatterScale;
+          const sizeVar = 0.85 + seededRandom(seed, j + 10) * 0.3;
+
+          out.push({
+            key: `${name}-${j}`,
+            x: px,
+            y: py,
+            color,
+            coreRadius: coreBase * sizeVar,
+            glowRadius: glowBase * sizeVar,
+            coreOpacity: coreOpacityBase,
+            glowOpacity: glowOpacityBase,
+            seed: seed + j * 1.7,
+          });
+        }
+      }
+    }
+
+    return out;
+  }, [positions, aspects]);
 
   return (
     <group>
-      {planets.map((planet) => (
-        <PlanetNode
-          key={planet.name}
-          name={planet.name}
-          lon={planet.lon}
-          asc={asc}
-          index={planet.index}
-          conjunctionBoost={conjunctionBoost.get(normalizePlanetName(planet.name)) ?? 0}
+      {particles.map((p) => (
+        <PlanetParticle
+          key={p.key}
+          x={p.x}
+          y={p.y}
+          color={p.color}
+          coreRadius={p.coreRadius}
+          glowRadius={p.glowRadius}
+          coreOpacity={p.coreOpacity}
+          glowOpacity={p.glowOpacity}
+          seed={p.seed}
           audioIntensity={audioIntensity}
         />
       ))}
@@ -418,47 +705,34 @@ function VizScene({
   aspects?: WheelAspect[];
   composeControls?: ComposeVisualControls | null;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const asc = resolveAscendantLongitude(chart);
   const isPlaying = useAudioPlayerStore((s) => s.isPlaying);
   const currentTime = useAudioPlayerStore((s) => s.currentTime);
   const duration = useAudioPlayerStore((s) => s.duration);
   const progress = duration > 0 ? currentTime / duration : 0;
-
-  const arcShape = composeControls?.arcShape ?? 0.5;
-  const audioIntensity = isPlaying
-    ? 0.6 + 0.4 * Math.sin(progress * Math.PI * (0.5 + arcShape))
-    : 0;
-
-  useFrame((state, delta) => {
-    if (!groupRef.current) return;
-    const driftSpeed = (isPlaying ? 0.65 : 0.5) * (Math.PI / 180);
-    groupRef.current.rotation.z += driftSpeed * delta;
-  });
+  const arcIntensity = isPlaying ? 0.5 + 0.5 * Math.sin(progress * Math.PI) : 0;
+  const intensityMult = 0.7 + arcIntensity * 0.5;
+  const pulseRateMult = 1 + arcIntensity * 0.5;
 
   return (
     <>
-      <ElementalAtmosphere
-        composeControls={composeControls}
+      <AtmosphericBackground
         positions={chart.positions}
-        audioIntensity={audioIntensity}
+        composeControls={composeControls}
+        audioIntensity={arcIntensity}
       />
-      <group ref={groupRef}>
-        {aspects?.length ? (
-          <SacredGeometry
-            aspects={aspects}
-            positions={chart.positions}
-            asc={asc}
-            intensityMult={0.7 + audioIntensity * 0.5}
-          />
-        ) : null}
-        <PlanetNodes
-          positions={chart.positions}
-          asc={asc}
+      {aspects?.length ? (
+        <SacredGeometry
           aspects={aspects}
-          audioIntensity={audioIntensity}
+          positions={chart.positions}
+          intensityMult={intensityMult}
+          pulseRateMult={pulseRateMult}
         />
-      </group>
+      ) : null}
+      <PlanetEnergyField
+        positions={chart.positions}
+        aspects={aspects}
+        audioIntensity={arcIntensity}
+      />
     </>
   );
 }
@@ -524,7 +798,7 @@ export function ArtisticViz({
       <WebGLErrorBoundary onError={onWebGLError}>
         <Canvas
           frameloop={frameloop}
-          camera={{ position: [0, 0, 5], fov: 50, near: 0.1, far: 100 }}
+          camera={{ position: [0, 0, 4.5], fov: 50, near: 0.1, far: 100 }}
           gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
           onCreated={handleCreated}
           style={{ width: '100%', height: '100%', background: 'transparent' }}

@@ -4,7 +4,7 @@ import { useWheelRenderMode, type WheelRenderMode } from '../../hooks/useWheelRe
 
 const MODES: { id: WheelRenderMode; label: string; title: string }[] = [
   { id: 'classic', label: 'Chart', title: 'Classic chart' },
-  { id: 'cinematic', label: 'Viz', title: 'Artistic visualization' },
+  { id: 'cinematic', label: 'Aura', title: 'Aura visualization' },
 ];
 
 export function WheelModeToggle() {
