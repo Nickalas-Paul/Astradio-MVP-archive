@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Billboard, OrbitControls, Stars } from '@react-three/drei';
+import { Billboard, OrbitControls, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader';
 import type { ChartForWheel } from '../../core/chart-adapter';
@@ -27,10 +27,16 @@ const R_PLANET = 1.28;
 const R_LABEL_BASE = 1.52;
 const R_LABEL_STEP = 0.11;
 const R_SIGN_LABEL = 1.68;
+const R_HOUSE_NUMBER = 0.9;
+const R_ANGLE_MARKER = 1.57;
 const MIN_LABEL_ANGLE_DEG = 8;
 const SIGN_GLYPH_COLOR = '#94a3b8';
+const HOUSE_LABEL_COLOR = '#64748b';
+const ANGLE_MARKER_COLOR = '#5eead4';
 const PLANET_GLYPH_SIZE = 0.12;
 const SIGN_GLYPH_SIZE = 0.14;
+const ANGLE_MARKER_SIZE = 0.15;
+const INNER_RING_SEGMENTS = 64;
 
 const glyphGeometryCache = new Map<string, THREE.ShapeGeometry>();
 
@@ -235,18 +241,46 @@ function ZodiacRing({ asc }: { asc: number }) {
   );
 }
 
-function CuspLine({ cuspLon, asc, index }: { cuspLon: number; asc: number; index: number }) {
-  const [x, , z] = eclipticToScene(cuspLon, R_RING_OUTER, asc);
+function CuspLine({ cuspLon, asc }: { cuspLon: number; asc: number }) {
+  const [x1, , z1] = eclipticToScene(cuspLon, R_RING_INNER, asc);
+  const [x2, , z2] = eclipticToScene(cuspLon, R_RING_OUTER, asc);
   const positions = useMemo(
-    () => new Float32Array([0, 0.02, 0, x, 0.02, z]),
-    [x, z],
+    () => new Float32Array([x1, 0.02, z1, x2, 0.02, z2]),
+    [x1, z1, x2, z2],
   );
   return (
     <line>
       <bufferGeometry attach="geometry">
         <bufferAttribute attach="attributes-position" count={2} array={positions} itemSize={3} />
       </bufferGeometry>
-      <lineBasicMaterial color="#3d4f6e" transparent opacity={0.28} />
+      <lineBasicMaterial color={HOUSE_LABEL_COLOR} transparent opacity={0.5} />
+    </line>
+  );
+}
+
+function InnerHouseRing() {
+  const positions = useMemo(() => {
+    const pts = new Float32Array((INNER_RING_SEGMENTS + 1) * 3);
+    for (let i = 0; i <= INNER_RING_SEGMENTS; i += 1) {
+      const angle = (i / INNER_RING_SEGMENTS) * Math.PI * 2;
+      pts[i * 3] = R_RING_INNER * Math.cos(angle);
+      pts[i * 3 + 1] = 0.02;
+      pts[i * 3 + 2] = R_RING_INNER * Math.sin(angle);
+    }
+    return pts;
+  }, []);
+
+  return (
+    <line>
+      <bufferGeometry attach="geometry">
+        <bufferAttribute
+          attach="attributes-position"
+          count={INNER_RING_SEGMENTS + 1}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial color={HOUSE_LABEL_COLOR} transparent opacity={0.3} />
     </line>
   );
 }
@@ -254,9 +288,69 @@ function CuspLine({ cuspLon, asc, index }: { cuspLon: number; asc: number; index
 function HouseCusps({ cusps, asc }: { cusps: number[]; asc: number }) {
   return (
     <group>
+      <InnerHouseRing />
       {cusps.slice(0, 12).map((cuspLon, i) => (
-        <CuspLine key={i} cuspLon={cuspLon} asc={asc} index={i} />
+        <CuspLine key={i} cuspLon={cuspLon} asc={asc} />
       ))}
+    </group>
+  );
+}
+
+function houseMidLongitude(cusps: number[], houseIndex: number): number {
+  const a0 = cusps[houseIndex]!;
+  const a1 = cusps[(houseIndex + 1) % 12]!;
+  const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
+  return (a0 + span / 2) % 360;
+}
+
+function HouseNumbers({ cusps, asc }: { cusps: number[]; asc: number }) {
+  return (
+    <group>
+      {cusps.slice(0, 12).map((_, i) => {
+        const midLon = houseMidLongitude(cusps, i);
+        const [x, y, z] = eclipticToScene(midLon, R_HOUSE_NUMBER, asc);
+        return (
+          <Billboard key={`house-${i + 1}`} position={[x, y, z]}>
+            <Text fontSize={0.09} color={HOUSE_LABEL_COLOR} anchorX="center" anchorY="middle">
+              {String(i + 1)}
+            </Text>
+          </Billboard>
+        );
+      })}
+    </group>
+  );
+}
+
+function AngleMarkers({ cusps, asc }: { cusps: number[]; asc: number }) {
+  const ascGlyph = getPlanetGlyphSvg('ascendant');
+  const mcGlyph = getPlanetGlyphSvg('midheaven');
+  const ascLon = cusps[0];
+  const mcLon = cusps[9];
+
+  if (ascLon == null && mcLon == null) return null;
+
+  return (
+    <group>
+      {ascGlyph && ascLon != null ? (
+        <GlyphIcon
+          pathData={ascGlyph.pathData}
+          viewBox={ascGlyph.viewBox}
+          size={ANGLE_MARKER_SIZE}
+          color={ANGLE_MARKER_COLOR}
+          position={eclipticToScene(ascLon, R_ANGLE_MARKER, asc)}
+          opacity={0.9}
+        />
+      ) : null}
+      {mcGlyph && mcLon != null ? (
+        <GlyphIcon
+          pathData={mcGlyph.pathData}
+          viewBox={mcGlyph.viewBox}
+          size={ANGLE_MARKER_SIZE}
+          color={ANGLE_MARKER_COLOR}
+          position={eclipticToScene(mcLon, R_ANGLE_MARKER, asc)}
+          opacity={0.9}
+        />
+      ) : null}
     </group>
   );
 }
@@ -403,6 +497,8 @@ function ChartScene({
       <Stars radius={70} depth={35} count={900} factor={1.6} saturation={0.15} fade speed={0.1} />
       <ZodiacRing asc={asc} />
       <HouseCusps cusps={chart.cusps} asc={asc} />
+      <HouseNumbers cusps={chart.cusps} asc={asc} />
+      <AngleMarkers cusps={chart.cusps} asc={asc} />
       {aspects?.length ? (
         <AspectLines aspects={aspects} positions={chart.positions} asc={asc} />
       ) : null}
