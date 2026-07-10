@@ -123,6 +123,16 @@ export interface WheelSvgCoreProps {
   onPointerUp?: (e: PointerEvent<SVGSVGElement>) => void;
   onPlanetHover?: (planet: string | null) => void;
   onPlanetClick?: (planet: string) => void;
+  /** Layer visibility (0–1 opacity). Defaults preserve static wheel appearance. */
+  zodiacOpacity?: number;
+  houseOpacity?: number;
+  aspectOpacity?: number;
+  planetOpacity?: number;
+  angleOpacity?: number;
+  /** Progressive planet reveal: first N bodies from BODY_ORDER. */
+  planetCount?: number;
+  /** Wheel rotation in degrees; ignored when interactive (Sandbox drag). */
+  rotationDeg?: number;
 }
 
 export function WheelSvgCore({
@@ -142,6 +152,13 @@ export function WheelSvgCore({
   onPointerUp,
   onPlanetHover,
   onPlanetClick,
+  zodiacOpacity = 1,
+  houseOpacity = 1,
+  aspectOpacity = 1,
+  planetOpacity = 1,
+  angleOpacity = 1,
+  planetCount,
+  rotationDeg = 0,
 }: WheelSvgCoreProps) {
   const isTechnical = displayMode === 'technical';
 
@@ -172,6 +189,11 @@ export function WheelSvgCore({
   const showSignGlyphs = isTechnical && size >= 200;
 
   const planetNames = BODY_ORDER.filter((name) => positionLongitude(positions, name) != null);
+  const visiblePlanets =
+    planetCount != null ? planetNames.slice(0, planetCount) : planetNames;
+  const showSouthNode = planetCount == null || planetCount >= planetNames.length;
+  // Rotation breaks Sandbox drag hit-testing — only apply on non-interactive wheels.
+  const effectiveRotation = interactive ? 0 : rotationDeg;
   const planetRadius = R_OUT - 10;
   const houseSectorStroke = isTechnical ? 0.5 : 1;
 
@@ -203,7 +225,8 @@ export function WheelSvgCore({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <g transform={`translate(${cx}, ${cy})`}>
+      <g transform={`translate(${cx}, ${cy}) rotate(${effectiveRotation})`}>
+        <g opacity={zodiacOpacity}>
         {isTechnical ? (
           <>
             {Array.from({ length: 12 }, (_, signIndex) => (
@@ -288,7 +311,9 @@ export function WheelSvgCore({
         ) : (
           <circle r={R_OUT} fill="none" stroke={WHEEL_COLORS.outerRingStroke} strokeWidth={1} />
         )}
+        </g>
 
+        <g opacity={houseOpacity}>
         {chart.cusps.slice(0, 12).map((a0, i) => {
           const a1 = chart.cusps[(i + 1) % 12]!;
           const span = a1 > a0 ? a1 - a0 : a1 + 360 - a0;
@@ -316,9 +341,11 @@ export function WheelSvgCore({
             </g>
           );
         })}
+        </g>
 
-        {showAspectLines && aspects?.length
-          ? aspects.map((asp, idx) => {
+        {showAspectLines && aspects?.length ? (
+          <g opacity={aspectOpacity}>
+          {aspects.map((asp, idx) => {
               const bodyA = asp.bodyA ?? asp.a ?? '';
               const bodyB = asp.bodyB ?? asp.b ?? '';
               const lonA = positions[bodyA];
@@ -349,10 +376,12 @@ export function WheelSvgCore({
                   strokeOpacity={lineStyle.strokeOpacity}
                 />
               );
-            })
-          : null}
+            })}
+          </g>
+        ) : null}
 
-        {planetNames.map((name) => {
+        <g opacity={planetOpacity}>
+        {visiblePlanets.map((name) => {
           const deg = positionLongitude(positions, name);
           if (deg == null) return null;
           const radius = planetRadii.get(name) ?? planetRadius;
@@ -419,7 +448,8 @@ export function WheelSvgCore({
           );
         })}
 
-        {(() => {
+        {showSouthNode
+          ? (() => {
           const nnLon = positionLongitude(positions, 'northNode');
           if (typeof nnLon !== 'number' || !Number.isFinite(nnLon)) return null;
           const southLon = (nnLon + 180) % 360;
@@ -466,8 +496,11 @@ export function WheelSvgCore({
               {PLANET_GLYPH.southNode}
             </text>
           );
-        })()}
+        })()
+          : null}
+        </g>
 
+        <g opacity={angleOpacity}>
         {chart.cusps.slice(0, 12).map((a0, i) => {
           const angleGlyphKey = ANGLE_GLYPH_BY_HOUSE_INDEX[i];
           if (angleGlyphKey == null) return null;
@@ -487,6 +520,7 @@ export function WheelSvgCore({
             </g>
           );
         })}
+        </g>
       </g>
     </svg>
   );
