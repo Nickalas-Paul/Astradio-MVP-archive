@@ -10,13 +10,15 @@ import {
   type ReactNode,
 } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Billboard, OrbitControls, Stars, Text } from '@react-three/drei';
+import { Billboard, OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader';
 import type { ChartForWheel } from '../../core/chart-adapter';
 import { normalizePlanetName, PLANET_COLORS } from '../../core/planet-identity';
 import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 import { useAudioPlayerStore } from '../../store/audio-player';
 import { ASPECT_LINE_COLOR, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
+import { getPlanetGlyphSvg, getSignGlyphSvg } from './wheel-glyphs';
 import { pol, resolveAscendantLongitude, wheelEclipticDeg } from './wheel-geometry';
 
 const R_RING_OUTER = 1.45;
@@ -26,28 +28,88 @@ const R_LABEL_BASE = 1.52;
 const R_LABEL_STEP = 0.11;
 const R_SIGN_LABEL = 1.68;
 const MIN_LABEL_ANGLE_DEG = 8;
-const LABEL_COLOR = '#94a3b8';
-const SIGN_ABBREV = ['Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis'] as const;
+const SIGN_GLYPH_COLOR = '#94a3b8';
+const PLANET_GLYPH_SIZE = 0.12;
+const SIGN_GLYPH_SIZE = 0.14;
 
-const PLANET_ABBREV: Record<string, string> = {
-  sun: 'Su',
-  moon: 'Mo',
-  mercury: 'Me',
-  venus: 'Ve',
-  mars: 'Ma',
-  jupiter: 'Ju',
-  saturn: 'Sa',
-  uranus: 'Ur',
-  neptune: 'Ne',
-  pluto: 'Pl',
-  northNode: 'NN',
-  southNode: 'SN',
-  chiron: 'Ch',
-  ceres: 'Ce',
-  pallas: 'Pa',
-  juno: 'Jn',
-  vesta: 'Vs',
-};
+const glyphGeometryCache = new Map<string, THREE.ShapeGeometry>();
+
+function createGlyphGeometry(pathData: string, viewBox: string, targetSize: number): THREE.ShapeGeometry | null {
+  const cacheKey = `${pathData}|${viewBox}|${targetSize}`;
+  const cached = glyphGeometryCache.get(cacheKey);
+  if (cached) return cached;
+
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"><path d="${pathData}"/></svg>`;
+  const loader = new SVGLoader();
+  const svgData = loader.parse(svgString);
+
+  const shapes: THREE.Shape[] = [];
+  for (const path of svgData.paths) {
+    shapes.push(...SVGLoader.createShapes(path));
+  }
+  if (shapes.length === 0) return null;
+
+  const geometry = new THREE.ShapeGeometry(shapes);
+  geometry.computeBoundingBox();
+  const bbox = geometry.boundingBox;
+  if (!bbox) return null;
+
+  const gWidth = bbox.max.x - bbox.min.x;
+  const gHeight = bbox.max.y - bbox.min.y;
+  const scale = targetSize / Math.max(gWidth, gHeight, 1e-6);
+  geometry.scale(scale, -scale, 1);
+
+  geometry.computeBoundingBox();
+  const newBbox = geometry.boundingBox;
+  if (!newBbox) return null;
+
+  const centerX = (newBbox.max.x + newBbox.min.x) / 2;
+  const centerY = (newBbox.max.y + newBbox.min.y) / 2;
+  geometry.translate(-centerX, -centerY, 0);
+
+  glyphGeometryCache.set(cacheKey, geometry);
+  return geometry;
+}
+
+interface GlyphIconProps {
+  pathData: string;
+  viewBox: string;
+  size: number;
+  color: string;
+  position: [number, number, number];
+  opacity?: number;
+}
+
+function GlyphIcon({ pathData, viewBox, size, color, position, opacity = 1 }: GlyphIconProps) {
+  const geometry = useMemo(
+    () => createGlyphGeometry(pathData, viewBox, size),
+    [pathData, viewBox, size],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (geometry && !glyphGeometryCache.has(`${pathData}|${viewBox}|${size}`)) {
+        geometry.dispose();
+      }
+    };
+  }, [geometry, pathData, viewBox, size]);
+
+  if (!geometry) return null;
+
+  return (
+    <Billboard position={position}>
+      <mesh geometry={geometry}>
+        <meshBasicMaterial
+          color={color}
+          transparent={opacity < 1}
+          opacity={opacity}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+    </Billboard>
+  );
+}
 
 export interface CinematicWheelProps {
   chart: ChartForWheel;
@@ -65,11 +127,6 @@ function eclipticToScene(lon: number, radius: number, asc: number): [number, num
 function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
   const deg = positions[bodyKey] ?? positions[bodyKey.toLowerCase()];
   return typeof deg === 'number' && Number.isFinite(deg) ? deg : undefined;
-}
-
-function planetAbbrev(name: string): string {
-  const canonical = normalizePlanetName(name);
-  return PLANET_ABBREV[canonical] ?? canonical.slice(0, 2);
 }
 
 function angularDeltaDeg(a: number, b: number): number {
@@ -147,6 +204,7 @@ function ZodiacRing({ asc }: { asc: number }) {
         const [bx, , bz] = eclipticToScene(boundaryLon, R_RING_INNER - 0.02, asc);
         const midLon = signIndex * 30 + 15;
         const [lx, ly, lz] = eclipticToScene(midLon, R_SIGN_LABEL, asc);
+        const signGlyph = getSignGlyphSvg(signIndex);
         return (
           <group key={signIndex}>
             <line>
@@ -160,11 +218,16 @@ function ZodiacRing({ asc }: { asc: number }) {
               </bufferGeometry>
               <lineBasicMaterial color="#4a5a7a" transparent opacity={0.35} />
             </line>
-            <Billboard position={[lx, ly + 0.03, lz]}>
-              <Text fontSize={0.07} color={LABEL_COLOR} anchorX="center" anchorY="middle" fillOpacity={0.75}>
-                {SIGN_ABBREV[signIndex]}
-              </Text>
-            </Billboard>
+            {signGlyph ? (
+              <GlyphIcon
+                pathData={signGlyph.pathData}
+                viewBox={signGlyph.viewBox}
+                size={SIGN_GLYPH_SIZE}
+                color={SIGN_GLYPH_COLOR}
+                position={[lx, ly + 0.03, lz]}
+                opacity={0.72}
+              />
+            ) : null}
           </group>
         );
       })}
@@ -264,6 +327,7 @@ function PlanetMarker({
   const isPlaying = useAudioPlayerStore((s) => s.isPlaying);
   const canonical = normalizePlanetName(name);
   const color = PLANET_COLORS[canonical] ?? WHEEL_COLORS.planetGlyphFill;
+  const planetGlyph = getPlanetGlyphSvg(name);
   const [x, y, z] = eclipticToScene(lon, R_PLANET, asc);
   const [lx, ly, lz] = eclipticToScene(lon, labelRadius, asc);
 
@@ -289,11 +353,16 @@ function PlanetMarker({
         </mesh>
         <pointLight color={color} intensity={isPlaying ? 0.18 : 0.12} distance={0.45} />
       </group>
-      <Billboard position={[lx, ly + 0.02, lz]}>
-        <Text fontSize={0.065} color={LABEL_COLOR} anchorX="center" anchorY="middle" fillOpacity={0.85}>
-          {planetAbbrev(name)}
-        </Text>
-      </Billboard>
+      {planetGlyph ? (
+        <GlyphIcon
+          pathData={planetGlyph.pathData}
+          viewBox={planetGlyph.viewBox}
+          size={PLANET_GLYPH_SIZE}
+          color={color}
+          position={[lx, ly + 0.02, lz]}
+          opacity={0.9}
+        />
+      ) : null}
     </group>
   );
 }
