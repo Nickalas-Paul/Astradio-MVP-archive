@@ -10,19 +10,44 @@ import {
   type ReactNode,
 } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Billboard, Html, OrbitControls, Stars, Text } from '@react-three/drei';
+import { Billboard, OrbitControls, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { ChartForWheel } from '../../core/chart-adapter';
 import { normalizePlanetName, PLANET_COLORS } from '../../core/planet-identity';
-import { BODY_DISPLAY_ORDER, BODY_LABELS, type BodyKey } from '../../../../../vnext/canonical-bodies';
+import { BODY_DISPLAY_ORDER } from '../../../../../vnext/canonical-bodies';
 import { useAudioPlayerStore } from '../../store/audio-player';
-import { ASPECT_LINE_COLOR, SIGN_GLYPH, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
-import { pol, resolveAscendantLongitude } from './wheel-geometry';
+import { ASPECT_LINE_COLOR, WHEEL_COLORS, type WheelAspect } from './wheel-constants';
+import { pol, resolveAscendantLongitude, wheelEclipticDeg } from './wheel-geometry';
 
-const R_RING_OUTER = 1.65;
-const R_RING_INNER = 1.2;
-const R_PLANET = 1.42;
-const R_SIGN_GLYPH = 1.82;
+const R_RING_OUTER = 1.45;
+const R_RING_INNER = 1.05;
+const R_PLANET = 1.28;
+const R_LABEL_BASE = 1.52;
+const R_LABEL_STEP = 0.11;
+const R_SIGN_LABEL = 1.68;
+const MIN_LABEL_ANGLE_DEG = 8;
+const LABEL_COLOR = '#94a3b8';
+const SIGN_ABBREV = ['Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis'] as const;
+
+const PLANET_ABBREV: Record<string, string> = {
+  sun: 'Su',
+  moon: 'Mo',
+  mercury: 'Me',
+  venus: 'Ve',
+  mars: 'Ma',
+  jupiter: 'Ju',
+  saturn: 'Sa',
+  uranus: 'Ur',
+  neptune: 'Ne',
+  pluto: 'Pl',
+  northNode: 'NN',
+  southNode: 'SN',
+  chiron: 'Ch',
+  ceres: 'Ce',
+  pallas: 'Pa',
+  juno: 'Jn',
+  vesta: 'Vs',
+};
 
 export interface CinematicWheelProps {
   chart: ChartForWheel;
@@ -34,7 +59,7 @@ export interface CinematicWheelProps {
 
 function eclipticToScene(lon: number, radius: number, asc: number): [number, number, number] {
   const { x, y } = pol(radius, lon, asc);
-  return [x, 0.06, -y];
+  return [x, 0.05, -y];
 }
 
 function positionLongitude(positions: Record<string, number>, bodyKey: string): number | undefined {
@@ -42,9 +67,45 @@ function positionLongitude(positions: Record<string, number>, bodyKey: string): 
   return typeof deg === 'number' && Number.isFinite(deg) ? deg : undefined;
 }
 
-function planetLabel(name: string): string {
+function planetAbbrev(name: string): string {
   const canonical = normalizePlanetName(name);
-  return BODY_LABELS[canonical as BodyKey] ?? canonical.slice(0, 3);
+  return PLANET_ABBREV[canonical] ?? canonical.slice(0, 2);
+}
+
+function angularDeltaDeg(a: number, b: number): number {
+  return Math.abs(((a - b + 180) % 360) - 180);
+}
+
+type PlanetLayout = { name: string; lon: number; labelRadius: number };
+
+function layoutPlanets(positions: Record<string, number>, asc: number): PlanetLayout[] {
+  const entries = BODY_DISPLAY_ORDER.flatMap((name) => {
+    const lon = positionLongitude(positions, name);
+    if (lon == null) return [];
+    return [{ name, lon, angle: wheelEclipticDeg(lon, asc) }];
+  });
+
+  entries.sort((a, b) => a.angle - b.angle);
+
+  const placed: { angle: number; radius: number }[] = [];
+  const layouts: PlanetLayout[] = [];
+
+  for (const entry of entries) {
+    let labelRadius = R_LABEL_BASE;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const overlaps = placed.some(
+        (p) =>
+          angularDeltaDeg(entry.angle, p.angle) < MIN_LABEL_ANGLE_DEG &&
+          Math.abs(labelRadius - p.radius) < R_LABEL_STEP * 0.75,
+      );
+      if (!overlaps) break;
+      labelRadius += R_LABEL_STEP;
+    }
+    placed.push({ angle: entry.angle, radius: labelRadius });
+    layouts.push({ name: entry.name, lon: entry.lon, labelRadius });
+  }
+
+  return layouts;
 }
 
 class WebGLErrorBoundary extends Component<
@@ -71,24 +132,40 @@ function ZodiacRing({ asc }: { asc: number }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[(R_RING_OUTER + R_RING_INNER) / 2, (R_RING_OUTER - R_RING_INNER) / 2, 16, 72]} />
+        <torusGeometry args={[(R_RING_OUTER + R_RING_INNER) / 2, (R_RING_OUTER - R_RING_INNER) / 2, 20, 80]} />
         <meshStandardMaterial
           color="#1a2435"
-          metalness={0.35}
-          roughness={0.55}
+          metalness={0.55}
+          roughness={0.35}
           emissive="#0e9696"
-          emissiveIntensity={0.12}
+          emissiveIntensity={0.1}
         />
       </mesh>
       {Array.from({ length: 12 }, (_, signIndex) => {
+        const boundaryLon = signIndex * 30;
+        const [tx, , tz] = eclipticToScene(boundaryLon, R_RING_OUTER + 0.02, asc);
+        const [bx, , bz] = eclipticToScene(boundaryLon, R_RING_INNER - 0.02, asc);
         const midLon = signIndex * 30 + 15;
-        const [gx, gy, gz] = eclipticToScene(midLon, R_SIGN_GLYPH, asc);
+        const [lx, ly, lz] = eclipticToScene(midLon, R_SIGN_LABEL, asc);
         return (
-          <Billboard key={signIndex} position={[gx, gy + 0.04, gz]}>
-            <Text fontSize={0.16} color={WHEEL_COLORS.zodiacGlyphFill} anchorX="center" anchorY="middle">
-              {SIGN_GLYPH[signIndex]}
-            </Text>
-          </Billboard>
+          <group key={signIndex}>
+            <line>
+              <bufferGeometry attach="geometry">
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([tx, 0.04, tz, bx, 0.04, bz])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#4a5a7a" transparent opacity={0.35} />
+            </line>
+            <Billboard position={[lx, ly + 0.03, lz]}>
+              <Text fontSize={0.07} color={LABEL_COLOR} anchorX="center" anchorY="middle" fillOpacity={0.75}>
+                {SIGN_ABBREV[signIndex]}
+              </Text>
+            </Billboard>
+          </group>
         );
       })}
     </group>
@@ -102,11 +179,11 @@ function CuspLine({ cuspLon, asc, index }: { cuspLon: number; asc: number; index
     [x, z],
   );
   return (
-    <line key={`cusp-${index}`}>
+    <line>
       <bufferGeometry attach="geometry">
         <bufferAttribute attach="attributes-position" count={2} array={positions} itemSize={3} />
       </bufferGeometry>
-      <lineBasicMaterial color="#3d4f6e" transparent opacity={0.45} />
+      <lineBasicMaterial color="#3d4f6e" transparent opacity={0.28} />
     </line>
   );
 }
@@ -165,7 +242,7 @@ function AspectLines({
               itemSize={3}
             />
           </bufferGeometry>
-          <lineBasicMaterial color={line.color} transparent opacity={0.55} linewidth={1} />
+          <lineBasicMaterial color={line.color} transparent opacity={0.38} />
         </line>
       ))}
     </group>
@@ -175,10 +252,12 @@ function AspectLines({
 function PlanetMarker({
   name,
   lon,
+  labelRadius,
   asc,
 }: {
   name: string;
   lon: number;
+  labelRadius: number;
   asc: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -186,53 +265,52 @@ function PlanetMarker({
   const canonical = normalizePlanetName(name);
   const color = PLANET_COLORS[canonical] ?? WHEEL_COLORS.planetGlyphFill;
   const [x, y, z] = eclipticToScene(lon, R_PLANET, asc);
+  const [lx, ly, lz] = eclipticToScene(lon, labelRadius, asc);
 
   useFrame((state) => {
     if (!meshRef.current) return;
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
     const pulse = isPlaying ? Math.sin(state.clock.elapsedTime * 2.2) * 0.5 + 0.5 : 0;
-    mat.emissiveIntensity = 0.25 + pulse * 0.2;
+    mat.emissiveIntensity = 0.3 + pulse * 0.15;
   });
 
   return (
-    <group position={[x, y, z]}>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[0.055, 16, 16]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.25}
-          metalness={0.3}
-          roughness={0.4}
-        />
-      </mesh>
-      <pointLight
-        color={color}
-        intensity={isPlaying ? 0.22 : 0.15}
-        distance={0.5}
-      />
-      <Html center distanceFactor={6} style={{ pointerEvents: 'none', userSelect: 'none' }}>
-        <span className="text-[9px] text-text-secondary/90 whitespace-nowrap">{planetLabel(name)}</span>
-      </Html>
+    <group>
+      <group position={[x, y, z]}>
+        <mesh ref={meshRef}>
+          <sphereGeometry args={[0.048, 16, 16]} />
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={0.3}
+            metalness={0.35}
+            roughness={0.35}
+          />
+        </mesh>
+        <pointLight color={color} intensity={isPlaying ? 0.18 : 0.12} distance={0.45} />
+      </group>
+      <Billboard position={[lx, ly + 0.02, lz]}>
+        <Text fontSize={0.065} color={LABEL_COLOR} anchorX="center" anchorY="middle" fillOpacity={0.85}>
+          {planetAbbrev(name)}
+        </Text>
+      </Billboard>
     </group>
   );
 }
 
-function Planets({
-  positions,
-  asc,
-}: {
-  positions: Record<string, number>;
-  asc: number;
-}) {
-  const planetNames = BODY_DISPLAY_ORDER.filter((name) => positionLongitude(positions, name) != null);
+function Planets({ positions, asc }: { positions: Record<string, number>; asc: number }) {
+  const layouts = useMemo(() => layoutPlanets(positions, asc), [positions, asc]);
   return (
     <group>
-      {planetNames.map((name) => {
-        const lon = positionLongitude(positions, name);
-        if (lon == null) return null;
-        return <PlanetMarker key={name} name={name} lon={lon} asc={asc} />;
-      })}
+      {layouts.map((layout) => (
+        <PlanetMarker
+          key={layout.name}
+          name={layout.name}
+          lon={layout.lon}
+          labelRadius={layout.labelRadius}
+          asc={asc}
+        />
+      ))}
     </group>
   );
 }
@@ -250,10 +328,10 @@ function ChartScene({
   return (
     <>
       <color attach="background" args={['#0a0f18']} />
-      <ambientLight intensity={0.35} />
-      <pointLight position={[0, 4, 2]} intensity={0.6} color="#a8d8e8" />
-      <pointLight position={[-2, -1, -2]} intensity={0.25} color="#6b4a9b" />
-      <Stars radius={80} depth={40} count={1200} factor={2} saturation={0.2} fade speed={0.15} />
+      <ambientLight intensity={0.32} />
+      <pointLight position={[0, 3.5, 2]} intensity={0.5} color="#a8d8e8" />
+      <pointLight position={[-1.5, -0.5, -1.5]} intensity={0.2} color="#6b4a9b" />
+      <Stars radius={70} depth={35} count={900} factor={1.6} saturation={0.15} fade speed={0.1} />
       <ZodiacRing asc={asc} />
       <HouseCusps cusps={chart.cusps} asc={asc} />
       {aspects?.length ? (
@@ -262,12 +340,12 @@ function ChartScene({
       <Planets positions={chart.positions} asc={asc} />
       <OrbitControls
         enablePan={false}
-        minDistance={2.2}
-        maxDistance={6}
+        minDistance={3.2}
+        maxDistance={5.2}
         autoRotate
-        autoRotateSpeed={isPlaying ? 0.65 : 0.25}
+        autoRotateSpeed={isPlaying ? 0.35 : 0.12}
         enableDamping
-        dampingFactor={0.08}
+        dampingFactor={0.1}
       />
     </>
   );
@@ -333,7 +411,7 @@ export function CinematicWheel({
       <WebGLErrorBoundary onError={onWebGLError}>
         <Canvas
           frameloop={frameloop}
-          camera={{ position: [0, 2.8, 2.8], fov: 42, near: 0.1, far: 100 }}
+          camera={{ position: [0, 3.4, 3.4], fov: 34, near: 0.1, far: 100 }}
           gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
           onCreated={handleCreated}
           style={{ width: '100%', height: '100%' }}
