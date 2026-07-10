@@ -8,6 +8,7 @@ import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { getApiBaseUrl } from '@/core/api-base';
 import { normalizeChartForWheel } from '@/core/chart-adapter';
 import { getSkyCache, setSkyCache, cleanExpiredSkyCache } from '@/core/sky-compose-cache';
+import { extractComposeVisualControls, type ComposeVisualControls } from '@/core/compose-visual-controls';
 import { SKY_SECTION_PLANETS } from '@/core/planet-identity';
 import type { ProfilePrimaryChart } from '@/core/social/hooks';
 import type { CanonicalLocation } from '@/types/location';
@@ -168,6 +169,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   const [skyAudioLoading, setSkyAudioLoading] = useState(false);
   const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
   const [skyExportId, setSkyExportId] = useState<string | null>(null);
+  const [composeControls, setComposeControls] = useState<ComposeVisualControls | null>(null);
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!composeContext) return;
@@ -201,6 +203,9 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setSkyAudioError('Could not compose sky audio');
         return;
       }
+      if (payload.controls != null) {
+        setComposeControls(extractComposeVisualControls(payload));
+      }
       setSkyExportId(exportId);
       playTrack({ exportId, label: "Today's Sky", source: 'sky' });
     } catch {
@@ -230,6 +235,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           setExplanationSections(cached.explanationSections as ExplanationSection[] | null);
           setAnalysisText(cached.analysisText ?? '');
           setChartData(cached.chartData);
+          setComposeControls(cached.composeControls ?? null);
           setComposeContext(context);
           setIsLoading(false);
           return;
@@ -280,11 +286,13 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           if (wheelSource) wheelSource = normalizeChartForWheel(wheelSource);
         }
 
+        const visualControls = extractComposeVisualControls(payload);
 
         setComposeHash(hash);
         setExplanationSections(sections);
         setAnalysisText(sections ? '' : analysis);
         setChartData(wheelSource);
+        setComposeControls(visualControls);
         setComposeContext(context);
 
         setSkyCache(dateStr, loc.lat, loc.lon, {
@@ -292,6 +300,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           analysisText: sections ? '' : analysis,
           chartData: wheelSource,
           composeHash: hash,
+          composeControls: visualControls,
           date: dateStr,
           lat: loc.lat,
           lon: loc.lon,
@@ -330,7 +339,14 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           isLoading={isLoading}
         />
         <div className="min-w-0 md:sticky md:top-20">
-          <WheelDisplay chartData={chartData} isLoading={isLoading} className="w-full" maxSize={480} />
+          <WheelDisplay
+            chartData={chartData}
+            isLoading={isLoading}
+            className="w-full"
+            maxSize={480}
+            composeControls={composeControls}
+            showAspectLines
+          />
         </div>
       </div>
       {!isLoading && hasSkyContent ? (

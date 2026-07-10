@@ -5,11 +5,14 @@
 
 const KEY_PREFIX = 'astradio_sky_';
 
+import type { ComposeVisualControls } from './compose-visual-controls';
+
 export type SkyCachePayload = {
   explanationSections: unknown;
   analysisText: string;
   chartData: unknown;
   composeHash: string;
+  composeControls?: ComposeVisualControls | null;
   date: string;
   lat: number;
   lon: number;
