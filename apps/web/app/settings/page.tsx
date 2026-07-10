@@ -11,6 +11,7 @@ import { BlockedUsersSection } from '../../src/components/settings/BlockedUsersS
 import { useProfile, useProfileChart } from '../../src/core/social/hooks';
 import { useSettingsStore, useUIStore } from '../../src/store';
 import { useWheelDisplayMode } from '../../src/hooks/useWheelDisplayMode';
+import { useWheelRenderMode } from '../../src/hooks/useWheelRenderMode';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 
@@ -22,6 +23,7 @@ export default function SettingsPage() {
   const { settings, updateSettings } = useSettingsStore();
   const { theme, setTheme } = useUIStore();
   const { mode: wheelDisplayMode, setMode: setWheelDisplayMode } = useWheelDisplayMode();
+  const { mode: wheelRenderMode, setMode: setWheelRenderMode } = useWheelRenderMode();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -180,6 +182,56 @@ export default function SettingsPage() {
                       <div className="text-sm font-medium mb-1">Simple</div>
                       <div className="text-xs text-text-secondary">
                         Clean wheel with houses and planets only
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-text-primary mb-2 block">
+                    Wheel animation
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setWheelRenderMode('static')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        wheelRenderMode === 'static'
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border bg-bg hover:bg-bgElev'
+                      }`}
+                    >
+                      <div className="text-sm font-medium mb-1">Static</div>
+                      <div className="text-xs text-text-secondary">
+                        Traditional chart view
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWheelRenderMode('animated')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        wheelRenderMode === 'animated'
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border bg-bg hover:bg-bgElev'
+                      }`}
+                    >
+                      <div className="text-sm font-medium mb-1">Animated</div>
+                      <div className="text-xs text-text-secondary">
+                        Progressive draw-in with rotation
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWheelRenderMode('cinematic')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        wheelRenderMode === 'cinematic'
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border bg-bg hover:bg-bgElev'
+                      }`}
+                    >
+                      <div className="text-sm font-medium mb-1">Cinematic</div>
+                      <div className="text-xs text-text-secondary">
+                        Interactive 3D experience
                       </div>
                     </button>
                   </div>

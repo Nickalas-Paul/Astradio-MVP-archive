@@ -7,14 +7,14 @@ export const WHEEL_RENDER_MODE_STORAGE_KEY = 'astradio_wheel_render_mode';
 export type WheelRenderMode = 'static' | 'animated' | 'cinematic';
 
 function readStoredMode(): WheelRenderMode {
-  if (typeof window === 'undefined') return 'static';
+  if (typeof window === 'undefined') return 'animated';
   const stored = localStorage.getItem(WHEEL_RENDER_MODE_STORAGE_KEY);
-  if (stored === 'animated' || stored === 'cinematic') return stored;
-  return 'static';
+  if (stored === 'static' || stored === 'cinematic') return stored;
+  return 'animated';
 }
 
 export function useWheelRenderMode() {
-  const [mode, setModeState] = useState<WheelRenderMode>('static');
+  const [mode, setModeState] = useState<WheelRenderMode>('animated');
 
   useEffect(() => {
     const sync = () => setModeState(readStoredMode());
