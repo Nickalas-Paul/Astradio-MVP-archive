@@ -12,6 +12,7 @@ import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { AnimatedWheelSvgCore } from './AnimatedWheelSvgCore';
+import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
 
 function planetDisplayName(bodyKey: string): string {
@@ -159,7 +160,13 @@ export function WheelDisplay({
         style={{ width: wheelSize, height: wheelSize }}
       >
         {normalized ? (
-          (() => {
+          <>
+            {wheelSize >= 200 ? (
+              <div className="absolute top-2 right-2 z-20 pointer-events-auto">
+                <WheelModeToggle />
+              </div>
+            ) : null}
+            {(() => {
             const wheelProps = {
               chart: normalized,
               size: wheelSize,
@@ -179,7 +186,8 @@ export function WheelDisplay({
               return <AnimatedWheelSvgCore {...wheelProps} />;
             }
             return <WheelSvgCore {...wheelProps} />;
-          })()
+          })()}
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-4">
