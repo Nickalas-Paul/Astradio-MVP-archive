@@ -3,8 +3,8 @@
 import { useWheelRenderMode, type WheelRenderMode } from '../../hooks/useWheelRenderMode';
 
 const MODES: { id: WheelRenderMode; label: string; title: string }[] = [
-  { id: 'classic', label: '2D', title: 'Classic chart' },
-  { id: 'cinematic', label: '3D', title: 'Cinematic view' },
+  { id: 'classic', label: 'Chart', title: 'Classic chart' },
+  { id: 'cinematic', label: 'Viz', title: 'Artistic visualization' },
 ];
 
 export function WheelModeToggle() {

@@ -2,12 +2,14 @@
 
 // Wheel render modes:
 // - 'classic': Traditional 2D SVG chart via WheelSvgCore
-// - 'cinematic': Phase D artistic viz (placeholder — renders classic until ArtisticViz ships)
-// Default: 'classic'
+// - 'cinematic': ArtisticViz synesthetic WebGL scene (lazy-loaded)
+// Default: 'cinematic' with automatic fallback to 'classic' if WebGL unavailable
 // Sandbox (WheelBuilder) bypasses this — always uses WheelSvgCore directly
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
+import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
 import { normalizePlanetName } from '../../core/planet-identity';
@@ -19,6 +21,11 @@ import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
+
+const ArtisticViz = dynamic(
+  () => import('./ArtisticViz').then((m) => ({ default: m.ArtisticViz })),
+  { ssr: false, loading: () => null },
+);
 
 function planetDisplayName(bodyKey: string): string {
   const canonical = normalizePlanetName(bodyKey);
@@ -53,6 +60,8 @@ export interface WheelDisplayProps {
   planetHighlight?: string | string[] | Set<string> | null;
   /** Shown when chartData is absent (e.g. privacy-restricted preview). */
   emptyMessage?: string;
+  /** Musical compose parameters for ArtisticViz (Today sky summary). */
+  composeControls?: ComposeVisualControls | null;
 }
 
 export function WheelDisplay({
@@ -63,15 +72,17 @@ export function WheelDisplay({
   maxSize = 600,
   planetHighlight: planetHighlightProp,
   emptyMessage,
+  composeControls = null,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { mode: renderMode } = useWheelRenderMode();
+  const { mode: renderMode, setMode: setRenderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
   const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
+  const [vizReady, setVizReady] = useState(false);
 
   const effectiveHighlight =
     planetHighlightProp ??
@@ -86,6 +97,20 @@ export function WheelDisplay({
     if (lon == null) return null;
     return formatPlanetHoverLabel(bodyKey, lon);
   }, [highlightedPlanets, normalized]);
+
+  useEffect(() => {
+    if (renderMode !== 'cinematic') {
+      setVizReady(false);
+    }
+  }, [renderMode]);
+
+  const handleWebGLFallback = useCallback(() => {
+    setRenderMode('classic');
+  }, [setRenderMode]);
+
+  const handleVizReady = useCallback(() => {
+    setVizReady(true);
+  }, []);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -184,8 +209,19 @@ export function WheelDisplay({
             };
 
             if (renderMode === 'cinematic') {
-              // Phase D: ArtisticViz will mount here via lazy load
-              return <WheelSvgCore {...wheelProps} />;
+              return (
+                <>
+                  {!vizReady ? <WheelSvgCore {...wheelProps} /> : null}
+                  <ArtisticViz
+                    chart={normalized}
+                    aspects={aspects}
+                    size={wheelSize}
+                    composeControls={composeControls}
+                    onWebGLError={handleWebGLFallback}
+                    onReady={handleVizReady}
+                  />
+                </>
+              );
             }
             return <WheelSvgCore {...wheelProps} />;
           })()}
