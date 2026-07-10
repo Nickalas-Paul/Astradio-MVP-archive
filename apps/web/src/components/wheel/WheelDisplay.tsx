@@ -10,6 +10,7 @@ import { BODY_LABELS, type BodyKey } from '../../../../../vnext/canonical-bodies
 import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
+import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { WheelSvgCore } from './WheelSvgCore';
 
 function planetDisplayName(bodyKey: string): string {
@@ -57,6 +58,7 @@ export function WheelDisplay({
   emptyMessage,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
+  const { mode: renderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
@@ -156,16 +158,35 @@ export function WheelDisplay({
         style={{ width: wheelSize, height: wheelSize }}
       >
         {normalized ? (
-          <WheelSvgCore
-            chart={normalized}
-            size={wheelSize}
-            ascendantLongitude={resolveAscendantLongitude(normalized)}
-            aspects={aspects}
-            showAspectLines={aspectLinesVisible}
-            planetHighlight={effectiveHighlight}
-            displayMode={displayMode}
-            onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
-          />
+          (() => {
+            const wheelSvgCore = (
+              <WheelSvgCore
+                chart={normalized}
+                size={wheelSize}
+                ascendantLongitude={resolveAscendantLongitude(normalized)}
+                aspects={aspects}
+                showAspectLines={aspectLinesVisible}
+                planetHighlight={effectiveHighlight}
+                displayMode={displayMode}
+                onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
+              />
+            );
+
+            // Render mode branch — animated and cinematic components will be added in Phases B and C.
+            // Until then, all modes fall through to static WheelSvgCore.
+            if (renderMode === 'cinematic') {
+              // Phase C: lazy-loaded CinematicWheel will mount here
+              // Fallback to static until implemented
+              return wheelSvgCore;
+            }
+            if (renderMode === 'animated') {
+              // Phase B: AnimatedWheelSvgCore will mount here
+              // Fallback to static until implemented
+              return wheelSvgCore;
+            }
+            // Static (default): current WheelSvgCore render
+            return wheelSvgCore;
+          })()
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-4">
