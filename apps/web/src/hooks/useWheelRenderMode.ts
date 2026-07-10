@@ -4,17 +4,22 @@ import { useCallback, useEffect, useState } from 'react';
 
 export const WHEEL_RENDER_MODE_STORAGE_KEY = 'astradio_wheel_render_mode';
 
-export type WheelRenderMode = 'static' | 'animated' | 'cinematic';
+export type WheelRenderMode = 'classic' | 'cinematic';
+
+function normalizeStoredMode(stored: string | null): WheelRenderMode {
+  if (stored === 'classic' || stored === 'cinematic') return stored;
+  if (stored === 'static' || stored === 'animated') return 'classic';
+  return 'cinematic';
+}
 
 function readStoredMode(): WheelRenderMode {
-  if (typeof window === 'undefined') return 'animated';
+  if (typeof window === 'undefined') return 'cinematic';
   const stored = localStorage.getItem(WHEEL_RENDER_MODE_STORAGE_KEY);
-  if (stored === 'static' || stored === 'cinematic') return stored;
-  return 'animated';
+  return normalizeStoredMode(stored);
 }
 
 export function useWheelRenderMode() {
-  const [mode, setModeState] = useState<WheelRenderMode>('animated');
+  const [mode, setModeState] = useState<WheelRenderMode>('cinematic');
 
   useEffect(() => {
     const sync = () => setModeState(readStoredMode());

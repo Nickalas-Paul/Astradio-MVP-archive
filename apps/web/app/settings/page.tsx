@@ -189,35 +189,21 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-sm font-medium text-text-primary mb-2 block">
-                    Wheel animation
+                    Wheel display
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setWheelRenderMode('static')}
+                      onClick={() => setWheelRenderMode('classic')}
                       className={`p-3 rounded-xl border text-left transition-all ${
-                        wheelRenderMode === 'static'
+                        wheelRenderMode === 'classic'
                           ? 'border-accent bg-accent/10 text-accent'
                           : 'border-border bg-bg hover:bg-bgElev'
                       }`}
                     >
-                      <div className="text-sm font-medium mb-1">Static</div>
+                      <div className="text-sm font-medium mb-1">Classic</div>
                       <div className="text-xs text-text-secondary">
                         Traditional chart view
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWheelRenderMode('animated')}
-                      className={`p-3 rounded-xl border text-left transition-all ${
-                        wheelRenderMode === 'animated'
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border bg-bg hover:bg-bgElev'
-                      }`}
-                    >
-                      <div className="text-sm font-medium mb-1">Animated</div>
-                      <div className="text-xs text-text-secondary">
-                        Progressive draw-in with rotation
                       </div>
                     </button>
                     <button

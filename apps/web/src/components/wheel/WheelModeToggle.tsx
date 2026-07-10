@@ -3,8 +3,7 @@
 import { useWheelRenderMode, type WheelRenderMode } from '../../hooks/useWheelRenderMode';
 
 const MODES: { id: WheelRenderMode; label: string; title: string }[] = [
-  { id: 'static', label: '2D', title: 'Static chart' },
-  { id: 'animated', label: 'Anim', title: 'Animated draw-in' },
+  { id: 'classic', label: '2D', title: 'Classic chart' },
   { id: 'cinematic', label: '3D', title: 'Cinematic view' },
 ];
 
@@ -26,7 +25,7 @@ export function WheelModeToggle() {
             title={option.title}
             aria-pressed={active}
             onClick={() => setMode(option.id)}
-            className={`min-h-[28px] min-w-[32px] px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none transition-colors ${
+            className={`min-h-[28px] min-w-[36px] px-2 py-0.5 rounded-md text-[10px] font-medium leading-none transition-colors ${
               active
                 ? 'bg-accent text-white shadow-sm'
                 : 'text-text-secondary hover:text-text-primary hover:bg-bgElev/80'

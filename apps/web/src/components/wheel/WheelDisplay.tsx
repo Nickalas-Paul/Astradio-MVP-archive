@@ -11,7 +11,6 @@ import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
-import { AnimatedWheelSvgCore } from './AnimatedWheelSvgCore';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
 
@@ -179,11 +178,8 @@ export function WheelDisplay({
             };
 
             if (renderMode === 'cinematic') {
-              // Phase C: lazy-loaded CinematicWheel will mount here
+              // Phase C: CinematicWheel wired in Commit 4
               return <WheelSvgCore {...wheelProps} />;
-            }
-            if (renderMode === 'animated') {
-              return <AnimatedWheelSvgCore {...wheelProps} />;
             }
             return <WheelSvgCore {...wheelProps} />;
           })()}
