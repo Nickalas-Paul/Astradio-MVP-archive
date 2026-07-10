@@ -37,6 +37,58 @@ const PLANET_GLYPH_SIZE = 0.12;
 const SIGN_GLYPH_SIZE = 0.14;
 const ANGLE_MARKER_SIZE = 0.15;
 const INNER_RING_SEGMENTS = 64;
+const LINE_Y = 0.05;
+
+function createLineSegmentGeometry(
+  x1: number,
+  y1: number,
+  z1: number,
+  x2: number,
+  y2: number,
+  z2: number,
+): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([x1, y1, z1, x2, y2, z2], 3));
+  return geometry;
+}
+
+function createCircleLineGeometry(radius: number, y: number, segments: number): THREE.BufferGeometry {
+  const points: THREE.Vector3[] = [];
+  for (let i = 0; i <= segments; i += 1) {
+    const angle = (i / segments) * Math.PI * 2;
+    points.push(new THREE.Vector3(radius * Math.cos(angle), y, radius * Math.sin(angle)));
+  }
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return geometry;
+}
+
+function SceneLine({
+  geometry,
+  color,
+  opacity = 1,
+}: {
+  geometry: THREE.BufferGeometry;
+  color: string;
+  opacity?: number;
+}) {
+  const lineObject = useMemo(() => {
+    const material = new THREE.LineBasicMaterial({
+      color,
+      transparent: opacity < 1,
+      opacity,
+    });
+    return new THREE.Line(geometry, material);
+  }, [geometry, color, opacity]);
+
+  useEffect(() => {
+    return () => {
+      lineObject.geometry.dispose();
+      (lineObject.material as THREE.Material).dispose();
+    };
+  }, [lineObject]);
+
+  return <primitive object={lineObject} />;
+}
 
 const glyphGeometryCache = new Map<string, THREE.ShapeGeometry>();
 
@@ -206,24 +258,14 @@ function ZodiacRing({ asc }: { asc: number }) {
       </mesh>
       {Array.from({ length: 12 }, (_, signIndex) => {
         const boundaryLon = signIndex * 30;
-        const [tx, , tz] = eclipticToScene(boundaryLon, R_RING_OUTER + 0.02, asc);
+        const [tx, ty, tz] = eclipticToScene(boundaryLon, R_RING_OUTER + 0.02, asc);
         const [bx, , bz] = eclipticToScene(boundaryLon, R_RING_INNER - 0.02, asc);
         const midLon = signIndex * 30 + 15;
         const [lx, ly, lz] = eclipticToScene(midLon, R_SIGN_LABEL, asc);
         const signGlyph = getSignGlyphSvg(signIndex);
         return (
-          <group key={signIndex}>
-            <line>
-              <bufferGeometry attach="geometry">
-                <bufferAttribute
-                  attach="attributes-position"
-                  count={2}
-                  array={new Float32Array([tx, 0.04, tz, bx, 0.04, bz])}
-                  itemSize={3}
-                />
-              </bufferGeometry>
-              <lineBasicMaterial color="#4a5a7a" transparent opacity={0.35} />
-            </line>
+          <group key={`zodiac-${signIndex}`}>
+            <ZodiacTickLine x1={tx} y1={ty} z1={tz} x2={bx} y2={LINE_Y} z2={bz} />
             {signGlyph ? (
               <GlyphIcon
                 pathData={signGlyph.pathData}
@@ -241,56 +283,51 @@ function ZodiacRing({ asc }: { asc: number }) {
   );
 }
 
+function ZodiacTickLine({
+  x1,
+  y1,
+  z1,
+  x2,
+  y2,
+  z2,
+}: {
+  x1: number;
+  y1: number;
+  z1: number;
+  x2: number;
+  y2: number;
+  z2: number;
+}) {
+  const geometry = useMemo(
+    () => createLineSegmentGeometry(x1, y1, z1, x2, y2, z2),
+    [x1, y1, z1, x2, y2, z2],
+  );
+  return <SceneLine geometry={geometry} color="#4a5a7a" opacity={0.35} />;
+}
+
 function CuspLine({ cuspLon, asc }: { cuspLon: number; asc: number }) {
-  const [x1, , z1] = eclipticToScene(cuspLon, R_RING_INNER, asc);
-  const [x2, , z2] = eclipticToScene(cuspLon, R_RING_OUTER, asc);
-  const positions = useMemo(
-    () => new Float32Array([x1, 0.02, z1, x2, 0.02, z2]),
-    [x1, z1, x2, z2],
+  const [x1, y1, z1] = eclipticToScene(cuspLon, R_RING_INNER, asc);
+  const [x2, y2, z2] = eclipticToScene(cuspLon, R_RING_OUTER, asc);
+  const geometry = useMemo(
+    () => createLineSegmentGeometry(x1, y1, z1, x2, y2, z2),
+    [x1, y1, z1, x2, y2, z2],
   );
-  return (
-    <line>
-      <bufferGeometry attach="geometry">
-        <bufferAttribute attach="attributes-position" count={2} array={positions} itemSize={3} />
-      </bufferGeometry>
-      <lineBasicMaterial color={HOUSE_LABEL_COLOR} transparent opacity={0.5} />
-    </line>
-  );
+  return <SceneLine geometry={geometry} color={HOUSE_LABEL_COLOR} opacity={0.5} />;
 }
 
 function InnerHouseRing() {
-  const positions = useMemo(() => {
-    const pts = new Float32Array((INNER_RING_SEGMENTS + 1) * 3);
-    for (let i = 0; i <= INNER_RING_SEGMENTS; i += 1) {
-      const angle = (i / INNER_RING_SEGMENTS) * Math.PI * 2;
-      pts[i * 3] = R_RING_INNER * Math.cos(angle);
-      pts[i * 3 + 1] = 0.02;
-      pts[i * 3 + 2] = R_RING_INNER * Math.sin(angle);
-    }
-    return pts;
-  }, []);
-
-  return (
-    <line>
-      <bufferGeometry attach="geometry">
-        <bufferAttribute
-          attach="attributes-position"
-          count={INNER_RING_SEGMENTS + 1}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color={HOUSE_LABEL_COLOR} transparent opacity={0.3} />
-    </line>
-  );
+  const geometry = useMemo(() => createCircleLineGeometry(R_RING_INNER, LINE_Y, INNER_RING_SEGMENTS), []);
+  return <SceneLine geometry={geometry} color={HOUSE_LABEL_COLOR} opacity={0.3} />;
 }
 
 function HouseCusps({ cusps, asc }: { cusps: number[]; asc: number }) {
+  if (cusps.length < 12) return null;
+
   return (
     <group>
       <InnerHouseRing />
       {cusps.slice(0, 12).map((cuspLon, i) => (
-        <CuspLine key={i} cuspLon={cuspLon} asc={asc} />
+        <CuspLine key={`cusp-${i}-${cuspLon}`} cuspLon={cuspLon} asc={asc} />
       ))}
     </group>
   );
@@ -304,6 +341,8 @@ function houseMidLongitude(cusps: number[], houseIndex: number): number {
 }
 
 function HouseNumbers({ cusps, asc }: { cusps: number[]; asc: number }) {
+  if (cusps.length < 12) return null;
+
   return (
     <group>
       {cusps.slice(0, 12).map((_, i) => {
@@ -322,6 +361,8 @@ function HouseNumbers({ cusps, asc }: { cusps: number[]; asc: number }) {
 }
 
 function AngleMarkers({ cusps, asc }: { cusps: number[]; asc: number }) {
+  if (cusps.length < 12) return null;
+
   const ascGlyph = getPlanetGlyphSvg('ascendant');
   const mcGlyph = getPlanetGlyphSvg('midheaven');
   const ascLon = cusps[0];
@@ -355,6 +396,22 @@ function AngleMarkers({ cusps, asc }: { cusps: number[]; asc: number }) {
   );
 }
 
+function AspectLineSegment({
+  p1,
+  p2,
+  color,
+}: {
+  p1: [number, number, number];
+  p2: [number, number, number];
+  color: string;
+}) {
+  const geometry = useMemo(
+    () => createLineSegmentGeometry(p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]),
+    [p1, p2],
+  );
+  return <SceneLine geometry={geometry} color={color} opacity={0.38} />;
+}
+
 function AspectLines({
   aspects,
   positions,
@@ -382,25 +439,12 @@ function AspectLines({
     return out;
   }, [aspects, positions, asc]);
 
+  if (lines.length === 0) return null;
+
   return (
     <group>
       {lines.map((line) => (
-        <line key={line.key}>
-          <bufferGeometry attach="geometry">
-            <bufferAttribute
-              attach="attributes-position"
-              count={2}
-              array={
-                new Float32Array([
-                  line.p1[0], line.p1[1], line.p1[2],
-                  line.p2[0], line.p2[1], line.p2[2],
-                ])
-              }
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color={line.color} transparent opacity={0.38} />
-        </line>
+        <AspectLineSegment key={line.key} p1={line.p1} p2={line.p2} color={line.color} />
       ))}
     </group>
   );
