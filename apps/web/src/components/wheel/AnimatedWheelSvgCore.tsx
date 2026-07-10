@@ -114,6 +114,14 @@ function holdRotationDeg(frameIndex: number): number {
   return ((frameIndex - HOLD_START) / ANIMATION_FPS) * ROTATION_DEG_PER_SEC;
 }
 
+function resolveHoldRotation(frameIndex: number): number {
+  const { isPlaying, currentTime, duration } = useAudioPlayerStore.getState();
+  if (isPlaying && duration > 0) {
+    return (currentTime / duration) * 360;
+  }
+  return holdRotationDeg(frameIndex);
+}
+
 export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSvgCoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mountTimeRef = useRef<number | null>(null);
@@ -144,7 +152,7 @@ export function AnimatedWheelSvgCore({ aspects, ...wheelProps }: AnimatedWheelSv
       if (drawInCompleteRef.current) {
         setLayers({
           ...HOLD_LAYERS,
-          rotationDeg: holdRotationDeg(frameIndex),
+          rotationDeg: resolveHoldRotation(frameIndex),
         });
         setVisibleAspects(aspects);
       } else {
