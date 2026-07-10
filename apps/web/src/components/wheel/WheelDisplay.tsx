@@ -2,12 +2,11 @@
 
 // Wheel render modes:
 // - 'classic': Traditional 2D SVG chart via WheelSvgCore
-// - 'cinematic': Interactive 3D scene via CinematicWheel (lazy-loaded, WebGL)
-// Default: 'cinematic' with automatic fallback to 'classic' if WebGL unavailable
+// - 'cinematic': Phase D artistic viz (placeholder — renders classic until ArtisticViz ships)
+// Default: 'classic'
 // Sandbox (WheelBuilder) bypasses this — always uses WheelSvgCore directly
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
 import { normalizeChartForWheel, type ChartForWheel } from '../../core/chart-adapter';
@@ -20,11 +19,6 @@ import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
-
-const CinematicWheel = dynamic(
-  () => import('./CinematicWheel').then((m) => ({ default: m.CinematicWheel })),
-  { ssr: false, loading: () => null },
-);
 
 function planetDisplayName(bodyKey: string): string {
   const canonical = normalizePlanetName(bodyKey);
@@ -71,14 +65,13 @@ export function WheelDisplay({
   emptyMessage,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { mode: renderMode, setMode: setRenderMode } = useWheelRenderMode();
+  const { mode: renderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
   const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
-  const [cinematic3DReady, setCinematic3DReady] = useState(false);
 
   const effectiveHighlight =
     planetHighlightProp ??
@@ -93,20 +86,6 @@ export function WheelDisplay({
     if (lon == null) return null;
     return formatPlanetHoverLabel(bodyKey, lon);
   }, [highlightedPlanets, normalized]);
-
-  useEffect(() => {
-    if (renderMode !== 'cinematic') {
-      setCinematic3DReady(false);
-    }
-  }, [renderMode]);
-
-  const handleWebGLFallback = useCallback(() => {
-    setRenderMode('classic');
-  }, [setRenderMode]);
-
-  const handleCinematicReady = useCallback(() => {
-    setCinematic3DReady(true);
-  }, []);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -205,18 +184,8 @@ export function WheelDisplay({
             };
 
             if (renderMode === 'cinematic') {
-              return (
-                <>
-                  {!cinematic3DReady ? <WheelSvgCore {...wheelProps} /> : null}
-                  <CinematicWheel
-                    chart={normalized}
-                    aspects={aspects}
-                    size={wheelSize}
-                    onWebGLError={handleWebGLFallback}
-                    onReady={handleCinematicReady}
-                  />
-                </>
-              );
+              // Phase D: ArtisticViz will mount here via lazy load
+              return <WheelSvgCore {...wheelProps} />;
             }
             return <WheelSvgCore {...wheelProps} />;
           })()}
