@@ -22,6 +22,7 @@ import {
   type SignalHistoryRow,
   type SignalHistorySummary,
 } from '@/components/community/SignalHistorySection';
+import { SonicBulletsSection } from '@/components/community/SonicBulletsSection';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -581,6 +582,7 @@ export default function CommunityRelationshipArtifactPage() {
                         ) : null}
                       </div>
                     )}
+                    <SonicBulletsSection bullets={musicalBullets} />
                   </Card>
                 )}
 
@@ -591,17 +593,6 @@ export default function CommunityRelationshipArtifactPage() {
                     summary={signalHistory.summary}
                     signals={signalHistory.signals}
                   />
-                ) : null}
-
-                {musicalBullets.length > 0 ? (
-                  <Card as="section" elevation="resting" size="sm" className="space-y-4">
-                    <h2 className="reading-section-header">How This Connection Sounds</h2>
-                    <div className="space-y-4">
-                      {musicalBullets.map((bullet, i) => (
-                        <ConnectionReadingMarkdown key={i} content={String(bullet)} />
-                      ))}
-                    </div>
-                  </Card>
                 ) : null}
 
                 {showConnectionAudio && (
