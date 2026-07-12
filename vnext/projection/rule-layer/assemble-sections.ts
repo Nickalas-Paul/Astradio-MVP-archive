@@ -933,7 +933,7 @@ function assembleGroupKeyInteractionsV1(
 
 /** Personal planets only for connection activation blocks (outer planets omitted). */
 const COMPAT_ACTIVATION_PERSONAL_PLANETS = new Set(['SUN', 'MOON', 'MERCURY', 'VENUS', 'MARS']);
-const COMPAT_ACTIVATION_MAX_HITS_PER_PLANET = 2;
+const COMPAT_ACTIVATION_MAX_HITS_PER_PLANET = 1;
 
 function sortDirectedAspectByStrength(
   a: Pick<DirectedSnapshotAspect, 'exactness' | 'orb' | 'strength'>,
