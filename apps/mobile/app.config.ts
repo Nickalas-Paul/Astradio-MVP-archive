@@ -17,6 +17,20 @@ const config = {
   },
   ios: {
     supportsTablet: false,
+    bundleIdentifier: 'io.astradio.app',
+    buildNumber: '1',
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        'Astradio uses your location to calculate accurate astrological charts based on where you were born.',
+    },
+    privacyManifests: {
+      NSPrivacyAccessedAPITypes: [
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
+          NSPrivacyAccessedAPITypeReasons: ['CA92.1'],
+        },
+      ],
+    },
   },
   android: {
     package: 'io.astradio.app',
