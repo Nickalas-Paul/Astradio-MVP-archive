@@ -1,28 +1,28 @@
-# Monorepo directories the mobile app doesn't need
-apps/web/
-apps/web/**
+# Web app
+/apps/web/
 
-# Engine/server code
-vnext/
-vnext/**
+# Engine/server
+/vnext/
+
+# Git
+/.git/
 
 # Node modules (EAS installs fresh)
 node_modules/
-**/node_modules/**
 
 # Build artifacts
-dist/
-.next/
+/dist/
+/.next/
 
-# Git
-.git/
+# Repo root junk
+*.exe
+*.sql
+/datasets/
+/eval/
+/scripts/
 
-# Large assets not needed for mobile build
+# Large media files
 *.mp4
 *.mov
 *.wav
 *.mp3
-
-# Dev/docs files
-*.md
-scripts/
