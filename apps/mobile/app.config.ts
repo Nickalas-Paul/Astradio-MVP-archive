@@ -34,7 +34,7 @@ const config = {
   },
   android: {
     package: 'io.astradio.app',
-    versionCode: 3,
+    versionCode: 4,
     adaptiveIcon: {
       backgroundColor: '#111111',
       foregroundImage: './assets/android-icon-foreground.png',
