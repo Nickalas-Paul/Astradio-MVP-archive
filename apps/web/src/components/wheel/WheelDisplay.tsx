@@ -7,7 +7,6 @@
 // Sandbox (WheelBuilder) bypasses this — always uses WheelSvgCore directly
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { usePlacementHighlight } from '../../core/PlacementHighlightContext';
@@ -19,13 +18,9 @@ import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
+import { AuraModal } from './AuraModal';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
-
-const ArtisticViz = dynamic(
-  () => import('./ArtisticViz').then((m) => ({ default: m.ArtisticViz })),
-  { ssr: false, loading: () => null },
-);
 
 function planetDisplayName(bodyKey: string): string {
   const canonical = normalizePlanetName(bodyKey);
@@ -75,14 +70,15 @@ export function WheelDisplay({
   composeControls = null,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { mode: renderMode, setMode: setRenderMode } = useWheelRenderMode();
+  const { mode: renderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
   const [normalized, setNormalized] = useState<ChartForWheel | null>(null);
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
   const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
-  const [vizReady, setVizReady] = useState(false);
+  const [auraModalOpen, setAuraModalOpen] = useState(false);
+  const prevRenderModeRef = useRef(renderMode);
 
   const effectiveHighlight =
     planetHighlightProp ??
@@ -99,18 +95,11 @@ export function WheelDisplay({
   }, [highlightedPlanets, normalized]);
 
   useEffect(() => {
-    if (renderMode !== 'cinematic') {
-      setVizReady(false);
+    if (renderMode === 'cinematic' && prevRenderModeRef.current !== 'cinematic') {
+      setAuraModalOpen(true);
     }
+    prevRenderModeRef.current = renderMode;
   }, [renderMode]);
-
-  const handleWebGLFallback = useCallback(() => {
-    setRenderMode('classic');
-  }, [setRenderMode]);
-
-  const handleVizReady = useCallback(() => {
-    setVizReady(true);
-  }, []);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -208,21 +197,6 @@ export function WheelDisplay({
               onPlanetHover: enableBidirectional ? handlePlanetHover : undefined,
             };
 
-            if (renderMode === 'cinematic') {
-              return (
-                <>
-                  {!vizReady ? <WheelSvgCore {...wheelProps} /> : null}
-                  <ArtisticViz
-                    chart={normalized}
-                    aspects={aspects}
-                    size={wheelSize}
-                    composeControls={composeControls}
-                    onWebGLError={handleWebGLFallback}
-                    onReady={handleVizReady}
-                  />
-                </>
-              );
-            }
             return <WheelSvgCore {...wheelProps} />;
           })()}
           </>
@@ -263,6 +237,7 @@ export function WheelDisplay({
         ) : null}
         <div className="wheel-overlay pointer-events-none" />
       </motion.div>
+      <AuraModal isOpen={auraModalOpen} onClose={() => setAuraModalOpen(false)} />
     </div>
   );
 }
