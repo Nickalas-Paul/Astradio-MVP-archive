@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { dominantElementLabel, type AuraRawSnapshot } from './aura-raw-snapshot';
+import type { AuraRawSnapshot } from './aura-raw-snapshot';
 
 const OrbitalChart = dynamic(
   () => import('./OrbitalChart').then((m) => ({ default: m.OrbitalChart })),
@@ -104,17 +104,6 @@ export function AuraModal({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen || !rawSnapshot) return;
-    console.log('[AuraModal] rawSnapshot', {
-      planets: rawSnapshot.planets.map((planet) => ({ name: planet.name, lon: planet.lon })),
-      aspectCount: rawSnapshot.aspects.length,
-      dominantElements: rawSnapshot.dominantElements,
-      dominantElement: dominantElementLabel(rawSnapshot.dominantElements),
-      moonPhase: rawSnapshot.moonPhase,
-    });
-  }, [isOpen, rawSnapshot]);
 
   return (
     <AnimatePresence>

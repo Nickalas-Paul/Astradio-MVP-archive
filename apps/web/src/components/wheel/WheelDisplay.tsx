@@ -1,9 +1,7 @@
 'use client';
 
-// Wheel render modes:
-// - 'classic': Traditional 2D SVG chart via WheelSvgCore
-// - 'cinematic': ArtisticViz synesthetic WebGL scene (lazy-loaded)
-// Default: 'cinematic' with automatic fallback to 'classic' if WebGL unavailable
+// Wheel always renders classic 2D SVG via WheelSvgCore.
+// Aura is a modal overlay (OrbitalChart), opened via WheelModeToggle — not an inline mode.
 // Sandbox (WheelBuilder) bypasses this — always uses WheelSvgCore directly
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -56,7 +54,7 @@ export interface WheelDisplayProps {
   planetHighlight?: string | string[] | Set<string> | null;
   /** Shown when chartData is absent (e.g. privacy-restricted preview). */
   emptyMessage?: string;
-  /** Musical compose parameters for ArtisticViz (Today sky summary). */
+  /** Musical compose parameters for Aura / OrbitalChart (Today sky summary). */
   composeControls?: ComposeVisualControls | null;
   /** Raw ephemeris snapshot for Aura modal visualization. */
   rawSnapshot?: AuraRawSnapshot;
@@ -74,7 +72,7 @@ export function WheelDisplay({
   rawSnapshot,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { mode: renderMode, setMode: setRenderMode } = useWheelRenderMode();
+  const { setMode: setRenderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
@@ -82,7 +80,10 @@ export function WheelDisplay({
   const [aspects, setAspects] = useState<ReturnType<typeof extractAspects>>(undefined);
   const [aspectLinesVisible, setAspectLinesVisible] = useState(showAspectLines);
   const [auraModalOpen, setAuraModalOpen] = useState(false);
-  const prevRenderModeRef = useRef(renderMode);
+
+  const openAuraModal = useCallback(() => {
+    setAuraModalOpen(true);
+  }, []);
 
   const effectiveHighlight =
     planetHighlightProp ??
@@ -97,13 +98,6 @@ export function WheelDisplay({
     if (lon == null) return null;
     return formatPlanetHoverLabel(bodyKey, lon);
   }, [highlightedPlanets, normalized]);
-
-  useEffect(() => {
-    if (renderMode === 'cinematic' && prevRenderModeRef.current !== 'cinematic') {
-      setAuraModalOpen(true);
-    }
-    prevRenderModeRef.current = renderMode;
-  }, [renderMode]);
 
   const handleAuraWebGLError = useCallback(() => {
     setAuraModalOpen(false);
@@ -191,23 +185,22 @@ export function WheelDisplay({
           <>
             {wheelSize >= 200 ? (
               <div className="absolute top-2 right-2 z-20 pointer-events-auto">
-                <WheelModeToggle />
+                <WheelModeToggle
+                  onAuraClick={rawSnapshot ? openAuraModal : undefined}
+                  onChartClick={() => setAuraModalOpen(false)}
+                />
               </div>
             ) : null}
-            {(() => {
-            const wheelProps = {
-              chart: normalized,
-              size: wheelSize,
-              ascendantLongitude: resolveAscendantLongitude(normalized),
-              aspects,
-              showAspectLines: aspectLinesVisible,
-              planetHighlight: effectiveHighlight,
-              displayMode,
-              onPlanetHover: enableBidirectional ? handlePlanetHover : undefined,
-            };
-
-            return <WheelSvgCore {...wheelProps} />;
-          })()}
+            <WheelSvgCore
+              chart={normalized}
+              size={wheelSize}
+              ascendantLongitude={resolveAscendantLongitude(normalized)}
+              aspects={aspects}
+              showAspectLines={aspectLinesVisible}
+              planetHighlight={effectiveHighlight}
+              displayMode={displayMode}
+              onPlanetHover={enableBidirectional ? handlePlanetHover : undefined}
+            />
           </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

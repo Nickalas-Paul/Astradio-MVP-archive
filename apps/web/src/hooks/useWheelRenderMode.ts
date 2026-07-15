@@ -9,17 +9,17 @@ export type WheelRenderMode = 'classic' | 'cinematic';
 function normalizeStoredMode(stored: string | null): WheelRenderMode {
   if (stored === 'classic' || stored === 'cinematic') return stored;
   if (stored === 'static' || stored === 'animated') return 'classic';
-  return 'cinematic';
+  return 'classic';
 }
 
 function readStoredMode(): WheelRenderMode {
-  if (typeof window === 'undefined') return 'cinematic';
+  if (typeof window === 'undefined') return 'classic';
   const stored = localStorage.getItem(WHEEL_RENDER_MODE_STORAGE_KEY);
   return normalizeStoredMode(stored);
 }
 
 export function useWheelRenderMode() {
-  const [mode, setModeState] = useState<WheelRenderMode>('cinematic');
+  const [mode, setModeState] = useState<WheelRenderMode>('classic');
 
   useEffect(() => {
     const sync = () => setModeState(readStoredMode());

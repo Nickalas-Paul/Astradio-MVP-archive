@@ -7,8 +7,15 @@ const MODES: { id: WheelRenderMode; label: string; title: string }[] = [
   { id: 'cinematic', label: 'Aura', title: 'Aura visualization' },
 ];
 
-export function WheelModeToggle() {
-  const { mode, setMode } = useWheelRenderMode();
+export interface WheelModeToggleProps {
+  /** Opens the Aura modal when provided. Aura acts as a trigger, not a mode. */
+  onAuraClick?: () => void;
+  /** Called when Chart is selected (e.g. close Aura modal). */
+  onChartClick?: () => void;
+}
+
+export function WheelModeToggle({ onAuraClick, onChartClick }: WheelModeToggleProps) {
+  const { setMode } = useWheelRenderMode();
 
   return (
     <div
@@ -17,14 +24,26 @@ export function WheelModeToggle() {
       aria-label="Wheel display mode"
     >
       {MODES.map((option) => {
-        const active = mode === option.id;
+        // Chart stays visually active; Aura is a trigger button, not a mode indicator.
+        const active = option.id === 'classic';
         return (
           <button
             key={option.id}
             type="button"
             title={option.title}
             aria-pressed={active}
-            onClick={() => setMode(option.id)}
+            onClick={() => {
+              if (option.id === 'cinematic') {
+                if (onAuraClick) {
+                  onAuraClick();
+                  return;
+                }
+                setMode('cinematic');
+                return;
+              }
+              setMode('classic');
+              onChartClick?.();
+            }}
             className={`min-h-[28px] min-w-[36px] px-2 py-0.5 rounded-md text-[10px] font-medium leading-none transition-colors ${
               active
                 ? 'bg-accent text-white shadow-sm'
