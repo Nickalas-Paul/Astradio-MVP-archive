@@ -37,6 +37,10 @@ const AUDIO_LERP = 0.02;
 const RESTING_AUTO_ROTATE_SPEED = 0.3;
 const RESTING_PLANET_EMISSIVE = 0.4;
 const RESTING_RING_EMISSIVE = 0.1;
+const RESTING_GLOW_OPACITY = 0.25;
+const OUTER_RING_RADIUS = 2.55;
+
+const radialGlowTextureCache = new Map<string, THREE.CanvasTexture>();
 
 const SIGN_ELEMENT = [
   'fire',
@@ -58,13 +62,6 @@ const SIGN_ELEMENT_COLORS: Record<(typeof SIGN_ELEMENT)[number], string> = {
   earth: '#4a9e6a',
   air: '#c0c8d8',
   water: '#3a8a9e',
-};
-
-const ELEMENT_BG_COLORS: Record<(typeof SIGN_ELEMENT)[number], string> = {
-  fire: '#120a06',
-  earth: '#08100a',
-  air: '#0a0e14',
-  water: '#060c14',
 };
 
 export type TooltipState =
@@ -108,6 +105,7 @@ type AspectLineStyle = {
   lineWidth: number;
   baseOpacity: number;
   pulsePeriod: number;
+  dashed: boolean;
 };
 
 type InteractionContextValue = {
@@ -207,6 +205,62 @@ function colorWithAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function getRadialGlowTexture(color: string): THREE.CanvasTexture {
+  const cached = radialGlowTextureCache.get(color);
+  if (cached) return cached;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    radialGlowTextureCache.set(color, fallback);
+    return fallback;
+  }
+
+  const normalized = color.replace('#', '');
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+  gradient.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, 0.55)`);
+  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  radialGlowTextureCache.set(color, texture);
+  return texture;
+}
+
+function dominantElementAccentColor(dominantElements: AuraRawSnapshot['dominantElements']): THREE.Color {
+  const blended = new THREE.Color(0, 0, 0);
+  let total = 0;
+  for (const element of SIGN_ELEMENT) {
+    const weight = dominantElements[element] ?? 0;
+    if (weight <= 0) continue;
+    const c = new THREE.Color(SIGN_ELEMENT_COLORS[element]);
+    blended.r += c.r * weight;
+    blended.g += c.g * weight;
+    blended.b += c.b * weight;
+    total += weight;
+  }
+  if (total > 0) {
+    blended.multiplyScalar(1 / total);
+  } else {
+    blended.set(SIGN_ELEMENT_COLORS.earth);
+  }
+  return blended;
+}
+
+function normalizeAspectStrength(strength?: number): number {
+  if (typeof strength !== 'number' || !Number.isFinite(strength)) return 1;
+  return strength <= 1 ? strength : strength / 100;
+}
+
 function projectWorldToContainer(
   worldPosition: THREE.Vector3,
   camera: THREE.Camera,
@@ -264,18 +318,18 @@ function aspectLineStyle(type: string): AspectLineStyle | null {
   const t = type.toLowerCase();
   if (t === 'conjunction') return null;
   if (t === 'trine') {
-    return { color: ASPECT_LINE_COLOR.trine, lineWidth: 1.5, baseOpacity: 0.5, pulsePeriod: 4 };
+    return { color: ASPECT_LINE_COLOR.trine, lineWidth: 1.5, baseOpacity: 0.6, pulsePeriod: 4, dashed: false };
   }
   if (t === 'sextile') {
-    return { color: ASPECT_LINE_COLOR.sextile, lineWidth: 1, baseOpacity: 0.35, pulsePeriod: 4 };
+    return { color: ASPECT_LINE_COLOR.sextile, lineWidth: 1, baseOpacity: 0.45, pulsePeriod: 4, dashed: true };
   }
   if (t === 'square') {
-    return { color: ASPECT_LINE_COLOR.square, lineWidth: 1.5, baseOpacity: 0.5, pulsePeriod: 2 };
+    return { color: ASPECT_LINE_COLOR.square, lineWidth: 1.5, baseOpacity: 0.6, pulsePeriod: 2, dashed: false };
   }
   if (t === 'opposition') {
-    return { color: ASPECT_LINE_COLOR.opposition, lineWidth: 1.5, baseOpacity: 0.5, pulsePeriod: 3 };
+    return { color: ASPECT_LINE_COLOR.opposition, lineWidth: 1.5, baseOpacity: 0.6, pulsePeriod: 3, dashed: false };
   }
-  return { color: '#666666', lineWidth: 0.5, baseOpacity: 0.2, pulsePeriod: 4 };
+  return { color: '#666666', lineWidth: 0.5, baseOpacity: 0.3, pulsePeriod: 4, dashed: true };
 }
 
 class WebGLErrorBoundary extends Component<
@@ -409,38 +463,59 @@ function ActiveTooltipTracker({
   return null;
 }
 
+const ATMOSPHERE_VERTEX_SHADER = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ATMOSPHERE_FRAGMENT_SHADER = `
+  varying vec2 vUv;
+  uniform vec3 uColor;
+  void main() {
+    float d = distance(vUv, vec2(0.5));
+    float alpha = smoothstep(0.5, 0.0, d) * 0.08;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
+
 function BackgroundAtmosphere({ dominantElements }: { dominantElements: AuraRawSnapshot['dominantElements'] }) {
-  const color = useMemo(() => {
-    const blended = new THREE.Color(0, 0, 0);
-    let total = 0;
-    for (const element of SIGN_ELEMENT) {
-      const weight = dominantElements[element] ?? 0;
-      if (weight <= 0) continue;
-      const c = new THREE.Color(ELEMENT_BG_COLORS[element]);
-      blended.r += c.r * weight;
-      blended.g += c.g * weight;
-      blended.b += c.b * weight;
-      total += weight;
-    }
-    if (total > 0) {
-      blended.multiplyScalar(1 / total);
-    } else {
-      blended.set('#080d18');
-    }
-    return blended;
-  }, [dominantElements]);
+  const accentColor = useMemo(() => dominantElementAccentColor(dominantElements), [dominantElements]);
+  const shaderMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: accentColor.clone() },
+        },
+        vertexShader: ATMOSPHERE_VERTEX_SHADER,
+        fragmentShader: ATMOSPHERE_FRAGMENT_SHADER,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.BackSide,
+      }),
+    [accentColor],
+  );
+
+  useEffect(() => {
+    shaderMaterial.uniforms.uColor.value.copy(accentColor);
+  }, [accentColor, shaderMaterial]);
+
+  useEffect(() => () => shaderMaterial.dispose(), [shaderMaterial]);
 
   return (
     <mesh>
-      <sphereGeometry args={[15, 32, 32]} />
-      <meshBasicMaterial color={color} side={THREE.BackSide} depthWrite={false} />
+      <sphereGeometry args={[12, 32, 32]} />
+      <primitive object={shaderMaterial} attach="material" />
     </mesh>
   );
 }
 
 function EclipticRing() {
   const spinRef = useRef<THREE.Group>(null);
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const innerMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const outerMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const emissiveRef = useRef(RESTING_RING_EMISSIVE);
   const intensityRef = useAudioIntensityRef();
 
@@ -449,25 +524,32 @@ function EclipticRing() {
       spinRef.current.rotation.y += ((Math.PI * 2) / RING_ROTATION_PERIOD) * delta;
     }
 
-    const mat = materialRef.current;
-    if (!mat) return;
     const target = RESTING_RING_EMISSIVE + intensityRef.current * 0.2;
     emissiveRef.current += (target - emissiveRef.current) * AUDIO_LERP;
-    mat.emissiveIntensity = emissiveRef.current;
+
+    for (const mat of [innerMaterialRef.current, outerMaterialRef.current]) {
+      if (mat) mat.emissiveIntensity = emissiveRef.current;
+    }
   });
+
+  const ringMaterialProps = {
+    color: '#1e4a5a',
+    emissive: '#1e4a5a',
+    emissiveIntensity: RESTING_RING_EMISSIVE,
+    roughness: 0.5,
+    metalness: 0.3,
+    transparent: true as const,
+  };
 
   return (
     <group ref={spinRef}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[ECLIPTIC_RADIUS, 0.015, 16, 128]} />
-        <meshStandardMaterial
-          ref={materialRef}
-          color="#1a3a4a"
-          emissive="#1a3a4a"
-          emissiveIntensity={RESTING_RING_EMISSIVE}
-          metalness={0.1}
-          roughness={0.8}
-        />
+        <torusGeometry args={[ECLIPTIC_RADIUS, 0.025, 16, 128]} />
+        <meshPhysicalMaterial ref={innerMaterialRef} {...ringMaterialProps} opacity={0.6} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[OUTER_RING_RADIUS, 0.008, 16, 128]} />
+        <meshPhysicalMaterial ref={outerMaterialRef} {...ringMaterialProps} opacity={0.25} />
       </mesh>
     </group>
   );
@@ -483,12 +565,19 @@ function PlanetSphere({
   const { selectPlanet, registerPlanetObject } = useInteraction();
   const groupRef = useRef<THREE.Group>(null);
   const visibleRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const spriteMaterialRef = useRef<THREE.SpriteMaterial>(null);
   const emissiveRef = useRef(RESTING_PLANET_EMISSIVE);
+  const glowOpacityRef = useRef(RESTING_GLOW_OPACITY);
   const intensityRef = useAudioIntensityRef();
+  const worldPosition = useMemo(() => new THREE.Vector3(), []);
+  const viewDirection = useMemo(() => new THREE.Vector3(), []);
+  const planetDirection = useMemo(() => new THREE.Vector3(), []);
   const radius = planetRadius(name);
   const hitRadius = radius * 1.5;
+  const glowSize = radius * 3;
   const color = signElementColor(lon);
+  const glowTexture = useMemo(() => getRadialGlowTexture(color), [color]);
   const planetKey = normalizePlanetName(name);
   const position = useMemo(() => longitudePosition(lon), [lon]);
   const phase = useMemo(() => hashPhase(name), [name]);
@@ -505,12 +594,26 @@ function PlanetSphere({
       visibleRef.current.scale.setScalar(breathe);
     }
 
+    visibleRef.current?.getWorldPosition(worldPosition);
+    viewDirection.copy(state.camera.position).sub(worldPosition).normalize();
+    planetDirection.copy(worldPosition).normalize();
+    const grazing = 1 - Math.abs(viewDirection.dot(planetDirection));
+    const rimBoost = 0.12 * grazing;
+
     const mat = materialRef.current;
     if (mat) {
       const innerMult = isInnerPlanet(name) ? 1.3 : 1;
-      const target = RESTING_PLANET_EMISSIVE + intensityRef.current * 0.6 * innerMult;
+      const audioTarget = RESTING_PLANET_EMISSIVE + intensityRef.current * 0.6 * innerMult;
+      const target = audioTarget + rimBoost;
       emissiveRef.current += (target - emissiveRef.current) * AUDIO_LERP;
       mat.emissiveIntensity = emissiveRef.current;
+    }
+
+    const spriteMat = spriteMaterialRef.current;
+    if (spriteMat) {
+      const targetGlow = RESTING_GLOW_OPACITY + intensityRef.current * 0.2;
+      glowOpacityRef.current += (targetGlow - glowOpacityRef.current) * AUDIO_LERP;
+      spriteMat.opacity = glowOpacityRef.current;
     }
   });
 
@@ -529,15 +632,29 @@ function PlanetSphere({
 
   return (
     <group ref={groupRef} position={position}>
+      <pointLight color={color} intensity={0.3} distance={1.5} decay={2} />
+      <sprite scale={[glowSize, glowSize, 1]} renderOrder={-1}>
+        <spriteMaterial
+          ref={spriteMaterialRef}
+          map={glowTexture}
+          color={color}
+          transparent
+          opacity={RESTING_GLOW_OPACITY}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </sprite>
       <mesh ref={visibleRef}>
         <sphereGeometry args={[radius, 24, 24]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           ref={materialRef}
           color={color}
           emissive={color}
           emissiveIntensity={RESTING_PLANET_EMISSIVE}
-          metalness={0.15}
-          roughness={0.45}
+          roughness={0.3}
+          metalness={0.1}
+          clearcoat={0.4}
+          clearcoatRoughness={0.2}
         />
       </mesh>
       <mesh
@@ -572,6 +689,8 @@ function PulsingAspectLine({
   const midpointRef = useRef<THREE.Group>(null);
   const intensityRef = useAudioIntensityRef();
   const aspectType = aspect.type.toLowerCase();
+  const strengthNorm = normalizeAspectStrength(aspect.strength);
+  const lineWidth = style.lineWidth * (0.5 + 0.5 * strengthNorm);
   const midpoint = useMemo(() => start.clone().add(end).multiplyScalar(0.5), [start, end]);
   const tubeGeometry = useMemo(() => {
     const curve = new THREE.LineCurve3(start.clone(), end.clone());
@@ -584,6 +703,19 @@ function PulsingAspectLine({
   }, [aspectKey, registerAspectObject]);
 
   useEffect(() => () => tubeGeometry.dispose(), [tubeGeometry]);
+
+  useEffect(() => {
+    const mat = lineRef.current?.material as LineMaterial | undefined;
+    if (!mat) return;
+    if (style.dashed) {
+      mat.dashed = true;
+      mat.dashSize = 0.15;
+      mat.gapSize = 0.1;
+    } else {
+      mat.dashed = false;
+    }
+    mat.needsUpdate = true;
+  }, [style.dashed]);
 
   useFrame((state) => {
     const mat = lineRef.current?.material as LineMaterial | undefined;
@@ -635,10 +767,13 @@ function PulsingAspectLine({
         ref={lineRef}
         points={[start, end]}
         color={style.color}
-        lineWidth={style.lineWidth}
+        lineWidth={lineWidth}
         transparent
         opacity={style.baseOpacity}
         depthWrite={false}
+        dashed={style.dashed}
+        dashSize={0.15}
+        gapSize={0.1}
       />
       <group ref={midpointRef} position={midpoint} />
       <mesh
@@ -738,9 +873,10 @@ function OrbitalScene({
   return (
     <AudioIntensityRefContext.Provider value={playbackIntensityRef}>
       <color attach="background" args={['#080d18']} />
-      <ambientLight intensity={0.3} />
-      <pointLight position={[5, 5, 5]} intensity={0.8} />
-      <pointLight position={[-3, -3, -3]} intensity={0.3} />
+      <ambientLight intensity={0.15} />
+      <directionalLight position={[5, 5, 5]} intensity={0.6} />
+      <pointLight position={[-3, -3, -3]} intensity={0.15} />
+      <hemisphereLight args={['#1a2a3a', '#0a0a0a', 0.1]} />
 
       <BackgroundAtmosphere dominantElements={snapshot.dominantElements} />
       <EclipticRing />
@@ -1039,7 +1175,7 @@ export function OrbitalChart({
               <WebGLErrorBoundary onError={onWebGLError}>
                 <Canvas
                   frameloop={frameloop}
-                  camera={{ position: [0, 3, 5], fov: 45, near: 0.1, far: 100 }}
+                  camera={{ position: [0, 3.5, 5.5], fov: 40, near: 0.1, far: 100 }}
                   gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
                   onCreated={handleCreated}
                   onPointerMissed={clearTooltip}
