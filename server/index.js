@@ -56,6 +56,7 @@ const astroDebugMod = optionalRequire(path.join(vnextRoot, "api", "astro-debug")
 const compatMod = optionalRequire(path.join(vnextRoot, "compat", "routes"));
 const personalityMod = optionalRequire(path.join(vnextRoot, "api", "personality-routes"));
 const sandboxMod = optionalRequire(path.join(vnextRoot, "api", "sandbox-routes"));
+const tiktokMod = optionalRequire(path.join(vnextRoot, "social", "tiktok-routes"));
 
 const vnextCompose = composeMod?.vnextCompose || ((req, res) => res.status(501).json({ ok: false, error: "compose_unavailable" }));
 const shadowMiddleware = shadowMod?.shadowMiddleware || noopMw;
@@ -2242,6 +2243,16 @@ app.use("/api", createCampaignDailyRouter());
 // Sandbox: birth-data-first + drag-and-drop degree placements; compose-free reports
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());
+}
+
+// TikTok Content Posting API (OAuth + sandbox test post)
+if (tiktokMod && typeof tiktokMod.createTikTokRouter === "function") {
+  app.use("/api", tiktokMod.createTikTokRouter());
+  console.log("[social] TikTok routes mounted at /api/social/tiktok/*");
+} else {
+  console.warn(
+    "[social] TikTok routes not loaded (ensure dist/vnext/vnext/social/tiktok-routes.js exists; run npm run vnext:build)",
+  );
 }
 
 // Sandbox compositions (save/list/reload) with per-owner DB isolation when enabled.

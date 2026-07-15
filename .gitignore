@@ -66,6 +66,9 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
+# TikTok OAuth token cache (local / Render disk)
+vnext/social/.tiktok-tokens.json
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
