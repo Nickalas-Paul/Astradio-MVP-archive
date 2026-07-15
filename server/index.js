@@ -210,7 +210,16 @@ app.use('/api', bearerAuth);
 
 // Vercel → Render proxy shared secret (skipped when PROXY_SHARED_SECRET unset or req.user set)
 const { proxySecretGate } = require('../lib/proxy-secret-gate');
-app.use('/api', proxySecretGate);
+app.use('/api', (req, res, next) => {
+  const path = req.originalUrl.split('?')[0];
+  if (
+    path.startsWith('/api/social/tiktok/authorize') ||
+    path.startsWith('/api/social/tiktok/callback')
+  ) {
+    return next();
+  }
+  return proxySecretGate(req, res, next);
+});
 
 // Beta gate middleware (header x-beta-user must be allowed)
 function requireBeta(req, res, next){
