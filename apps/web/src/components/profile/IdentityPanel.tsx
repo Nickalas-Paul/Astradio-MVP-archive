@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { type ProfileChartResponse, type ProfilePrimaryChart } from '../../core/social/hooks';
 import { BirthChartSection } from './BirthChartSection';
@@ -17,6 +17,7 @@ import { getApiBaseUrl } from '../../core/api-base';
 import { Button } from '@/components/shared/Button';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { useAudioPlayerStore } from '@/store';
+import { extractAuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -231,6 +232,11 @@ export function IdentityPanel({
     !showFirstListenComposing &&
     (!showFirstListenComposeDelayed || showChartUpdatedPrompt);
 
+  const rawSnapshot = useMemo(
+    () => (chartData?.snapshot ? extractAuraRawSnapshot(chartData.snapshot) : null),
+    [chartData?.snapshot],
+  );
+
   const renderWheel = (maxSize: number) => {
     if (loading) {
       return (
@@ -248,6 +254,7 @@ export function IdentityPanel({
           showAspectLines
           maxSize={maxSize}
           className="w-full mx-auto"
+          rawSnapshot={rawSnapshot ?? undefined}
         />
       );
     }

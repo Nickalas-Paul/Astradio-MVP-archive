@@ -23,6 +23,7 @@ import {
   type SignalHistorySummary,
 } from '@/components/community/SignalHistorySection';
 import { SonicBulletsSection } from '@/components/community/SonicBulletsSection';
+import { extractAuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -464,6 +465,15 @@ export default function CommunityRelationshipArtifactPage() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
+  const viewerRawSnapshot = useMemo(
+    () => (viewerWheelSnapshot ? extractAuraRawSnapshot(viewerWheelSnapshot) : null),
+    [viewerWheelSnapshot],
+  );
+  const peerRawSnapshot = useMemo(
+    () => (peerWheelSnapshot ? extractAuraRawSnapshot(peerWheelSnapshot) : null),
+    [peerWheelSnapshot],
+  );
+
   const renderDualWheels = (maxSize: number, className = '') => (
     <div className={className}>
       {wheelsLoading ? (
@@ -481,6 +491,7 @@ export default function CommunityRelationshipArtifactPage() {
               maxSize={maxSize}
               className="w-full"
               emptyMessage={viewerWheelUnavailable ?? undefined}
+              rawSnapshot={viewerRawSnapshot ?? undefined}
             />
           </div>
           <div>
@@ -491,6 +502,7 @@ export default function CommunityRelationshipArtifactPage() {
               maxSize={maxSize}
               className="w-full"
               emptyMessage={peerWheelUnavailable ?? undefined}
+              rawSnapshot={peerRawSnapshot ?? undefined}
             />
           </div>
         </div>

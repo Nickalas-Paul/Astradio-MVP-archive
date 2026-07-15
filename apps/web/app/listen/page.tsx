@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -24,6 +24,7 @@ import { ExistingConnectionNotice } from '@/components/shared/ExistingConnection
 import { SANDBOX_COMPOSE_CONTROLS } from '@/lib/sandbox-composition-state';
 import { useAudioPlayerStore } from '@/store';
 import type { SandboxBirth, SandboxReport } from '@/types/sandbox';
+import { extractAuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -143,6 +144,15 @@ function ListenPageInner() {
   const [chartAUnavailable, setChartAUnavailable] = useState<string | null>(null);
   const [chartBUnavailable, setChartBUnavailable] = useState<string | null>(null);
   const [wheelsLoading, setWheelsLoading] = useState(false);
+
+  const chartARawSnapshot = useMemo(
+    () => (chartASnapshot ? extractAuraRawSnapshot(chartASnapshot) : null),
+    [chartASnapshot],
+  );
+  const chartBRawSnapshot = useMemo(
+    () => (chartBSnapshot ? extractAuraRawSnapshot(chartBSnapshot) : null),
+    [chartBSnapshot],
+  );
 
   const resolvedRef = useRef(false);
 
@@ -804,6 +814,7 @@ function ListenPageInner() {
                         maxSize={200}
                         className="w-full"
                         emptyMessage={chartAUnavailable ?? undefined}
+                        rawSnapshot={chartARawSnapshot ?? undefined}
                       />
                     </div>
                     <div>
@@ -814,6 +825,7 @@ function ListenPageInner() {
                         maxSize={200}
                         className="w-full"
                         emptyMessage={chartBUnavailable ?? undefined}
+                        rawSnapshot={chartBRawSnapshot ?? undefined}
                       />
                     </div>
                   </div>
@@ -911,6 +923,7 @@ function ListenPageInner() {
                           maxSize={300}
                           className="w-full"
                           emptyMessage={chartAUnavailable ?? undefined}
+                          rawSnapshot={chartARawSnapshot ?? undefined}
                         />
                       </div>
                       <div>
@@ -921,6 +934,7 @@ function ListenPageInner() {
                           maxSize={300}
                           className="w-full"
                           emptyMessage={chartBUnavailable ?? undefined}
+                          rawSnapshot={chartBRawSnapshot ?? undefined}
                         />
                       </div>
                     </>

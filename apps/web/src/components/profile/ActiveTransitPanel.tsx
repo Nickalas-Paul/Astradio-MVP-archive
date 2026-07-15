@@ -26,6 +26,7 @@ import { Button } from '@/components/shared/Button';
 import { Tabs } from '@/components/shared/Tabs';
 import { InputField } from '@/components/shared/Input';
 import { useAudioPlayerStore } from '@/store';
+import { extractAuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 
 const WheelDisplay = dynamic(
   () => import('@/components/wheel/WheelDisplay').then((m) => ({ default: m.WheelDisplay })),
@@ -105,6 +106,12 @@ export function ActiveTransitPanel({
       { label: 'Current Sky', description: 'Transiting positions', snapshot: transit },
     ] as const;
   }, [activeResult]);
+
+  const activeRawSnapshot = useMemo(() => {
+    const snapshot = activeWheelSlots?.[activeSlotIndex]?.snapshot;
+    if (!snapshot) return null;
+    return extractAuraRawSnapshot(snapshot);
+  }, [activeWheelSlots, activeSlotIndex]);
 
   useEffect(() => {
     const now = new Date();
@@ -479,6 +486,7 @@ export function ActiveTransitPanel({
             isLoading={false}
             className="max-w-full"
             maxSize={maxSize}
+            rawSnapshot={activeRawSnapshot ?? undefined}
           />
         ) : (
           <div className="aspect-square max-w-full bg-bgElev rounded-2xl border border-border flex items-center justify-center text-text-secondary text-sm p-4">
