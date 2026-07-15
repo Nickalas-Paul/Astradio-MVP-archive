@@ -62,16 +62,33 @@ const ELEMENT_BG_COLORS: Record<(typeof SIGN_ELEMENT)[number], string> = {
   water: '#060c14',
 };
 
-export type PlanetTooltipState = {
-  type: 'planet';
-  planetKey: string;
-  name: string;
-  sign: string;
-  degree: string;
-  elementColor: string;
-  screenX: number;
-  screenY: number;
-} | null;
+export type TooltipState =
+  | {
+      type: 'planet';
+      planetKey: string;
+      name: string;
+      sign: string;
+      degree: string;
+      elementColor: string;
+      screenX: number;
+      screenY: number;
+    }
+  | {
+      type: 'aspect';
+      aspectKey: string;
+      aspectType: string;
+      aspectColor: string;
+      planetA: string;
+      planetB: string;
+      orbLabel: string;
+      strengthLabel?: string;
+      screenX: number;
+      screenY: number;
+    }
+  | null;
+
+/** @deprecated Use TooltipState */
+export type PlanetTooltipState = TooltipState;
 
 export interface OrbitalChartProps {
   snapshot: AuraRawSnapshot;
@@ -90,13 +107,23 @@ type AspectLineStyle = {
 
 type InteractionContextValue = {
   selectPlanet: (planet: { key: string; name: string; lon: number }) => void;
+  selectAspect: (aspect: {
+    key: string;
+    type: string;
+    bodies: [string, string];
+    orb: number;
+    strength?: number;
+    midpoint: THREE.Vector3;
+  }) => void;
   clearTooltip: () => void;
   registerPlanetObject: (key: string, object: THREE.Object3D | null) => void;
+  registerAspectObject: (key: string, object: THREE.Object3D | null) => void;
 };
 
 const InteractionContext = createContext<InteractionContextValue | null>(null);
 const ContainerRefContext = createContext<RefObject<HTMLDivElement | null> | null>(null);
 const PlanetObjectsRefContext = createContext<RefObject<Map<string, THREE.Object3D>> | null>(null);
+const AspectObjectsRefContext = createContext<RefObject<Map<string, THREE.Object3D>> | null>(null);
 
 function hashPhase(name: string): number {
   let h = 0;
@@ -168,6 +195,28 @@ function computeTooltipPlacement(
 }
 
 /** Aspect line colors from the shared wheel style guide (`ASPECT_LINE_COLOR`). */
+function aspectTypeColor(type: string): string {
+  const t = type.toLowerCase();
+  return ASPECT_LINE_COLOR[t] ?? '#666666';
+}
+
+function capitalizeAspectType(type: string): string {
+  const t = type.toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function formatOrbLabel(orb: number): string {
+  const degrees = Math.floor(orb);
+  const minutes = Math.floor((orb - degrees) * 60);
+  return `${degrees}°${String(minutes).padStart(2, '0')}'`;
+}
+
+function formatStrengthLabel(strength: number): string {
+  const pct = strength <= 1 ? Math.round(strength * 100) : Math.round(strength);
+  return `${pct}%`;
+}
+
+/** Aspect line colors from the shared wheel style guide (`ASPECT_LINE_COLOR`). */
 function aspectLineStyle(type: string): AspectLineStyle | null {
   const t = type.toLowerCase();
   if (t === 'conjunction') return null;
@@ -223,11 +272,11 @@ function PlanetGlyphIcon({ planetKey, color }: { planetKey: string; color: strin
   );
 }
 
-function PlanetTooltipOverlay({
+function TooltipOverlay({
   tooltip,
   containerRef,
 }: {
-  tooltip: NonNullable<PlanetTooltipState>;
+  tooltip: NonNullable<TooltipState>;
   containerRef: RefObject<HTMLDivElement | null>;
 }) {
   const rect = containerRef.current?.getBoundingClientRect();
@@ -235,9 +284,16 @@ function PlanetTooltipOverlay({
   const height = rect?.height ?? 0;
   const placement = computeTooltipPlacement(tooltip.screenX, tooltip.screenY, width, height);
 
+  const borderColor =
+    tooltip.type === 'planet'
+      ? colorWithAlpha(tooltip.elementColor, 0.3)
+      : colorWithAlpha(tooltip.aspectColor, 0.3);
+
+  const tooltipKey = tooltip.type === 'planet' ? tooltip.planetKey : tooltip.aspectKey;
+
   return (
     <motion.div
-      key={tooltip.planetKey}
+      key={tooltipKey}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -247,41 +303,59 @@ function PlanetTooltipOverlay({
         left: placement.left,
         top: placement.top,
         transform: placement.transform,
-        border: `1px solid ${colorWithAlpha(tooltip.elementColor, 0.3)}`,
+        border: `1px solid ${borderColor}`,
       }}
       role="status"
       aria-live="polite"
     >
-      <span className="inline-flex items-center gap-2">
-        <PlanetGlyphIcon planetKey={tooltip.planetKey} color={tooltip.elementColor} />
-        <span>
-          <span style={{ color: tooltip.elementColor }}>{tooltip.name}</span>
-          <span className="text-white/80"> in {tooltip.sign} {tooltip.degree}</span>
+      {tooltip.type === 'planet' ? (
+        <span className="inline-flex items-center gap-2">
+          <PlanetGlyphIcon planetKey={tooltip.planetKey} color={tooltip.elementColor} />
+          <span>
+            <span style={{ color: tooltip.elementColor }}>{tooltip.name}</span>
+            <span className="text-white/80"> in {tooltip.sign} {tooltip.degree}</span>
+          </span>
         </span>
-      </span>
+      ) : (
+        <div className="space-y-0.5">
+          <p className="font-medium" style={{ color: tooltip.aspectColor }}>
+            {tooltip.aspectType}
+          </p>
+          <p className="text-white/90">
+            {tooltip.planetA} — {tooltip.planetB}
+          </p>
+          <p className="text-white/70 text-xs">
+            Orb: {tooltip.orbLabel}
+            {tooltip.strengthLabel ? ` · Strength: ${tooltip.strengthLabel}` : ''}
+          </p>
+        </div>
+      )}
     </motion.div>
   );
 }
 
 function ActiveTooltipTracker({
-  activePlanetKey,
+  activeTarget,
   onScreenPosition,
 }: {
-  activePlanetKey: string | null;
+  activeTarget: { type: 'planet' | 'aspect'; key: string } | null;
   onScreenPosition: (position: { x: number; y: number } | null) => void;
 }) {
   const { camera } = useThree();
   const containerRef = useContext(ContainerRefContext);
   const planetObjectsRef = useContext(PlanetObjectsRefContext);
+  const aspectObjectsRef = useContext(AspectObjectsRefContext);
   const worldPosition = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    if (!activePlanetKey || !containerRef?.current || !planetObjectsRef?.current) {
+    if (!activeTarget || !containerRef?.current) {
       onScreenPosition(null);
       return;
     }
 
-    const object = planetObjectsRef.current.get(activePlanetKey);
+    const objectMap =
+      activeTarget.type === 'planet' ? planetObjectsRef?.current : aspectObjectsRef?.current;
+    const object = objectMap?.get(activeTarget.key);
     if (!object) return;
 
     object.getWorldPosition(worldPosition);
@@ -416,13 +490,31 @@ function PulsingAspectLine({
   end,
   style,
   phaseOffset,
+  aspectKey,
+  aspect,
 }: {
   start: THREE.Vector3;
   end: THREE.Vector3;
   style: AspectLineStyle;
   phaseOffset: number;
+  aspectKey: string;
+  aspect: AuraRawSnapshot['aspects'][number];
 }) {
+  const { selectAspect, registerAspectObject } = useInteraction();
   const lineRef = useRef<Line2>(null);
+  const midpointRef = useRef<THREE.Group>(null);
+  const midpoint = useMemo(() => start.clone().add(end).multiplyScalar(0.5), [start, end]);
+  const tubeGeometry = useMemo(() => {
+    const curve = new THREE.LineCurve3(start.clone(), end.clone());
+    return new THREE.TubeGeometry(curve, 2, 0.08, 8, false);
+  }, [start, end]);
+
+  useEffect(() => {
+    if (midpointRef.current) registerAspectObject(aspectKey, midpointRef.current);
+    return () => registerAspectObject(aspectKey, null);
+  }, [aspectKey, registerAspectObject]);
+
+  useEffect(() => () => tubeGeometry.dispose(), [tubeGeometry]);
 
   useFrame((state) => {
     const mat = lineRef.current?.material as LineMaterial | undefined;
@@ -432,16 +524,47 @@ function PulsingAspectLine({
     mat.opacity = style.baseOpacity * pulse;
   });
 
+  const handleSelect = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    selectAspect({
+      key: aspectKey,
+      type: aspect.type,
+      bodies: aspect.bodies,
+      orb: aspect.orb,
+      strength: aspect.strength,
+      midpoint,
+    });
+  };
+
+  const handlePointerEnter = () => {
+    document.body.style.cursor = 'pointer';
+  };
+
+  const handlePointerLeave = () => {
+    document.body.style.cursor = 'default';
+  };
+
   return (
-    <Line
-      ref={lineRef}
-      points={[start, end]}
-      color={style.color}
-      lineWidth={style.lineWidth}
-      transparent
-      opacity={style.baseOpacity}
-      depthWrite={false}
-    />
+    <group>
+      <Line
+        ref={lineRef}
+        points={[start, end]}
+        color={style.color}
+        lineWidth={style.lineWidth}
+        transparent
+        opacity={style.baseOpacity}
+        depthWrite={false}
+      />
+      <group ref={midpointRef} position={midpoint} />
+      <mesh
+        geometry={tubeGeometry}
+        onClick={handleSelect}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+      >
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -455,6 +578,7 @@ function AspectConnections({
   const lines = useMemo(() => {
     const out: {
       key: string;
+      aspect: AuraRawSnapshot['aspects'][number];
       start: THREE.Vector3;
       end: THREE.Vector3;
       style: AspectLineStyle;
@@ -476,6 +600,7 @@ function AspectConnections({
 
       out.push({
         key: `${bodyA}-${bodyB}-${type}-${aspect.orb}`,
+        aspect,
         start,
         end,
         style,
@@ -491,6 +616,8 @@ function AspectConnections({
       {lines.map((line) => (
         <PulsingAspectLine
           key={line.key}
+          aspectKey={line.key}
+          aspect={line.aspect}
           start={line.start}
           end={line.end}
           style={line.style}
@@ -504,13 +631,13 @@ function AspectConnections({
 function OrbitalScene({
   snapshot,
   controlsRef,
-  activePlanetKey,
+  activeTarget,
   onScreenPosition,
 }: {
   snapshot: AuraRawSnapshot;
   composeControls?: ComposeVisualControls | null;
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
-  activePlanetKey: string | null;
+  activeTarget: { type: 'planet' | 'aspect'; key: string } | null;
   onScreenPosition: (position: { x: number; y: number } | null) => void;
 }) {
   const planetPositions = useMemo(() => {
@@ -549,7 +676,7 @@ function OrbitalScene({
         maxPolarAngle={Math.PI - 0.2}
       />
 
-      <ActiveTooltipTracker activePlanetKey={activePlanetKey} onScreenPosition={onScreenPosition} />
+      <ActiveTooltipTracker activeTarget={activeTarget} onScreenPosition={onScreenPosition} />
     </>
   );
 }
@@ -564,9 +691,10 @@ export function OrbitalChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null) as React.MutableRefObject<OrbitControlsImpl | null>;
   const planetObjectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
+  const aspectObjectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [frameloop, setFrameloop] = useState<'always' | 'never'>('always');
-  const [tooltip, setTooltip] = useState<PlanetTooltipState>(null);
+  const [tooltip, setTooltip] = useState<TooltipState>(null);
   const readyCalledRef = useRef(false);
 
   const clearTooltip = useCallback(() => {
@@ -579,8 +707,47 @@ export function OrbitalChart({
     document.body.style.cursor = 'default';
   }, []);
 
-  const buildTooltip = useCallback(
-    (planet: { key: string; name: string; lon: number }, screenX: number, screenY: number): PlanetTooltipState => {
+  const scheduleDismiss = useCallback(() => {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => {
+      clearTooltip();
+    }, TOOLTIP_DISMISS_MS);
+  }, [clearTooltip]);
+
+  const projectWorldPoint = useCallback((worldPosition: THREE.Vector3): { x: number; y: number } | null => {
+    const container = containerRef.current;
+    if (!container) return null;
+
+    const camera = controlsRef.current?.object;
+    if (!camera) return null;
+
+    return projectWorldToContainer(worldPosition, camera, container);
+  }, []);
+
+  const projectPlanet = useCallback(
+    (planetKey: string): { x: number; y: number } | null => {
+      const object = planetObjectsRef.current.get(planetKey);
+      if (!object) return null;
+      const worldPosition = new THREE.Vector3();
+      object.getWorldPosition(worldPosition);
+      return projectWorldPoint(worldPosition);
+    },
+    [projectWorldPoint],
+  );
+
+  const projectAspect = useCallback(
+    (aspectKey: string): { x: number; y: number } | null => {
+      const object = aspectObjectsRef.current.get(aspectKey);
+      if (!object) return null;
+      const worldPosition = new THREE.Vector3();
+      object.getWorldPosition(worldPosition);
+      return projectWorldPoint(worldPosition);
+    },
+    [projectWorldPoint],
+  );
+
+  const buildPlanetTooltip = useCallback(
+    (planet: { key: string; name: string; lon: number }, screenX: number, screenY: number): TooltipState => {
       const { signIndex, degree, minutes } = lonToSignDegMin(planet.lon);
       const sign = SIGN_NAMES[signIndex] ?? '';
       const degreeLabel = `${degree}°${String(minutes).padStart(2, '0')}'`;
@@ -598,47 +765,104 @@ export function OrbitalChart({
     [],
   );
 
-  const projectPlanet = useCallback((planetKey: string): { x: number; y: number } | null => {
-    const container = containerRef.current;
-    const object = planetObjectsRef.current.get(planetKey);
-    if (!container || !object) return null;
+  const buildAspectTooltip = useCallback(
+    (
+      aspect: {
+        key: string;
+        type: string;
+        bodies: [string, string];
+        orb: number;
+        strength?: number;
+      },
+      screenX: number,
+      screenY: number,
+    ): TooltipState => {
+      const aspectColor = aspectTypeColor(aspect.type);
+      const strengthLabel =
+        typeof aspect.strength === 'number' && Number.isFinite(aspect.strength)
+          ? formatStrengthLabel(aspect.strength)
+          : undefined;
 
-    const canvas = container.querySelector('canvas');
-    if (!canvas) return null;
-
-    const worldPosition = new THREE.Vector3();
-    object.getWorldPosition(worldPosition);
-
-    const camera = controlsRef.current?.object;
-    if (!camera) return null;
-
-    return projectWorldToContainer(worldPosition, camera, container);
-  }, []);
+      return {
+        type: 'aspect',
+        aspectKey: aspect.key,
+        aspectType: capitalizeAspectType(aspect.type),
+        aspectColor,
+        planetA: planetDisplayName(aspect.bodies[0]),
+        planetB: planetDisplayName(aspect.bodies[1]),
+        orbLabel: formatOrbLabel(aspect.orb),
+        strengthLabel,
+        screenX,
+        screenY,
+      };
+    },
+    [],
+  );
 
   const selectPlanet = useCallback(
     (planet: { key: string; name: string; lon: number }) => {
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-
       const projected = projectPlanet(planet.key);
       const fallbackW = containerRef.current?.clientWidth ?? 0;
       const fallbackH = containerRef.current?.clientHeight ?? 0;
       const screenX = projected?.x ?? fallbackW / 2;
       const screenY = projected?.y ?? fallbackH / 2;
 
-      setTooltip(buildTooltip(planet, screenX, screenY));
+      setTooltip(buildPlanetTooltip(planet, screenX, screenY));
       if (controlsRef.current) controlsRef.current.autoRotate = false;
-
-      dismissTimerRef.current = setTimeout(() => {
-        clearTooltip();
-      }, TOOLTIP_DISMISS_MS);
+      scheduleDismiss();
     },
-    [buildTooltip, clearTooltip, projectPlanet],
+    [buildPlanetTooltip, projectPlanet, scheduleDismiss],
+  );
+
+  const selectAspect = useCallback(
+    (aspect: {
+      key: string;
+      type: string;
+      bodies: [string, string];
+      orb: number;
+      strength?: number;
+      midpoint: THREE.Vector3;
+    }) => {
+      const projected = projectAspect(aspect.key) ?? projectWorldPoint(aspect.midpoint);
+      const fallbackW = containerRef.current?.clientWidth ?? 0;
+      const fallbackH = containerRef.current?.clientHeight ?? 0;
+      const screenX = projected?.x ?? fallbackW / 2;
+      const screenY = projected?.y ?? fallbackH / 2;
+
+      setTooltip(
+        buildAspectTooltip(
+          {
+            key: aspect.key,
+            type: aspect.type,
+            bodies: aspect.bodies,
+            orb: aspect.orb,
+            strength: aspect.strength,
+          },
+          screenX,
+          screenY,
+        ),
+      );
+      if (controlsRef.current) controlsRef.current.autoRotate = false;
+      scheduleDismiss();
+    },
+    [buildAspectTooltip, projectAspect, projectWorldPoint, scheduleDismiss],
   );
 
   const registerPlanetObject = useCallback((key: string, object: THREE.Object3D | null) => {
     if (object) planetObjectsRef.current.set(key, object);
     else planetObjectsRef.current.delete(key);
   }, []);
+
+  const registerAspectObject = useCallback((key: string, object: THREE.Object3D | null) => {
+    if (object) aspectObjectsRef.current.set(key, object);
+    else aspectObjectsRef.current.delete(key);
+  }, []);
+
+  const activeTarget = useMemo(() => {
+    if (!tooltip) return null;
+    if (tooltip.type === 'planet') return { type: 'planet' as const, key: tooltip.planetKey };
+    return { type: 'aspect' as const, key: tooltip.aspectKey };
+  }, [tooltip]);
 
   const handleScreenPosition = useCallback((position: { x: number; y: number } | null) => {
     if (!position) return;
@@ -708,41 +932,49 @@ export function OrbitalChart({
   };
 
   const interactionValue = useMemo(
-    () => ({ selectPlanet, clearTooltip, registerPlanetObject }),
-    [selectPlanet, clearTooltip, registerPlanetObject],
+    () => ({
+      selectPlanet,
+      selectAspect,
+      clearTooltip,
+      registerPlanetObject,
+      registerAspectObject,
+    }),
+    [selectPlanet, selectAspect, clearTooltip, registerPlanetObject, registerAspectObject],
   );
 
   return (
     <div ref={containerRef} className="absolute inset-0 h-full w-full">
       <InteractionContext.Provider value={interactionValue}>
         <PlanetObjectsRefContext.Provider value={planetObjectsRef}>
-          <ContainerRefContext.Provider value={containerRef}>
-            <WebGLErrorBoundary onError={onWebGLError}>
-              <Canvas
-                frameloop={frameloop}
-                camera={{ position: [0, 3, 5], fov: 45, near: 0.1, far: 100 }}
-                gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-                onCreated={handleCreated}
-                onPointerMissed={clearTooltip}
-                style={{ width: '100%', height: '100%', background: 'transparent' }}
-              >
-                <Suspense fallback={null}>
-                  <OrbitalScene
-                    snapshot={snapshot}
-                    composeControls={composeControls}
-                    controlsRef={controlsRef}
-                    activePlanetKey={tooltip?.planetKey ?? null}
-                    onScreenPosition={handleScreenPosition}
-                  />
-                </Suspense>
-              </Canvas>
-            </WebGLErrorBoundary>
-          </ContainerRefContext.Provider>
+          <AspectObjectsRefContext.Provider value={aspectObjectsRef}>
+            <ContainerRefContext.Provider value={containerRef}>
+              <WebGLErrorBoundary onError={onWebGLError}>
+                <Canvas
+                  frameloop={frameloop}
+                  camera={{ position: [0, 3, 5], fov: 45, near: 0.1, far: 100 }}
+                  gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+                  onCreated={handleCreated}
+                  onPointerMissed={clearTooltip}
+                  style={{ width: '100%', height: '100%', background: 'transparent' }}
+                >
+                  <Suspense fallback={null}>
+                    <OrbitalScene
+                      snapshot={snapshot}
+                      composeControls={composeControls}
+                      controlsRef={controlsRef}
+                      activeTarget={activeTarget}
+                      onScreenPosition={handleScreenPosition}
+                    />
+                  </Suspense>
+                </Canvas>
+              </WebGLErrorBoundary>
+            </ContainerRefContext.Provider>
+          </AspectObjectsRefContext.Provider>
         </PlanetObjectsRefContext.Provider>
       </InteractionContext.Provider>
 
       <AnimatePresence>
-        {tooltip ? <PlanetTooltipOverlay tooltip={tooltip} containerRef={containerRef} /> : null}
+        {tooltip ? <TooltipOverlay tooltip={tooltip} containerRef={containerRef} /> : null}
       </AnimatePresence>
     </div>
   );
