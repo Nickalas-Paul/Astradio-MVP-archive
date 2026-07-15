@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import ExplanationPanel from '@/components/ExplanationPanel';
 import { WheelDisplay } from '@/components/wheel/WheelDisplay';
+import { extractAuraRawSnapshot, type AuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 import { Button } from '@/components/shared/Button';
 import { SaveToLibraryButton } from '@/components/shared/SaveToLibraryButton';
 import { getApiBaseUrl } from '@/core/api-base';
@@ -170,6 +171,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
   const [skyAudioError, setSkyAudioError] = useState<string | null>(null);
   const [skyExportId, setSkyExportId] = useState<string | null>(null);
   const [composeControls, setComposeControls] = useState<ComposeVisualControls | null>(null);
+  const [rawSnapshot, setRawSnapshot] = useState<AuraRawSnapshot | null>(null);
 
   const handleHearTodaysSky = useCallback(async () => {
     if (!composeContext) return;
@@ -236,6 +238,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           setAnalysisText(cached.analysisText ?? '');
           setChartData(cached.chartData);
           setComposeControls(cached.composeControls ?? null);
+          setRawSnapshot(cached.rawSnapshot ?? null);
           setComposeContext(context);
           setIsLoading(false);
           return;
@@ -251,6 +254,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           `/api/chart-snapshot?date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeStr)}&lat=${loc.lat}&lon=${loc.lon}${tzParam}`
         );
         const snapshot = snapRes.ok ? await snapRes.json().catch(() => null) : null;
+        const snapshotForAura = snapshot ? extractAuraRawSnapshot(snapshot) : null;
         let wheelSource: unknown = snapshot ? normalizeChartForWheel(snapshot) : null;
 
         const composeRes = await fetch(`${base || ''}/api/compose`, {
@@ -293,6 +297,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
         setAnalysisText(sections ? '' : analysis);
         setChartData(wheelSource);
         setComposeControls(visualControls);
+        setRawSnapshot(snapshotForAura);
         setComposeContext(context);
 
         setSkyCache(dateStr, loc.lat, loc.lon, {
@@ -301,6 +306,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
           chartData: wheelSource,
           composeHash: hash,
           composeControls: visualControls,
+          rawSnapshot: snapshotForAura,
           date: dateStr,
           lat: loc.lat,
           lon: loc.lon,
@@ -345,6 +351,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
             className="w-full"
             maxSize={480}
             composeControls={composeControls}
+            rawSnapshot={rawSnapshot ?? undefined}
             showAspectLines
           />
         </div>

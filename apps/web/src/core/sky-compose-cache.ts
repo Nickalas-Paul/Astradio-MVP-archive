@@ -6,6 +6,7 @@
 const KEY_PREFIX = 'astradio_sky_';
 
 import type { ComposeVisualControls } from './compose-visual-controls';
+import type { AuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
 
 export type SkyCachePayload = {
   explanationSections: unknown;
@@ -13,6 +14,7 @@ export type SkyCachePayload = {
   chartData: unknown;
   composeHash: string;
   composeControls?: ComposeVisualControls | null;
+  rawSnapshot?: AuraRawSnapshot | null;
   date: string;
   lat: number;
   lon: number;

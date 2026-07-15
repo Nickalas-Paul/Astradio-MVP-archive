@@ -19,6 +19,7 @@ import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
 import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { AuraModal } from './AuraModal';
+import type { AuraRawSnapshot } from './aura-raw-snapshot';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
 
@@ -57,6 +58,8 @@ export interface WheelDisplayProps {
   emptyMessage?: string;
   /** Musical compose parameters for ArtisticViz (Today sky summary). */
   composeControls?: ComposeVisualControls | null;
+  /** Raw ephemeris snapshot for Aura modal visualization. */
+  rawSnapshot?: AuraRawSnapshot;
 }
 
 export function WheelDisplay({
@@ -68,6 +71,7 @@ export function WheelDisplay({
   planetHighlight: planetHighlightProp,
   emptyMessage,
   composeControls = null,
+  rawSnapshot,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
   const { mode: renderMode } = useWheelRenderMode();
@@ -237,7 +241,11 @@ export function WheelDisplay({
         ) : null}
         <div className="wheel-overlay pointer-events-none" />
       </motion.div>
-      <AuraModal isOpen={auraModalOpen} onClose={() => setAuraModalOpen(false)} />
+      <AuraModal
+        isOpen={auraModalOpen}
+        onClose={() => setAuraModalOpen(false)}
+        rawSnapshot={rawSnapshot}
+      />
     </div>
   );
 }

@@ -3,10 +3,15 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import {
+  dominantElementLabel,
+  type AuraRawSnapshot,
+} from './aura-raw-snapshot';
 
 export interface AuraModalProps {
   isOpen: boolean;
   onClose: () => void;
+  rawSnapshot?: AuraRawSnapshot;
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
@@ -30,12 +35,37 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PlaceholderContent() {
+function PlaceholderContent({ rawSnapshot }: { rawSnapshot?: AuraRawSnapshot }) {
+  const dominant = rawSnapshot ? dominantElementLabel(rawSnapshot.dominantElements) : null;
+  const elements = rawSnapshot?.dominantElements;
+
   return (
-    <div className="flex flex-1 items-center justify-center px-6">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-8 text-center">
       <p className="text-text-muted text-lg font-medium">
         <span className="text-accent">Aura</span> Visualization
       </p>
+      {rawSnapshot ? (
+        <div className="w-full max-w-sm rounded-xl border border-border/80 bg-bg/40 px-4 py-3 text-left text-sm">
+          <p className="text-text-secondary">
+            Planets: <span className="text-text-primary">{rawSnapshot.planets.length}</span>
+          </p>
+          <p className="text-text-secondary mt-1">
+            Aspects: <span className="text-text-primary">{rawSnapshot.aspects.length}</span>
+          </p>
+          <p className="text-text-secondary mt-1">
+            Dominant:{' '}
+            <span className="text-accent capitalize">{dominant}</span>
+            {elements ? (
+              <span className="text-text-muted text-xs block mt-1">
+                fire {Math.round(elements.fire * 100)}% · earth {Math.round(elements.earth * 100)}% · air{' '}
+                {Math.round(elements.air * 100)}% · water {Math.round(elements.water * 100)}%
+              </span>
+            ) : null}
+          </p>
+        </div>
+      ) : (
+        <p className="text-text-muted text-sm">No snapshot data available</p>
+      )}
     </div>
   );
 }
@@ -48,7 +78,7 @@ function DragHandle() {
   );
 }
 
-export function AuraModal({ isOpen, onClose }: AuraModalProps) {
+export function AuraModal({ isOpen, onClose, rawSnapshot }: AuraModalProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   useEffect(() => {
@@ -68,6 +98,17 @@ export function AuraModal({ isOpen, onClose }: AuraModalProps) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !rawSnapshot) return;
+    console.log('[AuraModal] rawSnapshot', {
+      planets: rawSnapshot.planets.map((planet) => ({ name: planet.name, lon: planet.lon })),
+      aspectCount: rawSnapshot.aspects.length,
+      dominantElements: rawSnapshot.dominantElements,
+      dominantElement: dominantElementLabel(rawSnapshot.dominantElements),
+      moonPhase: rawSnapshot.moonPhase,
+    });
+  }, [isOpen, rawSnapshot]);
 
   return (
     <AnimatePresence>
@@ -100,7 +141,7 @@ export function AuraModal({ isOpen, onClose }: AuraModalProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <CloseButton onClose={onClose} />
-                <PlaceholderContent />
+                <PlaceholderContent rawSnapshot={rawSnapshot} />
               </motion.div>
             ) : (
               <motion.div
@@ -117,7 +158,7 @@ export function AuraModal({ isOpen, onClose }: AuraModalProps) {
               >
                 <DragHandle />
                 <CloseButton onClose={onClose} />
-                <PlaceholderContent />
+                <PlaceholderContent rawSnapshot={rawSnapshot} />
               </motion.div>
             )}
           </div>
