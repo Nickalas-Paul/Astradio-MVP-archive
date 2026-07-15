@@ -25,6 +25,7 @@ import { BODY_LABELS, type BodyKey } from '../../../../../vnext/canonical-bodies
 import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { normalizePlanetName } from '../../core/planet-identity';
 import { lonToSignDegMin, SIGN_NAMES } from '../../lib/zodiac-degrees';
+import { useAudioPlayerStore } from '../../store/audio-player';
 import type { AuraRawSnapshot } from './aura-raw-snapshot';
 import { getPlanetGlyphSvg } from './wheel-glyphs';
 import { ASPECT_LINE_COLOR } from './wheel-constants';
@@ -32,6 +33,10 @@ import { ASPECT_LINE_COLOR } from './wheel-constants';
 const ECLIPTIC_RADIUS = 2.5;
 const RING_ROTATION_PERIOD = 75;
 const TOOLTIP_DISMISS_MS = 4000;
+const AUDIO_LERP = 0.02;
+const RESTING_AUTO_ROTATE_SPEED = 0.3;
+const RESTING_PLANET_EMISSIVE = 0.4;
+const RESTING_RING_EMISSIVE = 0.1;
 
 const SIGN_ELEMENT = [
   'fire',
@@ -124,6 +129,44 @@ const InteractionContext = createContext<InteractionContextValue | null>(null);
 const ContainerRefContext = createContext<RefObject<HTMLDivElement | null> | null>(null);
 const PlanetObjectsRefContext = createContext<RefObject<Map<string, THREE.Object3D>> | null>(null);
 const AspectObjectsRefContext = createContext<RefObject<Map<string, THREE.Object3D>> | null>(null);
+const AudioIntensityRefContext = createContext<MutableRefObject<number> | null>(null);
+
+function useAudioIntensityRef(): MutableRefObject<number> {
+  const ref = useContext(AudioIntensityRefContext);
+  if (!ref) throw new Error('AudioIntensityRefContext missing');
+  return ref;
+}
+
+function isInnerPlanet(name: string): boolean {
+  const n = normalizePlanetName(name);
+  return n === 'sun' || n === 'moon' || n === 'mercury' || n === 'venus' || n === 'mars';
+}
+
+function AudioReactiveDriver({
+  controlsRef,
+}: {
+  controlsRef: MutableRefObject<OrbitControlsImpl | null>;
+}) {
+  const isPlaying = useAudioPlayerStore((s) => s.isPlaying);
+  const currentTime = useAudioPlayerStore((s) => s.currentTime);
+  const duration = useAudioPlayerStore((s) => s.duration);
+  const intensityRef = useAudioIntensityRef();
+  const rotateSpeedRef = useRef(RESTING_AUTO_ROTATE_SPEED);
+
+  useFrame(() => {
+    const progress = duration > 0 ? currentTime / duration : 0;
+    const playbackIntensity = isPlaying ? 0.3 + 0.7 * Math.sin(progress * Math.PI) : 0;
+    intensityRef.current += (playbackIntensity - intensityRef.current) * AUDIO_LERP;
+
+    const targetRotate = RESTING_AUTO_ROTATE_SPEED + intensityRef.current * 0.7;
+    rotateSpeedRef.current += (targetRotate - rotateSpeedRef.current) * AUDIO_LERP;
+    if (controlsRef.current) {
+      controlsRef.current.autoRotateSpeed = rotateSpeedRef.current;
+    }
+  });
+
+  return null;
+}
 
 function hashPhase(name: string): number {
   let h = 0;
@@ -397,10 +440,20 @@ function BackgroundAtmosphere({ dominantElements }: { dominantElements: AuraRawS
 
 function EclipticRing() {
   const spinRef = useRef<THREE.Group>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const emissiveRef = useRef(RESTING_RING_EMISSIVE);
+  const intensityRef = useAudioIntensityRef();
 
   useFrame((_, delta) => {
-    if (!spinRef.current) return;
-    spinRef.current.rotation.y += ((Math.PI * 2) / RING_ROTATION_PERIOD) * delta;
+    if (spinRef.current) {
+      spinRef.current.rotation.y += ((Math.PI * 2) / RING_ROTATION_PERIOD) * delta;
+    }
+
+    const mat = materialRef.current;
+    if (!mat) return;
+    const target = RESTING_RING_EMISSIVE + intensityRef.current * 0.2;
+    emissiveRef.current += (target - emissiveRef.current) * AUDIO_LERP;
+    mat.emissiveIntensity = emissiveRef.current;
   });
 
   return (
@@ -408,9 +461,10 @@ function EclipticRing() {
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[ECLIPTIC_RADIUS, 0.015, 16, 128]} />
         <meshStandardMaterial
+          ref={materialRef}
           color="#1a3a4a"
           emissive="#1a3a4a"
-          emissiveIntensity={0.25}
+          emissiveIntensity={RESTING_RING_EMISSIVE}
           metalness={0.1}
           roughness={0.8}
         />
@@ -429,6 +483,9 @@ function PlanetSphere({
   const { selectPlanet, registerPlanetObject } = useInteraction();
   const groupRef = useRef<THREE.Group>(null);
   const visibleRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const emissiveRef = useRef(RESTING_PLANET_EMISSIVE);
+  const intensityRef = useAudioIntensityRef();
   const radius = planetRadius(name);
   const hitRadius = radius * 1.5;
   const color = signElementColor(lon);
@@ -443,9 +500,18 @@ function PlanetSphere({
   }, [planetKey, registerPlanetObject]);
 
   useFrame((state) => {
-    if (!visibleRef.current) return;
-    const breathe = 0.95 + 0.05 * Math.sin((state.clock.elapsedTime / breathePeriod) * Math.PI * 2 + phase);
-    visibleRef.current.scale.setScalar(breathe);
+    if (visibleRef.current) {
+      const breathe = 0.95 + 0.05 * Math.sin((state.clock.elapsedTime / breathePeriod) * Math.PI * 2 + phase);
+      visibleRef.current.scale.setScalar(breathe);
+    }
+
+    const mat = materialRef.current;
+    if (mat) {
+      const innerMult = isInnerPlanet(name) ? 1.3 : 1;
+      const target = RESTING_PLANET_EMISSIVE + intensityRef.current * 0.6 * innerMult;
+      emissiveRef.current += (target - emissiveRef.current) * AUDIO_LERP;
+      mat.emissiveIntensity = emissiveRef.current;
+    }
   });
 
   const handleSelect = (event: ThreeEvent<MouseEvent>) => {
@@ -466,9 +532,10 @@ function PlanetSphere({
       <mesh ref={visibleRef}>
         <sphereGeometry args={[radius, 24, 24]} />
         <meshStandardMaterial
+          ref={materialRef}
           color={color}
           emissive={color}
-          emissiveIntensity={0.4}
+          emissiveIntensity={RESTING_PLANET_EMISSIVE}
           metalness={0.15}
           roughness={0.45}
         />
@@ -503,6 +570,8 @@ function PulsingAspectLine({
   const { selectAspect, registerAspectObject } = useInteraction();
   const lineRef = useRef<Line2>(null);
   const midpointRef = useRef<THREE.Group>(null);
+  const intensityRef = useAudioIntensityRef();
+  const aspectType = aspect.type.toLowerCase();
   const midpoint = useMemo(() => start.clone().add(end).multiplyScalar(0.5), [start, end]);
   const tubeGeometry = useMemo(() => {
     const curve = new THREE.LineCurve3(start.clone(), end.clone());
@@ -519,9 +588,25 @@ function PulsingAspectLine({
   useFrame((state) => {
     const mat = lineRef.current?.material as LineMaterial | undefined;
     if (!mat) return;
-    const pulse =
-      0.7 + 0.3 * Math.sin((state.clock.elapsedTime / style.pulsePeriod) * Math.PI * 2 + phaseOffset);
-    mat.opacity = style.baseOpacity * pulse;
+
+    const playback = intensityRef.current;
+    const opacityBoost = playback * 0.3;
+    const boostedBase = Math.min(1, style.baseOpacity + opacityBoost);
+
+    let pulsePeriod = style.pulsePeriod;
+    let pulseMin = 0.7;
+    let pulseAmp = 0.3;
+
+    if (aspectType === 'square' || aspectType === 'opposition') {
+      pulsePeriod /= 1 + playback * 0.5;
+    } else if (aspectType === 'trine' || aspectType === 'sextile') {
+      pulsePeriod *= 1 + playback * 0.25;
+      pulseMin = 0.7 - playback * 0.15;
+      pulseAmp = 0.3 + playback * 0.1;
+    }
+
+    const pulse = pulseMin + pulseAmp * Math.sin((state.clock.elapsedTime / pulsePeriod) * Math.PI * 2 + phaseOffset);
+    mat.opacity = Math.min(1, boostedBase * pulse);
   });
 
   const handleSelect = (event: ThreeEvent<MouseEvent>) => {
@@ -648,8 +733,10 @@ function OrbitalScene({
     return map;
   }, [snapshot.planets]);
 
+  const playbackIntensityRef = useRef(0);
+
   return (
-    <>
+    <AudioIntensityRefContext.Provider value={playbackIntensityRef}>
       <color attach="background" args={['#080d18']} />
       <ambientLight intensity={0.3} />
       <pointLight position={[5, 5, 5]} intensity={0.8} />
@@ -669,15 +756,16 @@ function OrbitalScene({
         enableZoom={false}
         enablePan={false}
         autoRotate
-        autoRotateSpeed={0.3}
+        autoRotateSpeed={RESTING_AUTO_ROTATE_SPEED}
         enableDamping
         dampingFactor={0.05}
         minPolarAngle={0.2}
         maxPolarAngle={Math.PI - 0.2}
       />
 
+      <AudioReactiveDriver controlsRef={controlsRef} />
       <ActiveTooltipTracker activeTarget={activeTarget} onScreenPosition={onScreenPosition} />
-    </>
+    </AudioIntensityRefContext.Provider>
   );
 }
 
