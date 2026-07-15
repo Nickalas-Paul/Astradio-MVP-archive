@@ -1,17 +1,23 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import {
-  dominantElementLabel,
-  type AuraRawSnapshot,
-} from './aura-raw-snapshot';
+import { dominantElementLabel, type AuraRawSnapshot } from './aura-raw-snapshot';
+
+const OrbitalChart = dynamic(
+  () => import('./OrbitalChart').then((m) => ({ default: m.OrbitalChart })),
+  { ssr: false, loading: () => null },
+);
 
 export interface AuraModalProps {
   isOpen: boolean;
   onClose: () => void;
   rawSnapshot?: AuraRawSnapshot;
+  composeControls?: ComposeVisualControls | null;
+  onWebGLError?: () => void;
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
@@ -35,38 +41,32 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PlaceholderContent({ rawSnapshot }: { rawSnapshot?: AuraRawSnapshot }) {
-  const dominant = rawSnapshot ? dominantElementLabel(rawSnapshot.dominantElements) : null;
-  const elements = rawSnapshot?.dominantElements;
+function SceneContent({
+  rawSnapshot,
+  composeControls,
+  isOpen,
+  onWebGLError,
+}: {
+  rawSnapshot?: AuraRawSnapshot;
+  composeControls?: ComposeVisualControls | null;
+  isOpen: boolean;
+  onWebGLError?: () => void;
+}) {
+  if (!rawSnapshot) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-6">
+        <p className="text-text-muted text-sm">No snapshot data available</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-8 text-center">
-      <p className="text-text-muted text-lg font-medium">
-        <span className="text-accent">Aura</span> Visualization
-      </p>
-      {rawSnapshot ? (
-        <div className="w-full max-w-sm rounded-xl border border-border/80 bg-bg/40 px-4 py-3 text-left text-sm">
-          <p className="text-text-secondary">
-            Planets: <span className="text-text-primary">{rawSnapshot.planets.length}</span>
-          </p>
-          <p className="text-text-secondary mt-1">
-            Aspects: <span className="text-text-primary">{rawSnapshot.aspects.length}</span>
-          </p>
-          <p className="text-text-secondary mt-1">
-            Dominant:{' '}
-            <span className="text-accent capitalize">{dominant}</span>
-            {elements ? (
-              <span className="text-text-muted text-xs block mt-1">
-                fire {Math.round(elements.fire * 100)}% · earth {Math.round(elements.earth * 100)}% · air{' '}
-                {Math.round(elements.air * 100)}% · water {Math.round(elements.water * 100)}%
-              </span>
-            ) : null}
-          </p>
-        </div>
-      ) : (
-        <p className="text-text-muted text-sm">No snapshot data available</p>
-      )}
-    </div>
+    <OrbitalChart
+      snapshot={rawSnapshot}
+      composeControls={composeControls}
+      active={isOpen}
+      onWebGLError={onWebGLError}
+    />
   );
 }
 
@@ -78,7 +78,13 @@ function DragHandle() {
   );
 }
 
-export function AuraModal({ isOpen, onClose, rawSnapshot }: AuraModalProps) {
+export function AuraModal({
+  isOpen,
+  onClose,
+  rawSnapshot,
+  composeControls = null,
+  onWebGLError,
+}: AuraModalProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   useEffect(() => {
@@ -141,7 +147,14 @@ export function AuraModal({ isOpen, onClose, rawSnapshot }: AuraModalProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <CloseButton onClose={onClose} />
-                <PlaceholderContent rawSnapshot={rawSnapshot} />
+                <div className="relative flex-1 min-h-0">
+                  <SceneContent
+                    rawSnapshot={rawSnapshot}
+                    composeControls={composeControls}
+                    isOpen={isOpen}
+                    onWebGLError={onWebGLError}
+                  />
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -158,7 +171,14 @@ export function AuraModal({ isOpen, onClose, rawSnapshot }: AuraModalProps) {
               >
                 <DragHandle />
                 <CloseButton onClose={onClose} />
-                <PlaceholderContent rawSnapshot={rawSnapshot} />
+                <div className="relative flex-1 min-h-0">
+                  <SceneContent
+                    rawSnapshot={rawSnapshot}
+                    composeControls={composeControls}
+                    isOpen={isOpen}
+                    onWebGLError={onWebGLError}
+                  />
+                </div>
               </motion.div>
             )}
           </div>

@@ -74,7 +74,7 @@ export function WheelDisplay({
   rawSnapshot,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { mode: renderMode } = useWheelRenderMode();
+  const { mode: renderMode, setMode: setRenderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
@@ -104,6 +104,11 @@ export function WheelDisplay({
     }
     prevRenderModeRef.current = renderMode;
   }, [renderMode]);
+
+  const handleAuraWebGLError = useCallback(() => {
+    setAuraModalOpen(false);
+    setRenderMode('classic');
+  }, [setRenderMode]);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -245,6 +250,8 @@ export function WheelDisplay({
         isOpen={auraModalOpen}
         onClose={() => setAuraModalOpen(false)}
         rawSnapshot={rawSnapshot}
+        composeControls={composeControls}
+        onWebGLError={handleAuraWebGLError}
       />
     </div>
   );
