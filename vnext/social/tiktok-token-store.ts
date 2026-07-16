@@ -110,6 +110,10 @@ async function exchangeToken(body: Record<string, string>): Promise<TikTokTokens
   const json = (await res.json().catch(() => ({}))) as TokenResponse & { data?: TokenResponse };
   const data = (json.data ?? json) as TokenResponse;
   if (!res.ok || !data.access_token) {
+    console.error('[tiktok-auth] token exchange failed', {
+      status: res.status,
+      body: json,
+    });
     const msg =
       data.error_description ||
       data.message ||
