@@ -1,20 +1,13 @@
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import moment from 'moment-timezone';
-import sharp from 'sharp';
 import type { EphemerisSnapshot } from '../contracts';
 import { ComposeAPI } from '../api/compose';
 import type { ComposeRequest } from '../explainer/contracts';
 import { engineInternalFetchHeaders } from '../core/engine-internal-fetch';
-import { BRAND, resolveRenderAsset } from '../render/design-tokens';
-import { svgToPng } from '../render/standard/svg-to-png';
-
-const ffmpegPath = require('ffmpeg-static') as string | null;
-
-const WIDTH = 1080;
-const HEIGHT = 1920;
+import { buildBrandedCardPng } from './branded-card';
+import { muxImageAndAudio } from './video-muxer';
 
 type ExportStore = {
   get?: (key: string, extension?: string) => Promise<Buffer | null>;
@@ -131,134 +124,6 @@ function dominantElement(
   return ranked[0]?.[0] ?? 'cosmic';
 }
 
-function wrapText(text: string, maxCharsPerLine: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length > maxCharsPerLine && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.slice(0, 8);
-}
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function fontFileUrl(relativePath: string): string {
-  const abs = resolveRenderAsset(relativePath).replace(/\\/g, '/');
-  return `file://${abs}`;
-}
-
-async function buildBrandedCardPng(params: {
-  displayDate: string;
-  bodyText: string;
-}): Promise<Buffer> {
-  const { displayDate, bodyText } = params;
-  const bg = BRAND.colors.background;
-  const accent = BRAND.colors.accent;
-  const bodyLines = wrapText(bodyText, 40);
-
-  const logoPath = resolveRenderAsset(BRAND.logoPaths.wordmark);
-  const logoMeta = await sharp(logoPath).metadata();
-  const logoTargetWidth = 420;
-  const logoBuffer = await sharp(logoPath).resize(logoTargetWidth).png().toBuffer();
-
-  const titleY = 220;
-  const dateY = 300;
-  const bodyStartY = 420;
-  const bodyLineHeight = 52;
-  const ctaY = HEIGHT - 120;
-
-  const bodyTspans = bodyLines
-    .map((line, i) => {
-      const y = bodyStartY + i * bodyLineHeight;
-      return `<tspan x="540" y="${y}">${escapeXml(line)}</tspan>`;
-    })
-    .join('');
-
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
-  <defs>
-    <style>
-      @font-face {
-        font-family: 'ManropeBold';
-        src: url('${fontFileUrl(BRAND.fontPaths.manropeBold)}');
-      }
-      @font-face {
-        font-family: 'ManropeRegular';
-        src: url('${fontFileUrl(BRAND.fontPaths.manropeRegular)}');
-      }
-      @font-face {
-        font-family: 'ManropeMedium';
-        src: url('${fontFileUrl(BRAND.fontPaths.manropeMedium)}');
-      }
-      @font-face {
-        font-family: 'CormorantRegular';
-        src: url('${fontFileUrl(BRAND.fontPaths.cormorantRegular)}');
-      }
-    </style>
-  </defs>
-  <rect width="100%" height="100%" fill="${bg}"/>
-  <text x="540" y="${titleY}" text-anchor="middle" fill="${BRAND.colors.textPrimary}"
-    font-family="ManropeBold" font-size="64">Today's Sky</text>
-  <text x="540" y="${dateY}" text-anchor="middle" fill="${accent}"
-    font-family="ManropeRegular" font-size="36">${escapeXml(displayDate)}</text>
-  <text text-anchor="middle" fill="${BRAND.colors.textPrimary}"
-    font-family="CormorantRegular" font-size="40">${bodyTspans}</text>
-  <text x="540" y="${ctaY}" text-anchor="middle" fill="${accent}"
-    font-family="ManropeMedium" font-size="34">astradio.io</text>
-</svg>`;
-
-  const textOverlay = await svgToPng(svg, WIDTH, HEIGHT);
-  const logoTop = 72;
-
-  return sharp({
-    create: {
-      width: WIDTH,
-      height: HEIGHT,
-      channels: 4,
-      background: bg,
-    },
-  })
-    .composite([
-      { input: textOverlay, top: 0, left: 0 },
-      { input: logoBuffer, top: logoTop, left: Math.round((WIDTH - logoTargetWidth) / 2) },
-    ])
-    .png()
-    .toBuffer();
-}
-
-function runFfmpeg(args: string[]): Promise<void> {
-  if (!ffmpegPath) {
-    return Promise.reject(new Error('ffmpeg-static binary path is not available'));
-  }
-  return new Promise((resolve, reject) => {
-    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stderr = '';
-    proc.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-    proc.on('error', reject);
-    proc.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-500)}`));
-    });
-  });
-}
-
 async function muxImageAndAudioToMp4(imagePng: Buffer, wavBuffer: Buffer): Promise<Buffer> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'astradio-social-'));
   const imagePath = path.join(tmpDir, 'card.png');
@@ -268,31 +133,7 @@ async function muxImageAndAudioToMp4(imagePng: Buffer, wavBuffer: Buffer): Promi
   try {
     await fs.promises.writeFile(imagePath, imagePng);
     await fs.promises.writeFile(wavPath, wavBuffer);
-
-    await runFfmpeg([
-      '-y',
-      '-loop',
-      '1',
-      '-i',
-      imagePath,
-      '-i',
-      wavPath,
-      '-c:v',
-      'libx264',
-      '-tune',
-      'stillimage',
-      '-c:a',
-      'aac',
-      '-b:a',
-      '192k',
-      '-pix_fmt',
-      'yuv420p',
-      '-shortest',
-      '-movflags',
-      '+faststart',
-      outputPath,
-    ]);
-
+    await muxImageAndAudio({ imagePath, audioPath: wavPath, outputPath });
     return await fs.promises.readFile(outputPath);
   } finally {
     for (const file of [imagePath, wavPath, outputPath]) {
@@ -330,6 +171,7 @@ export async function composeLatestSkyExport(): Promise<{
   export_id: string;
   text: string;
   title: string;
+  element: string;
 }> {
   const { lat, lon, timezone } = getCanonicalLocation();
   const { dateStr, timeStr, datetime } = resolveNowInTimezone(timezone);
@@ -353,7 +195,7 @@ export async function composeLatestSkyExport(): Promise<{
   const element = dominantElement(compose, snapshot);
   const title = buildTikTokTitle(displayDate, element);
 
-  return { export_id: exportId, text, title };
+  return { export_id: exportId, text, title, element };
 }
 
 /** Light path: text-only sky compose (no audio export). */
@@ -421,7 +263,12 @@ export async function generateSkyVideoFromExport(params: {
     title = skyText.title;
   }
 
-  const imagePng = await buildBrandedCardPng({ displayDate, bodyText });
+  const imagePng = await buildBrandedCardPng({
+    title: "Today's Sky",
+    date: displayDate,
+    bodyText,
+    ctaText: 'astradio.io',
+  });
   const videoBuffer = await muxImageAndAudioToMp4(imagePng, wavBuffer);
 
   return { videoBuffer, title };

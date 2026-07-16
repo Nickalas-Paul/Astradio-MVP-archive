@@ -51,6 +51,7 @@ export function createTikTokRouter(): import('express').Router {
         export_id: result.export_id,
         text: result.text,
         title: result.title,
+        element: result.element,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
