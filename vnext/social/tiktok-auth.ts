@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
-import { storeTokensFromAuthCode } from './tiktok-token-store';
+import { storeTokensFromAuthCode } from './tiktok-db-token-store';
 
 type PkceSession = {
   codeVerifier: string;

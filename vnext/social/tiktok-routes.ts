@@ -5,7 +5,7 @@ import {
   composeLatestSkyExport,
   generateSkyVideoFromExport,
 } from './sky-video-generator';
-import { tokenStatus } from './tiktok-token-store';
+import { tokenStatus } from './tiktok-db-token-store';
 
 const express = require('express') as typeof import('express');
 
@@ -32,8 +32,14 @@ export function createTikTokRouter(): import('express').Router {
     await handleTikTokCallback(req, res);
   });
 
-  router.get('/social/tiktok/status', (_req: Request, res: Response) => {
-    res.json(tokenStatus());
+  router.get('/social/tiktok/status', async (_req: Request, res: Response) => {
+    try {
+      res.json(await tokenStatus());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[tiktok] status failed:', message);
+      res.status(500).json({ error: 'status_failed', message });
+    }
   });
 
   /** Heavy: compose sky audio only; returns export_id + text for post-sky. */

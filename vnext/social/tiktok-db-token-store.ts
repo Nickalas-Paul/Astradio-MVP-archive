@@ -1,7 +1,3 @@
-// DEPRECATED: Replaced by tiktok-db-token-store.ts (database-backed storage).
-// This file is retained temporarily and will be removed after production verification.
-
-import fs from 'fs';
 import path from 'path';
 
 export type TikTokTokens = {
@@ -12,51 +8,56 @@ export type TikTokTokens = {
   updated_at: string;
 };
 
-const TOKEN_FILE = path.join(process.cwd(), 'vnext', 'social', '.tiktok-tokens.json');
+// Established runtime pattern: resolve from process.cwd() (repo root), not relative to dist/.
+const { query, getRow } = require(path.join(process.cwd(), 'lib', 'database')) as {
+  query: (text: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[]; rowCount: number | null }>;
+  getRow: (text: string, params?: unknown[]) => Promise<Record<string, unknown> | null>;
+};
 
-function ensureDir(): void {
-  const dir = path.dirname(TOKEN_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-export function getTokenFilePath(): string {
-  return TOKEN_FILE;
-}
-
-export function loadTikTokTokens(): TikTokTokens | null {
+export async function loadTikTokTokens(): Promise<TikTokTokens | null> {
   try {
-    if (!fs.existsSync(TOKEN_FILE)) return null;
-    const raw = fs.readFileSync(TOKEN_FILE, 'utf8');
-    const parsed = JSON.parse(raw) as Partial<TikTokTokens>;
+    const row = await getRow(
+      'SELECT access_token, refresh_token, open_id, expires_at, updated_at FROM tiktok_tokens ORDER BY created_at DESC LIMIT 1',
+    );
+    if (!row) return null;
     if (
-      typeof parsed.access_token !== 'string' ||
-      typeof parsed.refresh_token !== 'string' ||
-      typeof parsed.open_id !== 'string' ||
-      typeof parsed.expires_at !== 'string'
+      typeof row.access_token !== 'string' ||
+      typeof row.refresh_token !== 'string' ||
+      typeof row.open_id !== 'string' ||
+      typeof row.expires_at !== 'string'
     ) {
       return null;
     }
     return {
-      access_token: parsed.access_token,
-      refresh_token: parsed.refresh_token,
-      open_id: parsed.open_id,
-      expires_at: parsed.expires_at,
-      updated_at: typeof parsed.updated_at === 'string' ? parsed.updated_at : parsed.expires_at,
+      access_token: row.access_token,
+      refresh_token: row.refresh_token,
+      open_id: row.open_id,
+      expires_at: row.expires_at,
+      updated_at: typeof row.updated_at === 'string' ? row.updated_at : row.expires_at,
     };
-  } catch {
+  } catch (err) {
+    console.error(
+      '[tiktok-db-token-store] loadTikTokTokens failed:',
+      err instanceof Error ? err.message : String(err),
+    );
     return null;
   }
 }
 
-export function saveTikTokTokens(tokens: Omit<TikTokTokens, 'updated_at'> & { updated_at?: string }): void {
-  ensureDir();
-  const record: TikTokTokens = {
-    ...tokens,
-    updated_at: tokens.updated_at ?? new Date().toISOString(),
-  };
-  fs.writeFileSync(TOKEN_FILE, JSON.stringify(record, null, 2), 'utf8');
+export async function saveTikTokTokens(
+  tokens: Omit<TikTokTokens, 'updated_at'> & { updated_at?: string },
+): Promise<void> {
+  const updatedAt = tokens.updated_at || new Date().toISOString();
+  await query(
+    `INSERT INTO tiktok_tokens (open_id, access_token, refresh_token, expires_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (open_id) DO UPDATE SET
+       access_token = EXCLUDED.access_token,
+       refresh_token = EXCLUDED.refresh_token,
+       expires_at = EXCLUDED.expires_at,
+       updated_at = EXCLUDED.updated_at`,
+    [tokens.open_id, tokens.access_token, tokens.refresh_token, tokens.expires_at, updatedAt],
+  );
 }
 
 export function isTokenExpired(tokens: TikTokTokens, skewMs = 60_000): boolean {
@@ -65,14 +66,14 @@ export function isTokenExpired(tokens: TikTokTokens, skewMs = 60_000): boolean {
   return Date.now() + skewMs >= expiresAt;
 }
 
-export function tokenStatus(): {
+export async function tokenStatus(): Promise<{
   connected: boolean;
   expired: boolean;
   open_id?: string;
   expires_at?: string;
   updated_at?: string;
-} {
-  const tokens = loadTikTokTokens();
+}> {
+  const tokens = await loadTikTokTokens();
   if (!tokens) {
     return { connected: false, expired: false };
   }
@@ -126,10 +127,11 @@ async function exchangeToken(body: Record<string, string>): Promise<TikTokTokens
   }
   const expiresIn = Number(data.expires_in) > 0 ? Number(data.expires_in) : 3600;
   const now = Date.now();
+  const existing = await loadTikTokTokens();
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token || body.refresh_token || '',
-    open_id: data.open_id || loadTikTokTokens()?.open_id || '',
+    open_id: data.open_id || existing?.open_id || '',
     expires_at: new Date(now + expiresIn * 1000).toISOString(),
     updated_at: new Date(now).toISOString(),
   };
@@ -159,7 +161,7 @@ export async function storeTokensFromAuthCode(params: {
     redirect_uri: params.redirectUri,
     code_verifier: params.codeVerifier,
   });
-  saveTikTokTokens(tokens);
+  await saveTikTokTokens(tokens);
   return tokens;
 }
 
@@ -174,12 +176,12 @@ export async function refreshTikTokTokens(refreshToken: string): Promise<TikTokT
   if (!tokens.refresh_token) {
     tokens.refresh_token = refreshToken;
   }
-  saveTikTokTokens(tokens);
+  await saveTikTokTokens(tokens);
   return tokens;
 }
 
 export async function getValidAccessToken(): Promise<string> {
-  const tokens = loadTikTokTokens();
+  const tokens = await loadTikTokTokens();
   if (!tokens) {
     throw new Error('TikTok not connected. Visit /api/social/tiktok/authorize first.');
   }

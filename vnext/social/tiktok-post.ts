@@ -1,4 +1,4 @@
-import { getValidAccessToken } from './tiktok-token-store';
+import { getValidAccessToken } from './tiktok-db-token-store';
 
 type TikTokApiError = {
   code?: string;
