@@ -138,6 +138,16 @@ export async function storeTokensFromAuthCode(params: {
   redirectUri: string;
 }): Promise<TikTokTokens> {
   const { clientKey, clientSecret } = getTikTokCredentials();
+  console.log('[tiktok-auth] token exchange payload', {
+    client_key: clientKey,
+    client_key_length: clientKey?.length,
+    client_secret_length: clientSecret?.length,
+    client_secret_first4: clientSecret?.slice(0, 4),
+    client_secret_last4: clientSecret?.slice(-4),
+    redirect_uri: params.redirectUri,
+    code_length: params.code?.length,
+    code_verifier_length: params.codeVerifier?.length,
+  });
   const tokens = await exchangeToken({
     client_key: clientKey,
     client_secret: clientSecret,
