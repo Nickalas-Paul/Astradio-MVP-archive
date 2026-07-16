@@ -24,7 +24,7 @@ function getExportStore(): ExportStore | undefined {
   return (process as { __astradio_export_store?: ExportStore }).__astradio_export_store;
 }
 
-function getCanonicalLocation(): { lat: number; lon: number; timezone: string } {
+export function getCanonicalLocation(): { lat: number; lon: number; timezone: string } {
   return {
     lat: Number(process.env.SOCIAL_CANONICAL_LAT ?? '29.9511'),
     lon: Number(process.env.SOCIAL_CANONICAL_LON ?? '-97.7378'),
@@ -40,6 +40,21 @@ function resolveNowInTimezone(tz: string): { dateStr: string; timeStr: string; d
     dateStr,
     timeStr,
     datetime: `${dateStr}T${timeStr}:00`,
+  };
+}
+
+function buildSkyComposeRequest(generateAudio: boolean): ComposeRequest {
+  const { lat, lon, timezone } = getCanonicalLocation();
+  const { datetime } = resolveNowInTimezone(timezone);
+  return {
+    mode: 'sky',
+    skyParams: {
+      latitude: lat,
+      longitude: lon,
+      datetime,
+      timezone,
+    },
+    generateAudio,
   };
 }
 
@@ -82,7 +97,7 @@ function takeFirstSentences(text: string, maxSentences: number): string {
     .join(' ');
 }
 
-function extractExplanationText(compose: Record<string, unknown>): string {
+export function extractExplanationText(compose: Record<string, unknown>): string {
   const explanation = compose.explanation as { sections?: Array<{ text?: string }> } | undefined;
   if (Array.isArray(explanation?.sections)) {
     for (const section of explanation.sections) {
@@ -104,13 +119,13 @@ function extractExplanationText(compose: Record<string, unknown>): string {
 
 function dominantElement(
   compose: Record<string, unknown>,
-  snapshot: EphemerisSnapshot,
+  snapshot: EphemerisSnapshot | null,
 ): string {
   const astro = compose.astro as { element_dominance?: string } | undefined;
   if (typeof astro?.element_dominance === 'string' && astro.element_dominance.trim()) {
     return astro.element_dominance.trim().toLowerCase();
   }
-  const de = snapshot.dominantElements;
+  const de = snapshot?.dominantElements;
   if (!de) return 'cosmic';
   const ranked = Object.entries(de).sort((a, b) => b[1] - a[1]);
   return ranked[0]?.[0] ?? 'cosmic';
@@ -159,8 +174,6 @@ async function buildBrandedCardPng(params: {
   const logoPath = resolveRenderAsset(BRAND.logoPaths.wordmark);
   const logoMeta = await sharp(logoPath).metadata();
   const logoTargetWidth = 420;
-  const logoScale = logoMeta.width ? logoTargetWidth / logoMeta.width : 1;
-  const logoHeight = Math.round((logoMeta.height ?? 80) * logoScale);
   const logoBuffer = await sharp(logoPath).resize(logoTargetWidth).png().toBuffer();
 
   const titleY = 220;
@@ -297,7 +310,27 @@ async function muxImageAndAudioToMp4(imagePng: Buffer, wavBuffer: Buffer): Promi
   }
 }
 
-export async function generateSkyVideo(): Promise<{ videoBuffer: Buffer; title: string }> {
+function buildTikTokTitle(displayDate: string, element: string): string {
+  const elementLabel = element.charAt(0).toUpperCase() + element.slice(1);
+  return `Today's Sky — ${displayDate} 🌌 What does ${elementLabel} energy sound like? #astrology #birthchart #astradio`;
+}
+
+function extractExportId(compose: Record<string, unknown>): string {
+  const exportId =
+    (typeof compose.export_id === 'string' && compose.export_id) ||
+    ((compose.audio as { export_id?: string } | undefined)?.export_id ?? '');
+  if (!exportId || !/^[a-f0-9]{64}$/.test(exportId)) {
+    throw new Error('Compose did not return a valid export_id (enable ENABLE_WAV_EXPORT=1)');
+  }
+  return exportId;
+}
+
+/** Heavy path: sky compose with audio. Returns export id + text for a later post-sky call. */
+export async function composeLatestSkyExport(): Promise<{
+  export_id: string;
+  text: string;
+  title: string;
+}> {
   const { lat, lon, timezone } = getCanonicalLocation();
   const { dateStr, timeStr, datetime } = resolveNowInTimezone(timezone);
   const displayDate = moment.tz(datetime, timezone).format('MMMM D, YYYY');
@@ -311,24 +344,58 @@ export async function generateSkyVideo(): Promise<{ videoBuffer: Buffer; title: 
   });
 
   const composeAPI = new ComposeAPI();
-  const composeRequest: ComposeRequest = {
-    mode: 'sky',
-    skyParams: {
-      latitude: lat,
-      longitude: lon,
-      datetime,
-      timezone,
-    },
-    generateAudio: true,
+  const compose = (await composeAPI.compose(
+    buildSkyComposeRequest(true),
+  )) as unknown as Record<string, unknown>;
+
+  const exportId = extractExportId(compose);
+  const text = extractExplanationText(compose);
+  const element = dominantElement(compose, snapshot);
+  const title = buildTikTokTitle(displayDate, element);
+
+  return { export_id: exportId, text, title };
+}
+
+/** Light path: text-only sky compose (no audio export). */
+export async function composeSkyTextOnly(): Promise<{
+  text: string;
+  title: string;
+  displayDate: string;
+}> {
+  const { lat, lon, timezone } = getCanonicalLocation();
+  const { dateStr, timeStr, datetime } = resolveNowInTimezone(timezone);
+  const displayDate = moment.tz(datetime, timezone).format('MMMM D, YYYY');
+
+  const snapshot = await fetchChartSnapshot({
+    date: dateStr,
+    time: timeStr,
+    lat,
+    lon,
+    timezone,
+  });
+
+  const composeAPI = new ComposeAPI();
+  const compose = (await composeAPI.compose(
+    buildSkyComposeRequest(false),
+  )) as unknown as Record<string, unknown>;
+
+  const text = extractExplanationText(compose);
+  const element = dominantElement(compose, snapshot);
+  return {
+    text,
+    title: buildTikTokTitle(displayDate, element),
+    displayDate,
   };
+}
 
-  const compose = (await composeAPI.compose(composeRequest)) as unknown as Record<string, unknown>;
-  const exportId =
-    (typeof compose.export_id === 'string' && compose.export_id) ||
-    ((compose.audio as { export_id?: string } | undefined)?.export_id ?? '');
-
-  if (!exportId || !/^[a-f0-9]{64}$/.test(exportId)) {
-    throw new Error('Compose did not return a valid export_id (enable ENABLE_WAV_EXPORT=1)');
+/** Build branded video from an existing WAV export (no audio compose). */
+export async function generateSkyVideoFromExport(params: {
+  exportId: string;
+  text?: string;
+}): Promise<{ videoBuffer: Buffer; title: string }> {
+  const exportId = params.exportId.trim();
+  if (!/^[a-f0-9]{64}$/.test(exportId)) {
+    throw new Error('exportId must be a 64-character hex string');
   }
 
   const exportStore = getExportStore();
@@ -341,13 +408,28 @@ export async function generateSkyVideo(): Promise<{ videoBuffer: Buffer; title: 
     throw new Error(`Audio export not found in store for export_id ${exportId}`);
   }
 
-  const bodyText = extractExplanationText(compose);
+  const { timezone } = getCanonicalLocation();
+  const { datetime } = resolveNowInTimezone(timezone);
+  const displayDate = moment.tz(datetime, timezone).format('MMMM D, YYYY');
+
+  let bodyText = typeof params.text === 'string' ? params.text.trim() : '';
+  let title = buildTikTokTitle(displayDate, 'cosmic');
+
+  if (!bodyText) {
+    const skyText = await composeSkyTextOnly();
+    bodyText = skyText.text;
+    title = skyText.title;
+  }
+
   const imagePng = await buildBrandedCardPng({ displayDate, bodyText });
   const videoBuffer = await muxImageAndAudioToMp4(imagePng, wavBuffer);
 
-  const element = dominantElement(compose, snapshot);
-  const elementLabel = element.charAt(0).toUpperCase() + element.slice(1);
-  const title = `Today's Sky — ${displayDate} 🌌 What does ${elementLabel} energy sound like? #astrology #birthchart #astradio`;
+  return { videoBuffer, title };
+}
 
+/** Full path (may OOM on 512MB): compose audio + build video. */
+export async function generateSkyVideo(): Promise<{ videoBuffer: Buffer; title: string }> {
+  const { export_id, text, title } = await composeLatestSkyExport();
+  const { videoBuffer } = await generateSkyVideoFromExport({ exportId: export_id, text });
   return { videoBuffer, title };
 }

@@ -1,7 +1,10 @@
 import type { Request, Response } from 'express';
 import { handleTikTokAuthorize, handleTikTokCallback } from './tiktok-auth';
 import { postVideoToTikTok } from './tiktok-post';
-import { generateSkyVideo } from './sky-video-generator';
+import {
+  composeLatestSkyExport,
+  generateSkyVideoFromExport,
+} from './sky-video-generator';
 import { tokenStatus } from './tiktok-token-store';
 
 const express = require('express') as typeof import('express');
@@ -33,16 +36,70 @@ export function createTikTokRouter(): import('express').Router {
     res.json(tokenStatus());
   });
 
+  /** Heavy: compose sky audio only; returns export_id + text for post-sky. */
+  router.get('/social/tiktok/latest-sky-export', async (req: Request, res: Response) => {
+    if (!requireSocialSecret(req, res)) return;
+    try {
+      const result = await composeLatestSkyExport();
+      res.json({
+        export_id: result.export_id,
+        text: result.text,
+        title: result.title,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[tiktok] latest-sky-export failed:', message);
+      res.status(500).json({ error: 'latest_sky_export_failed', message });
+    }
+  });
+
+  /** Light: mux + post using a pre-existing WAV export_id. */
+  router.post('/social/tiktok/post-sky', async (req: Request, res: Response) => {
+    if (!requireSocialSecret(req, res)) return;
+    try {
+      const body = (req.body || {}) as { exportId?: unknown; text?: unknown };
+      const exportId = typeof body.exportId === 'string' ? body.exportId.trim() : '';
+      if (!exportId) {
+        return res.status(400).json({ error: 'exportId_required' });
+      }
+      const textOverride = typeof body.text === 'string' ? body.text : undefined;
+
+      const { videoBuffer, title } = await generateSkyVideoFromExport({
+        exportId,
+        text: textOverride,
+      });
+      const result = await postVideoToTikTok(videoBuffer, title);
+      res.json({
+        success: true,
+        publish_id: result.publish_id,
+        title,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[tiktok] post-sky failed:', message);
+      res.status(500).json({ error: 'post_sky_failed', message });
+    }
+  });
+
+  /**
+   * Convenience: latest-sky-export then post-sky in one request.
+   * May OOM on 512MB Render instances — prefer the split endpoints.
+   */
   router.post('/social/tiktok/test-post', async (req: Request, res: Response) => {
     if (!requireSocialSecret(req, res)) return;
     try {
-      const { videoBuffer, title } = await generateSkyVideo();
+      const sky = await composeLatestSkyExport();
+      const { videoBuffer, title } = await generateSkyVideoFromExport({
+        exportId: sky.export_id,
+        text: sky.text,
+      });
       const result = await postVideoToTikTok(videoBuffer, title);
       res.json({
-        ok: true,
+        success: true,
         publish_id: result.publish_id,
         title,
-        video_bytes: videoBuffer.length,
+        export_id: sky.export_id,
+        note: 'Runs compose + mux + post in one request; may OOM on 512MB instances. Prefer GET /latest-sky-export then POST /post-sky.',
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
