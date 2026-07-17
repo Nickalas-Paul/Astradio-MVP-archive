@@ -44,6 +44,8 @@ export type BuildBrandedCardOptions = {
   date: string;
   bodyText: string;
   ctaText?: string;
+  /** When true, canvas/SVG background is fully transparent (for video overlay). Default opaque brand bg. */
+  transparentBackground?: boolean;
 };
 
 /**
@@ -54,9 +56,14 @@ export async function buildBrandedCardPng(options: BuildBrandedCardOptions): Pro
   const displayDate = options.date;
   const bodyText = options.bodyText;
   const ctaText = options.ctaText?.trim() || 'astradio.io';
+  const transparentBackground = options.transparentBackground === true;
 
   const bg = BRAND.colors.background;
   const accent = BRAND.colors.accent;
+  const svgBgFill = transparentBackground ? 'none' : bg;
+  const canvasBackground = transparentBackground
+    ? { r: 0, g: 0, b: 0, alpha: 0 }
+    : bg;
   const bodyLines = wrapText(bodyText, 40);
 
   const logoPath = resolveRenderAsset(BRAND.logoPaths.wordmark);
@@ -98,7 +105,7 @@ export async function buildBrandedCardPng(options: BuildBrandedCardOptions): Pro
       }
     </style>
   </defs>
-  <rect width="100%" height="100%" fill="${bg}"/>
+  <rect width="100%" height="100%" fill="${svgBgFill}"/>
   <text x="540" y="${titleY}" text-anchor="middle" fill="${BRAND.colors.textPrimary}"
     font-family="ManropeBold" font-size="64">${escapeXml(title)}</text>
   <text x="540" y="${dateY}" text-anchor="middle" fill="${accent}"
@@ -117,7 +124,7 @@ export async function buildBrandedCardPng(options: BuildBrandedCardOptions): Pro
       width: CARD_WIDTH,
       height: CARD_HEIGHT,
       channels: 4,
-      background: bg,
+      background: canvasBackground,
     },
   })
     .composite([
