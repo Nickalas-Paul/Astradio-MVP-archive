@@ -15,6 +15,7 @@ import {
 import { buildBrandedCardPng } from './branded-card';
 import { muxLoopWithOverlayAndAudio } from './video-muxer';
 import { postVideoToTikTok } from './tiktok-post';
+import { buildTikTokCaption } from './caption-builder';
 
 interface SkyExportResponse {
   export_id: string;
@@ -30,13 +31,6 @@ const AURA_ELEMENTS: ReadonlySet<string> = new Set([
   'water',
   'cosmic',
 ]);
-
-function buildCaption(skyData: SkyExportResponse): string {
-  const firstSentence = skyData.text.split('.')[0];
-  const hook = firstSentence ? `${firstSentence}.` : skyData.text;
-  const lines = [hook, '', `#astrology #astradio #birthchart #${skyData.element}`];
-  return lines.join('\n');
-}
 
 function parseSkyExport(body: unknown): SkyExportResponse {
   if (!body || typeof body !== 'object') {
@@ -183,7 +177,11 @@ function parseSkyExport(body: unknown): SkyExportResponse {
 
     // Step 6 — Post to TikTok
     const videoBuffer = fs.readFileSync(outputPath);
-    const caption = buildCaption(skyData);
+    const caption = buildTikTokCaption({
+      text: skyData.text,
+      title: skyData.title,
+      element: skyData.element,
+    });
     const result = await postVideoToTikTok(videoBuffer, caption);
     console.log(`[cron] Step 6: Posted to TikTok — publish_id: ${result.publish_id}`);
 
