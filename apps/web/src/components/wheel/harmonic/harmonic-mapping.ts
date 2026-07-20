@@ -1,4 +1,5 @@
 import { normalizePlanetName, PLANET_COLORS } from '../../../core/planet-identity';
+import { BODY_LABELS, type BodyKey } from '../../../../../../vnext/canonical-bodies';
 import type { AuraRawSnapshot } from '../aura-raw-snapshot';
 import { ASPECT_LINE_COLOR, WHEEL_COLORS } from '../wheel-constants';
 import type {
@@ -12,6 +13,10 @@ export const HARMONIC_DISK_RADIUS = 3.2;
 export const MAX_WAVE_SOURCES = 10;
 export const SELECTED_AMPLITUDE_MULTIPLIER = 2.2;
 export const MUTED_AMPLITUDE_MULTIPLIER = 0.05;
+
+function planetDisplayName(key: string, fallback: string): string {
+  return BODY_LABELS[key as BodyKey] ?? fallback.charAt(0).toUpperCase() + fallback.slice(1);
+}
 
 const BODY_FREQUENCY: Record<string, number> = {
   moon: 8,
@@ -177,6 +182,9 @@ export function mapAspectArcs(
       type,
       fromIdx,
       toIdx,
+      fromName: planetDisplayName(from.key, from.name),
+      toName: planetDisplayName(to.key, to.name),
+      orb: Math.abs(aspect.orb),
       midpointAngle: circularMidpointAngle(from.theta, to.theta),
       influence: 0.08 + strength * 0.12,
       color: resolveAspectColor(type),

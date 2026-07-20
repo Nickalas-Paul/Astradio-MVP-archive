@@ -68,6 +68,9 @@ test('chart mapping creates source positions and token-colored aspect arcs', () 
   assert.equal(arcs.length, 1);
   assert.equal(arcs[0]?.fromIdx, 0);
   assert.equal(arcs[0]?.toIdx, 1);
+  assert.equal(arcs[0]?.fromName, 'Sun');
+  assert.equal(arcs[0]?.toName, 'Moon');
+  assert.equal(arcs[0]?.orb, 1.2);
   assert.equal(arcs[0]?.color, ASPECT_LINE_COLOR.trine);
   assert.ok((arcs[0]?.influence ?? 0) > 0);
 });

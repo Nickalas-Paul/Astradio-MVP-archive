@@ -23,6 +23,9 @@ export type HarmonicAspectArc = {
   type: string;
   fromIdx: number;
   toIdx: number;
+  fromName: string;
+  toName: string;
+  orb: number;
   midpointAngle: number;
   influence: number;
   color: string;

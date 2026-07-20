@@ -21,8 +21,11 @@ type HarmonicSceneProps = {
   quality: HarmonicQuality;
   bpm: number;
   selectedIndex: number | null;
+  selectedAspectKey: string | null;
+  highlightedPlanetIndices: number[];
   reducedMotion: boolean;
   onSelect: (index: number) => void;
+  onSelectAspect: (key: string) => void;
   controlsTarget?: [number, number, number];
   sceneScale?: number;
   linkedExportId?: string | null;
@@ -77,8 +80,11 @@ export function HarmonicScene({
   quality,
   bpm,
   selectedIndex,
+  selectedAspectKey,
+  highlightedPlanetIndices,
   reducedMotion,
   onSelect,
+  onSelectAspect,
   controlsTarget = [0, -0.35, 0],
   sceneScale = 1,
   linkedExportId = null,
@@ -113,11 +119,14 @@ export function HarmonicScene({
           arcs={arcs}
           sources={sources}
           selectedIndex={selectedIndex}
+          selectedAspectKey={selectedAspectKey}
           reducedMotion={reducedMotion}
+          onSelectAspect={onSelectAspect}
         />
         <PlanetMarkers
           sources={sources}
           selectedIndex={selectedIndex}
+          highlightedPlanetIndices={highlightedPlanetIndices}
           reducedMotion={reducedMotion}
           onSelect={onSelect}
           linkedExportId={linkedExportId}

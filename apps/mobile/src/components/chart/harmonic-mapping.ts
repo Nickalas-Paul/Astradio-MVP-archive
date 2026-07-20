@@ -57,6 +57,9 @@ export type HarmonicAspectArc = {
   type: string;
   fromIdx: number;
   toIdx: number;
+  fromName: string;
+  toName: string;
+  orb: number;
   color: string;
 };
 
@@ -166,13 +169,23 @@ export function mapAspectArcs(
     const fromIdx = indexByName.get(normalizePlanetName(bodies[0]));
     const toIdx = indexByName.get(normalizePlanetName(bodies[1]));
     if (fromIdx === undefined || toIdx === undefined || fromIdx === toIdx) return [];
+    const from = sources[fromIdx];
+    const to = sources[toIdx];
+    if (!from || !to) return [];
     const type = aspect.type.trim().toLowerCase();
+    const orb =
+      typeof aspect.orb === 'number' && Number.isFinite(aspect.orb)
+        ? Math.abs(aspect.orb)
+        : 0;
     return [
       {
-        key: `${bodies[0]}-${bodies[1]}-${type}-${aspectIndex}`,
+        key: `${from.key}-${to.key}-${type}-${aspectIndex}`,
         type,
         fromIdx,
         toIdx,
+        fromName: from.label,
+        toName: to.label,
+        orb,
         color: ASPECT_LINE_COLOR[type] ?? '#6a7a8a',
       },
     ];

@@ -20,6 +20,7 @@ import {
   mapAspectArcs,
   mapPlanetSources,
   planetCanvasPosition,
+  type HarmonicAspectArc,
   type HarmonicPlanetSource,
 } from './harmonic-mapping';
 
@@ -94,10 +95,52 @@ type HarmonicLandscapeSkiaProps = {
   linkedExportId?: string | null;
 };
 
+type AspectBezier = {
+  arc: HarmonicAspectArc;
+  ax: number;
+  ay: number;
+  cx: number;
+  cy: number;
+  bx: number;
+  by: number;
+};
+
 function formatDegree(degree: number): string {
   const whole = Math.floor(degree);
   const minutes = Math.round((degree - whole) * 60);
   return `${whole}°${String(minutes).padStart(2, '0')}'`;
+}
+
+function formatOrb(orb: number): string {
+  return `${Math.round(orb)}°`;
+}
+
+function capitalizeAspectType(type: string): string {
+  const t = type.trim().toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function buildAspectBeziers(
+  size: number,
+  sources: HarmonicPlanetSource[],
+  arcs: HarmonicAspectArc[],
+): AspectBezier[] {
+  return arcs.flatMap((arc) => {
+    const from = sources[arc.fromIdx];
+    const to = sources[arc.toIdx];
+    if (!from || !to) return [];
+    const a = planetCanvasPosition(from);
+    const b = planetCanvasPosition(to);
+    const ax = a.x * size;
+    const ay = a.y * size;
+    const bx = b.x * size;
+    const by = b.y * size;
+    const midX = (ax + bx) / 2;
+    const midY = (ay + by) / 2;
+    const cx = size / 2 + (midX - size / 2) * 0.8;
+    const cy = size / 2 + (midY - size / 2) * 0.8;
+    return [{ arc, ax, ay, cx, cy, bx, by }];
+  });
 }
 
 function StaticTerrainFallback({ size }: { size: number }) {
@@ -120,22 +163,28 @@ function PlanetOrbs({
   size,
   sources,
   highlightIndex,
+  highlightedPlanetIndices,
 }: {
   size: number;
   sources: HarmonicPlanetSource[];
   highlightIndex: number;
+  highlightedPlanetIndices: number[];
 }) {
+  const aspectHighlightActive = highlightedPlanetIndices.length > 0;
   return (
     <Group>
       {sources.map((source) => {
         const pos = planetCanvasPosition(source);
         const x = pos.x * size;
         const y = pos.y * size;
-        const selected = highlightIndex === source.index;
-        const dimmed = highlightIndex >= 0 && !selected;
+        const aspectHighlighted = highlightedPlanetIndices.includes(source.index);
+        const selected = highlightIndex === source.index || aspectHighlighted;
+        const dimmed =
+          (highlightIndex >= 0 && highlightIndex !== source.index) ||
+          (aspectHighlightActive && !aspectHighlighted);
         const base =
           source.key === 'sun' ? 8 : source.key === 'moon' ? 6 : 4;
-        const orbSize = selected ? base * 1.35 : base;
+        const orbSize = selected ? base * (aspectHighlighted ? 1.2 : 1.35) : base;
         const opacity = dimmed ? 0.3 : 1;
         return (
           <Group key={source.key} opacity={opacity}>
@@ -150,48 +199,46 @@ function PlanetOrbs({
 }
 
 function AspectPaths({
-  size,
-  sources,
-  arcs,
+  beziers,
+  selectedIndex,
+  selectedAspectKey,
 }: {
-  size: number;
-  sources: HarmonicPlanetSource[];
-  arcs: ReturnType<typeof mapAspectArcs>;
+  beziers: AspectBezier[];
+  selectedIndex: number;
+  selectedAspectKey: string | null;
 }) {
   const paths = useMemo(() => {
-    return arcs.flatMap((arc) => {
-      const from = sources[arc.fromIdx];
-      const to = sources[arc.toIdx];
-      if (!from || !to) return [];
-      const a = planetCanvasPosition(from);
-      const b = planetCanvasPosition(to);
-      const ax = a.x * size;
-      const ay = a.y * size;
-      const bx = b.x * size;
-      const by = b.y * size;
-      const midX = (ax + bx) / 2;
-      const midY = (ay + by) / 2;
-      const cx = size / 2 + (midX - size / 2) * 0.8;
-      const cy = size / 2 + (midY - size / 2) * 0.8;
+    return beziers.map(({ arc, ax, ay, cx, cy, bx, by }) => {
       const path = Skia.Path.Make();
       path.moveTo(ax, ay);
       path.quadTo(cx, cy, bx, by);
-      return [{ key: arc.key, path, color: arc.color }];
+      return { key: arc.key, path, color: arc.color, arc };
     });
-  }, [arcs, size, sources]);
+  }, [beziers]);
+
+  const selectionActive = selectedIndex >= 0 || selectedAspectKey !== null;
 
   return (
     <Group>
-      {paths.map((item) => (
-        <Path
-          key={item.key}
-          path={item.path}
-          color={item.color}
-          style="stroke"
-          strokeWidth={1}
-          opacity={0.25}
-        />
-      ))}
+      {paths.map((item) => {
+        const highlighted = selectedAspectKey === item.key;
+        const incident =
+          selectedIndex >= 0 &&
+          (item.arc.fromIdx === selectedIndex || item.arc.toIdx === selectedIndex);
+        const active = highlighted || incident;
+        const opacity = !selectionActive ? 0.25 : active ? (highlighted ? 0.9 : 0.7) : 0.05;
+        const strokeWidth = highlighted ? 2.5 : active ? 1.75 : 1;
+        return (
+          <Path
+            key={item.key}
+            path={item.path}
+            color={item.color}
+            style="stroke"
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+          />
+        );
+      })}
     </Group>
   );
 }
@@ -211,13 +258,32 @@ export function HarmonicLandscapeSkia({
   size,
   snapshot,
 }: HarmonicLandscapeSkiaProps) {
-  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [selectedAspectKey, setSelectedAspectKey] = useState<string | null>(null);
   const sources = useMemo(() => mapPlanetSources(snapshot), [snapshot]);
   const arcs = useMemo(() => mapAspectArcs(snapshot, sources), [snapshot, sources]);
+  const beziers = useMemo(
+    () => buildAspectBeziers(size, sources, arcs),
+    [arcs, size, sources],
+  );
   const planetUniforms = useMemo(() => buildShaderPlanetUniforms(sources), [sources]);
   const clock = useClock();
   const audioLevel = useBreathingAudioLevel(clock);
-  const selected = highlightIndex >= 0 ? sources[highlightIndex] : null;
+  const selected = selectedIndex >= 0 ? sources[selectedIndex] : null;
+  const selectedAspect =
+    selectedAspectKey !== null
+      ? arcs.find((arc) => arc.key === selectedAspectKey) ?? null
+      : null;
+  const highlightedPlanetIndices = useMemo(() => {
+    if (!selectedAspect) return [] as number[];
+    return [selectedAspect.fromIdx, selectedAspect.toIdx];
+  }, [selectedAspect]);
+  const incidentArcs = useMemo(() => {
+    if (selectedIndex < 0) return [] as HarmonicAspectArc[];
+    return arcs.filter(
+      (arc) => arc.fromIdx === selectedIndex || arc.toIdx === selectedIndex,
+    );
+  }, [arcs, selectedIndex]);
 
   const uniforms = useDerivedValue(() => ({
     uResolution: [size, size],
@@ -227,11 +293,22 @@ export function HarmonicLandscapeSkia({
     uPlanetFreqs: planetUniforms.freqs,
     uPlanetAmps: planetUniforms.amps,
     uPlanetColors: planetUniforms.colors,
-    uHighlightIdx: highlightIndex,
+    uHighlightIdx: selectedIndex,
   }));
 
-  const handleSelect = useCallback((index: number) => {
-    setHighlightIndex((current) => (current === index ? -1 : index));
+  const selectPlanet = useCallback((index: number) => {
+    setSelectedAspectKey(null);
+    setSelectedIndex((current) => (current === index ? -1 : index));
+  }, []);
+
+  const selectAspect = useCallback((key: string) => {
+    setSelectedAspectKey((current) => (current === key ? null : key));
+    setSelectedIndex(-1);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIndex(-1);
+    setSelectedAspectKey(null);
   }, []);
 
   const handleCanvasPress = useCallback(
@@ -249,13 +326,45 @@ export function HarmonicLandscapeSkia({
         }
       }
       if (bestIndex >= 0) {
-        handleSelect(bestIndex);
-      } else {
-        setHighlightIndex(-1);
+        selectPlanet(bestIndex);
+        return;
       }
+
+      let bestArcDist = 20;
+      let bestArcKey: string | null = null;
+      for (const bezier of beziers) {
+        for (let t = 0; t <= 1; t += 0.05) {
+          const invT = 1 - t;
+          const px =
+            invT * invT * bezier.ax +
+            2 * invT * t * bezier.cx +
+            t * t * bezier.bx;
+          const py =
+            invT * invT * bezier.ay +
+            2 * invT * t * bezier.cy +
+            t * t * bezier.by;
+          const dist = Math.hypot(locationX - px, locationY - py);
+          if (dist < bestArcDist) {
+            bestArcDist = dist;
+            bestArcKey = bezier.arc.key;
+          }
+        }
+      }
+
+      if (bestArcKey !== null) {
+        selectAspect(bestArcKey);
+        return;
+      }
+
+      clearSelection();
     },
-    [handleSelect, size, sources],
+    [beziers, clearSelection, selectAspect, selectPlanet, size, sources],
   );
+
+  const aspectFromColor =
+    selectedAspect !== null ? sources[selectedAspect.fromIdx]?.color : undefined;
+  const aspectToColor =
+    selectedAspect !== null ? sources[selectedAspect.toIdx]?.color : undefined;
 
   return (
     <View style={[styles.root, { width: size }]}>
@@ -265,16 +374,34 @@ export function HarmonicLandscapeSkia({
             <Fill>
               <Shader source={terrainEffect} uniforms={uniforms} />
             </Fill>
-            <AspectPaths size={size} sources={sources} arcs={arcs} />
-            <PlanetOrbs size={size} sources={sources} highlightIndex={highlightIndex} />
+            <AspectPaths
+              beziers={beziers}
+              selectedIndex={selectedIndex}
+              selectedAspectKey={selectedAspectKey}
+            />
+            <PlanetOrbs
+              size={size}
+              sources={sources}
+              highlightIndex={selectedIndex}
+              highlightedPlanetIndices={highlightedPlanetIndices}
+            />
           </Canvas>
         ) : (
           <>
             <StaticTerrainFallback size={size} />
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <Canvas style={{ width: size, height: size }}>
-                <AspectPaths size={size} sources={sources} arcs={arcs} />
-                <PlanetOrbs size={size} sources={sources} highlightIndex={highlightIndex} />
+                <AspectPaths
+                  beziers={beziers}
+                  selectedIndex={selectedIndex}
+                  selectedAspectKey={selectedAspectKey}
+                />
+                <PlanetOrbs
+                  size={size}
+                  sources={sources}
+                  highlightIndex={selectedIndex}
+                  highlightedPlanetIndices={highlightedPlanetIndices}
+                />
               </Canvas>
             </View>
           </>
@@ -291,11 +418,11 @@ export function HarmonicLandscapeSkia({
 
       <View style={styles.pillRow}>
         {sources.map((source) => {
-          const active = highlightIndex === source.index;
+          const active = selectedIndex === source.index;
           return (
             <Pressable
               key={source.key}
-              onPress={() => handleSelect(source.index)}
+              onPress={() => selectPlanet(source.index)}
               style={[styles.pill, active && styles.pillActive]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -310,16 +437,56 @@ export function HarmonicLandscapeSkia({
         })}
       </View>
 
-      {selected ? (
+      {selectedAspect ? (
+        <Pressable
+          style={styles.infoCard}
+          onPress={() => selectAspect(selectedAspect.key)}
+          accessibilityRole="button"
+          accessibilityLabel={`${selectedAspect.fromName} ${selectedAspect.type} ${selectedAspect.toName}`}
+        >
+          <View style={styles.aspectSwatches}>
+            <View style={[styles.pillDot, { backgroundColor: aspectFromColor }]} />
+            <View style={[styles.pillDot, { backgroundColor: aspectToColor }]} />
+          </View>
+          <Text style={styles.infoTitle}>
+            {selectedAspect.fromName} {capitalizeAspectType(selectedAspect.type)}{' '}
+            {selectedAspect.toName}
+          </Text>
+          <Text style={styles.infoBody}>Orb: {formatOrb(selectedAspect.orb)}</Text>
+        </Pressable>
+      ) : selected ? (
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>{selected.label}</Text>
           <Text style={styles.infoBody}>
             {selected.sign} {formatDegree(selected.degreeInSign)}
           </Text>
           <Text style={styles.infoMuted}>{selected.voice}</Text>
+          {incidentArcs.length > 0 ? (
+            <View style={styles.aspectList}>
+              <Text style={styles.aspectListLabel}>Aspects</Text>
+              {incidentArcs.map((arc) => {
+                const otherName =
+                  arc.fromIdx === selectedIndex ? arc.toName : arc.fromName;
+                return (
+                  <Pressable
+                    key={arc.key}
+                    onPress={() => selectAspect(arc.key)}
+                    style={styles.aspectRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${capitalizeAspectType(arc.type)} ${otherName}`}
+                  >
+                    <Text style={styles.aspectRowText}>
+                      {capitalizeAspectType(arc.type)} {otherName}
+                      <Text style={styles.aspectOrb}> · {formatOrb(arc.orb)}</Text>
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
       ) : (
-        <Text style={styles.hint}>Tap a planet to isolate its wave</Text>
+        <Text style={styles.hint}>Tap a planet or aspect line</Text>
       )}
     </View>
   );
@@ -396,6 +563,37 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: 12,
     fontFamily: 'Manrope-Regular',
+  },
+  aspectSwatches: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  aspectList: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  aspectListLabel: {
+    color: colors.text.muted,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    fontFamily: 'Manrope-Regular',
+    marginBottom: 4,
+  },
+  aspectRow: {
+    paddingVertical: 4,
+  },
+  aspectRowText: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+  },
+  aspectOrb: {
+    color: colors.text.muted,
+    fontWeight: '300',
   },
   hint: {
     marginTop: 10,

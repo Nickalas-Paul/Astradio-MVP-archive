@@ -126,6 +126,7 @@ export function HarmonicLandscape({
   const readyCalledRef = useRef(false);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [selectedAspectKey, setSelectedAspectKey] = useState<string | null>(null);
   const [frameloop, setFrameloop] = useState<'always' | 'never'>(
     active ? 'always' : 'never',
   );
@@ -152,18 +153,45 @@ export function HarmonicLandscape({
   const bpm = 60 + Math.max(0, Math.min(1, composeControls?.tempoNorm ?? 0.5)) * 80;
 
   const selectPlanet = useCallback((index: number) => {
+    setSelectedAspectKey(null);
     setSelectedIndex((current) => (current === index ? null : index));
   }, []);
 
-  const clearSelection = useCallback(() => setSelectedIndex(null), []);
+  const selectAspect = useCallback((key: string) => {
+    setSelectedAspectKey((current) => (current === key ? null : key));
+    setSelectedIndex(null);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIndex(null);
+    setSelectedAspectKey(null);
+  }, []);
+
+  const highlightedPlanetIndices = useMemo(() => {
+    if (!selectedAspectKey) return [] as number[];
+    const arc = arcs.find((item) => item.key === selectedAspectKey);
+    return arc ? [arc.fromIdx, arc.toIdx] : [];
+  }, [arcs, selectedAspectKey]);
 
   useEffect(() => {
-    onSelectionChange?.(selectedIndex !== null);
-  }, [onSelectionChange, selectedIndex]);
+    onSelectionChange?.(selectedIndex !== null || selectedAspectKey !== null);
+  }, [onSelectionChange, selectedAspectKey, selectedIndex]);
 
   useEffect(() => {
     clearSelection();
   }, [clearSelection, clearSelectionSignal]);
+
+  useEffect(() => {
+    if (!active) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (selectedIndex === null && selectedAspectKey === null) return;
+      event.preventDefault();
+      clearSelection();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [active, clearSelection, selectedAspectKey, selectedIndex]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -255,8 +283,11 @@ export function HarmonicLandscape({
               quality={quality}
               bpm={bpm}
               selectedIndex={selectedIndex}
+              selectedAspectKey={selectedAspectKey}
+              highlightedPlanetIndices={highlightedPlanetIndices}
               reducedMotion={reducedMotion}
               onSelect={selectPlanet}
+              onSelectAspect={selectAspect}
               controlsTarget={controlsTarget}
               sceneScale={sceneScale}
               linkedExportId={linkedExportId}
@@ -267,8 +298,11 @@ export function HarmonicLandscape({
 
       <HarmonicOverlay
         sources={sources}
+        arcs={arcs}
         selectedIndex={selectedIndex}
+        selectedAspectKey={selectedAspectKey}
         onSelect={selectPlanet}
+        onSelectAspect={selectAspect}
         linkedExportId={linkedExportId}
       />
     </div>

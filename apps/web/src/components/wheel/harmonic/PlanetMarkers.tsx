@@ -15,6 +15,7 @@ import { useHarmonicAudioLevelSampler } from './useHarmonicAudioLevel';
 type PlanetMarkersProps = {
   sources: HarmonicPlanetSource[];
   selectedIndex: number | null;
+  highlightedPlanetIndices?: number[];
   reducedMotion: boolean;
   onSelect: (index: number) => void;
   linkedExportId?: string | null;
@@ -186,6 +187,7 @@ function PlanetMarker({
 export function PlanetMarkers({
   sources,
   selectedIndex,
+  highlightedPlanetIndices = [],
   reducedMotion,
   onSelect,
   linkedExportId = null,
@@ -195,6 +197,7 @@ export function PlanetMarkers({
   const audioLevelRef = useRef(0.5);
   const waveSources = useMemo(() => toWaveSources(sources), [sources]);
   const highlightIndex = selectedIndex ?? -1;
+  const aspectHighlightActive = highlightedPlanetIndices.length > 0;
   const threadRefs = useRef<Array<MutableRefObject<THREE.Line | null>>>([]);
 
   if (threadRefs.current.length !== sources.length) {
@@ -209,23 +212,30 @@ export function PlanetMarkers({
 
   return (
     <group>
-      {sources.map((source, index) => (
-        <group key={source.key}>
-          <EnergyThread source={source} lineRef={threadRefs.current[index]!} />
-          <PlanetMarker
-            source={source}
-            selected={selectedIndex === source.index}
-            dimmed={selectedIndex !== null && selectedIndex !== source.index}
-            reducedMotion={reducedMotion}
-            onSelect={() => onSelect(source.index)}
-            audioLevelRef={audioLevelRef}
-            waveSources={waveSources}
-            highlightIndex={highlightIndex}
-            bpm={bpm}
-            threadRef={threadRefs.current[index]!}
-          />
-        </group>
-      ))}
+      {sources.map((source, index) => {
+        const aspectHighlighted = highlightedPlanetIndices.includes(source.index);
+        const selected = selectedIndex === source.index || aspectHighlighted;
+        const dimmed =
+          (selectedIndex !== null && selectedIndex !== source.index) ||
+          (aspectHighlightActive && !aspectHighlighted);
+        return (
+          <group key={source.key}>
+            <EnergyThread source={source} lineRef={threadRefs.current[index]!} />
+            <PlanetMarker
+              source={source}
+              selected={selected}
+              dimmed={dimmed}
+              reducedMotion={reducedMotion}
+              onSelect={() => onSelect(source.index)}
+              audioLevelRef={audioLevelRef}
+              waveSources={waveSources}
+              highlightIndex={highlightIndex}
+              bpm={bpm}
+              threadRef={threadRefs.current[index]!}
+            />
+          </group>
+        );
+      })}
     </group>
   );
 }
