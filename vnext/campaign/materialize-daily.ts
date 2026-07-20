@@ -11,14 +11,36 @@ import { hashSnapshot } from '../rpg/hash/snapshot-hash';
 import { buildCampaignExpressionDigest } from './build-campaign-expression-digest';
 import { hashCanonicalJson } from '../rpg/hash/json-hash';
 import type {
+  ActiveBuff,
   ArchetypeId,
   CampaignState,
   ChoiceOption,
+  EffectiveStatBlock,
+  MechanicalEncounter,
   NatalBodyModifier,
   ResponseModality,
   ResponsePosture,
+  StatBlock,
 } from '../rpg/types';
+import { createEmptyInventoryState } from '../rpg/types';
 import type { CampaignResolutionSeed, DailyPressureState, PressureEvent, PressureFamily } from './phase1/contracts';
+import { isGameCombatEnabled } from '../game/feature-gate';
+import { buildMechanicalEncounter } from '../game/encounter-builder';
+import { getCampaignChapter } from '../rpg/saturn-house';
+import { buildEncounterIntroPrompt } from '../game/narrative-prompt-builder';
+import { buildFallbackIntro } from '../game/narrative-fallback';
+import { callGeminiGenerate } from '../render/gemini-client';
+import { ensureCharacterHp } from '../game/hp-system';
+import { computeEffectiveStatBlock } from '../game/effective-stats';
+import { expireBuffs } from '../game/buff-manager';
+import { computeEquipmentStatBonuses, loadInventoryState } from '../rpg/inventory-manager';
+import { buildItemDefinitionMap } from '../rpg/loot-roller';
+import { loadRpgV1Maps } from '../rpg/maps/load-v1';
+import {
+  initializeEquipment,
+  loadCampaignItems,
+  loadEquipmentState,
+} from '../rpg/store/inventory-store';
 
 // NOTE: "phase/stage" naming here is a historical delivery label only.
 // It is not a product concept, runtime layer, or Campaign feature.
@@ -33,6 +55,11 @@ export interface CharacterSheet {
   subclass_slug: string;
   rising_modifier_slug: string;
   top_domains: Array<{ domain: string; score: number }>;
+  /** Phase 4 — present when GAME_COMBAT_ENABLED */
+  statBlock?: StatBlock;
+  effectiveStats?: EffectiveStatBlock;
+  equippedItems?: Array<{ slug: string; name: string; category: string }>;
+  activeBuffs?: ActiveBuff[];
 }
 
 export interface ChallengeArchetype {
@@ -80,6 +107,10 @@ export interface MaterializedCampaignDaily {
   response_paths: ResponsePath[];
   choice_outcome_patch_ids: Record<string, string>;
   challenge_fingerprint: string;
+  /** Phase 3 — present when GAME_COMBAT_ENABLED=1 */
+  mechanical_encounter?: MechanicalEncounter;
+  encounter_intro_narration?: string | null;
+  encounter_intro_source?: 'gemini' | 'fallback' | null;
 }
 
 function familyToPressureType(family: PressureFamily): 'constraint' | 'invitation' | 'conflict' | 'confusion' | 'restructuring' {
@@ -294,13 +325,29 @@ function choiceToDomainAwarePatch(choice: ChoiceOption, domainId: string): strin
  * `natalSnapshot` is the character anchor for sheet, semantic, and challenge copy (solo: player chart;
  * group: route passes primary member’s natal—pressure remains pooled from all members in the seed).
  */
+async function loadInventoryForMaterialize(campaignId: string | undefined) {
+  if (!campaignId || !process.env.POSTGRES_URL) {
+    return createEmptyInventoryState();
+  }
+  try {
+    await initializeEquipment(campaignId);
+    const items = await loadCampaignItems(campaignId);
+    const equipment = await loadEquipmentState(campaignId);
+    return loadInventoryState(items, equipment);
+  } catch (e) {
+    console.warn('[materialize] inventory load failed:', (e as Error)?.message);
+    return createEmptyInventoryState();
+  }
+}
+
 export async function materializeCampaignDaily(params: {
   resolution: CampaignResolution;
   state: CampaignState;
   natalSnapshot: EphemerisSnapshot;
   transitSnapshot: EphemerisSnapshot;
+  campaignId?: string;
 }): Promise<MaterializedCampaignDaily> {
-  const { resolution, state, natalSnapshot, transitSnapshot } = params;
+  const { resolution, state, natalSnapshot, transitSnapshot, campaignId } = params;
   const dailyState = resolution.daily_pressure_state;
   if (!dailyState) {
     throw new Error('daily_pressure_state required');
@@ -453,7 +500,7 @@ export async function materializeCampaignDaily(params: {
     choice_outcome_patch_ids: choiceOutcomePatchIds,
   });
 
-  return {
+  const result: MaterializedCampaignDaily = {
     character_sheet: characterSheet,
     challenge_archetype: challengeArchetype,
     challenge: scene,
@@ -461,4 +508,100 @@ export async function materializeCampaignDaily(params: {
     choice_outcome_patch_ids: choiceOutcomePatchIds,
     challenge_fingerprint: challengeFingerprint,
   };
+
+  if (isGameCombatEnabled()) {
+    const natalCusps = Array.isArray(natalSnapshot.houses) ? [...natalSnapshot.houses] : [];
+    const mechanical = buildMechanicalEncounter(
+      scene,
+      character,
+      transitSnapshot,
+      natalCusps,
+      state.chapter ?? 1
+    );
+    result.mechanical_encounter = mechanical;
+
+    const chapterInfo = getCampaignChapter(mechanical.saturnHouse);
+    const hp = ensureCharacterHp(
+      (state as { hp?: import('../rpg/types').CharacterHP }).hp,
+      character.statBlock
+    );
+    const activeBuffs = expireBuffs(
+      (state as { activeBuffs?: ActiveBuff[] }).activeBuffs,
+      resolution.date
+    );
+    const inventoryState = await loadInventoryForMaterialize(campaignId);
+    const maps = loadRpgV1Maps();
+    const definitions = buildItemDefinitionMap(maps.itemDefinitions);
+    const gearBonuses = computeEquipmentStatBonuses(
+      inventoryState,
+      definitions,
+      character.classSlug
+    );
+    const effectiveStats = computeEffectiveStatBlock(
+      character.statBlock,
+      gearBonuses,
+      activeBuffs,
+      hp.wounded
+    );
+    const equippedItems = (Object.values(inventoryState.equipped).filter(Boolean) as string[])
+      .map((id) => {
+        const inst = inventoryState.items.find((i) => i.instanceId === id);
+        if (!inst) return null;
+        const def = definitions.get(inst.slug);
+        return {
+          slug: inst.slug,
+          name: def?.name || inst.slug,
+          category: def?.category || 'unknown',
+        };
+      })
+      .filter(Boolean) as Array<{ slug: string; name: string; category: string }>;
+
+    result.character_sheet = {
+      ...characterSheet,
+      statBlock: character.statBlock,
+      effectiveStats,
+      equippedItems,
+      activeBuffs,
+    };
+
+    let introText = buildFallbackIntro(mechanical, {
+      thematicLabel: chapterInfo.thematicLabel,
+      domain: chapterInfo.domain,
+    });
+    let introSource: 'gemini' | 'fallback' = 'fallback';
+
+    if (process.env.GOOGLE_CLOUD_PROJECT) {
+      try {
+        const prompt = buildEncounterIntroPrompt({
+          characterClass: characterSheet.class_slug,
+          characterSubclass: characterSheet.subclass_slug,
+          characterRising: characterSheet.rising_modifier_slug,
+          statBlock: effectiveStats,
+          hp,
+          equippedItems: equippedItems.map((e) => e.name),
+          encounter: mechanical,
+          saturnChapter: {
+            house: chapterInfo.house,
+            domain: chapterInfo.domain,
+            label: chapterInfo.thematicLabel,
+          },
+          campaignChapter: state.chapter ?? 1,
+          recentHistory: Array.isArray(state.history) ? state.history.slice(0, 3) : [],
+        });
+        const gem = await callGeminiGenerate({ prompt });
+        introText = gem.text;
+        introSource = 'gemini';
+      } catch (e) {
+        console.warn(
+          '[materialize] Gemini intro failed, using fallback:',
+          (e as Error)?.message
+        );
+      }
+    }
+
+    result.encounter_intro_narration = introText;
+    result.encounter_intro_source = introSource;
+  }
+
+  return result;
 }

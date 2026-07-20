@@ -19,6 +19,7 @@ function sourceLabel(source: AudioSource): string {
     forecast: 'Forecast',
     post: 'Post',
     dm: 'Message',
+    game: 'Game',
   };
   return labels[source] ?? source;
 }

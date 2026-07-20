@@ -36,6 +36,29 @@ function loadVnext() {
     buildChallengeOutcome: requireCampaignRuntimeModule('rpg/reflection-mapper').buildChallengeOutcome,
     hashCanonicalJson: requireCampaignRuntimeModule('rpg/hash/json-hash').hashCanonicalJson,
     getChartById: requireCampaignRuntimeModule('compat/chart-store').getChartById,
+    isGameCombatEnabled: requireCampaignRuntimeModule('game/feature-gate').isGameCombatEnabled,
+    runCombatResolvePipeline: requireCampaignRuntimeModule('game/combat-pipeline').runCombatResolvePipeline,
+    buildCharacterProfile: requireCampaignRuntimeModule('rpg/character-builder').buildCharacterProfile,
+    buildRpgEffectsBundleFromSnapshot: requireCampaignRuntimeModule('rpg/effects/bundle-from-snapshot')
+      .buildRpgEffectsBundleFromSnapshot,
+    generateArchitectureFromSnapshot: requireCampaignRuntimeModule('core/architecture-engine')
+      .generateArchitectureFromSnapshot,
+    buildCanonicalReportForSnapshotSurface: requireCampaignRuntimeModule('canonical/build-from-compose-context')
+      .buildCanonicalReportForSnapshotSurface,
+    interpretCanonicalReportObject: requireCampaignRuntimeModule('semantic/semantic-authority')
+      .interpretCanonicalReportObject,
+    hashSnapshot: requireCampaignRuntimeModule('rpg/hash/snapshot-hash').hashSnapshot,
+    loadInventoryState: requireCampaignRuntimeModule('rpg/inventory-manager').loadInventoryState,
+    createEmptyInventoryState: requireCampaignRuntimeModule('rpg/types').createEmptyInventoryState,
+    addItem: requireCampaignRuntimeModule('rpg/inventory-manager').addItem,
+    removeItem: requireCampaignRuntimeModule('rpg/inventory-manager').removeItem,
+    grantItem: requireCampaignRuntimeModule('rpg/store/inventory-store').grantItem,
+    loadCampaignItems: requireCampaignRuntimeModule('rpg/store/inventory-store').loadCampaignItems,
+    loadEquipmentState: requireCampaignRuntimeModule('rpg/store/inventory-store').loadEquipmentState,
+    saveEquipmentState: requireCampaignRuntimeModule('rpg/store/inventory-store').saveEquipmentState,
+    deleteItem: requireCampaignRuntimeModule('rpg/store/inventory-store').deleteItem,
+    updateItemQuantity: requireCampaignRuntimeModule('rpg/store/inventory-store').updateItemQuantity,
+    initializeEquipment: requireCampaignRuntimeModule('rpg/store/inventory-store').initializeEquipment,
   };
 }
 
@@ -147,6 +170,13 @@ function currentCampaignState(campaign) {
     flags: Array.isArray(state.flags) ? state.flags : [],
     history: Array.isArray(state.history) ? state.history : [],
     members,
+    ...(state.hp && typeof state.hp === 'object' ? { hp: state.hp } : {}),
+    ...(typeof state.streak === 'number' ? { streak: state.streak } : {}),
+    ...(state.lastPlayedDate !== undefined ? { lastPlayedDate: state.lastPlayedDate } : {}),
+    ...(state.saturnChapter !== undefined ? { saturnChapter: state.saturnChapter } : {}),
+    ...(Array.isArray(state.activeBuffs) ? { activeBuffs: state.activeBuffs } : {}),
+    ...(state.damageShield !== undefined ? { damageShield: state.damageShield } : {}),
+    ...(typeof state.revealActive === 'boolean' ? { revealActive: state.revealActive } : {}),
   };
 }
 
@@ -170,6 +200,7 @@ async function buildDailyStateJson(params) {
     state: currentCampaignState(campaign),
     natalSnapshot,
     transitSnapshot,
+    campaignId: campaign.campaignId,
   });
 
   const daily = {
@@ -187,6 +218,9 @@ async function buildDailyStateJson(params) {
     participant_roster: participantRoster,
     response_collection: buildInitialResponseCollection(participantRoster),
     mode,
+    mechanical_encounter: materialized.mechanical_encounter || null,
+    encounter_intro_narration: materialized.encounter_intro_narration ?? null,
+    encounter_intro_source: materialized.encounter_intro_source ?? null,
   };
 
   return {
@@ -641,6 +675,7 @@ function createCampaignDailyRouter() {
     const choiceId = (body.choiceId || '').toString().trim();
     const challengeFingerprint = (body.challengeFingerprint || '').toString().trim();
     const stateHashBefore = (body.stateHashBefore || '').toString().trim();
+    const consumableUseInstanceId = (body.consumableUseInstanceId || '').toString().trim() || null;
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) {
       return res.status(400).json({ error: 'invalid_request', message: 'calendarDate YYYY-MM-DD required' });
@@ -809,10 +844,217 @@ function createCampaignDailyRouter() {
           members: campaign.state_json && campaign.state_json.members && typeof campaign.state_json.members === 'object'
             ? campaign.state_json.members
             : {},
+          ...(campaign.state_json && campaign.state_json.hp && typeof campaign.state_json.hp === 'object'
+            ? { hp: campaign.state_json.hp }
+            : {}),
+          ...(campaign.state_json && typeof campaign.state_json.streak === 'number'
+            ? { streak: campaign.state_json.streak }
+            : {}),
+          ...(campaign.state_json && campaign.state_json.lastPlayedDate !== undefined
+            ? { lastPlayedDate: campaign.state_json.lastPlayedDate }
+            : {}),
+          ...(campaign.state_json && campaign.state_json.saturnChapter !== undefined
+            ? { saturnChapter: campaign.state_json.saturnChapter }
+            : {}),
+          ...(campaign.state_json && Array.isArray(campaign.state_json.activeBuffs)
+            ? { activeBuffs: campaign.state_json.activeBuffs }
+            : {}),
+          ...(campaign.state_json && campaign.state_json.damageShield !== undefined
+            ? { damageShield: campaign.state_json.damageShield }
+            : {}),
+          ...(typeof (campaign.state_json && campaign.state_json.revealActive) === 'boolean'
+            ? { revealActive: campaign.state_json.revealActive }
+            : {}),
         };
         const orderedResponses = orderedAcceptedResponses(participantRoster, collectionAfterAcceptance);
         let nextState = previousState;
         const orderedMemberResolutions = [];
+
+        let combatResolutionPayload = null;
+        let combatNarrationPayload = null;
+
+        // Phase 3 combat — runs once for the caller's choice when enabled + mechanical encounter present
+        if (vn.isGameCombatEnabled() && daily.mechanical_encounter && choice) {
+          try {
+            const ownerChartId = Array.isArray(campaign.participant_user_ids)
+              ? memberResolution.member.chart_id || memberResolution.member.member_id
+              : memberResolution.member.member_id;
+            let natalSnap = null;
+            let transitSnap = null;
+            try {
+              const chartId = memberResolution.member.member_id;
+              const chart = await vn.getChartById(chartId);
+              if (chart) {
+                const natalInput = chartRowToNatalInput(chart);
+                natalSnap = await vn.fetchChartSnapshot(natalInput);
+                const transitInput = vn.buildTransitChartInput({
+                  date: calendarDate,
+                  time: '12:00',
+                  location: {
+                    lat: Number(chart.lat),
+                    lon: Number(chart.lon),
+                    timezone: String(chart.timezone),
+                  },
+                });
+                transitSnap = await vn.fetchChartSnapshot(transitInput);
+              }
+            } catch (chartErr) {
+              console.warn('[campaign-daily-resolve] combat chart load failed:', chartErr?.message);
+            }
+
+            let characterProfile = null;
+            if (natalSnap) {
+              const arch = await vn.generateArchitectureFromSnapshot(natalSnap, vn.hashSnapshot(natalSnap));
+              const seed = vn.hashSnapshot(natalSnap);
+              const canonicalReport = vn.buildCanonicalReportForSnapshotSurface({
+                surface_kind: 'profile_natal',
+                subject_ids: [seed],
+                snapshot: arch.snapshot,
+                featureVec: arch.features,
+                control_surface_hash: seed,
+                compose_seed: seed,
+                guidance: arch.guidance,
+              });
+              const semanticCore = vn.interpretCanonicalReportObject(canonicalReport);
+              const bundle = vn.buildRpgEffectsBundleFromSnapshot(arch.snapshot);
+              characterProfile = vn.buildCharacterProfile({
+                natalSnapshot: arch.snapshot,
+                featureVec: arch.features,
+                semanticCore,
+                dominantPlanetNames: canonicalReport.participants[0]?.dominant_planet_names ?? [],
+                effectsBundle: bundle,
+              });
+            }
+
+            if (characterProfile) {
+              let inventoryState = vn.createEmptyInventoryState();
+              try {
+                await vn.initializeEquipment(campaignId, client);
+                const items = await vn.loadCampaignItems(campaignId, client);
+                const equipment = await vn.loadEquipmentState(campaignId, client);
+                inventoryState = vn.loadInventoryState(items, equipment);
+              } catch (invErr) {
+                console.warn('[campaign-daily-resolve] inventory load failed:', invErr?.message);
+              }
+
+              const combatResult = await vn.runCombatResolvePipeline({
+                encounter: daily.mechanical_encounter,
+                choiceId,
+                characterProfile,
+                inventoryState,
+                hp: previousState.hp,
+                streak: typeof previousState.streak === 'number' ? previousState.streak : 0,
+                lastPlayedDate: previousState.lastPlayedDate || null,
+                flags: previousState.flags || [],
+                history: previousState.history || [],
+                saturnChapter: previousState.saturnChapter || null,
+                activeBuffs: previousState.activeBuffs || [],
+                damageShield: previousState.damageShield || null,
+                revealActive: !!previousState.revealActive,
+                challengeFingerprint: daily.challenge_fingerprint,
+                calendarDate,
+                campaignChapter: previousState.chapter || 1,
+                campaignId,
+                classSlug: characterProfile.classSlug,
+                recentHistory: previousState.history || [],
+                consumableUseInstanceId: consumableUseInstanceId || undefined,
+                transitSnapshot: transitSnap || undefined,
+                natalCusps: Array.isArray(natalSnap.houses) ? natalSnap.houses : undefined,
+              });
+
+              // Persist inventory intents on the same transaction client (errors roll back TX)
+              for (const intent of combatResult.persistIntents || []) {
+                if (intent.grant) {
+                  await vn.grantItem(campaignId, intent.grant.instance, intent.grant.grantSeed, client);
+                }
+                if (intent.deleteInstanceId) {
+                  await vn.deleteItem(intent.deleteInstanceId, client);
+                }
+                if (intent.quantityUpdate) {
+                  await vn.updateItemQuantity(
+                    intent.quantityUpdate.instanceId,
+                    intent.quantityUpdate.quantity,
+                    client
+                  );
+                }
+                if (intent.equipment) {
+                  await vn.saveEquipmentState(
+                    campaignId,
+                    intent.equipment.equipped,
+                    intent.equipment.slotsUnlocked,
+                    intent.equipment.maxBagSize,
+                    client
+                  );
+                }
+              }
+
+              previousState.hp = combatResult.hp;
+              previousState.streak = combatResult.streak;
+              previousState.lastPlayedDate = combatResult.lastPlayedDate;
+              previousState.flags = combatResult.flags;
+              previousState.history = combatResult.history;
+              previousState.saturnChapter = combatResult.saturnChapter;
+              previousState.activeBuffs = combatResult.activeBuffs;
+              previousState.damageShield = combatResult.damageShield;
+              previousState.revealActive = combatResult.revealActive;
+              nextState = previousState;
+
+              combatResolutionPayload = {
+                dieRoll: {
+                  raw: combatResult.combatResolution.dieRoll.raw,
+                  modifier: combatResult.combatResolution.dieRoll.modifier,
+                  total: combatResult.combatResolution.dieRoll.total,
+                },
+                outcome: combatResult.combatResolution.outcome,
+                damageDealt: combatResult.combatResolution.damageDealt,
+                hpBefore: combatResult.hpBefore,
+                hpAfter: combatResult.combatResolution.hpAfter,
+                healAmount: combatResult.combatResolution.healAmount,
+                woundedTriggered: combatResult.combatResolution.woundedTriggered,
+                streakSaved: combatResult.combatResolution.streakSaved,
+                loot: {
+                  dropped: !!combatResult.combatResolution.lootResult.dropped,
+                  item: combatResult.combatResolution.lootResult.item
+                    ? {
+                        slug: combatResult.combatResolution.lootResult.item.slug,
+                        name: combatResult.combatResolution.lootResult.item.name,
+                        description: combatResult.combatResolution.lootResult.item.description,
+                        category: combatResult.combatResolution.lootResult.item.category,
+                        rarity: combatResult.combatResolution.lootResult.item.rarity,
+                        statModifiers: combatResult.combatResolution.lootResult.item.statModifiers,
+                      }
+                    : null,
+                },
+                itemLost: combatResult.combatResolution.itemLost
+                  ? {
+                      slug: combatResult.combatResolution.itemLost.slug,
+                      name: combatResult.combatResolution.itemLost.name,
+                      instanceId: combatResult.combatResolution.itemLostInstanceId,
+                    }
+                  : null,
+                milestones: combatResult.milestones || [],
+                consumableUse: combatResult.consumableUse
+                  ? {
+                      used: combatResult.consumableUse.used,
+                      hpBefore: combatResult.consumableUse.hpBefore,
+                      hpAfter: combatResult.consumableUse.hpAfter,
+                      woundedCleared: combatResult.consumableUse.woundedCleared,
+                      effect: combatResult.consumableUse.effect,
+                    }
+                  : null,
+                revealActive: !!combatResult.revealActive,
+              };
+              combatNarrationPayload = {
+                outcomeText: combatResult.narration.outcomeText,
+                source: combatResult.narration.source,
+              };
+            }
+          } catch (combatErr) {
+            console.error('[campaign-daily-resolve] combat pipeline error:', combatErr);
+            throw combatErr;
+          }
+        }
+
         for (const acceptedResponse of orderedResponses) {
           const orderedChoice = choices.find((entry) => entry && entry.id === acceptedResponse.choice_id);
           if (!orderedChoice) {
@@ -854,6 +1096,18 @@ function createCampaignDailyRouter() {
             response_posture: orderedChoice.posture,
             response_pattern_tag: orderedChoice.patternTag,
           });
+          // Preserve combat / Phase 4 fields through applyOutcome
+          if (previousState.hp) {
+            nextState.hp = previousState.hp;
+            nextState.streak = previousState.streak;
+            nextState.lastPlayedDate = previousState.lastPlayedDate;
+            nextState.flags = Array.from(new Set([...(nextState.flags || []), ...(previousState.flags || [])])).sort();
+          }
+          if (previousState.history) nextState.history = previousState.history;
+          if (previousState.saturnChapter !== undefined) nextState.saturnChapter = previousState.saturnChapter;
+          if (previousState.activeBuffs) nextState.activeBuffs = previousState.activeBuffs;
+          if (previousState.damageShield !== undefined) nextState.damageShield = previousState.damageShield;
+          if (typeof previousState.revealActive === 'boolean') nextState.revealActive = previousState.revealActive;
           const outcome = vn.buildChallengeOutcome({
             scene: daily.challenge,
             choice: orderedChoice,
@@ -870,6 +1124,9 @@ function createCampaignDailyRouter() {
               lon: 0,
             },
           });
+          if (combatNarrationPayload && acceptedResponse.choice_id === choiceId) {
+            outcome.narrative = combatNarrationPayload.outcomeText;
+          }
           orderedMemberResolutions.push({
             member_id: acceptedResponse.member_id,
             user_id: acceptedResponse.user_id,
@@ -891,6 +1148,10 @@ function createCampaignDailyRouter() {
           response_count: orderedMemberResolutions.length,
           resolved_member_chart_ids: orderedMemberResolutions.map((entry) => entry.member_id),
           resolved_at: acceptedAt,
+          outcome_narration: combatNarrationPayload ? combatNarrationPayload.outcomeText : null,
+          outcome_narration_source: combatNarrationPayload ? combatNarrationPayload.source : null,
+          combat_resolution: combatResolutionPayload,
+          mechanical_encounter: daily.mechanical_encounter || null,
         };
 
         const nextDailyStateJson = {
@@ -928,6 +1189,8 @@ function createCampaignDailyRouter() {
             stateHash: newStateHash,
             stateVersion: campaign.state_version + 1,
             stateMutated: true,
+            ...(combatResolutionPayload ? { combatResolution: combatResolutionPayload } : {}),
+            ...(combatNarrationPayload ? { narration: combatNarrationPayload } : {}),
           },
         };
       });

@@ -9,6 +9,7 @@ const NAV = [
   { href: '/today', label: 'Today' },
   { href: '/community', label: 'Community' },
   { href: '/sandbox', label: 'Sandbox' },
+  { href: '/game', label: 'Game' },
 ] as const;
 
 function linkClass(active: boolean): string {
@@ -25,6 +26,9 @@ function isNavActive(pathname: string, href: string): boolean {
   }
   if (href === '/community') {
     return pathname === '/community' || pathname.startsWith('/community/');
+  }
+  if (href === '/game') {
+    return pathname === '/game' || pathname.startsWith('/game/');
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

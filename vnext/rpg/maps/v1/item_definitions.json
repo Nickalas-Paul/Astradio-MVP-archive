@@ -1,0 +1,1288 @@
+[
+  {
+    "slug": "spark_blade",
+    "name": "Spark Blade",
+    "description": "First cut of self.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "vitality": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "weapon"
+    ],
+    "elementAffinity": "fire"
+  },
+  {
+    "slug": "will_edge",
+    "name": "Will Edge",
+    "description": "Sharpened by resolve.",
+    "category": "weapon",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "vitality": 2
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "sol_brand",
+    "name": "Sol Brand",
+    "description": "Carries the mark of becoming.",
+    "category": "weapon",
+    "rarity": "rare",
+    "statModifiers": {
+      "vitality": 2,
+      "willpower": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "weapon"
+    ],
+    "classAffinity": "class_aries"
+  },
+  {
+    "slug": "ascendant_fang",
+    "name": "Ascendant Fang",
+    "description": "Born at the rising edge.",
+    "category": "weapon",
+    "rarity": "legendary",
+    "statModifiers": {
+      "vitality": 3,
+      "willpower": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "self_mail",
+    "name": "Self Mail",
+    "description": "Fits only you.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "armor"
+    ]
+  },
+  {
+    "slug": "forge_plate",
+    "name": "Forge Plate",
+    "description": "Tempered in the first house.",
+    "category": "armor",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "resilience": 2
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "armor"
+    ]
+  },
+  {
+    "slug": "identity_aegis",
+    "name": "Identity Aegis",
+    "description": "Holds the line of who you are.",
+    "category": "armor",
+    "rarity": "rare",
+    "statModifiers": {
+      "resilience": 2,
+      "vitality": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "armor"
+    ]
+  },
+  {
+    "slug": "corona_ward",
+    "name": "Corona Ward",
+    "description": "Radiant and unyielding.",
+    "category": "armor",
+    "rarity": "legendary",
+    "statModifiers": {
+      "resilience": 4
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "armor"
+    ]
+  },
+  {
+    "slug": "courage_band",
+    "name": "Courage Band",
+    "description": "A reminder to begin.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "vitality": 1,
+      "willpower": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "rising_seal",
+    "name": "Rising Seal",
+    "description": "Marks the eastern gate.",
+    "category": "accessory",
+    "rarity": "rare",
+    "statModifiers": {
+      "vitality": 2,
+      "charm": 1
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "ember_tonic",
+    "name": "Ember Tonic",
+    "description": "Warmth returns to the limbs.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 3
+    }
+  },
+  {
+    "slug": "assert_draught",
+    "name": "Assert Draught",
+    "description": "Steady the first step.",
+    "category": "consumable",
+    "rarity": "uncommon",
+    "statModifiers": {},
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "buff",
+      "stat": "vitality",
+      "magnitude": 2,
+      "duration": 1
+    }
+  },
+  {
+    "slug": "mask_breaker",
+    "name": "Mask Breaker",
+    "description": "See yourself without varnish.",
+    "category": "consumable",
+    "rarity": "rare",
+    "statModifiers": {},
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "reveal",
+      "magnitude": 1
+    }
+  },
+  {
+    "slug": "aries_ember",
+    "name": "Aries' Ember",
+    "description": "The first fire, kept.",
+    "category": "relic",
+    "rarity": "legendary",
+    "statModifiers": {
+      "vitality": 2,
+      "willpower": 2
+    },
+    "saturnHouse": 1,
+    "tags": [
+      "identity",
+      "relic",
+      "milestone"
+    ],
+    "classAffinity": "class_aries"
+  },
+  {
+    "slug": "mirror_blade",
+    "name": "Mirror Blade",
+    "description": "A sword that cuts both ways.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "vitality": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "diplomats_edge",
+    "name": "Diplomat's Edge",
+    "description": "Sharpened by negotiation.",
+    "category": "weapon",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "charm": 2
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "bond_blade",
+    "name": "Bond Blade",
+    "description": "Stronger when two stand together.",
+    "category": "weapon",
+    "rarity": "rare",
+    "statModifiers": {
+      "vitality": 2,
+      "charm": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "weapon"
+    ],
+    "classAffinity": "class_libra"
+  },
+  {
+    "slug": "eclipse_saber",
+    "name": "Eclipse Saber",
+    "description": "Forged where self meets other.",
+    "category": "weapon",
+    "rarity": "legendary",
+    "statModifiers": {
+      "vitality": 3,
+      "willpower": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "compromise_mail",
+    "name": "Compromise Mail",
+    "description": "Flexible where it matters.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "armor"
+    ]
+  },
+  {
+    "slug": "reflection_guard",
+    "name": "Reflection Guard",
+    "description": "Shows attackers their own force.",
+    "category": "armor",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "resilience": 2
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "armor"
+    ]
+  },
+  {
+    "slug": "harmonics_plate",
+    "name": "Harmonics Plate",
+    "description": "Resonates with incoming energy.",
+    "category": "armor",
+    "rarity": "rare",
+    "statModifiers": {
+      "resilience": 2,
+      "intuition": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "armor"
+    ]
+  },
+  {
+    "slug": "covenant_ward",
+    "name": "Covenant Ward",
+    "description": "Unbreakable as a kept promise.",
+    "category": "armor",
+    "rarity": "legendary",
+    "statModifiers": {
+      "resilience": 4
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "armor"
+    ]
+  },
+  {
+    "slug": "mediators_ring",
+    "name": "Mediator's Ring",
+    "description": "Find the middle ground.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "charm": 1,
+      "cunning": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "partnership_amulet",
+    "name": "Partnership Amulet",
+    "description": "Power drawn from connection.",
+    "category": "accessory",
+    "rarity": "rare",
+    "statModifiers": {
+      "charm": 2,
+      "intuition": 1
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "venus_trine_elixir",
+    "name": "Venus Trine Elixir",
+    "description": "Sweetness distilled.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 3
+    }
+  },
+  {
+    "slug": "balance_potion",
+    "name": "Balance Potion",
+    "description": "Steadies the scales.",
+    "category": "consumable",
+    "rarity": "uncommon",
+    "statModifiers": {},
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "buff",
+      "stat": "resilience",
+      "magnitude": 2,
+      "duration": 1
+    }
+  },
+  {
+    "slug": "mirror_shield_draught",
+    "name": "Mirror Shield Draught",
+    "description": "Reflect what comes.",
+    "category": "consumable",
+    "rarity": "rare",
+    "statModifiers": {},
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "shield",
+      "magnitude": 50
+    }
+  },
+  {
+    "slug": "libras_scale",
+    "name": "Libra's Scale",
+    "description": "The weight of every choice, measured.",
+    "category": "relic",
+    "rarity": "legendary",
+    "statModifiers": {
+      "charm": 2,
+      "willpower": 2
+    },
+    "saturnHouse": 7,
+    "tags": [
+      "relationship",
+      "relic",
+      "milestone"
+    ],
+    "classAffinity": "class_libra"
+  },
+  {
+    "slug": "edict_blade",
+    "name": "Edict Blade",
+    "description": "Cuts with authority.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "willpower": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "summit_spear",
+    "name": "Summit Spear",
+    "description": "Points toward the peak.",
+    "category": "weapon",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "willpower": 2
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "tribunal_glaive",
+    "name": "Tribunal Glaive",
+    "description": "Judgment made sharp.",
+    "category": "weapon",
+    "rarity": "rare",
+    "statModifiers": {
+      "willpower": 2,
+      "vitality": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "weapon"
+    ],
+    "classAffinity": "class_capricorn"
+  },
+  {
+    "slug": "legacy_scythe",
+    "name": "Legacy Scythe",
+    "description": "Harvests what you built.",
+    "category": "weapon",
+    "rarity": "legendary",
+    "statModifiers": {
+      "willpower": 3,
+      "charm": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "weapon"
+    ]
+  },
+  {
+    "slug": "office_mail",
+    "name": "Office Mail",
+    "description": "Standard issue dignity.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "armor"
+    ]
+  },
+  {
+    "slug": "throne_guard",
+    "name": "Throne Guard",
+    "description": "Holds the public face.",
+    "category": "armor",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "resilience": 2
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "armor"
+    ]
+  },
+  {
+    "slug": "mandate_plate",
+    "name": "Mandate Plate",
+    "description": "Authority as protection.",
+    "category": "armor",
+    "rarity": "rare",
+    "statModifiers": {
+      "resilience": 2,
+      "willpower": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "armor"
+    ]
+  },
+  {
+    "slug": "summit_aegis",
+    "name": "Summit Aegis",
+    "description": "Unmoved at the height.",
+    "category": "armor",
+    "rarity": "legendary",
+    "statModifiers": {
+      "resilience": 3,
+      "willpower": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "armor"
+    ]
+  },
+  {
+    "slug": "seal_of_office",
+    "name": "Seal of Office",
+    "description": "Proof of standing.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "willpower": 1,
+      "charm": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "midheaven_crest",
+    "name": "Midheaven Crest",
+    "description": "Visible from every valley.",
+    "category": "accessory",
+    "rarity": "rare",
+    "statModifiers": {
+      "willpower": 2,
+      "cunning": 1
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "accessory"
+    ]
+  },
+  {
+    "slug": "status_tonic",
+    "name": "Status Tonic",
+    "description": "Restore composure under eyes.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 3
+    }
+  },
+  {
+    "slug": "authority_draught",
+    "name": "Authority Draught",
+    "description": "Hold the room for a day.",
+    "category": "consumable",
+    "rarity": "uncommon",
+    "statModifiers": {},
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "buff",
+      "stat": "willpower",
+      "magnitude": 2,
+      "duration": 1
+    }
+  },
+  {
+    "slug": "verdict_shield",
+    "name": "Verdict Shield",
+    "description": "Absorbs one public blow.",
+    "category": "consumable",
+    "rarity": "rare",
+    "statModifiers": {},
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "consumable"
+    ],
+    "consumableEffect": {
+      "type": "shield",
+      "magnitude": 50
+    }
+  },
+  {
+    "slug": "capricorns_keystone",
+    "name": "Capricorn's Keystone",
+    "description": "The stone that holds the arch.",
+    "category": "relic",
+    "rarity": "legendary",
+    "statModifiers": {
+      "willpower": 2,
+      "resilience": 2
+    },
+    "saturnHouse": 10,
+    "tags": [
+      "career",
+      "relic",
+      "milestone"
+    ],
+    "classAffinity": "class_capricorn"
+  },
+  {
+    "slug": "vault_blade",
+    "name": "Vault Blade",
+    "description": "Stub weapon for house 2.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "vitality": 1
+    },
+    "saturnHouse": 2,
+    "tags": [
+      "resources",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "earth"
+  },
+  {
+    "slug": "vault_mail",
+    "name": "Vault Mail",
+    "description": "Stub armor for house 2.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 2,
+    "tags": [
+      "resources",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "vault_charm",
+    "name": "Vault Charm",
+    "description": "Stub accessory for house 2.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "cunning": 1
+    },
+    "saturnHouse": 2,
+    "tags": [
+      "resources",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "vault_tonic",
+    "name": "Vault Tonic",
+    "description": "Stub consumable for house 2.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 2,
+    "tags": [
+      "resources",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "whisper_blade",
+    "name": "Whisper Blade",
+    "description": "Stub weapon for house 3.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "cunning": 1
+    },
+    "saturnHouse": 3,
+    "tags": [
+      "communication",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "air"
+  },
+  {
+    "slug": "whisper_mail",
+    "name": "Whisper Mail",
+    "description": "Stub armor for house 3.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 3,
+    "tags": [
+      "communication",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "whisper_charm",
+    "name": "Whisper Charm",
+    "description": "Stub accessory for house 3.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "charm": 1
+    },
+    "saturnHouse": 3,
+    "tags": [
+      "communication",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "whisper_tonic",
+    "name": "Whisper Tonic",
+    "description": "Stub consumable for house 3.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 3,
+    "tags": [
+      "communication",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "crypt_blade",
+    "name": "Crypt Blade",
+    "description": "Stub weapon for house 4.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 4,
+    "tags": [
+      "home",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "water"
+  },
+  {
+    "slug": "crypt_mail",
+    "name": "Crypt Mail",
+    "description": "Stub armor for house 4.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 4,
+    "tags": [
+      "home",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "crypt_charm",
+    "name": "Crypt Charm",
+    "description": "Stub accessory for house 4.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "intuition": 1
+    },
+    "saturnHouse": 4,
+    "tags": [
+      "home",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "crypt_tonic",
+    "name": "Crypt Tonic",
+    "description": "Stub consumable for house 4.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 4,
+    "tags": [
+      "home",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "arena_blade",
+    "name": "Arena Blade",
+    "description": "Stub weapon for house 5.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "charm": 1
+    },
+    "saturnHouse": 5,
+    "tags": [
+      "creativity",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "fire"
+  },
+  {
+    "slug": "arena_mail",
+    "name": "Arena Mail",
+    "description": "Stub armor for house 5.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "vitality": 1
+    },
+    "saturnHouse": 5,
+    "tags": [
+      "creativity",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "arena_charm",
+    "name": "Arena Charm",
+    "description": "Stub accessory for house 5.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "intuition": 1
+    },
+    "saturnHouse": 5,
+    "tags": [
+      "creativity",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "arena_tonic",
+    "name": "Arena Tonic",
+    "description": "Stub consumable for house 5.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 5,
+    "tags": [
+      "creativity",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "proving_blade",
+    "name": "Proving Blade",
+    "description": "Stub weapon for house 6.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 6,
+    "tags": [
+      "work",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "earth"
+  },
+  {
+    "slug": "proving_mail",
+    "name": "Proving Mail",
+    "description": "Stub armor for house 6.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 6,
+    "tags": [
+      "work",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "proving_charm",
+    "name": "Proving Charm",
+    "description": "Stub accessory for house 6.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "cunning": 1
+    },
+    "saturnHouse": 6,
+    "tags": [
+      "work",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "proving_tonic",
+    "name": "Proving Tonic",
+    "description": "Stub consumable for house 6.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 6,
+    "tags": [
+      "work",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "underworld_blade",
+    "name": "Underworld Blade",
+    "description": "Stub weapon for house 8.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "willpower": 1
+    },
+    "saturnHouse": 8,
+    "tags": [
+      "transformation",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "water"
+  },
+  {
+    "slug": "underworld_mail",
+    "name": "Underworld Mail",
+    "description": "Stub armor for house 8.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 8,
+    "tags": [
+      "transformation",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "underworld_charm",
+    "name": "Underworld Charm",
+    "description": "Stub accessory for house 8.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "intuition": 1
+    },
+    "saturnHouse": 8,
+    "tags": [
+      "transformation",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "underworld_tonic",
+    "name": "Underworld Tonic",
+    "description": "Stub consumable for house 8.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 8,
+    "tags": [
+      "transformation",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "pilgrim_blade",
+    "name": "Pilgrim Blade",
+    "description": "Stub weapon for house 9.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "intuition": 1
+    },
+    "saturnHouse": 9,
+    "tags": [
+      "philosophy",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "fire"
+  },
+  {
+    "slug": "pilgrim_mail",
+    "name": "Pilgrim Mail",
+    "description": "Stub armor for house 9.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "willpower": 1
+    },
+    "saturnHouse": 9,
+    "tags": [
+      "philosophy",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "pilgrim_charm",
+    "name": "Pilgrim Charm",
+    "description": "Stub accessory for house 9.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "cunning": 1
+    },
+    "saturnHouse": 9,
+    "tags": [
+      "philosophy",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "pilgrim_tonic",
+    "name": "Pilgrim Tonic",
+    "description": "Stub consumable for house 9.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 9,
+    "tags": [
+      "philosophy",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "network_blade",
+    "name": "Network Blade",
+    "description": "Stub weapon for house 11.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "cunning": 1
+    },
+    "saturnHouse": 11,
+    "tags": [
+      "community",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "air"
+  },
+  {
+    "slug": "network_mail",
+    "name": "Network Mail",
+    "description": "Stub armor for house 11.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "charm": 1
+    },
+    "saturnHouse": 11,
+    "tags": [
+      "community",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "network_charm",
+    "name": "Network Charm",
+    "description": "Stub accessory for house 11.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "willpower": 1
+    },
+    "saturnHouse": 11,
+    "tags": [
+      "community",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "network_tonic",
+    "name": "Network Tonic",
+    "description": "Stub consumable for house 11.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 11,
+    "tags": [
+      "community",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  },
+  {
+    "slug": "dream_blade",
+    "name": "Dream Blade",
+    "description": "Stub weapon for house 12.",
+    "category": "weapon",
+    "rarity": "common",
+    "statModifiers": {
+      "intuition": 1
+    },
+    "saturnHouse": 12,
+    "tags": [
+      "unconscious",
+      "weapon",
+      "stub"
+    ],
+    "elementAffinity": "water"
+  },
+  {
+    "slug": "dream_mail",
+    "name": "Dream Mail",
+    "description": "Stub armor for house 12.",
+    "category": "armor",
+    "rarity": "common",
+    "statModifiers": {
+      "resilience": 1
+    },
+    "saturnHouse": 12,
+    "tags": [
+      "unconscious",
+      "armor",
+      "stub"
+    ]
+  },
+  {
+    "slug": "dream_charm",
+    "name": "Dream Charm",
+    "description": "Stub accessory for house 12.",
+    "category": "accessory",
+    "rarity": "uncommon",
+    "statModifiers": {
+      "willpower": 1
+    },
+    "saturnHouse": 12,
+    "tags": [
+      "unconscious",
+      "accessory",
+      "stub"
+    ]
+  },
+  {
+    "slug": "dream_tonic",
+    "name": "Dream Tonic",
+    "description": "Stub consumable for house 12.",
+    "category": "consumable",
+    "rarity": "common",
+    "statModifiers": {},
+    "saturnHouse": 12,
+    "tags": [
+      "unconscious",
+      "consumable",
+      "stub"
+    ],
+    "consumableEffect": {
+      "type": "heal",
+      "magnitude": 2
+    }
+  }
+]

@@ -18,9 +18,10 @@ import {
   type AudioAlgoVersion,
 } from '../contracts';
 import { loadRpgV1Maps } from '../maps/load-v1';
+import { buildStatBlock } from '../stat-block-builder';
 
 const RPG_MAP_VERSION = 'v1' as RpgMapVersion;
-const RPG_ALGO_VERSION = 'rpg-v1' as RpgAlgoVersion;
+const RPG_ALGO_VERSION = 'rpg-v2' as RpgAlgoVersion;
 const AUDIO_ALGO_VERSION = 'audio-v1' as AudioAlgoVersion;
 
 const ASPECT_ORDER: AspectType[] = ['conjunction', 'opposition', 'square', 'trine', 'sextile'];
@@ -308,6 +309,7 @@ export function buildRpgEffectsBundleFromSnapshot(snapshot: EphemerisSnapshot): 
   const placements = buildPlacements(snapshot, bodyOrder, maps);
   const aspects = buildAspects(snapshot, bodyOrder);
   const domainSummary = buildDomainSummary(placements, aspects);
+  const { stats: statBlock, trace: statTrace } = buildStatBlock(snapshot);
 
   const natalSnapshotHash = hashSnapshot(snapshot);
 
@@ -327,6 +329,8 @@ export function buildRpgEffectsBundleFromSnapshot(snapshot: EphemerisSnapshot): 
     placements,
     aspects,
     domainSummary,
+    statBlock,
+    statTrace,
   };
 
   const bundleHash = hashCanonicalJson(bundle);

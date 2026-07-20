@@ -3,19 +3,84 @@
     "element": "fire",
     "modality": "cardinal",
     "style_tags": ["initiating", "decisive"],
-    "domain_bias": {
-      "identity": 0.8,
-      "action": 0.9
-    }
+    "domain_bias": { "identity": 0.8, "action": 0.9 },
+    "stat_bonus": { "vitality": 0.2, "willpower": 0.1 }
   },
   "taurus": {
     "element": "earth",
     "modality": "fixed",
     "style_tags": ["steady", "grounded"],
-    "domain_bias": {
-      "resources": 0.9,
-      "stability": 0.8
-    }
+    "domain_bias": { "resources": 0.9, "stability": 0.8 },
+    "stat_bonus": { "resilience": 0.3 }
+  },
+  "gemini": {
+    "element": "air",
+    "modality": "mutable",
+    "style_tags": ["curious", "adaptive"],
+    "domain_bias": { "communication": 0.9, "learning": 0.8 },
+    "stat_bonus": { "cunning": 0.3 }
+  },
+  "cancer": {
+    "element": "water",
+    "modality": "cardinal",
+    "style_tags": ["nurturing", "protective"],
+    "domain_bias": { "home": 0.9, "emotion": 0.8 },
+    "stat_bonus": { "intuition": 0.2, "willpower": 0.1 }
+  },
+  "leo": {
+    "element": "fire",
+    "modality": "fixed",
+    "style_tags": ["expressive", "radiant"],
+    "domain_bias": { "identity": 0.9, "creativity": 0.8 },
+    "stat_bonus": { "vitality": 0.2, "resilience": 0.1 }
+  },
+  "virgo": {
+    "element": "earth",
+    "modality": "mutable",
+    "style_tags": ["precise", "analytical"],
+    "domain_bias": { "work": 0.9, "refinement": 0.8 },
+    "stat_bonus": { "resilience": 0.2, "cunning": 0.1 }
+  },
+  "libra": {
+    "element": "air",
+    "modality": "cardinal",
+    "style_tags": ["harmonizing", "relational"],
+    "domain_bias": { "relationships": 0.9, "balance": 0.8 },
+    "stat_bonus": { "cunning": 0.2, "willpower": 0.1 }
+  },
+  "scorpio": {
+    "element": "water",
+    "modality": "fixed",
+    "style_tags": ["intense", "penetrating"],
+    "domain_bias": { "transformation": 0.9, "depth": 0.8 },
+    "stat_bonus": { "intuition": 0.2, "resilience": 0.1 }
+  },
+  "sagittarius": {
+    "element": "fire",
+    "modality": "mutable",
+    "style_tags": ["expansive", "exploratory"],
+    "domain_bias": { "philosophy": 0.9, "growth": 0.8 },
+    "stat_bonus": { "vitality": 0.2, "cunning": 0.1 }
+  },
+  "capricorn": {
+    "element": "earth",
+    "modality": "cardinal",
+    "style_tags": ["structured", "ambitious"],
+    "domain_bias": { "career": 0.9, "discipline": 0.8 },
+    "stat_bonus": { "resilience": 0.2, "willpower": 0.1 }
+  },
+  "aquarius": {
+    "element": "air",
+    "modality": "fixed",
+    "style_tags": ["inventive", "detached"],
+    "domain_bias": { "community": 0.9, "innovation": 0.8 },
+    "stat_bonus": { "cunning": 0.2, "resilience": 0.1 }
+  },
+  "pisces": {
+    "element": "water",
+    "modality": "mutable",
+    "style_tags": ["receptive", "dissolving"],
+    "domain_bias": { "unconscious": 0.9, "transcendence": 0.8 },
+    "stat_bonus": { "intuition": 0.2, "cunning": 0.1 }
   }
 }
-

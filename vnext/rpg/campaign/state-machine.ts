@@ -3,7 +3,9 @@
 
 import type { RPGEffectsBundle, RPGDomainScore } from '../contracts';
 import { canonicalize } from '../hash/json-hash';
-import type { ArchetypeId, ResponsePosture } from '../types';
+import type { ArchetypeId, CharacterHP, ResponsePosture, StatBlock, SaturnChapterState, ActiveBuff, DamageShield } from '../types';
+import { createFullHp } from '../../game/hp-system';
+import { isGameCombatEnabled } from '../../game/feature-gate';
 
 export interface RPGCampaignState {
   tone_track: Record<string, number>;
@@ -12,6 +14,15 @@ export interface RPGCampaignState {
   flags: string[];
   history?: string[];
   members?: Record<string, RPGCampaignMemberState>;
+  /** Phase 3 combat HP (present when GAME_COMBAT_ENABLED). */
+  hp?: CharacterHP;
+  streak?: number;
+  lastPlayedDate?: string | null;
+  /** Phase 4 Saturn chapter tracking. */
+  saturnChapter?: SaturnChapterState | null;
+  activeBuffs?: ActiveBuff[];
+  damageShield?: DamageShield | null;
+  revealActive?: boolean;
 }
 
 export interface RPGCampaignMemberState {
@@ -225,12 +236,29 @@ export function initialCampaignState(bundle: RPGEffectsBundle): RPGCampaignState
 
   const flags: string[] = ['seeded_from_bundle'];
 
-  return {
+  const state: RPGCampaignState = {
     tone_track,
     domain_track,
     chapter: 1,
     flags: flags.sort(),
   };
+
+  if (isGameCombatEnabled()) {
+    const sb = bundle.statBlock as StatBlock | undefined;
+    const stats: Pick<StatBlock, 'vitality' | 'resilience'> = {
+      vitality: sb?.vitality ?? 10,
+      resilience: sb?.resilience ?? 10,
+    };
+    state.hp = createFullHp(stats);
+    state.streak = 0;
+    state.lastPlayedDate = null;
+    state.saturnChapter = null; // filled at create or lazy on first resolve
+    state.activeBuffs = [];
+    state.damageShield = null;
+    state.revealActive = false;
+  }
+
+  return state;
 }
 
 export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domains?: RPGDomainScore[]): RPGCampaignState {
@@ -253,6 +281,17 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
           ]),
         )
       : undefined,
+    ...(state.hp ? { hp: { ...state.hp } } : {}),
+    ...(typeof state.streak === 'number' ? { streak: state.streak } : {}),
+    ...(state.lastPlayedDate !== undefined ? { lastPlayedDate: state.lastPlayedDate } : {}),
+    ...(state.saturnChapter !== undefined
+      ? { saturnChapter: state.saturnChapter ? { ...state.saturnChapter } : null }
+      : {}),
+    ...(state.activeBuffs ? { activeBuffs: state.activeBuffs.map((b) => ({ ...b })) } : {}),
+    ...(state.damageShield !== undefined
+      ? { damageShield: state.damageShield ? { ...state.damageShield } : null }
+      : {}),
+    ...(typeof state.revealActive === 'boolean' ? { revealActive: state.revealActive } : {}),
   };
 
   const patch = outcome.outcome_patch_id || 'generic';

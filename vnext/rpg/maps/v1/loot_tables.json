@@ -1,0 +1,449 @@
+[
+  {
+    "saturnHouse": 1,
+    "domain": "self",
+    "items": [
+      {
+        "slug": "spark_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "will_edge",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "sol_brand",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "ascendant_fang",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "self_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "forge_plate",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "identity_aegis",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "corona_ward",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "courage_band",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "rising_seal",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "ember_tonic",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "assert_draught",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "mask_breaker",
+        "weight": 15,
+        "minChapter": 2
+      }
+    ]
+  },
+  {
+    "saturnHouse": 2,
+    "domain": "resources",
+    "items": [
+      {
+        "slug": "vault_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "vault_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "vault_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "vault_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 3,
+    "domain": "communication",
+    "items": [
+      {
+        "slug": "whisper_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "whisper_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "whisper_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "whisper_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 4,
+    "domain": "home",
+    "items": [
+      {
+        "slug": "crypt_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "crypt_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "crypt_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "crypt_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 5,
+    "domain": "creativity",
+    "items": [
+      {
+        "slug": "arena_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "arena_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "arena_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "arena_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 6,
+    "domain": "work",
+    "items": [
+      {
+        "slug": "proving_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "proving_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "proving_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "proving_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 7,
+    "domain": "relationships",
+    "items": [
+      {
+        "slug": "mirror_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "diplomats_edge",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "bond_blade",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "eclipse_saber",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "compromise_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "reflection_guard",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "harmonics_plate",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "covenant_ward",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "mediators_ring",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "partnership_amulet",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "venus_trine_elixir",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "balance_potion",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "mirror_shield_draught",
+        "weight": 15,
+        "minChapter": 2
+      }
+    ]
+  },
+  {
+    "saturnHouse": 8,
+    "domain": "transformation",
+    "items": [
+      {
+        "slug": "underworld_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "underworld_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "underworld_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "underworld_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 9,
+    "domain": "philosophy",
+    "items": [
+      {
+        "slug": "pilgrim_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "pilgrim_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "pilgrim_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "pilgrim_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 10,
+    "domain": "career",
+    "items": [
+      {
+        "slug": "edict_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "summit_spear",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "tribunal_glaive",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "legacy_scythe",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "office_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "throne_guard",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "mandate_plate",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "summit_aegis",
+        "weight": 5,
+        "minChapter": 3
+      },
+      {
+        "slug": "seal_of_office",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "midheaven_crest",
+        "weight": 15,
+        "minChapter": 2
+      },
+      {
+        "slug": "status_tonic",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "authority_draught",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "verdict_shield",
+        "weight": 15,
+        "minChapter": 2
+      }
+    ]
+  },
+  {
+    "saturnHouse": 11,
+    "domain": "community",
+    "items": [
+      {
+        "slug": "network_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "network_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "network_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "network_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  },
+  {
+    "saturnHouse": 12,
+    "domain": "unconscious",
+    "items": [
+      {
+        "slug": "dream_blade",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "dream_mail",
+        "weight": 50,
+        "minChapter": 1
+      },
+      {
+        "slug": "dream_charm",
+        "weight": 30,
+        "minChapter": 1
+      },
+      {
+        "slug": "dream_tonic",
+        "weight": 50,
+        "minChapter": 1
+      }
+    ]
+  }
+]

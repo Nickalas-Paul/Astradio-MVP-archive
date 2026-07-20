@@ -10,6 +10,7 @@ import type { CharacterProfile, CharacterTemperamentAxes } from './types';
 import { hashSnapshot } from './hash/snapshot-hash';
 import { chartIdentityFieldsFromSemanticCore } from './identity-from-semantic-core';
 import type { SemanticCore } from '../semantic/semantic-core';
+import { buildStatBlock } from './stat-block-builder';
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -107,6 +108,8 @@ export function buildCharacterProfile(params: BuildCharacterProfileParams): Char
     .slice(0, 6)
     .map((d) => ({ domain: d.domain, weight: d.normalizedScore }));
 
+  const { stats: statBlock, trace: statTrace } = buildStatBlock(natalSnapshot);
+
   return {
     id: `char_${hash}`,
     classSlug: effectsBundle.classSlug,
@@ -121,6 +124,8 @@ export function buildCharacterProfile(params: BuildCharacterProfileParams): Char
     angularEmphasis: idFields.angularEmphasis,
     temperament,
     signatureDomains: topDomains,
+    statBlock,
+    statTrace,
   };
 }
 

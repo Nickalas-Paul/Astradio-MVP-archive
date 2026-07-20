@@ -6,6 +6,8 @@ import type { EphemerisSnapshot } from '../../contracts';
 import { canonicalJsonString } from '../hash/json-hash';
 import { buildRpgEffectsBundleFromSnapshot } from '../effects/bundle-from-snapshot';
 import type { RPGEffectsBundle } from '../contracts';
+import { buildStatBlock } from '../stat-block-builder';
+import type { StatBlock, StatDerivationTrace } from '../types';
 
 type PgQueryResult<T = any> = { rows: T[] };
 
@@ -224,6 +226,51 @@ export async function getBundleByHash(bundleHash: string): Promise<{ bundle_json
     [bundleHash]
   );
   return res.rows[0] ?? null;
+}
+
+/**
+ * Load bundle by hash and ensure Phase 1 stats are present.
+ * rpg-v1 rows (or missing statBlock) are enriched by recomputing from the natal snapshot.
+ */
+export async function getBundleWithStats(
+  bundleHash: string,
+  snapshot: EphemerisSnapshot
+): Promise<{
+  bundle: RPGEffectsBundle;
+  statBlock: StatBlock;
+  statTrace: StatDerivationTrace;
+  recomputed: boolean;
+} | null> {
+  const row = await getBundleByHash(bundleHash);
+  if (!row?.bundle_json) return null;
+  const raw = row.bundle_json as RPGEffectsBundle;
+  const algo = String(raw.metadata?.rpg_algo_version ?? '');
+  const needsRecompute =
+    algo === 'rpg-v1' || raw.statBlock == null || raw.statTrace == null;
+  if (!needsRecompute && raw.statBlock && raw.statTrace) {
+    return {
+      bundle: raw,
+      statBlock: raw.statBlock as StatBlock,
+      statTrace: raw.statTrace as StatDerivationTrace,
+      recomputed: false,
+    };
+  }
+  const { stats, trace } = buildStatBlock(snapshot);
+  const enriched: RPGEffectsBundle = {
+    ...raw,
+    metadata: {
+      ...raw.metadata,
+      rpg_algo_version: 'rpg-v2' as RPGEffectsBundle['metadata']['rpg_algo_version'],
+    },
+    statBlock: stats,
+    statTrace: trace,
+  };
+  return {
+    bundle: enriched,
+    statBlock: stats,
+    statTrace: trace,
+    recomputed: true,
+  };
 }
 
 /** Get profile row that links (user_id, chart_id) to the given bundle_hash. Used for diagnostics. */

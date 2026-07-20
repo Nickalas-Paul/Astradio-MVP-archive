@@ -2249,6 +2249,10 @@ app.use("/api", createUserTransitContextRouter());
 const { createCampaignDailyRouter } = require("./routes/campaign-daily");
 app.use("/api", createCampaignDailyRouter());
 
+// Phase 5 — Game API (character, inventory, encounter, loot)
+const { createGameRouter } = require("./routes/game");
+app.use("/api", createGameRouter());
+
 // Sandbox: birth-data-first + drag-and-drop degree placements; compose-free reports
 if (sandboxMod && typeof sandboxMod.createSandboxRouter === "function") {
   app.use("/api", sandboxMod.createSandboxRouter());

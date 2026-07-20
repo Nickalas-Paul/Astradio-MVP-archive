@@ -90,5 +90,16 @@ export interface RPGEffectsBundle {
   placements: RPGBodyPlacementEffect[];
   aspects: RPGAspectEffect[];
   domainSummary: RPGDomainScore[];
+  /** Phase 1 mechanical stats (rpg-v2+). Optional for backward-compat reads of rpg-v1 rows. */
+  statBlock?: {
+    vitality: number;
+    resilience: number;
+    cunning: number;
+    charm: number;
+    intuition: number;
+    willpower: number;
+  };
+  /** Phase 1 derivation trace (rpg-v2+). Opaque structured provenance. */
+  statTrace?: unknown;
 }
 

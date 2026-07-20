@@ -33,6 +33,34 @@ function mkChar(id: string, primaryElement: CharacterProfile['primaryElement']):
       { domain: 'identity_heat', weight: 0.8 },
       { domain: 'community_cohesion', weight: 0.4 },
     ],
+    statBlock: {
+      vitality: 10,
+      resilience: 10,
+      cunning: 10,
+      charm: 10,
+      intuition: 10,
+      willpower: 10,
+    },
+    statTrace: {
+      raw: {
+        vitality: 10,
+        resilience: 10,
+        cunning: 10,
+        charm: 10,
+        intuition: 10,
+        willpower: 10,
+      },
+      final: {
+        vitality: 10,
+        resilience: 10,
+        cunning: 10,
+        charm: 10,
+        intuition: 10,
+        willpower: 10,
+      },
+      perPlanet: {},
+      aspectBonuses: [],
+    },
   };
 }
 

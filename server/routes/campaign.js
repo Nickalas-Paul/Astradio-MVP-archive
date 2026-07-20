@@ -140,11 +140,47 @@ function createCampaignRouter() {
     try {
       const stateMachine = requireCampaignRuntimeModule('rpg/campaign/state-machine');
       const rpgStoreMod = requireCampaignRuntimeModule('rpg/store/rpg-store');
+      const isGameCombatEnabled = requireCampaignRuntimeModule('game/feature-gate').isGameCombatEnabled;
       const bundleRow = await rpgStoreMod.getBundleByHash(profile.bundle_hash);
       if (bundleRow && bundleRow.bundle_json) {
         const initialState = stateMachine.initialCampaignState(bundleRow.bundle_json);
         stateJson = initialState;
-        stateHash = sha256(canonicalJson(initialState));
+        if (isGameCombatEnabled() && snapshotForProfile) {
+          try {
+            const buildSaturnChapterState = requireCampaignRuntimeModule('game/milestone-tracker')
+              .buildSaturnChapterState;
+            const getSaturnTransitHouse = requireCampaignRuntimeModule('rpg/saturn-house')
+              .getSaturnTransitHouse;
+            const fetchChartSnapshot = requireCampaignRuntimeModule('core/architecture-engine')
+              .fetchChartSnapshot;
+            const buildTransitChartInput = requireCampaignRuntimeModule('campaign/transit-chart-input')
+              .buildTransitChartInput;
+            const today = new Date().toISOString().slice(0, 10);
+            const natalCusps = Array.isArray(snapshotForProfile.houses)
+              ? snapshotForProfile.houses
+              : [];
+            if (natalCusps.length >= 12) {
+              const transitInput = buildTransitChartInput({
+                date: today,
+                time: '12:00',
+                location: {
+                  lat: Number(snapshotForProfile.lat),
+                  lon: Number(snapshotForProfile.lon),
+                  timezone: String(snapshotForProfile.tz || snapshotForProfile.timezone || 'UTC'),
+                },
+              });
+              const transitSnap = await fetchChartSnapshot(transitInput);
+              const house = getSaturnTransitHouse(transitSnap, natalCusps);
+              stateJson = {
+                ...initialState,
+                saturnChapter: buildSaturnChapterState(house, today, 0),
+              };
+            }
+          } catch (saturnErr) {
+            console.warn('[campaign-create] saturnChapter init failed:', saturnErr?.message);
+          }
+        }
+        stateHash = sha256(canonicalJson(stateJson));
       }
     } catch (_) {
       // keep default empty state

@@ -1,0 +1,14 @@
+{
+  "1":  { "house": 1,  "domain": "self",           "lootTableKey": "saturn_house_1",  "thematicLabel": "The Identity Forge" },
+  "2":  { "house": 2,  "domain": "resources",      "lootTableKey": "saturn_house_2",  "thematicLabel": "The Vault of Worth" },
+  "3":  { "house": 3,  "domain": "communication",  "lootTableKey": "saturn_house_3",  "thematicLabel": "The Hall of Whispers" },
+  "4":  { "house": 4,  "domain": "home",           "lootTableKey": "saturn_house_4",  "thematicLabel": "The Ancestral Crypt" },
+  "5":  { "house": 5,  "domain": "creativity",     "lootTableKey": "saturn_house_5",  "thematicLabel": "The Arena of Expression" },
+  "6":  { "house": 6,  "domain": "work",           "lootTableKey": "saturn_house_6",  "thematicLabel": "The Proving Grounds" },
+  "7":  { "house": 7,  "domain": "relationships",  "lootTableKey": "saturn_house_7",  "thematicLabel": "The Relational Dungeon" },
+  "8":  { "house": 8,  "domain": "transformation", "lootTableKey": "saturn_house_8",  "thematicLabel": "The Underworld Gate" },
+  "9":  { "house": 9,  "domain": "philosophy",     "lootTableKey": "saturn_house_9",  "thematicLabel": "The Pilgrim's Ascent" },
+  "10": { "house": 10, "domain": "career",         "lootTableKey": "saturn_house_10", "thematicLabel": "The Summit Tribunal" },
+  "11": { "house": 11, "domain": "community",      "lootTableKey": "saturn_house_11", "thematicLabel": "The Network Labyrinth" },
+  "12": { "house": 12, "domain": "unconscious",    "lootTableKey": "saturn_house_12", "thematicLabel": "The Dream Vault" }
+}

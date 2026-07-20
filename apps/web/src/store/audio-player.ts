@@ -9,7 +9,8 @@ export type AudioSource =
   | 'sandbox'
   | 'forecast'
   | 'post'
-  | 'dm';
+  | 'dm'
+  | 'game';
 
 export interface AudioTrack {
   exportId: string;

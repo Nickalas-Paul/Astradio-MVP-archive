@@ -2,16 +2,71 @@
   "sun": {
     "primary_role": "core_identity",
     "base_domains": ["identity"],
-    "modifiers": {
-      "vitality": 1
-    }
+    "modifiers": { "vitality": 1 },
+    "stat_primary": { "vitality": 1.0 },
+    "stat_secondary": { "charm": 0.5 }
   },
   "moon": {
     "primary_role": "emotional_core",
     "base_domains": ["emotion"],
-    "modifiers": {
-      "receptivity": 1
-    }
+    "modifiers": { "receptivity": 1 },
+    "stat_primary": { "resilience": 1.0 },
+    "stat_secondary": { "intuition": 0.5 }
+  },
+  "mercury": {
+    "primary_role": "mind_voice",
+    "base_domains": ["communication"],
+    "modifiers": {},
+    "stat_primary": { "cunning": 1.0 },
+    "stat_secondary": {}
+  },
+  "venus": {
+    "primary_role": "attraction_values",
+    "base_domains": ["relationship"],
+    "modifiers": {},
+    "stat_primary": { "charm": 1.0 },
+    "stat_secondary": { "intuition": 0.5 }
+  },
+  "mars": {
+    "primary_role": "drive_conflict",
+    "base_domains": ["action"],
+    "modifiers": {},
+    "stat_primary": { "vitality": 1.0 },
+    "stat_secondary": { "cunning": 0.5 }
+  },
+  "jupiter": {
+    "primary_role": "expansion_fortune",
+    "base_domains": ["growth"],
+    "modifiers": {},
+    "stat_primary": { "charm": 1.0 },
+    "stat_secondary": { "vitality": 0.5 }
+  },
+  "saturn": {
+    "primary_role": "structure_limit",
+    "base_domains": ["discipline"],
+    "modifiers": {},
+    "stat_primary": { "resilience": 1.0 },
+    "stat_secondary": { "willpower": 0.5 }
+  },
+  "uranus": {
+    "primary_role": "disruption_insight",
+    "base_domains": ["innovation"],
+    "modifiers": {},
+    "stat_primary": { "cunning": 1.0 },
+    "stat_secondary": { "willpower": 0.5 }
+  },
+  "neptune": {
+    "primary_role": "dissolution_vision",
+    "base_domains": ["transcendence"],
+    "modifiers": {},
+    "stat_primary": { "intuition": 1.0 },
+    "stat_secondary": {}
+  },
+  "pluto": {
+    "primary_role": "transformation",
+    "base_domains": ["power"],
+    "modifiers": {},
+    "stat_primary": { "willpower": 1.0 },
+    "stat_secondary": { "resilience": 0.5 }
   }
 }
-

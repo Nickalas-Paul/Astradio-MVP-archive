@@ -37,12 +37,16 @@ const ASSETS = [
   { src: 'vnext/rpg/maps/v1/body_base.json', dst: 'dist/vnext/vnext/rpg/maps/v1/body_base.json' },
   { src: 'vnext/rpg/maps/v1/sign_style.json', dst: 'dist/vnext/vnext/rpg/maps/v1/sign_style.json' },
   { src: 'vnext/rpg/maps/v1/house_arena.json', dst: 'dist/vnext/vnext/rpg/maps/v1/house_arena.json' },
+  { src: 'vnext/rpg/maps/v1/house_stat_affinity.json', dst: 'dist/vnext/vnext/rpg/maps/v1/house_stat_affinity.json' },
   { src: 'vnext/rpg/maps/v1/domain_resolver_natal.json', dst: 'dist/vnext/vnext/rpg/maps/v1/domain_resolver_natal.json' },
   { src: 'vnext/rpg/maps/v1/domain_resolver_transit.json', dst: 'dist/vnext/vnext/rpg/maps/v1/domain_resolver_transit.json' },
   { src: 'vnext/rpg/maps/v1/placement_overrides.json', dst: 'dist/vnext/vnext/rpg/maps/v1/placement_overrides.json' },
   { src: 'vnext/rpg/maps/v1/turn_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/turn_templates.json' },
   { src: 'vnext/rpg/maps/v1/scenario_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/scenario_templates.json' },
   { src: 'vnext/rpg/maps/v1/choice_templates.json', dst: 'dist/vnext/vnext/rpg/maps/v1/choice_templates.json' },
+  { src: 'vnext/rpg/maps/v1/chapter_labels.json', dst: 'dist/vnext/vnext/rpg/maps/v1/chapter_labels.json' },
+  { src: 'vnext/rpg/maps/v1/item_definitions.json', dst: 'dist/vnext/vnext/rpg/maps/v1/item_definitions.json' },
+  { src: 'vnext/rpg/maps/v1/loot_tables.json', dst: 'dist/vnext/vnext/rpg/maps/v1/loot_tables.json' },
 ];
 
 for (const { src, dst } of ASSETS) {

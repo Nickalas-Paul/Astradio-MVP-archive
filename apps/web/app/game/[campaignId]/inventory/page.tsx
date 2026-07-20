@@ -1,0 +1,18 @@
+'use client';
+
+import { use, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+/** Deep-link: open campaign dashboard with inventory intent via query. */
+export default function InventoryRoute({
+  params,
+}: {
+  params: Promise<{ campaignId: string }>;
+}) {
+  const { campaignId } = use(params);
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(`/game/${encodeURIComponent(campaignId)}?panel=inventory`);
+  }, [campaignId, router]);
+  return null;
+}

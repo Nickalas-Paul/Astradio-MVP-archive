@@ -1,0 +1,14 @@
+{
+  "1":  { "boosted_stat": "vitality",   "multiplier": 1.2 },
+  "2":  { "boosted_stat": "resilience", "multiplier": 1.1 },
+  "3":  { "boosted_stat": "cunning",    "multiplier": 1.2 },
+  "4":  { "boosted_stat": "resilience", "multiplier": 1.1 },
+  "5":  { "boosted_stat": "charm",      "multiplier": 1.2 },
+  "6":  { "boosted_stat": "resilience", "multiplier": 1.1 },
+  "7":  { "boosted_stat": "charm",      "multiplier": 1.2 },
+  "8":  { "boosted_stat": "willpower",  "multiplier": 1.2 },
+  "9":  { "boosted_stat": "intuition",  "multiplier": 1.1 },
+  "10": { "boosted_stat": "willpower",  "multiplier": 1.2 },
+  "11": { "boosted_stat": "cunning",    "multiplier": 1.1 },
+  "12": { "boosted_stat": "intuition",  "multiplier": 1.2 }
+}
