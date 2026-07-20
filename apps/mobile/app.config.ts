@@ -4,7 +4,7 @@ const config = {
   name: 'Astradio',
   slug: 'astradio',
   scheme: 'astradio',
-  version: '1.0.0',
+  version: '1.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
@@ -34,7 +34,7 @@ const config = {
   },
   android: {
     package: 'io.astradio.app',
-    versionCode: 4,
+    versionCode: 5,
     adaptiveIcon: {
       backgroundColor: '#111111',
       foregroundImage: './assets/android-icon-foreground.png',
