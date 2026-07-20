@@ -49,6 +49,15 @@ function formatOrb(orb: number): string {
   return `${Math.round(orb)}°`;
 }
 
+function planetPosition(source: HarmonicPlanetSource): { name: string; sign: string; degree: number } {
+  const { signIndex, degree } = lonToSignDegMin(source.lon);
+  return {
+    name: displayName(source.key, source.name),
+    sign: SIGN_NAMES[signIndex] ?? '',
+    degree: Math.round(degree),
+  };
+}
+
 export function HarmonicOverlay({
   sources,
   arcs,
@@ -77,11 +86,11 @@ export function HarmonicOverlay({
 
   const selectedMeta = selected
     ? (() => {
-        const { signIndex, degree } = lonToSignDegMin(selected.lon);
+        const position = planetPosition(selected);
         return {
-          name: displayName(selected.key, selected.name),
-          sign: SIGN_NAMES[signIndex] ?? '',
-          degree: Math.round(degree),
+          name: position.name,
+          sign: position.sign,
+          degree: position.degree,
           element: ELEMENT_LABEL[selected.element],
           voice: MUSICAL_VOICE[selected.key] ?? 'Harmonic Voice',
           color: selected.color,
@@ -96,10 +105,10 @@ export function HarmonicOverlay({
         )
       : [];
 
-  const aspectFromColor =
-    selectedAspect !== null ? sources[selectedAspect.fromIdx]?.color : undefined;
-  const aspectToColor =
-    selectedAspect !== null ? sources[selectedAspect.toIdx]?.color : undefined;
+  const aspectFrom = selectedAspect !== null ? sources[selectedAspect.fromIdx] : undefined;
+  const aspectTo = selectedAspect !== null ? sources[selectedAspect.toIdx] : undefined;
+  const aspectFromMeta = aspectFrom ? planetPosition(aspectFrom) : null;
+  const aspectToMeta = aspectTo ? planetPosition(aspectTo) : null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between overflow-hidden p-3 sm:p-5">
@@ -125,7 +134,7 @@ export function HarmonicOverlay({
       </div>
 
       <div className="flex flex-1 items-start justify-end pt-4 sm:pt-8">
-        {selectedAspect ? (
+        {selectedAspect && aspectFromMeta && aspectToMeta ? (
           <button
             type="button"
             onClick={() => onSelectAspect(selectedAspect.key)}
@@ -133,19 +142,36 @@ export function HarmonicOverlay({
           >
             <div className="flex items-center gap-2">
               <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: aspectFromColor }}
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: aspectFrom?.color }}
               />
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: aspectToColor }}
-              />
+              <p className="text-sm text-white/90">
+                <span style={{ color: aspectFrom?.color }}>{aspectFromMeta.name}</span>
+                {' in '}
+                {aspectFromMeta.sign}
+                {' · '}
+                {aspectFromMeta.degree}
+                {'°'}
+              </p>
             </div>
-            <p className="mt-2 text-base sm:text-lg font-medium text-white/95">
-              {selectedAspect.fromName} {capitalizeAspectType(selectedAspect.type)}{' '}
-              {selectedAspect.toName}
+            <p className="mt-2 text-sm font-medium text-[#e8c56d]">
+              {capitalizeAspectType(selectedAspect.type)}
             </p>
-            <p className="mt-1 text-sm text-white/55">
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: aspectTo?.color }}
+              />
+              <p className="text-sm text-white/90">
+                <span style={{ color: aspectTo?.color }}>{aspectToMeta.name}</span>
+                {' in '}
+                {aspectToMeta.sign}
+                {' · '}
+                {aspectToMeta.degree}
+                {'°'}
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-white/55">
               Orb: {formatOrb(selectedAspect.orb)}
             </p>
           </button>
@@ -174,8 +200,15 @@ export function HarmonicOverlay({
                 <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Aspects</p>
                 <ul className="mt-1.5 space-y-1">
                   {incidentArcs.map((arc) => {
-                    const otherName =
-                      arc.fromIdx === selectedIndex ? arc.toName : arc.fromName;
+                    const otherIdx =
+                      arc.fromIdx === selectedIndex ? arc.toIdx : arc.fromIdx;
+                    const other = sources[otherIdx];
+                    const otherMeta = other ? planetPosition(other) : null;
+                    const otherLabel = otherMeta
+                      ? `${otherMeta.name} in ${otherMeta.sign}`
+                      : arc.fromIdx === selectedIndex
+                        ? arc.toName
+                        : arc.fromName;
                     return (
                       <li key={arc.key}>
                         <button
@@ -184,7 +217,7 @@ export function HarmonicOverlay({
                           className="w-full rounded-md px-1 py-0.5 text-left text-sm text-white/55 transition-colors hover:bg-white/5 hover:text-white/80"
                         >
                           <span className="text-white/70">
-                            {capitalizeAspectType(arc.type)} {otherName}
+                            {capitalizeAspectType(arc.type)} {otherLabel}
                           </span>
                           <span className="font-light text-white/40">
                             {' · '}

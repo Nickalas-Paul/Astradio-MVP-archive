@@ -361,11 +361,6 @@ export function HarmonicLandscapeSkia({
     [beziers, clearSelection, selectAspect, selectPlanet, size, sources],
   );
 
-  const aspectFromColor =
-    selectedAspect !== null ? sources[selectedAspect.fromIdx]?.color : undefined;
-  const aspectToColor =
-    selectedAspect !== null ? sources[selectedAspect.toIdx]?.color : undefined;
-
   return (
     <View style={[styles.root, { width: size }]}>
       <View style={[styles.canvasWrap, { width: size, height: size }]}>
@@ -444,15 +439,44 @@ export function HarmonicLandscapeSkia({
           accessibilityRole="button"
           accessibilityLabel={`${selectedAspect.fromName} ${selectedAspect.type} ${selectedAspect.toName}`}
         >
-          <View style={styles.aspectSwatches}>
-            <View style={[styles.pillDot, { backgroundColor: aspectFromColor }]} />
-            <View style={[styles.pillDot, { backgroundColor: aspectToColor }]} />
-          </View>
-          <Text style={styles.infoTitle}>
-            {selectedAspect.fromName} {capitalizeAspectType(selectedAspect.type)}{' '}
-            {selectedAspect.toName}
+          {sources[selectedAspect.fromIdx] ? (
+            <View style={styles.aspectPlanetRow}>
+              <View
+                style={[
+                  styles.pillDot,
+                  { backgroundColor: sources[selectedAspect.fromIdx]!.color },
+                ]}
+              />
+              <Text style={styles.infoBody}>
+                <Text style={{ color: sources[selectedAspect.fromIdx]!.color }}>
+                  {sources[selectedAspect.fromIdx]!.label}
+                </Text>
+                {` in ${sources[selectedAspect.fromIdx]!.sign} · ${Math.round(sources[selectedAspect.fromIdx]!.degreeInSign)}°`}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={styles.aspectTypeLabel}>
+            {capitalizeAspectType(selectedAspect.type)}
           </Text>
-          <Text style={styles.infoBody}>Orb: {formatOrb(selectedAspect.orb)}</Text>
+          {sources[selectedAspect.toIdx] ? (
+            <View style={styles.aspectPlanetRow}>
+              <View
+                style={[
+                  styles.pillDot,
+                  { backgroundColor: sources[selectedAspect.toIdx]!.color },
+                ]}
+              />
+              <Text style={styles.infoBody}>
+                <Text style={{ color: sources[selectedAspect.toIdx]!.color }}>
+                  {sources[selectedAspect.toIdx]!.label}
+                </Text>
+                {` in ${sources[selectedAspect.toIdx]!.sign} · ${Math.round(sources[selectedAspect.toIdx]!.degreeInSign)}°`}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={[styles.infoMuted, { marginTop: 8 }]}>
+            Orb: {formatOrb(selectedAspect.orb)}
+          </Text>
         </Pressable>
       ) : selected ? (
         <View style={styles.infoCard}>
@@ -465,18 +489,24 @@ export function HarmonicLandscapeSkia({
             <View style={styles.aspectList}>
               <Text style={styles.aspectListLabel}>Aspects</Text>
               {incidentArcs.map((arc) => {
-                const otherName =
-                  arc.fromIdx === selectedIndex ? arc.toName : arc.fromName;
+                const otherIdx =
+                  arc.fromIdx === selectedIndex ? arc.toIdx : arc.fromIdx;
+                const other = sources[otherIdx];
+                const otherLabel = other
+                  ? `${other.label} in ${other.sign}`
+                  : arc.fromIdx === selectedIndex
+                    ? arc.toName
+                    : arc.fromName;
                 return (
                   <Pressable
                     key={arc.key}
                     onPress={() => selectAspect(arc.key)}
                     style={styles.aspectRow}
                     accessibilityRole="button"
-                    accessibilityLabel={`${capitalizeAspectType(arc.type)} ${otherName}`}
+                    accessibilityLabel={`${capitalizeAspectType(arc.type)} ${otherLabel}`}
                   >
                     <Text style={styles.aspectRowText}>
-                      {capitalizeAspectType(arc.type)} {otherName}
+                      {capitalizeAspectType(arc.type)} {otherLabel}
                       <Text style={styles.aspectOrb}> · {formatOrb(arc.orb)}</Text>
                     </Text>
                   </Pressable>
@@ -564,10 +594,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope-Regular',
   },
-  aspectSwatches: {
+  aspectPlanetRow: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  aspectTypeLabel: {
+    marginTop: 8,
     marginBottom: 6,
+    color: '#e8c56d',
+    fontSize: 14,
+    fontFamily: 'Manrope-SemiBold',
   },
   aspectList: {
     marginTop: 10,
