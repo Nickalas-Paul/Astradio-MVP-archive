@@ -1,24 +1,35 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { NatalWheel } from '../chart/NatalWheel';
 import { ExpandableWheelFrame } from '../chart/ExpandableWheelFrame';
+import { HarmonicLandscapeSkia } from '../chart/HarmonicLandscapeSkia';
 import { layout } from '../../constants/layout';
 import { mapSnapshotToWheel } from '../../lib/my-sky-mappers';
 import type { EphemerisSnapshot } from '../../types/my-sky';
 
 type TodaySkyWheelProps = {
   snapshot: EphemerisSnapshot | null;
+  linkedExportId?: string | null;
 };
 
-export function TodaySkyWheel({ snapshot }: TodaySkyWheelProps) {
+export function TodaySkyWheel({ snapshot, linkedExportId = null }: TodaySkyWheelProps) {
   const { width } = useWindowDimensions();
   const wheel = snapshot ? mapSnapshotToWheel(snapshot) : null;
-  if (!wheel) return null;
+  if (!wheel || !snapshot) return null;
 
   const wheelSize = width - layout.screenPadding * 2;
 
   return (
     <View style={styles.container}>
-      <ExpandableWheelFrame wheelSize={wheelSize}>
+      <ExpandableWheelFrame
+        wheelSize={wheelSize}
+        auraContent={(size) => (
+          <HarmonicLandscapeSkia
+            size={size}
+            snapshot={snapshot}
+            linkedExportId={linkedExportId}
+          />
+        )}
+      >
         {(size) => (
           <NatalWheel
             size={size}

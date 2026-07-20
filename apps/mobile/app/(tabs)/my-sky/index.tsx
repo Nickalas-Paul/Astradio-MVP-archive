@@ -16,6 +16,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NatalWheel } from '../../../src/components/chart/NatalWheel';
 import { ExpandableWheelFrame } from '../../../src/components/chart/ExpandableWheelFrame';
+import { HarmonicLandscapeSkia } from '../../../src/components/chart/HarmonicLandscapeSkia';
 import { IdentityReading } from '../../../src/components/my-sky/IdentityReading';
 import { IdentityAudioCard } from '../../../src/components/my-sky/IdentityAudioCard';
 import { GenerateIdentityAudioButton } from '../../../src/components/my-sky/GenerateIdentityAudioButton';
@@ -223,7 +224,20 @@ export default function MySkyScreen() {
             {activeTab === 'identity' ? (
               <>
                 {data.wheel ? (
-                  <ExpandableWheelFrame wheelSize={wheelSize}>
+                  <ExpandableWheelFrame
+                    wheelSize={wheelSize}
+                    auraContent={
+                      data.rawSnapshot
+                        ? (size) => (
+                            <HarmonicLandscapeSkia
+                              size={size}
+                              snapshot={data.rawSnapshot!}
+                              linkedExportId={data.identityExportId}
+                            />
+                          )
+                        : undefined
+                    }
+                  >
                     {(size) => (
                       <NatalWheel
                         size={size}

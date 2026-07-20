@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { resolveExportUrl } from '../lib/audio/export-audio-cache';
+import {
+  createMediaElementAnalyser,
+  resumeAudioContext,
+  type MediaElementAnalyserBundle,
+} from '../lib/audio/media-element-analyser';
 import { useAudioPlayerStore, type AudioSource } from '../store/audio-player';
 
 function sourceLabel(source: AudioSource): string {
@@ -31,13 +36,25 @@ export function GlobalAudioPlayer() {
   const seek = useAudioPlayerStore((s) => s.seek);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const analyserBundleRef = useRef<MediaElementAnalyserBundle | null>(null);
   const loadingExportIdRef = useRef<string | null>(null);
   const lastStatusTimeRef = useRef(0);
   const seekInProgressRef = useRef(false);
 
+  const ensureAnalyser = (audio: HTMLAudioElement) => {
+    if (analyserBundleRef.current) return analyserBundleRef.current;
+    const bundle = createMediaElementAnalyser(audio);
+    if (!bundle) return null;
+    analyserBundleRef.current = bundle;
+    useAudioPlayerStore.getState()._setAudioContext(bundle.context);
+    useAudioPlayerStore.getState()._setAnalyserNode(bundle.analyser);
+    return bundle;
+  };
+
   useEffect(() => {
     const audio = new Audio();
     audio.preload = 'metadata';
+    audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
@@ -88,6 +105,19 @@ export function GlobalAudioPlayer() {
       audio.removeEventListener('play', onPlay);
       audio.src = '';
       audioRef.current = null;
+      const bundle = analyserBundleRef.current;
+      analyserBundleRef.current = null;
+      useAudioPlayerStore.getState()._setAnalyserNode(null);
+      useAudioPlayerStore.getState()._setAudioContext(null);
+      if (bundle) {
+        try {
+          bundle.source.disconnect();
+          bundle.analyser.disconnect();
+          void bundle.context.close();
+        } catch {
+          // ignore teardown errors
+        }
+      }
     };
   }, []);
 
@@ -125,6 +155,10 @@ export function GlobalAudioPlayer() {
         if (cancelled || loadingExportIdRef.current !== exportId) return;
 
         audio.volume = Math.max(0, Math.min(1, useAudioPlayerStore.getState().volume));
+        // Wire analyser once before first play (MediaElementSource may only be created once).
+        const bundle = ensureAnalyser(audio);
+        if (bundle) await resumeAudioContext(bundle.context);
+
         audio.src = url;
         audio.load();
 
@@ -154,6 +188,8 @@ export function GlobalAudioPlayer() {
     void (async () => {
       try {
         if (isPlaying) {
+          const bundle = ensureAnalyser(audio);
+          if (bundle) await resumeAudioContext(bundle.context);
           if (audio.paused) {
             await audio.play();
           }
@@ -220,7 +256,10 @@ export function GlobalAudioPlayer() {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             type="button"
-            onClick={() => togglePlayPause()}
+            onClick={() => {
+              void useAudioPlayerStore.getState().resumeAnalyserContext();
+              togglePlayPause();
+            }}
             disabled={isLoading}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition-colors hover:bg-accent-hover disabled:opacity-60"
             aria-label={isPlaying ? 'Pause' : 'Play'}

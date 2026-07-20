@@ -1,7 +1,7 @@
 'use client';
 
 // Wheel always renders classic 2D SVG via WheelSvgCore.
-// Aura is a modal overlay (OrbitalChart), opened via WheelModeToggle — not an inline mode.
+// Aura opens AuraModal with HarmonicLandscape.
 // Sandbox (WheelBuilder) bypasses this — always uses WheelSvgCore directly
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,11 +15,11 @@ import { BODY_LABELS, type BodyKey } from '../../../../../vnext/canonical-bodies
 import { extractAspects } from './wheel-aspects';
 import { resolveAscendantLongitude } from './wheel-geometry';
 import { useWheelDisplayMode } from '../../hooks/useWheelDisplayMode';
-import { useWheelRenderMode } from '../../hooks/useWheelRenderMode';
 import { AuraModal } from './AuraModal';
 import type { AuraRawSnapshot } from './aura-raw-snapshot';
 import { WheelModeToggle } from './WheelModeToggle';
 import { WheelSvgCore } from './WheelSvgCore';
+import { useAudioPlayerStore } from '../../store/audio-player';
 
 function planetDisplayName(bodyKey: string): string {
   const canonical = normalizePlanetName(bodyKey);
@@ -54,10 +54,12 @@ export interface WheelDisplayProps {
   planetHighlight?: string | string[] | Set<string> | null;
   /** Shown when chartData is absent (e.g. privacy-restricted preview). */
   emptyMessage?: string;
-  /** Musical compose parameters for Aura / OrbitalChart (Today sky summary). */
+  /** Musical compose parameters for Aura / Harmonic Landscape (Today sky summary). */
   composeControls?: ComposeVisualControls | null;
   /** Raw ephemeris snapshot for Aura modal visualization. */
   rawSnapshot?: AuraRawSnapshot;
+  /** Export generated from this chart; gates Harmonic Landscape FFT reactivity. */
+  linkedExportId?: string | null;
 }
 
 export function WheelDisplay({
@@ -70,9 +72,9 @@ export function WheelDisplay({
   emptyMessage,
   composeControls = null,
   rawSnapshot,
+  linkedExportId = null,
 }: WheelDisplayProps) {
   const { mode: displayMode } = useWheelDisplayMode();
-  const { setMode: setRenderMode } = useWheelRenderMode();
   const { highlightedPlanets, setHighlight, clearHighlight } = usePlacementHighlight();
   const containerRef = useRef<HTMLDivElement>(null);
   const [wheelSize, setWheelSize] = useState(400);
@@ -82,6 +84,7 @@ export function WheelDisplay({
   const [auraModalOpen, setAuraModalOpen] = useState(false);
 
   const openAuraModal = useCallback(() => {
+    void useAudioPlayerStore.getState().resumeAnalyserContext();
     setAuraModalOpen(true);
   }, []);
 
@@ -100,9 +103,9 @@ export function WheelDisplay({
   }, [highlightedPlanets, normalized]);
 
   const handleAuraWebGLError = useCallback(() => {
-    setAuraModalOpen(false);
-    setRenderMode('classic');
-  }, [setRenderMode]);
+    // Keep the Aura modal open — AuraModal shows an in-modal fallback.
+    // Do not crash the page or force-switch the Chart/Aura toggle styling.
+  }, []);
 
   const handlePlanetHover = useCallback(
     (planet: string | null) => {
@@ -244,6 +247,7 @@ export function WheelDisplay({
         onClose={() => setAuraModalOpen(false)}
         rawSnapshot={rawSnapshot}
         composeControls={composeControls}
+        linkedExportId={linkedExportId}
         onWebGLError={handleAuraWebGLError}
       />
     </div>

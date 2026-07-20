@@ -28,12 +28,14 @@ export type SnapshotPlanet = {
 };
 
 export type SnapshotAspect = {
+  bodies?: [string, string] | string[];
   bodyA?: string;
   bodyB?: string;
   a?: string;
   b?: string;
   type: string;
   orb?: number;
+  strength?: number;
 };
 
 export type EphemerisSnapshot = {
@@ -104,6 +106,7 @@ export type MySkyScreenData = {
   user: ProfileUser;
   primaryChart: ProfilePrimaryChart | null;
   bigThree: string | null;
+  rawSnapshot: EphemerisSnapshot | null;
   wheel: {
     placements: WheelPlacement[];
     houses: WheelHouse[];

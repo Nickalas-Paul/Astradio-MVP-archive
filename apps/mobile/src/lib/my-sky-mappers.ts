@@ -321,6 +321,7 @@ export function buildMySkyScreenData(input: {
     user,
     primaryChart: input.profile.primaryChart,
     bigThree: buildBigThreeSummary(snapshot),
+    rawSnapshot: snapshot ?? null,
     wheel: mapSnapshotToWheel(snapshot),
     identitySections: mapIdentitySections(input.chart),
     identityExportId: resolveIdentityExportId(input.chart),

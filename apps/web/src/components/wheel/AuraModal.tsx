@@ -1,14 +1,15 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ComposeVisualControls } from '../../core/compose-visual-controls';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useAudioPlayerStore } from '../../store/audio-player';
 import type { AuraRawSnapshot } from './aura-raw-snapshot';
 
-const OrbitalChart = dynamic(
-  () => import('./OrbitalChart').then((m) => ({ default: m.OrbitalChart })),
+const HarmonicLandscape = dynamic(
+  () => import('./HarmonicLandscape').then((m) => ({ default: m.HarmonicLandscape })),
   { ssr: false, loading: () => null },
 );
 
@@ -17,6 +18,7 @@ export interface AuraModalProps {
   onClose: () => void;
   rawSnapshot?: AuraRawSnapshot;
   composeControls?: ComposeVisualControls | null;
+  linkedExportId?: string | null;
   onWebGLError?: () => void;
 }
 
@@ -41,16 +43,43 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
+function WebGLFallback({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[#0d0618] px-6 text-center">
+      <p className="max-w-sm text-sm text-white/70">
+        Your browser doesn&apos;t support 3D visualization
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+      >
+        Close
+      </button>
+    </div>
+  );
+}
+
 function SceneContent({
   rawSnapshot,
   composeControls,
+  linkedExportId,
   isOpen,
+  clearSelectionSignal,
+  onSelectionChange,
   onWebGLError,
+  webglFailed,
+  onClose,
 }: {
   rawSnapshot?: AuraRawSnapshot;
   composeControls?: ComposeVisualControls | null;
+  linkedExportId?: string | null;
   isOpen: boolean;
+  clearSelectionSignal: number;
+  onSelectionChange: (hasSelection: boolean) => void;
   onWebGLError?: () => void;
+  webglFailed: boolean;
+  onClose: () => void;
 }) {
   if (!rawSnapshot) {
     return (
@@ -60,11 +89,18 @@ function SceneContent({
     );
   }
 
+  if (webglFailed) {
+    return <WebGLFallback onClose={onClose} />;
+  }
+
   return (
-    <OrbitalChart
+    <HarmonicLandscape
       snapshot={rawSnapshot}
       composeControls={composeControls}
+      linkedExportId={linkedExportId}
       active={isOpen}
+      clearSelectionSignal={clearSelectionSignal}
+      onSelectionChange={onSelectionChange}
       onWebGLError={onWebGLError}
     />
   );
@@ -83,9 +119,25 @@ export function AuraModal({
   onClose,
   rawSnapshot,
   composeControls = null,
+  linkedExportId = null,
   onWebGLError,
 }: AuraModalProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const [hasPlanetSelection, setHasPlanetSelection] = useState(false);
+  const [clearSelectionSignal, setClearSelectionSignal] = useState(0);
+  const [webglFailed, setWebglFailed] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setHasPlanetSelection(false);
+      setWebglFailed(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void useAudioPlayerStore.getState().resumeAnalyserContext();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -99,11 +151,35 @@ export function AuraModal({
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (hasPlanetSelection) {
+        event.preventDefault();
+        setClearSelectionSignal((value) => value + 1);
+        setHasPlanetSelection(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  }, [hasPlanetSelection, isOpen, onClose]);
+
+  const handleWebGLError = () => {
+    setWebglFailed(true);
+    onWebGLError?.();
+  };
+
+  const sceneProps = {
+    rawSnapshot,
+    composeControls,
+    linkedExportId,
+    isOpen,
+    clearSelectionSignal,
+    onSelectionChange: setHasPlanetSelection,
+    onWebGLError: handleWebGLError,
+    webglFailed,
+    onClose,
+  };
 
   return (
     <AnimatePresence>
@@ -128,7 +204,7 @@ export function AuraModal({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Aura visualization"
-                className="relative flex w-full max-w-2xl aspect-square flex-col overflow-hidden rounded-2xl bg-surface border border-border shadow-xl"
+                className="relative flex h-[min(80vh,40rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d0618] shadow-xl"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
@@ -136,13 +212,8 @@ export function AuraModal({
                 onClick={(e) => e.stopPropagation()}
               >
                 <CloseButton onClose={onClose} />
-                <div className="relative flex-1 min-h-0">
-                  <SceneContent
-                    rawSnapshot={rawSnapshot}
-                    composeControls={composeControls}
-                    isOpen={isOpen}
-                    onWebGLError={onWebGLError}
-                  />
+                <div className="relative min-h-0 flex-1 overflow-hidden p-0">
+                  <SceneContent {...sceneProps} />
                 </div>
               </motion.div>
             ) : (
@@ -151,7 +222,7 @@ export function AuraModal({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Aura visualization"
-                className="relative flex h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-surface border border-border border-b-0 shadow-xl"
+                className="relative flex h-[60vh] w-full flex-col overflow-hidden rounded-t-2xl border border-white/10 border-b-0 bg-[#0d0618] shadow-xl"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
@@ -160,13 +231,8 @@ export function AuraModal({
               >
                 <DragHandle />
                 <CloseButton onClose={onClose} />
-                <div className="relative flex-1 min-h-0">
-                  <SceneContent
-                    rawSnapshot={rawSnapshot}
-                    composeControls={composeControls}
-                    isOpen={isOpen}
-                    onWebGLError={onWebGLError}
-                  />
+                <div className="relative min-h-0 flex-1 overflow-hidden p-0">
+                  <SceneContent {...sceneProps} />
                 </div>
               </motion.div>
             )}

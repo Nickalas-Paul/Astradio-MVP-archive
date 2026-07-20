@@ -352,6 +352,7 @@ export function TodaySkySummary({ primaryChart }: TodaySkySummaryProps) {
             maxSize={480}
             composeControls={composeControls}
             rawSnapshot={rawSnapshot ?? undefined}
+            linkedExportId={skyExportId}
             showAspectLines
           />
         </div>

@@ -313,7 +313,7 @@ export default function TodayScreen() {
               <>
                 <SectionDivider />
                 <SectionHeading title="Right Now in the Sky" />
-                <TodaySkyWheel snapshot={data.skySnapshot} />
+                <TodaySkyWheel snapshot={data.skySnapshot} linkedExportId={skyExportId} />
                 {data.skySummary ? (
                   <View style={styles.card}>
                     <MarkdownText tone="primary">{data.skySummary}</MarkdownText>

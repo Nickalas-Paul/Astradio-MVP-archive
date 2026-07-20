@@ -9,6 +9,8 @@ export type AuraRawSnapshot = {
     exactness?: number;
     dynamics?: string;
   }>;
+  /** 12 house cusps in degrees (unused in Harmonic v1; threaded for later). */
+  houses?: number[];
   dominantElements: { fire: number; earth: number; air: number; water: number };
   moonPhase: number;
 };
@@ -106,9 +108,19 @@ export function extractAuraRawSnapshot(payload: unknown): AuraRawSnapshot | null
   const moonPhase = obj.moonPhase;
   if (typeof moonPhase !== 'number' || !Number.isFinite(moonPhase)) return null;
 
+  let houses: number[] | undefined;
+  const rawHouses = obj.houses ?? obj.houseCusps ?? obj.cusps;
+  if (Array.isArray(rawHouses) && rawHouses.length >= 12) {
+    const parsed = rawHouses.slice(0, 12).map((value) => Number(value));
+    if (parsed.every((value) => Number.isFinite(value))) {
+      houses = parsed;
+    }
+  }
+
   return {
     planets,
     aspects,
+    ...(houses ? { houses } : {}),
     dominantElements: { fire, earth, air, water },
     moonPhase,
   };
