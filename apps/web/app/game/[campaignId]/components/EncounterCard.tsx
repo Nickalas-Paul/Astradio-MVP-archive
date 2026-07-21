@@ -8,12 +8,15 @@ export interface EncounterCardProps {
   saturnHouse?: number;
 }
 
-const ASPECT_GLYPH: Record<string, string> = {
-  conjunction: '☌',
-  opposition: '☍',
-  square: '□',
-  trine: '△',
-  sextile: '✶',
+/** Longer themes are engine prose, not structured data; never parse or display them. */
+const MAX_PARSEABLE_THEME_LENGTH = 80;
+
+const ASPECT_WORD: Record<string, string> = {
+  conjunction: 'conjunct',
+  opposition: 'opposite',
+  square: 'square',
+  trine: 'trine',
+  sextile: 'sextile',
 };
 
 function titleCase(s: string): string {
@@ -30,43 +33,49 @@ function ordinal(n: number): string {
 }
 
 /**
- * Best-effort parse of engine theme strings like
+ * Parse ONLY short structured themes like
  * "mars to mercury (conjunction) in belonging, contribution, and social position"
- * into an aspect summary line and domain tag chips.
+ * into a transit summary line and domain tag chips. Long narrative themes
+ * (engine prose) return nothing and stay hidden from the player.
  */
 export function parseThemeTags(theme: string): { aspect: string | null; tags: string[] } {
-  const match = /^\s*(\w+)\s+to\s+(\w+)\s*\(([^)]+)\)\s*(?:in\s+(.+))?$/i.exec(theme || '');
+  const raw = (theme || '').trim();
+  if (!raw || raw.length > MAX_PARSEABLE_THEME_LENGTH) {
+    return { aspect: null, tags: [] };
+  }
+  const match = /^\s*(\w+)\s+to\s+(\w+)\s*\(([^)]+)\)\s*(?:in\s+(.+))?$/i.exec(raw);
   if (!match) {
-    return { aspect: null, tags: theme ? [titleCase(theme)] : [] };
+    return { aspect: null, tags: [] };
   }
   const [, bodyA, bodyB, aspectType, domains] = match;
-  const glyph = ASPECT_GLYPH[aspectType.trim().toLowerCase()] ?? aspectType.trim();
+  const aspectWord = ASPECT_WORD[aspectType.trim().toLowerCase()];
+  if (!aspectWord) {
+    return { aspect: null, tags: [] };
+  }
   const tags = (domains || '')
     .split(/,|\band\b/i)
     .map((d) => titleCase(d.trim()))
     .filter(Boolean);
-  return { aspect: `${titleCase(bodyA)} ${glyph} ${titleCase(bodyB)}`, tags };
+  return { aspect: `${titleCase(bodyA)} ${aspectWord} natal ${titleCase(bodyB)}`, tags };
 }
 
 /**
- * Narration-first encounter presentation: DM intro in serif, transit data
- * demoted to tags and a single aspect line. No raw Setting/Obstacle dumps.
+ * Narration-first encounter presentation. Hero text is the DM intro only;
+ * engine-internal prose (obstacle templates, theme leads) is never shown.
  */
 export function EncounterCard({
   theme,
-  obstacle,
   dc,
   introNarration,
   saturnHouse,
 }: EncounterCardProps) {
   const { aspect, tags } = parseThemeTags(theme);
-  const narration = introNarration || obstacle;
+  const narration =
+    (introNarration || '').trim() || 'A new challenge awaits. Choose your approach.';
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8 text-center">
-      {narration ? (
-        <p className="font-serif text-[22px] leading-relaxed text-text-primary">{narration}</p>
-      ) : null}
+      <p className="font-serif text-[22px] leading-relaxed text-text-primary">{narration}</p>
 
       {tags.length > 0 ? (
         <div className="flex flex-wrap justify-center gap-2">
