@@ -4,14 +4,7 @@
  */
 import type { CampaignExpressionDigest } from '../projection/projection-types';
 import type { ArchetypeId, ChallengeScene, ChoiceOption, ResponsePosture, TransitPressure } from '../rpg/types';
-import {
-  domainLabel,
-  intensityUrgency,
-  polarityImplication,
-  polarityTone,
-  polarityTradeoff,
-  stableVariant,
-} from '../rpg/projection-language';
+import { stableVariant } from '../rpg/projection-language';
 
 export type CampaignSurfaceSlugs = {
   readonly class_slug: string;
@@ -94,11 +87,6 @@ function realizedLabel(posture: ResponsePosture, classSlug: string, seed: string
   return stableVariant(`${seed}|lbl|${posture}|${classSlug}`, [...variants]);
 }
 
-function primaryContactPhrase(digest: CampaignExpressionDigest): string {
-  const p = digest.pressure;
-  return `${p.primary_transit_body} to ${p.primary_natal_body} (${p.primary_aspect_type})`;
-}
-
 /** Short execution bias from identity mirrors — no sign names, no cadence footer. */
 function identityExecutionHint(digest: CampaignExpressionDigest, seed: string): string {
   const key = `${seed}|id_hint|${digest.identity.class_slug}|${digest.identity.rising_modifier_slug}`;
@@ -121,46 +109,39 @@ function realizedGesture(
   seed: string,
   digest: CampaignExpressionDigest,
 ): string {
-  const p = digest.pressure;
-  const lab = domainLabel(domain);
-  const contact = primaryContactPhrase(digest);
-  const pol = p.primary_pressure_polarity;
-  const inten = coerceIntensityBand(p.primary_intensity_band);
-  const polT = polarityTone(pol);
-  const urg = intensityUrgency(inten);
   const idHint = identityExecutionHint(digest, `${seed}|idh`);
   const variants: Record<ResponsePosture, string[]> = {
     observe: [
-      `With ${contact} pressing ${lab}, wait until the real tradeoff shows under ${polT} light while the moment stays ${urg}. ${idHint}`,
-      `${contact} in ${lab} is still ${urg}; let ${polT} show its shape before you answer. ${idHint}`,
+      `Hold still and let the situation show its real shape before you answer. ${idHint}`,
+      `Read the room before you commit; what this is really about has not fully surfaced. ${idHint}`,
     ],
     assert: [
-      `Under ${contact} in ${lab}, speak one clean line so nothing stays implied while the situation reads ${urg}. ${idHint}`,
-      `Name what is true where ${contact} crosses ${lab}; ${polT} light still sets the tempo at ${urg}. ${idHint}`,
+      `Speak one clean line so nothing stays implied. ${idHint}`,
+      `Name what is actually true before it names you. ${idHint}`,
     ],
     engage: [
-      `Take one bounded advance that answers ${contact} in ${lab} without pretending ${polT} heat has cooled from ${urg}. ${idHint}`,
-      `Move on ${contact} in ${lab} with a deliberate step sized for ${polT} conditions still running ${urg}. ${idHint}`,
+      `Take one bounded advance you can finish today; the heat has not cooled and you move anyway. ${idHint}`,
+      `Meet the pressure with a deliberate, concrete step sized for the moment. ${idHint}`,
     ],
     withdraw: [
-      `Ease off the hottest edge of ${contact} in ${lab} on purpose until timing returns; ${polT} does not vanish, you choose distance at ${urg}. ${idHint}`,
-      `Step back from ${contact} in ${lab} so ${polT} can settle without you vanishing; the moment stays ${urg}. ${idHint}`,
+      `Ease off the hottest edge on purpose until timing returns. ${idHint}`,
+      `Step back and let things settle; you are choosing distance, not vanishing. ${idHint}`,
     ],
     support: [
-      `Bring ${contact} in ${lab} to someone you trust so the swing is not solo under ${urg}. ${idHint}`,
-      `Let a second mind see ${contact} in ${lab}; ${polT} reads softer when witness joins at ${urg}. ${idHint}`,
+      `Bring someone you trust into it so the swing is not solo. ${idHint}`,
+      `Let a second mind see the same facts; witness softens the weight. ${idHint}`,
     ],
     offer: [
-      `Answer ${contact} in ${lab} with something tangible that matches ${polT} heat without empty theater at ${urg}. ${idHint}`,
-      `Put a real gesture on the table for ${lab} where ${contact} is live; ${polT} needs weight, not abstraction. ${idHint}`,
+      `Answer with something tangible, not a speech; the moment needs weight, not theater. ${idHint}`,
+      `Put a real gesture on the table, small and concrete over grand and empty. ${idHint}`,
     ],
     reframe: [
-      `Shift the story you tell about ${contact} in ${lab} so ${polT} can meet ${urg} with more room to breathe. ${idHint}`,
-      `Rename the frame around ${contact} in ${lab}; interpretation moves first while intensity stays ${urg}. ${idHint}`,
+      `Rename the tension before it names you; a new story opens moves the first read kept hidden. ${idHint}`,
+      `Shift the frame first; interpretation moves before the outward step does. ${idHint}`,
     ],
     contain: [
-      `Tighten what you will carry where ${contact} hits ${lab} so ${polT} stays inside a survivable edge at ${urg}. ${idHint}`,
-      `Bound ${contact} in ${lab} with a clear limit; ${polT} respects smaller perimeters at ${urg}. ${idHint}`,
+      `Tighten what you will carry so the strain stays inside a survivable edge. ${idHint}`,
+      `Draw a clear limit; smaller perimeters are easier to defend. ${idHint}`,
     ],
   };
   const sub = risingSlug.replace(/^rising_/, '').slice(0, 12);
@@ -168,23 +149,32 @@ function realizedGesture(
   return stableVariant(`${seed}|gst|${posture}|${classSlug}|${sub}`, pool);
 }
 
+/** One-word display risk. Mechanical risk derivation lives elsewhere; this is presentation only. */
 function realizedRisk(
   posture: ResponsePosture,
   domain: string,
   seed: string,
   digest: CampaignExpressionDigest,
 ): string {
-  const pol = digest.pressure.primary_pressure_polarity;
   const inten = coerceIntensityBand(digest.pressure.primary_intensity_band);
-  const impl = polarityImplication(pol);
-  const trade = polarityTradeoff(pol);
-  const urg = intensityUrgency(inten);
-  const lab = domainLabel(domain);
-  const contact = primaryContactPhrase(digest);
-  return stableVariant(`${seed}|risk|${posture}`, [
-    `This stance favors ${impl} under ${contact} in ${lab} while the moment stays ${urg}; ${trade} still sets the guardrail.`,
-    `You buy ${impl} here with ${contact} in ${lab} at ${urg}; the cost is that ${trade} remains in play.`,
-  ]);
+  const hot = inten === 'high' || inten === 'critical';
+  switch (posture) {
+    case 'observe':
+    case 'support':
+      return 'Low';
+    case 'withdraw':
+      return hot ? 'Moderate' : 'Low';
+    case 'offer':
+    case 'reframe':
+    case 'contain':
+      return 'Moderate';
+    case 'assert':
+      return hot ? 'High' : 'Moderate';
+    case 'engage':
+      return 'High';
+    default:
+      return 'Moderate';
+  }
 }
 
 function realizeThemeLead(

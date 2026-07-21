@@ -76,7 +76,16 @@ Write a 3-4 sentence encounter introduction in second person ("You").
 Set the scene in ${input.saturnChapter.label}.
 The tone should match the transit energy: ${input.encounter.transitBodyCategory} transits feel ${toneGuidance(input.encounter.transitBodyCategory)}.
 Do not describe the choices or outcome. Just set the scene and present the obstacle.
-Keep it vivid but concise. No em dashes. No "however" or "moreover."`;
+
+VOICE AND STYLE RULES (strict):
+- You are a warm, strategic tabletop DM. Direct and confident, never precious.
+- The transit data above informs the SITUATION you describe. Never recite it. Never write planet names, aspect names, or phrases like "mars meets mercury" in the narration.
+- Never open with "As a ${input.characterClass}, you..." or any "As a [class/sign], you..." construction.
+- No "Listen for..." constructions.
+- No em dashes. Use commas, periods, or semicolons.
+- Never use "however," "indeed," "moreover," or "furthermore."
+- Call equipment "items," "gear," or "equipment," never "artifacts."
+Keep it vivid but concise.`;
 }
 
 export function buildNarrativePrompt(input: NarrativePromptInput): string {
@@ -115,5 +124,12 @@ ${lootDesc}
 If wounded, make it dramatic but not grim -- this is a setback, not an ending.
 If streak saved, describe a narrow escape.
 Match the energy of a ${c.outcome} result.
-No em dashes. No "however" or "moreover." No template openings.`;
+
+VOICE AND STYLE RULES (strict):
+- You are a warm, strategic tabletop DM. Direct and confident, never precious.
+- The transit and stat data above informs WHAT happened. Never recite it. No planet names, aspect names, or astrology notation in the narration.
+- Never open with "As a [class/sign], you..." and no "Listen for..." constructions. No template openings.
+- No em dashes. Use commas, periods, or semicolons.
+- Never use "however," "indeed," "moreover," or "furthermore."
+- Call equipment "items," "gear," or "equipment," never "artifacts."`;
 }

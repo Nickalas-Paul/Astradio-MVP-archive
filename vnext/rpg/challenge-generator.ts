@@ -24,10 +24,8 @@ import {
   domainLabel,
   dominantToneKey,
   houseLanguage,
-  intensityQualifier,
   intensityUrgency,
   modifierLanguage,
-  outcomeSentence,
   polarityImplication,
   polarityTone,
   polarityTradeoff,
@@ -454,10 +452,6 @@ function postureGesture(
   challengeContext: ChallengeContext | undefined,
   state: CampaignState,
 ): string {
-  const domKey = challengeContext?.primaryDomain ?? pressure.domain;
-  const lab = domainLabel(domKey);
-  const ctx = domainContext(domKey);
-  const contact = `${pressure.transitBody} to ${pressure.natalBody} (${pressure.aspectType})`;
   const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
   const toneKey = dominantToneKey(state);
@@ -466,64 +460,64 @@ function postureGesture(
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `With ${contact} pressing ${lab}, slow down long enough to see what ${ctx} is actually doing before you answer, while the moment stays ${intensityUrgency(intensityBand)}.`,
-          `${contact} in ${lab} is loud; let ${ctx} declare itself before you lock a move, especially with ${intensityUrgency(intensityBand)} heat still running.`,
+          'Hold still and read the room before you answer. What this moment is really asking has not fully shown itself yet.',
+          'Let the situation declare itself before you commit. Watching closely is its own kind of move.',
         ],
       );
     case 'assert':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `Under ${contact} in ${lab}, say one clean sentence about ${ctx} so the situation cannot stay implied.`,
-          `Name what is true where ${contact} meets ${lab}, so ${ctx} is spoken plainly under ${polarityTone(polarity)} light.`,
+          'Say the true thing plainly, in one clean sentence. Nothing gets to stay implied after that.',
+          'Name what is actually happening before it names you. Clarity lands harder than volume.',
         ],
       );
     case 'engage':
       return stableVariant(
         `${pressure.id}:${posture}:${intensityBand}`,
         [
-          `Take one bounded step that answers ${contact} in ${lab} without pretending ${ctx} has cooled past ${intensityUrgency(intensityBand)}.`,
-          `Move ${ctx} forward against ${contact} in ${lab} with a deliberate action you can finish today.`,
+          'Take one deliberate step forward, sized so you can finish it today. Momentum beats hesitation here.',
+          'Meet the pressure head-on with a bounded, concrete move. Do not pretend the heat has cooled.',
         ],
       );
     case 'withdraw':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `Ease exposure where ${contact} hits ${lab} so ${ctx} can cool, then return on purpose rather than drifting.`,
-          `Step off the hottest part of ${contact} in ${lab} until timing returns; ${ctx} can wait without you vanishing.`,
+          'Step back from the hottest edge on purpose. Distance now buys better timing later.',
+          'Ease your exposure and let the moment cool. You are choosing distance, not vanishing.',
         ],
       );
     case 'support':
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `Bring ${contact} in ${lab} to someone you trust so ${ctx} is not carried alone.`,
-          `Ask for witness on ${ctx} while ${contact} works ${lab}; a second mind steadies the swing.`,
+          'Bring a trusted voice into it so you are not carrying this alone. A second mind steadies the swing.',
+          'Ask someone you trust to look at the same facts. Witness makes the weight easier to hold.',
         ],
       );
     case 'offer':
       return stableVariant(
         `${pressure.id}:${posture}:${polarity}`,
         [
-          `Answer ${contact} in ${lab} with a tangible gesture toward ${ctx}, not a speech.`,
-          `Put something real on the table for ${ctx} where ${contact} crosses ${lab}.`,
+          'Answer with something real on the table, not a speech. A tangible gesture carries more weight than any explanation.',
+          'Make a concrete offering that costs you something. Small and real beats grand and empty.',
         ],
       );
     case 'reframe':
       return stableVariant(
         `${pressure.id}:${posture}:${intensityBand}`,
         [
-          `Shift the story you tell about ${ctx} under ${contact} in ${lab} so your next move is not locked to the loudest first read.`,
-          `Rename what ${contact} means for ${lab} so ${ctx} can move without the old verdict steering everything.`,
+          'Rename the tension before it names you. A different story opens moves the first read kept hidden.',
+          'Shift the frame and the ground shifts with it. You are not stuck with the loudest interpretation.',
         ],
       );
     case 'contain':
       return stableVariant(
         `${pressure.id}:${posture}:${toneKey}`,
         [
-          `Cap what you will carry for ${ctx} while ${contact} runs ${lab}; keep the perimeter survivable.`,
-          `Draw a smaller circle around ${ctx} where ${contact} meets ${lab} so the strain cannot flood every room.`,
+          'Draw a clear line around what you will carry. A smaller perimeter is easier to defend.',
+          'Cap the strain before it floods every room. A firm boundary protects both sides.',
         ],
       );
   }
@@ -550,32 +544,31 @@ function postureModality(posture: ResponsePosture): ResponseModality {
   }
 }
 
+/**
+ * Player-facing risk level. Display text only; mechanical risk still comes
+ * from posture, modifiers, and outcome direction.
+ */
 function postureRiskProfile(
   posture: ResponsePosture,
   pressure: TransitPressure,
   challengeContext: ChallengeContext | undefined,
 ): string {
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
-  const intensityWord = intensityQualifier(intensityBand);
-  const lab = domainLabel(challengeContext?.primaryDomain ?? pressure.domain);
-  const contact = `${pressure.transitBody} to ${pressure.natalBody} (${pressure.aspectType})`;
+  const hot = intensityBand === 'high' || intensityBand === 'critical';
   switch (posture) {
     case 'observe':
-      return `This stance buys read-time before you lock a move; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, the pause can read as a longer open window ${intensityWord} from the outside.`;
-    case 'assert':
-      return `This stance puts a hard line in the room; with ${contact} in ${lab} already ${intensityUrgency(intensityBand)}, definition lands hot and contact can spike before the temperature drops.`;
-    case 'engage':
-      return `This stance converts heat into motion; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, a wide step can carry more strain than the window was built for.`;
-    case 'withdraw':
-      return `This stance pulls contact back on purpose; with ${contact} in ${lab} at ${intensityUrgency(intensityBand)}, distance can read as a slower clock for anyone waiting on a visible answer.`;
     case 'support':
-      return `This stance pulls counsel and witness into the move; while ${contact} keeps ${lab} at ${intensityUrgency(intensityBand)}, coordinating with others can slow solo tempo until alignment catches up.`;
+      return 'Low';
+    case 'withdraw':
+      return hot ? 'Moderate' : 'Low';
     case 'offer':
-      return `This stance answers the moment with a concrete gesture; even a small move carries real cost if the room cannot echo it back with care.`;
     case 'reframe':
-      return `This stance works the meaning layer first; with ${contact} in ${lab} still ${intensityUrgency(intensityBand)}, interpretation can postpone the outward move others are already clocking.`;
     case 'contain':
-      return `This stance draws a smaller perimeter around what you will carry; with ${contact} in ${lab} at ${intensityUrgency(intensityBand)}, a tight edge can read as cool distance if it lands sharp.`;
+      return 'Moderate';
+    case 'assert':
+      return hot ? 'High' : 'Moderate';
+    case 'engage':
+      return 'High';
   }
 }
 
@@ -810,7 +803,7 @@ function buildChoice(
     patternTag: posturePatternTag(posture),
     posture,
     modality: postureModality(posture),
-    riskProfile: `${postureRiskProfile(posture, pressure, challengeContext)} ${outcomeSentence(outcomeDirection, challengeContext?.primaryDomain ?? pressure.domain)}`,
+    riskProfile: postureRiskProfile(posture, pressure, challengeContext),
     outcomeDirection,
   };
 }

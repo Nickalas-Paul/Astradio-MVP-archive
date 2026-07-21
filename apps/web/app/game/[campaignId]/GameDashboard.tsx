@@ -1,36 +1,33 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/shared/Button';
 import { Card } from '@/components/shared/Card';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameEncounter } from '@/hooks/useGameEncounter';
 import { useGameInventory } from '@/hooks/useGameInventory';
+import { useGameCharacter } from '@/hooks/useGameCharacter';
+import { getClassDisplay } from '@/lib/class-display';
 import {
   combatFromStoredResolution,
-  fetchLootTable,
   resolveEncounter,
   GameApiError,
   type CombatResolutionPayload,
   type InventoryBagItem,
-  type LootTableResponse,
 } from '@/lib/game-api';
-import { GameStateHeader } from './components/GameStateHeader';
+import { AmbientBackdrop } from './components/AmbientBackdrop';
+import { DungeonLayout } from './components/DungeonLayout';
+import { HudRail } from './components/HudRail';
+import { CharacterDrawer, type DrawerTab } from './components/CharacterDrawer';
 import { EncounterCard } from './components/EncounterCard';
 import { ChoicePanel } from './components/ChoicePanel';
 import { DieRollWidget } from './components/DieRollWidget';
 import { OutcomePanel } from './components/OutcomePanel';
-import { LootReveal } from './components/LootReveal';
 import { ConsumableQuickUse } from './components/ConsumableQuickUse';
 import { RevealHint } from './components/RevealHint';
-import { StreakMilestone } from './components/StreakMilestone';
 import { ChapterTransition } from './components/ChapterTransition';
-import { CharacterSheet } from './components/CharacterSheet';
-import { InventoryDrawer } from './components/InventoryDrawer';
 
 type Phase = 'choose' | 'roll' | 'outcome';
 
@@ -60,6 +57,11 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     setEncounter,
   } = useGameEncounter(campaignId);
   const inventory = useGameInventory(campaignId);
+  const {
+    character,
+    loading: characterLoading,
+    error: characterError,
+  } = useGameCharacter(campaignId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('choose');
@@ -71,17 +73,17 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const [milestoneMessages, setMilestoneMessages] = useState<string[]>([]);
   const [chapterEvent, setChapterEvent] = useState<ChapterEvent | null>(null);
   const [showChapter, setShowChapter] = useState(false);
-  const [inventoryOpen, setInventoryOpen] = useState(false);
-  const [characterOpen, setCharacterOpen] = useState(false);
-  const [lootTable, setLootTable] = useState<LootTableResponse | null>(null);
-  const [lootOpen, setLootOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('character');
   const [preCombatUsed, setPreCombatUsed] = useState(false);
   const [usingConsumable, setUsingConsumable] = useState(false);
 
   useEffect(() => {
     const panel = searchParams.get('panel');
-    if (panel === 'character') setCharacterOpen(true);
-    if (panel === 'inventory') setInventoryOpen(true);
+    if (panel === 'character' || panel === 'inventory') {
+      setDrawerTab(panel);
+      setDrawerOpen(true);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -113,6 +115,11 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     }
   }, [stateLoading, stateError, state, router]);
 
+  const display = useMemo(() => {
+    if (!character) return null;
+    return getClassDisplay(character.classSlug, character.subclassSlug, character.risingSlug);
+  }, [character]);
+
   const equippedConsumable: InventoryBagItem | null = useMemo(() => {
     const bag = inventory?.inventory?.bag;
     if (!Array.isArray(bag)) return null;
@@ -130,6 +137,11 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     () => encounter?.choices?.find((c) => c.id === selectedId) || encounter?.choices?.[0] || null,
     [encounter, selectedId]
   );
+
+  const openDrawer = useCallback((tab: DrawerTab) => {
+    setDrawerTab(tab);
+    setDrawerOpen(true);
+  }, []);
 
   const handleChoose = (choiceId: string) => {
     if (phase !== 'choose' || encounter?.resolved) return;
@@ -190,10 +202,8 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
           newChapter: { house: newHouse, domain: newLabel, label: newLabel },
           relicReward: relic,
         });
-        setShowChapter(true);
       }
 
-      setPhase('outcome');
       await Promise.all([refreshState(), inventory.refresh()]);
       setEncounter((prev) =>
         prev
@@ -210,6 +220,8 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
         return;
       }
       setResolveError(e instanceof Error ? e.message : 'Resolve failed');
+      setPhase('choose');
+      setSelectedId(null);
     } finally {
       setResolving(false);
     }
@@ -225,6 +237,12 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     setEncounter,
     router,
   ]);
+
+  // Die widget finished its reveal sequence: move to the outcome stage.
+  const handleRollComplete = useCallback(() => {
+    setPhase('outcome');
+    if (chapterEvent) setShowChapter(true);
+  }, [chapterEvent]);
 
   const handleQuickUse = async (instanceId: string) => {
     setUsingConsumable(true);
@@ -251,16 +269,6 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     }
   };
 
-  const openLootTable = async () => {
-    try {
-      const table = await fetchLootTable(campaignId);
-      setLootTable(table);
-      setLootOpen(true);
-    } catch (e) {
-      setResolveError(e instanceof Error ? e.message : 'Failed to load loot table');
-    }
-  };
-
   const dieResult =
     combat && combat.dieRoll && typeof combat.dieRoll.raw === 'number'
       ? {
@@ -275,28 +283,91 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const loading = stateLoading || encLoading || composing;
   const hp = state?.hp || encounter?.playerState?.hp;
   const primaryStat = selectedChoice?.primaryStat || 'vitality';
+  const dungeonName = state?.saturnChapter?.label || 'Campaign';
+  const chapter = state?.chapter ?? 1;
+
+  const showChoiceDock = phase === 'choose' && !encounter?.resolved && !!encounter?.encounter;
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-4xl space-y-8 pb-16">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <p className="text-caption uppercase tracking-wide text-accent">
-            <Link href="/game" className="hover:underline">
-              Campaign
-            </Link>
-          </p>
-          <h1 className="font-serif text-h2 text-text-primary">Daily Encounter</h1>
-        </motion.div>
+    <AppShell contentClassName="p-0">
+      <AmbientBackdrop element={display?.element ?? 'Earth'} />
 
+      <DungeonLayout
+        rail={
+          <HudRail
+            display={display}
+            stats={character?.baseStats ?? null}
+            inventory={inventory.inventory}
+            currentHP={hp?.current ?? 0}
+            maxHP={hp?.max ?? 20}
+            wounded={hp?.wounded ?? false}
+            streak={state?.streak ?? encounter?.playerState?.streak ?? 0}
+            onAvatarClick={() => openDrawer('character')}
+            onGearClick={() => openDrawer('inventory')}
+          />
+        }
+        drawer={
+          <CharacterDrawer
+            campaignId={campaignId}
+            open={drawerOpen}
+            tab={drawerTab}
+            onTabChange={setDrawerTab}
+            onClose={() => setDrawerOpen(false)}
+            character={character}
+            characterLoading={characterLoading}
+            characterError={characterError}
+            inventory={inventory.inventory}
+            inventoryLoading={inventory.loading}
+            mutating={inventory.mutating}
+            onEquip={async (id) => {
+              await inventory.equip(id);
+            }}
+            onUnequip={async (slot) => {
+              await inventory.unequip(slot);
+            }}
+            onUse={async (id) => {
+              await inventory.useConsumable(id);
+              await refreshState();
+            }}
+            onDiscard={async (id) => {
+              await inventory.discard(id);
+            }}
+          />
+        }
+        bottomDock={
+          showChoiceDock ? (
+            <div className="mx-auto max-w-4xl space-y-3">
+              <ConsumableQuickUse
+                item={equippedConsumable}
+                onUse={(id) => void handleQuickUse(id)}
+                disabled={usingConsumable || preCombatUsed}
+                loading={usingConsumable}
+              />
+              <ChoicePanel
+                choices={encounter?.choices ?? []}
+                onChoose={handleChoose}
+                disabled={false}
+                selectedId={selectedId}
+              />
+            </div>
+          ) : null
+        }
+        dungeonName={dungeonName}
+        chapter={chapter}
+        drawerOpen={drawerOpen}
+        onCharacterToggle={() => (drawerOpen ? setDrawerOpen(false) : openDrawer('character'))}
+        mobileHp={hp ? { current: hp.current, max: hp.max } : null}
+        mobileStreak={state?.streak}
+      >
         {loading && !encounter ? (
-          <div className="space-y-4">
+          <div className="mx-auto max-w-2xl space-y-4 pt-8">
             <Card elevation="resting" size="md" className="h-16 animate-pulse bg-white/5" />
             <Card elevation="resting" size="lg" className="h-48 animate-pulse bg-white/5" />
           </div>
         ) : null}
 
         {(stateError || encError) && !encounter ? (
-          <Card elevation="resting" size="md" className="space-y-3">
+          <Card elevation="resting" size="md" className="mx-auto max-w-2xl space-y-3">
             <p className="text-body-sm text-danger">{stateError || encError}</p>
             <Button variant="secondary" onClick={() => void refreshEncounter()}>
               Retry
@@ -304,58 +375,29 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
           </Card>
         ) : null}
 
-        {state?.hp ? (
-          <GameStateHeader
-            hp={state.hp}
-            streak={state.streak ?? 0}
-            saturnChapter={state.saturnChapter ?? null}
-            chapter={state.chapter ?? 1}
-          />
-        ) : hp ? (
-          <GameStateHeader
-            hp={hp}
-            streak={encounter?.playerState?.streak ?? 0}
-            saturnChapter={null}
-            chapter={1}
-          />
-        ) : null}
-
         {encounter?.encounter ? (
-          <div className="space-y-6">
-            <EncounterCard
-              theme={encounter.encounter.theme}
-              setting={encounter.encounter.setting}
-              obstacle={encounter.encounter.obstacle}
-              dc={encounter.encounter.dc}
-              introNarration={encounter.encounter.introNarration}
-              transitDescription={encounter.encounter.theme}
-              saturnChapter={state?.saturnChapter?.label || `House ${encounter.encounter.saturnHouse}`}
-            />
-
-            {phase === 'choose' && !encounter.resolved ? (
-              <>
-                <ConsumableQuickUse
-                  item={equippedConsumable}
-                  onUse={(id) => void handleQuickUse(id)}
-                  disabled={usingConsumable || preCombatUsed}
-                  loading={usingConsumable}
+          <>
+            {phase === 'choose' ? (
+              <div className="mx-auto max-w-2xl space-y-4">
+                <EncounterCard
+                  theme={encounter.encounter.theme}
+                  obstacle={encounter.encounter.obstacle}
+                  dc={encounter.encounter.dc}
+                  introNarration={encounter.encounter.introNarration}
+                  saturnHouse={encounter.encounter.saturnHouse}
                 />
                 <RevealHint hint={encounter.playerState?.revealHint ?? null} />
-                <ChoicePanel
-                  choices={encounter.choices ?? []}
-                  onChoose={handleChoose}
-                  disabled={false}
-                  selectedId={selectedId}
-                />
-              </>
+              </div>
             ) : null}
 
-            {phase === 'roll' || (phase === 'outcome' && dieResult) ? (
+            {phase === 'roll' ? (
               <DieRollWidget
                 onRoll={() => void handleRoll()}
                 result={dieResult}
                 primaryStat={primaryStat}
+                choiceLabel={selectedChoice?.label}
                 loading={resolving}
+                onComplete={handleRollComplete}
               />
             ) : null}
 
@@ -365,97 +407,33 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                 combat={combat}
                 hp={state?.hp || hp}
                 previousHp={previousHp}
+                primaryStat={primaryStat}
+                dc={encounter.encounter.dc}
+                streak={typeof state?.streak === 'number' ? state.streak : undefined}
+                milestones={milestoneMessages}
+                onOpenInventory={() => openDrawer('inventory')}
+                onOpenCharacter={() => openDrawer('character')}
               />
             ) : null}
 
             {phase === 'outcome' && !combat && narration ? (
-              <Card elevation="raised" size="md">
-                <p className="font-serif text-lg text-text-secondary">{narration}</p>
-              </Card>
-            ) : null}
-
-            <LootReveal
-              show={phase === 'outcome' && !!combat?.loot?.dropped && !!combat.loot.item}
-              item={
-                combat?.loot?.item
-                  ? { ...combat.loot.item, classAffinityBonus: false }
-                  : null
-              }
-            />
-
-            <StreakMilestone
-              show={phase === 'outcome' && milestoneMessages.length > 0}
-              messages={milestoneMessages}
-            />
-
-            {phase === 'outcome' ? (
-              <Card elevation="resting" size="sm" className="text-center">
-                <p className="text-body-sm text-text-secondary">
+              <div className="mx-auto max-w-2xl pt-12 text-center">
+                <p className="font-serif text-xl text-text-secondary">{narration}</p>
+                <p className="mt-3 text-xs text-text-muted">
                   Come back tomorrow to continue your streak
                   {typeof state?.streak === 'number' ? ` (${state.streak})` : ''}.
                 </p>
-              </Card>
+              </div>
             ) : null}
 
-            {resolveError ? <p className="text-body-sm text-danger">{resolveError}</p> : null}
-
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" size="sm" onClick={() => setInventoryOpen(true)}>
-                Inventory
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setCharacterOpen(true)}>
-                Character
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => void openLootTable()}>
-                Loot Table
-              </Button>
-            </div>
-
-            {lootOpen && lootTable ? (
-              <Card elevation="raised" size="md" className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-caption uppercase text-accent">Loot table</p>
-                    <h3 className="font-serif text-h4">{lootTable.label}</h3>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setLootOpen(false)}>
-                    Close
-                  </Button>
-                </div>
-                <ul className="space-y-2">
-                  {(lootTable.items ?? []).slice(0, 12).map((item) => (
-                    <li key={item.slug} className="text-body-sm text-text-secondary">
-                      <span className="font-medium text-text-primary">{item.name}</span>
-                      <span className="text-text-muted"> · {item.rarity} · {item.dropWeight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+            {resolveError ? (
+              <p className="mx-auto mt-4 max-w-2xl text-center text-body-sm text-danger">
+                {resolveError}
+              </p>
             ) : null}
-          </div>
+          </>
         ) : null}
-      </div>
-
-      <InventoryDrawer
-        open={inventoryOpen}
-        onClose={() => setInventoryOpen(false)}
-        inventory={inventory.inventory}
-        loading={inventory.loading}
-        mutating={inventory.mutating}
-        onEquip={inventory.equip}
-        onUnequip={inventory.unequip}
-        onUse={async (id) => {
-          await inventory.useConsumable(id);
-          await refreshState();
-        }}
-        onDiscard={inventory.discard}
-      />
-
-      <CharacterSheet
-        campaignId={campaignId}
-        open={characterOpen}
-        onClose={() => setCharacterOpen(false)}
-      />
+      </DungeonLayout>
 
       {chapterEvent ? (
         <ChapterTransition
