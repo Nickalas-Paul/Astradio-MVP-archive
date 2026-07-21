@@ -187,14 +187,9 @@ function realizeThemeLead(
   return scrubAstroMechanics(theme, `${seed}|theme`, digest);
 }
 
-function realizeObstacle(obstacle: string, digest: CampaignExpressionDigest, seed: string, slugs: CampaignSurfaceSlugs): string {
-  const base = scrubAstroMechanics(obstacle, `${seed}|obs`, digest);
-  const sub = slugs.subclass_slug.replace(/^subclass_/, '').slice(0, 12);
-  const tail = stableVariant(`${seed}|obsTail`, [
-    `The inner cadence (${sub}) keeps your private tradeoff thread visible under the same strain.`,
-    `Let the ${sub} undertone stay honest while you answer what this situation keeps asking.`,
-  ]);
-  return `${base} ${tail}`.replace(/\s+/g, ' ').trim();
+// Obstacle stays at most two clean sentences; no identity-jargon tail.
+function realizeObstacle(obstacle: string, digest: CampaignExpressionDigest, seed: string): string {
+  return scrubAstroMechanics(obstacle, `${seed}|obs`, digest);
 }
 
 function realizeSetting(setting: string, digest: CampaignExpressionDigest, seed: string): string {
@@ -225,7 +220,7 @@ export function realizeCampaignSurfaceCopy(params: {
   return {
     ...scene,
     theme: realizeThemeLead(scene.theme, digest, archetypeId, `${seed}|th`, slugs),
-    obstacle: realizeObstacle(scene.obstacle, digest, `${seed}|ob`, slugs),
+    obstacle: realizeObstacle(scene.obstacle, digest, `${seed}|ob`),
     setting: realizeSetting(scene.setting, digest, `${seed}|st`),
     choices,
   };

@@ -20,7 +20,8 @@ describe('campaign daily theme source', () => {
     const t = buildCampaignDailyThemeLead({ narration, seed: 'dps_geom|2026-04-21|ch1' }).toLowerCase();
     assert.ok(t.includes('mars'), 'primary transit body');
     assert.ok(t.includes('venus'), 'primary natal body');
-    assert.ok(t.includes('square'), 'primary aspect');
+    // Aspect geometry surfaces as plain language, never the raw token (see campaign-narrative-surface contract).
+    assert.ok(t.includes('grinds against'), 'primary aspect rendered in plain language');
     assert.ok(t.includes('partnership') || t.includes('reciprocity'), 'primary domain human label');
     assert.ok(t.includes('conflict'), 'primary pressure family');
   });

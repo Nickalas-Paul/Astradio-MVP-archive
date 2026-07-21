@@ -46,12 +46,25 @@ function identityStakesClause(seed: string, identity: ThemeLeadIdentitySlugs | u
   return stableVariant(key, [...clauses]).trim();
 }
 
+/** Plain-language aspect phrasing; raw aspect tokens must not reach persisted surface copy. */
+const ASPECT_CONTACT: Record<string, string> = {
+  conjunction: 'presses close against',
+  opposition: 'squares off across from',
+  square: 'grinds against',
+  trine: 'moves easily with',
+  sextile: 'opens a channel toward',
+};
+
+function aspectContactVerb(aspectType: string): string {
+  return ASPECT_CONTACT[String(aspectType || '').toLowerCase()] ?? 'meets';
+}
+
 function primaryContactClause(d: DailyPressureState, house: string): string {
-  return `${d.primary_transit_body} meets ${d.primary_natal_body} under a ${d.primary_aspect_type} across ${house}`;
+  return `${d.primary_transit_body} ${aspectContactVerb(d.primary_aspect_type)} ${d.primary_natal_body} across ${house}`;
 }
 
 function supportingContactClause(ev: PressureEvent, house: string): string {
-  return `${ev.transit_body} to ${ev.natal_body} by a ${ev.aspect_type} through ${house}`;
+  return `${ev.transit_body} ${aspectContactVerb(ev.aspect_type)} ${ev.natal_body} through ${house}`;
 }
 
 /**
