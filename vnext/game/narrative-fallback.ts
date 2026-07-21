@@ -7,43 +7,78 @@
 import type { ChoiceOption, CombatResolution, MechanicalEncounter } from '../rpg/types';
 
 const INTRO_OPENERS = [
-  'The path ahead narrows, and the day has picked its ground:',
-  'Something in the air shifts as you arrive. Today the pressure gathers around',
-  'You feel it before you see it. The day has set its stage in',
-  'The road bends toward trouble, the useful kind. Today it runs through',
+  'shifts around you today',
+  'is restless today',
+  'opens before you, and the air has changed',
+  'holds its breath as you arrive',
 ];
 
-const INTRO_CLOSERS = [
-  'It will not resolve itself. How you meet it is up to you.',
-  'It is waiting on your answer, and it will not wait politely.',
-  'The moment is live. Choose how you step into it.',
-  'You have faced worse, but this one still wants a real answer.',
-];
+const ASPECT_FEEL: Record<string, string> = {
+  conjunction: 'concentrated',
+  square: 'tense',
+  opposition: 'polarized',
+  trine: 'flowing',
+  sextile: 'quietly supportive',
+};
 
 function pick<T>(arr: T[], seed: number): T {
   return arr[Math.abs(seed) % arr.length]!;
 }
 
-function difficultyPhrase(dc: number): string {
-  if (dc >= 16) return 'This is a serious test, the kind that leaves a mark either way.';
-  if (dc >= 12) return 'This will take real effort, but it is well within reach.';
-  return 'This is a manageable test if you keep your head.';
+function titleBody(body: string): string {
+  const b = String(body || '').trim();
+  return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : '';
+}
+
+function signFromClassSlug(classSlug?: string): string {
+  const sign = String(classSlug || '')
+    .replace(/^class_/, '')
+    .trim();
+  return sign ? sign.charAt(0).toUpperCase() + sign.slice(1) : '';
 }
 
 export function buildFallbackIntro(
   encounter: MechanicalEncounter,
-  saturnChapter: { thematicLabel?: string; domain?: string; label?: string }
+  saturnChapter: { thematicLabel?: string; domain?: string; label?: string },
+  classSlug?: string
 ): string {
-  const label = saturnChapter.thematicLabel || saturnChapter.label || 'familiar ground';
-  const setting = (encounter.scene.setting || '').trim();
-  const seed = encounter.dc + (encounter.scene.theme?.length ?? 0);
+  const label = saturnChapter.thematicLabel || saturnChapter.label || 'The road ahead';
+  const pressure = encounter.scene.primaryPressure;
+  const setting = (encounter.scene.setting || '').trim().replace(/\.+$/, '');
+  const seed = encounter.dc + (pressure?.transitBody?.length ?? 0);
 
-  const opener = `${pick(INTRO_OPENERS, seed)} ${label}.`;
-  const settingLine = setting ? `Around you, ${setting.charAt(0).toLowerCase()}${setting.slice(1).replace(/\.*$/, '')}.` : '';
-  const stakes = difficultyPhrase(encounter.dc);
-  const closer = pick(INTRO_CLOSERS, seed + encounter.dc);
+  const opener = `${label} ${pick(INTRO_OPENERS, seed)}.`;
 
-  return [opener, settingLine, stakes, closer]
+  const transit = titleBody(pressure?.transitBody);
+  const natal = titleBody(pressure?.natalBody);
+  const feel = ASPECT_FEEL[String(pressure?.aspectType || '').toLowerCase()] ?? 'charged';
+  let energy = '';
+  if (transit && natal) {
+    energy = setting
+      ? `A ${feel} energy runs between ${transit} and your natal ${natal}, and it finds you in ${setting}.`
+      : `A ${feel} energy runs between ${transit} and your natal ${natal}.`;
+  } else if (setting) {
+    energy = `Something is stirring in ${setting}.`;
+  }
+
+  const sign = signFromClassSlug(classSlug);
+  const closer = sign
+    ? pick(
+        [
+          `Hold your ${sign} steadiness close; this will ask for a real answer.`,
+          `The stakes are real, and your ${sign} instincts already sense where the ground is soft.`,
+        ],
+        seed + encounter.dc
+      )
+    : pick(
+        [
+          'The stakes are visible, and the ground is not quite steady.',
+          'It will ask for a real answer before the day is out.',
+        ],
+        seed + encounter.dc
+      );
+
+  return [opener, energy, closer]
     .filter(Boolean)
     .join(' ')
     .replace(/\s+/g, ' ')

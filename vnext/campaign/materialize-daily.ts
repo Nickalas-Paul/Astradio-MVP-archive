@@ -564,10 +564,14 @@ export async function materializeCampaignDaily(params: {
       activeBuffs,
     };
 
-    let introText = buildFallbackIntro(mechanical, {
-      thematicLabel: chapterInfo.thematicLabel,
-      domain: chapterInfo.domain,
-    });
+    let introText = buildFallbackIntro(
+      mechanical,
+      {
+        thematicLabel: chapterInfo.thematicLabel,
+        domain: chapterInfo.domain,
+      },
+      characterSheet.class_slug
+    );
     let introSource: 'gemini' | 'fallback' = 'fallback';
 
     if (process.env.GOOGLE_CLOUD_PROJECT) {
@@ -589,8 +593,14 @@ export async function materializeCampaignDaily(params: {
           recentHistory: Array.isArray(state.history) ? state.history.slice(0, 3) : [],
         });
         const gem = await callGeminiGenerate({ prompt });
-        introText = gem.text;
-        introSource = 'gemini';
+        const geminiText = (gem.text || '').trim();
+        // Empty Gemini responses must not clobber the fallback intro.
+        if (geminiText) {
+          introText = geminiText;
+          introSource = 'gemini';
+        } else {
+          console.warn('[materialize] Gemini intro empty, using fallback');
+        }
       } catch (e) {
         console.warn(
           '[materialize] Gemini intro failed, using fallback:',
@@ -599,7 +609,9 @@ export async function materializeCampaignDaily(params: {
       }
     }
 
-    result.encounter_intro_narration = introText;
+    // Intro narration must never persist as null/empty; the UI hero depends on it.
+    result.encounter_intro_narration =
+      introText.trim() || 'A new challenge awaits. Choose your approach.';
     result.encounter_intro_source = introSource;
   }
 
