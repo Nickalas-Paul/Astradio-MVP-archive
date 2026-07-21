@@ -91,7 +91,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
       setCombat(stored.combat);
       setNarration(stored.narration);
       setPhase('outcome');
-      if (!selectedId) setSelectedId(encounter.choices[0]?.id ?? 'resolved');
+      if (!selectedId) setSelectedId(encounter.choices?.[0]?.id ?? 'resolved');
     } else {
       setPhase('outcome');
       setNarration("Today's encounter is already resolved. Come back tomorrow.");
@@ -114,19 +114,20 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   }, [stateLoading, stateError, state, router]);
 
   const equippedConsumable: InventoryBagItem | null = useMemo(() => {
-    if (!inventory.inventory) return null;
+    const bag = inventory?.inventory?.bag;
+    if (!Array.isArray(bag)) return null;
     return (
-      inventory.inventory.bag.find(
+      bag.find(
         (i) =>
           i.category === 'consumable' &&
           i.equipped &&
           (i.equippedSlot === 'consumable_1' || i.equippedSlot === 'consumable_2')
       ) || null
     );
-  }, [inventory.inventory]);
+  }, [inventory?.inventory]);
 
   const selectedChoice = useMemo(
-    () => encounter?.choices.find((c) => c.id === selectedId) || encounter?.choices[0] || null,
+    () => encounter?.choices?.find((c) => c.id === selectedId) || encounter?.choices?.[0] || null,
     [encounter, selectedId]
   );
 
@@ -141,7 +142,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     if (!selectedId || selectedId === 'resolved' || !resolveMeta || !encounter || resolving) return;
     setResolving(true);
     setResolveError(null);
-    setPreviousHp(state?.hp.current ?? encounter.playerState.hp.current);
+    setPreviousHp(state?.hp?.current ?? encounter.playerState?.hp?.current);
     const saturnBefore = state?.saturnChapter
       ? {
           house: state.saturnChapter.currentHouse,
@@ -260,18 +261,19 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     }
   };
 
-  const dieResult = combat
-    ? {
-        raw: combat.dieRoll.raw,
-        modifier: combat.dieRoll.modifier,
-        total: combat.dieRoll.total,
-        dc: encounter?.encounter.dc ?? 10,
-        outcome: combat.outcome,
-      }
-    : null;
+  const dieResult =
+    combat && combat.dieRoll && typeof combat.dieRoll.raw === 'number'
+      ? {
+          raw: combat.dieRoll.raw,
+          modifier: combat.dieRoll.modifier ?? 0,
+          total: combat.dieRoll.total ?? combat.dieRoll.raw,
+          dc: encounter?.encounter?.dc ?? 10,
+          outcome: combat.outcome ?? 'unknown',
+        }
+      : null;
 
   const loading = stateLoading || encLoading || composing;
-  const hp = state?.hp || encounter?.playerState.hp;
+  const hp = state?.hp || encounter?.playerState?.hp;
   const primaryStat = selectedChoice?.primaryStat || 'vitality';
 
   return (
@@ -302,23 +304,23 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
           </Card>
         ) : null}
 
-        {state ? (
+        {state?.hp ? (
           <GameStateHeader
             hp={state.hp}
-            streak={state.streak}
-            saturnChapter={state.saturnChapter}
-            chapter={state.chapter}
+            streak={state.streak ?? 0}
+            saturnChapter={state.saturnChapter ?? null}
+            chapter={state.chapter ?? 1}
           />
         ) : hp ? (
           <GameStateHeader
             hp={hp}
-            streak={encounter?.playerState.streak ?? 0}
+            streak={encounter?.playerState?.streak ?? 0}
             saturnChapter={null}
             chapter={1}
           />
         ) : null}
 
-        {encounter ? (
+        {encounter?.encounter ? (
           <div className="space-y-6">
             <EncounterCard
               theme={encounter.encounter.theme}
@@ -338,9 +340,9 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   disabled={usingConsumable || preCombatUsed}
                   loading={usingConsumable}
                 />
-                <RevealHint hint={encounter.playerState.revealHint} />
+                <RevealHint hint={encounter.playerState?.revealHint ?? null} />
                 <ChoicePanel
-                  choices={encounter.choices}
+                  choices={encounter.choices ?? []}
                   onChoose={handleChoose}
                   disabled={false}
                   selectedId={selectedId}
@@ -390,7 +392,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
               <Card elevation="resting" size="sm" className="text-center">
                 <p className="text-body-sm text-text-secondary">
                   Come back tomorrow to continue your streak
-                  {state ? ` (${state.streak})` : ''}.
+                  {typeof state?.streak === 'number' ? ` (${state.streak})` : ''}.
                 </p>
               </Card>
             ) : null}
@@ -421,7 +423,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   </Button>
                 </div>
                 <ul className="space-y-2">
-                  {lootTable.items.slice(0, 12).map((item) => (
+                  {(lootTable.items ?? []).slice(0, 12).map((item) => (
                     <li key={item.slug} className="text-body-sm text-text-secondary">
                       <span className="font-medium text-text-primary">{item.name}</span>
                       <span className="text-text-muted"> · {item.rarity} · {item.dropWeight}</span>

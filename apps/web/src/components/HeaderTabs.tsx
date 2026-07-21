@@ -9,7 +9,7 @@ const NAV = [
   { href: '/today', label: 'Today' },
   { href: '/community', label: 'Community' },
   { href: '/sandbox', label: 'Sandbox' },
-  { href: '/game', label: 'Game' },
+  { href: '/game', label: 'Campaign' },
 ] as const;
 
 function linkClass(active: boolean): string {
