@@ -136,7 +136,7 @@ function realizedGesture(
       `Put a real gesture on the table, small and concrete over grand and empty. ${idHint}`,
     ],
     reframe: [
-      `Rename the tension before it names you; a new story opens moves the first read kept hidden. ${idHint}`,
+      `Step back and reframe the situation before the tension escalates; a new story opens options the first read kept hidden. ${idHint}`,
       `Shift the frame first; interpretation moves before the outward step does. ${idHint}`,
     ],
     contain: [

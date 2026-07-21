@@ -20,15 +20,11 @@ import {
   aspectPressure,
   compactText,
   continuityLines,
-  domainContext,
   domainLabel,
   dominantToneKey,
-  houseLanguage,
   intensityUrgency,
-  modifierLanguage,
   polarityImplication,
   polarityTone,
-  polarityTradeoff,
   stableVariant,
 } from './projection-language';
 import type { CampaignSlateContinuity } from '../campaign/campaign-slate-continuity';
@@ -238,6 +234,36 @@ function challengeThemeFromSemantic(
   return raw;
 }
 
+/** Short, player-readable life areas. Never the full domain lists. */
+const SHORT_LIFE_AREA: Record<string, string> = {
+  self: 'your sense of direction',
+  assets: 'your material footing',
+  communication: 'how you communicate',
+  home: 'your foundations',
+  creativity: 'your creative courage',
+  work: 'your daily responsibilities',
+  partnership: 'your closest relationships',
+  transformation: 'what you trust and share',
+  belief: 'your sense of meaning',
+  career: 'your public role',
+  community: 'how you show up in group settings',
+  subconscious: 'your inner weather',
+};
+
+const ASPECT_NOUN: Record<string, string> = {
+  conjunction: 'close meeting',
+  opposition: 'standoff',
+  square: 'conflict',
+  trine: 'easy current',
+  sextile: 'opening',
+};
+
+function titleBodyName(body: string): string {
+  const b = String(body || '').trim();
+  return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : 'the sky';
+}
+
+/** One clean sentence naming the transit contact and the life area. Nothing else. */
 function pressureInterpretationLine(
   pressure: TransitPressure,
   challengeContext: ChallengeContext | undefined,
@@ -245,17 +271,17 @@ function pressureInterpretationLine(
 ): string {
   const polarity = challengeContext?.pressurePolarity ?? String(pressure.likelyShadowPattern || '').replace('phase1_shadow:', '');
   const intensityBand = challengeContext?.intensityBand ?? pressure.intensityBand;
-  const modifier = modifierLanguage(challengeContext?.natalBodyModifier);
-  const aspect = aspectPressure(pressure.aspectType);
-  const domain = domainContext(challengeContext?.primaryDomain ?? pressure.domain);
-  const house = houseLanguage(pressure.natalHouse);
   const toneKey = dominantToneKey(state);
+  const transit = titleBodyName(pressure.transitBody);
+  const natal = titleBodyName(pressure.natalBody);
+  const aspectNoun = ASPECT_NOUN[String(pressure.aspectType || '').toLowerCase()] ?? 'contact';
+  const area =
+    SHORT_LIFE_AREA[challengeContext?.primaryDomain ?? pressure.domain] ?? 'the day in front of you';
   const variants = [
-    `What is live in the room is ${intensityUrgency(intensityBand)} and ${polarityTone(polarity)}: it ${aspect} around ${domain}, with extra weight through ${house} and ${modifier}.`,
-    `You are standing in ${intensityUrgency(intensityBand)} pressure that ${aspect} around ${domain}, with a ${modifier} emphasis showing through ${house}.`,
+    `A ${aspectNoun} between ${transit} and your natal ${natal} tests ${area} today.`,
+    `Today a ${aspectNoun} between ${transit} and your natal ${natal} puts ${area} on the line.`,
   ];
-  const base = stableVariant(`${pressure.id}:${polarity}:${intensityBand}:${toneKey}:pressure`, variants);
-  return `${base} What earns traction here is ${polarityImplication(polarity)}, while ${polarityTradeoff(polarity)} still sets the guardrails.`;
+  return stableVariant(`${pressure.id}:${polarity}:${intensityBand}:${toneKey}:pressure`, variants);
 }
 
 function sceneSettingFromTone(
@@ -303,7 +329,7 @@ function sceneSettingFromTone(
   return `${base}, with a reflective pace that keeps the situation easy to read`;
 }
 
-/** Game-layer obstacle copy only (no chart interpretation beyond SemanticCore-backed theme). */
+/** Game-layer obstacle copy: at most two clean sentences, no interpretation stitch. */
 function sceneObstacleGame(
   pressure: TransitPressure,
   character: CharacterProfile,
@@ -312,9 +338,9 @@ function sceneObstacleGame(
 ): string {
   const leaning =
     character.temperament.shadowCapacity >= 0.7
-      ? 'older coping patterns may feel closer to the surface'
-      : 'habits are present, but still workable if you keep the move small';
-  return `${pressureInterpretationLine(pressure, challengeContext, state)} ${leaning}.`;
+      ? 'Old habits will be close at hand; watch for them.'
+      : 'Keep the move small and it stays workable.';
+  return `${pressureInterpretationLine(pressure, challengeContext, state)} ${leaning}`;
 }
 
 const BASE_POSTURE_SLATES: Record<ArchetypeId, ResponsePosture[]> = {
@@ -508,7 +534,7 @@ function postureGesture(
       return stableVariant(
         `${pressure.id}:${posture}:${intensityBand}`,
         [
-          'Rename the tension before it names you. A different story opens moves the first read kept hidden.',
+          'Step back and reframe the situation before the tension escalates. A different story opens options the first read kept hidden.',
           'Shift the frame and the ground shifts with it. You are not stuck with the loudest interpretation.',
         ],
       );

@@ -39,26 +39,28 @@ const ASPECT_PRESSURE: Record<string, string> = {
   sextile: 'offers a workable opening if you engage it',
 };
 
+// `implication` values must be noun phrases: they are stitched after "is",
+// "coloring the room as", and "carries", so verb phrases break the grammar.
 const POLARITY_LANGUAGE: Record<string, { tone: string; tradeoff: string; implication: string }> = {
   constructive: {
     tone: 'more open than blocked',
     tradeoff: 'it can still drift if you assume ease will carry it on its own',
-    implication: 'supports movement without forcing it',
+    implication: 'momentum that does not need forcing',
   },
   frictional: {
     tone: 'sharp enough to expose strain',
     tradeoff: 'it can harden quickly if met too bluntly',
-    implication: 'clarifies where pressure is asking for adjustment',
+    implication: 'a sharpening pressure that asks for adjustment',
   },
   volatile: {
     tone: 'changeable enough to amplify quickly',
     tradeoff: 'timing matters because escalation is easier here',
-    implication: 'makes pacing more important than force',
+    implication: 'a fast-changing charge that rewards pacing over force',
   },
   binding: {
     tone: 'sticky enough to slow easy resolution',
     tradeoff: 'it can hold you in place longer than expected',
-    implication: 'asks for patience and narrower moves',
+    implication: 'a slow, binding weight that rewards patience',
   },
 };
 
