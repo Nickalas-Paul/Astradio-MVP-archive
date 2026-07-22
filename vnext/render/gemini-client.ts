@@ -19,6 +19,10 @@ export interface GeminiNarrateResult {
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const MAX_ATTEMPTS = 3; // 1 initial + 2 retries on 5xx
 const TIMEOUT_MS = 10_000;
+/** Default output budget: thinking tokens share this cap on gemini-2.5-flash. */
+const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
+/** Cap internal reasoning so visible output still has room inside the output budget. */
+const THINKING_BUDGET = 1024;
 
 async function getAccessToken(): Promise<string> {
   if (process.env.GOOGLE_ACCESS_TOKEN) return process.env.GOOGLE_ACCESS_TOKEN.trim();
@@ -62,15 +66,17 @@ export async function callGeminiGenerate(input: GeminiNarrateInput): Promise<Gem
     throw new Error('GOOGLE_CLOUD_PROJECT is required for Gemini');
   }
 
-  const maxTokens = input.maxTokens ?? 512;
+  const maxTokens = input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
   const temperature = input.temperature ?? 0.8;
   const url = buildUrl(projectId, location);
   const token = await getAccessToken();
+  // thinkingConfig lives inside generationConfig per Vertex / Gemini REST docs.
   const body = {
     contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
     generationConfig: {
       maxOutputTokens: maxTokens,
       temperature,
+      thinkingConfig: { thinkingBudget: THINKING_BUDGET },
     },
   };
 
@@ -111,11 +117,22 @@ export async function callGeminiGenerate(input: GeminiNarrateInput): Promise<Gem
       }
 
       const data = (await res.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        candidates?: Array<{
+          finishReason?: string;
+          content?: { parts?: Array<{ text?: string }> };
+        }>;
       };
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-        '';
+      const candidate = data?.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      if (finishReason === 'MAX_TOKENS') {
+        throw new Error('Gemini response truncated (MAX_TOKENS)');
+      }
+      if (finishReason !== undefined && finishReason !== 'STOP') {
+        console.warn(`[GEMINI] unexpected finishReason=${finishReason}`);
+        throw new Error(`Gemini response rejected (finishReason=${finishReason})`);
+      }
+
+      const text = candidate?.content?.parts?.[0]?.text?.trim() || '';
       if (!text) {
         throw new Error('Gemini response missing text');
       }
@@ -148,4 +165,6 @@ export const __geminiTest = {
   GEMINI_MODEL,
   TIMEOUT_MS,
   MAX_ATTEMPTS,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  THINKING_BUDGET,
 };

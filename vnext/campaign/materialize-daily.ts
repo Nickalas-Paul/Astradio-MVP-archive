@@ -594,12 +594,17 @@ export async function materializeCampaignDaily(params: {
         });
         const gem = await callGeminiGenerate({ prompt });
         const geminiText = (gem.text || '').trim();
-        // Empty Gemini responses must not clobber the fallback intro.
-        if (geminiText) {
-          introText = geminiText;
-          introSource = 'gemini';
-        } else {
+        // Empty or mid-sentence Gemini responses must not clobber the fallback intro.
+        if (!geminiText) {
           console.warn('[materialize] Gemini intro empty, using fallback');
+        } else {
+          const endsWithPunctuation = /[.!?"]$/.test(geminiText);
+          if (!endsWithPunctuation) {
+            console.warn('[materialize] Gemini intro truncated, using fallback');
+          } else {
+            introText = geminiText;
+            introSource = 'gemini';
+          }
         }
       } catch (e) {
         console.warn(
