@@ -29,7 +29,8 @@ import { ConsumableQuickUse } from './components/ConsumableQuickUse';
 import { RevealHint } from './components/RevealHint';
 import { ChapterTransition } from './components/ChapterTransition';
 
-type Phase = 'choose' | 'roll' | 'outcome';
+/** encounter → rolling → result → post-resolve */
+type Phase = 'encounter' | 'rolling' | 'result' | 'post-resolve';
 
 type ChapterEvent = {
   oldChapter: { house: number; domain: string; label: string };
@@ -64,7 +65,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   } = useGameCharacter(campaignId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>('choose');
+  const [phase, setPhase] = useState<Phase>('encounter');
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [combat, setCombat] = useState<CombatResolutionPayload | null>(null);
@@ -80,25 +81,31 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
 
   useEffect(() => {
     const panel = searchParams.get('panel');
-    if (panel === 'character' || panel === 'inventory') {
+    if (panel === 'character' || panel === 'inventory' || panel === 'loot') {
       setDrawerTab(panel);
       setDrawerOpen(true);
     }
   }, [searchParams]);
 
+  // Hydrate a previously resolved day. Never interrupt an in-progress roll.
   useEffect(() => {
-    if (!encounter?.resolved || !encounter.resolution || combat) return;
-    const stored = combatFromStoredResolution(encounter.resolution as Record<string, unknown>);
+    if (!encounter?.resolved || combat) return;
+    if (phase === 'rolling' || phase === 'result') return;
+
+    const stored = encounter.resolution
+      ? combatFromStoredResolution(encounter.resolution as Record<string, unknown>)
+      : null;
     if (stored) {
       setCombat(stored.combat);
       setNarration(stored.narration);
-      setPhase('outcome');
+      setPhase('result');
       if (!selectedId) setSelectedId(encounter.choices?.[0]?.id ?? 'resolved');
-    } else {
-      setPhase('outcome');
+    } else if (phase === 'encounter') {
+      // Bare post-resolve only when resolution data is missing (reload of resolved day).
+      setPhase('post-resolve');
       setNarration("Today's encounter is already resolved. Come back tomorrow.");
     }
-  }, [encounter, combat, selectedId]);
+  }, [encounter, combat, selectedId, phase]);
 
   useEffect(() => {
     if (stateLoading || state) return;
@@ -144,9 +151,9 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   }, []);
 
   const handleChoose = (choiceId: string) => {
-    if (phase !== 'choose' || encounter?.resolved) return;
+    if (phase !== 'encounter' || encounter?.resolved) return;
     setSelectedId(choiceId);
-    setPhase('roll');
+    setPhase('rolling');
     setResolveError(null);
   };
 
@@ -172,9 +179,17 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
         stateHashBefore: resolveMeta.stateHashBefore,
       });
 
-      const combatPayload = result.combatResolution || null;
-      if (combatPayload) setCombat(combatPayload);
-      setNarration(result.narration?.outcomeText || 'The dust settles.');
+      // Prefer top-level combatResolution; fall back to nested resolution payload.
+      const fromStored = result.resolution
+        ? combatFromStoredResolution(result.resolution as Record<string, unknown>)
+        : null;
+      const combatPayload = result.combatResolution || fromStored?.combat || null;
+      if (combatPayload) {
+        setCombat(combatPayload);
+      }
+      setNarration(
+        result.narration?.outcomeText || fromStored?.narration || 'The dust settles.'
+      );
 
       const msgs: string[] = [];
       let saturnMs: NonNullable<CombatResolutionPayload['milestones']>[number] | undefined;
@@ -214,13 +229,16 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
             }
           : prev
       );
+      // With die data, stay on 'rolling' so DieRollWidget finishes → 'result'.
+      // Without it, skip the animation and show result/narration immediately.
+      if (!combatPayload) setPhase('result');
     } catch (e) {
       if (e instanceof GameApiError && e.status === 503) {
         router.replace('/game');
         return;
       }
       setResolveError(e instanceof Error ? e.message : 'Resolve failed');
-      setPhase('choose');
+      setPhase('encounter');
       setSelectedId(null);
     } finally {
       setResolving(false);
@@ -238,11 +256,15 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     router,
   ]);
 
-  // Die widget finished its reveal sequence: move to the outcome stage.
+  // Die widget finished its reveal: show full outcome details.
   const handleRollComplete = useCallback(() => {
-    setPhase('outcome');
+    setPhase('result');
     if (chapterEvent) setShowChapter(true);
   }, [chapterEvent]);
+
+  const handleResultDone = useCallback(() => {
+    setPhase('post-resolve');
+  }, []);
 
   const handleQuickUse = async (instanceId: string) => {
     setUsingConsumable(true);
@@ -286,7 +308,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const dungeonName = state?.saturnChapter?.label || 'Campaign';
   const chapter = state?.chapter ?? 1;
 
-  const showChoiceDock = phase === 'choose' && !encounter?.resolved && !!encounter?.encounter;
+  const showChoiceDock = phase === 'encounter' && !encounter?.resolved && !!encounter?.encounter;
 
   return (
     <AppShell contentClassName="p-0">
@@ -377,7 +399,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
 
         {encounter?.encounter ? (
           <>
-            {phase === 'choose' ? (
+            {phase === 'encounter' ? (
               <div className="mx-auto max-w-2xl space-y-4">
                 <EncounterCard
                   theme={encounter.encounter.theme}
@@ -390,7 +412,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
               </div>
             ) : null}
 
-            {phase === 'roll' ? (
+            {phase === 'rolling' ? (
               <DieRollWidget
                 onRoll={() => void handleRoll()}
                 result={dieResult}
@@ -401,28 +423,84 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
               />
             ) : null}
 
-            {phase === 'outcome' && combat && hp ? (
-              <OutcomePanel
-                narration={narration}
-                combat={combat}
-                hp={state?.hp || hp}
-                previousHp={previousHp}
-                primaryStat={primaryStat}
-                dc={encounter.encounter.dc}
-                streak={typeof state?.streak === 'number' ? state.streak : undefined}
-                milestones={milestoneMessages}
-                onOpenInventory={() => openDrawer('inventory')}
-                onOpenCharacter={() => openDrawer('character')}
-              />
+            {phase === 'result' && combat && hp ? (
+              <div className="mx-auto max-w-2xl space-y-4">
+                <OutcomePanel
+                  narration={narration}
+                  combat={combat}
+                  hp={state?.hp || hp}
+                  previousHp={previousHp}
+                  primaryStat={primaryStat}
+                  dc={encounter.encounter.dc}
+                  streak={typeof state?.streak === 'number' ? state.streak : undefined}
+                  milestones={milestoneMessages}
+                  onOpenInventory={() => openDrawer('inventory')}
+                  onOpenCharacter={() => openDrawer('character')}
+                />
+                <div className="flex justify-center pb-8">
+                  <button
+                    type="button"
+                    onClick={handleResultDone}
+                    className="rounded-[10px] px-8 py-3 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.04]"
+                    style={{
+                      background: 'linear-gradient(135deg, #0e9696, #00674f)',
+                      boxShadow: '0 4px 16px rgba(14,150,150,.3)',
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             ) : null}
 
-            {phase === 'outcome' && !combat && narration ? (
-              <div className="mx-auto max-w-2xl pt-12 text-center">
-                <p className="font-serif text-xl text-text-secondary">{narration}</p>
-                <p className="mt-3 text-xs text-text-muted">
+            {phase === 'result' && !combat ? (
+              <div className="mx-auto max-w-2xl space-y-4 pt-12 text-center">
+                <p className="font-serif text-xl text-text-secondary">
+                  {narration || 'The dust settles.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResultDone}
+                  className="rounded-[10px] px-8 py-3 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.04]"
+                  style={{
+                    background: 'linear-gradient(135deg, #0e9696, #00674f)',
+                    boxShadow: '0 4px 16px rgba(14,150,150,.3)',
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            ) : null}
+
+            {phase === 'post-resolve' ? (
+              <div className="mx-auto max-w-2xl space-y-4 pt-12 text-center">
+                <p className="font-serif text-xl text-text-secondary">
                   Come back tomorrow to continue your streak
                   {typeof state?.streak === 'number' ? ` (${state.streak})` : ''}.
                 </p>
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => openDrawer('inventory')}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                  >
+                    Inventory
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openDrawer('character')}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                  >
+                    Character
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openDrawer('loot')}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                  >
+                    Loot Table
+                  </button>
+                </div>
               </div>
             ) : null}
 

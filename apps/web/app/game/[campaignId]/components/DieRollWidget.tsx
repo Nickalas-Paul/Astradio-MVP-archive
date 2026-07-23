@@ -16,7 +16,7 @@ export interface DieRollWidgetProps {
   primaryStat: string;
   choiceLabel?: string;
   loading: boolean;
-  /** Fires after the full reveal sequence finishes. */
+  /** Fires after the full reveal sequence finishes (min ~3s on the result). */
   onComplete?: () => void;
 }
 
@@ -29,6 +29,9 @@ const OUTCOME_COLORS: Record<string, string> = {
   critical_success: '#D4AF37',
   critical_failure: '#991B1B',
 };
+
+/** Minimum time the outcome breakdown stays visible before auto-continue. */
+const RESULT_HOLD_MS = 3000;
 
 function outcomeColor(outcome: string): string {
   return OUTCOME_COLORS[outcome.toLowerCase()] ?? '#F8FAFC';
@@ -68,7 +71,7 @@ export function DieRollWidget({
     return () => window.clearInterval(id);
   }, [phase, result]);
 
-  // Stepped reveal after landing: modifier (400ms) → outcome (+500ms) → complete (+1.3s).
+  // Stepped reveal after landing: modifier → outcome → hold ≥3s (or Continue) → complete.
   useEffect(() => {
     if (phase === 'landed') {
       const t = window.setTimeout(() => setPhase('modifier'), 400);
@@ -80,9 +83,10 @@ export function DieRollWidget({
     }
     if (phase === 'outcome' && !completed.current) {
       const t = window.setTimeout(() => {
+        if (completed.current) return;
         completed.current = true;
         onComplete?.();
-      }, 1300);
+      }, RESULT_HOLD_MS);
       return () => window.clearTimeout(t);
     }
     return undefined;
@@ -95,8 +99,15 @@ export function DieRollWidget({
     onRoll();
   };
 
+  const handleContinue = () => {
+    if (phase !== 'outcome' || completed.current) return;
+    completed.current = true;
+    onComplete?.();
+  };
+
   const modColor =
     result && result.modifier > 0 ? '#10B981' : result && result.modifier < 0 ? '#EF4444' : '#94A3B8';
+  const modSign = result && result.modifier < 0 ? '−' : '+';
 
   return (
     <div className="flex flex-col items-center gap-5 py-8">
@@ -168,27 +179,37 @@ export function DieRollWidget({
       ) : null}
 
       {(phase === 'modifier' || phase === 'outcome') && result ? (
-        <p
-          className="text-center text-sm text-text-secondary"
+        <div
+          className="flex flex-col items-center gap-1.5 text-center"
           style={{ animation: 'dieFadeIn .4s ease both' }}
         >
-          {result.raw}{' '}
-          <span style={{ color: modColor }}>
-            {result.modifier >= 0 ? '+' : '−'} {Math.abs(result.modifier)}{' '}
-            <span className="capitalize">({primaryStat})</span>
-          </span>{' '}
-          = <span className="font-bold text-text-primary">{result.total}</span>
-          {'  '}vs DC {result.dc}
-        </p>
+          <p className="text-sm text-text-secondary">
+            <span style={{ color: modColor }}>
+              {modSign} {Math.abs(result.modifier)}{' '}
+              <span className="capitalize">({primaryStat})</span>
+            </span>
+          </p>
+          <p className="text-lg font-bold text-text-primary">= {result.total}</p>
+          <p className="text-sm text-text-muted">vs DC {result.dc}</p>
+        </div>
       ) : null}
 
       {phase === 'outcome' && result ? (
-        <p
-          className="text-center text-xl font-bold uppercase tracking-[3px]"
-          style={{ color: outcomeColor(result.outcome), animation: 'outcomePop .35s ease both' }}
-        >
-          {outcomeLabel(result.outcome)}
-        </p>
+        <div className="flex flex-col items-center gap-4">
+          <p
+            className="text-center text-xl font-bold uppercase tracking-[3px]"
+            style={{ color: outcomeColor(result.outcome), animation: 'outcomePop .35s ease both' }}
+          >
+            {outcomeLabel(result.outcome)}
+          </p>
+          <button
+            type="button"
+            onClick={handleContinue}
+            className="rounded-lg border border-white/10 bg-white/5 px-5 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+          >
+            Continue
+          </button>
+        </div>
       ) : null}
     </div>
   );

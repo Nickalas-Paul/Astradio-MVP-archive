@@ -36,7 +36,7 @@ export function ChoicePanel({ choices, onChoose, disabled, selectedId }: ChoiceP
   const bestMod = Math.max(...choices.map((c) => c.currentModifier));
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1 max-md:flex-col max-md:overflow-visible">
+    <div className="grid grid-cols-1 gap-3 pt-2 auto-rows-fr md:grid-cols-2 lg:grid-cols-3">
       {choices.map((choice) => {
         const isBest = choice.currentModifier === bestMod;
         const selected = selectedId === choice.id;
@@ -48,7 +48,7 @@ export function ChoicePanel({ choices, onChoose, disabled, selectedId }: ChoiceP
             type="button"
             disabled={disabled || Boolean(selectedId)}
             onClick={() => onChoose(choice.id)}
-            className="group relative min-w-[200px] flex-1 rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            className="group relative flex h-full w-full flex-col overflow-visible rounded-xl p-3 pt-4 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             style={{
               background: isBest ? 'rgba(14,150,150,.08)' : 'rgba(255,255,255,.04)',
               border: selected
@@ -60,7 +60,7 @@ export function ChoicePanel({ choices, onChoose, disabled, selectedId }: ChoiceP
             }}
           >
             {isBest ? (
-              <span className="absolute -top-2 right-2 rounded-full bg-accent px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+              <span className="absolute -top-2 right-2 z-10 rounded-full bg-accent px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
                 Best odds
               </span>
             ) : null}
@@ -72,15 +72,7 @@ export function ChoicePanel({ choices, onChoose, disabled, selectedId }: ChoiceP
               </span>
             </div>
 
-            <p
-              className="mt-1.5 text-xs leading-snug text-text-muted"
-              style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
+            <p className="mt-1.5 flex-1 text-xs leading-snug text-text-muted">
               {choice.symbolicGesture}
             </p>
 
