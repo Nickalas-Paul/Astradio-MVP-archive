@@ -87,7 +87,7 @@ function extractSkySummary(payload: ComposeLikeResponse): string {
   const summaryParts = sections
     .map((section) => (typeof section.text === 'string' ? section.text.trim() : ''))
     .filter(Boolean)
-    .slice(0, 2);
+    .slice(0, 4);
 
   if (summaryParts.length > 0) {
     return summaryParts.join('\n\n');
