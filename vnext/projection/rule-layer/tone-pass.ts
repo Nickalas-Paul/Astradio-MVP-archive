@@ -48,6 +48,7 @@ const SECTION_RANK: Record<string, number> = {
 const HOME_LIBRARY_SECTION_IDS = new Set([
   'todays_sound',
   'sky_anchor',
+  'featured_transit',
   'emotional_weather',
 ]);
 

@@ -32,7 +32,12 @@ const SECTION_ORDER: string[] = [
 ];
 
 /** Home guest sky report section order (Phase 8C). */
-const HOME_SECTION_IDS: string[] = ['todays_sound', 'sky_anchor', 'emotional_weather'];
+const HOME_SECTION_IDS: string[] = [
+  'todays_sound',
+  'sky_anchor',
+  'featured_transit',
+  'emotional_weather',
+];
 
 const HOME_GRADIENT_SECTION_IDS = new Set(HOME_SECTION_IDS);
 

@@ -1,11 +1,13 @@
 /**
- * Phase 8C: Guest-safe Home sky report sections.
- * Purpose-written present-tense copy — no natal filtering.
+ * Home sky report sections — insight-library planet-in-sign pulls (collective sky voice).
+ * Replaces Phase 8C guest-safe static tables with PLCMT_* / SIGN_* library content.
  */
 import type { EphemerisSnapshot } from '../../contracts';
 import { lonToSign } from '../../astro/profile-from-snapshot';
+import { getAspectInsight } from '../insight-library/insight-library-index';
 import type { ProjectedExplanationSection } from '../projection-types';
 import { taggedSectionBodyFromText } from '../tagged-text';
+import { capToMaxSentences } from './claim-synthesize';
 
 export type GuestSignSlug =
   | 'aries'
@@ -21,94 +23,22 @@ export type GuestSignSlug =
   | 'aquarius'
   | 'pisces';
 
-const GUEST_SUN: Record<GuestSignSlug, string> = {
-  aries:
-    'The Sun moves through Aries. The energy is direct, initiating, and impatient with delay. This is a time for starting rather than finishing, for acting rather than deliberating. The impulse to move is stronger than the impulse to plan.',
-  taurus:
-    'The Sun moves through Taurus. The pace slows, the direction steadies, and what matters is what can be built rather than what can be started. This is a time for endurance, for tangible progress, for trusting what takes time.',
-  gemini:
-    'The Sun moves through Gemini. The energy is curious, conversational, and restless with routine. This is a time for exploration, for connecting ideas across domains, for following interests without needing to commit to any single one.',
-  cancer:
-    'The Sun moves through Cancer. The energy turns inward, protective, and emotionally present. This is a time for tending what matters privately, for honoring emotional truth over public performance.',
-  leo:
-    'The Sun moves through Leo. The energy is expressive, generous, and unapologetically visible. This is a time for creating, for performing, for allowing warmth and presence to take up the space they naturally require.',
-  virgo:
-    'The Sun moves through Virgo. The energy is precise, service-oriented, and attentive to what actually works. This is a time for refinement, for getting the details right, for the kind of care that shows up in the quality of the work.',
-  libra:
-    'The Sun moves through Libra. The energy seeks balance, beauty, and fair exchange. This is a time for partnership, for aesthetic attention, for the kind of diplomacy that holds competing truths without collapsing into either.',
-  scorpio:
-    'The Sun moves through Scorpio. The energy deepens, intensifies, and refuses surfaces. This is a time for confronting what is hidden, for transformation that requires honesty about what is no longer working.',
-  sagittarius:
-    'The Sun moves through Sagittarius. The energy expands, reaches outward, and refuses to stay contained. This is a time for philosophy, for travel in every sense, for pursuing meaning larger than the immediate.',
-  capricorn:
-    'The Sun moves through Capricorn. The energy is disciplined, ambitious, and oriented toward lasting achievement. This is a time for building, for earning authority through competence, for the kind of patience that produces real results.',
-  aquarius:
-    'The Sun moves through Aquarius. The energy is innovative, independent, and oriented toward collective good. This is a time for breaking patterns, for thinking systemically, for the kind of originality that serves something larger than individual ambition.',
-  pisces:
-    'The Sun moves through Pisces. The energy dissolves boundaries, deepens empathy, and opens into what cannot be fully named. This is a time for imagination, for surrender, for the kind of sensitivity that sees what rational attention misses.',
-};
+const FEATURED_INNER_PLANETS = ['MERCURY', 'VENUS', 'MARS'] as const;
+type FeaturedInnerPlanet = (typeof FEATURED_INNER_PLANETS)[number];
 
-const GUEST_MOON: Record<GuestSignSlug, string> = {
-  aries:
-    'The Moon in Aries makes the emotional weather direct and reactive. Feelings arrive fast, burn hot, and move on. The mood favors action over reflection.',
-  taurus:
-    'The Moon in Taurus makes the emotional weather steady and grounded. Feelings settle rather than spike. The mood favors comfort, physical presence, and refusing to be rushed.',
-  gemini:
-    'The Moon in Gemini makes the emotional weather restless and curious. Feelings process through conversation and mental activity. The mood favors connection, variety, and thinking out loud.',
-  cancer:
-    'The Moon in Cancer makes the emotional weather deep, protective, and attuned to what is private. Feelings are fully felt and not easily shared. The mood favors home, safety, and emotional honesty.',
-  leo:
-    'The Moon in Leo makes the emotional weather warm, expressive, and generous. Feelings want to be seen and acknowledged. The mood favors celebration, creative expression, and taking up space.',
-  virgo:
-    'The Moon in Virgo makes the emotional weather practical and attentive. Feelings process through analysis and service. The mood favors usefulness, precision, and caring through action rather than words.',
-  libra:
-    'The Moon in Libra makes the emotional weather diplomatic and harmony-seeking. Feelings orient toward fairness and beauty. The mood favors partnership, aesthetic experience, and maintaining peace.',
-  scorpio:
-    'The Moon in Scorpio makes the emotional weather intense, private, and psychologically penetrating. Feelings run deep and do not surface casually. The mood favors truth over comfort.',
-  sagittarius:
-    'The Moon in Sagittarius makes the emotional weather expansive and restless. Feelings want to move, explore, and find meaning. The mood favors optimism, philosophical reach, and the refusal to stay contained.',
-  capricorn:
-    'The Moon in Capricorn makes the emotional weather serious, disciplined, and goal-oriented. Feelings are managed rather than expressed freely. The mood favors responsibility, structure, and emotional restraint.',
-  aquarius:
-    'The Moon in Aquarius makes the emotional weather detached, innovative, and collectively oriented. Feelings are experienced at a distance. The mood favors independence, unconventional responses, and thinking about the bigger picture.',
-  pisces:
-    'The Moon in Pisces makes the emotional weather porous, empathic, and boundaryless. Feelings absorb from the environment and do not always distinguish self from other. The mood favors imagination, compassion, and the dissolution of hard edges.',
-};
-
-const GUEST_SONIC: Record<GuestSignSlug, string> = {
-  aries:
-    'Sharp rhythmic attack, forward melodic drive, and harmonic intensity that does not wait for permission to begin.',
-  taurus:
-    'Rich sustained harmonics, grounded rhythmic pulse, and melodic patience that builds rather than rushes.',
-  gemini:
-    'Quick melodic movement, light contrapuntal textures, and rhythmic agility that shifts between ideas.',
-  cancer:
-    'Deep emotional resonance, sustained harmonic warmth, and rhythm that moves with the tide rather than against it.',
-  leo:
-    'Bold melodic statements, radiant harmonic warmth, and rhythm that commands attention without asking.',
-  virgo:
-    'Precise melodic articulation, clean harmonic structure, and rhythm that serves the music rather than displaying itself.',
-  libra:
-    'Balanced harmonic dialogue, graceful melodic exchange, and rhythm that holds symmetry between competing voices.',
-  scorpio:
-    'Dark harmonic depth, intense melodic descent, and rhythm that pulses with confrontation and renewal.',
-  sagittarius:
-    'Expansive melodic reach, open harmonic space, and rhythm that moves toward something larger than where it started.',
-  capricorn:
-    'Austere melodic authority, disciplined harmonic structure, and rhythm that builds toward mastery through sustained effort.',
-  aquarius:
-    'Unexpected harmonic progressions, innovative melodic breaks, and rhythm that disrupts pattern without losing coherence.',
-  pisces:
-    'Dissolving harmonic boundaries, fluid melodic drift, and rhythm that surrenders direction in favor of atmosphere.',
-};
+// DEPRECATED Phase 8C guest tables — retained commented for rollback until sky library rewire is signed off.
+// const GUEST_SUN: Record<GuestSignSlug, string> = { … };
+// const GUEST_MOON: Record<GuestSignSlug, string> = { … };
+// const GUEST_SONIC: Record<GuestSignSlug, string> = { … };
 
 function signSlugFromLon(lon: number): GuestSignSlug {
   const { sign } = lonToSign(lon);
   return sign.toLowerCase() as GuestSignSlug;
 }
 
-export function formatSignName(slug: GuestSignSlug): string {
-  return slug.charAt(0).toUpperCase() + slug.slice(1);
+export function formatSignName(slug: GuestSignSlug | string): string {
+  const s = String(slug).toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function planetLon(snapshot: EphemerisSnapshot, name: string): number | null {
@@ -116,20 +46,88 @@ function planetLon(snapshot: EphemerisSnapshot, name: string): number | null {
   return typeof planet?.lon === 'number' ? planet.lon : null;
 }
 
-function lowercaseLead(s: string): string {
-  if (!s) return s;
-  return s.charAt(0).toLowerCase() + s.slice(1);
+function formatPlanetName(planet: string): string {
+  const p = planet.toLowerCase();
+  return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
-export function buildTodaysSoundText(
-  sunSign: GuestSignSlug,
-  sunSonic: string,
-  moonSign: GuestSignSlug,
-  moonSonic: string
-): string {
-  const sunName = formatSignName(sunSign);
-  const moonName = formatSignName(moonSign);
-  return `The Sun in ${sunName} gives today's sound ${lowercaseLead(sunSonic)} The Moon in ${moonName} adds ${lowercaseLead(moonSonic)}`;
+function getDayOfYear(d: Date): number {
+  const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+  const diff = d.getTime() - start;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function resolveFeaturedPlanet(snapshot: EphemerisSnapshot): FeaturedInnerPlanet | null {
+  const rawTs = typeof snapshot.ts === 'string' && snapshot.ts.trim() ? snapshot.ts : null;
+  const base = rawTs ? new Date(rawTs) : new Date();
+  const day = Number.isFinite(base.getTime()) ? getDayOfYear(base) : getDayOfYear(new Date());
+  const startIdx = ((day % FEATURED_INNER_PLANETS.length) + FEATURED_INNER_PLANETS.length) % FEATURED_INNER_PLANETS.length;
+
+  for (let i = 0; i < FEATURED_INNER_PLANETS.length; i++) {
+    const planet = FEATURED_INNER_PLANETS[(startIdx + i) % FEATURED_INNER_PLANETS.length]!;
+    if (planetLon(snapshot, planet) != null) return planet;
+  }
+  return null;
+}
+
+function lookupPlacementInsight(planet: string, signSlug: GuestSignSlug) {
+  const signUpper = signSlug.toUpperCase();
+  const placement = getAspectInsight(`PLCMT_${planet.toUpperCase()}_${signUpper}`);
+  if (placement) return placement;
+  return getAspectInsight(`SIGN_${signUpper}`);
+}
+
+function capitalizeLead(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Strip natal second-person framing and banned constructions for collective sky voice.
+ */
+export function reframeForSky(text: string): string {
+  let t = String(text || '').trim();
+  if (!t) return '';
+
+  t = t.replace(/\u2014|\u2013/g, ',');
+  t = t.replace(/\s+-\s+/g, ', ');
+
+  t = t.replace(/\bartifact\b/gi, 'composition');
+  t = t.replace(/\bin your chart\b/gi, 'in the current sky');
+  t = t.replace(/\byour music\b/gi, "today's sound");
+  t = t.replace(/\byour soundtrack\b/gi, "today's sound");
+
+  // "Your Mercury in Gemini" (start or mid) → "Mercury in Gemini"
+  t = t.replace(/\bYour\s+([A-Z][a-z]+)\s+in\s+([A-Z][a-z]+)/g, '$1 in $2');
+
+  // Sentence-initial possessive "Your identity…" → "The identity…"
+  t = t.replace(/(^|[.!?]\s+)Your\s+/g, '$1The ');
+
+  // Remaining possessive "your " → "the "
+  t = t.replace(/\byour\s+/gi, 'the ');
+
+  // Drop "Listen for..." sentences (content standard)
+  let sentences = t
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !/^Listen for\b/i.test(s));
+
+  // Banned transition openers / tokens
+  sentences = sentences
+    .map((s) =>
+      s
+        .replace(/^(However|Indeed|Moreover|Furthermore|Nevertheless),\s+/i, '')
+        .replace(/\bhowever\b/gi, '')
+        .replace(/\bindeed\b/gi, '')
+        .replace(/\bmoreover\b/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+    )
+    .filter(Boolean)
+    .map(capitalizeLead);
+
+  return sentences.join(' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 function sectionFromGuestText(id: string, title: string, text: string): ProjectedExplanationSection {
@@ -146,7 +144,7 @@ function sectionFromGuestText(id: string, title: string, text: string): Projecte
 }
 
 /**
- * Guest Home sky report: Today's Sound, Sun in [Sign], Moon in [Sign].
+ * Home sky report: Today's Sound (Moon + featured inner), Sun anchor, featured transit, Moon weather.
  */
 export function assembleHomeSkySections(snapshot: EphemerisSnapshot): ProjectedExplanationSection[] {
   const sunLon = planetLon(snapshot, 'SUN');
@@ -155,20 +153,55 @@ export function assembleHomeSkySections(snapshot: EphemerisSnapshot): ProjectedE
 
   const sunSign = signSlugFromLon(sunLon);
   const moonSign = signSlugFromLon(moonLon);
-  const sunSonic = GUEST_SONIC[sunSign];
-  const moonSonic = GUEST_SONIC[moonSign];
+  const featuredPlanet = resolveFeaturedPlanet(snapshot);
+  if (!featuredPlanet) return [];
 
-  return [
-    sectionFromGuestText(
-      'todays_sound',
-      "Today's Sound",
-      buildTodaysSoundText(sunSign, sunSonic, moonSign, moonSonic)
-    ),
-    sectionFromGuestText('sky_anchor', `Sun in ${formatSignName(sunSign)}`, GUEST_SUN[sunSign]),
-    sectionFromGuestText(
-      'emotional_weather',
-      `Moon in ${formatSignName(moonSign)}`,
-      GUEST_MOON[moonSign]
-    ),
-  ];
+  const featuredLon = planetLon(snapshot, featuredPlanet);
+  if (featuredLon == null) return [];
+  const featuredSign = signSlugFromLon(featuredLon);
+
+  const moonInsight = lookupPlacementInsight('MOON', moonSign);
+  const featuredInsight = lookupPlacementInsight(featuredPlanet, featuredSign);
+  const sunInsight = lookupPlacementInsight('SUN', sunSign);
+
+  const moonSonic = reframeForSky(moonInsight?.sonic ?? '');
+  const featuredSonic = reframeForSky(featuredInsight?.sonic ?? '');
+  const soundParts = [moonSonic, featuredSonic].filter(Boolean);
+  const todaysSound = capToMaxSentences(soundParts.join(' '), 5);
+
+  const sunFeed = capToMaxSentences(reframeForSky(sunInsight?.feed ?? ''), 3);
+  const featuredFeed = capToMaxSentences(reframeForSky(featuredInsight?.feed ?? ''), 3);
+  const moonFeed = capToMaxSentences(reframeForSky(moonInsight?.feed ?? ''), 3);
+
+  const featuredName = formatPlanetName(featuredPlanet);
+  const sections: ProjectedExplanationSection[] = [];
+
+  if (todaysSound) {
+    sections.push(sectionFromGuestText('todays_sound', "Today's Sound", todaysSound));
+  }
+  if (sunFeed) {
+    sections.push(
+      sectionFromGuestText('sky_anchor', `Sun in ${formatSignName(sunSign)}`, sunFeed)
+    );
+  }
+  if (featuredFeed) {
+    sections.push(
+      sectionFromGuestText(
+        'featured_transit',
+        `${featuredName} in ${formatSignName(featuredSign)}`,
+        featuredFeed
+      )
+    );
+  }
+  if (moonFeed) {
+    sections.push(
+      sectionFromGuestText(
+        'emotional_weather',
+        `Moon in ${formatSignName(moonSign)}`,
+        moonFeed
+      )
+    );
+  }
+
+  return sections;
 }

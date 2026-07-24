@@ -109,8 +109,9 @@ export function parsePlanetNamesFromAspectKey(key: string): string[] {
 }
 
 export const SKY_SECTION_PLANETS: Record<string, string[]> = {
-  todays_sound: ['sun', 'moon'],
+  todays_sound: ['moon', 'mercury', 'venus', 'mars'],
   sky_anchor: ['sun'],
+  featured_transit: ['mercury', 'venus', 'mars'],
   emotional_weather: ['moon'],
 };
 

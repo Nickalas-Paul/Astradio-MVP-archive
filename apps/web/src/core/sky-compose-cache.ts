@@ -3,7 +3,7 @@
  * Not chart-specific; sky positions are the same for everyone at the same place and date.
  */
 
-const KEY_PREFIX = 'astradio_sky_';
+const KEY_PREFIX = 'astradio_sky_v2_';
 
 import type { ComposeVisualControls } from './compose-visual-controls';
 import type { AuraRawSnapshot } from '@/components/wheel/aura-raw-snapshot';
