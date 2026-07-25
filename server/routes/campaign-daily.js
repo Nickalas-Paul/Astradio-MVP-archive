@@ -882,7 +882,16 @@ function createCampaignDailyRouter() {
             let natalSnap = null;
             let transitSnap = null;
             try {
-              const chartId = memberResolution.member.member_id;
+              const chartId =
+                memberResolution.member.chart_id ||
+                memberResolution.member.member_id ||
+                ownerChartId;
+              if (!chartId) {
+                console.error('[resolve] No chart ID found for member', {
+                  member: memberResolution.member,
+                  ownerChartId,
+                });
+              }
               const chart = await vn.getChartById(chartId);
               if (chart) {
                 const natalInput = chartRowToNatalInput(chart);
