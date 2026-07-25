@@ -93,11 +93,16 @@ export function reframeForSky(text: string): string {
   t = t.replace(/\s+-\s+/g, ', ');
 
   t = t.replace(/\bartifact\b/gi, 'composition');
-  t = t.replace(/\bin your chart\b/gi, 'in the current sky');
+
+  // Drop natal/sky locus tags — planet+sign motion already sets the frame.
+  // Handles: "…through Leo in your chart." and "…Leo, its home sign, in your chart."
+  t = t.replace(/,?\s*\bin your chart\b/gi, '');
+  t = t.replace(/,?\s*\bin the current sky\b/gi, '');
+
   t = t.replace(/\byour music\b/gi, "today's sound");
   t = t.replace(/\byour soundtrack\b/gi, "today's sound");
 
-  // "Your Mercury in Gemini" (start or mid) → "Mercury in Gemini"
+  // "Your Mercury in Gemini" → "Mercury in Gemini"
   t = t.replace(/\bYour\s+([A-Z][a-z]+)\s+in\s+([A-Z][a-z]+)/g, '$1 in $2');
 
   // Sentence-initial possessive "Your identity…" → "The identity…"
@@ -122,6 +127,7 @@ export function reframeForSky(text: string): string {
         .replace(/\bindeed\b/gi, '')
         .replace(/\bmoreover\b/gi, '')
         .replace(/\s{2,}/g, ' ')
+        .replace(/\s+,/g, ',')
         .trim()
     )
     .filter(Boolean)
