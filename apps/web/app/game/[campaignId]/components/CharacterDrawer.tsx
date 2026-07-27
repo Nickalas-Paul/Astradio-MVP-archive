@@ -253,7 +253,8 @@ function CharacterTab({
   const trace = useMemo(() => parseStatTrace(character?.statTrace), [character?.statTrace]);
 
   const element = elementTheme ?? getElementTheme(character?.primaryElement);
-  const elementLabel = element.element.charAt(0).toUpperCase() + element.element.slice(1);
+  // Identity card shows sun/class element (Stonebinder → Earth), not chart-wide dominance.
+  const elementLabel = display?.element ?? 'Earth';
 
   const flavor = useMemo(() => {
     if (!character || !display) return '';
