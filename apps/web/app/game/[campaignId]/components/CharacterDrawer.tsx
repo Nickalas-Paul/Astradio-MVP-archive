@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/shared/Button';
 import { getClassDisplay, normalizeSignSlug } from '@/lib/class-display';
+import { deriveActiveEffects } from '@/lib/game/deriveActiveEffects';
+import type { DungeonTheme } from '@/lib/game/dungeonThemes';
+import {
+  elementStatBarGradient,
+  getElementTheme,
+  type ElementTheme,
+} from '@/lib/game/elementThemes';
 import {
   fetchLootTable,
   type CharacterResponse,
+  type GameStateResponse,
   type InventoryBagItem,
   type InventoryResponse,
   type LootTableResponse,
@@ -26,6 +34,9 @@ export interface CharacterDrawerProps {
   inventory: InventoryResponse | null;
   inventoryLoading: boolean;
   mutating: boolean;
+  gameState: GameStateResponse | null;
+  dungeon: DungeonTheme;
+  elementTheme: ElementTheme;
   onEquip: (instanceId: string) => Promise<void>;
   onUnequip: (slot: string) => Promise<void>;
   onUse: (instanceId: string) => Promise<void>;
@@ -41,18 +52,46 @@ const STAT_KEYS: (keyof StatBlock)[] = [
   'willpower',
 ];
 
-function statColor(value: number): string {
-  if (value >= 14) return '#10B981';
-  if (value >= 8) return '#F59E0B';
-  return '#EF4444';
+function rarityPalette(rarity: string | undefined) {
+  const r = (rarity || '').toLowerCase();
+  if (r === 'legendary') {
+    return {
+      hex: '#8B5CF6',
+      name: 'rgba(139,92,246,0.9)',
+      bg: 'rgba(139,92,246,0.06)',
+      border: 'rgba(139,92,246,0.12)',
+      iconBorder: 'rgba(139,92,246,0.2)',
+    };
+  }
+  if (r === 'rare') {
+    return {
+      hex: '#3B82F6',
+      name: 'rgba(59,130,246,0.9)',
+      bg: 'rgba(59,130,246,0.04)',
+      border: 'rgba(59,130,246,0.1)',
+      iconBorder: 'rgba(59,130,246,0.15)',
+    };
+  }
+  if (r === 'uncommon') {
+    return {
+      hex: '#10B981',
+      name: 'rgba(16,185,129,0.9)',
+      bg: 'rgba(16,185,129,0.06)',
+      border: 'rgba(16,185,129,0.12)',
+      iconBorder: 'rgba(16,185,129,0.15)',
+    };
+  }
+  return {
+    hex: '#6B7280',
+    name: 'rgba(160,165,175,0.8)',
+    bg: 'rgba(107,114,128,0.06)',
+    border: 'rgba(107,114,128,0.1)',
+    iconBorder: 'rgba(107,114,128,0.15)',
+  };
 }
 
 function rarityColor(rarity: string | undefined): string {
-  const r = (rarity || '').toLowerCase();
-  if (r === 'legendary') return '#8B5CF6';
-  if (r === 'rare') return '#3B82F6';
-  if (r === 'uncommon') return '#10B981';
-  return '#6B7280';
+  return rarityPalette(rarity).hex;
 }
 
 /* ---- statTrace parsing (DTO ships it as unknown) ---- */
@@ -149,14 +188,60 @@ function StatTraceDetail({ trace, statKey }: { trace: ParsedTrace; statKey: stri
 
 /* ---- Character tab ---- */
 
+function effectCardStyle(
+  color: 'green' | 'dungeon' | 'blue' | 'red',
+  dungeon: DungeonTheme
+): { dot: string; bg: string; border: string; glow: string; name: string } {
+  if (color === 'dungeon') {
+    return {
+      dot: dungeon.accent.primaryAlpha(0.8),
+      bg: dungeon.accent.primaryAlpha(0.04),
+      border: dungeon.accent.primaryAlpha(0.1),
+      glow: dungeon.accent.glow,
+      name: dungeon.accent.text,
+    };
+  }
+  if (color === 'blue') {
+    return {
+      dot: 'rgba(120,160,255,0.6)',
+      bg: 'rgba(120,160,255,0.04)',
+      border: 'rgba(120,160,255,0.08)',
+      glow: 'rgba(120,160,255,0.35)',
+      name: 'rgba(160,185,255,0.9)',
+    };
+  }
+  if (color === 'red') {
+    return {
+      dot: 'rgba(200,80,60,0.7)',
+      bg: 'rgba(200,80,60,0.06)',
+      border: 'rgba(200,80,60,0.1)',
+      glow: 'rgba(200,80,60,0.35)',
+      name: 'rgba(220,120,100,0.9)',
+    };
+  }
+  return {
+    dot: '#5aaa78',
+    bg: 'rgba(90,170,120,0.06)',
+    border: 'rgba(90,170,120,0.12)',
+    glow: 'rgba(90,170,120,0.4)',
+    name: 'rgba(160,210,175,0.95)',
+  };
+}
+
 function CharacterTab({
   character,
   loading,
   error,
+  gameState,
+  dungeon,
+  elementTheme,
 }: {
   character: CharacterResponse | null;
   loading: boolean;
   error: string | null;
+  gameState: GameStateResponse | null;
+  dungeon: DungeonTheme;
+  elementTheme: ElementTheme;
 }) {
   const [openTrace, setOpenTrace] = useState<string | null>(null);
 
@@ -167,18 +252,41 @@ function CharacterTab({
 
   const trace = useMemo(() => parseStatTrace(character?.statTrace), [character?.statTrace]);
 
-  const buildSummary = useMemo(() => {
+  const element = elementTheme ?? getElementTheme(character?.primaryElement);
+  const elementLabel = element.element.charAt(0).toUpperCase() + element.element.slice(1);
+
+  const flavor = useMemo(() => {
     if (!character || !display) return '';
     const sun = normalizeSignSlug(character.classSlug);
     const moon = normalizeSignSlug(character.subclassSlug);
-    const sunT = display.sunSign;
-    const moonT = display.moonSign;
-    const ascT = display.ascSign;
     if (sun === moon) {
-      return `Double ${sunT} core with ${ascT} rising. ${display.role}.`;
+      return `Double ${display.sunSign} core with ${display.ascSign} rising. ${display.role}.`;
     }
-    return `${sunT} core, ${moonT} instincts, ${ascT} rising. ${display.role}.`;
+    return `${display.sunSign} core, ${display.moonSign} instincts, ${display.ascSign} rising. ${display.role}.`;
   }, [character, display]);
+
+  const effects = useMemo(
+    () =>
+      deriveActiveEffects({
+        primaryElement: character?.primaryElement,
+        chapterHouse:
+          gameState?.activeChapter?.currentHouse ??
+          gameState?.saturnChapter?.currentHouse ??
+          dungeon.house,
+        streak: gameState?.streak,
+        activeBuffs: character?.activeBuffs,
+        damageShield: gameState?.damageShield ?? null,
+      }),
+    [character, gameState, dungeon.house]
+  );
+
+  const relicItems = useMemo(
+    () =>
+      (character?.equippedItems ?? []).filter(
+        (i) => i.category === 'relic' || i.slot === 'relic'
+      ),
+    [character]
+  );
 
   if (loading) return <p className="p-4 text-xs text-text-secondary">Loading character…</p>;
   if (error) return <p className="p-4 text-xs text-danger">{error}</p>;
@@ -186,25 +294,111 @@ function CharacterTab({
 
   return (
     <div className="space-y-5 p-4">
-      <div>
-        <h3 className="font-serif text-base font-bold text-text-primary">{display.className}</h3>
-        <p className="text-xs text-text-muted">{display.role}</p>
+      {/* Class identity */}
+      <div className="space-y-3">
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] font-serif text-sm font-semibold text-white"
+            style={{
+              border: `2px solid ${element.badgeBorder}`,
+              background: element.badgeBg,
+            }}
+          >
+            {display.classInitial}
+          </div>
+          <div className="min-w-0">
+            <h3
+              className="font-serif text-[20px] font-semibold leading-tight text-white"
+              style={{ fontWeight: 600 }}
+            >
+              {display.className}
+            </h3>
+            <p className="text-[11px] text-white/40">{display.role}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div
+            className="rounded-lg p-2.5"
+            style={{ background: element.badgeBg, border: `1px solid ${element.badgeBorder}` }}
+          >
+            <p
+              className="text-[8px] uppercase tracking-wider"
+              style={{ color: element.textColor, opacity: 0.5 }}
+            >
+              Element
+            </p>
+            <p className="text-[13px] font-semibold" style={{ color: element.textColor }}>
+              {elementLabel}
+            </p>
+            <p className="text-[10px] text-white/30">{display.sunSign}</p>
+          </div>
+          <div
+            className="rounded-lg p-2.5"
+            style={{ background: element.badgeBg, border: `1px solid ${element.badgeBorder}` }}
+          >
+            <p
+              className="text-[8px] uppercase tracking-wider"
+              style={{ color: element.textColor, opacity: 0.5 }}
+            >
+              Rising
+            </p>
+            <p className="text-[13px] font-semibold" style={{ color: element.textColor }}>
+              {display.risingName}
+            </p>
+            <p className="text-[10px] text-white/30">{display.ascSign} ascendant</p>
+          </div>
+        </div>
+
+        {flavor ? (
+          <p
+            className="font-serif text-[13px] italic"
+            style={{ color: element.textColor, opacity: 0.6 }}
+          >
+            {flavor}
+          </p>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-white/10 bg-white/[.03] p-2.5">
-          <p className="text-[9px] uppercase tracking-wider text-text-muted">Subclass</p>
-          <p className="text-xs font-semibold text-text-primary">{display.subclassName}</p>
-          <p className="text-[10px] text-text-muted">Moon in {display.moonSign}</p>
+      {/* Active Effects */}
+      <section className="space-y-2">
+        <h4
+          className="text-[9px] uppercase"
+          style={{ letterSpacing: '2px', color: 'rgba(255,255,255,0.25)' }}
+        >
+          Active Effects
+        </h4>
+        <div className="space-y-1.5">
+          {effects.map((fx) => {
+            const style = effectCardStyle(fx.color, dungeon);
+            return (
+              <div
+                key={fx.id}
+                className="flex items-start gap-2.5 rounded-md"
+                style={{
+                  padding: '8px 10px',
+                  background: style.bg,
+                  border: `1px solid ${style.border}`,
+                }}
+              >
+                <span
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{
+                    background: style.dot,
+                    boxShadow: `0 0 6px ${style.glow}`,
+                  }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium" style={{ color: style.name }}>
+                    {fx.name}
+                  </p>
+                  <p className="text-[9px] text-white/30">{fx.description}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/[.03] p-2.5">
-          <p className="text-[9px] uppercase tracking-wider text-text-muted">Rising</p>
-          <p className="text-xs font-semibold text-text-primary">{display.risingName}</p>
-          <p className="text-[10px] text-text-muted">{display.ascSign} ascendant</p>
-        </div>
-      </div>
-
-      {buildSummary ? <p className="text-xs italic text-text-secondary">{buildSummary}</p> : null}
+      </section>
 
       <section className="space-y-3">
         <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
@@ -215,14 +409,16 @@ function CharacterTab({
           const eff = character.effectiveStats[key];
           const gear = character.effectiveStats.bonuses?.[key] ?? 0;
           const pct = Math.round((Math.max(0, Math.min(20, eff)) / 20) * 100);
-          const color = statColor(eff);
+          const fill = elementStatBarGradient(element, eff);
           const expanded = openTrace === key;
           return (
             <div key={key} className="space-y-1">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs capitalize text-text-secondary">{key}</span>
                 <span className="text-sm font-bold text-text-primary">
-                  {gear ? <span className="mr-1 text-xs font-semibold text-success">+{gear}</span> : null}
+                  {gear ? (
+                    <span className="mr-1 text-xs font-semibold text-success">+{gear}</span>
+                  ) : null}
                   {eff}
                   {eff !== base ? (
                     <span className="ml-1 text-[10px] font-normal text-text-muted">
@@ -234,13 +430,14 @@ function CharacterTab({
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${pct}%`, background: color }}
+                  style={{ width: `${pct}%`, background: fill }}
                 />
               </div>
               {trace ? (
                 <button
                   type="button"
-                  className="text-[10px] text-accent hover:underline"
+                  className="text-[10px] hover:underline"
+                  style={{ color: dungeon.accent.text }}
                   onClick={() => setOpenTrace(expanded ? null : key)}
                 >
                   Why this stat? {expanded ? '▴' : '▾'}
@@ -253,6 +450,53 @@ function CharacterTab({
         {character.effectiveStats.woundedPenalty ? (
           <p className="text-[10px] text-danger">Wounded: stats reduced by 25%.</p>
         ) : null}
+      </section>
+
+      {/* Equipped Relics */}
+      <section className="space-y-2">
+        <h4
+          className="text-[9px] uppercase"
+          style={{ letterSpacing: '2px', color: 'rgba(255,255,255,0.25)' }}
+        >
+          Equipped Relics
+        </h4>
+        {relicItems.length === 0 ? (
+          <p className="text-[10px] text-white/30">No relic equipped.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {relicItems.map((item) => {
+              const pal = rarityPalette(item.rarity);
+              return (
+                <div
+                  key={item.instanceId}
+                  className="flex items-center gap-2.5 rounded-md"
+                  style={{
+                    padding: '8px 10px',
+                    background: pal.bg,
+                    border: `1px solid ${pal.border}`,
+                  }}
+                >
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px]"
+                    style={{ border: `1px solid ${pal.iconBorder}`, color: pal.name }}
+                    aria-hidden
+                  >
+                    ☿
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[12px] font-medium" style={{ color: pal.name }}>
+                      {item.name}
+                    </p>
+                    <p className="text-[9px] capitalize text-white/30">
+                      {item.rarity}
+                      {item.slot ? ` · ${item.slot}` : ''}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="space-y-2">
@@ -584,7 +828,8 @@ const TABS: Array<{ id: DrawerTab; label: string }> = [
 ];
 
 export function CharacterDrawer(props: CharacterDrawerProps) {
-  const { campaignId, open, tab, onTabChange, onClose } = props;
+  const { campaignId, open, tab, onTabChange, onClose, dungeon } = props;
+  const { accent } = dungeon;
 
   if (!open) return null;
 
@@ -601,20 +846,30 @@ export function CharacterDrawer(props: CharacterDrawerProps) {
     >
       <div className="flex items-center justify-between border-b border-white/5 px-3 py-2">
         <div className="flex flex-1">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onTabChange(t.id)}
-              className={`flex-1 border-b-2 px-1 pb-1.5 pt-1 text-[11px] font-semibold transition-colors ${
-                tab === t.id
-                  ? 'border-accent text-accent'
-                  : 'border-transparent text-text-muted hover:text-text-secondary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onTabChange(t.id)}
+                className="flex-1 border-b-2 px-1 pb-1.5 pt-1 text-[11px] font-semibold transition-colors"
+                style={
+                  active
+                    ? {
+                        borderBottomColor: accent.primaryAlpha(0.5),
+                        color: accent.primaryAlpha(0.8),
+                      }
+                    : {
+                        borderBottomColor: 'transparent',
+                        color: 'rgba(255,255,255,0.35)',
+                      }
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
         <button
           type="button"
@@ -632,6 +887,9 @@ export function CharacterDrawer(props: CharacterDrawerProps) {
             character={props.character}
             loading={props.characterLoading}
             error={props.characterError}
+            gameState={props.gameState}
+            dungeon={props.dungeon}
+            elementTheme={props.elementTheme}
           />
         ) : null}
         {tab === 'inventory' ? (

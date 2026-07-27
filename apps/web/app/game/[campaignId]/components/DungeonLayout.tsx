@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import type { DungeonTheme } from '@/lib/game/dungeonThemes';
+import type { CampaignEraState } from '@/lib/game-api';
 
 export interface DungeonLayoutProps {
   /** Left HUD rail (hidden on mobile). */
@@ -10,7 +12,8 @@ export interface DungeonLayoutProps {
   drawer: ReactNode;
   /** Bottom-docked panel (choices during encounter phase); render null to omit. */
   bottomDock: ReactNode;
-  dungeonName: string;
+  dungeon: DungeonTheme;
+  era: CampaignEraState | null;
   chapter: number;
   drawerOpen: boolean;
   onCharacterToggle: () => void;
@@ -28,7 +31,8 @@ export function DungeonLayout({
   rail,
   drawer,
   bottomDock,
-  dungeonName,
+  dungeon,
+  era,
   chapter,
   drawerOpen,
   onCharacterToggle,
@@ -38,6 +42,8 @@ export function DungeonLayout({
 }: DungeonLayoutProps) {
   const hpRatio = mobileHp ? mobileHp.current / Math.max(1, mobileHp.max) : 1;
   const hpColor = hpRatio > 0.6 ? '#10B981' : hpRatio > 0.3 ? '#F59E0B' : '#EF4444';
+  const { accent } = dungeon;
+  const eraLabel = era?.label ? `Era of ${era.label}` : null;
 
   return (
     <div className="relative z-10 flex h-[calc(100dvh-69px)] w-full overflow-hidden">
@@ -52,14 +58,46 @@ export function DungeonLayout({
             backdropFilter: 'blur(8px)',
           }}
         >
-          <div className="min-w-0">
-            <Link
-              href="/game"
-              className="block truncate font-serif text-sm uppercase tracking-widest text-accent hover:underline"
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+              style={{
+                background: `linear-gradient(145deg, ${accent.primaryAlpha(0.12)}, ${accent.primaryAlpha(0.06)})`,
+                border: `1px solid ${accent.primaryAlpha(0.15)}`,
+                color: accent.text,
+              }}
+              aria-hidden
             >
-              {dungeonName || 'Campaign'}
-            </Link>
-            <p className="text-[10px] text-text-muted">Chapter {chapter}</p>
+              {dungeon.sigil}
+            </div>
+            <div className="min-w-0">
+              <Link
+                href="/game"
+                className="block truncate font-serif text-sm uppercase tracking-widest hover:underline"
+                style={{ color: accent.text }}
+              >
+                {dungeon.name}
+              </Link>
+              <p className="text-[11px] text-white/30">
+                Chapter {chapter}
+                <span className="mx-1">·</span>
+                {dungeon.domain}
+              </p>
+            </div>
+            {eraLabel ? (
+              <span
+                className="ml-auto hidden shrink-0 lg:inline-block"
+                style={{
+                  fontSize: 9,
+                  color: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 10,
+                  padding: '4px 10px',
+                }}
+              >
+                {eraLabel}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
@@ -78,18 +116,29 @@ export function DungeonLayout({
                   {mobileHp.current}/{mobileHp.max}
                 </span>
                 {typeof mobileStreak === 'number' ? (
-                  <span className="text-[10px] text-accent">·&nbsp;{mobileStreak}🔥</span>
+                  <span className="text-[10px]" style={{ color: accent.text }}>
+                    ·&nbsp;{mobileStreak}🔥
+                  </span>
                 ) : null}
               </div>
             ) : null}
             <button
               type="button"
               onClick={onCharacterToggle}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
+              style={
                 drawerOpen
-                  ? 'border-accent/40 bg-accent/15 text-accent'
-                  : 'border-white/10 bg-white/5 text-text-secondary hover:bg-white/10 hover:text-text-primary'
-              }`}
+                  ? {
+                      borderColor: accent.border,
+                      background: accent.primaryAlpha(0.12),
+                      color: accent.text,
+                    }
+                  : {
+                      borderColor: 'rgba(255,255,255,0.1)',
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'rgba(255,255,255,0.55)',
+                    }
+              }
             >
               Character
             </button>
@@ -103,7 +152,7 @@ export function DungeonLayout({
             className="shrink-0 px-4 py-3"
             style={{
               background: 'rgba(8,12,20,.85)',
-              borderTop: '1px solid rgba(255,255,255,.06)',
+              borderTop: `1px solid ${accent.primaryAlpha(0.08)}`,
               backdropFilter: 'blur(12px)',
             }}
           >

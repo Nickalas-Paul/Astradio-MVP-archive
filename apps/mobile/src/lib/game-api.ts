@@ -17,17 +17,45 @@ export type CharacterHP = {
   woundedDaysRemaining: number;
 };
 
+export type ActiveChapterState = {
+  currentHouse: number;
+  domain: string;
+  label: string;
+  startingHouse?: number;
+  enteredDate?: string;
+  transitBody?: 'mars';
+};
+
+export type CampaignEraState = {
+  currentHouse: number;
+  domain: string;
+  label: string;
+  enteredDate?: string;
+  transitBody?: 'saturn';
+};
+
 export type GameStateResponse = {
   campaignId: string;
   hp: CharacterHP;
   streak: number;
   chapter: number;
+  activeChapter?: ActiveChapterState | null;
+  campaignEra?: CampaignEraState | null;
+  /** @deprecated Prefer activeChapter; dual-read during migration. */
   saturnChapter: {
     currentHouse: number;
     domain: string;
     label: string;
   } | null;
 };
+
+/** Prefer Mars activeChapter; fall back to legacy saturnChapter for labels. */
+export function resolveChapterLabel(state: {
+  activeChapter?: { label?: string } | null;
+  saturnChapter?: { label?: string } | null;
+} | null | undefined): string | null {
+  return state?.activeChapter?.label || state?.saturnChapter?.label || null;
+}
 
 export type EncounterChoice = {
   id: string;
@@ -166,6 +194,8 @@ export type CampaignListItem = {
     hp?: { current?: number; max?: number };
     streak?: number;
     chapter?: number;
+    activeChapter?: { label?: string; currentHouse?: number };
+    campaignEra?: { label?: string };
     saturnChapter?: { label?: string };
   };
 };

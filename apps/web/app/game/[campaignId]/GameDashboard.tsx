@@ -28,6 +28,7 @@ import { OutcomePanel } from './components/OutcomePanel';
 import { ConsumableQuickUse } from './components/ConsumableQuickUse';
 import { RevealHint } from './components/RevealHint';
 import { ChapterTransition } from './components/ChapterTransition';
+import { useCampaignTheme } from '@/lib/game/useCampaignTheme';
 
 /** encounter → rolling → result → post-resolve */
 type Phase = 'encounter' | 'rolling' | 'result' | 'post-resolve';
@@ -306,15 +307,15 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const loading = stateLoading || encLoading || composing;
   const hp = state?.hp || encounter?.playerState?.hp;
   const primaryStat = selectedChoice?.primaryStat || 'vitality';
-  const dungeonName =
-    state?.activeChapter?.label || state?.saturnChapter?.label || 'Campaign';
+  const theme = useCampaignTheme(state, character);
+  const { dungeon, element: elementTheme, era } = theme;
   const chapter = state?.chapter ?? 1;
 
   const showChoiceDock = phase === 'encounter' && !encounter?.resolved && !!encounter?.encounter;
 
   return (
     <AppShell contentClassName="p-0">
-      <AmbientBackdrop element={display?.element ?? 'Earth'} />
+      <AmbientBackdrop dungeon={dungeon} />
 
       <DungeonLayout
         rail={
@@ -326,6 +327,8 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
             maxHP={hp?.max ?? 20}
             wounded={hp?.wounded ?? false}
             streak={state?.streak ?? encounter?.playerState?.streak ?? 0}
+            dungeon={dungeon}
+            elementTheme={elementTheme}
             onAvatarClick={() => openDrawer('character')}
             onGearClick={() => openDrawer('inventory')}
           />
@@ -343,6 +346,9 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
             inventory={inventory.inventory}
             inventoryLoading={inventory.loading}
             mutating={inventory.mutating}
+            gameState={state}
+            dungeon={dungeon}
+            elementTheme={elementTheme}
             onEquip={async (id) => {
               await inventory.equip(id);
             }}
@@ -376,7 +382,8 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
             </div>
           ) : null
         }
-        dungeonName={dungeonName}
+        dungeon={dungeon}
+        era={era}
         chapter={chapter}
         drawerOpen={drawerOpen}
         onCharacterToggle={() => (drawerOpen ? setDrawerOpen(false) : openDrawer('character'))}
@@ -409,6 +416,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   dc={encounter.encounter.dc}
                   introNarration={encounter.encounter.introNarration}
                   saturnHouse={encounter.encounter.saturnHouse}
+                  accent={dungeon.accent}
                 />
                 <RevealHint hint={encounter.playerState?.revealHint ?? null} />
               </div>
@@ -484,21 +492,36 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   <button
                     type="button"
                     onClick={() => openDrawer('inventory')}
-                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
+                    style={{
+                      border: `1px solid ${dungeon.accent.border}`,
+                      color: dungeon.accent.text,
+                      background: dungeon.accent.primaryAlpha(0.06),
+                    }}
                   >
                     Inventory
                   </button>
                   <button
                     type="button"
                     onClick={() => openDrawer('character')}
-                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
+                    style={{
+                      border: `1px solid ${dungeon.accent.border}`,
+                      color: dungeon.accent.text,
+                      background: dungeon.accent.primaryAlpha(0.06),
+                    }}
                   >
                     Character
                   </button>
                   <button
                     type="button"
                     onClick={() => openDrawer('loot')}
-                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
+                    style={{
+                      border: `1px solid ${dungeon.accent.border}`,
+                      color: dungeon.accent.text,
+                      background: dungeon.accent.primaryAlpha(0.06),
+                    }}
                   >
                     Loot Table
                   </button>

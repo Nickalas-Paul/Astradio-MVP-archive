@@ -17,6 +17,7 @@ import {
   gameErrorMessage,
   isApiError,
   listCampaigns,
+  resolveChapterLabel,
   type CampaignListItem,
 } from '../../../src/lib/game-api';
 
@@ -30,7 +31,7 @@ function preview(campaign: CampaignListItem) {
     hp,
     streak: state?.streak ?? 0,
     chapter: state?.chapter ?? 1,
-    dungeon: state?.saturnChapter?.label ?? 'Unknown dungeon',
+    dungeon: resolveChapterLabel(state) ?? 'Unknown dungeon',
   };
 }
 

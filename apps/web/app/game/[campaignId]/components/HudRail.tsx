@@ -2,6 +2,12 @@
 
 import { useMemo } from 'react';
 import { getElementColors, type ClassDisplay } from '@/lib/class-display';
+import type { DungeonTheme } from '@/lib/game/dungeonThemes';
+import {
+  elementStatBarGradient,
+  getElementTheme,
+  type ElementTheme,
+} from '@/lib/game/elementThemes';
 import type { InventoryResponse, StatBlock } from '@/lib/game-api';
 
 export interface HudRailProps {
@@ -12,6 +18,8 @@ export interface HudRailProps {
   maxHP: number;
   wounded: boolean;
   streak: number;
+  dungeon: DungeonTheme;
+  elementTheme: ElementTheme;
   onAvatarClick: () => void;
   onGearClick: () => void;
 }
@@ -24,12 +32,6 @@ const STAT_ABBR: Array<{ key: keyof StatBlock; abbr: string }> = [
   { key: 'intuition', abbr: 'INT' },
   { key: 'willpower', abbr: 'WIL' },
 ];
-
-function statColor(value: number): string {
-  if (value >= 14) return '#10B981';
-  if (value >= 8) return '#F59E0B';
-  return '#EF4444';
-}
 
 function rarityColor(rarity: string | undefined): string {
   const r = (rarity || '').toLowerCase();
@@ -71,10 +73,14 @@ export function HudRail({
   maxHP,
   wounded,
   streak,
+  dungeon,
+  elementTheme,
   onAvatarClick,
   onGearClick,
 }: HudRailProps) {
   const colors = getElementColors(display?.element ?? 'Earth');
+  const element = elementTheme ?? getElementTheme(display?.element);
+  const { accent } = dungeon;
 
   const hpRatio = Math.max(0, Math.min(1, currentHP / Math.max(1, maxHP)));
   const hpColor = wounded
@@ -128,15 +134,21 @@ export function HudRail({
       <div className="w-full space-y-1.5 px-2.5">
         {STAT_ABBR.map(({ key, abbr }) => {
           const value = stats?.[key] ?? 0;
-          const color = statColor(value);
           const pct = Math.round((Math.max(0, Math.min(20, value)) / 20) * 100);
+          const fill = elementStatBarGradient(element, value);
           return (
             <div key={key} className="space-y-0.5">
-              <span className="block text-[7px] font-bold leading-none" style={{ color }}>
+              <span
+                className="block text-[7px] font-bold leading-none"
+                style={{ color: element.textColor }}
+              >
                 {abbr}
               </span>
               <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/10">
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${pct}%`, background: fill }}
+                />
               </div>
             </div>
           );
@@ -151,17 +163,19 @@ export function HudRail({
             onClick={onGearClick}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-xs transition-transform hover:scale-105"
             style={{
-              background: 'rgba(255,255,255,.03)',
+              background: unlocked && item ? accent.primaryAlpha(0.04) : 'rgba(255,255,255,.03)',
               border: unlocked
-                ? `1px solid ${item ? rarityColor(item.rarity) : 'rgba(255,255,255,.1)'}`
-                : '1px dashed rgba(255,255,255,.1)',
+                ? `1px solid ${item ? rarityColor(item.rarity) : accent.primaryAlpha(0.2)}`
+                : `1px dashed ${accent.primaryAlpha(0.15)}`,
               opacity: unlocked ? 1 : 0.5,
             }}
             aria-label={unlocked ? `${slot} slot` : `${slot} slot locked`}
             title={item?.name ?? (unlocked ? `Empty ${slot}` : `Locked (${lockCondition})`)}
           >
             {unlocked ? (
-              <span aria-hidden>{item ? glyph : '·'}</span>
+              <span aria-hidden style={{ color: item ? undefined : accent.primaryAlpha(0.4) }}>
+                {item ? glyph : '·'}
+              </span>
             ) : (
               <span className="flex flex-col items-center leading-none">
                 <span aria-hidden>🔒</span>
@@ -186,7 +200,9 @@ export function HudRail({
 
       <div className="flex flex-col items-center pb-1">
         <span className="text-[8px] uppercase tracking-wider text-text-muted">Streak</span>
-        <span className="text-sm font-bold text-accent">{streak}</span>
+        <span className="text-sm font-bold" style={{ color: accent.text }}>
+          {streak}
+        </span>
       </div>
     </aside>
   );

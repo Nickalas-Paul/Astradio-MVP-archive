@@ -249,7 +249,7 @@ export function buildGameStateDTO(params: {
       typeof state.chapterTransitionCount === 'number'
         ? state.chapterTransitionCount
         : saturnChapter?.transitionCount ?? 0,
-    // TODO: mobile reads saturnChapter — update when porting Campaign to mobile
+    // Dual-read for older clients; prefer activeChapter.
     saturnChapter,
     damageShield: state.damageShield ?? null,
     revealActive: !!state.revealActive,

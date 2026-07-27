@@ -18,6 +18,7 @@ import { useCampaignGame } from '../../../src/hooks/useCampaignGame';
 import { ELEMENT_COLORS, getClassDisplay } from '../../../src/lib/class-display';
 import {
   gameErrorMessage,
+  resolveChapterLabel,
   resolveEncounter,
   useConsumable,
   type CombatResolution,
@@ -269,7 +270,7 @@ export default function CampaignDashboardScreen() {
         </Pressable>
         <View style={styles.topTitle}>
           <Text numberOfLines={1} style={styles.dungeonName}>
-            {game.state?.saturnChapter?.label ?? 'Campaign'}
+            {resolveChapterLabel(game.state) ?? 'Campaign'}
           </Text>
           <Text style={styles.meta}>Chapter {game.state?.chapter ?? 1}</Text>
         </View>

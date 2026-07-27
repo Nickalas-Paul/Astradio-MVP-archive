@@ -52,7 +52,6 @@ export type GameStateResponse = {
   campaignEra?: CampaignEraState | null;
   chapterTransitionCount?: number;
   /** @deprecated Prefer activeChapter; dual-read during migration. */
-  // TODO: mobile reads saturnChapter — update when porting Campaign to mobile
   saturnChapter: {
     currentHouse: number;
     domain: string;

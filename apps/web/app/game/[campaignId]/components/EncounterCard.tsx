@@ -1,11 +1,14 @@
 'use client';
 
+import type { DungeonAccent } from '@/lib/game/dungeonThemes';
+
 export interface EncounterCardProps {
   theme: string;
   obstacle: string;
   dc: number;
   introNarration: string;
   saturnHouse?: number;
+  accent?: DungeonAccent;
 }
 
 /** Longer themes are engine prose, not structured data; never parse or display them. */
@@ -68,13 +71,26 @@ export function EncounterCard({
   dc,
   introNarration,
   saturnHouse,
+  accent,
 }: EncounterCardProps) {
   const { aspect, tags } = parseThemeTags(theme);
   const narration =
     (introNarration || '').trim() || 'A new challenge awaits. Choose your approach.';
+  const border = accent?.primaryAlpha(0.06) ?? 'rgba(255,255,255,.06)';
+  const radial = accent
+    ? `radial-gradient(ellipse 80% 70% at 50% 40%, ${accent.primaryAlpha(0.04)}, transparent 70%)`
+    : undefined;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8 text-center">
+    <div
+      className="mx-auto max-w-2xl space-y-6 rounded-2xl py-8 text-center"
+      style={{
+        border: `1px solid ${border}`,
+        background: radial,
+        paddingLeft: 16,
+        paddingRight: 16,
+      }}
+    >
       <p className="font-serif text-[22px] leading-relaxed text-text-primary">{narration}</p>
 
       {tags.length > 0 ? (
@@ -83,7 +99,10 @@ export function EncounterCard({
             <span
               key={tag}
               className="rounded-[20px] px-3 py-1 text-[11px] text-text-muted"
-              style={{ background: 'rgba(255,255,255,.04)' }}
+              style={{
+                background: accent ? accent.primaryAlpha(0.06) : 'rgba(255,255,255,.04)',
+                border: accent ? `1px solid ${accent.primaryAlpha(0.12)}` : undefined,
+              }}
             >
               {tag}
             </span>
@@ -93,14 +112,20 @@ export function EncounterCard({
 
       <div
         className="mx-auto inline-flex flex-col items-center rounded-xl px-5 py-2.5"
-        style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)' }}
+        style={{
+          background: 'rgba(255,255,255,.03)',
+          border: `1px solid ${accent?.primaryAlpha(0.12) ?? 'rgba(255,255,255,.08)'}`,
+        }}
       >
         <span className="text-[10px] uppercase tracking-wider text-text-muted">Difficulty</span>
         <span className="text-base font-bold text-text-primary">{dc}</span>
       </div>
 
       {aspect ? (
-        <p className="text-[11px] uppercase tracking-wider text-accent">
+        <p
+          className="text-[11px] uppercase tracking-wider"
+          style={{ color: accent?.text ?? undefined }}
+        >
           {aspect}
           {typeof saturnHouse === 'number' ? ` · ${ordinal(saturnHouse)} House` : ''}
         </p>

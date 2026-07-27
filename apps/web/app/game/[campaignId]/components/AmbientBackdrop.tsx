@@ -1,24 +1,17 @@
 'use client';
 
-import { getElementColors, type GameElement } from '@/lib/class-display';
+import type { DungeonTheme } from '@/lib/game/dungeonThemes';
 
 export interface AmbientBackdropProps {
-  element: GameElement;
+  dungeon: DungeonTheme;
 }
-
-const BASE_GRADIENTS: Record<GameElement, string> = {
-  Earth: 'linear-gradient(135deg, #0C1320 0%, #0a1520 35%, #0d1a18 65%, #0C1320 100%)',
-  Fire: 'linear-gradient(135deg, #0C1320 0%, #1a0a0a 35%, #1a1008 65%, #0C1320 100%)',
-  Water: 'linear-gradient(135deg, #0C1320 0%, #080c1a 35%, #0a0d1a 65%, #0C1320 100%)',
-  Air: 'linear-gradient(135deg, #0C1320 0%, #0f1318 35%, #0d1015 65%, #0C1320 100%)',
-};
 
 /**
  * Full-viewport layered ambient background for the Campaign surface.
- * Sits behind DungeonLayout; shifts palette with the encounter element.
+ * Atmosphere is driven by Mars dungeon house (not character element).
  */
-export function AmbientBackdrop({ element }: AmbientBackdropProps) {
-  const colors = getElementColors(element);
+export function AmbientBackdrop({ dungeon }: AmbientBackdropProps) {
+  const { bg, accent } = dungeon;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
@@ -29,38 +22,48 @@ export function AmbientBackdrop({ element }: AmbientBackdropProps) {
           66% { transform: translate(-20px,10px) scale(0.95); }
           100% { transform: translate(0,0) scale(1); }
         }
+        @keyframes particleTwinkle {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.55; }
+        }
       `}</style>
 
       <div
         className="absolute inset-0 transition-[background] duration-1000"
-        style={{ background: BASE_GRADIENTS[element] ?? BASE_GRADIENTS.Earth }}
+        style={{ background: bg.gradient }}
       />
 
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 transition-[background] duration-1000"
         style={{
-          background: `radial-gradient(ellipse at 55% 25%, ${colors.glowColor}, transparent 55%)`,
+          background: bg.radial,
           animation: 'ambientDrift 25s ease-in-out infinite',
-          opacity: 0.7,
+          opacity: 0.9,
         }}
       />
 
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 30% 70%, ${colors.orbColor}, transparent 40%)`,
+          background: `radial-gradient(circle at 30% 70%, ${accent.primaryAlpha(0.06)}, transparent 40%)`,
           animation: 'ambientDrift 18s ease-in-out infinite reverse',
-          opacity: 0.4,
+          opacity: 0.5,
         }}
       />
 
+      {/* Soft particle field */}
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(14,150,150,.015) 0px, rgba(14,150,150,.015) 1px, transparent 1px, transparent 60px),' +
-            'repeating-linear-gradient(90deg, rgba(14,150,150,.015) 0px, rgba(14,150,150,.015) 1px, transparent 1px, transparent 60px)',
-          opacity: 0.5,
+          backgroundImage: [
+            `radial-gradient(1.5px 1.5px at 18% 22%, ${bg.particleColor}, transparent)`,
+            `radial-gradient(1px 1px at 42% 68%, ${bg.particleColor}, transparent)`,
+            `radial-gradient(1.5px 1.5px at 72% 18%, ${bg.particleColor}, transparent)`,
+            `radial-gradient(1px 1px at 84% 54%, ${bg.particleColor}, transparent)`,
+            `radial-gradient(1.5px 1.5px at 28% 82%, ${bg.particleColor}, transparent)`,
+            `radial-gradient(1px 1px at 58% 36%, ${bg.particleColor}, transparent)`,
+          ].join(','),
+          animation: 'particleTwinkle 8s ease-in-out infinite',
         }}
       />
 
