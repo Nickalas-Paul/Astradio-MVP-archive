@@ -17,6 +17,7 @@ import { baseDamageForTransitBody, resilienceDamageReduction } from '../game/dam
 import { computeDC, buildMechanicalEncounter } from '../game/encounter-builder';
 import { buildFallbackIntro, buildFallbackOutcome } from '../game/narrative-fallback';
 import { buildNarrativePrompt, buildEncounterIntroPrompt } from '../game/narrative-prompt-builder';
+import { resolveCharacterIdentity } from '../rpg/class-display';
 import { __geminiTest } from '../render/gemini-client';
 import { createEmptyInventoryState } from '../rpg/types';
 import type {
@@ -342,6 +343,19 @@ function testNarrativeFallback(): void {
   const intro = buildFallbackIntro(encounter, { thematicLabel: 'The Relational Dungeon', domain: 'relationships' });
   assert(intro.length > 20, 'fallback intro non-empty');
 
+  const identity = resolveCharacterIdentity(
+    'class_libra',
+    'subclass_libra',
+    'rising_leo',
+    makeStats({})
+  );
+  const introId = buildFallbackIntro(
+    encounter,
+    { thematicLabel: 'The Relational Dungeon', domain: 'relationships' },
+    identity
+  );
+  assert(introId.includes('Mirrorblade'), 'fallback intro uses fantasy class name');
+
   const choice = scene.choices[0]!;
   const outcomes = ['critical_success', 'success', 'partial', 'failure', 'critical_failure'] as const;
   const texts = new Set<string>();
@@ -359,7 +373,13 @@ function testNarrativeFallback(): void {
       itemLostInstanceId: null,
       xpGained: 0,
     };
-    const t = buildFallbackOutcome(encounter, choice, combat);
+    const t = buildFallbackOutcome(encounter, choice, combat, identity, {
+      name: 'Vitality',
+      value: 12,
+      modifier: 1,
+      isStrength: true,
+      isWeakness: false,
+    });
     assert(t.length > 10, `fallback outcome for ${o}`);
     texts.add(t);
   }
@@ -367,8 +387,16 @@ function testNarrativeFallback(): void {
 
   const prompt = buildNarrativePrompt({
     characterClass: 'class_libra',
-    characterSubclass: 'sub',
+    characterSubclass: 'subclass_libra',
     characterRising: 'rising_leo',
+    characterIdentity: identity,
+    primaryStatUsed: {
+      name: 'Vitality',
+      value: 12,
+      modifier: 2,
+      isStrength: true,
+      isWeakness: false,
+    },
     statBlock: makeStats({}),
     hp: createFullHp(makeStats({})),
     equippedItems: [],
@@ -402,11 +430,13 @@ function testNarrativeFallback(): void {
     recentHistory: [],
   });
   assert(prompt.includes('Dungeon Master') && prompt.includes('THE CHOICE'), 'outcome prompt structured');
+  assert(prompt.includes('Mirrorblade') && prompt.includes('STAT CONTEXT'), 'outcome prompt has identity + stat context');
 
   const introPrompt = buildEncounterIntroPrompt({
     characterClass: 'class_libra',
-    characterSubclass: 'sub',
+    characterSubclass: 'subclass_libra',
     characterRising: 'rising_leo',
+    characterIdentity: identity,
     statBlock: makeStats({}),
     hp: createFullHp(makeStats({})),
     equippedItems: [],
@@ -416,6 +446,7 @@ function testNarrativeFallback(): void {
     recentHistory: [],
   });
   assert(introPrompt.includes('TODAY\'S ENCOUNTER'), 'intro prompt structured');
+  assert(introPrompt.includes('Mirrorblade') && introPrompt.includes('Weave the character'), 'intro prompt personalizes identity');
 }
 
 function testEncounterBuilder(): void {

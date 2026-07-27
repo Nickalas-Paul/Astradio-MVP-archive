@@ -4,7 +4,9 @@
  * no stitched database fragments.
  */
 
+import type { CharacterIdentityContext } from '../rpg/class-display';
 import type { ChoiceOption, CombatResolution, MechanicalEncounter } from '../rpg/types';
+import type { PrimaryStatUsedContext } from './narrative-prompt-builder';
 
 const INTRO_OPENERS = [
   'shifts around you today',
@@ -30,17 +32,10 @@ function titleBody(body: string): string {
   return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : '';
 }
 
-function signFromClassSlug(classSlug?: string): string {
-  const sign = String(classSlug || '')
-    .replace(/^class_/, '')
-    .trim();
-  return sign ? sign.charAt(0).toUpperCase() + sign.slice(1) : '';
-}
-
 export function buildFallbackIntro(
   encounter: MechanicalEncounter,
   activeChapter: { thematicLabel?: string; domain?: string; label?: string },
-  classSlug?: string
+  identity?: CharacterIdentityContext | null
 ): string {
   const label = activeChapter.thematicLabel || activeChapter.label || 'The road ahead';
   const pressure = encounter.scene.primaryPressure;
@@ -61,12 +56,12 @@ export function buildFallbackIntro(
     energy = `Something is stirring in ${setting}.`;
   }
 
-  const sign = signFromClassSlug(classSlug);
-  const closer = sign
+  const className = identity?.className;
+  const closer = className
     ? pick(
         [
-          `Hold your ${sign} steadiness close; this will ask for a real answer.`,
-          `The stakes are real, and your ${sign} instincts already sense where the ground is soft.`,
+          `Hold the ${className} in you close; this will ask for a real answer.`,
+          `The stakes are real, and the ${className} in you already senses where the ground is soft.`,
         ],
         seed + encounter.dc
       )
@@ -96,15 +91,40 @@ const OUTCOME_LINES: Record<CombatResolution['outcome'], string> = {
     "A blow you didn't see coming. Something slipped from your grasp in the aftermath.",
 };
 
+function identityOutcomeLine(
+  combat: CombatResolution,
+  identity: CharacterIdentityContext | null | undefined,
+  primary: PrimaryStatUsedContext | null | undefined
+): string {
+  if (!identity?.className) return '';
+  const statName = primary?.name || 'this approach';
+  if (combat.outcome === 'critical_success' || combat.outcome === 'success') {
+    if (primary?.isStrength) {
+      return `The ${identity.className}'s nature wins the day. Your ${statName} carries the moment exactly as your strengths intended.`;
+    }
+    return `The ${identity.className} in you finds a path through.`;
+  }
+  if (combat.outcome === 'critical_failure' || combat.outcome === 'failure') {
+    if (primary?.isWeakness) {
+      return `This wasn't your kind of fight. ${statName} asked for something the ${identity.className}'s toolkit doesn't easily provide.`;
+    }
+    return `Even a ${identity.className} has limits, and today found one.`;
+  }
+  return `The ${identity.className} in you holds, but not without cost.`;
+}
+
 export function buildFallbackOutcome(
   encounter: MechanicalEncounter,
   choice: ChoiceOption,
-  combat: CombatResolution
+  combat: CombatResolution,
+  identity?: CharacterIdentityContext | null,
+  primaryStatUsed?: PrimaryStatUsedContext | null
 ): string {
   const base = OUTCOME_LINES[combat.outcome] || OUTCOME_LINES.partial;
   const choiceBit = choice?.label
     ? `You chose to ${choice.label.charAt(0).toLowerCase()}${choice.label.slice(1)}.`
     : 'You committed to a response.';
+  const identityBit = identityOutcomeLine(combat, identity, primaryStatUsed);
   const lootBit =
     combat.lootResult?.dropped && combat.lootResult.item
       ? `In the aftermath you found ${combat.lootResult.item.name}. It goes in your gear.`
@@ -117,7 +137,7 @@ export function buildFallbackOutcome(
     : '';
   const lostBit = combat.itemLost ? `${combat.itemLost.name} was lost in the exchange.` : '';
 
-  return [choiceBit, base, saveBit, woundBit, lootBit, lostBit]
+  return [choiceBit, base, identityBit, saveBit, woundBit, lootBit, lostBit]
     .filter(Boolean)
     .join(' ')
     .replace(/\s+/g, ' ')
