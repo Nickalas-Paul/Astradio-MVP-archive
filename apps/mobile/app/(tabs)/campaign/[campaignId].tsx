@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -14,21 +14,33 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CampaignSheet, type CampaignSheetTab } from '../../../src/components/campaign/CampaignSheet';
+import {
+  ChapterTransition,
+  type ChapterTransitionChapter,
+  type ChapterTransitionRelic,
+} from '../../../src/components/campaign/ChapterTransition';
 import { colors } from '../../../src/constants/colors';
 import { useCampaignGame } from '../../../src/hooks/useCampaignGame';
 import { useCampaignTheme } from '../../../src/hooks/useCampaignTheme';
-import { ELEMENT_COLORS, getClassDisplay } from '../../../src/lib/class-display';
+import { getClassDisplay } from '../../../src/lib/class-display';
 import {
   gameErrorMessage,
   resolveChapterLabel,
   resolveEncounter,
   useConsumable,
+  type CombatMilestone,
   type CombatResolution,
   type EncounterChoice,
 } from '../../../src/lib/game-api';
-import type { DungeonTheme } from '../../../src/lib/game/dungeon-themes';
+import { getDungeonTheme, type DungeonTheme } from '../../../src/lib/game/dungeon-themes';
 
 type Phase = 'choose' | 'roll' | 'outcome';
+
+type ChapterEvent = {
+  oldChapter: ChapterTransitionChapter;
+  newChapter: ChapterTransitionChapter;
+  relicReward: ChapterTransitionRelic;
+};
 
 const OUTCOME_COLORS: Record<string, string> = {
   success: '#10B981',
@@ -190,6 +202,8 @@ export default function CampaignDashboardScreen() {
   const [sheetTab, setSheetTab] = useState<CampaignSheetTab>('character');
   const [displayNumber, setDisplayNumber] = useState(20);
   const [consumableUsed, setConsumableUsed] = useState(false);
+  const [chapterEvent, setChapterEvent] = useState<ChapterEvent | null>(null);
+  const [showChapter, setShowChapter] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
 
   const display = useMemo(
@@ -200,7 +214,6 @@ export default function CampaignDashboardScreen() {
   );
   const chapterState = game.state?.activeChapter ?? game.state?.saturnChapter ?? null;
   const { dungeon } = useCampaignTheme(chapterState, display?.element ?? 'Earth');
-  const elementColors = ELEMENT_COLORS[display?.element ?? 'Earth'];
   const hp = game.state?.hp ?? game.encounter?.playerState.hp;
   const selectedChoice = game.encounter?.choices.find((choice) => choice.id === selectedId) ?? null;
   const theme = parseTheme(game.encounter?.encounter.theme ?? '');
@@ -220,6 +233,14 @@ export default function CampaignDashboardScreen() {
     setResolving(true);
     game.setError(null);
     rotation.setValue(0);
+    const chapterBefore = game.state?.activeChapter ?? game.state?.saturnChapter ?? null;
+    const beforeSnapshot = chapterBefore
+      ? {
+          house: chapterBefore.currentHouse,
+          domain: chapterBefore.domain,
+          label: chapterBefore.label,
+        }
+      : null;
     const animation = Animated.loop(
       Animated.timing(rotation, {
         toValue: 1,
@@ -242,6 +263,38 @@ export default function CampaignDashboardScreen() {
       setDisplayNumber(result.combatResolution.dieRoll.raw);
       setCombat(result.combatResolution);
       setNarration(result.narration?.outcomeText ?? 'The dust settles.');
+
+      let chapterMs: CombatMilestone | undefined;
+      for (const m of result.combatResolution.milestones ?? []) {
+        if (m.type === 'chapter_transition' || m.type === 'saturn_transition') {
+          chapterMs = m;
+          break;
+        }
+      }
+      if (chapterMs && beforeSnapshot) {
+        const detail = chapterMs.detail || '';
+        const match = detail.match(/(?:Chapter|Saturn)\s+(\d+)\s*→\s*(\d+):\s*(.+)/);
+        const newHouse = match ? Number(match[2]) : beforeSnapshot.house;
+        const parsedLabel = match ? match[3]!.trim() : detail;
+        const newTheme = getDungeonTheme(newHouse);
+        setChapterEvent({
+          oldChapter: beforeSnapshot,
+          newChapter: {
+            house: newHouse,
+            domain: newTheme.domain,
+            label: parsedLabel || newTheme.label,
+          },
+          relicReward: chapterMs.relicGranted
+            ? {
+                name: chapterMs.relicGranted.name,
+                description: chapterMs.relicGranted.description,
+                rarity: chapterMs.relicGranted.rarity,
+                statModifiers: chapterMs.relicGranted.statModifiers,
+              }
+            : null,
+        });
+      }
+
       await game.refreshStateAndInventory();
       setTimeout(() => setPhase('outcome'), 1500);
     } catch (err) {
@@ -253,6 +306,10 @@ export default function CampaignDashboardScreen() {
       setResolving(false);
     }
   }, [campaignId, game, resolving, rotation, selectedChoice]);
+
+  useEffect(() => {
+    if (chapterEvent) setShowChapter(true);
+  }, [chapterEvent]);
 
   const quickUse = useCallback(async () => {
     if (!campaignId || !equippedConsumable || consumableUsed) return;
@@ -509,6 +566,19 @@ export default function CampaignDashboardScreen() {
         onInventoryChange={game.setInventory}
         onStateRefresh={game.refreshStateAndInventory}
       />
+
+      {chapterEvent ? (
+        <ChapterTransition
+          show={showChapter}
+          oldChapter={chapterEvent.oldChapter}
+          newChapter={chapterEvent.newChapter}
+          relicReward={chapterEvent.relicReward}
+          onDismiss={() => {
+            setShowChapter(false);
+            setChapterEvent(null);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
