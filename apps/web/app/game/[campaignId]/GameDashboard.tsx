@@ -162,11 +162,12 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
     setResolving(true);
     setResolveError(null);
     setPreviousHp(state?.hp?.current ?? encounter.playerState?.hp?.current);
-    const saturnBefore = state?.saturnChapter
+    const chapterBefore = state?.activeChapter ?? state?.saturnChapter;
+    const saturnBefore = chapterBefore
       ? {
-          house: state.saturnChapter.currentHouse,
-          domain: state.saturnChapter.domain,
-          label: state.saturnChapter.label,
+          house: chapterBefore.currentHouse,
+          domain: chapterBefore.domain,
+          label: chapterBefore.label,
         }
       : null;
 
@@ -192,24 +193,24 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
       );
 
       const msgs: string[] = [];
-      let saturnMs: NonNullable<CombatResolutionPayload['milestones']>[number] | undefined;
+      let chapterMs: NonNullable<CombatResolutionPayload['milestones']>[number] | undefined;
       for (const m of combatPayload?.milestones || []) {
-        if (m.type === 'saturn_transition') saturnMs = m;
+        if (m.type === 'chapter_transition' || m.type === 'saturn_transition') chapterMs = m;
         else if (m.detail) msgs.push(m.detail);
       }
       setMilestoneMessages(msgs);
 
-      if (saturnMs && saturnBefore) {
-        const detail = saturnMs.detail || '';
-        const match = detail.match(/Saturn\s+(\d+)\s*→\s*(\d+):\s*(.+)/);
+      if (chapterMs && saturnBefore) {
+        const detail = chapterMs.detail || '';
+        const match = detail.match(/(?:Chapter|Saturn)\s+(\d+)\s*→\s*(\d+):\s*(.+)/);
         const newHouse = match ? Number(match[2]) : saturnBefore.house;
         const newLabel = match ? match[3].trim() : detail;
-        const relic = saturnMs.relicGranted
+        const relic = chapterMs.relicGranted
           ? {
-              name: saturnMs.relicGranted.name,
-              description: saturnMs.relicGranted.description,
-              rarity: saturnMs.relicGranted.rarity,
-              statModifiers: saturnMs.relicGranted.statModifiers,
+              name: chapterMs.relicGranted.name,
+              description: chapterMs.relicGranted.description,
+              rarity: chapterMs.relicGranted.rarity,
+              statModifiers: chapterMs.relicGranted.statModifiers,
             }
           : null;
         setChapterEvent({
@@ -305,7 +306,8 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const loading = stateLoading || encLoading || composing;
   const hp = state?.hp || encounter?.playerState?.hp;
   const primaryStat = selectedChoice?.primaryStat || 'vitality';
-  const dungeonName = state?.saturnChapter?.label || 'Campaign';
+  const dungeonName =
+    state?.activeChapter?.label || state?.saturnChapter?.label || 'Campaign';
   const chapter = state?.chapter ?? 1;
 
   const showChoiceDock = phase === 'encounter' && !encounter?.resolved && !!encounter?.encounter;

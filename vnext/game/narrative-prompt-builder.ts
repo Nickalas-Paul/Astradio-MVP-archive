@@ -10,6 +10,12 @@ import type {
   StatBlock,
 } from '../rpg/types';
 
+export interface NarrativeChapterContext {
+  house: number;
+  domain: string;
+  label: string;
+}
+
 export interface NarrativePromptInput {
   characterClass: string;
   characterSubclass: string;
@@ -20,13 +26,28 @@ export interface NarrativePromptInput {
   encounter: MechanicalEncounter;
   chosenOption: ChoiceOption;
   combatResult: CombatResolution;
-  saturnChapter: {
-    house: number;
-    domain: string;
-    label: string;
-  };
+  /** Mars-driven active dungeon chapter. */
+  activeChapter: NarrativeChapterContext;
+  /** Saturn-driven background era (optional). */
+  campaignEra?: NarrativeChapterContext | null;
   campaignChapter: number;
   recentHistory: string[];
+  /**
+   * @deprecated Prefer activeChapter. Accepted for dual-read callers during migration.
+   */
+  saturnChapter?: NarrativeChapterContext;
+}
+
+function resolveChapter(input: {
+  activeChapter?: NarrativeChapterContext | null;
+  saturnChapter?: NarrativeChapterContext | null;
+}): NarrativeChapterContext {
+  const ch = input.activeChapter || input.saturnChapter;
+  return {
+    house: ch?.house ?? 1,
+    domain: ch?.domain ?? 'self',
+    label: ch?.label ?? 'The road ahead',
+  };
 }
 
 function toneGuidance(body: string): string {
@@ -43,16 +64,42 @@ function toneGuidance(body: string): string {
   return 'focused, personal, and clarifying';
 }
 
-function characterBlock(input: Omit<NarrativePromptInput, 'chosenOption' | 'combatResult'>): string {
+function characterBlock(
+  input: Omit<NarrativePromptInput, 'chosenOption' | 'combatResult'>
+): string {
   const s = input.statBlock;
   const hp = input.hp;
-  return [
-    `SETTING: ${input.saturnChapter.label} (the domain of ${input.saturnChapter.domain})`,
+  const chapter = resolveChapter(input);
+  const era = input.campaignEra;
+  const lines = [
+    `SETTING: ${chapter.label} (the domain of ${chapter.domain})`,
     `CHARACTER: A ${input.characterClass} / ${input.characterSubclass} with ${input.characterRising} rising`,
     `  Stats: Vitality ${s.vitality}, Resilience ${s.resilience}, Cunning ${s.cunning}, Charm ${s.charm}, Intuition ${s.intuition}, Willpower ${s.willpower}`,
     `  HP: ${hp.current}/${hp.max}${hp.wounded ? ' (WOUNDED)' : ''}`,
     `  Equipped: ${input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing'}`,
-  ].join('\n');
+  ];
+  if (era?.label) {
+    lines.splice(
+      1,
+      0,
+      `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
+    );
+  }
+  return lines.join('\n');
+}
+
+function chapterInstructions(input: {
+  activeChapter?: NarrativeChapterContext | null;
+  saturnChapter?: NarrativeChapterContext | null;
+  campaignEra?: NarrativeChapterContext | null;
+}): string {
+  const chapter = resolveChapter(input);
+  const era = input.campaignEra;
+  const eraLine = era?.label
+    ? `The campaign era (${era.label}) adds background thematic weight.`
+    : '';
+  return `The chapter setting (${chapter.label}) drives the encounter environment. ${eraLine}
+Do not name Mars, Saturn, or any planet directly in the narration. Let the themes speak through the scene.`.trim();
 }
 
 export function buildEncounterIntroPrompt(
@@ -60,6 +107,7 @@ export function buildEncounterIntroPrompt(
 ): string {
   const p = input.encounter.scene.primaryPressure;
   const history = (input.recentHistory || []).slice(0, 3).join(' | ') || 'none';
+  const chapter = resolveChapter(input);
   return `You are the Dungeon Master for an astrology-based RPG called Astradio.
 
 ${characterBlock(input)}
@@ -73,7 +121,8 @@ TODAY'S ENCOUNTER:
 Recent events: ${history}
 
 Write a 3-4 sentence encounter introduction in second person ("You").
-Set the scene in ${input.saturnChapter.label}.
+Set the scene in ${chapter.label}.
+${chapterInstructions(input)}
 The tone should match the transit energy: ${input.encounter.transitBodyCategory} transits feel ${toneGuidance(input.encounter.transitBodyCategory)}.
 Do not describe the choices or outcome. Just set the scene and present the obstacle.
 
@@ -124,6 +173,7 @@ ${lootDesc}
 If wounded, make it dramatic but not grim -- this is a setback, not an ending.
 If streak saved, describe a narrow escape.
 Match the energy of a ${c.outcome} result.
+${chapterInstructions(input)}
 
 VOICE AND STYLE RULES (strict):
 - You are a warm, strategic tabletop DM. Direct and confident, never precious.

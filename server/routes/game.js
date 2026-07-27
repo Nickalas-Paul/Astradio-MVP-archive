@@ -603,13 +603,14 @@ function createGameRouter() {
     if (!ctx) return;
     try {
       const state = ctx.campaign.stateJson || {};
-      let saturnHouse =
-        state.saturnChapter && Number.isFinite(state.saturnChapter.currentHouse)
+      const chapterHouse =
+        (state.activeChapter && Number.isFinite(state.activeChapter.currentHouse)
+          ? Number(state.activeChapter.currentHouse)
+          : null) ??
+        (state.saturnChapter && Number.isFinite(state.saturnChapter.currentHouse)
           ? Number(state.saturnChapter.currentHouse)
-          : null;
-      if (!saturnHouse) {
-        saturnHouse = 1;
-      }
+          : null) ??
+        1;
       const maps = vn.loadRpgV1Maps();
       const tables = vn.buildLootTableMap(maps.lootTables);
       const definitions = vn.buildItemDefinitionMap(maps.itemDefinitions);
@@ -617,8 +618,8 @@ function createGameRouter() {
       const chapter = Number.isFinite(state.chapter) ? Number(state.chapter) : 1;
       const dto = vn.buildLootTableDTO({
         campaignId: ctx.campaignId,
-        saturnHouse,
-        table: tables.get(saturnHouse) || null,
+        saturnHouse: chapterHouse,
+        table: tables.get(chapterHouse) || null,
         definitions,
         classSlug: profile?.classSlug || '',
         campaignChapter: chapter,

@@ -290,7 +290,7 @@ const EQUIP_SLOTS = ['weapon', 'armor', 'consumable_1', 'accessory', 'consumable
 const SLOT_LOCK_LABEL: Record<string, string> = {
   accessory: 'Unlocks at 7-day streak',
   consumable_2: 'Unlocks at 14-day streak',
-  relic: 'Unlocks at first Saturn transition',
+  relic: 'Unlocks at first chapter completion',
 };
 
 function slotIsUnlocked(slotsUnlocked: string[], slot: string): boolean {

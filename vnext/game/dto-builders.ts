@@ -217,9 +217,25 @@ export function buildGameStateDTO(params: {
   const milestoneFlags = flags.filter(
     (f) =>
       typeof f === 'string' &&
-      (f.startsWith('milestone_') || f.startsWith('saturn_transition_'))
+      (f.startsWith('milestone_') ||
+        f.startsWith('saturn_transition_') ||
+        f.startsWith('chapter_transition_') ||
+        f.startsWith('era_shift_'))
   );
   const equippedCount = Object.values(params.inventoryState.equipped).filter(Boolean).length;
+  const activeChapter = state.activeChapter ?? null;
+  const saturnChapter = state.saturnChapter ?? null;
+  // Dual-read: prefer Mars chapter; fall back to legacy Saturn for unmigrated campaigns.
+  const resolvedChapter = activeChapter ?? (saturnChapter
+    ? {
+        startingHouse: saturnChapter.startingHouse,
+        currentHouse: saturnChapter.currentHouse,
+        domain: saturnChapter.domain,
+        label: saturnChapter.label,
+        enteredDate: saturnChapter.enteredDate,
+        transitBody: 'mars' as const,
+      }
+    : null);
 
   return {
     campaignId: params.campaignId,
@@ -227,7 +243,14 @@ export function buildGameStateDTO(params: {
     streak: typeof state.streak === 'number' ? state.streak : 0,
     lastPlayedDate: state.lastPlayedDate ?? null,
     chapter: Number.isFinite(state.chapter) ? Number(state.chapter) : 1,
-    saturnChapter: state.saturnChapter ?? null,
+    activeChapter: resolvedChapter,
+    campaignEra: state.campaignEra ?? null,
+    chapterTransitionCount:
+      typeof state.chapterTransitionCount === 'number'
+        ? state.chapterTransitionCount
+        : saturnChapter?.transitionCount ?? 0,
+    // TODO: mobile reads saturnChapter — update when porting Campaign to mobile
+    saturnChapter,
     damageShield: state.damageShield ?? null,
     revealActive: !!state.revealActive,
     slotsUnlocked: [...params.inventoryState.slotsUnlocked],
@@ -320,8 +343,19 @@ export function buildEncounterDTO(params: {
       obstacle: challenge.obstacle || '',
       dc: mech?.dc ?? 10,
       baseDamage: mech?.baseDamage ?? 0,
-      saturnHouse: mech?.saturnHouse ?? state.saturnChapter?.currentHouse ?? 1,
-      lootTableKey: mech?.lootTableKey || `saturn_house_${mech?.saturnHouse ?? 1}`,
+      saturnHouse:
+        mech?.saturnHouse ??
+        state.activeChapter?.currentHouse ??
+        state.saturnChapter?.currentHouse ??
+        1,
+      lootTableKey:
+        mech?.lootTableKey ||
+        `saturn_house_${
+          mech?.saturnHouse ??
+          state.activeChapter?.currentHouse ??
+          state.saturnChapter?.currentHouse ??
+          1
+        }`,
       introNarration: String(daily.encounter_intro_narration || ''),
       introSource: (daily.encounter_intro_source as 'gemini' | 'fallback') || 'fallback',
     },

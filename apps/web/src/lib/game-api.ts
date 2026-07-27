@@ -25,12 +25,34 @@ export type CharacterHP = {
   woundedDaysRemaining: number;
 };
 
+export type ActiveChapterState = {
+  currentHouse: number;
+  domain: string;
+  label: string;
+  startingHouse: number;
+  enteredDate: string;
+  transitBody: 'mars';
+};
+
+export type CampaignEraState = {
+  currentHouse: number;
+  domain: string;
+  label: string;
+  enteredDate: string;
+  transitBody: 'saturn';
+};
+
 export type GameStateResponse = {
   campaignId: string;
   hp: CharacterHP;
   streak: number;
   lastPlayedDate: string | null;
   chapter: number;
+  activeChapter?: ActiveChapterState | null;
+  campaignEra?: CampaignEraState | null;
+  chapterTransitionCount?: number;
+  /** @deprecated Prefer activeChapter; dual-read during migration. */
+  // TODO: mobile reads saturnChapter — update when porting Campaign to mobile
   saturnChapter: {
     currentHouse: number;
     domain: string;

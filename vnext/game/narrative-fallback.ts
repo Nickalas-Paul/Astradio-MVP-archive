@@ -39,10 +39,10 @@ function signFromClassSlug(classSlug?: string): string {
 
 export function buildFallbackIntro(
   encounter: MechanicalEncounter,
-  saturnChapter: { thematicLabel?: string; domain?: string; label?: string },
+  activeChapter: { thematicLabel?: string; domain?: string; label?: string },
   classSlug?: string
 ): string {
-  const label = saturnChapter.thematicLabel || saturnChapter.label || 'The road ahead';
+  const label = activeChapter.thematicLabel || activeChapter.label || 'The road ahead';
   const pressure = encounter.scene.primaryPressure;
   const setting = (encounter.scene.setting || '').trim().replace(/\.+$/, '');
   const seed = encounter.dc + (pressure?.transitBody?.length ?? 0);

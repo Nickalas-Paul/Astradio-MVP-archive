@@ -569,6 +569,7 @@ export async function materializeCampaignDaily(params: {
       {
         thematicLabel: chapterInfo.thematicLabel,
         domain: chapterInfo.domain,
+        label: chapterInfo.thematicLabel,
       },
       characterSheet.class_slug
     );
@@ -576,6 +577,19 @@ export async function materializeCampaignDaily(params: {
 
     if (process.env.GOOGLE_CLOUD_PROJECT) {
       try {
+        const stateAny = state as {
+          activeChapter?: { currentHouse?: number; domain?: string; label?: string } | null;
+          campaignEra?: { currentHouse?: number; domain?: string; label?: string } | null;
+          saturnChapter?: { currentHouse?: number; domain?: string; label?: string } | null;
+          history?: string[];
+          chapter?: number;
+        };
+        const active =
+          stateAny.activeChapter && Number.isFinite(stateAny.activeChapter.currentHouse)
+            ? stateAny.activeChapter
+            : null;
+        const legacy = stateAny.saturnChapter;
+        const era = stateAny.campaignEra;
         const prompt = buildEncounterIntroPrompt({
           characterClass: characterSheet.class_slug,
           characterSubclass: characterSheet.subclass_slug,
@@ -584,11 +598,25 @@ export async function materializeCampaignDaily(params: {
           hp,
           equippedItems: equippedItems.map((e) => e.name),
           encounter: mechanical,
-          saturnChapter: {
-            house: chapterInfo.house,
-            domain: chapterInfo.domain,
-            label: chapterInfo.thematicLabel,
+          // Mars-derived house from mechanical encounter (saturnHouse field is Mars-valued)
+          activeChapter: {
+            house: active?.currentHouse ?? chapterInfo.house,
+            domain: active?.domain ?? chapterInfo.domain,
+            label: active?.label ?? chapterInfo.thematicLabel,
           },
+          campaignEra: era
+            ? {
+                house: era.currentHouse ?? 1,
+                domain: era.domain ?? 'self',
+                label: era.label ?? 'The long road',
+              }
+            : legacy
+              ? {
+                  house: legacy.currentHouse ?? 1,
+                  domain: legacy.domain ?? 'self',
+                  label: legacy.label ?? 'The long road',
+                }
+              : null,
           campaignChapter: state.chapter ?? 1,
           recentHistory: Array.isArray(state.history) ? state.history.slice(0, 3) : [],
         });

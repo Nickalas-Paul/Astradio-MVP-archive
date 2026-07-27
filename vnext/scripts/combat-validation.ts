@@ -397,7 +397,7 @@ function testNarrativeFallback(): void {
       itemLostInstanceId: null,
       xpGained: 0,
     },
-    saturnChapter: { house: 7, domain: 'relationships', label: 'The Relational Dungeon' },
+    activeChapter: { house: 7, domain: 'relationships', label: 'The Relational Dungeon' },
     campaignChapter: 1,
     recentHistory: [],
   });
@@ -411,7 +411,7 @@ function testNarrativeFallback(): void {
     hp: createFullHp(makeStats({})),
     equippedItems: [],
     encounter,
-    saturnChapter: { house: 7, domain: 'relationships', label: 'The Relational Dungeon' },
+    activeChapter: { house: 7, domain: 'relationships', label: 'The Relational Dungeon' },
     campaignChapter: 1,
     recentHistory: [],
   });
@@ -452,7 +452,9 @@ function testEncounterBuilder(): void {
   };
   const mech = buildMechanicalEncounter(scene, profile, transit, natalCusps, 1);
   assert(mech.dc === computeDC(scene.primaryPressure, 1), 'DC matches intensity');
-  assert(mech.saturnHouse === 7, 'Saturn house 7');
+  // Mars at lon 100 with even cusps → house 4; field name saturnHouse is Mars-valued
+  assert(mech.saturnHouse === 4, 'Mars-derived chapter house 4');
+  assert(mech.lootTableKey === 'saturn_house_4', 'loot key scheme unchanged');
   assert(mech.choiceStatMap.name_truth === 'vitality', 'assert → vitality');
   assert(primaryStatForChoice(scene.choices[1]!) === 'cunning', 'engage → cunning');
 }

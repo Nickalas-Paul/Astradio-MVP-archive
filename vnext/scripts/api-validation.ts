@@ -177,8 +177,11 @@ function testGameStateDTO(): void {
   });
   assert(dto.hp.current === dto.hp.max, 'HP full by default create');
   assert(dto.streak === 7, 'streak');
-  assert(dto.saturnChapter?.label === 'The Relational Dungeon', 'saturn chapter');
+  assert(dto.saturnChapter?.label === 'The Relational Dungeon', 'saturn chapter dual-read');
+  assert(dto.activeChapter?.label === 'The Relational Dungeon', 'activeChapter dual-filled from saturn');
+  assert(dto.activeChapter?.transitBody === 'mars', 'dual-read chapter marked mars');
   assert(dto.milestoneFlags.includes('milestone_streak_7'), 'milestone flags filtered');
+  assert(dto.milestoneFlags.includes('saturn_transition_7_to_8'), 'saturn_transition flags kept');
   assert(!dto.milestoneFlags.includes('other_flag'), 'non-milestone flags excluded');
   assert(dto.inventorySummary.bagCapacity === 15, 'inventory summary');
 
@@ -188,6 +191,7 @@ function testGameStateDTO(): void {
     inventoryState: inv,
   });
   assert(empty.streak === 0 && empty.saturnChapter === null, 'pre-Phase4 defaults');
+  assert(empty.activeChapter === null, 'no activeChapter when empty');
   assert(empty.hp.max > 0, 'default HP synthesized');
 }
 

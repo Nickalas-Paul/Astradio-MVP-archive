@@ -10,6 +10,8 @@ import { buildItemDefinitionMap } from '../rpg/loot-roller';
 import { loadRpgV1Maps } from '../rpg/maps/load-v1';
 import type {
   ActiveBuff,
+  ActiveChapter,
+  CampaignEra,
   CharacterHP,
   CharacterProfile,
   CombatResolution,
@@ -17,7 +19,6 @@ import type {
   DamageShield,
   EffectiveStatBlock,
   InventoryState,
-  ItemDefinition,
   ItemInstance,
   MechanicalEncounter,
   MilestoneEvent,
@@ -34,10 +35,12 @@ import { computeEffectiveStatBlock } from './effective-stats';
 import { expireBuffs, expireShield } from './buff-manager';
 import { processConsumableUse } from './consumable-use';
 import {
-  applySaturnTransitionRewards,
-  checkSaturnTransition,
+  applyChapterTransitionRewards,
+  applyEraShift,
+  checkChapterTransition,
+  checkEraShift,
   checkStreakMilestones,
-  ensureSaturnChapter,
+  migrateSaturnChapterToMarsEra,
 } from './milestone-tracker';
 
 export { isGameCombatEnabled };
@@ -52,6 +55,10 @@ export interface CombatResolvePipelineInput {
   lastPlayedDate: string | null;
   flags: string[];
   history?: string[];
+  activeChapter?: ActiveChapter | null;
+  campaignEra?: CampaignEra | null;
+  chapterTransitionCount?: number;
+  /** @deprecated Prefer activeChapter; dual-read / migrate on resolve. */
   saturnChapter?: SaturnChapterState | null;
   activeBuffs?: ActiveBuff[];
   damageShield?: DamageShield | null;
@@ -86,7 +93,11 @@ export interface CombatResolvePipelineResult {
   lastPlayedDate: string;
   flags: string[];
   history: string[];
-  saturnChapter: SaturnChapterState | null;
+  activeChapter: ActiveChapter | null;
+  campaignEra: CampaignEra | null;
+  chapterTransitionCount: number;
+  /** Always null after migrate — kept so callers that still assign saturnChapter clear it. */
+  saturnChapter: null;
   activeBuffs: ActiveBuff[];
   damageShield: DamageShield | null;
   revealActive: boolean;
@@ -213,31 +224,43 @@ export async function runCombatResolvePipeline(
     });
   }
 
-  // Saturn chapter
-  let saturnChapter: SaturnChapterState | null = input.saturnChapter ?? null;
+  // Mars chapter + Saturn era (migrate legacy saturnChapter without granting rewards)
+  let activeChapter: ActiveChapter | null = input.activeChapter ?? null;
+  let campaignEra: CampaignEra | null = input.campaignEra ?? null;
+  let chapterTransitionCount =
+    typeof input.chapterTransitionCount === 'number' ? input.chapterTransitionCount : 0;
+
   if (input.transitSnapshot && input.natalCusps && input.natalCusps.length >= 12) {
-    const ensured = ensureSaturnChapter(
-      saturnChapter,
-      input.transitSnapshot,
-      input.natalCusps,
-      input.calendarDate
-    );
-    saturnChapter = ensured.chapter;
-    const transition = checkSaturnTransition(
-      saturnChapter,
+    const migrated = migrateSaturnChapterToMarsEra({
+      saturnChapter: input.saturnChapter,
+      activeChapter,
+      campaignEra,
+      chapterTransitionCount,
+      transitSnapshot: input.transitSnapshot,
+      natalCusps: input.natalCusps,
+      today: input.calendarDate,
+    });
+    activeChapter = migrated.activeChapter;
+    campaignEra = migrated.campaignEra;
+    chapterTransitionCount = migrated.chapterTransitionCount;
+
+    const transition = checkChapterTransition(
+      activeChapter,
       input.transitSnapshot,
       input.natalCusps,
       input.calendarDate
     );
     if (transition) {
-      const rewards = applySaturnTransitionRewards({
+      const rewards = applyChapterTransitionRewards({
         transition,
+        chapterTransitionCountBefore: chapterTransitionCount,
         slotsUnlocked: inventoryState.slotsUnlocked,
         maxBagSize: inventoryState.maxBagSize,
         flags,
         history,
       });
-      saturnChapter = transition.updatedChapter;
+      activeChapter = transition.updatedChapter;
+      chapterTransitionCount = rewards.chapterTransitionCount;
       flags = rewards.flags;
       history = rewards.history;
       inventoryState = {
@@ -254,7 +277,7 @@ export async function runCombatResolvePipeline(
         },
       });
       if (rewards.relic) {
-        const grantSeed = `chapter_relic:${input.campaignId}:${transition.oldHouse}:${saturnChapter.transitionCount}`;
+        const grantSeed = `chapter_relic:${input.campaignId}:${transition.oldHouse}:${chapterTransitionCount}`;
         const added = addItem(
           inventoryState,
           rewards.relic,
@@ -264,6 +287,20 @@ export async function runCombatResolvePipeline(
         inventoryState = added.state;
         persistIntents.push({ grant: { instance: added.instance, grantSeed } });
       }
+    }
+
+    const eraShift = checkEraShift(
+      campaignEra,
+      input.transitSnapshot,
+      input.natalCusps,
+      input.calendarDate
+    );
+    if (eraShift) {
+      campaignEra = eraShift.updatedEra;
+      const eraFx = applyEraShift({ shift: eraShift, flags, history });
+      flags = eraFx.flags;
+      history = eraFx.history;
+      milestones.push(...eraFx.events);
     }
   }
 
@@ -302,7 +339,7 @@ export async function runCombatResolvePipeline(
 
   const choice = input.encounter.scene.choices.find((c) => c.id === input.choiceId)!;
   const chapterInfo = getCampaignChapter(
-    saturnChapter?.currentHouse ?? input.encounter.saturnHouse
+    activeChapter?.currentHouse ?? input.encounter.saturnHouse
   );
 
   let narrationText = '';
@@ -329,11 +366,18 @@ export async function runCombatResolvePipeline(
         encounter: input.encounter,
         chosenOption: choice,
         combatResult: combat,
-        saturnChapter: {
+        activeChapter: {
           house: chapterInfo.house,
           domain: chapterInfo.domain,
           label: chapterInfo.thematicLabel,
         },
+        campaignEra: campaignEra
+          ? {
+              house: campaignEra.currentHouse,
+              domain: campaignEra.domain,
+              label: campaignEra.label,
+            }
+          : null,
         campaignChapter: input.campaignChapter,
         recentHistory: input.recentHistory || history.slice(-3),
       });
@@ -360,7 +404,10 @@ export async function runCombatResolvePipeline(
     lastPlayedDate: streakUpdate.lastPlayedDate,
     flags,
     history,
-    saturnChapter,
+    activeChapter,
+    campaignEra,
+    chapterTransitionCount,
+    saturnChapter: null,
     activeBuffs,
     damageShield,
     revealActive,

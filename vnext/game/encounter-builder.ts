@@ -4,7 +4,7 @@
  */
 
 import type { EphemerisSnapshot } from '../contracts';
-import { getSaturnTransitHouse, getCampaignChapter } from '../rpg/saturn-house';
+import { getMarsTransitHouse, getCampaignChapter } from '../rpg/saturn-house';
 import type { ChallengeScene, CharacterProfile, MechanicalEncounter } from '../rpg/types';
 import { buildChoiceStatMap } from './choice-stat-map';
 import { baseDamageForTransitBody, transitBodyCategory } from './damage-tables';
@@ -38,15 +38,17 @@ export function buildMechanicalEncounter(
 ): MechanicalEncounter {
   const primary = scene.primaryPressure;
   const body = transitBodyCategory(primary.transitBody);
-  const saturnHouse = getSaturnTransitHouse(transitSnapshot, natalCusps);
-  const chapter = getCampaignChapter(saturnHouse);
+  // Mars drives active dungeon / loot table selection (~6–8 week chapters).
+  const marsHouse = getMarsTransitHouse(transitSnapshot, natalCusps);
+  const chapter = getCampaignChapter(marsHouse);
 
   return {
     scene,
     dc: computeDC(primary, campaignChapter, !!options?.wounded),
     baseDamage: baseDamageForTransitBody(primary.transitBody),
     transitBodyCategory: body,
-    saturnHouse,
+    // TODO: rename field to chapterHouse — value is now Mars-derived
+    saturnHouse: marsHouse,
     lootTableKey: chapter.lootTableKey,
     choiceStatMap: buildChoiceStatMap(scene.choices || []),
     intensityBand: primary.intensityBand,

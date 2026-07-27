@@ -56,8 +56,7 @@ export function ChapterTransition({
               transition={{ delay: 1.4 }}
               className="text-body-sm text-text-secondary"
             >
-              Saturn moves from house {oldChapter.house} into house {newChapter.house} — the domain of{' '}
-              {newChapter.domain}.
+              A new chapter begins in house {newChapter.house} — the domain of {newChapter.domain}.
             </motion.p>
             {relicReward ? (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.6 }}>

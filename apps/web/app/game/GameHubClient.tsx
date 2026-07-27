@@ -19,6 +19,7 @@ type CampaignListItem = {
     hp?: { current?: number; max?: number; wounded?: boolean };
     streak?: number;
     chapter?: number;
+    activeChapter?: { label?: string; currentHouse?: number };
     saturnChapter?: { label?: string; currentHouse?: number };
   };
 };
@@ -34,11 +35,12 @@ function previewFromState(state: CampaignListItem['stateJson']): {
     hp && typeof hp.current === 'number' && typeof hp.max === 'number'
       ? `${hp.current}/${hp.max}`
       : '—';
+  const chapterState = state?.activeChapter ?? state?.saturnChapter;
   return {
     hpLabel,
     streak: typeof state?.streak === 'number' ? state.streak : 0,
     chapter: typeof state?.chapter === 'number' ? state.chapter : 1,
-    saturnLabel: state?.saturnChapter?.label || 'Unknown dungeon',
+    saturnLabel: chapterState?.label || 'Unknown dungeon',
   };
 }
 

@@ -410,7 +410,7 @@ export interface CombatResolution {
   xpGained: number;
 }
 
-/** Phase 4 — Saturn chapter tracking on campaign state. */
+/** Phase 4 — Saturn chapter tracking on campaign state. DEPRECATED: prefer ActiveChapter. */
 export interface SaturnChapterState {
   startingHouse: number;
   currentHouse: number;
@@ -418,6 +418,25 @@ export interface SaturnChapterState {
   label: string;
   enteredDate: string;
   transitionCount: number;
+}
+
+/** Mars-driven dungeon chapter (~6–8 weeks). Shape mirrors SaturnChapterState fields used by UI. */
+export interface ActiveChapter {
+  startingHouse: number;
+  currentHouse: number;
+  domain: string;
+  label: string;
+  enteredDate: string;
+  transitBody: 'mars';
+}
+
+/** Saturn-driven campaign era (background tone; rarely changes). */
+export interface CampaignEra {
+  currentHouse: number;
+  domain: string;
+  label: string;
+  enteredDate: string;
+  transitBody: 'saturn';
 }
 
 export interface ActiveBuff {
@@ -449,7 +468,7 @@ export interface ConsumableUseResult {
 }
 
 export interface MilestoneEvent {
-  type: 'streak_unlock' | 'streak_bag' | 'saturn_transition';
+  type: 'streak_unlock' | 'streak_bag' | 'saturn_transition' | 'chapter_transition' | 'era_shift';
   detail: string;
   slotsUnlocked?: UnlockedSlot[];
   bagSizeIncrease?: number;
@@ -515,6 +534,10 @@ export interface GameStateResponseDTO {
   streak: number;
   lastPlayedDate: string | null;
   chapter: number;
+  activeChapter: ActiveChapter | null;
+  campaignEra: CampaignEra | null;
+  chapterTransitionCount: number;
+  /** @deprecated Prefer activeChapter; retained for dual-read clients. */
   saturnChapter: SaturnChapterState | null;
   damageShield: DamageShield | null;
   revealActive: boolean;

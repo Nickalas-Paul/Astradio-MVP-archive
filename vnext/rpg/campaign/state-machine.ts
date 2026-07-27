@@ -3,7 +3,7 @@
 
 import type { RPGEffectsBundle, RPGDomainScore } from '../contracts';
 import { canonicalize } from '../hash/json-hash';
-import type { ArchetypeId, CharacterHP, ResponsePosture, StatBlock, SaturnChapterState, ActiveBuff, DamageShield } from '../types';
+import type { ArchetypeId, CharacterHP, ResponsePosture, StatBlock, SaturnChapterState, ActiveChapter, CampaignEra, ActiveBuff, DamageShield } from '../types';
 import { createFullHp } from '../../game/hp-system';
 import { isGameCombatEnabled } from '../../game/feature-gate';
 
@@ -18,7 +18,13 @@ export interface RPGCampaignState {
   hp?: CharacterHP;
   streak?: number;
   lastPlayedDate?: string | null;
-  /** Phase 4 Saturn chapter tracking. */
+  /** Mars-driven dungeon chapter (~6–8 weeks). */
+  activeChapter?: ActiveChapter | null;
+  /** Saturn-driven background era (narrative tone). */
+  campaignEra?: CampaignEra | null;
+  /** Total Mars chapter transitions (relic unlock / bag growth). */
+  chapterTransitionCount?: number;
+  /** @deprecated Prefer activeChapter; dual-read during migration. */
   saturnChapter?: SaturnChapterState | null;
   activeBuffs?: ActiveBuff[];
   damageShield?: DamageShield | null;
@@ -252,7 +258,10 @@ export function initialCampaignState(bundle: RPGEffectsBundle): RPGCampaignState
     state.hp = createFullHp(stats);
     state.streak = 0;
     state.lastPlayedDate = null;
-    state.saturnChapter = null; // filled at create or lazy on first resolve
+    // activeChapter / campaignEra seeded at create (needs transit snapshot) or lazy on first resolve
+    state.activeChapter = null;
+    state.campaignEra = null;
+    state.chapterTransitionCount = 0;
     state.activeBuffs = [];
     state.damageShield = null;
     state.revealActive = false;
@@ -284,6 +293,15 @@ export function applyOutcome(state: RPGCampaignState, outcome: RpgOutcome, domai
     ...(state.hp ? { hp: { ...state.hp } } : {}),
     ...(typeof state.streak === 'number' ? { streak: state.streak } : {}),
     ...(state.lastPlayedDate !== undefined ? { lastPlayedDate: state.lastPlayedDate } : {}),
+    ...(state.activeChapter !== undefined
+      ? { activeChapter: state.activeChapter ? { ...state.activeChapter } : null }
+      : {}),
+    ...(state.campaignEra !== undefined
+      ? { campaignEra: state.campaignEra ? { ...state.campaignEra } : null }
+      : {}),
+    ...(typeof state.chapterTransitionCount === 'number'
+      ? { chapterTransitionCount: state.chapterTransitionCount }
+      : {}),
     ...(state.saturnChapter !== undefined
       ? { saturnChapter: state.saturnChapter ? { ...state.saturnChapter } : null }
       : {}),

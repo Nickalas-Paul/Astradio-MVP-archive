@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import type { EphemerisSnapshot } from '../contracts';
 import { loadRpgV1Maps } from '../rpg/maps/load-v1';
-import { getSaturnTransitHouse, getCampaignChapter } from '../rpg/saturn-house';
+import { getSaturnTransitHouse, getMarsTransitHouse, getCampaignChapter } from '../rpg/saturn-house';
 import {
   addItem,
   canAddItem,
@@ -33,7 +33,7 @@ function assert(cond: boolean, msg: string): void {
   console.log(`✓ ${msg}`);
 }
 
-function makeTransit(saturnLon: number): EphemerisSnapshot {
+function makeTransit(saturnLon: number, marsLon = saturnLon): EphemerisSnapshot {
   return {
     ts: '2026-07-20T12:00:00Z',
     tz: 'America/Chicago',
@@ -44,6 +44,7 @@ function makeTransit(saturnLon: number): EphemerisSnapshot {
       { name: 'Sun', lon: 118 },
       { name: 'Moon', lon: 200 },
       { name: 'Saturn', lon: saturnLon },
+      { name: 'Mars', lon: marsLon },
     ],
     houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
     aspects: [],
@@ -57,6 +58,13 @@ function testSaturnHouse(): void {
   const natalCusps = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
   const house = getSaturnTransitHouse(makeTransit(195), natalCusps);
   assert(house === 7, `Saturn at 195° maps to house 7 (got ${house})`);
+
+  const marsHouse = getMarsTransitHouse(makeTransit(195, 100), natalCusps);
+  assert(marsHouse === 4, `Mars at 100° maps to house 4 (got ${marsHouse})`);
+  assert(
+    getCampaignChapter(marsHouse).lootTableKey === 'saturn_house_4',
+    'Mars house still uses saturn_house_N loot key'
+  );
 
   const chapter = getCampaignChapter(house);
   assert(chapter.domain === 'relationships', `chapter domain relationships (got ${chapter.domain})`);

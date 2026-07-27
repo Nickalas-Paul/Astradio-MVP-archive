@@ -147,8 +147,12 @@ function createCampaignRouter() {
         stateJson = initialState;
         if (isGameCombatEnabled() && snapshotForProfile) {
           try {
-            const buildSaturnChapterState = requireCampaignRuntimeModule('game/milestone-tracker')
-              .buildSaturnChapterState;
+            const buildActiveChapter = requireCampaignRuntimeModule('game/milestone-tracker')
+              .buildActiveChapter;
+            const buildCampaignEra = requireCampaignRuntimeModule('game/milestone-tracker')
+              .buildCampaignEra;
+            const getMarsTransitHouse = requireCampaignRuntimeModule('rpg/saturn-house')
+              .getMarsTransitHouse;
             const getSaturnTransitHouse = requireCampaignRuntimeModule('rpg/saturn-house')
               .getSaturnTransitHouse;
             const fetchChartSnapshot = requireCampaignRuntimeModule('core/architecture-engine')
@@ -170,14 +174,17 @@ function createCampaignRouter() {
                 },
               });
               const transitSnap = await fetchChartSnapshot(transitInput);
-              const house = getSaturnTransitHouse(transitSnap, natalCusps);
+              const marsHouse = getMarsTransitHouse(transitSnap, natalCusps);
+              const saturnHouse = getSaturnTransitHouse(transitSnap, natalCusps);
               stateJson = {
                 ...initialState,
-                saturnChapter: buildSaturnChapterState(house, today, 0),
+                activeChapter: buildActiveChapter(marsHouse, today),
+                campaignEra: buildCampaignEra(saturnHouse, today),
+                chapterTransitionCount: 0,
               };
             }
-          } catch (saturnErr) {
-            console.warn('[campaign-create] saturnChapter init failed:', saturnErr?.message);
+          } catch (chapterErr) {
+            console.warn('[campaign-create] chapter/era init failed:', chapterErr?.message);
           }
         }
         stateHash = sha256(canonicalJson(stateJson));

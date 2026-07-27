@@ -173,6 +173,11 @@ function currentCampaignState(campaign) {
     ...(state.hp && typeof state.hp === 'object' ? { hp: state.hp } : {}),
     ...(typeof state.streak === 'number' ? { streak: state.streak } : {}),
     ...(state.lastPlayedDate !== undefined ? { lastPlayedDate: state.lastPlayedDate } : {}),
+    ...(state.activeChapter !== undefined ? { activeChapter: state.activeChapter } : {}),
+    ...(state.campaignEra !== undefined ? { campaignEra: state.campaignEra } : {}),
+    ...(typeof state.chapterTransitionCount === 'number'
+      ? { chapterTransitionCount: state.chapterTransitionCount }
+      : {}),
     ...(state.saturnChapter !== undefined ? { saturnChapter: state.saturnChapter } : {}),
     ...(Array.isArray(state.activeBuffs) ? { activeBuffs: state.activeBuffs } : {}),
     ...(state.damageShield !== undefined ? { damageShield: state.damageShield } : {}),
@@ -853,6 +858,15 @@ function createCampaignDailyRouter() {
           ...(campaign.state_json && campaign.state_json.lastPlayedDate !== undefined
             ? { lastPlayedDate: campaign.state_json.lastPlayedDate }
             : {}),
+          ...(campaign.state_json && campaign.state_json.activeChapter !== undefined
+            ? { activeChapter: campaign.state_json.activeChapter }
+            : {}),
+          ...(campaign.state_json && campaign.state_json.campaignEra !== undefined
+            ? { campaignEra: campaign.state_json.campaignEra }
+            : {}),
+          ...(campaign.state_json && typeof campaign.state_json.chapterTransitionCount === 'number'
+            ? { chapterTransitionCount: campaign.state_json.chapterTransitionCount }
+            : {}),
           ...(campaign.state_json && campaign.state_json.saturnChapter !== undefined
             ? { saturnChapter: campaign.state_json.saturnChapter }
             : {}),
@@ -956,6 +970,12 @@ function createCampaignDailyRouter() {
                 lastPlayedDate: previousState.lastPlayedDate || null,
                 flags: previousState.flags || [],
                 history: previousState.history || [],
+                activeChapter: previousState.activeChapter || null,
+                campaignEra: previousState.campaignEra || null,
+                chapterTransitionCount:
+                  typeof previousState.chapterTransitionCount === 'number'
+                    ? previousState.chapterTransitionCount
+                    : 0,
                 saturnChapter: previousState.saturnChapter || null,
                 activeBuffs: previousState.activeBuffs || [],
                 damageShield: previousState.damageShield || null,
@@ -1002,7 +1022,10 @@ function createCampaignDailyRouter() {
               previousState.lastPlayedDate = combatResult.lastPlayedDate;
               previousState.flags = combatResult.flags;
               previousState.history = combatResult.history;
-              previousState.saturnChapter = combatResult.saturnChapter;
+              previousState.activeChapter = combatResult.activeChapter;
+              previousState.campaignEra = combatResult.campaignEra;
+              previousState.chapterTransitionCount = combatResult.chapterTransitionCount;
+              delete previousState.saturnChapter;
               previousState.activeBuffs = combatResult.activeBuffs;
               previousState.damageShield = combatResult.damageShield;
               previousState.revealActive = combatResult.revealActive;
@@ -1113,6 +1136,11 @@ function createCampaignDailyRouter() {
             nextState.flags = Array.from(new Set([...(nextState.flags || []), ...(previousState.flags || [])])).sort();
           }
           if (previousState.history) nextState.history = previousState.history;
+          if (previousState.activeChapter !== undefined) nextState.activeChapter = previousState.activeChapter;
+          if (previousState.campaignEra !== undefined) nextState.campaignEra = previousState.campaignEra;
+          if (typeof previousState.chapterTransitionCount === 'number') {
+            nextState.chapterTransitionCount = previousState.chapterTransitionCount;
+          }
           if (previousState.saturnChapter !== undefined) nextState.saturnChapter = previousState.saturnChapter;
           if (previousState.activeBuffs) nextState.activeBuffs = previousState.activeBuffs;
           if (previousState.damageShield !== undefined) nextState.damageShield = previousState.damageShield;

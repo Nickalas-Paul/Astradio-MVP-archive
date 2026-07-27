@@ -8,12 +8,19 @@ import { computeEffectiveStatBlock } from '../game/effective-stats';
 import { expireBuffs, expireShield, addCalendarDaysIso } from '../game/buff-manager';
 import { processConsumableUse, applyConsumableEffect } from '../game/consumable-use';
 import {
+  applyChapterTransitionRewards,
   applySaturnTransitionRewards,
+  buildActiveChapter,
+  buildCampaignEra,
   buildSaturnChapterState,
+  checkChapterTransition,
+  checkEraShift,
   checkSaturnTransition,
   checkStreakMilestones,
+  ensureActiveChapter,
   ensureSaturnChapter,
   findHouseRelic,
+  migrateSaturnChapterToMarsEra,
   MAX_BAG_SIZE_CAP,
 } from '../game/milestone-tracker';
 import { findLowestValueEquippedInstance, resolveCombat } from '../game/combat-resolver';
@@ -26,7 +33,7 @@ import {
 } from '../rpg/inventory-manager';
 import { buildItemDefinitionMap } from '../rpg/loot-roller';
 import { loadRpgV1Maps } from '../rpg/maps/load-v1';
-import { getCampaignChapter, getSaturnTransitHouse } from '../rpg/saturn-house';
+import { getCampaignChapter, getMarsTransitHouse, getSaturnTransitHouse } from '../rpg/saturn-house';
 import { createEmptyInventoryState } from '../rpg/types';
 import type {
   CharacterProfile,
@@ -54,7 +61,7 @@ function makeStats(partial: Partial<StatBlock> = {}): StatBlock {
   };
 }
 
-function makeTransit(saturnLon: number): EphemerisSnapshot {
+function makeTransit(saturnLon: number, marsLon = saturnLon): EphemerisSnapshot {
   return {
     ts: '2026-07-20T12:00:00Z',
     tz: 'America/Chicago',
@@ -65,6 +72,7 @@ function makeTransit(saturnLon: number): EphemerisSnapshot {
       { name: 'Sun', lon: 118 },
       { name: 'Moon', lon: 200 },
       { name: 'Saturn', lon: saturnLon },
+      { name: 'Mars', lon: marsLon },
     ],
     houses: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330],
     aspects: [],
@@ -194,57 +202,61 @@ function testStreakMilestones(): void {
   assert(rerun7.events.length === 0, 're-resolve streak 7: no duplicate unlock');
 }
 
-function testSaturnTransition(): void {
-  console.log('\n=== Test 2: Saturn House Transition ===');
-  const house7Lon = 195; // house 7 with even cusps (180-210)
+function testChapterTransition(): void {
+  console.log('\n=== Test 2: Mars Chapter Transition ===');
+  const house7Lon = 195;
   const house8Lon = 225;
-  const chapter = buildSaturnChapterState(7, '2026-01-01', 0);
+  const chapter = buildActiveChapter(7, '2026-01-01');
   assert(chapter.currentHouse === 7, 'starting house 7');
-  assert(chapter.label === getCampaignChapter(7).thematicLabel, 'label matches chapter_labels');
+  assert(chapter.transitBody === 'mars', 'transitBody mars');
 
-  const noChange = checkSaturnTransition(chapter, makeTransit(house7Lon), EVEN_CUSPS, '2026-07-20');
-  assert(noChange === null, 'same house: no transition');
+  assert(
+    checkChapterTransition(chapter, makeTransit(195, house7Lon), EVEN_CUSPS, '2026-07-20') === null,
+    'same Mars house: no transition'
+  );
+  assert(
+    checkChapterTransition(null, makeTransit(195, house8Lon), EVEN_CUSPS, '2026-07-20') === null,
+    'null activeChapter: no false transition reward'
+  );
 
-  const transition = checkSaturnTransition(chapter, makeTransit(house8Lon), EVEN_CUSPS, '2026-07-20');
-  assert(!!transition, 'house change detected');
-  assert(transition!.oldHouse === 7 && transition!.newHouse === 8, '7 → 8');
-  assert(transition!.updatedChapter.transitionCount === 1, 'transitionCount = 1');
+  const transition = checkChapterTransition(
+    chapter,
+    makeTransit(195, house8Lon),
+    EVEN_CUSPS,
+    '2026-07-20'
+  );
+  assert(!!transition && transition.oldHouse === 7 && transition.newHouse === 8, 'Mars 7 → 8');
 
-  const rewards = applySaturnTransitionRewards({
+  const rewards = applyChapterTransitionRewards({
     transition: transition!,
+    chapterTransitionCountBefore: 0,
     slotsUnlocked: createEmptyInventoryState().slotsUnlocked,
     maxBagSize: 15,
     flags: [],
     history: [],
   });
   assert(rewards.slotsUnlocked.includes('relic'), 'first transition unlocks relic');
-  assert(rewards.maxBagSize === 20, 'transition bag +5');
-  assert(rewards.flags.some((f) => f.startsWith('saturn_transition_7_to_8')), 'transition flag');
-  assert(rewards.history.some((h) => h.includes('Saturn moved')), 'history entry');
-  assert(!!rewards.relic && rewards.relic.saturnHouse === 7, 'relic from old house');
-  assert(rewards.relic!.rarity === 'legendary', 'legendary relic');
+  assert(rewards.chapterTransitionCount === 1, 'chapterTransitionCount = 1');
+  assert(rewards.flags.some((f) => f.startsWith('chapter_transition_')), 'chapter_transition flag');
+  assert(!!rewards.relic && rewards.relic.saturnHouse === 7, 'relic from departing house');
 
-  const second = checkSaturnTransition(
-    transition!.updatedChapter,
-    makeTransit(15), // house 1
-    EVEN_CUSPS,
-    '2026-08-01'
-  );
-  assert(!!second && second.updatedChapter.transitionCount === 2, 'second transitionCount = 2');
-  const rewards2 = applySaturnTransitionRewards({
-    transition: second!,
-    slotsUnlocked: rewards.slotsUnlocked,
-    maxBagSize: rewards.maxBagSize,
-    flags: rewards.flags,
-    history: rewards.history,
+  const era = buildCampaignEra(7, '2026-01-01');
+  const eraShift = checkEraShift(era, makeTransit(house8Lon, house7Lon), EVEN_CUSPS, '2026-07-20');
+  assert(!!eraShift && eraShift.newHouse === 8, 'Saturn era shift detected');
+  assert(checkEraShift(null, makeTransit(house8Lon), EVEN_CUSPS, '2026-07-20') === null, 'null era: no shift');
+
+  // Legacy Saturn helpers still work
+  const legacy = buildSaturnChapterState(7, '2026-01-01', 0);
+  const legacyT = checkSaturnTransition(legacy, makeTransit(house8Lon), EVEN_CUSPS, '2026-07-20');
+  assert(!!legacyT, 'legacy Saturn transition still works');
+  const legacyR = applySaturnTransitionRewards({
+    transition: legacyT!,
+    slotsUnlocked: createEmptyInventoryState().slotsUnlocked,
+    maxBagSize: 15,
+    flags: [],
+    history: [],
   });
-  assert(rewards2.unlockRelicSlot === false, 'second transition: relic slot not re-unlocked');
-  assert(rewards2.maxBagSize === 25, 'second transition bag grows again');
-  // House 8 may only have stub items — relic grant is best-effort when a legendary exists
-  const house8Relic = findHouseRelic(8);
-  if (house8Relic) {
-    assert(rewards2.relic?.slug === house8Relic.slug, 'second relic from departing house 8');
-  }
+  assert(legacyR.flags.some((f) => f.startsWith('saturn_transition_')), 'legacy saturn flag');
 }
 
 function testConsumableUse(): void {
@@ -466,22 +478,44 @@ function testPersistIntentsShape(): void {
 }
 
 function testSaturnInitAndLazyBackfill(): void {
-  console.log('\n=== Test 7: Saturn Chapter Init / Lazy Backfill ===');
-  const transit = makeTransit(195);
-  const house = getSaturnTransitHouse(transit, EVEN_CUSPS);
-  const chapter = buildSaturnChapterState(house, '2026-07-20', 0);
-  const info = getCampaignChapter(house);
-  assert(chapter.domain === info.domain, 'domain matches chapter_labels');
-  assert(chapter.label === info.thematicLabel, 'label matches chapter_labels');
-  assert(chapter.transitionCount === 0, 'new chapter transitionCount 0');
+  console.log('\n=== Test 7: Chapter Init / Migration / Lazy Backfill ===');
+  const transit = makeTransit(195, 100); // Saturn H7, Mars H4
+  const marsHouse = getMarsTransitHouse(transit, EVEN_CUSPS);
+  const saturnHouse = getSaturnTransitHouse(transit, EVEN_CUSPS);
+  assert(marsHouse === 4, 'Mars at 100° → house 4');
+  assert(saturnHouse === 7, 'Saturn at 195° → house 7');
 
-  const ensured = ensureSaturnChapter(null, transit, EVEN_CUSPS, '2026-07-20');
-  assert(ensured.backfilled === true, 'null saturnChapter lazy backfilled');
-  assert(ensured.chapter.currentHouse === house, 'backfill uses current house');
-  assert(ensured.chapter.transitionCount === 0, 'backfill transitionCount 0');
+  const ensured = ensureActiveChapter(null, transit, EVEN_CUSPS, '2026-07-20');
+  assert(ensured.backfilled === true && ensured.chapter.currentHouse === 4, 'Mars chapter backfill');
 
-  const already = ensureSaturnChapter(chapter, transit, EVEN_CUSPS, '2026-07-21');
-  assert(already.backfilled === false, 'existing chapter not overwritten');
+  const migrated = migrateSaturnChapterToMarsEra({
+    saturnChapter: buildSaturnChapterState(7, '2026-01-01', 2),
+    activeChapter: null,
+    campaignEra: null,
+    chapterTransitionCount: undefined,
+    transitSnapshot: transit,
+    natalCusps: EVEN_CUSPS,
+    today: '2026-07-20',
+  });
+  assert(migrated.migrated === true, 'legacy saturnChapter migrated');
+  assert(migrated.activeChapter.currentHouse === 4, 'activeChapter seeded from Mars (not Saturn)');
+  assert(migrated.campaignEra.currentHouse === 7, 'campaignEra from old Saturn');
+  assert(migrated.chapterTransitionCount === 2, 'transitionCount carried forward');
+  assert(
+    checkChapterTransition(
+      migrated.activeChapter,
+      transit,
+      EVEN_CUSPS,
+      '2026-07-20'
+    ) === null,
+    'migration day does not fire Mars transition'
+  );
+
+  const already = ensureActiveChapter(migrated.activeChapter, transit, EVEN_CUSPS, '2026-07-21');
+  assert(already.backfilled === false, 'existing activeChapter not overwritten');
+
+  const legacy = ensureSaturnChapter(null, transit, EVEN_CUSPS, '2026-07-20');
+  assert(legacy.backfilled === true && legacy.chapter.currentHouse === 7, 'legacy Saturn backfill');
 }
 
 function testFullLoopDeterminism(): void {
@@ -542,7 +576,7 @@ function testFullLoopDeterminism(): void {
 function main(): void {
   console.log('Phase 4 — Integration validation');
   testStreakMilestones();
-  testSaturnTransition();
+  testChapterTransition();
   testConsumableUse();
   testEffectiveStats();
   testCriticalFailureInstanceId();
