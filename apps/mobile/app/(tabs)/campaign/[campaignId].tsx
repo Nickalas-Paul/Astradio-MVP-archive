@@ -114,10 +114,15 @@ function ChoiceCard({
       </View>
       <Text numberOfLines={3} style={styles.choiceDescription}>{choice.symbolicGesture}</Text>
       <View style={styles.choiceFooter}>
-        <Text style={[styles.statLabel, { color: dungeon.textAccent }]}>
-          {choice.primaryStat.toUpperCase()}
-        </Text>
-        <Text style={styles.meta}>{riskLabel(choice.riskProfile)} risk</Text>
+        <View style={styles.choiceFooterLeft}>
+          <Text style={[styles.statLabel, { color: dungeon.textAccent }]}>
+            {choice.primaryStat.toUpperCase()}
+          </Text>
+          <Text style={styles.meta}>{riskLabel(choice.riskProfile)} risk</Text>
+        </View>
+        <View style={[styles.chooseChip, { borderColor: dungeon.accent }]}>
+          <Text style={[styles.chooseChipText, { color: dungeon.textAccent }]}>Choose</Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -284,6 +289,11 @@ export default function CampaignDashboardScreen() {
             <Text style={styles.topHpText}>{hp.current}/{hp.max}</Text>
           </View>
         ) : null}
+        {(game.state?.streak ?? 0) >= 7 ? (
+          <View style={styles.streakBadge}>
+            <Text style={styles.streakBadgeText}>🔥 {game.state?.streak}</Text>
+          </View>
+        ) : null}
         <Pressable
           onPress={() => openSheet('character')}
           style={[styles.avatar, { backgroundColor: dungeon.accent }]}
@@ -431,13 +441,30 @@ export default function CampaignDashboardScreen() {
                 <Text style={styles.resolvedTitle}>Encounter resolved</Text>
                 <Text style={styles.secondaryCenter}>
                   Your next encounter appears tomorrow. Keep the streak alive.
+                  {(game.state?.streak ?? 0) >= 7 ? ` 🔥 ${game.state?.streak}-day streak` : ''}
                 </Text>
                 <View style={styles.footerActions}>
-                  <Pressable style={styles.secondaryButton} onPress={() => openSheet('inventory')}>
-                    <Text style={styles.secondaryButtonText}>Inventory</Text>
+                  <Pressable
+                    style={[styles.secondaryButton, { borderColor: dungeon.accent }]}
+                    onPress={() => openSheet('inventory')}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: dungeon.textAccent }]}>
+                      Manage Inventory
+                    </Text>
                   </Pressable>
-                  <Pressable style={styles.secondaryButton} onPress={() => openSheet('character')}>
-                    <Text style={styles.secondaryButtonText}>Character</Text>
+                  <Pressable
+                    style={[styles.secondaryButton, { borderColor: dungeon.accent }]}
+                    onPress={() => openSheet('character')}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: dungeon.textAccent }]}>
+                      View Character
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.doneButton, { backgroundColor: dungeon.accent }]}
+                    onPress={() => router.back()}
+                  >
+                    <Text style={styles.doneButtonText}>Done</Text>
                   </Pressable>
                 </View>
               </View>
@@ -553,7 +580,25 @@ const styles = StyleSheet.create({
   choiceLabel: { flex: 1, fontFamily: 'Manrope-Bold', fontSize: 13, color: '#F8FAFC' },
   modifier: { fontFamily: 'Manrope-Bold', fontSize: 17 },
   choiceDescription: { fontFamily: 'Manrope-Regular', fontSize: 12, lineHeight: 18, color: '#94A3B8' },
-  choiceFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  choiceFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  choiceFooterLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  chooseChip: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'transparent',
+  },
+  chooseChipText: { fontFamily: 'Manrope-SemiBold', fontSize: 10, letterSpacing: 0.6 },
+  streakBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(220,100,40,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,120,50,0.35)',
+  },
+  streakBadgeText: { fontFamily: 'Manrope-Bold', fontSize: 10, color: '#E8A060' },
   statLabel: { fontFamily: 'Manrope-Bold', fontSize: 9, letterSpacing: 1 },
   meta: { fontFamily: 'Manrope-Regular', fontSize: 10, color: '#64748B' },
   pressed: { opacity: 0.68, transform: [{ scale: 0.99 }] },
@@ -587,9 +632,11 @@ const styles = StyleSheet.create({
   resolvedFooter: { alignItems: 'center', gap: 10, paddingVertical: 10 },
   resolvedTitle: { fontFamily: 'Manrope-Bold', fontSize: 15, color: '#F8FAFC', textAlign: 'center' },
   secondaryCenter: { fontFamily: 'Manrope-Regular', fontSize: 12, lineHeight: 18, color: '#94A3B8', textAlign: 'center' },
-  footerActions: { flexDirection: 'row', gap: 10 },
-  secondaryButton: { minHeight: 42, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  footerActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 4 },
+  secondaryButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   secondaryButtonText: { fontFamily: 'Manrope-SemiBold', fontSize: 11, color: '#CBD5E1' },
+  doneButton: { minHeight: 42, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  doneButtonText: { fontFamily: 'Manrope-Bold', fontSize: 12, color: '#0C1320' },
   resolvedCard: { alignItems: 'center', gap: 10, padding: 22, borderRadius: 16, backgroundColor: 'rgba(14,150,150,0.08)', borderWidth: 1, borderColor: 'rgba(14,150,150,0.25)', marginTop: 25 },
   errorText: { fontFamily: 'Manrope-Regular', fontSize: 12, color: '#F87171', textAlign: 'center' },
   retryButton: { minHeight: 44, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.accent.DEFAULT, justifyContent: 'center' },
