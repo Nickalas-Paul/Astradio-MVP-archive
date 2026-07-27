@@ -131,13 +131,31 @@ export type CharacterResponse = {
   classSlug: string;
   subclassSlug: string;
   risingSlug: string;
+  primaryElement?: string;
   baseStats: StatBlock;
   effectiveStats: StatBlock & {
     bonuses: Partial<Record<string, number>>;
     woundedPenalty: boolean;
   };
+  activeBuffs?: Array<{
+    stat: string;
+    magnitude: number;
+    expiresDate: string;
+    source: string;
+  }>;
   temperament: Record<string, number>;
   statTrace: unknown;
+};
+
+export type CombatMilestone = {
+  type: string;
+  detail: string;
+  relicGranted?: {
+    name: string;
+    description: string;
+    rarity?: string;
+    statModifiers?: Record<string, number>;
+  } | null;
 };
 
 export type LootTableResponse = {
@@ -177,7 +195,7 @@ export type CombatResolution = {
       statModifiers: Record<string, number>;
     } | null;
   };
-  milestones?: Array<{ type: string; detail: string }>;
+  milestones?: CombatMilestone[];
 };
 
 export type DailyResolveMeta = {

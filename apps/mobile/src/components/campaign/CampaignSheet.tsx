@@ -11,6 +11,8 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../constants/colors';
 import { getClassDisplay } from '../../lib/class-display';
+import { getElementTheme } from '../../lib/game/element-themes';
+import type { DungeonTheme } from '../../lib/game/dungeon-themes';
 import {
   discardItem,
   equipItem,
@@ -35,6 +37,7 @@ type Props = {
   onClose: () => void;
   character: CharacterResponse | null;
   inventory: InventoryResponse | null;
+  dungeon?: DungeonTheme | null;
   onInventoryChange: (inventory: InventoryResponse) => void;
   onStateRefresh: () => Promise<void>;
 };
@@ -48,12 +51,6 @@ const STAT_KEYS: (keyof StatBlock)[] = [
   'willpower',
 ];
 
-function statColor(value: number) {
-  if (value >= 14) return '#10B981';
-  if (value >= 8) return '#F59E0B';
-  return '#EF4444';
-}
-
 function rarityColor(rarity = '') {
   if (rarity.toLowerCase() === 'legendary') return '#8B5CF6';
   if (rarity.toLowerCase() === 'rare') return '#3B82F6';
@@ -61,32 +58,102 @@ function rarityColor(rarity = '') {
   return '#6B7280';
 }
 
-function CharacterTab({ character }: { character: CharacterResponse | null }) {
+function CharacterTab({
+  character,
+  inventory,
+}: {
+  character: CharacterResponse | null;
+  inventory: InventoryResponse | null;
+}) {
   if (!character) return <ActivityIndicator color={colors.accent.DEFAULT} style={styles.loader} />;
   const display = getClassDisplay(character.classSlug, character.subclassSlug, character.risingSlug);
+  const classElement = display.element;
+  const elementTheme = getElementTheme(classElement);
+  const buffs = character.activeBuffs ?? [];
+  const relic = inventory?.equipped?.relic ?? null;
+
   return (
     <View style={styles.sectionStack}>
-      <View>
-        <Text style={styles.className}>{display.className}</Text>
-        <Text style={styles.secondary}>{display.role}</Text>
-      </View>
-      <View style={styles.identityRow}>
-        <View style={styles.identityCard}>
-          <Text style={styles.micro}>SUBCLASS</Text>
-          <Text style={styles.identityName}>{display.subclassName}</Text>
-          <Text style={styles.meta}>Moon in {display.moonSign}</Text>
+      <View style={styles.identityHeader}>
+        <View
+          style={[
+            styles.classIcon,
+            {
+              backgroundColor: elementTheme.badgeColor,
+              borderColor: elementTheme.badgeBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.classIconText, { color: elementTheme.badgeTextColor }]}>
+            {display.classInitial}
+          </Text>
         </View>
-        <View style={styles.identityCard}>
-          <Text style={styles.micro}>RISING</Text>
-          <Text style={styles.identityName}>{display.risingName}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.className}>{display.className}</Text>
+          <Text style={styles.secondary}>{display.role}</Text>
+        </View>
+      </View>
+
+      <View style={styles.identityRow}>
+        <View
+          style={[
+            styles.identityCard,
+            {
+              backgroundColor: elementTheme.badgeColor,
+              borderColor: elementTheme.badgeBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.micro, { color: elementTheme.badgeTextColor }]}>ELEMENT</Text>
+          <Text style={[styles.identityName, { color: elementTheme.badgeTextColor }]}>
+            {classElement}
+          </Text>
+          <Text style={styles.meta}>{display.sunSign}</Text>
+        </View>
+        <View
+          style={[
+            styles.identityCard,
+            {
+              backgroundColor: elementTheme.badgeColor,
+              borderColor: elementTheme.badgeBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.micro, { color: elementTheme.badgeTextColor }]}>RISING</Text>
+          <Text style={[styles.identityName, { color: elementTheme.badgeTextColor }]}>
+            {display.risingName}
+          </Text>
           <Text style={styles.meta}>{display.risingSign} ascendant</Text>
         </View>
       </View>
-      <Text style={styles.summary}>
+
+      <Text style={[styles.summary, { color: elementTheme.badgeTextColor }]}>
         {display.sunSign === display.moonSign
-          ? `Double ${display.sunSign} core with ${display.risingSign} rising.`
-          : `${display.sunSign} core, ${display.moonSign} instincts, ${display.risingSign} rising.`}
+          ? `Double ${display.sunSign} core with ${display.risingSign} rising. ${display.role}.`
+          : `${display.sunSign} core, ${display.moonSign} instincts, ${display.risingSign} rising. ${display.role}.`}
       </Text>
+
+      {buffs.length > 0 ? (
+        <View style={{ gap: 8 }}>
+          <Text style={styles.sectionTitle}>ACTIVE EFFECTS</Text>
+          {buffs.map((buff, index) => (
+            <View key={`${buff.stat}-${index}`} style={styles.effectCard}>
+              <View style={styles.effectDot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.effectName}>
+                  {buff.stat.charAt(0).toUpperCase() + buff.stat.slice(1)} Boost
+                </Text>
+                <Text style={styles.meta}>
+                  {buff.magnitude >= 0 ? '+' : ''}
+                  {buff.magnitude} {buff.stat}
+                  {buff.source ? ` · ${buff.source}` : ''}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <Text style={styles.sectionTitle}>COMBAT STATS</Text>
       {STAT_KEYS.map((key) => {
         const base = character.baseStats[key] ?? 0;
@@ -102,13 +169,13 @@ function CharacterTab({ character }: { character: CharacterResponse | null }) {
                 {effective !== base ? <Text style={styles.meta}> (base {base})</Text> : null}
               </Text>
             </View>
-            <View style={styles.track}>
+            <View style={[styles.track, { backgroundColor: elementTheme.statBarBg }]}>
               <View
                 style={[
                   styles.fill,
                   {
                     width: `${Math.max(0, Math.min(100, (effective / 20) * 100))}%`,
-                    backgroundColor: statColor(effective),
+                    backgroundColor: elementTheme.statBarColor,
                   },
                 ]}
               />
@@ -116,6 +183,36 @@ function CharacterTab({ character }: { character: CharacterResponse | null }) {
           </View>
         );
       })}
+
+      <Text style={styles.sectionTitle}>EQUIPPED RELICS</Text>
+      {relic ? (
+        <View
+          style={[
+            styles.relicCard,
+            {
+              borderColor: `${rarityColor(relic.rarity)}33`,
+              backgroundColor: `${rarityColor(relic.rarity)}14`,
+            },
+          ]}
+        >
+          <View style={[styles.relicIcon, { borderColor: rarityColor(relic.rarity) }]}>
+            <Text style={{ color: rarityColor(relic.rarity) }}>☿</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.effectName, { color: rarityColor(relic.rarity) }]}>{relic.name}</Text>
+            <Text style={styles.meta}>
+              {relic.rarity}
+              {Object.entries(relic.statModifiers || {})
+                .filter(([, v]) => v)
+                .map(([k, v]) => ` · +${v} ${k}`)
+                .join('')}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.meta}>No relic equipped.</Text>
+      )}
+
       <Text style={styles.sectionTitle}>TEMPERAMENT</Text>
       {Object.entries(character.temperament || {}).map(([key, raw]) => {
         const value = Math.max(0, Math.min(1, Number(raw) || 0));
@@ -331,6 +428,8 @@ export function CampaignSheet(props: Props) {
       : null,
     [props.character],
   );
+  const accent = props.dungeon?.accent ?? colors.accent.DEFAULT;
+  const textAccent = props.dungeon?.textAccent ?? colors.accent.DEFAULT;
   return (
     <Modal visible={props.visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={props.onClose}>
       <View style={styles.modal}>
@@ -344,17 +443,22 @@ export function CampaignSheet(props: Props) {
           </Pressable>
         </View>
         <View style={styles.tabs}>
-          {tabs.map((tab) => (
-            <Pressable key={tab} onPress={() => props.onTabChange(tab)} style={styles.tab}>
-              <Text style={[styles.tabText, props.tab === tab && styles.tabTextActive]}>
-                {tab === 'loot' ? 'Loot Table' : tab[0]!.toUpperCase() + tab.slice(1)}
-              </Text>
-              {props.tab === tab ? <View style={styles.tabLine} /> : null}
-            </Pressable>
-          ))}
+          {tabs.map((tab) => {
+            const active = props.tab === tab;
+            return (
+              <Pressable key={tab} onPress={() => props.onTabChange(tab)} style={styles.tab}>
+                <Text style={[styles.tabText, active && { color: textAccent }]}>
+                  {tab === 'loot' ? 'Loot Table' : tab[0]!.toUpperCase() + tab.slice(1)}
+                </Text>
+                {active ? <View style={[styles.tabLine, { backgroundColor: accent }]} /> : null}
+              </Pressable>
+            );
+          })}
         </View>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {props.tab === 'character' ? <CharacterTab character={props.character} /> : null}
+          {props.tab === 'character' ? (
+            <CharacterTab character={props.character} inventory={props.inventory} />
+          ) : null}
           {props.tab === 'inventory' ? (
             <InventoryTab
               campaignId={props.campaignId}
@@ -383,10 +487,20 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
   tabText: { fontFamily: 'Manrope-SemiBold', fontSize: 12, color: '#64748B' },
   tabTextActive: { color: colors.accent.DEFAULT },
-  tabLine: { position: 'absolute', bottom: 0, height: 2, width: '70%', backgroundColor: colors.accent.DEFAULT },
+  tabLine: { position: 'absolute', bottom: 0, height: 2, width: '70%' },
   scrollContent: { padding: 18, paddingBottom: 50 },
   sectionStack: { gap: 14 },
   loader: { marginTop: 50 },
+  identityHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  classIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  classIconText: { fontFamily: 'Manrope-Bold', fontSize: 13 },
   className: { fontFamily: 'Cormorant-Bold', fontSize: 24, color: '#F8FAFC' },
   secondary: { fontFamily: 'Manrope-Regular', fontSize: 13, lineHeight: 19, color: '#94A3B8' },
   micro: { fontFamily: 'Manrope-Bold', fontSize: 9, letterSpacing: 1.3, color: '#64748B' },
@@ -396,6 +510,41 @@ const styles = StyleSheet.create({
   identityName: { fontFamily: 'Cormorant-SemiBold', fontSize: 16, color: '#F8FAFC' },
   summary: { fontFamily: 'Cormorant-Italic', fontSize: 16, color: '#CBD5E1' },
   sectionTitle: { fontFamily: 'Manrope-Bold', fontSize: 10, letterSpacing: 1.4, color: '#64748B' },
+  effectCard: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: 'rgba(90,170,120,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(90,170,120,0.12)',
+    alignItems: 'flex-start',
+  },
+  effectDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 6,
+    backgroundColor: '#5aaa78',
+  },
+  effectName: { fontFamily: 'Manrope-SemiBold', fontSize: 11, color: 'rgba(160,210,175,0.95)' },
+  relicCard: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  relicIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statBlock: { gap: 5 },
   statHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   statName: { fontFamily: 'Manrope-Regular', fontSize: 12, textTransform: 'capitalize', color: '#CBD5E1' },

@@ -478,6 +478,7 @@ export default function CampaignDashboardScreen() {
         onClose={() => setSheetVisible(false)}
         character={game.character}
         inventory={game.inventory}
+        dungeon={dungeon}
         onInventoryChange={game.setInventory}
         onStateRefresh={game.refreshStateAndInventory}
       />
