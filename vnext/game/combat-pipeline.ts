@@ -4,6 +4,11 @@
  */
 
 import { callGeminiGenerate } from '../render/gemini-client';
+import {
+  classifyStatStrength,
+  resolveCharacterIdentity,
+  titleCaseStatKey,
+} from '../rpg/class-display';
 import { getCampaignChapter } from '../rpg/saturn-house';
 import { addItem, computeEquipmentStatBonuses } from '../rpg/inventory-manager';
 import { buildItemDefinitionMap } from '../rpg/loot-roller';
@@ -34,6 +39,7 @@ import { isGameCombatEnabled } from './feature-gate';
 import { computeEffectiveStatBlock } from './effective-stats';
 import { expireBuffs, expireShield } from './buff-manager';
 import { processConsumableUse } from './consumable-use';
+import { primaryStatForChoice } from './choice-stat-map';
 import {
   applyChapterTransitionRewards,
   applyEraShift,
@@ -342,6 +348,26 @@ export async function runCombatResolvePipeline(
     activeChapter?.currentHouse ?? input.encounter.saturnHouse
   );
 
+  const identity = resolveCharacterIdentity(
+    input.characterProfile.classSlug,
+    input.characterProfile.subclassSlug,
+    input.characterProfile.risingModifierSlug,
+    input.characterProfile.statBlock
+  );
+  const choiceStatKey = primaryStatForChoice(choice);
+  const choiceStatValue =
+    typeof effectiveStats[choiceStatKey] === 'number'
+      ? effectiveStats[choiceStatKey]
+      : input.characterProfile.statBlock[choiceStatKey] ?? 0;
+  const strength = classifyStatStrength(input.characterProfile.statBlock, choiceStatKey);
+  const primaryStatUsed = {
+    name: titleCaseStatKey(choiceStatKey),
+    value: choiceStatValue,
+    modifier: combat.dieRoll.modifier,
+    isStrength: strength.isStrength,
+    isWeakness: strength.isWeakness,
+  };
+
   let narrationText = '';
   let source: 'gemini' | 'fallback' = 'fallback';
 
@@ -360,6 +386,8 @@ export async function runCombatResolvePipeline(
         characterClass: input.characterProfile.classSlug,
         characterSubclass: input.characterProfile.subclassSlug,
         characterRising: input.characterProfile.risingModifierSlug,
+        characterIdentity: identity,
+        primaryStatUsed,
         statBlock: effectiveStats,
         hp: { ...hp, current: hpBeforeDaily },
         equippedItems: equippedNames,
@@ -391,7 +419,7 @@ export async function runCombatResolvePipeline(
   }
 
   if (!narrationText) {
-    narrationText = buildFallbackOutcome(input.encounter, choice, combat);
+    narrationText = buildFallbackOutcome(input.encounter, choice, combat, identity, primaryStatUsed);
     source = 'fallback';
   }
 

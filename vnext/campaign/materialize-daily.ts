@@ -33,6 +33,7 @@ import { callGeminiGenerate } from '../render/gemini-client';
 import { ensureCharacterHp } from '../game/hp-system';
 import { computeEffectiveStatBlock } from '../game/effective-stats';
 import { expireBuffs } from '../game/buff-manager';
+import { resolveCharacterIdentity } from '../rpg/class-display';
 import { computeEquipmentStatBonuses, loadInventoryState } from '../rpg/inventory-manager';
 import { buildItemDefinitionMap } from '../rpg/loot-roller';
 import { loadRpgV1Maps } from '../rpg/maps/load-v1';
@@ -564,6 +565,13 @@ export async function materializeCampaignDaily(params: {
       activeBuffs,
     };
 
+    const identity = resolveCharacterIdentity(
+      characterSheet.class_slug,
+      characterSheet.subclass_slug,
+      characterSheet.rising_modifier_slug,
+      character.statBlock
+    );
+
     let introText = buildFallbackIntro(
       mechanical,
       {
@@ -571,7 +579,7 @@ export async function materializeCampaignDaily(params: {
         domain: chapterInfo.domain,
         label: chapterInfo.thematicLabel,
       },
-      characterSheet.class_slug
+      identity
     );
     let introSource: 'gemini' | 'fallback' = 'fallback';
 
@@ -594,6 +602,7 @@ export async function materializeCampaignDaily(params: {
           characterClass: characterSheet.class_slug,
           characterSubclass: characterSheet.subclass_slug,
           characterRising: characterSheet.rising_modifier_slug,
+          characterIdentity: identity,
           statBlock: effectiveStats,
           hp,
           equippedItems: equippedItems.map((e) => e.name),
