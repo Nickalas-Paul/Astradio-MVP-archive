@@ -10,11 +10,13 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CampaignSheet, type CampaignSheetTab } from '../../../src/components/campaign/CampaignSheet';
 import { colors } from '../../../src/constants/colors';
 import { useCampaignGame } from '../../../src/hooks/useCampaignGame';
+import { useCampaignTheme } from '../../../src/hooks/useCampaignTheme';
 import { ELEMENT_COLORS, getClassDisplay } from '../../../src/lib/class-display';
 import {
   gameErrorMessage,
@@ -24,17 +26,9 @@ import {
   type CombatResolution,
   type EncounterChoice,
 } from '../../../src/lib/game-api';
+import type { DungeonTheme } from '../../../src/lib/game/dungeon-themes';
 
 type Phase = 'choose' | 'roll' | 'outcome';
-
-const STAT_COLORS: Record<string, string> = {
-  vitality: '#EF4444',
-  resilience: '#F59E0B',
-  cunning: '#0e9696',
-  charm: '#EC4899',
-  intuition: '#8B5CF6',
-  willpower: '#3B82F6',
-};
 
 const OUTCOME_COLORS: Record<string, string> = {
   success: '#10B981',
@@ -92,10 +86,12 @@ function ChoiceCard({
   choice,
   best,
   onPress,
+  dungeon,
 }: {
   choice: EncounterChoice;
   best: boolean;
   onPress: () => void;
+  dungeon: DungeonTheme;
 }) {
   const modifierColor = choice.currentModifier > 0 ? '#10B981' : choice.currentModifier < 0 ? '#EF4444' : '#94A3B8';
   return (
@@ -103,11 +99,13 @@ function ChoiceCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.choiceCard,
-        best && styles.bestChoice,
+        best && { backgroundColor: dungeon.accentMuted, borderColor: dungeon.accent },
         pressed && styles.pressed,
       ]}
     >
-      {best ? <Text style={styles.bestBadge}>BEST ODDS</Text> : null}
+      {best ? (
+        <Text style={[styles.bestBadge, { backgroundColor: dungeon.accent }]}>BEST ODDS</Text>
+      ) : null}
       <View style={styles.choiceHeader}>
         <Text style={styles.choiceLabel}>{choice.label}</Text>
         <Text style={[styles.modifier, { color: modifierColor }]}>
@@ -116,7 +114,7 @@ function ChoiceCard({
       </View>
       <Text numberOfLines={3} style={styles.choiceDescription}>{choice.symbolicGesture}</Text>
       <View style={styles.choiceFooter}>
-        <Text style={[styles.statLabel, { color: STAT_COLORS[choice.primaryStat] ?? '#94A3B8' }]}>
+        <Text style={[styles.statLabel, { color: dungeon.textAccent }]}>
           {choice.primaryStat.toUpperCase()}
         </Text>
         <Text style={styles.meta}>{riskLabel(choice.riskProfile)} risk</Text>
@@ -195,6 +193,8 @@ export default function CampaignDashboardScreen() {
       : null,
     [game.character],
   );
+  const chapterState = game.state?.activeChapter ?? game.state?.saturnChapter ?? null;
+  const { dungeon } = useCampaignTheme(chapterState, display?.element ?? 'Earth');
   const elementColors = ELEMENT_COLORS[display?.element ?? 'Earth'];
   const hp = game.state?.hp ?? game.encounter?.playerState.hp;
   const selectedChoice = game.encounter?.choices.find((choice) => choice.id === selectedId) ?? null;
@@ -203,6 +203,7 @@ export default function CampaignDashboardScreen() {
   const equippedConsumable = game.inventory?.bag.find(
     (item) => item.category === 'consumable' && item.equipped,
   ) ?? null;
+  const dungeonTitle = resolveChapterLabel(game.state) ?? dungeon.label;
 
   const openSheet = useCallback((tab: CampaignSheetTab) => {
     setSheetTab(tab);
@@ -263,16 +264,19 @@ export default function CampaignDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View pointerEvents="none" style={[styles.ambientOrb, { backgroundColor: `${elementColors[0]}18` }]} />
+      <LinearGradient colors={dungeon.gradient} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View pointerEvents="none" style={[styles.ambientOrb, { backgroundColor: dungeon.accentMuted }]} />
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.iconButton}>
           <Ionicons name="chevron-back" size={22} color="#CBD5E1" />
         </Pressable>
         <View style={styles.topTitle}>
-          <Text numberOfLines={1} style={styles.dungeonName}>
-            {resolveChapterLabel(game.state) ?? 'Campaign'}
+          <Text numberOfLines={1} style={[styles.dungeonName, { color: dungeon.textAccent }]}>
+            {dungeonTitle}
           </Text>
-          <Text style={styles.meta}>Chapter {game.state?.chapter ?? 1}</Text>
+          <Text style={styles.meta}>
+            Chapter {game.state?.chapter ?? 1} · {dungeon.domain}
+          </Text>
         </View>
         {hp ? (
           <View style={styles.topHp}>
@@ -280,7 +284,10 @@ export default function CampaignDashboardScreen() {
             <Text style={styles.topHpText}>{hp.current}/{hp.max}</Text>
           </View>
         ) : null}
-        <Pressable onPress={() => openSheet('character')} style={styles.avatar}>
+        <Pressable
+          onPress={() => openSheet('character')}
+          style={[styles.avatar, { backgroundColor: dungeon.accent }]}
+        >
           <Text style={styles.avatarText}>{display?.classInitial ?? '??'}</Text>
         </Pressable>
       </View>
@@ -361,6 +368,7 @@ export default function CampaignDashboardScreen() {
                     key={choice.id}
                     choice={choice}
                     best={choice.currentModifier === bestModifier}
+                    dungeon={dungeon}
                     onPress={() => {
                       setSelectedId(choice.id);
                       setPhase('roll');
@@ -487,10 +495,37 @@ const styles = StyleSheet.create({
   },
   iconButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   topTitle: { flex: 1 },
-  dungeonName: { fontFamily: 'Cormorant-SemiBold', fontSize: 15, letterSpacing: 1, textTransform: 'uppercase', color: colors.accent.DEFAULT },
+  dungeonName: {
+    fontFamily: 'Cormorant-SemiBold',
+    fontSize: 15,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  bestChoice: { backgroundColor: 'rgba(14,150,150,0.08)', borderColor: 'rgba(14,150,150,0.35)' },
+  bestBadge: {
+    position: 'absolute',
+    right: 10,
+    top: -8,
+    fontFamily: 'Manrope-Bold',
+    fontSize: 8,
+    color: '#fff',
+    borderRadius: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    letterSpacing: 0.8,
+    overflow: 'hidden',
+  },
   topHp: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   topHpText: { fontFamily: 'Manrope-Bold', fontSize: 11, color: '#CBD5E1' },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent.DEFAULT, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   avatarText: { fontFamily: 'Manrope-Bold', fontSize: 11, color: '#fff' },
   scroll: { flex: 1 },
   content: { flexGrow: 1, padding: 18, paddingBottom: 110 },
@@ -513,8 +548,6 @@ const styles = StyleSheet.create({
   chooseTitle: { fontFamily: 'Manrope-Bold', fontSize: 13, color: '#E2E8F0', marginBottom: 10 },
   choices: { gap: 11 },
   choiceCard: { borderRadius: 15, padding: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', gap: 8 },
-  bestChoice: { backgroundColor: 'rgba(14,150,150,0.08)', borderColor: 'rgba(14,150,150,0.35)' },
-  bestBadge: { position: 'absolute', right: 10, top: -8, fontFamily: 'Manrope-Bold', fontSize: 8, color: '#fff', backgroundColor: colors.accent.DEFAULT, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3, letterSpacing: 0.8 },
   choiceHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   choiceLabel: { flex: 1, fontFamily: 'Manrope-Bold', fontSize: 13, color: '#F8FAFC' },
   modifier: { fontFamily: 'Manrope-Bold', fontSize: 17 },

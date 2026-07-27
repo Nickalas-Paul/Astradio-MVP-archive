@@ -196,7 +196,7 @@ export type CampaignListItem = {
     chapter?: number;
     activeChapter?: { label?: string; currentHouse?: number };
     campaignEra?: { label?: string };
-    saturnChapter?: { label?: string };
+    saturnChapter?: { label?: string; currentHouse?: number };
   };
 };
 

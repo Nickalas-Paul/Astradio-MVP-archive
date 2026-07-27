@@ -9,9 +9,11 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../src/constants/colors';
+import { getDungeonTheme } from '../../../src/lib/game/dungeon-themes';
 import {
   createSoloCampaign,
   gameErrorMessage,
@@ -27,11 +29,18 @@ function preview(campaign: CampaignListItem) {
     typeof state?.hp?.current === 'number' && typeof state.hp.max === 'number'
       ? `${state.hp.current}/${state.hp.max}`
       : '—';
+  const house =
+    state?.activeChapter?.currentHouse ?? state?.saturnChapter?.currentHouse ?? null;
+  const dungeonTheme = getDungeonTheme(house);
   return {
     hp,
     streak: state?.streak ?? 0,
     chapter: state?.chapter ?? 1,
-    dungeon: resolveChapterLabel(state) ?? 'Unknown dungeon',
+    dungeon: resolveChapterLabel(state) ?? dungeonTheme.label,
+    domain: dungeonTheme.domain,
+    accent: dungeonTheme.accent,
+    accentMuted: dungeonTheme.accentMuted,
+    textAccent: dungeonTheme.textAccent,
   };
 }
 
@@ -86,10 +95,24 @@ export default function CampaignHubScreen() {
   }, [router]);
 
   const details = campaign ? preview(campaign) : null;
+  const hubGradient: [string, string] = details
+    ? getDungeonTheme(
+        campaign?.stateJson?.activeChapter?.currentHouse ??
+          campaign?.stateJson?.saturnChapter?.currentHouse ??
+          1
+      ).gradient
+    : ['#0C1320', '#0C1320'];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View pointerEvents="none" style={styles.orbTop} />
+      <LinearGradient colors={hubGradient} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.orbTop,
+          details ? { backgroundColor: details.accentMuted } : null,
+        ]}
+      />
       <View pointerEvents="none" style={styles.orbBottom} />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -120,11 +143,21 @@ export default function CampaignHubScreen() {
             <Text style={styles.body}>Campaign combat is offline for now. Check back soon.</Text>
           </View>
         ) : campaign && details ? (
-          <View style={styles.card}>
-            <Text style={styles.eyebrow}>ACTIVE CAMPAIGN</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                borderColor: details.accentMuted,
+                borderLeftWidth: 3,
+                borderLeftColor: details.accent,
+              },
+            ]}
+          >
+            <Text style={[styles.eyebrow, { color: details.textAccent }]}>ACTIVE CAMPAIGN</Text>
             <Text style={styles.cardTitle}>Resume Campaign</Text>
+            <Text style={[styles.dungeonLabel, { color: details.textAccent }]}>{details.dungeon}</Text>
             <Text style={styles.body}>
-              Chapter {details.chapter} · {details.dungeon}
+              Chapter {details.chapter} · {details.domain}
             </Text>
             <View style={styles.metrics}>
               <View style={styles.metric}>
@@ -133,12 +166,19 @@ export default function CampaignHubScreen() {
               </View>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>STREAK</Text>
-                <Text style={styles.metricValue}>{details.streak}</Text>
+                <Text style={styles.metricValue}>
+                  {details.streak}
+                  {details.streak >= 7 ? ' 🔥' : ''}
+                </Text>
               </View>
             </View>
             <Pressable
               accessibilityRole="button"
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                { backgroundColor: details.accent },
+                pressed && styles.pressed,
+              ]}
               onPress={() =>
                 router.push({
                   pathname: '/campaign/[campaignId]' as never,
@@ -241,6 +281,11 @@ const styles = StyleSheet.create({
     color: colors.accent.DEFAULT,
   },
   cardTitle: { fontFamily: 'Cormorant-Bold', fontSize: 26, color: '#F8FAFC' },
+  dungeonLabel: {
+    fontFamily: 'Cormorant-SemiBold',
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
   body: { fontFamily: 'Manrope-Regular', fontSize: 14, lineHeight: 21, color: '#CBD5E1' },
   muted: { fontFamily: 'Manrope-Regular', fontSize: 13, color: '#94A3B8', textAlign: 'center' },
   metrics: { flexDirection: 'row', gap: 10, marginVertical: 4 },
