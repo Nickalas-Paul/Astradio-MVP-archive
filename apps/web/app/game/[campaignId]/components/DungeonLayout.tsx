@@ -6,6 +6,7 @@ import type { DungeonTheme } from '@/lib/game/dungeonThemes';
 import type { CampaignEraState } from '@/lib/game-api';
 
 export interface DungeonLayoutProps {
+  campaignId: string;
   /** Left HUD rail (hidden on mobile). */
   rail: ReactNode;
   /** Right drawer; render null when closed. */
@@ -28,6 +29,7 @@ export interface DungeonLayoutProps {
  * Transparent panels over the ambient backdrop; height pinned below the app header.
  */
 export function DungeonLayout({
+  campaignId,
   rail,
   drawer,
   bottomDock,
@@ -72,7 +74,7 @@ export function DungeonLayout({
             </div>
             <div className="min-w-0">
               <Link
-                href="/game"
+                href={`/game/${encodeURIComponent(campaignId)}/codex#house-${dungeon.house}`}
                 className="block truncate font-serif text-sm uppercase tracking-widest hover:underline"
                 style={{ color: accent.text }}
               >

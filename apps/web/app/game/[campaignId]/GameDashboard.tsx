@@ -28,6 +28,7 @@ import { OutcomePanel } from './components/OutcomePanel';
 import { ConsumableQuickUse } from './components/ConsumableQuickUse';
 import { RevealHint } from './components/RevealHint';
 import { ChapterTransition } from './components/ChapterTransition';
+import { CampaignQuickLinks } from './components/CampaignQuickLinks';
 import { useCampaignTheme } from '@/lib/game/useCampaignTheme';
 
 /** encounter → rolling → result → post-resolve */
@@ -310,6 +311,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
   const theme = useCampaignTheme(state, character);
   const { dungeon, element: elementTheme, era } = theme;
   const chapter = state?.chapter ?? 1;
+  const codexHref = `/game/${encodeURIComponent(campaignId)}/codex#house-${dungeon.house}`;
 
   const showChoiceDock = phase === 'encounter' && !encounter?.resolved && !!encounter?.encounter;
 
@@ -318,6 +320,7 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
       <AmbientBackdrop dungeon={dungeon} />
 
       <DungeonLayout
+        campaignId={campaignId}
         rail={
           <HudRail
             display={display}
@@ -444,8 +447,11 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   dc={encounter.encounter.dc}
                   streak={typeof state?.streak === 'number' ? state.streak : undefined}
                   milestones={milestoneMessages}
+                  accent={dungeon.accent}
+                  codexHref={codexHref}
                   onOpenInventory={() => openDrawer('inventory')}
                   onOpenCharacter={() => openDrawer('character')}
+                  onOpenLoot={() => openDrawer('loot')}
                 />
                 <div className="flex justify-center pb-8">
                   <button
@@ -488,44 +494,13 @@ export function GameDashboard({ campaignId }: { campaignId: string }) {
                   Come back tomorrow to continue your streak
                   {typeof state?.streak === 'number' ? ` (${state.streak})` : ''}.
                 </p>
-                <div className="flex flex-wrap justify-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => openDrawer('inventory')}
-                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
-                    style={{
-                      border: `1px solid ${dungeon.accent.border}`,
-                      color: dungeon.accent.text,
-                      background: dungeon.accent.primaryAlpha(0.06),
-                    }}
-                  >
-                    Inventory
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openDrawer('character')}
-                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
-                    style={{
-                      border: `1px solid ${dungeon.accent.border}`,
-                      color: dungeon.accent.text,
-                      background: dungeon.accent.primaryAlpha(0.06),
-                    }}
-                  >
-                    Character
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openDrawer('loot')}
-                    className="rounded-lg px-4 py-2 text-xs font-semibold transition-colors hover:opacity-90"
-                    style={{
-                      border: `1px solid ${dungeon.accent.border}`,
-                      color: dungeon.accent.text,
-                      background: dungeon.accent.primaryAlpha(0.06),
-                    }}
-                  >
-                    Loot Table
-                  </button>
-                </div>
+                <CampaignQuickLinks
+                  accent={dungeon.accent}
+                  codexHref={codexHref}
+                  onOpenInventory={() => openDrawer('inventory')}
+                  onOpenCharacter={() => openDrawer('character')}
+                  onOpenLoot={() => openDrawer('loot')}
+                />
               </div>
             ) : null}
 

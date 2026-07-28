@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import { HPBar } from './HPBar';
 import { LootReveal } from './LootReveal';
 import { StreakMilestone } from './StreakMilestone';
+import { CampaignQuickLinks } from './CampaignQuickLinks';
 import type { CharacterHP, CombatResolutionPayload } from '@/lib/game-api';
+import type { DungeonAccent } from '@/lib/game/dungeonThemes';
 
 export interface OutcomePanelProps {
   narration: string;
@@ -15,8 +17,11 @@ export interface OutcomePanelProps {
   dc: number;
   streak?: number;
   milestones?: string[];
-  onOpenInventory?: () => void;
-  onOpenCharacter?: () => void;
+  accent: DungeonAccent;
+  codexHref: string;
+  onOpenInventory: () => void;
+  onOpenCharacter: () => void;
+  onOpenLoot: () => void;
 }
 
 const OUTCOME_COLORS: Record<string, string> = {
@@ -43,8 +48,11 @@ export function OutcomePanel({
   dc,
   streak,
   milestones = [],
+  accent,
+  codexHref,
   onOpenInventory,
   onOpenCharacter,
+  onOpenLoot,
 }: OutcomePanelProps) {
   const outcome = (combat.outcome || 'unknown').toLowerCase();
   const color = OUTCOME_COLORS[outcome] ?? '#F8FAFC';
@@ -155,26 +163,13 @@ export function OutcomePanel({
             Your next encounter appears tomorrow. Keep the streak alive
             {typeof streak === 'number' ? ` (${streak})` : ''}.
           </p>
-          <div className="flex justify-center gap-3">
-            {onOpenInventory ? (
-              <button
-                type="button"
-                onClick={onOpenInventory}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
-              >
-                Manage Inventory
-              </button>
-            ) : null}
-            {onOpenCharacter ? (
-              <button
-                type="button"
-                onClick={onOpenCharacter}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
-              >
-                View Character
-              </button>
-            ) : null}
-          </div>
+          <CampaignQuickLinks
+            accent={accent}
+            codexHref={codexHref}
+            onOpenInventory={onOpenInventory}
+            onOpenCharacter={onOpenCharacter}
+            onOpenLoot={onOpenLoot}
+          />
         </div>
       </Step>
     </div>
