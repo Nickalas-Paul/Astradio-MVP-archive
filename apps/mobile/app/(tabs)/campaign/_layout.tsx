@@ -11,6 +11,7 @@ export default function CampaignLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="[campaignId]" />
+      <Stack.Screen name="codex/[campaignId]" />
     </Stack>
   );
 }

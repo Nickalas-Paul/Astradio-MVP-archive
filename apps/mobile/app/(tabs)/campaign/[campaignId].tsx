@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CampaignSheet, type CampaignSheetTab } from '../../../src/components/campaign/CampaignSheet';
+import { CampaignQuickLinks } from '../../../src/components/campaign/CampaignQuickLinks';
 import {
   ChapterTransition,
   type ChapterTransitionChapter,
@@ -322,6 +323,13 @@ export default function CampaignDashboardScreen() {
     }
   }, [campaignId, consumableUsed, equippedConsumable, game]);
 
+  const openCodex = useCallback(() => {
+    router.push({
+      pathname: '/campaign/codex/[campaignId]' as never,
+      params: { campaignId, house: String(dungeon.house) },
+    });
+  }, [campaignId, dungeon.house, router]);
+
   if (!campaignId) return null;
 
   return (
@@ -332,14 +340,17 @@ export default function CampaignDashboardScreen() {
         <Pressable onPress={() => router.back()} style={styles.iconButton}>
           <Ionicons name="chevron-back" size={22} color="#CBD5E1" />
         </Pressable>
-        <View style={styles.topTitle}>
+        <Pressable
+          onPress={openCodex}
+          style={styles.topTitle}
+        >
           <Text numberOfLines={1} style={[styles.dungeonName, { color: dungeon.textAccent }]}>
             {dungeonTitle}
           </Text>
           <Text style={styles.meta}>
             Chapter {game.state?.chapter ?? 1} · {dungeon.domain}
           </Text>
-        </View>
+        </Pressable>
         {hp ? (
           <View style={styles.topHp}>
             <Ionicons name="heart" size={12} color="#EF4444" />
@@ -500,30 +511,19 @@ export default function CampaignDashboardScreen() {
                   Your next encounter appears tomorrow. Keep the streak alive.
                   {(game.state?.streak ?? 0) >= 7 ? ` 🔥 ${game.state?.streak}-day streak` : ''}
                 </Text>
-                <View style={styles.footerActions}>
-                  <Pressable
-                    style={[styles.secondaryButton, { borderColor: dungeon.accent }]}
-                    onPress={() => openSheet('inventory')}
-                  >
-                    <Text style={[styles.secondaryButtonText, { color: dungeon.textAccent }]}>
-                      Manage Inventory
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.secondaryButton, { borderColor: dungeon.accent }]}
-                    onPress={() => openSheet('character')}
-                  >
-                    <Text style={[styles.secondaryButtonText, { color: dungeon.textAccent }]}>
-                      View Character
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.doneButton, { backgroundColor: dungeon.accent }]}
-                    onPress={() => router.back()}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </Pressable>
-                </View>
+                <CampaignQuickLinks
+                  campaignId={campaignId}
+                  dungeon={dungeon}
+                  onOpenInventory={() => openSheet('inventory')}
+                  onOpenCharacter={() => openSheet('character')}
+                  onOpenLoot={() => openSheet('loot')}
+                />
+                <Pressable
+                  style={[styles.doneButton, { backgroundColor: dungeon.accent }]}
+                  onPress={() => router.back()}
+                >
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </Pressable>
               </View>
             </View>
           ) : null}
@@ -533,6 +533,13 @@ export default function CampaignDashboardScreen() {
               <Ionicons name="checkmark-circle-outline" size={34} color={colors.accent.DEFAULT} />
               <Text style={styles.resolvedTitle}>Today’s encounter is complete</Text>
               <Text style={styles.secondaryCenter}>Return tomorrow to continue your streak.</Text>
+              <CampaignQuickLinks
+                campaignId={campaignId}
+                dungeon={dungeon}
+                onOpenInventory={() => openSheet('inventory')}
+                onOpenCharacter={() => openSheet('character')}
+                onOpenLoot={() => openSheet('loot')}
+              />
             </View>
           ) : null}
           {game.error ? <Text style={styles.errorText}>{game.error}</Text> : null}

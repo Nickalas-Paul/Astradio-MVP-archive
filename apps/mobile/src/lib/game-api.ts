@@ -47,6 +47,7 @@ export type GameStateResponse = {
     domain: string;
     label: string;
   } | null;
+  milestoneFlags?: string[];
 };
 
 /** Prefer Mars activeChapter; fall back to legacy saturnChapter for labels. */
