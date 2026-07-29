@@ -86,6 +86,8 @@ function alignDailyStateJsonShape(dailyStateJson) {
 }
 
 function requireCaller(req, res) {
+  const u = req.user;
+  if (u && typeof u.id === 'string' && u.id.trim()) return u.id.trim();
   const userId = (req.headers['x-caller-user-id'] || req.query.userId || '').toString().trim();
   if (!userId) {
     res.status(401).json({ error: 'unauthorized' });
