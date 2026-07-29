@@ -1024,6 +1024,44 @@ function createCampaignDailyRouter() {
               previousState.lastPlayedDate = combatResult.lastPlayedDate;
               previousState.flags = combatResult.flags;
               previousState.history = combatResult.history;
+              // Readable encounter summary for next-day Gemini continuity (survives line ~1140 overwrite).
+              {
+                const encounter = daily.mechanical_encounter;
+                const obstacle = encounter && encounter.scene && encounter.scene.obstacle
+                  ? encounter.scene.obstacle
+                  : null;
+                const obstacleName = obstacle && obstacle.name ? String(obstacle.name) : 'an unknown obstacle';
+                const obstacleType = obstacle && obstacle.type ? String(obstacle.type) : 'hazard';
+                const choiceLabel = choice && choice.label ? String(choice.label) : 'unknown';
+                const choiceStat =
+                  (encounter && encounter.choiceStatMap && encounter.choiceStatMap[choiceId]) ||
+                  'unknown';
+                const dieRoll = combatResult.combatResolution && combatResult.combatResolution.dieRoll
+                  ? combatResult.combatResolution.dieRoll
+                  : {};
+                const roll = Number.isFinite(dieRoll.raw) ? dieRoll.raw : '?';
+                const modifier = Number.isFinite(dieRoll.modifier) ? dieRoll.modifier : 0;
+                const total = Number.isFinite(dieRoll.total) ? dieRoll.total : '?';
+                const dc =
+                  Number.isFinite(encounter && encounter.dc) ? encounter.dc : '?';
+                const outcome =
+                  combatResult.combatResolution && combatResult.combatResolution.outcome
+                    ? String(combatResult.combatResolution.outcome).toUpperCase()
+                    : 'UNKNOWN';
+                const damage =
+                  combatResult.combatResolution &&
+                  Number.isFinite(combatResult.combatResolution.damageDealt)
+                    ? combatResult.combatResolution.damageDealt
+                    : 0;
+                const summary = `Faced ${obstacleName} (${obstacleType}). Chose: ${choiceLabel} (${choiceStat}). Rolled ${roll}+${modifier}=${total} vs DC ${dc}: ${outcome}. ${
+                  damage > 0 ? `Took ${damage} damage.` : 'No damage.'
+                }`;
+                if (!Array.isArray(previousState.history)) previousState.history = [];
+                previousState.history.push(summary);
+                while (previousState.history.length > 10) {
+                  previousState.history.shift();
+                }
+              }
               previousState.activeChapter = combatResult.activeChapter;
               previousState.campaignEra = combatResult.campaignEra;
               previousState.chapterTransitionCount = combatResult.chapterTransitionCount;

@@ -635,7 +635,7 @@ export async function materializeCampaignDaily(params: {
                 }
               : null,
           campaignChapter: state.chapter ?? 1,
-          recentHistory: Array.isArray(state.history) ? state.history.slice(0, 3) : [],
+          recentHistory: Array.isArray(state.history) ? state.history.slice(-10) : [],
         });
         const gem = await callGeminiGenerate({ prompt });
         const geminiText = (gem.text || '').trim();

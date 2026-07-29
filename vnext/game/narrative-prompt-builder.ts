@@ -75,8 +75,21 @@ function resolveObstacle(encounter: MechanicalEncounter): ObstacleEntry {
 }
 
 function formatRecentHistory(recentHistory: string[] | undefined): string {
-  const history = (recentHistory || []).slice(0, 3).join(' | ') || 'First encounter in this chapter.';
-  return history;
+  const historyEntries = (recentHistory || [])
+    .filter(
+      (entry: string) =>
+        !entry.startsWith('h:') &&
+        !entry.startsWith('hc:') &&
+        !entry.startsWith('hs:') &&
+        !entry.startsWith('hp:') &&
+        !entry.startsWith('hm:') &&
+        !entry.startsWith('hmb:') &&
+        !entry.startsWith('hmp:')
+    )
+    .slice(-3);
+  return historyEntries.length > 0
+    ? historyEntries.join('\n')
+    : 'First encounter in this chapter.';
 }
 
 export function buildEncounterIntroPrompt(
