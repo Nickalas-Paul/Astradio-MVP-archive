@@ -278,7 +278,7 @@ export function buildEncounterDTO(params: {
   const challenge = (daily.challenge || {}) as {
     theme?: string;
     setting?: string;
-    obstacle?: string;
+    obstacle?: string | { name?: string; brief?: string };
     choices?: Array<{
       id: string;
       label: string;
@@ -333,6 +333,12 @@ export function buildEncounterDTO(params: {
     calendarDate: today,
     revealActive: !!state.revealActive,
   });
+  const obstacle =
+    typeof challenge.obstacle === 'string'
+      ? challenge.obstacle
+      : challenge.obstacle?.name
+        ? `${challenge.obstacle.name}: ${challenge.obstacle.brief || ''}`.trim()
+        : '';
 
   return {
     campaignId: params.campaignId,
@@ -340,9 +346,7 @@ export function buildEncounterDTO(params: {
     encounter: {
       theme: challenge.theme || '',
       setting: challenge.setting || '',
-      obstacle: challenge.obstacle?.name
-        ? `${challenge.obstacle.name}: ${challenge.obstacle.brief || ''}`.trim()
-        : '',
+      obstacle,
       dc: mech?.dc ?? 10,
       baseDamage: mech?.baseDamage ?? 0,
       saturnHouse:
