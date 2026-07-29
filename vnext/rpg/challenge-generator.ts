@@ -945,7 +945,8 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
       : undefined,
   );
   const setting = sceneSettingFromTone(tone, primary, state, challengeContext);
-  const obstacle = sceneObstacleGame(primary, character, challengeContext, state);
+  // Retained for non-narrative callers; mechanical encounter overwrites with house-pool obstacle.
+  const obstacleProse = sceneObstacleGame(primary, character, challengeContext, state);
 
   const shaping =
     campaignIdentitySlugs && slateContinuity ? { identity: campaignIdentitySlugs, continuity: slateContinuity } : undefined;
@@ -967,7 +968,11 @@ export function buildChallengeScene(params: BuildChallengeParams): ChallengeScen
     archetypeId: challengeContext?.archetypeId,
     theme,
     setting,
-    obstacle,
+    obstacle: {
+      name: 'Unresolved Pressure',
+      type: 'hazard',
+      brief: obstacleProse,
+    },
     primaryPressure: primary,
     supportingPressures: supporting,
     choices,

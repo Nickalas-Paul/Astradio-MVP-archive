@@ -2,6 +2,9 @@ import type { EphemerisSnapshot, FeatureVec } from '../contracts';
 import type { RPGEffectsBundle, RPGDomainScore } from './contracts';
 import type { SemanticCore } from '../semantic/semantic-core';
 import type { RPGCampaignState as InternalCampaignState } from './campaign/state-machine';
+import type { ObstacleEntry } from './obstacle-pools';
+
+export type { ObstacleEntry } from './obstacle-pools';
 
 export interface CharacterTemperamentAxes {
   will: number;
@@ -223,8 +226,8 @@ export interface ChallengeScene {
   theme: string;
   /** Symbolic setting texture, not literal world-building. */
   setting: string;
-  /** Core obstacle description framed as tension between pressure and character orientation. */
-  obstacle: string;
+  /** Named encounter obstacle selected from the house pool. */
+  obstacle: ObstacleEntry;
   /** Transit node that most directly shaped this scene. */
   primaryPressure: TransitPressure;
   /** Additional pressures that colored the scene. */

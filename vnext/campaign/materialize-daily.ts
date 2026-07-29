@@ -517,8 +517,16 @@ export async function materializeCampaignDaily(params: {
       character,
       transitSnapshot,
       natalCusps,
-      state.chapter ?? 1
+      state.chapter ?? 1,
+      {
+        wounded: !!(state as { hp?: { wounded?: boolean } }).hp?.wounded,
+        calendarDate: resolution.date,
+        campaignId: campaignId || '',
+        intensityScore: dailyState.primary_intensity_score,
+      }
     );
+    // Keep top-level challenge obstacle aligned with mechanical encounter selection.
+    result.challenge = mechanical.scene;
     result.mechanical_encounter = mechanical;
 
     const chapterInfo = getCampaignChapter(mechanical.saturnHouse);

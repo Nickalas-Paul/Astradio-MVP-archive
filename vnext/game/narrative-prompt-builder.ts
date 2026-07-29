@@ -8,6 +8,7 @@ import type {
   ChoiceOption,
   CombatResolution,
   MechanicalEncounter,
+  ObstacleEntry,
   StatBlock,
 } from '../rpg/types';
 
@@ -61,182 +62,143 @@ function resolveChapter(input: {
   };
 }
 
-function toneGuidance(body: string): string {
-  const b = body.toLowerCase();
-  if (b === 'mars') return 'sharp, confrontational, and kinetic';
-  if (b === 'saturn') return 'heavy, exacting, and structural';
-  if (b === 'pluto') return 'intense, irreversible, and deep';
-  if (b === 'uranus') return 'sudden, electric, and disruptive';
-  if (b === 'neptune') return 'foggy, dissolving, and dreamlike';
-  if (b === 'jupiter') return 'expansive, excessive, and optimistic';
-  if (b === 'mercury') return 'quick, verbal, and restless';
-  if (b === 'venus') return 'relational, indulgent, and magnetic';
-  if (b === 'moon') return 'emotional, tidal, and intimate';
-  return 'focused, personal, and clarifying';
+function resolveObstacle(encounter: MechanicalEncounter): ObstacleEntry {
+  const o = encounter.scene?.obstacle;
+  if (o && typeof o === 'object' && 'name' in o && o.name) {
+    return o;
+  }
+  return {
+    name: 'Unresolved Pressure',
+    type: 'hazard',
+    brief: 'A pressure in the path ahead.',
+  };
 }
 
-function characterBlock(
-  input: Omit<NarrativePromptInput, 'chosenOption' | 'combatResult' | 'primaryStatUsed'>
-): string {
-  const s = input.statBlock;
-  const hp = input.hp;
-  const chapter = resolveChapter(input);
-  const era = input.campaignEra;
-  const id = input.characterIdentity;
-  const lines = [
-    `SETTING: ${chapter.label} (the domain of ${chapter.domain})`,
-    'CHARACTER:',
-    `  Class: ${id.className} (${id.classElement} — ${id.classRole})`,
-    `  Subclass: ${id.subclassName}`,
-    `  Rising: ${id.risingName}`,
-    `  Identity: ${id.statProfile}`,
-    `  Nature: ${id.classStrengths}`,
-    `  Shadow: ${id.classShadow}`,
-    `  Stats: Vitality ${s.vitality}, Resilience ${s.resilience}, Cunning ${s.cunning}, Charm ${s.charm}, Intuition ${s.intuition}, Willpower ${s.willpower}`,
-    `  HP: ${hp.current}/${hp.max}${hp.wounded ? ' (WOUNDED)' : ''}`,
-    `  Equipped: ${input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing'}`,
-  ];
-  if (era?.label) {
-    lines.splice(
-      1,
-      0,
-      `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
-    );
-  }
-  return lines.join('\n');
-}
-
-function chapterInstructions(input: {
-  activeChapter?: NarrativeChapterContext | null;
-  saturnChapter?: NarrativeChapterContext | null;
-  campaignEra?: NarrativeChapterContext | null;
-}): string {
-  const chapter = resolveChapter(input);
-  const era = input.campaignEra;
-  const eraLine = era?.label
-    ? `The campaign era (${era.label}) adds background thematic weight.`
-    : '';
-  return `The chapter setting (${chapter.label}) drives the encounter environment. ${eraLine}
-Do not name Mars, Saturn, or any planet directly in the narration. Let the themes speak through the scene.`.trim();
-}
-
-function outcomeStatContext(
-  combat: CombatResolution,
-  identity: CharacterIdentityContext,
-  primary?: PrimaryStatUsedContext
-): string {
-  if (!primary) {
-    return '';
-  }
-  const modSign = primary.modifier >= 0 ? '+' : '';
-  const strengthLine = primary.isStrength
-    ? 'one of their strongest stats'
-    : primary.isWeakness
-      ? 'one of their weakest stats'
-      : 'a moderate stat for this character';
-
-  let outcomeGuide: string;
-  if (combat.outcome === 'critical_success' || combat.outcome === 'success') {
-    outcomeGuide = `Show how their ${identity.className} nature served them in this approach.`;
-  } else if (combat.outcome === 'critical_failure' || combat.outcome === 'failure') {
-    outcomeGuide = `Show the limits of relying on ${primary.name} for a character whose real strength is ${identity.strongestStat.name}.`;
-  } else {
-    outcomeGuide = 'Show the mixed result: effort applied but not fully rewarded.';
-  }
-
-  return `STAT CONTEXT:
-  The player chose a ${primary.name} approach (modifier: ${modSign}${primary.modifier}).
-  ${primary.name} is ${strengthLine}.
-  ${outcomeGuide}`;
+function formatRecentHistory(recentHistory: string[] | undefined): string {
+  const history = (recentHistory || []).slice(0, 3).join(' | ') || 'First encounter in this chapter.';
+  return history;
 }
 
 export function buildEncounterIntroPrompt(
   input: Omit<NarrativePromptInput, 'chosenOption' | 'combatResult' | 'primaryStatUsed'>
 ): string {
   const p = input.encounter.scene.primaryPressure;
-  const history = (input.recentHistory || []).slice(0, 3).join(' | ') || 'none';
   const chapter = resolveChapter(input);
   const id = input.characterIdentity;
+  const s = input.statBlock;
+  const hp = input.hp;
+  const obstacle = resolveObstacle(input.encounter);
+  const era = input.campaignEra;
+  const eraLine = era?.label
+    ? `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
+    : '';
+  const equippedSummary = input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing';
+  const formattedHistory = formatRecentHistory(input.recentHistory);
+
   return `You are the Dungeon Master for an astrology-based RPG called Astradio.
 
-${characterBlock(input)}
+SETTING: ${chapter.label} (the domain of ${chapter.domain})
+${eraLine}
+
+CHARACTER:
+  Class: ${id.className} | Element: ${id.classElement} | Rising: ${id.risingName}
+  Stats: VT ${s.vitality} · RES ${s.resilience} · CUN ${s.cunning} · CHR ${s.charm} · INT ${s.intuition} · WIL ${s.willpower}
+  HP: ${hp.current}/${hp.max}
+  Equipped: ${equippedSummary}
 
 TODAY'S ENCOUNTER:
-  Transit trigger: ${p.transitBody} ${p.aspectType} natal ${p.natalBody}
-  Theme: ${input.encounter.scene.theme}
-  Obstacle: ${input.encounter.scene.obstacle}
+  Obstacle: ${obstacle.name} (${obstacle.type})
+  Description: ${obstacle.brief}
   Difficulty: ${input.encounter.dc}
+  Transit pressure: ${p.transitBody} ${p.aspectType} natal ${p.natalBody}
+  Theme: ${input.encounter.scene.theme}
 
-Recent events: ${history}
+RECENT ENCOUNTERS:
+${formattedHistory}
 
 Write a 3-4 sentence encounter introduction in second person ("You").
-Set the scene in ${chapter.label}.
-${chapterInstructions(input)}
-The tone should match the transit energy: ${input.encounter.transitBodyCategory} transits feel ${toneGuidance(input.encounter.transitBodyCategory)}.
-Do not describe the choices or outcome. Just set the scene and present the obstacle.
+
+REQUIREMENTS:
+- Name "${obstacle.name}" explicitly in the scene. The player must know what they are facing.
+- If recent encounters exist, reference them. The player's story in this dungeon is ongoing, not episodic. A returning obstacle type should feel like a pattern. A streak of successes should feel like momentum. A recent failure should still sting. One brief callback is enough; do not recap the full history.
+- If the obstacle is a creature or rival, describe what it looks like and how it moves. If it is a puzzle, describe its mechanism. If it is a trap, describe the trigger. If it is a hazard, describe the environmental threat.
+- Ground the encounter in ${chapter.label}. The setting is not generic fantasy; it is this specific dungeon.
+- End on the moment of decision. The player is about to choose how to respond.
 
 VOICE AND STYLE RULES (strict):
-- You are a warm, strategic tabletop DM. Direct and confident, never precious.
-- The transit data above informs the SITUATION you describe. Never recite it. Never write planet names, aspect names, or phrases like "mars meets mercury" in the narration.
-- Weave the character's ${id.className} identity into the scene naturally. Their ${id.classElement} nature and tendency toward ${id.classStrengths} should color how they perceive and approach the encounter. Reference their strengths or shadows when they are relevant to the scene.
-- Never use the template construction "As a [name], you..." to open. Instead, let the character's nature emerge through their reactions, instincts, and the details they notice.
-- Example good: "The ground feels familiar beneath your feet, solid and patient, but something in the air resists your usual steadiness."
-- Example bad: "As a Stonebinder, you feel the earth's energy."
-- No "Listen for..." constructions.
-- No em dashes. Use commas, periods, or semicolons.
-- Never use "however," "indeed," "moreover," or "furthermore."
-- Call equipment "items," "gear," or "equipment," never "artifacts."
-Keep it vivid but concise.`;
+- Warm, strategic DM voice. Direct and specific, not flowery.
+- Never recite transit data, planet names, or aspect terminology. The astrology is beneath the surface.
+- Weave ${id.className} identity naturally through how the character perceives the obstacle. Do not template-open with class name.
+- No "Listen for..." constructions. No em dashes. No transitions like "however," "indeed," "moreover."
+- Concrete over atmospheric. If you write a sentence that could describe any encounter, cut it.
+- WRONG: "The pathways hum with an inviting energy, drawing you deeper into its intricate web of connections."
+- RIGHT: "The Disconnection Phantom drifts through the junction ahead of you, trailing severed light-threads behind it like a net. Two of your allied signal paths have already gone dark."
+
+Keep it vivid, specific, and concise.`;
 }
 
 export function buildNarrativePrompt(input: NarrativePromptInput): string {
   const c = input.combatResult;
   const id = input.characterIdentity;
-  const lootLine = c.lootResult.dropped && c.lootResult.item
-    ? `Loot found: ${c.lootResult.item.name}`
-    : 'No loot found';
+  const obstacle = resolveObstacle(input.encounter);
+  const chapter = resolveChapter(input);
+  const s = input.statBlock;
+  const hp = input.hp;
+  const era = input.campaignEra;
+  const eraLine = era?.label
+    ? `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
+    : '';
+  const equippedSummary = input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing';
+  const lootName =
+    c.lootResult.dropped && c.lootResult.item ? c.lootResult.item.name : 'none';
+  const choiceStat = input.primaryStatUsed?.name || 'unknown';
   const woundLine = c.woundedTriggered ? 'THE CHARACTER HAS FALLEN. They are now wounded.' : '';
   const saveLine = c.streakSaved ? 'A streak save protected them from falling!' : '';
   const lostLine = c.itemLost ? `Lost item: ${c.itemLost.name}` : '';
   const lootDesc =
     c.lootResult.dropped && c.lootResult.item
-      ? `If loot was found, describe discovering ${c.lootResult.item.name}: "${c.lootResult.item.description}"`
+      ? `If an item was found, describe discovering ${c.lootResult.item.name}: "${c.lootResult.item.description}"`
       : '';
-  const statCtx = outcomeStatContext(c, id, input.primaryStatUsed);
 
   return `You are the Dungeon Master for an astrology-based RPG called Astradio.
 
-${characterBlock(input)}
+SETTING: ${chapter.label} (the domain of ${chapter.domain})
+${eraLine}
+
+CHARACTER:
+  Class: ${id.className} | Element: ${id.classElement} | Rising: ${id.risingName}
+  Stats: VT ${s.vitality} · RES ${s.resilience} · CUN ${s.cunning} · CHR ${s.charm} · INT ${s.intuition} · WIL ${s.willpower}
+  HP: ${hp.current}/${hp.max}
+  Equipped: ${equippedSummary}
 
 THE CHOICE: The player chose "${input.chosenOption.label}" (${input.chosenOption.symbolicGesture})
   Approach: ${input.chosenOption.posture} / ${input.chosenOption.modality}
 
-THE RESULT:
-  Die roll: ${c.dieRoll.raw} + ${c.dieRoll.modifier} modifier = ${c.dieRoll.total} vs DC ${input.encounter.dc}
+ENCOUNTER RESULT:
+  Obstacle faced: ${obstacle.name} (${obstacle.type})
+  Choice made: ${input.chosenOption.label} (${choiceStat})
+  Roll: ${c.dieRoll.raw} + ${c.dieRoll.modifier} (${choiceStat}) = ${c.dieRoll.total} vs DC ${input.encounter.dc}
   Outcome: ${c.outcome}
   Damage taken: ${c.damageDealt}
-  HP: ${c.hpAfter}/${input.hp.max}
-  ${lootLine}
+  Loot found: ${lootName}
   ${woundLine}
   ${saveLine}
   ${lostLine}
 
-${statCtx}
+Write 3-5 sentences describing the outcome in second person.
 
-Write a 4-6 sentence outcome narration in second person.
-Describe how the choice played out given the die result.
+REQUIREMENTS:
+- Describe what happened to ${obstacle.name} as a result of the player's action.
+- SUCCESS/CRITICAL: The obstacle is overcome. Describe how the player's approach worked.
+- PARTIAL: The obstacle is contained but not defeated. The player managed it at a cost.
+- FAILURE: The obstacle got the better of the player. Describe the consequence concretely.
+- CRITICAL_FAILURE: The obstacle won decisively. The player took real damage or lost something.
+- If an item was found, describe the player discovering it naturally. Do not use the word "loot."
 ${lootDesc}
-If wounded, make it dramatic but not grim -- this is a setback, not an ending.
-If streak saved, describe a narrow escape.
-Match the energy of a ${c.outcome} result.
-${chapterInstructions(input)}
-
-VOICE AND STYLE RULES (strict):
-- You are a warm, strategic tabletop DM. Direct and confident, never precious.
-- The transit and stat data above informs WHAT happened. Never recite it. No planet names, aspect names, or astrology notation in the narration.
-- Frame the outcome through the character's identity. A Stonebinder succeeding on Resilience should feel like the earth holding firm. A Stonebinder failing on Intuition should feel like solid ground offering no insight into shifting currents. The character's nature shapes HOW things happen, not just WHAT happens.
-- Never open with "As a [class/sign], you..." and no "Listen for..." constructions. No template openings.
-- No em dashes. Use commas, periods, or semicolons.
-- Never use "however," "indeed," "moreover," or "furthermore."
-- Call equipment "items," "gear," or "equipment," never "artifacts."`;
+- Same voice and style rules as the intro prompt.
+- Warm, strategic DM voice. Direct and specific, not flowery.
+- Never recite transit data, planet names, or aspect terminology.
+- Weave ${id.className} identity naturally. Do not template-open with class name.
+- No "Listen for..." constructions. No em dashes. No transitions like "however," "indeed," "moreover."
+- Concrete over atmospheric.`;
 }

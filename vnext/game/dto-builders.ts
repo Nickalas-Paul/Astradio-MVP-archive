@@ -340,7 +340,9 @@ export function buildEncounterDTO(params: {
     encounter: {
       theme: challenge.theme || '',
       setting: challenge.setting || '',
-      obstacle: challenge.obstacle || '',
+      obstacle: challenge.obstacle?.name
+        ? `${challenge.obstacle.name}: ${challenge.obstacle.brief || ''}`.trim()
+        : '',
       dc: mech?.dc ?? 10,
       baseDamage: mech?.baseDamage ?? 0,
       saturnHouse:

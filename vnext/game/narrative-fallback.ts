@@ -5,31 +5,19 @@
  */
 
 import type { CharacterIdentityContext } from '../rpg/class-display';
-import type { ChoiceOption, CombatResolution, MechanicalEncounter } from '../rpg/types';
+import type { ChoiceOption, CombatResolution, MechanicalEncounter, ObstacleEntry } from '../rpg/types';
 import type { PrimaryStatUsedContext } from './narrative-prompt-builder';
 
-const INTRO_OPENERS = [
-  'shifts around you today',
-  'is restless today',
-  'opens before you, and the air has changed',
-  'holds its breath as you arrive',
-];
-
-const ASPECT_FEEL: Record<string, string> = {
-  conjunction: 'concentrated',
-  square: 'tense',
-  opposition: 'polarized',
-  trine: 'flowing',
-  sextile: 'quietly supportive',
-};
-
-function pick<T>(arr: T[], seed: number): T {
-  return arr[Math.abs(seed) % arr.length]!;
-}
-
-function titleBody(body: string): string {
-  const b = String(body || '').trim();
-  return b ? b.charAt(0).toUpperCase() + b.slice(1).toLowerCase() : '';
+function resolveObstacle(encounter: MechanicalEncounter): ObstacleEntry {
+  const o = encounter.scene?.obstacle;
+  if (o && typeof o === 'object' && 'name' in o && o.name) {
+    return o;
+  }
+  return {
+    name: 'Unresolved Pressure',
+    type: 'hazard',
+    brief: 'A pressure in the path ahead.',
+  };
 }
 
 export function buildFallbackIntro(
@@ -37,59 +25,27 @@ export function buildFallbackIntro(
   activeChapter: { thematicLabel?: string; domain?: string; label?: string },
   identity?: CharacterIdentityContext | null
 ): string {
-  const label = activeChapter.thematicLabel || activeChapter.label || 'The road ahead';
-  const pressure = encounter.scene.primaryPressure;
-  const setting = (encounter.scene.setting || '').trim().replace(/\.+$/, '');
-  const seed = encounter.dc + (pressure?.transitBody?.length ?? 0);
-
-  const opener = `${label} ${pick(INTRO_OPENERS, seed)}.`;
-
-  const transit = titleBody(pressure?.transitBody);
-  const natal = titleBody(pressure?.natalBody);
-  const feel = ASPECT_FEEL[String(pressure?.aspectType || '').toLowerCase()] ?? 'charged';
-  let energy = '';
-  if (transit && natal) {
-    energy = setting
-      ? `A ${feel} energy runs between ${transit} and your natal ${natal}, and it finds you in ${setting}.`
-      : `A ${feel} energy runs between ${transit} and your natal ${natal}.`;
-  } else if (setting) {
-    energy = `Something is stirring in ${setting}.`;
-  }
-
+  const dungeonLabel = activeChapter.thematicLabel || activeChapter.label || 'The road ahead';
+  const obstacle = resolveObstacle(encounter);
+  const introByType: Record<string, string> = {
+    creature: `You round the corner in ${dungeonLabel} and find ${obstacle.name} blocking your path. ${obstacle.brief}`,
+    rival: `A familiar tension fills the air in ${dungeonLabel}. ${obstacle.name} is here. ${obstacle.brief}`,
+    puzzle: `The corridor in ${dungeonLabel} dead-ends at ${obstacle.name}. ${obstacle.brief}`,
+    trap: `Something shifts underfoot in ${dungeonLabel}. You have walked into ${obstacle.name}. ${obstacle.brief}`,
+    hazard: `The air changes in ${dungeonLabel}. ${obstacle.name} has begun. ${obstacle.brief}`,
+  };
+  const opener = introByType[obstacle.type] || introByType.hazard!;
   const className = identity?.className;
   const closer = className
-    ? pick(
-        [
-          `Hold the ${className} in you close; this will ask for a real answer.`,
-          `The stakes are real, and the ${className} in you already senses where the ground is soft.`,
-        ],
-        seed + encounter.dc
-      )
-    : pick(
-        [
-          'The stakes are visible, and the ground is not quite steady.',
-          'It will ask for a real answer before the day is out.',
-        ],
-        seed + encounter.dc
-      );
+    ? `The ${className} in you already senses what this will ask.`
+    : 'The stakes are visible, and the ground is not quite steady.';
 
-  return [opener, energy, closer]
+  return [opener, closer]
     .filter(Boolean)
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
-
-const OUTCOME_LINES: Record<CombatResolution['outcome'], string> = {
-  critical_success:
-    'Your instincts proved sharp. The challenge yielded completely, and something valuable caught your eye in the aftermath.',
-  success:
-    'You met the challenge squarely. The obstacle gave way, and you moved forward with your footing intact.',
-  partial: 'The encounter left its mark, but you held your ground. Not every day is a clean victory.',
-  failure: "The challenge struck harder than expected. You'll carry this one forward.",
-  critical_failure:
-    "A blow you didn't see coming. Something slipped from your grasp in the aftermath.",
-};
 
 function identityOutcomeLine(
   combat: CombatResolution,
@@ -120,7 +76,19 @@ export function buildFallbackOutcome(
   identity?: CharacterIdentityContext | null,
   primaryStatUsed?: PrimaryStatUsedContext | null
 ): string {
-  const base = OUTCOME_LINES[combat.outcome] || OUTCOME_LINES.partial;
+  const obstacle = resolveObstacle(encounter);
+  const dungeonLabel =
+    encounter.scene?.setting?.trim() ||
+    'the dungeon';
+  const damage = combat.damageDealt || 0;
+  const outcomeTemplates: Record<string, string> = {
+    success: `You overcame ${obstacle.name}. The way forward in ${dungeonLabel} is clear.`,
+    partial: `You contained ${obstacle.name}, but it cost you. ${damage} damage taken.`,
+    failure: `${obstacle.name} got the better of you today. ${damage} damage taken. The path remains, but the lesson stings.`,
+    critical_success: `You dismantled ${obstacle.name} completely. ${dungeonLabel} yields to you.`,
+    critical_failure: `${obstacle.name} overwhelmed you. ${damage} damage taken. You retreat to regroup.`,
+  };
+  const base = outcomeTemplates[combat.outcome] || outcomeTemplates.partial!;
   const choiceBit = choice?.label
     ? `You chose to ${choice.label.charAt(0).toLowerCase()}${choice.label.slice(1)}.`
     : 'You committed to a response.';

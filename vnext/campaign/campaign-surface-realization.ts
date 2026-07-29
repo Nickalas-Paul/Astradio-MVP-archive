@@ -187,9 +187,16 @@ function realizeThemeLead(
   return scrubAstroMechanics(theme, `${seed}|theme`, digest);
 }
 
-// Obstacle stays at most two clean sentences; no identity-jargon tail.
-function realizeObstacle(obstacle: string, digest: CampaignExpressionDigest, seed: string): string {
-  return scrubAstroMechanics(obstacle, `${seed}|obs`, digest);
+// Obstacle brief stays at most two clean sentences; no identity-jargon tail.
+function realizeObstacle(
+  obstacle: ChallengeScene['obstacle'],
+  digest: CampaignExpressionDigest,
+  seed: string,
+): ChallengeScene['obstacle'] {
+  return {
+    ...obstacle,
+    brief: scrubAstroMechanics(obstacle.brief, `${seed}|obs`, digest),
+  };
 }
 
 function realizeSetting(setting: string, digest: CampaignExpressionDigest, seed: string): string {

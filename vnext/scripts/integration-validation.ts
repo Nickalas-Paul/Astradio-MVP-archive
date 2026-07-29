@@ -135,7 +135,7 @@ function makeScene(): ChallengeScene {
     id: 'scene_test',
     theme: 'test',
     setting: 'a test setting',
-    obstacle: 'test obstacle',
+    obstacle: { name: 'test obstacle', type: 'hazard', brief: 'test obstacle' },
     primaryPressure: pressure,
     supportingPressures: [],
     choices: [

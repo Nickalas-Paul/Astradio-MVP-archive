@@ -137,7 +137,9 @@ describe('campaign narrative surface', () => {
 
     const state = { tone_track: { neutral: 1 }, domain_track: {}, chapter: 1, flags: [], history: [] };
     const m = await materializeCampaignDaily({ resolution, state, natalSnapshot: natal, transitSnapshot: transit });
-    const t = `${m.challenge.theme} ${m.challenge.obstacle} ${m.challenge.setting}`.toLowerCase();
+    const obs = m.challenge.obstacle;
+    const obsText = typeof obs === 'string' ? obs : `${obs?.name || ''} ${obs?.brief || ''}`;
+    const t = `${m.challenge.theme} ${obsText} ${m.challenge.setting}`.toLowerCase();
     assert.ok(!/\b(square|conjunction|opposition|trine|sextile)\b/.test(t), 'raw aspect terms scrubbed from surface copy');
     assert.ok(!/\bhouse\s*\d+\b/.test(t), 'raw house index scrubbed from surface copy');
     assert.ok(m.challenge.choices.length >= 1, 'choices present');

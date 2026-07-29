@@ -50,7 +50,7 @@ function main(): void {
     id: 'scene:ts:1:constraint:work:fire',
     theme: 'x',
     setting: 'y',
-    obstacle: 'z',
+    obstacle: { name: 'z', type: 'hazard', brief: 'z' },
     primaryPressure: {
       id: 'p',
       transitBody: 'saturn',

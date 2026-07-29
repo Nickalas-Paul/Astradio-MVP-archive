@@ -11,7 +11,7 @@ function main(): void {
     id: 'scene:2026-03-15T12:00:00Z:1:constraint:work_public:fire',
     theme: 'Public pressure: running into a real limit',
     setting: 'a work or visibility setting',
-    obstacle: 'A live situation in the work_public area carries constraint pressure.',
+    obstacle: { name: 'Pressure', type: 'hazard', brief: 'A live situation in the work_public area carries constraint pressure.' },
     primaryPressure: {
       id: 'tp_0_identity_heat',
       transitBody: 'saturn',

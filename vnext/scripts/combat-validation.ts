@@ -120,7 +120,7 @@ function makeScene(): ChallengeScene {
     id: 'scene:test',
     theme: 'A test theme about partnership.',
     setting: 'a relational setting',
-    obstacle: 'The obstacle presses.',
+    obstacle: { name: 'The Obstacle', type: 'hazard', brief: 'The obstacle presses.' },
     primaryPressure: primary,
     supportingPressures: [],
     choices: [
@@ -481,8 +481,16 @@ function testEncounterBuilder(): void {
     moonPhase: 0.5,
     dominantElements: { fire: 0.25, earth: 0.25, air: 0.25, water: 0.25 },
   };
-  const mech = buildMechanicalEncounter(scene, profile, transit, natalCusps, 1);
-  assert(mech.dc === computeDC(scene.primaryPressure, 1), 'DC matches intensity');
+  const mech = buildMechanicalEncounter(scene, profile, transit, natalCusps, 1, {
+    calendarDate: '2026-07-20',
+    campaignId: 'test-campaign',
+    intensityScore: scene.primaryPressure.intensity,
+  });
+  assert(
+    mech.dc ===
+      computeDC(scene.primaryPressure.intensity, 1, '2026-07-20', 'test-campaign'),
+    'DC matches intensity'
+  );
   // Mars at lon 100 with even cusps → house 4; field name saturnHouse is Mars-valued
   assert(mech.saturnHouse === 4, 'Mars-derived chapter house 4');
   assert(mech.lootTableKey === 'saturn_house_4', 'loot key scheme unchanged');

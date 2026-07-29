@@ -321,7 +321,7 @@ function testEncounterDTO(): void {
       challenge: {
         theme: 'theme',
         setting: 'setting',
-        obstacle: 'obstacle',
+        obstacle: { name: 'obstacle', type: 'hazard', brief: 'obstacle' },
         choices,
       },
       mechanical_encounter: {
@@ -366,7 +366,7 @@ function testEncounterDTO(): void {
       campaignId: 'c1',
       calendarDate: '2026-07-20',
       dailyInner: {
-        challenge: { theme: 't', setting: 's', obstacle: 'o', choices },
+        challenge: { theme: 't', setting: 's', obstacle: { name: 'o', type: 'hazard', brief: 'o' }, choices },
         mechanical_encounter: {
           scene: { choices },
           dc: 12,
