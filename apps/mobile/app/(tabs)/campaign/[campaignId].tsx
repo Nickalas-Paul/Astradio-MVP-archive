@@ -190,8 +190,16 @@ function DieStage({
 }
 
 export default function CampaignDashboardScreen() {
-  const params = useLocalSearchParams<{ campaignId: string }>();
+  const params = useLocalSearchParams<{ campaignId: string; initialHouse?: string }>();
   const campaignId = Array.isArray(params.campaignId) ? params.campaignId[0] : params.campaignId;
+  const initialHouseParam = Array.isArray(params.initialHouse)
+    ? params.initialHouse[0]
+    : params.initialHouse;
+  const parsedInitialHouse = Number(initialHouseParam);
+  const initialHouse =
+    Number.isFinite(parsedInitialHouse) && parsedInitialHouse >= 1 && parsedInitialHouse <= 12
+      ? parsedInitialHouse
+      : 1;
   const router = useRouter();
   const game = useCampaignGame(campaignId || '');
   const [phase, setPhase] = useState<Phase>('choose');
@@ -214,7 +222,10 @@ export default function CampaignDashboardScreen() {
     [game.character],
   );
   const chapterState = game.state?.activeChapter ?? game.state?.saturnChapter ?? null;
-  const { dungeon } = useCampaignTheme(chapterState, display?.element ?? 'Earth');
+  const { dungeon } = useCampaignTheme(
+    chapterState ?? { currentHouse: initialHouse },
+    display?.element ?? 'Earth'
+  );
   const hp = game.state?.hp ?? game.encounter?.playerState.hp;
   const selectedChoice = game.encounter?.choices.find((choice) => choice.id === selectedId) ?? null;
   const theme = parseTheme(game.encounter?.encounter.theme ?? '');

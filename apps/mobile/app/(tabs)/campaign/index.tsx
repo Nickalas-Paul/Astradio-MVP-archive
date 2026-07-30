@@ -182,7 +182,14 @@ export default function CampaignHubScreen() {
               onPress={() =>
                 router.push({
                   pathname: '/campaign/[campaignId]' as never,
-                  params: { campaignId: campaign.campaignId },
+                  params: {
+                    campaignId: campaign.campaignId,
+                    initialHouse: String(
+                      campaign.stateJson?.activeChapter?.currentHouse ??
+                        campaign.stateJson?.saturnChapter?.currentHouse ??
+                        1
+                    ),
+                  },
                 })
               }
             >
