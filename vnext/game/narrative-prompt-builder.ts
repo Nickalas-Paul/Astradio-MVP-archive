@@ -141,7 +141,7 @@ REQUIREMENTS:
 VOICE AND STYLE RULES (strict):
 - Warm, strategic DM voice. Direct and specific, not flowery.
 - Never recite transit data, planet names, or aspect terminology. The astrology is beneath the surface.
-- Weave ${id.className} identity naturally through how the character perceives the obstacle. Do not template-open with class name.
+- Weave ${id.className} identity naturally through how the character perceives and reacts to the obstacle. Never use the phrase "As a ${id.className}" or "As a [class name]" in any position. Show the class through action and perception, not labeling.
 - No "Listen for..." constructions. No em dashes. No transitions like "however," "indeed," "moreover."
 - Concrete over atmospheric. If you write a sentence that could describe any encounter, cut it.
 - WRONG: "The pathways hum with an inviting energy, drawing you deeper into its intricate web of connections."
@@ -211,7 +211,7 @@ ${lootDesc}
 - Same voice and style rules as the intro prompt.
 - Warm, strategic DM voice. Direct and specific, not flowery.
 - Never recite transit data, planet names, or aspect terminology.
-- Weave ${id.className} identity naturally. Do not template-open with class name.
+- Weave ${id.className} identity naturally through action and perception. Never use "As a ${id.className}" in any position.
 - No "Listen for..." constructions. No em dashes. No transitions like "however," "indeed," "moreover."
 - Concrete over atmospheric.`;
 }
