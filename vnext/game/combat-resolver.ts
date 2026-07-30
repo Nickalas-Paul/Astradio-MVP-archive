@@ -155,6 +155,7 @@ export function resolveCombat(params: {
   const armorFlat = Math.max(0, equipmentBonuses.resilience ?? 0);
   const reduction = resilienceDamageReduction(resilienceEff) + armorFlat;
 
+  // Outcome multiplier applies to base damage first; Resilience reduces after.
   let rawDamage = 0;
   let healAmount = 0;
   if (outcome === 'critical_success') {
@@ -163,11 +164,11 @@ export function resolveCombat(params: {
   } else if (outcome === 'success') {
     rawDamage = 0;
   } else if (outcome === 'partial') {
-    rawDamage = Math.max(1, Math.floor((encounter.baseDamage - reduction) / 2));
+    rawDamage = Math.max(1, Math.floor(encounter.baseDamage / 2) - reduction);
   } else if (outcome === 'failure') {
     rawDamage = Math.max(1, encounter.baseDamage - reduction);
   } else {
-    rawDamage = Math.max(1, (encounter.baseDamage - reduction) * 2);
+    rawDamage = Math.max(1, encounter.baseDamage * 2 - reduction);
   }
 
   if (rawDamage > 0 && params.damageShield) {
