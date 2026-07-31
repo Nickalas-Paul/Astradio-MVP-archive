@@ -33,7 +33,7 @@ import type {
 import type { EphemerisSnapshot } from '../contracts';
 import { resolveCombat } from './combat-resolver';
 import { applyDailyRecovery, ensureCharacterHp, updateStreak } from './hp-system';
-import { buildNarrativePrompt } from './narrative-prompt-builder';
+import { buildNarrativePrompt, type EquippedItemContext } from './narrative-prompt-builder';
 import { buildFallbackOutcome } from './narrative-fallback';
 import { isGameCombatEnabled } from './feature-gate';
 import { computeEffectiveStatBlock } from './effective-stats';
@@ -371,17 +371,29 @@ export async function runCombatResolvePipeline(
   let narrationText = '';
   let source: 'gemini' | 'fallback' = 'fallback';
 
+  const equippedItemContexts = Object.values(inventoryState.equipped)
+    .filter(Boolean)
+    .map((id) => {
+      const inst = inventoryState.items.find((i) => i.instanceId === id);
+      if (!inst) return null;
+      const def = definitions.get(inst.slug);
+      if (!def) return null;
+      const bonuses = def.statModifiers
+        ? Object.entries(def.statModifiers)
+            .map(([stat, val]) => `+${val} ${stat}`)
+            .join(', ')
+        : '';
+      return {
+        name: def.name || inst.slug,
+        category: def.category || 'unknown',
+        brief: def.description || '',
+        statBonuses: bonuses,
+      };
+    })
+    .filter(Boolean) as EquippedItemContext[];
+
   if (!input.skipGemini && process.env.GOOGLE_CLOUD_PROJECT) {
     try {
-      const equippedNames = Object.values(inventoryState.equipped)
-        .filter(Boolean)
-        .map((id) => {
-          const inst = inventoryState.items.find((i) => i.instanceId === id);
-          if (!inst) return null;
-          return definitions.get(inst.slug)?.name || inst.slug;
-        })
-        .filter(Boolean) as string[];
-
       const prompt = buildNarrativePrompt({
         characterClass: input.characterProfile.classSlug,
         characterSubclass: input.characterProfile.subclassSlug,
@@ -390,7 +402,7 @@ export async function runCombatResolvePipeline(
         primaryStatUsed,
         statBlock: effectiveStats,
         hp: { ...hp, current: hpBeforeDaily },
-        equippedItems: equippedNames,
+        equippedItems: equippedItemContexts,
         encounter: input.encounter,
         chosenOption: choice,
         combatResult: combat,

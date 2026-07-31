@@ -3,6 +3,7 @@
  */
 
 import type { CharacterIdentityContext } from '../rpg/class-display';
+import { DUNGEON_INHABITANTS } from '../rpg/dungeon-inhabitants';
 import type {
   CharacterHP,
   ChoiceOption,
@@ -26,6 +27,13 @@ export interface PrimaryStatUsedContext {
   isWeakness: boolean;
 }
 
+export interface EquippedItemContext {
+  name: string;
+  category: string;
+  brief: string;
+  statBonuses: string;
+}
+
 export interface NarrativePromptInput {
   characterClass: string;
   characterSubclass: string;
@@ -33,7 +41,7 @@ export interface NarrativePromptInput {
   characterIdentity: CharacterIdentityContext;
   statBlock: StatBlock;
   hp: CharacterHP;
-  equippedItems: string[];
+  equippedItems: EquippedItemContext[];
   encounter: MechanicalEncounter;
   chosenOption: ChoiceOption;
   combatResult: CombatResolution;
@@ -92,6 +100,17 @@ function formatRecentHistory(recentHistory: string[] | undefined): string {
     : 'First encounter in this chapter.';
 }
 
+function formatEquippedSummary(equippedItems: EquippedItemContext[]): string {
+  return equippedItems.length
+    ? equippedItems
+        .map((item) => {
+          const bonus = item.statBonuses ? ` (${item.statBonuses})` : '';
+          return `${item.name} [${item.category}]${bonus}`;
+        })
+        .join(', ')
+    : 'nothing equipped';
+}
+
 export function buildEncounterIntroPrompt(
   input: Omit<NarrativePromptInput, 'chosenOption' | 'combatResult' | 'primaryStatUsed'>
 ): string {
@@ -105,12 +124,14 @@ export function buildEncounterIntroPrompt(
   const eraLine = era?.label
     ? `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
     : '';
-  const equippedSummary = input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing';
+  const equippedSummary = formatEquippedSummary(input.equippedItems);
   const formattedHistory = formatRecentHistory(input.recentHistory);
+  const inhabitants = DUNGEON_INHABITANTS[chapter.house] || '';
 
   return `You are the Dungeon Master for an astrology-based RPG called Astradio.
 
 SETTING: ${chapter.label} (the domain of ${chapter.domain})
+${inhabitants ? `INHABITANTS: ${inhabitants}` : ''}
 ${eraLine}
 
 CHARACTER:
@@ -137,6 +158,8 @@ REQUIREMENTS:
 - If the obstacle is a creature or rival, describe what it looks like and how it moves. If it is a puzzle, describe its mechanism. If it is a trap, describe the trigger. If it is a hazard, describe the environmental threat.
 - Ground the encounter in ${chapter.label}. The setting is not generic fantasy; it is this specific dungeon.
 - End on the moment of decision. The player is about to choose how to respond.
+- Include at least one other presence from the INHABITANTS context. The dungeon is not empty. The player shares this space with others, even if those others are peripheral. One sentence of ambient population is enough.
+- If the player has equipped gear, reference it naturally. Armor should be visible. A weapon should be in hand or at the ready. Gear is part of how the character exists in the scene, not invisible stats.
 
 VOICE AND STYLE RULES (strict):
 - Warm, strategic DM voice. Direct and specific, not flowery.
@@ -144,6 +167,7 @@ VOICE AND STYLE RULES (strict):
 - Weave ${id.className} identity naturally through how the character perceives and reacts to the obstacle. Never use the phrase "As a ${id.className}" or "As a [class name]" in any position. Show the class through action and perception, not labeling.
 - No "Listen for..." constructions. No em dashes. No transitions like "however," "indeed," "moreover."
 - Concrete over atmospheric. If you write a sentence that could describe any encounter, cut it.
+- Never reproduce item descriptions verbatim from the Equipped line. "Network Mail [armor]" tells you the item exists; describe what it looks like on the character in your own words.
 - WRONG: "The pathways hum with an inviting energy, drawing you deeper into its intricate web of connections."
 - RIGHT: "The Disconnection Phantom drifts through the junction ahead of you, trailing severed light-threads behind it like a net. Two of your allied signal paths have already gone dark."
 
@@ -161,7 +185,7 @@ export function buildNarrativePrompt(input: NarrativePromptInput): string {
   const eraLine = era?.label
     ? `CAMPAIGN ERA: A longer passage through ${era.label} adds underlying ${era.domain} themes beneath today's encounter.`
     : '';
-  const equippedSummary = input.equippedItems.length ? input.equippedItems.join(', ') : 'nothing';
+  const equippedSummary = formatEquippedSummary(input.equippedItems);
   const lootName =
     c.lootResult.dropped && c.lootResult.item ? c.lootResult.item.name : 'none';
   const choiceStat = input.primaryStatUsed?.name || 'unknown';
@@ -170,12 +194,14 @@ export function buildNarrativePrompt(input: NarrativePromptInput): string {
   const lostLine = c.itemLost ? `Lost item: ${c.itemLost.name}` : '';
   const lootDesc =
     c.lootResult.dropped && c.lootResult.item
-      ? `If an item was found, describe discovering ${c.lootResult.item.name}: "${c.lootResult.item.description}"`
+      ? `The player found ${c.lootResult.item.name} (${c.lootResult.item.category || 'item'}). Describe them noticing and picking it up naturally within the scene. Do not quote or echo the system description. Invent what the item looks like based on its name and the dungeon context.`
       : '';
+  const inhabitants = DUNGEON_INHABITANTS[chapter.house] || '';
 
   return `You are the Dungeon Master for an astrology-based RPG called Astradio.
 
 SETTING: ${chapter.label} (the domain of ${chapter.domain})
+${inhabitants ? `INHABITANTS: ${inhabitants}` : ''}
 ${eraLine}
 
 CHARACTER:
@@ -208,6 +234,9 @@ REQUIREMENTS:
 - CRITICAL_FAILURE: The obstacle won decisively. The player took real damage or lost something.
 - If an item was found, describe the player discovering it naturally. Do not use the word "loot."
 ${lootDesc}
+- If the player took damage, describe how their equipped gear responded. Armor absorbs, redirects, or fails to protect. A shield cracks. Unarmored means exposed.
+- If the player succeeded, describe how their equipped gear contributed to the approach. A weapon strikes, armor holds, an accessory provides an edge.
+- If no gear is equipped, the player fights with bare capability. That vulnerability should be felt.
 - Same voice and style rules as the intro prompt.
 - Warm, strategic DM voice. Direct and specific, not flowery.
 - Never recite transit data, planet names, or aspect terminology.

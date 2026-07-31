@@ -430,7 +430,11 @@ function testNarrativeFallback(): void {
     recentHistory: [],
   });
   assert(prompt.includes('Dungeon Master') && prompt.includes('THE CHOICE'), 'outcome prompt structured');
-  assert(prompt.includes('Mirrorblade') && prompt.includes('STAT CONTEXT'), 'outcome prompt has identity + stat context');
+  assert(
+    prompt.includes('Mirrorblade') && prompt.includes('CHARACTER:') && prompt.includes('INHABITANTS:'),
+    'outcome prompt has identity + inhabitants'
+  );
+  assert(prompt.includes('nothing equipped'), 'outcome prompt formats empty gear');
 
   const introPrompt = buildEncounterIntroPrompt({
     characterClass: 'class_libra',
@@ -439,14 +443,33 @@ function testNarrativeFallback(): void {
     characterIdentity: identity,
     statBlock: makeStats({}),
     hp: createFullHp(makeStats({})),
-    equippedItems: [],
+    equippedItems: [
+      {
+        name: 'Network Mail',
+        category: 'armor',
+        brief: 'Stub armor for house 11.',
+        statBonuses: '+1 charm',
+      },
+    ],
     encounter,
     activeChapter: { house: 7, domain: 'relationships', label: 'The Relational Dungeon' },
     campaignChapter: 1,
     recentHistory: [],
   });
   assert(introPrompt.includes('TODAY\'S ENCOUNTER'), 'intro prompt structured');
-  assert(introPrompt.includes('Mirrorblade') && introPrompt.includes('Weave the character'), 'intro prompt personalizes identity');
+  assert(
+    introPrompt.includes('Mirrorblade') && introPrompt.includes('Weave Mirrorblade identity'),
+    'intro prompt personalizes identity'
+  );
+  assert(introPrompt.includes('INHABITANTS:'), 'intro prompt includes inhabitants');
+  assert(
+    introPrompt.includes('Network Mail [armor] (+1 charm)'),
+    'intro prompt formats equipped gear with category and bonuses'
+  );
+  assert(
+    !introPrompt.includes('Stub armor for house 11'),
+    'intro equipped line does not dump system description'
+  );
 }
 
 function testEncounterBuilder(): void {

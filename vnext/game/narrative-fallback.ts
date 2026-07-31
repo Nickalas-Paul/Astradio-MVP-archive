@@ -6,7 +6,7 @@
 
 import type { CharacterIdentityContext } from '../rpg/class-display';
 import type { ChoiceOption, CombatResolution, MechanicalEncounter, ObstacleEntry } from '../rpg/types';
-import type { PrimaryStatUsedContext } from './narrative-prompt-builder';
+import type { EquippedItemContext, PrimaryStatUsedContext } from './narrative-prompt-builder';
 
 function resolveObstacle(encounter: MechanicalEncounter): ObstacleEntry {
   const o = encounter.scene?.obstacle;
@@ -23,7 +23,8 @@ function resolveObstacle(encounter: MechanicalEncounter): ObstacleEntry {
 export function buildFallbackIntro(
   encounter: MechanicalEncounter,
   activeChapter: { thematicLabel?: string; domain?: string; label?: string },
-  identity?: CharacterIdentityContext | null
+  identity?: CharacterIdentityContext | null,
+  equippedItems: EquippedItemContext[] = []
 ): string {
   const dungeonLabel = activeChapter.thematicLabel || activeChapter.label || 'The road ahead';
   const obstacle = resolveObstacle(encounter);
@@ -39,8 +40,18 @@ export function buildFallbackIntro(
   const closer = className
     ? `The ${className} in you already senses what this will ask.`
     : 'The stakes are visible, and the ground is not quite steady.';
+  const first = equippedItems[0];
+  const gearNote = first
+    ? ` Your ${first.name} ${
+        first.category === 'armor'
+          ? 'sits heavy on your shoulders'
+          : first.category === 'weapon'
+            ? 'is ready at your side'
+            : 'pulses faintly'
+      }.`
+    : '';
 
-  return [opener, closer]
+  return [opener + gearNote, closer]
     .filter(Boolean)
     .join(' ')
     .replace(/\s+/g, ' ')
@@ -93,10 +104,11 @@ export function buildFallbackOutcome(
     ? `You chose to ${choice.label.charAt(0).toLowerCase()}${choice.label.slice(1)}.`
     : 'You committed to a response.';
   const identityBit = identityOutcomeLine(combat, identity, primaryStatUsed);
-  const lootBit =
-    combat.lootResult?.dropped && combat.lootResult.item
-      ? `In the aftermath you found ${combat.lootResult.item.name}. It goes in your gear.`
-      : '';
+  const lootName =
+    combat.lootResult?.dropped && combat.lootResult.item ? combat.lootResult.item.name : '';
+  const lootBit = lootName
+    ? `Something catches your eye in the aftermath — ${lootName}, left behind by the encounter.`
+    : '';
   const woundBit = combat.woundedTriggered
     ? 'You have fallen and are now wounded. Recovery will take a few days, and the campaign waits for you.'
     : '';

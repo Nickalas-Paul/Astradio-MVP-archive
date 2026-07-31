@@ -580,6 +580,21 @@ export async function materializeCampaignDaily(params: {
       character.statBlock
     );
 
+    const equippedItemContexts = equippedItems.map((e) => {
+      const def = definitions.get(e.slug);
+      const bonuses = def?.statModifiers
+        ? Object.entries(def.statModifiers)
+            .map(([stat, val]) => `+${val} ${stat}`)
+            .join(', ')
+        : '';
+      return {
+        name: def?.name || e.slug,
+        category: def?.category || e.category || 'unknown',
+        brief: def?.description || '',
+        statBonuses: bonuses,
+      };
+    });
+
     let introText = buildFallbackIntro(
       mechanical,
       {
@@ -587,7 +602,8 @@ export async function materializeCampaignDaily(params: {
         domain: chapterInfo.domain,
         label: chapterInfo.thematicLabel,
       },
-      identity
+      identity,
+      equippedItemContexts
     );
     let introSource: 'gemini' | 'fallback' = 'fallback';
 
@@ -613,7 +629,7 @@ export async function materializeCampaignDaily(params: {
           characterIdentity: identity,
           statBlock: effectiveStats,
           hp,
-          equippedItems: equippedItems.map((e) => e.name),
+          equippedItems: equippedItemContexts,
           encounter: mechanical,
           // Mars-derived house from mechanical encounter (saturnHouse field is Mars-valued)
           activeChapter: {
