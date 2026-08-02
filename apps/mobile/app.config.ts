@@ -4,7 +4,7 @@ const config = {
   name: 'Astradio',
   slug: 'astradio',
   scheme: 'astradio',
-  version: '1.2.1',
+  version: '1.3.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
