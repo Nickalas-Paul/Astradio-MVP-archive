@@ -34,6 +34,7 @@ import {
   type EncounterChoice,
 } from '../../../src/lib/game-api';
 import { getDungeonTheme, type DungeonTheme } from '../../../src/lib/game/dungeon-themes';
+import { rarityColor } from '../../../src/lib/rarity-colors';
 
 type Phase = 'choose' | 'roll' | 'outcome';
 
@@ -502,13 +503,44 @@ export default function CampaignDashboardScreen() {
                   <Text style={styles.heal}>+{combat.healAmount}</Text>
                 </View>
               ) : null}
-              {combat.loot.dropped && combat.loot.item ? (
-                <View style={styles.lootCard}>
-                  <Text style={styles.micro}>LOOT FOUND</Text>
-                  <Text style={styles.lootName}>{combat.loot.item.name}</Text>
-                  <Text style={styles.choiceDescription}>{combat.loot.item.description}</Text>
-                </View>
-              ) : null}
+              {combat.loot.dropped && combat.loot.item
+                ? (() => {
+                    const loot = combat.loot.item!;
+                    const rc = rarityColor(loot.rarity);
+                    const bonusChips = Object.entries(loot.statModifiers || {});
+                    return (
+                      <View
+                        style={[
+                          styles.lootCard,
+                          { borderColor: rc.border, backgroundColor: rc.bg },
+                        ]}
+                      >
+                        <Text style={styles.micro}>LOOT FOUND</Text>
+                        <Text style={styles.lootName}>{loot.name}</Text>
+                        <Text style={styles.meta}>
+                          <Text style={{ color: rc.label }}>{loot.rarity}</Text>
+                          {' · '}
+                          {loot.category}
+                        </Text>
+                        {bonusChips.length > 0 ? (
+                          <View style={styles.lootChips}>
+                            {bonusChips.map(([stat, val]) => (
+                              <View
+                                key={stat}
+                                style={[styles.lootChip, { borderColor: rc.border }]}
+                              >
+                                <Text style={styles.lootChipText}>
+                                  +{val} {stat}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        <Text style={styles.lootAdded}>Added to inventory</Text>
+                      </View>
+                    );
+                  })()
+                : null}
               {(combat.milestones ?? []).map((milestone) => (
                 <View key={`${milestone.type}-${milestone.detail}`} style={styles.milestone}>
                   <Ionicons name="sparkles" size={18} color="#D4AF37" />
@@ -708,8 +740,18 @@ const styles = StyleSheet.create({
   damage: { fontFamily: 'Manrope-Bold', fontSize: 28, color: '#EF4444' },
   healCard: { alignItems: 'center', gap: 4, borderRadius: 14, padding: 16, backgroundColor: 'rgba(16,185,129,0.07)', borderWidth: 1, borderColor: '#10B981' },
   heal: { fontFamily: 'Manrope-Bold', fontSize: 28, color: '#10B981' },
-  lootCard: { gap: 5, borderRadius: 14, padding: 16, backgroundColor: 'rgba(139,92,246,0.08)', borderWidth: 1, borderColor: '#8B5CF6' },
+  lootCard: { gap: 6, borderRadius: 14, padding: 16, backgroundColor: 'rgba(139,92,246,0.08)', borderWidth: 1, borderColor: '#8B5CF6' },
   lootName: { fontFamily: 'Cormorant-Bold', fontSize: 21, color: '#F8FAFC' },
+  lootChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  lootChip: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  lootChipText: { fontFamily: 'Manrope-SemiBold', fontSize: 9, color: '#10B981' },
+  lootAdded: { fontFamily: 'Manrope-SemiBold', fontSize: 11, color: '#94A3B8', marginTop: 2 },
   milestone: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, padding: 13, backgroundColor: 'rgba(212,175,55,0.08)', borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)' },
   milestoneText: { flex: 1, fontFamily: 'Manrope-Regular', fontSize: 12, color: '#E2E8F0' },
   hpWrap: { gap: 7 },

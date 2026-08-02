@@ -13,6 +13,7 @@ import { colors } from '../../constants/colors';
 import { getClassDisplay } from '../../lib/class-display';
 import { getElementTheme } from '../../lib/game/element-themes';
 import type { DungeonTheme } from '../../lib/game/dungeon-themes';
+import { rarityColor } from '../../lib/rarity-colors';
 import {
   discardItem,
   equipItem,
@@ -51,11 +52,8 @@ const STAT_KEYS: (keyof StatBlock)[] = [
   'willpower',
 ];
 
-function rarityColor(rarity = '') {
-  if (rarity.toLowerCase() === 'legendary') return '#8B5CF6';
-  if (rarity.toLowerCase() === 'rare') return '#3B82F6';
-  if (rarity.toLowerCase() === 'uncommon') return '#10B981';
-  return '#6B7280';
+function slotLabel(slot: string): string {
+  return slot.replace(/_/g, ' ');
 }
 
 function CharacterTab({
@@ -190,16 +188,18 @@ function CharacterTab({
           style={[
             styles.relicCard,
             {
-              borderColor: `${rarityColor(relic.rarity)}33`,
-              backgroundColor: `${rarityColor(relic.rarity)}14`,
+              borderColor: rarityColor(relic.rarity).glow,
+              backgroundColor: rarityColor(relic.rarity).bg,
             },
           ]}
         >
-          <View style={[styles.relicIcon, { borderColor: rarityColor(relic.rarity) }]}>
-            <Text style={{ color: rarityColor(relic.rarity) }}>☿</Text>
+          <View style={[styles.relicIcon, { borderColor: rarityColor(relic.rarity).border }]}>
+            <Text style={{ color: rarityColor(relic.rarity).label }}>☿</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.effectName, { color: rarityColor(relic.rarity) }]}>{relic.name}</Text>
+            <Text style={[styles.effectName, { color: rarityColor(relic.rarity).label }]}>
+              {relic.name}
+            </Text>
             <Text style={styles.meta}>
               {relic.rarity}
               {Object.entries(relic.statModifiers || {})
@@ -241,10 +241,16 @@ function InventoryTab({
   onChange: (inventory: InventoryResponse) => void;
   onStateRefresh: () => Promise<void>;
 }) {
-  const [selected, setSelected] = useState<InventoryItem | null>(null);
+  const [selectedBagItem, setSelectedBagItem] = useState<InventoryItem | null>(null);
+  const [selectedEquipSlot, setSelectedEquipSlot] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const slots = ['weapon', 'armor', 'consumable_1', 'accessory', 'consumable_2', 'relic'];
+
+  const clearSelection = useCallback(() => {
+    setSelectedBagItem(null);
+    setSelectedEquipSlot(null);
+  }, []);
 
   const mutate = useCallback(async (operation: () => Promise<InventoryResponse>) => {
     setBusy(true);
@@ -252,15 +258,20 @@ function InventoryTab({
     try {
       const next = await operation();
       onChange(next);
-      setSelected(null);
+      clearSelection();
     } catch (err) {
       setError(gameErrorMessage(err, 'Inventory action failed.'));
     } finally {
       setBusy(false);
     }
-  }, [onChange]);
+  }, [clearSelection, onChange]);
 
   if (!inventory) return <ActivityIndicator color={colors.accent.DEFAULT} style={styles.loader} />;
+
+  const equippedDetail = selectedEquipSlot
+    ? inventory.equipped?.[selectedEquipSlot] ?? null
+    : null;
+  const bagRc = selectedBagItem ? rarityColor(selectedBagItem.rarity) : null;
 
   return (
     <View style={styles.sectionStack}>
@@ -271,85 +282,226 @@ function InventoryTab({
           const unlocked =
             inventory.slotsUnlocked.includes(slot) ||
             (slot === 'consumable_1' && inventory.slotsUnlocked.includes('consumable'));
+          const rc = item ? rarityColor(item.rarity) : null;
+          const selected = selectedEquipSlot === slot;
+          const slotStyle = item && rc
+            ? {
+                borderColor: rc.border,
+                backgroundColor: rc.bg,
+                borderWidth: 1.5,
+                shadowColor: rc.border,
+                shadowRadius: 6,
+                shadowOpacity: 0.4,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 3,
+                opacity: 1,
+              }
+            : unlocked
+              ? {
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  borderWidth: 1,
+                  borderStyle: 'dashed' as const,
+                  opacity: 1,
+                }
+              : {
+                  borderColor: 'rgba(255,255,255,0.05)',
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  borderWidth: 1,
+                  opacity: 0.35,
+                };
+
           return (
             <Pressable
               key={slot}
-              disabled={!item || busy}
-              onPress={() => void mutate(() => unequipItem(campaignId, slot))}
+              disabled={!unlocked || busy}
+              onPress={() => {
+                setSelectedEquipSlot(slot);
+                setSelectedBagItem(null);
+              }}
               style={[
                 styles.slot,
-                {
-                  borderColor: item
-                    ? rarityColor(item.rarity)
-                    : unlocked
-                      ? 'rgba(255,255,255,0.1)'
-                      : 'rgba(255,255,255,0.05)',
-                  opacity: unlocked ? 1 : 0.45,
-                },
+                slotStyle,
+                selected ? { borderColor: rc?.border ?? colors.accent.DEFAULT } : null,
               ]}
             >
               <Ionicons
-                name={unlocked ? 'diamond-outline' : 'lock-closed-outline'}
+                name={
+                  !unlocked
+                    ? 'lock-closed-outline'
+                    : item
+                      ? 'diamond-outline'
+                      : 'add-circle-outline'
+                }
                 size={18}
-                color={item ? rarityColor(item.rarity) : '#64748B'}
+                color={item && rc ? rc.label : '#64748B'}
               />
               <Text numberOfLines={2} style={styles.slotText}>
-                {item?.name ?? (unlocked ? slot.replace('_', ' ') : 'Locked')}
+                {item?.name ?? (unlocked ? slotLabel(slot) : 'Locked')}
               </Text>
             </Pressable>
           );
         })}
       </View>
 
+      {selectedEquipSlot ? (
+        equippedDetail ? (
+          <View
+            style={[
+              styles.detailCard,
+              {
+                borderColor: rarityColor(equippedDetail.rarity).border,
+                backgroundColor: rarityColor(equippedDetail.rarity).bg,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.identityName,
+                { color: rarityColor(equippedDetail.rarity).label },
+              ]}
+            >
+              {equippedDetail.name}
+            </Text>
+            <Text style={styles.meta}>
+              <Text style={{ color: rarityColor(equippedDetail.rarity).label }}>
+                {equippedDetail.rarity}
+              </Text>
+              {' · '}
+              {equippedDetail.category}
+            </Text>
+            {equippedDetail.description ? (
+              <Text style={styles.secondary}>{equippedDetail.description}</Text>
+            ) : null}
+            <View style={styles.chips}>
+              {Object.entries(equippedDetail.statModifiers || {}).map(([key, value]) => (
+                <View
+                  key={key}
+                  style={[
+                    styles.chipWrap,
+                    { borderColor: rarityColor(equippedDetail.rarity).border },
+                  ]}
+                >
+                  <Text style={styles.chip}>+{value} {key}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.actionRow}>
+              <Pressable
+                disabled={busy}
+                style={[styles.smallButton, styles.unequipButton]}
+                onPress={() => {
+                  void mutate(() => unequipItem(campaignId, selectedEquipSlot));
+                }}
+              >
+                <Text style={styles.smallButtonText}>Unequip</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.smallButton, styles.closeActionButton]}
+                onPress={() => setSelectedEquipSlot(null)}
+              >
+                <Text style={styles.closeActionText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.detailCard}>
+            <Text style={styles.identityName}>{slotLabel(selectedEquipSlot)} slot</Text>
+            <Text style={styles.secondary}>
+              Nothing equipped. Check your bag for items to equip.
+            </Text>
+            <View style={styles.actionRow}>
+              <Pressable
+                style={[styles.smallButton, styles.closeActionButton]}
+                onPress={() => setSelectedEquipSlot(null)}
+              >
+                <Text style={styles.closeActionText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        )
+      ) : null}
+
       <View style={styles.bagHeader}>
         <Text style={styles.sectionTitle}>BAG</Text>
         <Text style={styles.meta}>{inventory.bagUsed} / {inventory.maxBagSize}</Text>
       </View>
       <View style={styles.bagGrid}>
-        {inventory.bag.map((item) => (
-          <Pressable
-            key={item.instanceId}
-            onPress={() => setSelected(item)}
-            style={[styles.bagItem, { borderColor: rarityColor(item.rarity) }]}
-          >
-            <Ionicons name="cube-outline" size={20} color={rarityColor(item.rarity)} />
-            <Text numberOfLines={2} style={styles.bagItemName}>{item.name}</Text>
-          </Pressable>
-        ))}
+        {inventory.bag.map((item) => {
+          const rc = rarityColor(item.rarity);
+          const isSelected = selectedBagItem?.instanceId === item.instanceId;
+          return (
+            <Pressable
+              key={item.instanceId}
+              onPress={() => {
+                setSelectedBagItem(item);
+                setSelectedEquipSlot(null);
+              }}
+              style={[
+                styles.bagItem,
+                {
+                  borderWidth: isSelected ? 1.5 : 0,
+                  borderColor: isSelected ? rc.border : 'transparent',
+                  borderLeftWidth: 3,
+                  borderLeftColor: rc.border,
+                  backgroundColor: rc.bg,
+                },
+              ]}
+            >
+              <Ionicons name="cube-outline" size={18} color={rc.label} />
+              <Text numberOfLines={2} style={styles.bagItemName}>{item.name}</Text>
+              <Text style={[styles.rarityDot, { color: rc.label }]}>{item.rarity}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {selected ? (
-        <View style={[styles.detailCard, { borderColor: rarityColor(selected.rarity) }]}>
-          <Text style={[styles.identityName, { color: rarityColor(selected.rarity) }]}>
-            {selected.name}
+      {selectedBagItem && bagRc ? (
+        <View
+          style={[
+            styles.detailCard,
+            {
+              borderColor: bagRc.border,
+              backgroundColor: bagRc.bg,
+            },
+          ]}
+        >
+          <Text style={[styles.identityName, { color: bagRc.label }]}>
+            {selectedBagItem.name}
           </Text>
-          <Text style={styles.meta}>{selected.rarity} · {selected.category}</Text>
-          <Text style={styles.secondary}>{selected.description}</Text>
+          <Text style={styles.meta}>
+            <Text style={{ color: bagRc.label }}>{selectedBagItem.rarity}</Text>
+            {' · '}
+            {selectedBagItem.category}
+          </Text>
+          <Text style={styles.secondary}>{selectedBagItem.description}</Text>
           <View style={styles.chips}>
-            {Object.entries(selected.statModifiers || {}).map(([key, value]) => (
-              <Text key={key} style={styles.chip}>+{value} {key}</Text>
+            {Object.entries(selectedBagItem.statModifiers || {}).map(([key, value]) => (
+              <View key={key} style={[styles.chipWrap, { borderColor: bagRc.border }]}>
+                <Text style={styles.chip}>+{value} {key}</Text>
+              </View>
             ))}
           </View>
           <View style={styles.actionRow}>
-            {!selected.equipped ? (
+            {!selectedBagItem.equipped ? (
               <Pressable
                 disabled={busy}
                 style={styles.smallButton}
-                onPress={() => void mutate(() => equipItem(campaignId, selected.instanceId))}
+                onPress={() => void mutate(() => equipItem(campaignId, selectedBagItem.instanceId))}
               >
                 <Text style={styles.smallButtonText}>Equip</Text>
               </Pressable>
             ) : null}
-            {selected.category === 'consumable' && selected.equipped ? (
+            {selectedBagItem.category === 'consumable' && selectedBagItem.equipped ? (
               <Pressable
                 disabled={busy}
                 style={styles.smallButton}
                 onPress={async () => {
                   setBusy(true);
                   try {
-                    await useConsumable(campaignId, selected.instanceId);
+                    await useConsumable(campaignId, selectedBagItem.instanceId);
                     await onStateRefresh();
-                    setSelected(null);
+                    clearSelection();
                   } catch (err) {
                     setError(gameErrorMessage(err, 'Could not use item.'));
                   } finally {
@@ -360,16 +512,16 @@ function InventoryTab({
                 <Text style={styles.smallButtonText}>Use</Text>
               </Pressable>
             ) : null}
-            {!selected.equipped ? (
+            {!selectedBagItem.equipped ? (
               <Pressable
                 disabled={busy}
                 style={[styles.smallButton, styles.dangerButton]}
                 onPress={async () => {
                   setBusy(true);
                   try {
-                    await discardItem(campaignId, selected.instanceId);
+                    await discardItem(campaignId, selectedBagItem.instanceId);
                     await onStateRefresh();
-                    setSelected(null);
+                    clearSelection();
                   } catch (err) {
                     setError(gameErrorMessage(err, 'Could not discard item.'));
                   } finally {
@@ -406,7 +558,7 @@ function LootTab({ campaignId }: { campaignId: string }) {
             <Text style={styles.identityName}>{item.name}</Text>
             <Text style={styles.meta}>{item.category}</Text>
           </View>
-          <Text style={[styles.rarity, { color: rarityColor(item.rarity) }]}>{item.rarity}</Text>
+          <Text style={[styles.rarity, { color: rarityColor(item.rarity).label }]}>{item.rarity}</Text>
         </View>
       ))}
       {table.relicReward ? (
@@ -560,14 +712,38 @@ const styles = StyleSheet.create({
   slotText: { fontFamily: 'Manrope-Regular', fontSize: 9, textAlign: 'center', textTransform: 'capitalize', color: '#94A3B8' },
   bagHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  bagItem: { width: '23%', aspectRatio: 1, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 5, gap: 4, backgroundColor: 'rgba(255,255,255,0.03)' },
+  bagItem: {
+    width: '23%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 5,
+    gap: 3,
+    overflow: 'hidden',
+  },
   bagItemName: { fontFamily: 'Manrope-Regular', fontSize: 8, lineHeight: 10, textAlign: 'center', color: '#CBD5E1' },
+  rarityDot: { fontFamily: 'Manrope-Bold', fontSize: 7, textTransform: 'uppercase', textAlign: 'center' },
   detailCard: { borderRadius: 14, borderWidth: 1, padding: 14, backgroundColor: 'rgba(255,255,255,0.04)', gap: 7 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  chip: { fontFamily: 'Manrope-SemiBold', fontSize: 9, color: '#10B981', backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  chipWrap: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  chip: { fontFamily: 'Manrope-SemiBold', fontSize: 9, color: '#10B981' },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
   smallButton: { minHeight: 38, paddingHorizontal: 15, borderRadius: 9, backgroundColor: colors.accent.DEFAULT, alignItems: 'center', justifyContent: 'center' },
   smallButtonText: { fontFamily: 'Manrope-SemiBold', fontSize: 12, color: '#fff' },
+  unequipButton: { backgroundColor: 'rgba(239,68,68,0.85)' },
+  closeActionButton: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  closeActionText: { fontFamily: 'Manrope-SemiBold', fontSize: 12, color: '#CBD5E1' },
   dangerButton: { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
   dangerText: { fontFamily: 'Manrope-SemiBold', fontSize: 12, color: '#F87171' },
   error: { fontFamily: 'Manrope-Regular', fontSize: 12, color: '#F87171', textAlign: 'center', marginVertical: 16 },
