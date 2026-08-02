@@ -65,6 +65,7 @@ function summarizeEquipped(
     instanceId,
     slug: inst.slug,
     name: def?.name || inst.slug,
+    description: def?.description || '',
     category: def?.category || 'unknown',
     rarity: def?.rarity || 'common',
     statModifiers: def?.statModifiers || {},

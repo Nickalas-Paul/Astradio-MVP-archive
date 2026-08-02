@@ -500,6 +500,7 @@ export interface EquippedItemSummaryDTO {
   instanceId: string;
   slug: string;
   name: string;
+  description: string;
   category: string;
   rarity: string;
   statModifiers: Partial<Record<StatKey, number>>;

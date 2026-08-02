@@ -112,6 +112,7 @@ export type EquippedItem = {
   instanceId: string;
   slug: string;
   name: string;
+  description: string;
   category: string;
   rarity: string;
   statModifiers: Record<string, number>;
