@@ -1,119 +1,37 @@
-# Astradio VNEXT
+# Astradio — Astrological Music Generation Platform
 
-Production-ready astrological music generation platform with integrated soak testing and CI/CD.
+Full-stack generative AI application that translates astronomical ephemeris data into real-time audio compositions, deployed across web and Android (Google Play Store).
 
-## Migration Summary
+## What This Is
 
-This repository was created as part of a controlled migration from `Astradio_MVP` to establish a clean, production-ready codebase with validated soak testing infrastructure.
+A production application that takes planetary position data from the Swiss Ephemeris, maps it to musical parameters (key, tempo, timbre, harmonic relationships), and generates audio in real time. Users input birth data or select celestial events, and the system produces unique compositions grounded in actual astronomical calculations — not randomized generative output. The platform includes user accounts, content moderation, community features, and was operated as a registered LLC.
 
-### What Was Reused
+## Architecture
 
-✅ **Core Soak Infrastructure**:
-- `scripts/soak-runner.js` - Production-ready soak runner with comprehensive validation
-- `scripts/soak-summary.js` - Advanced reporting with ASCII trends and threshold analysis  
-- `artifacts/soak/golden-charts.json` - 20 deterministic test cases covering global locations
-- `.github/workflows/soak-24h.yml` - Mature GitHub Actions workflow with proper concurrency control
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js (web), React Native / Expo (Android) |
+| API Server | Express.js on Node.js |
+| Audio Engine | Custom synthesis pipeline — astronomical data → musical parameter mapping → real-time audio generation |
+| Visualization | WebGL for celestial body rendering and interactive star charts |
+| Database | PostgreSQL |
+| AWS AI Services | Rekognition (profile photo content moderation), Textract, Comprehend |
+| Infrastructure | Render (API + Postgres), Vercel (web frontend), Google Play Store (Android) |
 
-✅ **Supporting Infrastructure**:
-- Health check endpoints (`/health`, `/readyz`)
-- Evidence collection (JSONL + HAR files)
-- Threshold validation (Error rate ≤1%, Fallback rate ≤2%, Compose P95 ≤1800ms, Audio P95 ≤2500ms)
-- Determinism testing with back-to-back requests
-- Rate limiting (≤1 RPS) for staging-friendly operation
+## Key Engineering Decisions
 
-✅ **CI/CD Integration**:
-- `.github/workflows/compose-e2e.yml` - E2E testing workflow
-- `.github/workflows/endpoint-validation.yml` - Comprehensive endpoint matrix validation
-- Artifact retention (30 days)
-- Automatic issue creation on failures
+- **Deterministic output from astronomical input.** Compositions are derived from actual planetary positions, not stochastic generation. The same input data always produces the same musical output — a deliberate design constraint that required structured state management throughout the pipeline.
+- **Spec pinning.** The system enforces a UnifiedSpecV1.1 contract between the API and audio engine. Requests that don't match the spec are rejected (fail-closed), preventing silent drift between components.
+- **Evidence-first testing.** 24-hour soak testing with JSONL logs and HAR capture on failures. Thresholds: error rate ≤1%, fallback rate ≤2%, compose P95 ≤1800ms, audio P95 ≤2500ms.
+- **Content moderation in production.** AWS Rekognition integrated for user-uploaded profile photos — a real-world implementation of AWS AI services within a production content pipeline.
 
-### What Was Eliminated
+## CI/CD & Quality
 
-❌ **Redundant Components**:
-- Duplicate `astradio-soak/` directory with redundant documentation
-- Standalone soak package that wasn't needed
-- Redundant PowerShell scripts not used in main workflow
+- GitHub Actions workflows for E2E testing, endpoint validation, and 24-hour soak runs
+- Determinism testing via back-to-back requests verifying identical output
+- Rate-limited soak runner (≤1 RPS) for staging-friendly operation
+- 30-day artifact retention with automatic issue creation on threshold failures
 
-### Architecture
+## Project Status
 
-- **Single Engine**: Next.js → Express → vNext (one observable compose path)
-- **Spec Pinning**: UnifiedSpecV1.1 required, fail-closed on mismatch
-- **Evidence-First**: JSONL logs + HAR capture on failures
-- **No New Features**: Only validation, no product changes
-
-### CI + Soak Relationship
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   CI Pipeline   │───▶│  Soak Testing    │───▶│  Beta Handoff   │
-│                 │    │                  │    │                 │
-│ • Build         │    │ • 24h validation │    │ • Evidence      │
-│ • Test          │    │ • Determinism    │    │ • Metrics       │
-│ • Deploy        │    │ • Thresholds     │    │ • Reports       │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
-### Atomic Commit Policy
-
-Commits are organized by directory scope:
-- `engine/` - Core engine changes
-- `viz/` - Visualization components  
-- `text/` - Text generation components
-- `soak/` - Soak testing infrastructure
-- `ci/` - CI/CD pipeline changes
-
-### Usage
-
-#### Local Development
-```bash
-npm install
-npm run dev:all
-```
-
-This starts both services:
-- **Engine** → `http://localhost:4000` (API server)
-- **Frontend** → `http://localhost:3000` (Next.js)
-
-To run services separately:
-```bash
-npm run engine:dev  # Engine only (port 4000)
-npm run web:dev      # Frontend only (port 3000)
-```
-
-#### Soak Testing
-```bash
-# Set environment variables
-export STAGING_BASE_URL=https://staging.astradio.io
-export STAGING_AUTH_HEADER="Bearer your-token"
-
-# Run soak test
-node scripts/soak-runner.js
-
-# Generate summary
-node scripts/soak-summary.js
-```
-
-#### CI Pipeline
-The CI pipeline runs automatically on:
-- Push to main/develop branches
-- Pull requests
-- Manual workflow dispatch
-
-## Migration Rationale
-
-The migration was performed to:
-1. **Eliminate Redundancy**: Remove duplicate soak infrastructure and documentation
-2. **Clean Architecture**: Establish single source of truth for soak testing
-3. **Production Ready**: Create clean baseline for production deployment
-4. **Maintain History**: Preserve all soak data and evidence in archived repository
-
-## Repository Status
-
-- **Source**: Migrated from `Astradio_MVP` (now archived as `Astradio-MVP-archive`)
-- **Soak Status**: Current 24-hour soak continues uninterrupted
-- **CI Status**: All workflows validated and operational
-- **Evidence**: All historical soak data preserved in archive
-
----
-
-*For questions or issues, check the GitHub Actions workflow logs and artifacts, or review the evidence files for detailed diagnostics.*
+Production application operated from October 2024 through mid-2026. Web and Android clients shipped. Infrastructure decommissioned (Render, Vercel, Play Store listing) — codebase preserved as a portfolio reference and engineering case study. This repository represents the clean production codebase migrated from the original MVP.
